@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -20,6 +21,7 @@ class User extends Authenticatable implements Auditable
     use \OwenIt\Auditing\Auditable;
 
 	use Notifiable;
+	use HasApiTokens;
 	use HasRoles {
 		hasRole as private spatieHasRole;
 		hasPermissionTo as private spatieHasPermissionTo;

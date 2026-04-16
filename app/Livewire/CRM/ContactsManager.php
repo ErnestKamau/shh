@@ -58,16 +58,34 @@ class ContactsManager extends Component
     public $message = '';
     public $messageType = '';
 
-    protected $rules = [
-        'contactForm.title_id' => 'required|exists:module_pre_configs,id',
-        'contactForm.first_name' => 'required|string|max:255',
-        'contactForm.email' => 'required|email|max:255',
-        'contactForm.telephone' => 'required|string|max:50',
-        'contactForm.unit_name' => 'required|array|min:1',
-        'contactForm.main_password' => 'required_if:contactForm.can_login,true|min:8',
-        'contactForm.confirm_password' => 'required_if:contactForm.can_login,true|same:contactForm.main_password',
-        'signatureFile' => 'nullable|image|max:2048',
-    ];
+    protected function rules(): array
+    {
+        // Password is only required when can_login=true AND no existing portal user yet.
+        // When editing a contact who already has a User record, the password field is
+        // optional (leave blank to keep the current password).
+        $existingUser = $this->contactForm['can_login']
+            && $this->editingContact
+            && User::where('email', $this->editingContact->email)->exists();
+
+        $passwordRule = $existingUser
+            ? 'nullable|min:8'
+            : 'required_if:contactForm.can_login,true|min:8';
+
+        $confirmRule = $existingUser
+            ? 'nullable|min:8|same:contactForm.main_password'
+            : 'required_if:contactForm.can_login,true|same:contactForm.main_password';
+
+        return [
+            'contactForm.title_id'    => 'required|exists:module_pre_configs,id',
+            'contactForm.first_name'  => 'required|string|max:255',
+            'contactForm.email'       => 'required|email|max:255',
+            'contactForm.telephone'   => 'required|string|max:50',
+            'contactForm.unit_name'   => 'required|array|min:1',
+            'contactForm.main_password'    => $passwordRule,
+            'contactForm.confirm_password' => $confirmRule,
+            'signatureFile'           => 'nullable|image|max:2048',
+        ];
+    }
 
     protected $messages = [
         'contactForm.title_id.required' => 'Title selection is required.',
@@ -209,10 +227,13 @@ class ContactsManager extends Component
         }
 
         $user->name = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);
-        $user->password = Hash::make($this->contactForm['main_password']);
+        if (!empty($this->contactForm['main_password'])) {
+            $user->password = Hash::make($this->contactForm['main_password']);
+        }
         $user->company_id = getUserCompany();
         $user->is_client = 1;
         $user->client_id = $this->customerId;
+        $user->crm_contact_id = $contact->id;  // links User → CustomerContact for portal auth check
         $user->active = 1;
         $user->save();
     }

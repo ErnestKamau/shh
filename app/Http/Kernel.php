@@ -64,5 +64,6 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'twofactor'=> \App\Http\Middleware\TwoFactorVerification::class,
         'haspermission'=>\App\Http\Middleware\checkHasPermission::class,
+        'portal.client' => \App\Http\Middleware\EnsurePortalClient::class,
     ];
 }

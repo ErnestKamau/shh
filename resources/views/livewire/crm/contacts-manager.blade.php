@@ -382,7 +382,7 @@
                                                     <span class="preference-desc">Receive PDF analysis reports</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_report" role="switch">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_report" role="switch" @click.stop>
                                                 </div>
                                             </div>
                                         </div>
@@ -400,7 +400,7 @@
                                                     <span class="preference-desc">Updates on analysis progression</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_receive_schedule_of_analysis" role="switch">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_receive_schedule_of_analysis" role="switch" @click.stop>
                                                 </div>
                                             </div>
                                         </div>
@@ -418,7 +418,7 @@
                                                     <span class="preference-desc">Receive updated product prices</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_price_list" role="switch">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_price_list" role="switch" @click.stop>
                                                 </div>
                                             </div>
                                         </div>
@@ -436,7 +436,7 @@
                                                     <span class="preference-desc">Billing and invoice notifications</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_invoice" role="switch">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_invoice" role="switch" @click.stop>
                                                 </div>
                                             </div>
                                         </div>
@@ -454,7 +454,7 @@
                                                     <span class="preference-desc">Reminders for pending payments</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_receive_payment_reminders" role="switch">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_receive_payment_reminders" role="switch" @click.stop>
                                                 </div>
                                             </div>
                                         </div>
@@ -472,7 +472,7 @@
                                                     <span class="preference-desc">Allow login to customer portal</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_login" role="switch">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_login" role="switch" @click.stop>
                                                 </div>
                                             </div>
                                         </div>
@@ -490,7 +490,7 @@
                                                     <span class="preference-desc">Permission to register samples</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_submit_sample" role="switch">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_submit_sample" role="switch" @click.stop>
                                                 </div>
                                             </div>
                                         </div>
@@ -508,7 +508,7 @@
                                                     <span class="preference-desc">Contact is currently active</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
-                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.active" role="switch">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.active" role="switch" @click.stop>
                                                 </div>
                                             </div>
                                         </div>
@@ -519,10 +519,16 @@
 
                         <!-- Password Section -->
                         @if($contactForm['can_login'])
+                            @php
+                                $hasExistingUser = $editingContact && \App\User::where('email', $editingContact->email)->exists();
+                            @endphp
                             <div class="form-section mb-4">
                                 <div class="section-header mb-3">
                                     <h6 class="mb-0 text-muted">
                                         <i class="mdi mdi-lock text-danger"></i> Password Configuration
+                                        @if($hasExistingUser)
+                                            <small class="text-secondary ms-2">(Leave blank to keep current password)</small>
+                                        @endif
                                     </h6>
                                 </div>
                                 <div class="section-body">
@@ -530,23 +536,26 @@
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">
-                                                    <i class="mdi mdi-lock text-danger"></i> Password <span class="text-danger">*</span>
+                                                    <i class="mdi mdi-lock text-danger"></i> Password
+                                                    @if(!$hasExistingUser)<span class="text-danger">*</span>@endif
                                                 </label>
-                                                <input type="password" wire:model="contactForm.main_password" class="form-control" placeholder="Password...">
+                                                <input type="password" wire:model="contactForm.main_password" class="form-control" placeholder="{{ $hasExistingUser ? 'Leave blank to keep current...' : 'Password...' }}">
                                                 @error('contactForm.main_password') <span class="text-danger">{{ $message }}</span> @enderror
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">
-                                                    <i class="mdi mdi-lock-check text-danger"></i> Confirm Password <span class="text-danger">*</span>
+                                                    <i class="mdi mdi-lock-check text-danger"></i> Confirm Password
+                                                    @if(!$hasExistingUser)<span class="text-danger">*</span>@endif
                                                 </label>
-                                                <input type="password" wire:model="contactForm.confirm_password" class="form-control" placeholder="Confirm password...">
+                                                <input type="password" wire:model="contactForm.confirm_password" class="form-control" placeholder="{{ $hasExistingUser ? 'Leave blank to keep current...' : 'Confirm password...' }}">
                                                 @error('contactForm.confirm_password') <span class="text-danger">{{ $message }}</span> @enderror
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+
                             </div>
                         @endif
                     </form>
