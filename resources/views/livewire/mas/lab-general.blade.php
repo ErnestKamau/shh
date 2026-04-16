@@ -43,11 +43,92 @@
             </div>
         </div>
         <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="text-uppercase small mb-2 opacity-75">{{ __('mas/lab.overdue') }}</h6>
+                    <h2 class="font-weight-bold mb-0">{{ $stats['summary']['overdue_batches'] ?? 0 }}</h2>
+                    <p class="small mb-0 mt-2">{{ __('mas/lab.overdue_watchlist') }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="text-uppercase small mb-2 text-dark-50">{{ __('mas/lab.bucket_due_today') }}</h6>
+                    <h2 class="font-weight-bold mb-0">{{ $stats['summary']['due_today_batches'] ?? 0 }}</h2>
+                    <p class="small mb-0 mt-2">{{ __('mas/lab.efficiency_monitoring') }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="card shadow-sm border-0 bg-success text-white">
                 <div class="card-body">
-                    <h6 class="text-uppercase small mb-2 opacity-75">{{ __('mas/lab.active_clients') }}</h6>
-                    <h2 class="font-weight-bold mb-0">{{ count($stats['top_clients']) }}</h2>
-                    <p class="small mb-0 mt-2">{{ __('mas/common.active') }}</p>
+                    <h6 class="text-uppercase small mb-2 opacity-75">{{ __('mas/lab.tests_processed') }}</h6>
+                    <h2 class="font-weight-bold mb-0">{{ $stats['summary']['tests_completed'] ?? 0 }}</h2>
+                    <p class="small mb-0 mt-2">{{ __('mas/lab.completion_ratio') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Detailed Table -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 15px; border-left: 5px solid #6366f1 !important;">
+                <div class="card-header bg-white border-0 py-3 d-flex align-items-center">
+                    <i class="mdi mdi-format-list-bulleted text-primary mr-2"></i>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.workflow_stages') }}</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0">{{ __('mas/lab.workflow_stage') }}</th>
+                                    <th class="border-0 text-center">{{ __('mas/lab.batch_count') }}</th>
+                                    <th class="border-0">{{ __('mas/lab.overdue') }}</th>
+                                    <th class="border-0">{{ __('mas/lab.avg_days_tat') }}</th>
+                                    <th class="border-0">{{ __('mas/lab.efficiency_monitoring') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $maxBatches = collect($stats['stage_summary'])->max('total_batches') ?: 1; @endphp
+                                @foreach($stats['stage_summary'] as $stage)
+                                <tr>
+                                    <td class="font-weight-bold text-dark">{{ $stage['workflow_stage'] }}</td>
+                                    <td class="text-center">
+                                        <span class="badge badge-light px-3 py-2 font-weight-bold" style="font-size: 11px;">{{ $stage['total_batches'] }}</span>
+                                    </td>
+                                    <td>
+                                        @if($stage['overdue_batches'] > 0)
+                                            <div class="d-flex align-items-center text-danger font-weight-bold">
+                                                <i class="mdi mdi-alert-circle-outline mr-1"></i>
+                                                {{ $stage['overdue_batches'] }}
+                                                <small class="ml-1 opacity-75">({{ round(($stage['overdue_batches'] / $stage['total_batches']) * 100) }}%)</small>
+                                            </div>
+                                        @else
+                                            <span class="text-success small"><i class="mdi mdi-check-circle-outline"></i> {{ __('mas/common.stable') }}</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <div class="text-dark font-weight-bold">
+                                            {{ $stage['avg_days_to_target'] ?? '—' }} <small class="text-muted">Days</small>
+                                        </div>
+                                    </td>
+                                    <td style="width: 250px;">
+                                        <div class="d-flex align-items-center">
+                                            @php $percent = round(($stage['total_batches'] / $maxBatches) * 100); @endphp
+                                            <div class="progress flex-grow-1 mr-2" style="height: 6px; background-color: #f1f5f9;">
+                                                <div class="progress-bar bg-primary" style="width: {{ $percent }}%"></div>
+                                            </div>
+                                            <small class="text-muted">{{ $percent }}%</small>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -68,18 +149,6 @@
             </div>
         </div>
 
-        <!-- Client Volume Distribution -->
-        <div class="col-md-6 mb-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.volume_top_clients') }}</h5>
-                </div>
-                <div class="card-body">
-                    <div style="height: 350px;">
-                        <canvas id="clientVolumeChart"></canvas>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
     <div class="row mb-4">
@@ -112,49 +181,6 @@
         </div>
     </div>
 
-    <!-- Data Table -->
-    <div class="row">
-        <div class="col-12 mb-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.top_clients_ranking') }}</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th class="border-0">{{ __('mas/lab.rank') }}</th>
-                                    <th class="border-0">{{ __('mas/lab.client_name') }}</th>
-                                    <th class="border-0 text-center">{{ __('mas/dashboard.active_batches') }}</th>
-                                    <th class="border-0">{{ __('mas/lab.workload_share') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php $totalAll = collect($stats['top_clients'])->sum('total') ?: 1; @endphp
-                                @foreach($stats['top_clients'] as $index => $client)
-                                    <tr>
-                                        <td>#{{ $index + 1 }}</td>
-                                        <td class="font-weight-bold text-dark">{{ $client->name }}</td>
-                                        <td class="text-center">{{ $client->total }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                @php $percent = round(($client->total / $totalAll) * 100); @endphp
-                                                <div class="progress flex-grow-1 mr-2" style="height: 6px;">
-                                                    <div class="progress-bar bg-info" style="width: {{ $percent }}%"></div>
-                                                </div>
-                                                <small class="text-muted">{{ $percent }}%</small>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
@@ -188,31 +214,7 @@
         }
 
         // 2. Client Volume Chart
-        var clientEl = document.getElementById('clientVolumeChart');
-        if (clientEl) {
-            var clientCtx = clientEl.getContext('2d');
-            window.clientVolumeChart = new Chart(clientCtx, {
-                type: 'horizontalBar',
-                data: {
-                    labels: @json($stats['charts']['client_labels'] ?? []),
-                    datasets: [{
-                        label: 'Batch Count',
-                        data: @json($stats['charts']['client_counts'] ?? []),
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    legend: { display: false },
-                    scales: {
-                        xAxes: [{ ticks: { beginAtZero: true } }],
-                        yAxes: [{ gridLines: { display: false } }]
-                    }
-                }
-            });
-        }
+        // Sample Type Chart already initialized above
 
         // 3. Monthly Trends Chart
         var trendEl = document.getElementById('monthlyTrendChart');
@@ -267,9 +269,10 @@
     });
 
     function exportGeneralPdf(isPreview = false) {
-        const chart = window.clientVolumeChart; 
+        const chart = document.getElementById('sampleTypeChart'); 
         if (chart) {
-            const base64Image = chart.toBase64Image();
+            const chartInstance = Chart.instances[0]; // Sample Type Chart
+            const base64Image = chartInstance.toBase64Image();
             document.getElementById('chart_image_input').value = base64Image;
         }
 

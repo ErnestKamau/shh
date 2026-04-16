@@ -35,13 +35,7 @@ class ModelGovernanceService
 
     public function __construct()
     {
-        // Use the same base URL as AiInferenceService so no extra config is needed.
-        $this->apiBaseUrl = rtrim(
-            config('imara_ai.api_base_url',
-                env('AI_INFERENCE_URL', env('AI_API_URL', 'http://localhost:8001'))
-            ),
-            '/'
-        );
+        $this->apiBaseUrl = AiEndpointResolver::resolve();
     }
 
     // -------------------------------------------------------------------------

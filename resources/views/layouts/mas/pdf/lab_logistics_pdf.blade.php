@@ -25,9 +25,7 @@
             <table style="width: 100%;">
                 <tr>
                     <td style="width: 60%; vertical-align: middle;">
-                        <div style="font-size: 26px; font-weight: bold; color: #0891b2; letter-spacing: -1.5px;">
-                            NUVEMITE <span style="color: #06b6d4;">POLUCON</span>
-                        </div>
+                        <img src="{{ public_path('assets/branding/logo.jpeg') }}" style="height: 60px; width: auto;">
                         <div style="font-size: 10px; color: #64748b; margin-top: 2px; font-weight: bold; text-transform: uppercase;">{{ __('mas/dashboard.command_center') }}</div>
                     </td>
                     <td style="width: 40%; text-align: right; vertical-align: middle;">
@@ -148,7 +146,7 @@
     </div>
 
     <div class="footer">
-        {{ __('mas/report.confidential') }} | {{ __('mas/logistics.monitoring') }} | Nuvemite Polucon
+        {{ __('mas/report.confidential') }} | {{ __('mas/logistics.monitoring') }} | {{ __('mas/common.brand_footer') }}
     </div>
 </body>
 </html>

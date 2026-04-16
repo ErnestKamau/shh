@@ -25,9 +25,20 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>{{ strtoupper(__('mas/ai.title')) }}</h1>
-        <p>{{ __('mas/report.system_state') }}: {{ ($stats['performance']['status'] ?? 'healthy') === 'healthy' ? __('mas/ai.active') : __('mas/ai.inactive') }} | {{ __('mas/report.generated') }}: {{ date('F d, Y') }}</p>
+    <div class="header" style="margin-top: 35px; border-bottom: 2px solid #0f172a; padding-bottom: 15px;">
+        <table style="width: 100%;">
+            <tr>
+                <td style="width: 60%; vertical-align: middle; text-align: left;">
+                    <img src="{{ public_path('assets/branding/logo.jpeg') }}" style="height: 60px; width: auto;">
+                    <div style="font-size: 10px; color: #64748b; margin-top: 2px; font-weight: bold; text-transform: uppercase;">{{ __('mas/dashboard.command_center') }}</div>
+                </td>
+                <td style="width: 40%; text-align: right; vertical-align: middle;">
+                    <div style="font-size: 14px; font-weight: bold; color: #0f172a; text-transform: uppercase; margin-bottom: 2px;">{{ __('mas/ai.title') }}</div>
+                    <div style="font-size: 9px; color: #64748b;">Ref: #{{ date('Ymd') }}-AI | {{ __('mas/report.generated') }}: {{ date('F d, Y H:i') }}</div>
+                    <div style="font-size: 9px; color: #0ea5e9; font-weight: bold; margin-top: 2px;">{{ __('mas/report.classification') }}: {{ __('mas/dashboard.operational') }}</div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <div class="container">
@@ -99,7 +110,7 @@
     </div>
 
     <div class="footer">
-        {{ __('mas/report.confidential') }} {{ __('mas/report.governance_document') }} | Nuvemite Polucon | {{ __('mas/report.page') }} 1 {{ __('mas/report.of') }} 1
+        {{ __('mas/report.confidential') }} {{ __('mas/report.governance_document') }} | {{ __('mas/common.brand_footer') }} | {{ __('mas/report.page') }} 1 {{ __('mas/report.of') }} 1
     </div>
 </body>
 </html>

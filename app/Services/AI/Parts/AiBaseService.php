@@ -4,6 +4,7 @@ namespace App\Services\AI\Parts;
 
 use Illuminate\Support\Facades\Log;
 use App\Models\AI\AiSetting;
+use App\Services\AI\AiEndpointResolver;
 
 abstract class AiBaseService
 {
@@ -12,7 +13,7 @@ abstract class AiBaseService
 
     public function __construct()
     {
-        $this->apiBaseUrl = rtrim(config('imara_ai.api_base_url'), '/');
+        $this->apiBaseUrl = AiEndpointResolver::resolve();
     }
 
     /**

@@ -8,9 +8,22 @@
             <p class="text-muted small mb-0">{{ __('mas/inventory.subtitle') }}</p>
         </div>
         <div class="col-auto">
-            <a href="{{ route('mas.export', 'inventory') }}" class="btn btn-success btn-sm mr-2">
-                <i class="mdi mdi-download"></i> {{ __('mas/common.download') }} {{ __('mas/common.report') }}
+            <div class="btn-group shadow-sm mr-2">
+                <button onclick="exportInventoryPdf(false)" class="btn btn-primary btn-sm">
+                    <i class="mdi mdi-file-pdf"></i> {{ __('mas/common.download') }} PDF
+                </button>
+                <button onclick="exportInventoryPdf(true)" class="btn btn-outline-primary btn-sm border-left-0">
+                    <i class="mdi mdi-eye"></i>
+                </button>
+            </div>
+            <a href="{{ route('mas.export', 'inventory') }}" class="btn btn-success btn-sm">
+                <i class="mdi mdi-microsoft-excel"></i> Excel
             </a>
+
+            <form id="pdfExportForm" action="{{ route('mas.export.visuals', 'inventory') }}" method="POST" style="display:none">
+                @csrf
+                <input type="hidden" name="preview" id="preview_input" value="false">
+            </form>
         </div>
     </div>
 
@@ -117,4 +130,15 @@
     color: rgba(30, 30, 30, 0.6);
 }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.exportInventoryPdf = function(isPreview = false) {
+            const form = document.getElementById('pdfExportForm');
+            document.getElementById('preview_input').value = isPreview;
+            form.target = isPreview ? "_blank" : "_self";
+            form.submit();
+        }
+    });
+</script>
 </div>

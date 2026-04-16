@@ -34,7 +34,7 @@
                     <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.workflow_distribution') }}</h5>
                     <span class="badge badge-primary">{{ __('mas/common.live_data') }}</span>
                 </div>
-                <div class="card-body">
+                <div class="card-body" wire:ignore>
                     <canvas id="labWorkflowChart" height="400"></canvas>
                 </div>
             </div>
@@ -64,10 +64,11 @@
                             <div class="text-muted x-small uppercase">{{ __('mas/lab.tests_completed') }}</div>
                         </div>
                         <div class="col-6">
-                            <div class="font-weight-bold text-primary h5 mb-0">{{ $stats['summary']['tests_requested'] ?? 0 }}</div>
-                            <div class="text-muted x-small uppercase">{{ __('mas/lab.total_requested') }}</div>
+                            <div class="font-weight-bold text-indigo h5 mb-0">{{ $stats['summary']['sla_compliance_rate'] }}%</div>
+                            <div class="text-muted x-small uppercase">{{ __('mas/lab.sla_compliance_rate') }}</div>
                         </div>
                     </div>
+
                     
                     <div class="mt-4 p-3 bg-light rounded">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -75,15 +76,12 @@
                             <span class="text-danger font-weight-bold small">{{ __('mas/lab.overdue_count', ['count' => $stats['summary']['overdue_batches']]) }}</span>
                         </div>
                         <div class="progress" style="height: 8px;">
-                            @php
-                                $total = $stats['summary']['active_batches'] ?: 1;
-                                $onTime = $total - $stats['summary']['overdue_batches'];
-                                $percent = round(($onTime / $total) * 100);
-                            @endphp
-                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ $percent }}%"></div>
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ $stats['summary']['sla_compliance_rate'] }}%"></div>
                         </div>
-                        <p class="text-center mt-2 mb-0 x-small text-muted">{{ __('mas/lab.batches_within_target', ['percent' => $percent]) }}</p>
+                        <p class="text-center mt-2 mb-0 x-small text-muted">{{ __('mas/lab.batches_within_target', ['percent' => $stats['summary']['sla_compliance_rate']]) }}</p>
                     </div>
+
+
 
                     <hr>
                     <h6 class="font-weight-bold text-dark mb-3">{{ __('mas/lab.target_distribution') }}</h6>
@@ -110,7 +108,7 @@
                 <div class="card-header bg-white border-0 py-3">
                     <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.aging_health') }}</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body" wire:ignore>
                     <div style="height: 250px;">
                         <canvas id="agingDoughnutChart"></canvas>
                     </div>
@@ -124,9 +122,167 @@
                 <div class="card-header bg-white border-0 py-3">
                     <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.completion_ratio') }}</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body" wire:ignore>
                     <div style="height: 250px;">
                         <canvas id="completionRatioChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lab Section & Analyst Performance -->
+    <div class="row">
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.performance_leaderboard') }}</h5>
+                        <p class="text-muted x-small uppercase mb-0">{{ __('mas/lab.section_performance') }} & Workload Distribution</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 small text-uppercase py-2 pl-3">{{ __('mas/lab.lab_section') }}</th>
+                                    <th class="border-0 small text-uppercase py-2 text-center">{{ __('mas/lab.volume') }}</th>
+                                    <th class="border-0 small text-uppercase py-2 text-center" style="width: 25%;">Occupancy</th>
+                                    <th class="border-0 small text-uppercase py-2 text-center">{{ __('mas/lab.avg_tat') }}</th>
+                                    <th class="border-0 small text-uppercase py-2 text-center">SLA</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php
+                                    $totalVolume = collect($stats['sections']['leaderboard'] ?? [])->sum('total') ?: 1;
+                                    $colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+                                @endphp
+                                @forelse($stats['sections']['leaderboard'] ?? [] as $index => $section)
+                                    @php 
+                                        $percent = round(($section['total'] / $totalVolume) * 100);
+                                        $color = $colors[$index % count($colors)];
+                                    @endphp
+                                    <tr>
+                                        <td class="py-3 pl-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="mr-2 rounded-circle" style="width: 8px; height: 8px; background-color: {{ $color }};"></div>
+                                                <div>
+                                                    <div class="font-weight-bold text-primary small">{{ $section['name'] }}</div>
+                                                    <div class="text-muted x-small uppercase">{{ $section['code'] }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-center font-weight-bold">{{ $section['total'] }}</td>
+                                        <td class="text-center">
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1 mr-2" style="height: 4px;">
+                                                    <div class="progress-bar" style="width: {{ $percent }}%; background-color: {{ $color }};"></div>
+                                                </div>
+                                                <span class="x-small font-weight-bold">{{ $percent }}%</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="font-weight-bold">{{ $section['avg_tat'] }}</span>
+                                            <span class="text-muted small">d</span>
+                                        </td>
+                                        <td class="text-center">
+                                            @if($section['overdue'] > 0)
+                                                <span class="badge badge-soft-danger px-2">{{ $section['overdue'] }} {{ __('mas/lab.overdue') }}</span>
+                                            @else
+                                                <span class="badge badge-soft-success px-2">{{ __('mas/common.stable') }}</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">{{ __('mas/common.no_data') }}</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.analyst_performance') }}</h5>
+                        <p class="text-muted x-small uppercase mb-0">{{ __('mas/lab.top_analysts') }}</p>
+                    </div>
+                    <span class="badge badge-soft-indigo px-2 text-uppercase" style="font-size: 10px;">{{ $stats['period_label'] ?? __('mas/common.active') }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 small text-uppercase py-2 pl-3">{{ __('mas/lab.analyst') }}</th>
+                                    <th class="border-0 small text-uppercase py-2 text-center">{{ __('mas/lab.volume') }}</th>
+                                    <th class="border-0 small text-uppercase py-2 text-center">SLA %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($stats['analyst_performance'] ?? [] as $analyst)
+                                <tr>
+                                    <td class="py-3 pl-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-xs mr-2 bg-indigo-soft text-indigo rounded-circle d-flex align-items-center justify-content-center font-weight-bold" style="width: 28px; height: 28px; font-size: 11px;">
+                                                {{ substr($analyst['name'], 0, 1) }}
+                                            </div>
+                                            <div>
+                                                <div class="font-weight-bold text-dark small" style="font-size: 11px;">{{ Str::limit($analyst['name'], 15) }}</div>
+                                                <div class="x-small {{ $analyst['avg_offset'] <= 0 ? 'text-success' : 'text-danger' }}">
+                                                    {{ $analyst['avg_offset'] <= 0 ? '-' : '+' }}{{ abs($analyst['avg_offset']) }}d
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center font-weight-bold small">{{ $analyst['total_tests'] }}</td>
+                                    <td class="text-center">
+                                        <div class="d-inline-block text-center" style="width: 45px;">
+                                            <div class="x-small font-weight-bold {{ $analyst['on_time_rate'] >= 90 ? 'text-success' : ($analyst['on_time_rate'] >= 75 ? 'text-warning' : 'text-danger') }}">
+                                                {{ $analyst['on_time_rate'] }}%
+                                            </div>
+                                            <div class="progress" style="height: 3px;">
+                                                <div class="progress-bar {{ $analyst['on_time_rate'] >= 90 ? 'bg-success' : ($analyst['on_time_rate'] >= 75 ? 'bg-warning' : 'bg-danger') }}" 
+                                                     style="width: {{ $analyst['on_time_rate'] }}%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-muted small italic">
+                                        {{ __('mas/common.no_data') }} - <span class="x-small">{{ __('mas/lab.try_other_periods') }}</span>
+                                    </td>
+                                </tr>
+                                @endforelse
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div class="row mb-4">
+        <!-- Section Trends -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.historical_section_tat') }}</h5>
+                </div>
+                <div class="card-body" wire:ignore>
+                    <div style="height: 300px;">
+                        <canvas id="sectionTrendsChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -148,16 +304,16 @@
                             {{ __('mas/lab.' . ($stats['period'] ?? 'active')) }}
                         </button>
                         <div class="dropdown-menu dropdown-menu-right">
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'active' ? 'active' : '' }}" href="?period=active">{{ __('mas/common.active') }}</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'active' ? 'active' : '' }}" href="#" wire:click.prevent="setPeriod('active')">{{ __('mas/common.active') }}</a>
                             <div class="dropdown-divider"></div>
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'week' ? 'active' : '' }}" href="?period=week">{{ __('mas/common.past_week') }}</a>
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'month' ? 'active' : '' }}" href="?period=month">{{ __('mas/common.past_month') }}</a>
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'year' ? 'active' : '' }}" href="?period=year">{{ __('mas/common.past_year') }}</a>
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'lifetime' ? 'active' : '' }}" href="?period=lifetime">{{ __('mas/common.lifetime') }}</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'week' ? 'active' : '' }}" href="#" wire:click.prevent="setPeriod('week')">{{ __('mas/common.past_week') }}</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'month' ? 'active' : '' }}" href="#" wire:click.prevent="setPeriod('month')">{{ __('mas/common.past_month') }}</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'year' ? 'active' : '' }}" href="#" wire:click.prevent="setPeriod('year')">{{ __('mas/common.past_year') }}</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'lifetime' ? 'active' : '' }}" href="#" wire:click.prevent="setPeriod('lifetime')">{{ __('mas/common.lifetime') }}</a>
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body" wire:ignore>
                     <div style="height: 300px;">
                         <canvas id="throughputVolumeChart"></canvas>
                     </div>
@@ -166,7 +322,79 @@
         </div>
     </div>
 
+    <!-- Detailed Analyte TAT Insights -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.detailed_insights') }}</h5>
+                        <p class="text-muted small mb-0">Detailed breakdown of individual analyte performance for the {{ $stats['period_label'] ?? 'selected period' }}.</p>
+                    </div>
+                    <div class="small text-muted">Showing {{ count($this->getPaginatedDetailedLogs()) }} of {{ count($detailed_logs) }} items</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.analyte') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.sample_code') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.received') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.expected') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.actual') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold text-center">{{ __('mas/lab.offset') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.analyst') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($this->getPaginatedDetailedLogs() as $idx => $log)
+                                    <tr wire:key="detailed-log-{{ $idx }}">
+                                        <td class="font-weight-bold small text-primary">{{ $log['analyte'] }}</td>
+                                        <td class="small">{{ $log['sample_code'] }}</td>
+                                        <td class="small text-muted">{{ $log['receipt_date'] }}</td>
+                                        <td class="small text-muted">{{ $log['expected_date'] }}</td>
+                                        <td class="small font-weight-bold">{{ $log['actual_date'] }}</td>
+                                        <td class="text-center">
+                                            @if($log['offset'] <= 0)
+                                                <span class="badge badge-success px-2 py-1">-{{ abs($log['offset']) }}d</span>
+                                            @else
+                                                <span class="badge badge-danger px-2 py-1">+{{ $log['offset'] }}d</span>
+                                            @endif
+                                        </td>
+                                        <td class="small text-dark font-weight-bold">{{ $log['analyst'] }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5 text-muted">
+                                            <i class="mdi mdi-information-outline h2 d-block"></i>
+                                            {{ __('mas/common.no_data') }}
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @if(count($detailed_logs) > $perPage)
+                <div class="card-footer bg-white border-0 py-3">
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0 justify-content-center">
+                            @for($i = 1; $i <= ceil(count($detailed_logs) / $perPage); $i++)
+                                <li class="page-item {{ $detailedPage === $i ? 'active' : '' }}">
+                                    <a class="page-link shadow-none" href="#" wire:click.prevent="setDetailedPage({{ $i }})">{{ $i }}</a>
+                                </li>
+                            @endfor
+                        </ul>
+                    </nav>
+                </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
     <!-- Operational Cockpit (Smart Action Grid) -->
+
     <div class="row" x-data="{ currentTab: 'my_tasks' }">
         <div class="col-12 mb-4">
             <div class="card shadow-sm border-0">
@@ -175,16 +403,16 @@
                         <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.cockpit_title') }}</h5>
                         <p class="text-muted small mb-0">{{ __('mas/lab.cockpit_subtitle') }}</p>
                     </div>
-                    <div class="btn-group btn-group-toggle shadow-sm" data-toggle="buttons">
-                        <label class="btn btn-outline-primary btn-sm active" onclick="@this.set('stats.smart_grid', @this.getSmartGridData('my_tasks')); currentTab = 'my_tasks'" x-on:click="currentTab = 'my_tasks'">
-                            <input type="radio" name="options" id="option1" checked> {{ __('mas/lab.my_tasks') }}
-                        </label>
-                        <label class="btn btn-outline-primary btn-sm" onclick="@this.set('stats.smart_grid', @this.getSmartGridData('urgent')); currentTab = 'urgent'" x-on:click="currentTab = 'urgent'">
-                            <input type="radio" name="options" id="option2"> {{ __('mas/lab.urgent') }}
-                        </label>
-                        <label class="btn btn-outline-primary btn-sm" onclick="@this.set('stats.smart_grid', @this.getSmartGridData('approvals')); currentTab = 'approvals'" x-on:click="currentTab = 'approvals'">
-                            <input type="radio" name="options" id="option3"> {{ __('mas/lab.approvals') }}
-                        </label>
+                    <div class="btn-group shadow-sm">
+                        <button class="btn btn-sm {{ $activeGridTab === 'my_tasks' ? 'btn-primary' : 'btn-outline-primary' }}" wire:click="setGridTab('my_tasks')">
+                            {{ __('mas/lab.my_tasks') }}
+                        </button>
+                        <button class="btn btn-sm {{ $activeGridTab === 'urgent' ? 'btn-primary' : 'btn-outline-primary' }}" wire:click="setGridTab('urgent')">
+                            {{ __('mas/lab.urgent') }}
+                        </button>
+                        <button class="btn btn-sm {{ $activeGridTab === 'approvals' ? 'btn-primary' : 'btn-outline-primary' }}" wire:click="setGridTab('approvals')">
+                            {{ __('mas/lab.approvals') }}
+                        </button>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -201,8 +429,8 @@
                                 </tr>
                             </thead>
                             <tbody id="smartGridBody">
-                                @forelse($stats['smart_grid'] ?? [] as $item)
-                                    <tr class="{{ $item['priority'] === 'Urgent' ? 'table-warning' : '' }}">
+                                @forelse($this->getPaginatedGridData() as $index => $item)
+                                    <tr wire:key="grid-item-{{ $activeGridTab }}-{{ $index }}" class="{{ ($item['priority'] ?? '') === 'Urgent' ? 'table-warning' : '' }}">
                                         <td class="font-weight-bold">{{ $item['batch_code'] }}</td>
                                         <td class="small">{{ $item['client'] }}</td>
                                         <td class="small">{{ $item['type'] }}</td>
@@ -239,14 +467,37 @@
                         </table>
                     </div>
                 </div>
+                @php
+                    $gridData = $stats['smart_grid'] ?? [];
+                    $gridTotalPages = ceil(count($gridData) / $perGridPage);
+                @endphp
+                @if($gridTotalPages > 1)
+                <div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">
+                        Showing {{ count($this->getPaginatedGridData()) }} of {{ count($gridData) }} items
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            @for($i = 1; $i <= $gridTotalPages; $i++)
+                                <li class="page-item {{ $gridPage === $i ? 'active' : '' }}">
+                                    <a class="page-link shadow-none" href="#" wire:click.prevent="setGridPage({{ $i }})">{{ $i }}</a>
+                                </li>
+                            @endfor
+                        </ul>
+                    </nav>
+                </div>
+                @endif
             </div>
         </div>
     </div>
+
 </div>
 
 <style>
     .x-small { font-size: 10px; }
     .uppercase { text-transform: uppercase; }
+    .bg-indigo-soft { background-color: rgba(79, 70, 229, 0.1); }
+    .text-indigo { color: #4f46e5; }
 </style>
 </div>
 
@@ -257,9 +508,31 @@
         Chart.defaults.global.defaultFontFamily = "'Inter', sans-serif";
         Chart.defaults.global.defaultFontColor = '#64748b';
 
+        initCharts(@json($stats));
+    });
+
+    // Listen for Livewire period changes
+    window.addEventListener('period-changed', event => {
+        const stats = event.detail.stats;
+        initCharts(stats);
+    });
+
+    window.masLabCharts = window.masLabCharts || {};
+
+    function initCharts(stats) {
+        if (!stats || !stats.charts) return;
+
+        // Destroy existing charts to avoid memory leaks and hover artifacts
+        const chartKeys = ['labChart', 'agingChart', 'completionChart', 'throughputChart', 'sectionWorkChart', 'sectionTrendsChart'];
+        chartKeys.forEach(key => {
+            if (window.masLabCharts[key] && typeof window.masLabCharts[key].destroy === 'function') {
+                window.masLabCharts[key].destroy();
+            }
+        });
+
         // 1. Lab Workflow Stage Chart
         var labCtx = document.getElementById('labWorkflowChart').getContext('2d');
-        window.labChart = new Chart(labCtx, {
+        window.masLabCharts.labChart = new Chart(labCtx, {
             type: 'bar',
             plugins: [{
                 afterDatasetsDraw: function(chart) {
@@ -268,27 +541,18 @@
                         var meta = chart.getDatasetMeta(i);
                         if (!meta.hidden) {
                             meta.data.forEach(function(element, index) {
-                                // Draw the text in the middle of the bar
                                 ctx.fillStyle = '#ffffff';
-                                var fontSize = 12;
-                                var fontStyle = 'bold';
-                                var fontFamily = "'Inter', sans-serif";
-                                ctx.font = Chart.helpers.fontString(fontSize, fontStyle, fontFamily);
-
+                                ctx.font = Chart.helpers.fontString(12, 'bold', "'Inter', sans-serif");
                                 var dataString = dataset.data[index].toString();
-                                if (dataString === '0') return; // Don't show zero values
-
+                                if (dataString === '0') return;
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-
-                                var padding = 5;
                                 var position = element.tooltipPosition();
-                                // If the bar is too short, put text above it
                                 if (element._view.y > chart.chartArea.bottom - 20) {
                                     ctx.fillStyle = '#1e293b';
-                                    ctx.fillText(dataString, position.x, position.y - (fontSize / 2) - padding);
+                                    ctx.fillText(dataString, position.x, position.y - 11);
                                 } else {
-                                    ctx.fillText(dataString, position.x, position.y + (fontSize / 2) + padding);
+                                    ctx.fillText(dataString, position.x, position.y + 11);
                                 }
                             });
                         }
@@ -296,16 +560,15 @@
                 }
             }],
             data: {
-                labels: @json($stats['charts']['stage_labels']),
+                labels: stats.charts.stage_labels,
                 datasets: [{
                     label: '{{ __('mas/lab.batch_count') }}',
-                    data: @json($stats['charts']['stage_totals']),
+                    data: stats.charts.stage_totals,
                     backgroundColor: '#4f46e5',
-                    hoverBackgroundColor: '#4338ca',
                     borderRadius: 4
                 }, {
                     label: '{{ __('mas/lab.overdue') }}',
-                    data: @json($stats['charts']['stage_overdue']),
+                    data: stats.charts.stage_overdue,
                     backgroundColor: '#ef4444',
                     borderRadius: 4
                 }]
@@ -313,41 +576,22 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                legend: { 
-                    display: true, 
-                    position: 'top', 
-                    align: 'end', 
-                    labels: { 
-                        boxWidth: 15, 
-                        fontSize: 12, 
-                        fontStyle: 'bold', 
-                        usePointStyle: true,
-                        padding: 20
-                    } 
-                },
+                legend: { display: true, position: 'top', align: 'end', labels: { boxWidth: 15, usePointStyle: true } },
                 scales: {
-                    xAxes: [{ 
-                        gridLines: { display: false }, 
-                        ticks: { fontSize: 11, fontStyle: 'bold' },
-                        scaleLabel: { display: true, labelString: '{{ __('mas/lab.workflow_stages') }}', fontSize: 12, fontStyle: 'bold' }
-                    }],
-                    yAxes: [{ 
-                        gridLines: { color: '#f1f5f9' }, 
-                        ticks: { beginAtZero: true, stepSize: 5, fontSize: 11 },
-                        scaleLabel: { display: true, labelString: '{{ __('mas/lab.batch_count') }}', fontSize: 12, fontStyle: 'bold' }
-                    }]
+                    xAxes: [{ gridLines: { display: false }, ticks: { fontSize: 11, fontStyle: 'bold' } }],
+                    yAxes: [{ gridLines: { color: '#f1f5f9' }, ticks: { beginAtZero: true, stepSize: 5 } }]
                 }
             }
         });
 
         // 2. Aging Distribution Doughnut
         var agingCtx = document.getElementById('agingDoughnutChart').getContext('2d');
-        new Chart(agingCtx, {
+        window.masLabCharts.agingChart = new Chart(agingCtx, {
             type: 'doughnut',
             data: {
-                labels: @json($stats['charts']['aging_labels']),
+                labels: stats.charts.aging_labels,
                 datasets: [{
-                    data: @json($stats['charts']['aging_counts']),
+                    data: stats.charts.aging_counts,
                     backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#7f1d1d', '#94a3b8'],
                     borderWidth: 0
                 }]
@@ -362,12 +606,12 @@
 
         // 3. Test Completion Ratio Doughnut
         var completionCtx = document.getElementById('completionRatioChart').getContext('2d');
-        window.completionChart = new Chart(completionCtx, {
+        window.masLabCharts.completionChart = new Chart(completionCtx, {
             type: 'doughnut',
             data: {
-                labels: @json($stats['charts']['completion_labels']),
+                labels: stats.charts.completion_labels,
                 datasets: [{
-                    data: @json($stats['charts']['completion_counts']),
+                    data: stats.charts.completion_counts,
                     backgroundColor: ['#4f46e5', '#e2e8f0'],
                     borderWidth: 0
                 }]
@@ -382,13 +626,13 @@
 
         // 4. Throughput Volume Bar
         var throughputCtx = document.getElementById('throughputVolumeChart').getContext('2d');
-        window.throughputChart = new Chart(throughputCtx, {
-            type: 'horizontalBar',
+        window.masLabCharts.throughputChart = new Chart(throughputCtx, {
+            type: 'bar',
             data: {
-                labels: @json($stats['charts']['throughput_labels']),
+                labels: stats.charts.throughput_labels,
                 datasets: [{
                     label: '{{ __('mas/lab.tests_processed') }}',
-                    data: @json($stats['charts']['throughput_counts']),
+                    data: stats.charts.throughput_counts,
                     backgroundColor: '#6366f1',
                     borderRadius: 4
                 }]
@@ -398,18 +642,66 @@
                 maintainAspectRatio: false,
                 legend: { display: false },
                 scales: {
-                    xAxes: [{ gridLines: { display: false }, ticks: { beginAtZero: true, fontSize: 10 } }],
-                    yAxes: [{ gridLines: { display: false }, ticks: { fontSize: 10 } }]
+                    xAxes: [{ 
+                        gridLines: { display: false }, 
+                        ticks: { 
+                            fontSize: 10,
+                            maxRotation: 45,
+                            minRotation: 0,
+                            autoSkip: false
+                        } 
+                    }],
+                    yAxes: [{ 
+                        gridLines: { color: 'rgba(0,0,0,0.05)', zeroLineColor: 'rgba(0,0,0,0.1)' }, 
+                        ticks: { beginAtZero: true, fontSize: 10, precision: 0 } 
+                    }]
                 }
             }
         });
 
-    });
+
+        // 6. Section Historical Trends Line Chart
+
+        const secTrends = stats.sections?.trends || { labels: [], series: [] };
+        const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+        
+        var sectionTrendsCtx = document.getElementById('sectionTrendsChart').getContext('2d');
+        window.masLabCharts.sectionTrendsChart = new Chart(sectionTrendsCtx, {
+            type: 'line',
+            data: {
+                labels: secTrends.labels,
+                datasets: secTrends.series.map((series, index) => {
+                    const color = colors[index % colors.length];
+                    return {
+                        label: series.name,
+                        data: series.data,
+                        borderColor: color,
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: color,
+                        tension: 0.3
+                    };
+                })
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                legend: { position: 'top', align: 'end', labels: { boxWidth: 15, fontSize: 11 } },
+                scales: {
+                    xAxes: [{ gridLines: { display: false }, ticks: { fontSize: 10 } }],
+                    yAxes: [{ 
+                        gridLines: { color: '#f1f5f9' }, 
+                        ticks: { beginAtZero: true, fontSize: 10 }
+                    }]
+                },
+                tooltips: { mode: 'index', intersect: false }
+            }
+        });
+    }
 
     function exportLabPdf(isPreview = false) {
-        // Collect multiple chart snapshots if needed, but the current PDF template 
-        // mainly focuses on the workflow distribution. We'll send the primary workflow chart.
-        const chart = window.labChart;
+        const chart = window.masLabCharts.labChart;
         if (chart) {
             const base64Image = chart.toBase64Image();
             document.getElementById('chart_image_input').value = base64Image;
@@ -419,13 +711,7 @@
 
         const form = document.getElementById('pdfExportForm');
         document.getElementById('preview_input').value = isPreview;
-        
-        if (isPreview) {
-            form.target = "_blank";
-        } else {
-            form.target = "_self";
-        }
-
+        form.target = isPreview ? "_blank" : "_self";
         form.submit();
     }
 </script>
