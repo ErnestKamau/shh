@@ -4,12 +4,12 @@
     <!-- Header -->
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">Inventory Health</h1>
-            <p class="text-muted small mb-0">Stock availability, reorder tracking, and sub-category analysis.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/inventory.title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/inventory.subtitle') }}</p>
         </div>
         <div class="col-auto">
             <a href="{{ route('mas.export', 'inventory') }}" class="btn btn-success btn-sm mr-2">
-                <i class="mdi mdi-download"></i> Download Report
+                <i class="mdi mdi-download"></i> {{ __('mas/common.download') }} {{ __('mas/common.report') }}
             </a>
         </div>
     </div>
@@ -23,7 +23,7 @@
                         <i class="mdi mdi-package-variant mdi-24px"></i>
                     </div>
                     <div>
-                        <h6 class="text-white-50 text-uppercase small mb-1">Tracked Items</h6>
+                        <h6 class="text-white-50 text-uppercase small mb-1">{{ __('mas/inventory.tracked_items') }}</h6>
                         <h2 class="font-weight-bold mb-0">{{ $stats['summary']['tracked_items'] }}</h2>
                     </div>
                 </div>
@@ -36,7 +36,7 @@
                         <i class="mdi mdi-clock-alert mdi-24px"></i>
                     </div>
                     <div>
-                        <h6 class="text-dark-50 text-uppercase small mb-1">Near Expiry</h6>
+                        <h6 class="text-dark-50 text-uppercase small mb-1">{{ __('mas/inventory.near_expiry') }}</h6>
                         <h2 class="font-weight-bold mb-0">{{ $stats['summary']['items_near_expiry'] }}</h2>
                     </div>
                 </div>
@@ -49,7 +49,7 @@
                         <i class="mdi mdi-alert-decagram mdi-24px"></i>
                     </div>
                     <div>
-                        <h6 class="text-white-50 text-uppercase small mb-1">Below Minimum</h6>
+                        <h6 class="text-white-50 text-uppercase small mb-1">{{ __('mas/inventory.below_minimum') }}</h6>
                         <h2 class="font-weight-bold mb-0">{{ $stats['summary']['items_below_minimum'] }}</h2>
                     </div>
                 </div>
@@ -62,18 +62,18 @@
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">High-Risk Stock Analysis (Top 10)</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/inventory.high_risk_analysis') }}</h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="border-0">Item Name</th>
-                                    <th class="border-0">Store</th>
-                                    <th class="border-0">Available</th>
-                                    <th class="border-0">Min Level</th>
-                                    <th class="border-0">Status</th>
+                                    <th class="border-0">{{ __('mas/inventory.item_name') }}</th>
+                                    <th class="border-0">{{ __('mas/inventory.store') }}</th>
+                                    <th class="border-0">{{ __('mas/inventory.available') }}</th>
+                                    <th class="border-0">{{ __('mas/inventory.min_level') }}</th>
+                                    <th class="border-0">{{ __('mas/inventory.status') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -88,11 +88,11 @@
                                     <td>{{ $item['minimum_level'] }}</td>
                                     <td>
                                         @if($item['available_qty'] < $item['minimum_level'])
-                                            <span class="badge badge-danger">CRITICAL</span>
+                                            <span class="badge badge-danger">{{ __('mas/inventory.critical') }}</span>
                                         @elseif($item['near_expiry_qty'] > 0)
-                                            <span class="badge badge-warning">EXPIRY RISK</span>
+                                            <span class="badge badge-warning">{{ __('mas/inventory.expiry_risk') }}</span>
                                         @else
-                                            <span class="badge badge-success">HEALTHY</span>
+                                            <span class="badge badge-success">{{ __('mas/inventory.healthy') }}</span>
                                         @endif
                                     </td>
                                 </tr>
@@ -102,7 +102,7 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white border-0 text-center py-3">
-                    <a href="/stock-management" class="btn btn-sm btn-link font-weight-bold">Open Inventory Module <i class="mdi mdi-open-in-new"></i></a>
+                    <a href="/stock-management" class="btn btn-sm btn-link font-weight-bold">{{ __('mas/inventory.open_inventory_module') }} <i class="mdi mdi-open-in-new"></i></a>
                 </div>
             </div>
         </div>

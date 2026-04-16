@@ -2,7 +2,7 @@
 
 @section('module-name')
 <li class="nav-item">
-	<a class="nav-link module-name" href="{{ route('mas.index') }}"><i class="mdi mdi-view-dashboard-variant"></i> {{ __('navigation.management_section') }}</a>
+	<a class="nav-link module-name" href="{{ route('mas.index') }}"><i class="mdi mdi-view-dashboard-variant"></i> {{ __('mas/navigation.management_section') }}</a>
 </li>
 @endsection
 
@@ -17,14 +17,14 @@
 		<ul class="list-group sticky-top sticky-offset">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div" style="background-color: #1a2a3a !important;">
 				<i class="mdi mdi-shield-check fa-3x"></i><br>
-				<span class="text-lg text-bold">AI Analytics</span>
+				<span class="text-lg text-bold">{{ __('mas/navigation.ai_analytics') }}</span>
 			</div>
 			
 			<!-- Global Overview -->
 			<a href="{{ route('mas.index') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.index') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-quilt fa-fw mr-3"></span>
-					<span class="menu-collapsed">Global Overview</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.global_overview') }}</span>
 				</div>
 			</a>
 
@@ -32,19 +32,22 @@
 			<a href="#labSubmenu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start {{ request()->routeIs('mas.lab.*') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-flask fa-fw mr-3 text-success"></span>
-					<span class="menu-collapsed">Lab Insights</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.lab_insights') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
 			<div id='labSubmenu' class="collapse sidebar-submenu {{ request()->routeIs('mas.lab.*') ? 'show' : '' }}">
 				<a href="{{ route('mas.lab.tat') }}" class="list-group-item list-group-item-action bg-dark text-white border-0 {{ request()->routeIs('mas.lab.tat') ? 'active' : '' }}">
-					<span class="menu-collapsed">TAT Analysis</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.tat_analysis') }}</span>
 				</a>
 				<a href="{{ route('mas.lab.general') }}" class="list-group-item list-group-item-action bg-dark text-white border-0 {{ request()->routeIs('mas.lab.general') ? 'active' : '' }}">
-					<span class="menu-collapsed">General Analytics</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.general_analytics') }}</span>
 				</a>
 				<a href="{{ route('mas.lab.qc') }}" class="list-group-item list-group-item-action bg-dark text-white border-0 {{ request()->routeIs('mas.lab.qc') ? 'active' : '' }}">
-					<span class="menu-collapsed">QC Analytics</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.qc_analytics') }}</span>
+				</a>
+				<a href="{{ route('mas.lab.logistics') }}" class="list-group-item list-group-item-action bg-dark text-white border-0 {{ request()->routeIs('mas.lab.logistics') ? 'active' : '' }}">
+					<span class="menu-collapsed">{{ __('mas/navigation.logistics_supplies') }}</span>
 				</a>
 			</div>
 
@@ -52,7 +55,7 @@
 			<a href="{{ route('mas.inventory') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.inventory') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-package-variant-closed fa-fw mr-3 text-warning"></span>
-					<span class="menu-collapsed">Inventory Health</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.inventory_health') }}</span>
 				</div>
 			</a>
 
@@ -60,7 +63,7 @@
 			<a href="{{ route('mas.crm') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.crm') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-group fa-fw mr-3 text-info"></span>
-					<span class="menu-collapsed">CRM Analytics</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.crm_analytics') }}</span>
 				</div>
 			</a>
 
@@ -68,7 +71,7 @@
 			<a href="{{ route('mas.risk') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.risk') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-alert-octagon fa-fw mr-3 text-danger"></span>
-					<span class="menu-collapsed">Risk Metrics</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.risk_metrics') }}</span>
 				</div>
 			</a>
 
@@ -76,7 +79,7 @@
 			<a href="{{ route('mas.ai') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.ai') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-head-snowflake fa-fw mr-3 text-white"></span>
-					<span class="menu-collapsed">AI Intelligence</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.ai_intelligence') }}</span>
 				</div>
 			</a>
 
@@ -84,7 +87,7 @@
 			<a href="{{ route('mas.equipment') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.equipment') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-tools fa-fw mr-3 text-warning"></span>
-					<span class="menu-collapsed">Equipment</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.equipment') }}</span>
 				</div>
 			</a>
 
@@ -92,7 +95,7 @@
 			<a href="{{ route('mas.personnel') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.personnel') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-star fa-fw mr-3 text-primary"></span>
-					<span class="menu-collapsed">Personnel</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.personnel') }}</span>
 				</div>
 			</a>
 
@@ -100,7 +103,7 @@
 			<a href="{{ route('mas.qc') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.qc') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-check-decagram fa-fw mr-3 text-success"></span>
-					<span class="menu-collapsed">Quality Control</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.quality_control') }}</span>
 				</div>
 			</a>
 
@@ -108,12 +111,12 @@
 			<a href="{{ route('mas.audit') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.audit') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-history fa-fw mr-3 text-secondary"></span>
-					<span class="menu-collapsed">Audit Log</span>
+					<span class="menu-collapsed">{{ __('mas/navigation.audit_log') }}</span>
 				</div>
 			</a>
 
 			<div class="list-group-item copyright-lims p-4 text-center text-white">
-				AI Analytics v1.1 <br> {{ date('Y') }} <span class="text-red">Imara LIMS</span>
+				{{ __('mas/navigation.ai_analytics') }} v1.1 <br> {{ date('Y') }} <span class="text-red">{{ __('mas/navigation.imara_lims') }}</span>
 			</div>
 		</ul>
 	</div>

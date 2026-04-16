@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title' => 'Urekebishaji na Uaminifu wa Vifaa',
+    'subtitle' => 'Afya ya mali, uzingatiaji wa kurekebisha, na uchambuzi wa muda wa kupumzika.',
+    'overdue' => 'Zilizochelewa',
+    'compliance' => 'Uzingatiaji',
+    'reliability_score' => 'Alama ya Uaminifu',
+    'mtbf' => 'MTBF (Saa)',
+    'avg_between_failures' => 'Wastani wa muda kati ya hitilafu',
+    'active_assets' => 'Mali Amilifu',
+    'currently_operational' => 'Inafanya kazi sasa',
+    'maintenance_due' => 'Urekebishaji Unaohitajika',
+    'next_7_days' => 'Siku 7 zijazo',
+    'upcoming_schedule' => 'Ratiba ya Urekebishaji Inayokuja',
+    'equipment' => 'Vifaa',
+    'type' => 'Aina',
+    'scheduled_date' => 'Tarehe Iliyopangwa',
+    'urgency' => 'Uharaka',
+    'urgent' => 'Haraka',
+    'days' => 'siku',
+    'scheduled' => 'Imepangwa',
+    'critical_overdue' => 'Kalibresheni Muhimu Iliyochelewa',
+    'days_late' => 'siku zilizochelewa',
+    'status' => 'Hali',
+];

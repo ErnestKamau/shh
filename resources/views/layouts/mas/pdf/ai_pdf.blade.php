@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>AI Intelligence & Governance Report</title>
+    <title>{{ __('mas/ai.title') }}</title>
     <style>
         body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; line-height: 1.5; margin: 0; padding: 0; }
         .header { background-color: #0f172a; color: white; padding: 20px; text-align: center; }
@@ -26,49 +26,49 @@
 </head>
 <body>
     <div class="header">
-        <h1>AI INTELLIGENCE & GOVERNANCE REPORT</h1>
-        <p>System State: {{ strtoupper($stats['performance']['status'] ?? 'Healthy') }} | Generated: {{ date('F d, Y') }}</p>
+        <h1>{{ strtoupper(__('mas/ai.title')) }}</h1>
+        <p>{{ __('mas/report.system_state') }}: {{ ($stats['performance']['status'] ?? 'healthy') === 'healthy' ? __('mas/ai.active') : __('mas/ai.inactive') }} | {{ __('mas/report.generated') }}: {{ date('F d, Y') }}</p>
     </div>
 
     <div class="container">
-        <div class="section-title">Global AI Health KPIs</div>
+        <div class="section-title">{{ __('mas/ai.health_score') }}</div>
         
         <div class="kpi-row">
             <div class="kpi-box">
                 <div class="kpi-value">{{ $stats['performance']['kpis']['health_score'] ?? 100 }}%</div>
-                <div class="kpi-label">Health Score</div>
+                <div class="kpi-label">{{ __('mas/ai.health_score') }}</div>
             </div>
             <div class="kpi-box">
                 <div class="kpi-value">{{ $stats['performance']['kpis']['uptime_percent'] ?? 100 }}%</div>
-                <div class="kpi-label">Success Rate</div>
+                <div class="kpi-label">{{ __('mas/ai.success_rate') }}</div>
             </div>
             <div class="kpi-box">
                 <div class="kpi-value text-info">{{ $stats['performance']['kpis']['routing_accuracy_percent'] ?? 100 }}%</div>
-                <div class="kpi-label">Routing Acc.</div>
+                <div class="kpi-label">{{ __('mas/ai.routing_accuracy') }}</div>
             </div>
             <div class="kpi-box" style="margin-right: 0;">
                 <div class="kpi-value">{{ $stats['performance']['kpis']['quota_used_percent'] ?? 0 }}%</div>
-                <div class="kpi-label">Quota Usage</div>
+                <div class="kpi-label">{{ __('mas/ai.quota_usage') }}</div>
             </div>
         </div>
 
         @if($chartImage)
-        <div class="section-title">Model Performance Matrix (Accuracy vs Latency)</div>
+        <div class="section-title">{{ __('mas/ai.model_performance') }}</div>
         <div class="chart-container">
             <img src="{{ $chartImage }}" class="chart-img" />
         </div>
         @endif
 
-        <div class="section-title">ML Model Registry & Governance</div>
+        <div class="section-title">{{ __('mas/ai.model_registry') }}</div>
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Model Name</th>
-                    <th>Type</th>
-                    <th>Version</th>
-                    <th>Framework</th>
-                    <th>Status</th>
-                    <th style="text-align: right;">Deployment Date</th>
+                    <th>{{ __('mas/ai.name') }}</th>
+                    <th>{{ __('mas/ai.type') }}</th>
+                    <th>{{ __('mas/ai.version') }}</th>
+                    <th>{{ __('mas/ai.framework') }}</th>
+                    <th>{{ __('mas/ai.status') }}</th>
+                    <th style="text-align: right;">{{ __('mas/ai.last_deployment') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -79,7 +79,7 @@
                     <td class="text-info">{{ $model['version'] ?? 'v1.0' }}</td>
                     <td>{{ $model['framework'] ?? 'Scikit-learn' }}</td>
                     <td>
-                        <span class="status-healthy">ACTIVE</span>
+                        <span class="status-healthy">{{ !empty($model['is_active']) ? __('mas/ai.active') : __('mas/ai.inactive') }}</span>
                     </td>
                     <td style="text-align: right;">{{ $model['deployed_at'] ?? '2026-04-10' }}</td>
                 </tr>
@@ -88,18 +88,18 @@
         </table>
 
         <div style="margin-top: 40px;">
-            <div class="section-title">LIMS Operational AI Predictions</div>
-            <p style="font-size: 11px;">Analytical insights derived from deep-learning models processing laboratory benchmarks.</p>
+            <div class="section-title">{{ __('mas/ai.lims_predictive') }}</div>
+            <p style="font-size: 11px;">{{ __('mas/ai.predictive_subtitle') }}</p>
             <ul style="font-size: 11px;">
-                <li><strong>SLA Compliance Projection</strong>: Currently at 98.4% across all active batches.</li>
-                <li><strong>Inventory Drift</strong>: Detected potential stockout in 3 high-priority chemicals within 14 days.</li>
-                <li><strong>QC Stability</strong>: 2 critical anomalies flagged in current validation cycle.</li>
+                <li>{{ __('mas/ai.predictive_sla') }}</li>
+                <li>{{ __('mas/ai.predictive_inventory') }}</li>
+                <li>{{ __('mas/ai.predictive_qc') }}</li>
             </ul>
         </div>
     </div>
 
     <div class="footer">
-        Confidential AI Governance Document | Nuvemite Polucon | Page 1 of 1
+        {{ __('mas/report.confidential') }} {{ __('mas/report.governance_document') }} | Nuvemite Polucon | {{ __('mas/report.page') }} 1 {{ __('mas/report.of') }} 1
     </div>
 </body>
 </html>

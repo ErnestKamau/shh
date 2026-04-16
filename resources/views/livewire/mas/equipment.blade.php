@@ -3,19 +3,19 @@
 <div class="container-fluid py-4">
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">Equipment Maintenance & Reliability</h1>
-            <p class="text-muted small mb-0">Asset health, calibration compliance, and downtime analysis.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/equipment.title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/equipment.subtitle') }}</p>
         </div>
         <div class="col-auto d-flex align-items-center">
             <a href="{{ route('mas.export', 'equipment') }}" class="btn btn-success btn-sm mr-2">
-                <i class="mdi mdi-download"></i> Download Report
+                <i class="mdi mdi-download"></i> {{ __('mas/common.download_report') }}
             </a>
             <div class="d-flex gap-2">
                 <span class="badge badge-warning p-2">
-                    <i class="mdi mdi-alert-circle mr-1"></i> {{ $stats['calibrationOverdue'] }} Overdue
+                    <i class="mdi mdi-alert-circle mr-1"></i> {{ $stats['calibrationOverdue'] }} {{ __('mas/equipment.overdue') }}
                 </span>
                 <span class="badge badge-success p-2 ml-2">
-                    <i class="mdi mdi-shield-check mr-1"></i> Compliance: {{ $stats['calibrationCompliance'] }}%
+                    <i class="mdi mdi-shield-check mr-1"></i> {{ __('mas/equipment.compliance') }}: {{ $stats['calibrationCompliance'] }}%
                 </span>
             </div>
         </div>
@@ -25,7 +25,7 @@
     <div class="row">
         <div class="col-md-3 mb-4">
             <div class="glass-panel text-center py-4 shadow-sm h-100">
-                <h6 class="text-muted text-uppercase mb-2 small font-weight-bold">Reliability Score</h6>
+                <h6 class="text-muted text-uppercase mb-2 small font-weight-bold">{{ __('mas/equipment.reliability_score') }}</h6>
                 <h2 class="font-weight-bold text-primary mb-0">{{ $stats['reliabilityScore'] }}%</h2>
                 <div class="progress mt-3 mx-4" style="height: 6px;">
                     <div class="progress-bar bg-primary" style="width: {{ $stats['reliabilityScore'] }}%"></div>
@@ -34,23 +34,23 @@
         </div>
         <div class="col-md-3 mb-4">
             <div class="glass-panel text-center py-4 shadow-sm h-100">
-                <h6 class="text-muted text-uppercase mb-2 small font-weight-bold">MTBF (Hours)</h6>
+                <h6 class="text-muted text-uppercase mb-2 small font-weight-bold">{{ __('mas/equipment.mtbf') }}</h6>
                 <h2 class="font-weight-bold text-info mb-0">{{ $stats['mtbf'] }}</h2>
-                <p class="text-muted small mb-0 mt-2">Avg. between failures</p>
+                <p class="text-muted small mb-0 mt-2">{{ __('mas/equipment.avg_between_failures') }}</p>
             </div>
         </div>
         <div class="col-md-3 mb-4">
             <div class="glass-panel text-center py-4 shadow-sm h-100">
-                <h6 class="text-muted text-uppercase mb-2 small font-weight-bold">Active Assets</h6>
+                <h6 class="text-muted text-uppercase mb-2 small font-weight-bold">{{ __('mas/equipment.active_assets') }}</h6>
                 <h2 class="font-weight-bold text-success mb-0">{{ $stats['equipmentTotal'] }}</h2>
-                <p class="text-muted small mb-0 mt-2">Currently operational</p>
+                <p class="text-muted small mb-0 mt-2">{{ __('mas/equipment.currently_operational') }}</p>
             </div>
         </div>
         <div class="col-md-3 mb-4">
             <div class="glass-panel text-center py-4 shadow-sm h-100">
-                <h6 class="text-muted text-uppercase mb-2 small font-weight-bold">Maintenance Due</h6>
+                <h6 class="text-muted text-uppercase mb-2 small font-weight-bold">{{ __('mas/equipment.maintenance_due') }}</h6>
                 <h2 class="font-weight-bold text-orange mb-0">{{ $stats['maintenanceDue'] }}</h2>
-                <p class="text-muted small mb-0 mt-2">Next 7 days</p>
+                <p class="text-muted small mb-0 mt-2">{{ __('mas/equipment.next_7_days') }}</p>
             </div>
         </div>
     </div>
@@ -60,17 +60,17 @@
         <div class="col-md-8 mb-4">
             <div class="card shadow-sm border-0" style="border-radius: 15px; overflow: hidden;">
                 <div class="card-header bg-dark text-white py-3">
-                    <h5 class="m-0 font-weight-bold"><i class="mdi mdi-calendar-clock mr-2"></i>Upcoming Maintenance Schedule</h5>
+                    <h5 class="m-0 font-weight-bold"><i class="mdi mdi-calendar-clock mr-2"></i>{{ __('mas/equipment.upcoming_schedule') }}</h5>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="bg-light">
                             <tr>
-                                <th>Equipment</th>
-                                <th>Type</th>
-                                <th>Scheduled Date</th>
-                                <th>Urgency</th>
-                                <th>Status</th>
+                                <th>{{ __('mas/equipment.equipment') }}</th>
+                                <th>{{ __('mas/equipment.type') }}</th>
+                                <th>{{ __('mas/equipment.scheduled_date') }}</th>
+                                <th>{{ __('mas/equipment.urgency') }}</th>
+                                <th>{{ __('mas/equipment.status') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -81,12 +81,12 @@
                                     <td>{{ $item['maintenanceDate'] }}</td>
                                     <td>
                                         @if($item['daysFromNow'] <= 3)
-                                            <span class="text-danger font-weight-bold">Urgent ({{ $item['daysFromNow'] }}d)</span>
+                                            <span class="text-danger font-weight-bold">{{ __('mas/equipment.urgent') }} ({{ $item['daysFromNow'] }}{{ __('mas/equipment.days') }})</span>
                                         @else
-                                            <span class="text-info">{{ $item['daysFromNow'] }} days</span>
+                                            <span class="text-info">{{ $item['daysFromNow'] }} {{ __('mas/equipment.days') }}</span>
                                         @endif
                                     </td>
-                                    <td><span class="badge badge-info">Scheduled</span></td>
+                                    <td><span class="badge badge-info">{{ __('mas/equipment.scheduled') }}</span></td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -99,7 +99,7 @@
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0 h-100" style="border-radius: 15px;">
                 <div class="card-header bg-danger text-white py-3">
-                    <h5 class="m-0 font-weight-bold"><i class="mdi mdi-alert-decagram mr-2"></i>Critical Overdue Calibration</h5>
+                    <h5 class="m-0 font-weight-bold"><i class="mdi mdi-alert-decagram mr-2"></i>{{ __('mas/equipment.critical_overdue') }}</h5>
                 </div>
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
@@ -112,7 +112,7 @@
                                 <div class="small text-muted mb-2">ID: {{ $eq['id'] }} | {{ $eq['type'] }}</div>
                                 <div class="d-flex justify-content-between small">
                                     <span class="text-danger">Due: {{ $eq['calibrationDue'] }}</span>
-                                    <span class="font-weight-bold">{{ $eq['daysOverdue'] }} days late</span>
+                                    <span class="font-weight-bold">{{ $eq['daysOverdue'] }} {{ __('mas/equipment.days_late') }}</span>
                                 </div>
                             </li>
                         @endforeach

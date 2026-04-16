@@ -21,6 +21,7 @@ class Risk extends BaseMasPage
 
     private function loadStats(): void
     {
+        $activeCount = RiskModel::where('workflow_step', '<', 8)->count();
         $byLevel = RiskModel::select('risk_level', DB::raw('count(*) as count'))
             ->where('workflow_step', '<', 8)
             ->groupBy('risk_level')
@@ -28,10 +29,13 @@ class Risk extends BaseMasPage
             ->get();
 
         $this->stats = [
-            'active_count'     => RiskModel::where('workflow_step', '<', 8)->count(),
+            'available'        => $activeCount > 0,
+            'message'          => $activeCount > 0 ? null : __('mas/risk.data_unavailable'),
+            'active_count'     => $activeCount,
             'critical_count'   => RiskModel::where('risk_level', 'Critical')->where('workflow_step', '<', 8)->count(),
             'requiring_review' => RiskModel::where('next_review_date', '<=', now())->where('workflow_step', '<', 8)->count(),
             'by_level'         => $byLevel,
+            'data_note'        => __('mas/risk.data_note'),
         ];
     }
 

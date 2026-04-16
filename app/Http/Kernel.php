@@ -36,6 +36,7 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\SetLocale::class,
         ],
 
         'api' => [
@@ -65,5 +66,6 @@ class Kernel extends HttpKernel
         'twofactor'=> \App\Http\Middleware\TwoFactorVerification::class,
         'haspermission'=>\App\Http\Middleware\checkHasPermission::class,
         'portal.client' => \App\Http\Middleware\EnsurePortalClient::class,
+        'set-locale' => \App\Http\Middleware\SetLocale::class,
     ];
 }

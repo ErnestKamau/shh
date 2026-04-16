@@ -11,6 +11,7 @@ use App\Models\DocumentType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class ReportingMartDashboardService
@@ -99,7 +100,7 @@ class ReportingMartDashboardService
 
             if ($period === 'active') {
                 $throughputQuery->whereIn('results.sample_header_id', $activeSampleIds);
-                $periodLabel = 'Active Workload';
+                $periodLabel = __('mas/lab.period_active_workload');
             } else {
                 $dateLimit = match($period) {
                     'week' => now()->subDays(7),
@@ -110,9 +111,9 @@ class ReportingMartDashboardService
                 
                 if ($dateLimit) {
                     $throughputQuery->where('results.created_at', '>=', $dateLimit);
-                    $periodLabel = 'Last ' . ucfirst($period);
+                    $periodLabel = __('mas/lab.last_period', ['period' => ucfirst($period)]);
                 } else {
-                    $periodLabel = 'Lifetime Total';
+                    $periodLabel = __('mas/lab.lifetime_total');
                 }
             }
 
@@ -134,20 +135,20 @@ class ReportingMartDashboardService
                     'tests_pending' => max(0, $totalTestsRequested - $totalTestsCompleted),
                 ]),
                 'stage_summary' => $normalizedStageSummary->all(),
-                'stage_counts' => $normalizedStageSummary->pluck('total_batches', 'workflow_stage')->all(),
+                'stage_counts' => $normalizedStageSummary->mapWithKeys(fn($s) => [$this->translateStatus($s['workflow_stage']) => $s['total_batches']])->all(),
                 'aging_buckets' => $orderedBuckets->all(),
                 'overdue_batches' => $normalizedOverdueBatches->all(),
                 'sample_type_distribution' => $sampleTypeDistribution->all(),
                 'charts' => [
-                    'stage_labels' => $normalizedStageSummary->pluck('workflow_stage')->all(),
+                    'stage_labels' => $normalizedStageSummary->map(fn($s) => $this->translateStatus($s['workflow_stage']))->all(),
                     'stage_totals' => $normalizedStageSummary->pluck('total_batches')->all(),
                     'stage_overdue' => $normalizedStageSummary->pluck('overdue_batches')->all(),
                     'aging_labels' => $orderedBuckets->pluck('label')->all(),
                     'aging_counts' => $orderedBuckets->pluck('batch_count')->all(),
                     'type_labels' => $sampleTypeDistribution->pluck('sample_type')->all(),
                     'type_counts' => $sampleTypeDistribution->pluck('total_batches')->all(),
-                    'completion_labels' => ['Completed', 'Pending'],
-                    'completion_counts' => [$totalTestsCompleted, max(0, $totalTestsRequested - $totalTestsCompleted)],
+                    'completion_labels' => [__('mas/lab.completed'), __('mas/lab.pending')],
+                    'completion_counts' => [(int) $totalTestsCompleted, max(0, $totalTestsRequested - $totalTestsCompleted)],
                     'throughput_labels' => $throughputByAnalyte->pluck('analyte_name')->all(),
                     'throughput_counts' => $throughputByAnalyte->pluck('total_tests')->all(),
                 ],
@@ -159,6 +160,259 @@ class ReportingMartDashboardService
             return $this->emptyLabTatBoard('Reporting mart unavailable. Lab TAT cockpit is showing fallback data only.');
         }
     }
+
+    /**
+     * Get geographical distribution of samples for mapping.
+     */
+    public function getLabGeographicData($year = null): array
+    {
+        $year = $year ?? date('Y');
+        $results = [];
+        
+        // Similar to LabDashboardController::getSamplesByGps
+        $samples = DB::table('sample_headers')
+            ->where('isactive', 1)
+            ->whereYear('created_at', $year)
+            ->where('status', '!=', 'Completed')
+            ->get();
+
+        foreach ($samples as $sample) {
+            $details = DB::table('sample_details')
+                ->where('sample_header_id', $sample->id)
+                ->get();
+                
+            foreach ($details as $detail) {
+                $point = DB::table('crm_sample_points')->find($detail->sample_point_id);
+                $gps = null;
+                
+                if ($point && $point->gps) {
+                    $gps = $point->gps;
+                } else {
+                    $unit = DB::table('crm_company_units')->where('name', $sample->crm_unit_name)->first();
+                    if ($unit) {
+                        $unitPoint = DB::table('crm_sample_points')->where('crm_company_unit_id', $unit->id)->first();
+                        if ($unitPoint && $unitPoint->gps) {
+                            $gps = $unitPoint->gps;
+                        }
+                    }
+                }
+
+                if ($gps) {
+                    if (!isset($results[$gps])) {
+                        $results[$gps] = 0;
+                    }
+                    $results[$gps]++;
+                }
+            }
+        }
+
+        // Format for Leaflet/Heatchart: [[lat, lng, intensity], ...]
+        $formatted = [];
+        foreach ($results as $gpsStr => $count) {
+            $parts = explode(',', $gpsStr);
+            if (count($parts) === 2) {
+                $formatted[] = [
+                    'lat' => (float) trim($parts[0]),
+                    'lng' => (float) trim($parts[1]),
+                    'intensity' => $count
+                ];
+            }
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * Get monthly registration trends (Historical Throughput).
+     */
+    public function getLabMonthlyTrends($year = null): array
+    {
+        $year = $year ?? date('Y');
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        $counts = [];
+
+        for ($i = 1; $i <= 12; $i++) {
+            $counts[] = DB::table('sample_headers')
+                ->where('isactive', 1)
+                ->whereYear('receipt_date', $year)
+                ->whereMonth('receipt_date', $i)
+                ->count();
+        }
+
+        return [
+            'labels' => $months,
+            'data' => $counts
+        ];
+    }
+
+    /**
+     * Get top clients by sample volume.
+     */
+    public function getTopClientsData(int $limit = 10): Collection
+    {
+        return DB::table('crm_customers')
+            ->join('sample_headers', 'sample_headers.crm_customer_id', '=', 'crm_customers.id')
+            ->select('crm_customers.name', DB::raw('count(sample_headers.id) as total'))
+            ->where('sample_headers.isactive', 1)
+            ->groupBy('crm_customers.id', 'crm_customers.name')
+            ->orderByDesc('total')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Get Smart Action Grid tasks (Urgent, My Tasks, Approvals).
+     */
+    public function getSmartActionGridData(string $tab = 'my_tasks'): array
+    {
+        $query = DB::table('sample_headers as sh')
+            ->leftJoin('crm_customers as c', 'c.id', '=', 'sh.crm_customer_id')
+            ->leftJoin('sample_types as st', 'st.id', '=', 'sh.sample_type_id')
+            ->where('sh.isactive', 1)
+            ->where('sh.status', '!=', 'Completed')
+            ->select(
+                'sh.id', 'sh.batch_code', 'sh.status', 'sh.priority',
+                'c.name as client_name', 
+                'st.name as sample_type_name'
+            );
+
+        if ($tab === 'urgent') {
+            $query->whereIn('sh.priority', ['Urgent', 'High']);
+        } elseif ($tab === 'approvals') {
+            $query->where('sh.status', 'Sample Approval');
+        } else {
+            // Default: My Tasks (Samples In Lab or Verification)
+            $query->whereIn('sh.status', ['Samples In Lab', 'Sample Verification']);
+        }
+
+        return $query->limit(15)->get()->map(function($row) {
+            // Calculate target date and status from linked tables if necessary
+            // Simplified for the grid
+            return [
+                'id' => $row->id,
+                'batch_code' => $row->batch_code,
+                'client' => $row->client_name ?? 'N/A',
+                'type' => $row->sample_type_name ?? 'N/A',
+                'status' => $this->translateStatus($row->status),
+                'priority' => $row->priority,
+                'overdue' => $row->priority === 'Urgent'
+            ];
+        })->all();
+    }
+
+    /**
+     * Get Sunburst Testing Matrix data (Sample Type -> Lab Section).
+     */
+    public function getTestingMatrixData($year = null): array
+    {
+        $year = $year ?? date('Y');
+        $samples = DB::table('sample_headers')
+            ->where('isactive', 1)
+            ->whereYear('created_at', $year)
+            ->where('status', '!=', 'Completed')
+            ->get();
+
+        $sections = DB::table('sample_analysis_stages')->where('active', 1)->get()->keyBy('id');
+        $types = DB::table('sample_types')->where('active', 1)->get()->keyBy('id');
+
+        $matrix = [];
+        foreach ($samples as $sample) {
+            $typeName = isset($types[$sample->sample_type_id]) ? $types[$sample->sample_type_id]->name : 'Unknown';
+            if (!isset($matrix[$typeName])) $matrix[$typeName] = [];
+
+            if ($sample->lab_section_ids) {
+                $secIds = explode(',', $sample->lab_section_ids);
+                foreach ($secIds as $sid) {
+                    if (isset($sections[$sid])) {
+                        $sname = $sections[$sid]->name;
+                        $matrix[$typeName][$sname] = ($matrix[$typeName][$sname] ?? 0) + 1;
+                    }
+                }
+            }
+        }
+
+        $formatted = [];
+        foreach ($matrix as $type => $secArray) {
+            $children = [];
+            foreach ($secArray as $sec => $count) {
+                $children[] = ['name' => $sec, 'value' => $count];
+            }
+            $formatted[] = ['name' => $type, 'children' => $children];
+        }
+
+        return $formatted;
+    }
+
+    public function getParameterPerformanceData(): array
+    {
+        $conn = $this->repositoryConnection();
+        $schema = $this->reportingSchema();
+
+        $results = DB::connection($conn)->table("{$schema}.qc_results as qr")
+            ->join("{$schema}.analytes as a", "a.source_id", "=", "qr.analyte_id")
+            ->whereNotNull('qr.status_code')
+            ->whereIn('qr.status_code', ['PASSED', 'FAILED'])
+            ->where('qr.source_created_at', '>=', now()->subMonths(6))
+            ->select('a.name', 'qr.status_code', DB::raw('count(*) as total'))
+            ->groupBy('a.name', 'qr.status_code')
+            ->get();
+
+        $performance = [];
+        foreach ($results as $res) {
+            if (!isset($performance[$res->name])) {
+                $performance[$res->name] = ['name' => $res->name, 'pass' => 0, 'fail' => 0];
+            }
+            if ($res->status_code === 'PASSED') {
+                $performance[$res->name]['pass'] += (int) $res->total;
+            } else {
+                $performance[$res->name]['fail'] += (int) $res->total;
+            }
+        }
+
+        return collect($performance)->map(function($p) {
+            $total = $p['pass'] + $p['fail'];
+            $p['rate'] = $total > 0 ? round(($p['pass'] / $total) * 100, 1) : 0;
+            $p['total'] = $total;
+            return $p;
+        })->sortByDesc('total')->take(10)->values()->all();
+    }
+
+
+    /**
+     * Get Lab Logistics (Buffer stock and consumables).
+     */
+    public function getLabLogisticsSummary(): array
+    {
+        $buffers = collect();
+        $movements = collect();
+
+        if (Schema::hasTable('lab_buffers')) {
+            $buffers = DB::table('lab_buffers')->where('is_active', 1)->get()->map(function($b) {
+                return [
+                    'name' => $b->name,
+                    'code' => $b->code,
+                    'min_level' => (float) $b->min_level,
+                    'current_qty' => (float) $b->current_qty,
+                    'is_low' => (float) $b->current_qty < (float) $b->min_level
+                ];
+            });
+        }
+
+        if (Schema::hasTable('lab_buffer_movements')) {
+            $movements = DB::table('lab_buffer_movements')
+                ->where('created_at', '>=', now()->subDays(30))
+                ->orderByDesc('created_at')
+                ->limit(10)
+                ->get();
+        }
+
+        return [
+            'buffers' => $buffers,
+            'low_stock_count' => $buffers->where('is_low', true)->count(),
+            'recent_movements' => $movements
+        ];
+    }
+
 
     public function getQcStabilityBoard(): array
     {
@@ -744,23 +998,37 @@ class ReportingMartDashboardService
     protected function agingBucketLabels(): array
     {
         return [
-            'on_time' => 'On time',
-            'due_today' => 'Due today',
-            '1_3_overdue' => '1-3 days overdue',
-            '4_7_overdue' => '4-7 days overdue',
-            '8_plus_overdue' => '8+ days overdue',
-            'no_target' => 'No target date',
+            'on_time' => __('mas/lab.bucket_on_time'),
+            'due_today' => __('mas/lab.bucket_due_today'),
+            '1_3_overdue' => __('mas/lab.bucket_1_3_overdue'),
+            '4_7_overdue' => __('mas/lab.bucket_4_7_overdue'),
+            '8_plus_overdue' => __('mas/lab.bucket_8_plus_overdue'),
+            'no_target' => __('mas/lab.bucket_no_target'),
         ];
     }
 
     protected function qcStatusLabels(): array
     {
         return [
-            'stable' => 'Stable',
-            'warning' => 'Warning',
-            'critical' => 'Critical',
-            'unknown' => 'Unknown',
+            'stable' => __('mas/qc.stable'),
+            'warning' => __('mas/qc.warning'),
+            'critical' => __('mas/qc.critical'),
+            'unknown' => __('mas/qc.unknown'),
         ];
+    }
+
+    /**
+     * Map dynamic status strings to localized keys.
+     */
+    public function translateStatus(?string $status): string
+    {
+        if (!$status) return '';
+        
+        $slug = strtolower(str_replace(' ', '_', $status));
+        $key = "mas/lab.status_{$slug}";
+        $translated = __($key);
+
+        return $translated === $key ? $status : $translated;
     }
 
     protected function resolveDepartmentName($value, Collection $departmentNames): string

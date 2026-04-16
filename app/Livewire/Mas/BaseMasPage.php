@@ -15,4 +15,13 @@ abstract class BaseMasPage extends Component
             abort(403, 'Unauthorized access. AI Analytics is restricted to Administrators.');
         }
     }
+
+    /**
+     * Safe serialization for frontend (e.g. JSON.stringify($wire)).
+     * Prevents "Public method [toJSON] not found on component" when Alpine/Select2 serializes the component.
+     */
+    public function toJSON(): array
+    {
+        return ['id' => $this->getId()];
+    }
 }

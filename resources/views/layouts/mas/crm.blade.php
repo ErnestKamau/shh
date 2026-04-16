@@ -5,12 +5,12 @@
     <!-- Header -->
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">CRM Analytics</h1>
-            <p class="text-muted small mb-0">Customer order trends and key account performance.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/crm.title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/crm.subtitle') }}</p>
         </div>
         <div class="col-auto">
             <a href="{{ route('mas.export', 'crm') }}" class="btn btn-success btn-sm mr-2">
-                <i class="mdi mdi-download"></i> Download Report
+                <i class="mdi mdi-download"></i> {{ __('mas/common.download_report') }}
             </a>
         </div>
     </div>
@@ -20,7 +20,7 @@
         <div class="col-md-5 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Top Accounts (Order Volume)</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/crm.top_accounts') }}</h5>
                 </div>
                 <div class="card-body">
                     <canvas id="crmClientsChart" height="400"></canvas>
@@ -31,8 +31,40 @@
         <!-- Order Trend Chart -->
         <div class="col-md-7 mb-4">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">14-Day Order Trend</h5>
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/crm.order_trend', ['period' => $stats['period_label']]) }}</h5>
+                        <span class="text-muted x-small text-uppercase">{{ $stats['period_label'] }}</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        @if($stats['period'] === 'custom')
+                        <form action="" method="GET" class="d-flex align-items-center mr-3">
+                            <input type="hidden" name="period" value="custom">
+                            <input type="date" name="from" value="{{ $stats['from'] }}" class="form-control form-control-sm mr-2" style="width: 130px;">
+                            <input type="date" name="to" value="{{ $stats['to'] }}" class="form-control form-control-sm mr-2" style="width: 130px;">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="mdi mdi-check"></i>
+                            </button>
+                        </form>
+                        @endif
+                        <div class="dropdown">
+                            <button class="btn btn-light btn-sm dropdown-toggle font-weight-bold" type="button" data-toggle="dropdown">
+                                <i class="mdi mdi-filter-variant"></i> 
+                                {{ __('mas/crm.period_' . $stats['period']) }}
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-right">
+                                <a class="dropdown-item {{ $stats['period'] == '1_week' ? 'active' : '' }}" href="?period=1_week">{{ __('mas/crm.period_1_week') }}</a>
+                                <a class="dropdown-item {{ $stats['period'] == '2_weeks' ? 'active' : '' }}" href="?period=2_weeks">{{ __('mas/crm.period_2_weeks') }}</a>
+                                <a class="dropdown-item {{ $stats['period'] == '1_month' ? 'active' : '' }}" href="?period=1_month">{{ __('mas/crm.period_1_month') }}</a>
+                                <a class="dropdown-item {{ $stats['period'] == '2_months' ? 'active' : '' }}" href="?period=2_months">{{ __('mas/crm.period_2_months') }}</a>
+                                <a class="dropdown-item {{ $stats['period'] == 'quarterly' ? 'active' : '' }}" href="?period=quarterly">{{ __('mas/crm.period_quarterly') }}</a>
+                                <a class="dropdown-item {{ $stats['period'] == 'semi_annually' ? 'active' : '' }}" href="?period=semi_annually">{{ __('mas/crm.period_semi_annually') }}</a>
+                                <a class="dropdown-item {{ $stats['period'] == 'annually' ? 'active' : '' }}" href="?period=annually">{{ __('mas/crm.period_annually') }}</a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item {{ $stats['period'] == 'custom' ? 'active' : '' }}" href="?period=custom">{{ __('mas/crm.period_custom') }}</a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <canvas id="crmTrendChart" height="400"></canvas>
@@ -50,8 +82,8 @@
                         <table class="table table-hover mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="border-0">Client Name</th>
-                                    <th class="border-0 text-right">Total Batches</th>
+                                    <th class="border-0">{{ __('mas/crm.client_name') }}</th>
+                                    <th class="border-0 text-right">{{ __('mas/crm.total_batches') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
