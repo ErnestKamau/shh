@@ -384,6 +384,20 @@
                        value="{{ $fieldValue ?: '' }}">
             </div>
             @break
+
+        @case('depended_field')
+            <input type="text"
+                   class="form-control"
+                   id="{{ $fieldId }}"
+                   name="{{ $fieldName }}"
+                   placeholder="{{ $element->placeholder ?? '' }}"
+                   value="{{ $fieldValue ?? '' }}"
+                   data-element-type="depended_field"
+                   data-element-id="{{ $element->id }}"
+                   data-depends-on="{{ $element->depends_on_field ?? '' }}"
+                   {{ $element->is_required ? 'required' : '' }}
+                   {{ $element->is_readonly ? 'readonly' : '' }}>
+            @break
             
         @case('analysis_type_select')
             @php

@@ -816,6 +816,33 @@ class FormInstanceController extends Controller
     }
 
     /**
+     * Get the value of a depended_field element based on the selected source record.
+     * Security: source_table and source_field are always read from the DB record, never from the request.
+     */
+    public function getDependedFieldValue(Request $request)
+    {
+        $request->validate([
+            'element_id' => 'required|integer',
+            'source_id'  => 'required|integer',
+        ]);
+
+        $element = \App\Models\SubmissionFormElement::findOrFail($request->get('element_id'));
+
+        if (!$element->source_table || !$element->source_field) {
+            return response()->json(['success' => false, 'message' => 'Element is not configured for auto-fill'], 422);
+        }
+
+        $value = \Illuminate\Support\Facades\DB::table($element->source_table)
+            ->where('id', $request->get('source_id'))
+            ->value($element->source_field);
+
+        return response()->json([
+            'success' => true,
+            'value'   => $value,
+        ]);
+    }
+
+    /**
      * Get dynamic options for custom elements
      */
     public function getDynamicOptions(Request $request)

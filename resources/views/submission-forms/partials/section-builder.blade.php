@@ -129,7 +129,12 @@ if (!function_exists('getElementIcon')) {
                             <div class="holder-content">
                                 <div class="elements-container sortable-elements p-2" data-holder-id="{{ $holder->id }}" data-max-elements="{{ $holder->max_elements }}">
                                     @forelse($holder->elements as $element)
-                                        <div class="element-item d-flex justify-content-between align-items-center py-2 px-3 mb-1 border rounded" data-element-id="{{ $element->id }}">
+                                        <div class="element-item d-flex justify-content-between align-items-center py-2 px-3 mb-1 border rounded"
+                                             data-element-id="{{ $element->id }}"
+                                             data-depends-on-type="{{ $element->depends_on_type ?? '' }}"
+                                             data-depends-on-field="{{ $element->depends_on_field ?? '' }}"
+                                             data-source-table="{{ $element->source_table ?? '' }}"
+                                             data-source-field="{{ $element->source_field ?? '' }}">
                                             <div class="d-flex align-items-center">
                                                 <i class="mdi mdi-drag-horizontal text-muted mr-2" style="cursor: move;"></i>
                                                 <i class="mdi mdi-{{ getElementIcon($element->element_type) }} text-secondary mr-2"></i>
