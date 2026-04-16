@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title' => 'Equipment Maintenance & Reliability',
+    'subtitle' => 'Asset health, calibration compliance, and downtime analysis.',
+    'overdue' => 'Overdue',
+    'compliance' => 'Compliance',
+    'reliability_score' => 'Reliability Score',
+    'mtbf' => 'MTBF (Hours)',
+    'avg_between_failures' => 'Avg. between failures',
+    'active_assets' => 'Active Assets',
+    'currently_operational' => 'Currently operational',
+    'maintenance_due' => 'Maintenance Due',
+    'next_7_days' => 'Next 7 days',
+    'upcoming_schedule' => 'Upcoming Maintenance Schedule',
+    'equipment' => 'Equipment',
+    'type' => 'Type',
+    'scheduled_date' => 'Scheduled Date',
+    'urgency' => 'Urgency',
+    'urgent' => 'Urgent',
+    'days' => 'days',
+    'scheduled' => 'Scheduled',
+    'critical_overdue' => 'Critical Overdue Calibration',
+    'days_late' => 'days late',
+    'status' => 'Status',
+];

@@ -23,7 +23,7 @@ class LabGeneral extends BaseMasPage
     {
         $service  = app(ReportingMartDashboardService::class);
         $labBoard = $service->getLabTatBoard();
-
+        
         $topClients = DB::table('crm_customers')
             ->join('sample_headers', 'sample_headers.crm_customer_id', '=', 'crm_customers.id')
             ->select('crm_customers.name', DB::raw('count(sample_headers.id) as total'))
@@ -36,6 +36,8 @@ class LabGeneral extends BaseMasPage
         $this->stats = [
             'sample_type_distribution' => $labBoard['sample_type_distribution'] ?? [],
             'top_clients'              => $topClients,
+            'geographic_data'          => $service->getLabGeographicData(),
+            'monthly_trends'           => $service->getLabMonthlyTrends(),
             'charts'                   => [
                 'type_labels'    => $labBoard['charts']['type_labels'] ?? [],
                 'type_counts'    => $labBoard['charts']['type_counts'] ?? [],

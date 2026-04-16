@@ -29,7 +29,14 @@ class LabTat extends BaseMasPage
 
     private function loadStats(): void
     {
-        $this->stats = app(ReportingMartDashboardService::class)->getLabTatBoard($this->period);
+        $service = app(ReportingMartDashboardService::class);
+        $this->stats = $service->getLabTatBoard($this->period);
+        $this->stats['smart_grid'] = $service->getSmartActionGridData('my_tasks');
+    }
+
+    public function getSmartGridData(string $tab): array
+    {
+        return app(ReportingMartDashboardService::class)->getSmartGridData($tab);
     }
 
     public function render()

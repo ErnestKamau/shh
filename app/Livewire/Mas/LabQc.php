@@ -20,7 +20,10 @@ class LabQc extends BaseMasPage
 
     private function loadStats(): void
     {
-        $this->stats = app(ReportingMartDashboardService::class)->getQcStabilityBoard();
+        $service = app(ReportingMartDashboardService::class);
+        $this->stats = $service->getQcStabilityBoard();
+        $this->stats['parameter_performance'] = $service->getParameterPerformanceData();
+        $this->stats['testing_matrix'] = $service->getTestingMatrixData();
     }
 
     public function render()

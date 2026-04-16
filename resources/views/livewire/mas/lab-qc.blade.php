@@ -4,16 +4,16 @@
     <!-- Header -->
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">QC Stability Analytics</h1>
-            <p class="text-muted small mb-0">Quality Control performance monitoring and stability tracking.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/qc.title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/qc.subtitle') }}</p>
         </div>
         <div class="col-auto">
             <div class="btn-group shadow-sm">
                 <button onclick="exportQcPdf(false)" class="btn btn-indigo btn-sm">
-                    <i class="mdi mdi-file-pdf"></i> Download Report
+                    <i class="mdi mdi-file-pdf"></i> {{ __('mas/common.download_report') }}
                 </button>
                 <button onclick="exportQcPdf(true)" class="btn btn-outline-indigo btn-sm border-left-0">
-                    <i class="mdi mdi-eye"></i> Preview
+                    <i class="mdi mdi-eye"></i> {{ __('mas/qc.preview') }}
                 </button>
             </div>
             
@@ -27,7 +27,7 @@
 
     @if(!($stats['available'] ?? false))
         <div class="alert alert-warning shadow-sm border-0">
-            <i class="mdi mdi-alert mr-2"></i> {{ $stats['message'] ?? 'QC stability data is currently unavailable.' }}
+            <i class="mdi mdi-alert mr-2"></i> {{ $stats['message'] ?? __('mas/common.no_data') }}
         </div>
     @endif
 
@@ -36,36 +36,94 @@
         <div class="col-md-3">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">Total QC Analytes</h6>
+                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">{{ __('mas/qc.total_analytes') }}</h6>
                     <h2 class="font-weight-bold mb-0 text-dark">{{ $stats['summary']['total_records'] ?? 0 }}</h2>
-                    <p class="text-info small mb-0 mt-2">Monitored parameters</p>
+                    <p class="text-info small mb-0 mt-2">{{ __('mas/qc.monitored_params') }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card shadow-sm border-0 h-100 border-left border-success" style="border-left-width: 4px !important;">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">Stable Controls</h6>
+                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">{{ __('mas/qc.stable_controls') }}</h6>
                     <h2 class="font-weight-bold mb-0 text-success">{{ $stats['summary']['stable_records'] ?? 0 }}</h2>
-                    <p class="text-muted small mb-0 mt-2">Within 5% CV threshold</p>
+                    <p class="text-muted small mb-0 mt-2">{{ __('mas/qc.cv_threshold') }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card shadow-sm border-0 h-100 border-left border-danger" style="border-left-width: 4px !important;">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">Critical Exceptions</h6>
+                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">{{ __('mas/qc.critical_exceptions') }}</h6>
                     <h2 class="font-weight-bold mb-0 text-danger">{{ $stats['summary']['critical_records'] ?? 0 }}</h2>
-                    <p class="text-muted small mb-0 mt-2">Requires immediate recalibration</p>
+                    <p class="text-muted small mb-0 mt-2">{{ __('mas/qc.recalibration_required') }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">Avg. Robust CV%</h6>
+                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">{{ __('mas/qc.avg_cv') }}</h6>
                     <h2 class="font-weight-bold mb-0 text-primary">{{ $stats['summary']['avg_cv_percentage'] ?? 0 }}%</h2>
-                    <p class="text-muted small mb-0 mt-2">System-wide precision</p>
+                    <p class="text-muted small mb-0 mt-2">{{ __('mas/qc.system_precision') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Parameter Performance Leaderboard -->
+        <div class="col-md-7 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/qc.leaderboard_title') }}</h5>
+                    <span class="badge badge-success">{{ __('mas/qc.top_10') }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 small text-uppercase">{{ __('mas/qc.method_analyte') }}</th>
+                                    <th class="border-0 small text-uppercase text-center">{{ __('mas/qc.total_tests') }}</th>
+                                    <th class="border-0 small text-uppercase text-center">{{ __('mas/qc.pass_rate') }}</th>
+                                    <th class="border-0 small text-uppercase">{{ __('mas/qc.trend') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($stats['parameter_performance'] ?? [] as $perf)
+                                    <tr>
+                                        <td class="font-weight-bold text-dark">{{ $perf['name'] }}</td>
+                                        <td class="text-center">{{ number_format($perf['total']) }}</td>
+                                        <td class="text-center">
+                                            <span class="font-weight-bold {{ $perf['rate'] > 95 ? 'text-success' : ($perf['rate'] > 85 ? 'text-warning' : 'text-danger') }}">
+                                                {{ $perf['rate'] }}%
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="height: 4px; width: 80px;">
+                                                <div class="progress-bar {{ $perf['rate'] > 95 ? 'bg-success' : 'bg-warning' }}" style="width: {{ $perf['rate'] }}%"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Testing Matrix (Stacked Bar) -->
+        <div class="col-md-5 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/qc.testing_matrix') }}</h5>
+                </div>
+                <div class="card-body">
+                    <div style="height: 400px;">
+                        <canvas id="testingMatrixStackedBar"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -75,8 +133,9 @@
         <!-- Stability Distribution -->
         <div class="col-md-5 mb-4">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Stability Status Distribution</h5>
+                <div class="card-header bg-white border-0 py-3 d-flex align-items-center">
+                    <i class="mdi mdi-chart-donut text-success mr-2"></i>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/qc.distribution_title') }}</h5>
                 </div>
                 <div class="card-body">
                     <div style="height: 250px;">
@@ -87,7 +146,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-2 px-2">
                                 <span class="small">
                                     <i class="mdi mdi-circle mr-2 {{ $status['stability_status'] == 'stable' ? 'text-success' : ($status['stability_status'] == 'warning' ? 'text-warning' : 'text-danger') }}"></i>
-                                    {{ $status['label'] }}
+                                    {{ __('mas/qc.' . $status['stability_status']) }}
                                 </span>
                                 <span class="badge badge-light font-weight-bold">{{ $status['record_count'] }}</span>
                             </div>
@@ -100,11 +159,14 @@
         <!-- Top CV Exceptions -->
         <div class="col-md-7 mb-4">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">High Variation Analytes (CV%)</h5>
+                <div class="card-header bg-white border-0 py-3 d-flex align-items-center">
+                    <i class="mdi mdi-alert-decagram text-warning mr-2"></i>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/qc.top_exceptions_title') }}</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="topCvChart" height="300"></canvas>
+                    <div style="height: 350px;">
+                        <canvas id="topCvChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -115,19 +177,19 @@
         <div class="col-12 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 font-weight-bold text-dark">Stability Watchlist</h5>
-                    <span class="text-muted small">Prioritized by Variation Level</span>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/qc.watchlist_title') }}</h5>
+                    <span class="text-muted small">{{ __('mas/qc.watchlist_prioritized') }}</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="border-0 small text-uppercase">Analyte Name</th>
-                                    <th class="border-0 small text-uppercase">Sample Type</th>
-                                    <th class="border-0 small text-uppercase text-center">Robust CV%</th>
-                                    <th class="border-0 small text-uppercase text-center">Pass Rate</th>
-                                    <th class="border-0 small text-uppercase text-center">Status</th>
+                                    <th class="border-0 small text-uppercase">{{ __('mas/qc.analyte_name') }}</th>
+                                    <th class="border-0 small text-uppercase">{{ __('mas/qc.sample_type') }}</th>
+                                    <th class="border-0 small text-uppercase text-center">{{ __('mas/qc.robust_cv') }}</th>
+                                    <th class="border-0 small text-uppercase text-center">{{ __('mas/qc.pass_rate') }}</th>
+                                    <th class="border-0 small text-uppercase text-center">{{ __('mas/qc.status') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -151,13 +213,13 @@
                                                 $badgeClass = $row['stability_status'] == 'stable' ? 'badge-success' : ($row['stability_status'] == 'warning' ? 'badge-warning' : 'badge-danger');
                                             @endphp
                                             <span class="badge {{ $badgeClass }} text-uppercase" style="width: 80px;">
-                                                {{ $row['stability_status'] }}
+                                                {{ __('mas/qc.' . $row['stability_status']) }}
                                             </span>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted italic">No QC exceptions detected. Systems are stable.</td>
+                                        <td colspan="5" class="text-center py-4 text-muted italic">{{ __('mas/qc.no_exceptions') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -169,7 +231,7 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Global Chart Defaults
@@ -177,73 +239,111 @@
         Chart.defaults.global.defaultFontColor = '#64748b';
 
         // 1. Stability Distribution Doughnut
-        var stabilityCtx = document.getElementById('stabilityDoughnutChart').getContext('2d');
-        window.stabilityChart = new Chart(stabilityCtx, {
-            type: 'doughnut',
-            data: {
-                labels: @json($stats['charts']['status_labels'] ?? []),
-                datasets: [{
-                    data: @json($stats['charts']['status_counts'] ?? []),
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutoutPercentage: 80,
-                legend: { display: false }
-            }
-        });
+        var stabilityEl = document.getElementById('stabilityDoughnutChart');
+        if (stabilityEl) {
+            var stabilityCtx = stabilityEl.getContext('2d');
+            window.stabilityChart = new Chart(stabilityCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: @json($stats['charts']['status_labels'] ?? []),
+                    datasets: [{
+                        data: @json($stats['charts']['status_counts'] ?? []),
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutoutPercentage: 80,
+                    legend: { display: false }
+                }
+            });
+        }
 
         // 2. Top CV Analytes Bar Chart
-        var cvCtx = document.getElementById('topCvChart').getContext('2d');
-        new Chart(cvCtx, {
+        var cvEl = document.getElementById('topCvChart');
+        if (cvEl) {
+            var cvCtx = cvEl.getContext('2d');
+            new Chart(cvCtx, {
+                type: 'horizontalBar',
+                data: {
+                    labels: @json($stats['charts']['top_labels'] ?? []),
+                    datasets: [{
+                        label: "{{ __('mas/qc.robust_cv') }}",
+                        data: @json($stats['charts']['top_cv_values'] ?? []),
+                        backgroundColor: '#6366f1',
+                        borderRadius: 4,
+                        barThickness: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: { display: false },
+                    scales: {
+                        xAxes: [{ 
+                            ticks: { beginAtZero: true },
+                            gridLines: { color: '#f1f5f9', zeroLineColor: '#f1f5f9' }
+                        }],
+                        yAxes: [{ gridLines: { display: false } }]
+                    }
+                }
+            });
+        }
+
+        // 3. Testing Matrix Stacked Bar (Chart.js)
+        var matrixData = @json($stats['testing_matrix'] ?? []);
+        var sections = new Set();
+        matrixData.forEach(function(type) {
+            type.children.forEach(function(child) {
+                sections.add(child.name);
+            });
+        });
+        var sectionList = Array.from(sections);
+        
+        var datasets = sectionList.map(function(sec, idx) {
+            var colors = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#3b82f6", "#06b6d4"];
+            return {
+                label: sec,
+                data: matrixData.map(function(type) {
+                    var match = type.children.find(c => c.name === sec);
+                    return match ? match.value : 0;
+                }),
+                backgroundColor: colors[idx % colors.length]
+            };
+        });
+
+        var matrixCtx = document.getElementById('testingMatrixStackedBar').getContext('2d');
+        new Chart(matrixCtx, {
             type: 'horizontalBar',
             data: {
-                labels: @json($stats['charts']['top_labels'] ?? []),
-                datasets: [{
-                    label: 'CV%',
-                    data: @json($stats['charts']['top_cv_values'] ?? []),
-                    backgroundColor: '#6366f1',
-                    borderRadius: 4,
-                    barThickness: 20
-                }]
+                labels: matrixData.map(t => t.name),
+                datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                legend: { display: false },
+                legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } },
                 scales: {
-                    xAxes: [{ 
-                        ticks: { beginAtZero: true },
-                        gridLines: { color: '#f1f5f9', zeroLineColor: '#f1f5f9' }
-                    }],
-                    yAxes: [{ gridLines: { display: false } }]
+                    xAxes: [{ stacked: true, ticks: { beginAtZero: true } }],
+                    yAxes: [{ stacked: true, gridLines: { display: false } }]
                 }
             }
         });
+
     });
 
     function exportQcPdf(isPreview = false) {
-        // We capture the stability distribution chart for this report
         const chart = window.stabilityChart; 
         if (chart) {
             const base64Image = chart.toBase64Image();
             document.getElementById('chart_image_input').value = base64Image;
-        } else {
-            document.getElementById('chart_image_input').value = '';
         }
 
         const form = document.getElementById('pdfExportForm');
         document.getElementById('preview_input').value = isPreview;
-        
-        if (isPreview) {
-            form.target = "_blank";
-        } else {
-            form.target = "_self";
-        }
-
+        form.target = isPreview ? "_blank" : "_self";
         form.submit();
     }
 </script>

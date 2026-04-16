@@ -5,16 +5,16 @@
     <!-- Header -->
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">Laboratory General Analytics</h1>
-            <p class="text-muted small mb-0">Overview of workload distribution and customer engagement.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/lab.general_title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/lab.general_subtitle') }}</p>
         </div>
         <div class="col-auto">
             <div class="btn-group shadow-sm">
                 <button onclick="exportGeneralPdf(false)" class="btn btn-primary btn-sm">
-                    <i class="mdi mdi-file-pdf"></i> Download Report
+                    <i class="mdi mdi-file-pdf"></i> {{ __('mas/common.download_report') }}
                 </button>
                 <button onclick="exportGeneralPdf(true)" class="btn btn-outline-primary btn-sm border-left-0">
-                    <i class="mdi mdi-eye"></i> Preview
+                    <i class="mdi mdi-eye"></i> {{ __('mas/common.preview') }}
                 </button>
             </div>
             
@@ -31,18 +31,18 @@
         <div class="col-md-3">
             <div class="card shadow-sm border-0 bg-primary text-white">
                 <div class="card-body">
-                    <h6 class="text-uppercase small mb-2 opacity-75">Workload Volume</h6>
+                    <h6 class="text-uppercase small mb-2 opacity-75">{{ __('mas/lab.workload_volume') }}</h6>
                     <h2 class="font-weight-bold mb-0">{{ $stats['summary']['active_batches'] ?? 0 }}</h2>
-                    <p class="small mb-0 mt-2">Active Batches in Lab</p>
+                    <p class="small mb-0 mt-2">{{ __('mas/lab.active_batches_subtitle') }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card shadow-sm border-0 bg-success text-white">
                 <div class="card-body">
-                    <h6 class="text-uppercase small mb-2 opacity-75">Active Clients</h6>
+                    <h6 class="text-uppercase small mb-2 opacity-75">{{ __('mas/lab.active_clients') }}</h6>
                     <h2 class="font-weight-bold mb-0">{{ count($stats['top_clients']) }}</h2>
-                    <p class="small mb-0 mt-2">Engaged in Current Period</p>
+                    <p class="small mb-0 mt-2">{{ __('mas/lab.engaged_current_period') }}</p>
                 </div>
             </div>
         </div>
@@ -53,7 +53,7 @@
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Sample Type Distribution</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.sample_type_distribution') }}</h5>
                 </div>
                 <div class="card-body">
                     <div style="height: 350px;">
@@ -67,7 +67,7 @@
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Volume by Top Clients</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.volume_top_clients') }}</h5>
                 </div>
                 <div class="card-body">
                     <div style="height: 350px;">
@@ -83,17 +83,17 @@
         <div class="col-12 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Top Clients Ranking</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.top_clients_ranking') }}</h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="border-0">Rank</th>
-                                    <th class="border-0">Client Name</th>
-                                    <th class="border-0 text-center">Active Batches</th>
-                                    <th class="border-0">Workload Share</th>
+                                    <th class="border-0">{{ __('mas/lab.rank') }}</th>
+                                    <th class="border-0">{{ __('mas/lab.client_name') }}</th>
+                                    <th class="border-0 text-center">{{ __('mas/lab.active_batches_col') }}</th>
+                                    <th class="border-0">{{ __('mas/lab.workload_share') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -162,7 +162,7 @@
             data: {
                 labels: @json($stats['charts']['client_labels']),
                 datasets: [{
-                    label: 'Batch Count',
+                    label: "{{ __('mas/lab.batch_count') }}",
                     data: @json($stats['charts']['client_counts']),
                     backgroundColor: '#3b82f6',
                     borderRadius: 4

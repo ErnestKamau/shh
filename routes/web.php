@@ -25,6 +25,8 @@ Route::get('/', function () {
 
 Auth::routes();
 
+Route::get('set-locale/{locale}', 'LocaleController@setLocale')->name('set-locale');
+
 // Certificate Template Routes
 Route::middleware(['auth'])->group(function () {
     // Certificate Template Management
@@ -1774,6 +1776,7 @@ Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth']], function() {
     Route::get('/lab/tat', '\App\Livewire\Mas\LabTat')->name('mas.lab.tat');
     Route::get('/lab/general', '\App\Livewire\Mas\LabGeneral')->name('mas.lab.general');
     Route::get('/lab/qc', '\App\Livewire\Mas\LabQc')->name('mas.lab.qc');
+    Route::get('/lab/logistics', '\App\Livewire\Mas\LabLogistics')->name('mas.lab.logistics');
     Route::get('/inventory', '\App\Livewire\Mas\Inventory')->name('mas.inventory');
     Route::get('/crm', '\App\Livewire\Mas\Crm')->name('mas.crm');
     Route::get('/risk', '\App\Livewire\Mas\Risk')->name('mas.risk');

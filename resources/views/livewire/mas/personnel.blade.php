@@ -3,15 +3,15 @@
 <div class="container-fluid py-4">
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">Personnel & Human Capital</h1>
-            <p class="text-muted small mb-0">Staff distribution, active certifications, and organizational departments.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/personnel.title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/personnel.subtitle') }}</p>
         </div>
         <div class="col-auto d-flex align-items-center">
             <a href="{{ route('mas.export', 'personnel') }}" class="btn btn-success btn-sm mr-2">
-                <i class="mdi mdi-download"></i> Download Report
+                <i class="mdi mdi-download"></i> {{ __('mas/common.download_report') }}
             </a>
             <span class="badge badge-primary p-2">
-                <i class="mdi mdi-account-group mr-1"></i> Total Users: {{ $stats['total_staff'] }}
+                <i class="mdi mdi-account-group mr-1"></i> {{ __('mas/personnel.total_users') }}: {{ $stats['total_staff'] }}
             </span>
         </div>
     </div>
@@ -23,7 +23,7 @@
                 <div class="card-body py-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="text-muted text-uppercase mb-1 small font-weight-bold">Active Staff</h6>
+                            <h6 class="text-muted text-uppercase mb-1 small font-weight-bold">{{ __('mas/personnel.active_staff') }}</h6>
                             <h2 class="font-weight-bold text-dark mb-0">{{ $stats['active_users'] }}</h2>
                         </div>
                         <div class="icon-circle bg-primary-light text-primary">
@@ -38,7 +38,7 @@
                 <div class="card-body py-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="text-muted text-uppercase mb-1 small font-weight-bold">Departments</h6>
+                            <h6 class="text-muted text-uppercase mb-1 small font-weight-bold">{{ __('mas/personnel.departments') }}</h6>
                             <h2 class="font-weight-bold text-dark mb-0">{{ $stats['departments'] }}</h2>
                         </div>
                         <div class="icon-circle bg-info-light text-info">
@@ -53,7 +53,7 @@
                 <div class="card-body py-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="text-muted text-uppercase mb-1 small font-weight-bold">Certifications</h6>
+                            <h6 class="text-muted text-uppercase mb-1 small font-weight-bold">{{ __('mas/personnel.certifications') }}</h6>
                             <h2 class="font-weight-bold text-dark mb-0">{{ $stats['certifications'] }}</h2>
                         </div>
                         <div class="icon-circle bg-success-light text-success">
@@ -69,11 +69,11 @@
         <div class="col-md-12">
             <div class="glass-panel p-5 text-center shadow-sm">
                 <i class="mdi mdi-chart-bubble mdi-48px text-primary mb-3"></i>
-                <h4 class="font-weight-bold">Organizational Deep-Dive</h4>
-                <p class="text-muted">The Personnel module provides exhaustive tracking of analysts, supervisors, and administrative staff. Detailed individual metrics, work history, and skills matrix can be accessed through the dedicated Personnel Section.</p>
+                <h4 class="font-weight-bold">{{ __('mas/personnel.org_deep_dive') }}</h4>
+                <p class="text-muted">{{ __('mas/personnel.org_description') }}</p>
                 <div class="mt-4">
                     <a href="/personnel" class="btn btn-primary px-4 py-2 shadow-sm" style="border-radius: 20px;">
-                        Manage All Personnel <i class="mdi mdi-open-in-new ml-2"></i>
+                        {{ __('mas/personnel.manage_all') }} <i class="mdi mdi-open-in-new ml-2"></i>
                     </a>
                 </div>
             </div>

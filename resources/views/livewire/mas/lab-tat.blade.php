@@ -4,16 +4,16 @@
     <!-- Header -->
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">Laboratory TAT Analysis</h1>
-            <p class="text-muted small mb-0">Turnaround time monitoring and SLA compliance tracking.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/lab.tat_title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/lab.tat_subtitle') }}</p>
         </div>
         <div class="col-auto">
             <div class="btn-group shadow-sm">
                 <button onclick="exportLabPdf(false)" class="btn btn-danger btn-sm">
-                    <i class="mdi mdi-file-pdf"></i> Download Report
+                    <i class="mdi mdi-file-pdf"></i> {{ __('mas/common.download') }} {{ __('mas/common.report') }}
                 </button>
                 <button onclick="exportLabPdf(true)" class="btn btn-outline-danger btn-sm border-left-0">
-                    <i class="mdi mdi-eye"></i> Preview
+                    <i class="mdi mdi-eye"></i> {{ __('mas/common.preview') }}
                 </button>
             </div>
             
@@ -31,8 +31,8 @@
         <div class="col-md-8 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 font-weight-bold text-dark">Workflow Stage Distribution</h5>
-                    <span class="badge badge-primary">Live Data</span>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.workflow_distribution') }}</h5>
+                    <span class="badge badge-primary">{{ __('mas/common.live_data') }}</span>
                 </div>
                 <div class="card-body">
                     <canvas id="labWorkflowChart" height="400"></canvas>
@@ -44,35 +44,35 @@
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Efficiency Monitoring</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.efficiency_monitoring') }}</h5>
                 </div>
                 <div class="card-body">
                     <div class="row text-center mb-4">
                         <div class="col-6 border-right">
                             <h2 class="font-weight-bold text-success mb-0">{{ $stats['summary']['active_batches'] }}</h2>
-                            <p class="text-muted text-uppercase x-small">Active Batches</p>
+                            <p class="text-muted text-uppercase x-small">{{ __('mas/dashboard.active_batches') }}</p>
                         </div>
                         <div class="col-6">
                             <h2 class="font-weight-bold text-info mb-0">{{ $stats['summary']['avg_completion_days'] ?? '4.2' }}</h2>
-                            <p class="text-muted text-uppercase x-small">Avg. Days (TAT)</p>
+                            <p class="text-muted text-uppercase x-small">{{ __('mas/lab.avg_days_tat') }}</p>
                         </div>
                     </div>
 
                     <div class="row text-center mb-4 bg-light mx-0 py-3 rounded">
                         <div class="col-6 border-right">
                             <div class="font-weight-bold text-dark h5 mb-0">{{ $stats['summary']['tests_completed'] ?? 0 }}</div>
-                            <div class="text-muted x-small uppercase">Tests Completed</div>
+                            <div class="text-muted x-small uppercase">{{ __('mas/lab.tests_completed') }}</div>
                         </div>
                         <div class="col-6">
                             <div class="font-weight-bold text-primary h5 mb-0">{{ $stats['summary']['tests_requested'] ?? 0 }}</div>
-                            <div class="text-muted x-small uppercase">Total Requested</div>
+                            <div class="text-muted x-small uppercase">{{ __('mas/lab.total_requested') }}</div>
                         </div>
                     </div>
                     
                     <div class="mt-4 p-3 bg-light rounded">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-muted small uppercase font-weight-bold">Batch SLA Performance</span>
-                            <span class="text-danger font-weight-bold small">{{ $stats['summary']['overdue_batches'] }} Overdue</span>
+                            <span class="text-muted small uppercase font-weight-bold">{{ __('mas/lab.batch_sla_performance') }}</span>
+                            <span class="text-danger font-weight-bold small">{{ __('mas/lab.overdue_count', ['count' => $stats['summary']['overdue_batches']]) }}</span>
                         </div>
                         <div class="progress" style="height: 8px;">
                             @php
@@ -82,11 +82,11 @@
                             @endphp
                             <div class="progress-bar bg-success" role="progressbar" style="width: {{ $percent }}%"></div>
                         </div>
-                        <p class="text-center mt-2 mb-0 x-small text-muted">{{ $percent }}% of batches within target</p>
+                        <p class="text-center mt-2 mb-0 x-small text-muted">{{ __('mas/lab.batches_within_target', ['percent' => $percent]) }}</p>
                     </div>
 
                     <hr>
-                    <h6 class="font-weight-bold text-dark mb-3">Target Distribution</h6>
+                    <h6 class="font-weight-bold text-dark mb-3">{{ __('mas/lab.target_distribution') }}</h6>
                     <ul class="list-group list-group-flush">
                         @foreach(array_slice($stats['stage_counts'], 0, 5) as $status => $count)
                             <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0 py-1">
@@ -108,7 +108,7 @@
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Aging Health Distribution</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.aging_health') }}</h5>
                 </div>
                 <div class="card-body">
                     <div style="height: 250px;">
@@ -122,7 +122,7 @@
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Test Completion Ratio</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.completion_ratio') }}</h5>
                 </div>
                 <div class="card-body">
                     <div style="height: 250px;">
@@ -139,21 +139,21 @@
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="mb-0 font-weight-bold text-dark">Throughput Volume (Analytes)</h5>
-                        <span class="text-muted x-small uppercase">{{ $stats['period_label'] ?? 'Active Workload' }}</span>
+                        <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.throughput_volume') }}</h5>
+                        <span class="text-muted x-small uppercase">{{ $stats['period_label'] ?? __('mas/common.active') }}</span>
                     </div>
                     <div class="dropdown">
                         <button class="btn btn-light btn-sm dropdown-toggle font-weight-bold" type="button" data-toggle="dropdown">
                             <i class="mdi mdi-filter-variant"></i> 
-                            {{ ucfirst($stats['period'] ?? 'Active') }}
+                            {{ ucfirst($stats['period'] ?? __('mas/common.active')) }}
                         </button>
                         <div class="dropdown-menu dropdown-menu-right">
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'active' ? 'active' : '' }}" href="?period=active">Active Workload</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'active' ? 'active' : '' }}" href="?period=active">{{ __('mas/common.active') }}</a>
                             <div class="dropdown-divider"></div>
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'week' ? 'active' : '' }}" href="?period=week">Past Week</a>
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'month' ? 'active' : '' }}" href="?period=month">Past Month</a>
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'year' ? 'active' : '' }}" href="?period=year">Past Year</a>
-                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'lifetime' ? 'active' : '' }}" href="?period=lifetime">Lifetime</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'week' ? 'active' : '' }}" href="?period=week">{{ __('mas/common.past_week') }}</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'month' ? 'active' : '' }}" href="?period=month">{{ __('mas/common.past_month') }}</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'year' ? 'active' : '' }}" href="?period=year">{{ __('mas/common.past_year') }}</a>
+                            <a class="dropdown-item {{ ($stats['period'] ?? '') == 'lifetime' ? 'active' : '' }}" href="?period=lifetime">{{ __('mas/common.lifetime') }}</a>
                         </div>
                     </div>
                 </div>
@@ -166,46 +166,73 @@
         </div>
     </div>
 
-    <!-- Overdue Watchlist -->
-    <div class="row">
+    <!-- Operational Cockpit (Smart Action Grid) -->
+    <div class="row" x-data="{ currentTab: 'my_tasks' }">
         <div class="col-12 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 font-weight-bold text-dark">Critical Overdue Watchlist</h5>
-                    <span class="text-muted small">Top {{ count($stats['overdue_batches']) }} High Risk Items</span>
+                    <div>
+                        <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/lab.cockpit_title') }}</h5>
+                        <p class="text-muted small mb-0">{{ __('mas/lab.cockpit_subtitle') }}</p>
+                    </div>
+                    <div class="btn-group btn-group-toggle shadow-sm" data-toggle="buttons">
+                        <label class="btn btn-outline-primary btn-sm active" onclick="@this.set('stats.smart_grid', @this.getSmartGridData('my_tasks')); currentTab = 'my_tasks'" x-on:click="currentTab = 'my_tasks'">
+                            <input type="radio" name="options" id="option1" checked> {{ __('mas/lab.my_tasks') }}
+                        </label>
+                        <label class="btn btn-outline-primary btn-sm" onclick="@this.set('stats.smart_grid', @this.getSmartGridData('urgent')); currentTab = 'urgent'" x-on:click="currentTab = 'urgent'">
+                            <input type="radio" name="options" id="option2"> {{ __('mas/lab.urgent') }}
+                        </label>
+                        <label class="btn btn-outline-primary btn-sm" onclick="@this.set('stats.smart_grid', @this.getSmartGridData('approvals')); currentTab = 'approvals'" x-on:click="currentTab = 'approvals'">
+                            <input type="radio" name="options" id="option3"> {{ __('mas/lab.approvals') }}
+                        </label>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="border-0 small text-uppercase">Batch Code</th>
-                                    <th class="border-0 small text-uppercase">Workflow Stage</th>
-                                    <th class="border-0 small text-uppercase">Target Date</th>
-                                    <th class="border-0 small text-uppercase text-center">Days Overdue</th>
-                                    <th class="border-0 small text-uppercase text-center">Risk Level</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.batch_code') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.client') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.sample_type') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold text-center">{{ __('mas/lab.priority') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold">{{ __('mas/lab.status') }}</th>
+                                    <th class="border-0 small text-uppercase font-weight-bold text-center">{{ __('mas/lab.action') }}</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @forelse($stats['overdue_batches'] as $batch)
-                                    <tr>
-                                        <td class="font-weight-bold text-primary">{{ $batch['batch_code'] }}</td>
-                                        <td>{{ $batch['workflow_stage'] }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($batch['target_date'])->format('M d, Y') }}</td>
+                            <tbody id="smartGridBody">
+                                @forelse($stats['smart_grid'] ?? [] as $item)
+                                    <tr class="{{ $item['priority'] === 'Urgent' ? 'table-warning' : '' }}">
+                                        <td class="font-weight-bold">{{ $item['batch_code'] }}</td>
+                                        <td class="small">{{ $item['client'] }}</td>
+                                        <td class="small">{{ $item['type'] }}</td>
                                         <td class="text-center">
-                                            <span class="badge badge-danger px-3">{{ $batch['days_overdue'] }} Days</span>
+                                            @if($item['priority'] === 'Urgent')
+                                                <span class="badge badge-danger">{{ __('mas/lab.urgent') }}</span>
+                                            @else
+                                                <span class="badge badge-light border">{{ $item['priority'] }}</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <span class="small text-muted">
+                                                <i class="mdi mdi-circle-small text-{{ $item['priority'] === 'Urgent' ? 'danger' : 'primary' }}"></i>
+                                                {{ $item['status'] }}
+                                            </span>
                                         </td>
                                         <td class="text-center">
-                                            @if($batch['days_overdue'] > 7)
-                                                <i class="mdi mdi-alert-circle text-danger" title="Critical Delay"></i>
-                                            @else
-                                                <i class="mdi mdi-alert text-warning" title="Warning"></i>
-                                            @endif
+                                            <a href="#" class="btn btn-white btn-sm border shadow-sm">
+                                                <i class="mdi mdi-open-in-new text-primary"></i>
+                                            </a>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted italic">No critical overdue batches detected.</td>
+                                        <td colspan="6" class="text-center py-5">
+                                            <div class="text-muted">
+                                                <i class="mdi mdi-check-circle-outline h2 d-block"></i>
+                                                {{ __('mas/lab.all_clear') }}
+                                            </div>
+                                        </td>
                                     </tr>
                                 @endforelse
                             </tbody>

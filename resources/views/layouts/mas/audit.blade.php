@@ -4,15 +4,15 @@
 <div class="container-fluid py-4">
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">Audit & Compliance Log</h1>
-            <p class="text-muted small mb-0">Transparent traceability of all critical system actions and modifications.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/audit.title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/audit.subtitle') }}</p>
         </div>
         <div class="col-auto d-flex align-items-center">
             <a href="{{ route('mas.export', 'audit') }}" class="btn btn-success btn-sm mr-2">
-                <i class="mdi mdi-download"></i> Download Report
+                <i class="mdi mdi-download"></i> {{ __('mas/common.download_report') }}
             </a>
             <span class="badge badge-secondary p-2">
-                <i class="mdi mdi-database-eye mr-1"></i> Total Events: {{ $stats['total_events'] }}
+                <i class="mdi mdi-database-eye mr-1"></i> {{ __('mas/audit.total_events') }}: {{ $stats['total_events'] }}
             </span>
         </div>
     </div>
@@ -21,19 +21,19 @@
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px; overflow: hidden;">
                 <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="m-0 font-weight-bold"><i class="mdi mdi-history mr-2"></i>Recent System Activity (Last 50 Events)</h5>
-                    <a href="/audit" class="btn btn-sm btn-outline-light">Advanced Search</a>
+                    <h5 class="m-0 font-weight-bold"><i class="mdi mdi-history mr-2"></i>{{ __('mas/audit.recent_activity') }}</h5>
+                    <a href="/audit" class="btn btn-sm btn-outline-light">{{ __('mas/audit.advanced_search') }}</a>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="bg-light">
                             <tr>
-                                <th>Event</th>
-                                <th>Entity</th>
-                                <th>Actor</th>
-                                <th>IP Address</th>
-                                <th>Timestamp</th>
-                                <th>Actions</th>
+                                <th>{{ __('mas/audit.event') }}</th>
+                                <th>{{ __('mas/audit.entity') }}</th>
+                                <th>{{ __('mas/audit.actor') }}</th>
+                                <th>{{ __('mas/audit.ip_address') }}</th>
+                                <th>{{ __('mas/audit.timestamp') }}</th>
+                                <th>{{ __('mas/audit.actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -48,18 +48,18 @@
                                         <div class="font-weight-bold">{{ class_basename($log->auditable_type) }}</div>
                                         <div class="small text-muted">ID: {{ $log->auditable_id }}</div>
                                     </td>
-                                    <td>{{ $log->user_id ? 'User #'.$log->user_id : 'System' }}</td>
+                                    <td>{{ $log->user_id ? 'User #'.$log->user_id : __('mas/audit.system') }}</td>
                                     <td class="small text-muted font-italic">{{ $log->ip_address }}</td>
                                     <td>{{ date('M d, Y H:i:s', strtotime($log->created_at)) }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-light border p-1" title="View Changes">
+                                        <button class="btn btn-sm btn-light border p-1" title="{{ __('mas/audit.view_changes') }}">
                                             <i class="mdi mdi-eye-outline"></i>
                                         </button>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center py-5 text-muted">No audit logs found.</td>
+                                    <td colspan="6" class="text-center py-5 text-muted">{{ __('mas/audit.no_logs') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>

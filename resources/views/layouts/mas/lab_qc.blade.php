@@ -5,16 +5,16 @@
     <!-- Header -->
     <div class="row align-items-center mb-4">
         <div class="col">
-            <h1 class="h3 font-weight-bold text-dark mb-1">QC Stability Analytics</h1>
-            <p class="text-muted small mb-0">Quality Control performance monitoring and stability tracking.</p>
+            <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/qc.title') }}</h1>
+            <p class="text-muted small mb-0">{{ __('mas/qc.subtitle') }}</p>
         </div>
         <div class="col-auto">
             <div class="btn-group shadow-sm">
                 <button onclick="exportQcPdf(false)" class="btn btn-indigo btn-sm">
-                    <i class="mdi mdi-file-pdf"></i> Download Report
+                    <i class="mdi mdi-file-pdf"></i> {{ __('mas/common.download') }} {{ __('mas/common.report') }}
                 </button>
                 <button onclick="exportQcPdf(true)" class="btn btn-outline-indigo btn-sm border-left-0">
-                    <i class="mdi mdi-eye"></i> Preview
+                    <i class="mdi mdi-eye"></i> {{ __('mas/common.preview') }}
                 </button>
             </div>
             
@@ -28,7 +28,7 @@
 
     @if(!($stats['available'] ?? false))
         <div class="alert alert-warning shadow-sm border-0">
-            <i class="mdi mdi-alert mr-2"></i> {{ $stats['message'] ?? 'QC stability data is currently unavailable.' }}
+            <i class="mdi mdi-alert mr-2"></i> {{ $stats['message'] ?? __('mas/qc.data_unavailable') }}
         </div>
     @endif
 
@@ -37,36 +37,36 @@
         <div class="col-md-3">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">Total QC Analytes</h6>
+                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">{{ __('mas/qc.total_analytes') }}</h6>
                     <h2 class="font-weight-bold mb-0 text-dark">{{ $stats['summary']['total_records'] ?? 0 }}</h2>
-                    <p class="text-info small mb-0 mt-2">Monitored parameters</p>
+                    <p class="text-info small mb-0 mt-2">{{ __('mas/qc.monitored_params') }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card shadow-sm border-0 h-100 border-left border-success" style="border-left-width: 4px !important;">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">Stable Controls</h6>
+                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">{{ __('mas/qc.stable_controls') }}</h6>
                     <h2 class="font-weight-bold mb-0 text-success">{{ $stats['summary']['stable_records'] ?? 0 }}</h2>
-                    <p class="text-muted small mb-0 mt-2">Within 5% CV threshold</p>
+                    <p class="text-muted small mb-0 mt-2">{{ __('mas/qc.cv_threshold') }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card shadow-sm border-0 h-100 border-left border-danger" style="border-left-width: 4px !important;">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">Critical Exceptions</h6>
+                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">{{ __('mas/qc.critical_exceptions') }}</h6>
                     <h2 class="font-weight-bold mb-0 text-danger">{{ $stats['summary']['critical_records'] ?? 0 }}</h2>
-                    <p class="text-muted small mb-0 mt-2">Requires immediate recalibration</p>
+                    <p class="text-muted small mb-0 mt-2">{{ __('mas/qc.recalibration_required') }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">Avg. Robust CV%</h6>
+                    <h6 class="text-uppercase small text-muted mb-2 font-weight-bold">{{ __('mas/qc.avg_cv') }}</h6>
                     <h2 class="font-weight-bold mb-0 text-primary">{{ $stats['summary']['avg_cv_percentage'] ?? 0 }}%</h2>
-                    <p class="text-muted small mb-0 mt-2">System-wide precision</p>
+                    <p class="text-muted small mb-0 mt-2">{{ __('mas/qc.system_precision') }}</p>
                 </div>
             </div>
         </div>
@@ -77,7 +77,7 @@
         <div class="col-md-5 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">Stability Status Distribution</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/qc.distribution_title') }}</h5>
                 </div>
                 <div class="card-body">
                     <div style="height: 250px;">
@@ -88,7 +88,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-2 px-2">
                                 <span class="small">
                                     <i class="mdi mdi-circle mr-2 {{ $status['stability_status'] == 'stable' ? 'text-success' : ($status['stability_status'] == 'warning' ? 'text-warning' : 'text-danger') }}"></i>
-                                    {{ $status['label'] }}
+                                    {{ __('mas/qc.' . $status['stability_status']) }}
                                 </span>
                                 <span class="badge badge-light font-weight-bold">{{ $status['record_count'] }}</span>
                             </div>
@@ -102,7 +102,7 @@
         <div class="col-md-7 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 font-weight-bold text-dark">High Variation Analytes (CV%)</h5>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/qc.top_exceptions_title') }}</h5>
                 </div>
                 <div class="card-body">
                     <canvas id="topCvChart" height="300"></canvas>
@@ -116,19 +116,19 @@
         <div class="col-12 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 font-weight-bold text-dark">Stability Watchlist</h5>
-                    <span class="text-muted small">Prioritized by Variation Level</span>
+                    <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/qc.watchlist_title') }}</h5>
+                    <span class="text-muted small">{{ __('mas/qc.watchlist_prioritized') }}</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="border-0 small text-uppercase">Analyte Name</th>
-                                    <th class="border-0 small text-uppercase">Sample Type</th>
-                                    <th class="border-0 small text-uppercase text-center">Robust CV%</th>
-                                    <th class="border-0 small text-uppercase text-center">Pass Rate</th>
-                                    <th class="border-0 small text-uppercase text-center">Status</th>
+                                    <th class="border-0 small text-uppercase">{{ __('mas/qc.analyte_name') }}</th>
+                                    <th class="border-0 small text-uppercase">{{ __('mas/qc.sample_type') }}</th>
+                                    <th class="border-0 small text-uppercase text-center">{{ __('mas/qc.robust_cv') }}</th>
+                                    <th class="border-0 small text-uppercase text-center">{{ __('mas/qc.pass_rate') }}</th>
+                                    <th class="border-0 small text-uppercase text-center">{{ __('mas/qc.status') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -152,13 +152,13 @@
                                                 $badgeClass = $row['stability_status'] == 'stable' ? 'badge-success' : ($row['stability_status'] == 'warning' ? 'badge-warning' : 'badge-danger');
                                             @endphp
                                             <span class="badge {{ $badgeClass }} text-uppercase" style="width: 80px;">
-                                                {{ $row['stability_status'] }}
+                                                {{ __('mas/qc.' . $row['stability_status']) }}
                                             </span>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted italic">No QC exceptions detected. Systems are stable.</td>
+                                        <td colspan="5" class="text-center py-4 text-muted italic">{{ __('mas/qc.no_exceptions') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
