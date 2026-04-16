@@ -35,17 +35,13 @@ class AuthController extends Controller
         // Use a generic message to avoid revealing whether the email exists
         $invalidMsg = 'These credentials do not match our records.';
 
-        if (!$user) {
-            return response()->json(['message' => $invalidMsg, '_debug' => 'user_not_found'], 401);
-        }
-
-        if (!Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => $invalidMsg, '_debug' => 'bad_password', '_uid' => $user->id], 401);
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => $invalidMsg], 401);
         }
 
         // Only CRM contacts (is_client = 1) may use the customer portal
         if ((int) $user->is_client !== 1) {
-            return response()->json(['message' => $invalidMsg, '_debug' => 'not_client', '_is_client' => $user->is_client], 401);
+            return response()->json(['message' => $invalidMsg], 401);
         }
 
         // Ensure the linked CRM contact still has portal access
@@ -90,15 +86,15 @@ class AuthController extends Controller
     // Step 2 — Verify 2FA code and return Bearer token
     // -------------------------------------------------------------------------
     // POST /api/portal/auth/verify-2fa
-    // Body: { "email": "...", "verify_code": "123456" }
+    // Body: { "email": "...", "code": "123456" }
     //
     // Returns: { "token": "...", "user": { ContactProfileResource } }
     // -------------------------------------------------------------------------
     public function verifyTwoFactor(Request $request)
     {
         $request->validate([
-            'email'       => 'required|email',
-            'verify_code' => 'required|string',
+            'email' => 'required|email',
+            'code'  => 'required|string',
         ]);
 
         $user = User::where('email', $request->email)
@@ -118,7 +114,7 @@ class AuthController extends Controller
         }
 
         // Check the code matches
-        if ((string) $user->verify_code !== (string) $request->verify_code) {
+        if ((string) $user->verify_code !== (string) $request->code) {
             return response()->json(['message' => 'Invalid verification code.'], 422);
         }
 
