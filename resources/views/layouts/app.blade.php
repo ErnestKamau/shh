@@ -1767,6 +1767,22 @@
                     @endif
                     @else
                     @yield('alerts')
+                    @if(config('localization.enable_switcher'))
+                    <li class="nav-item dropdown mr-1">
+                        <a id="languageDropdown" class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="cursor: pointer;">
+                            <i class="mdi mdi-translate mr-1"></i>
+                            <span class="text-uppercase">{{ app()->getLocale() }}</span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right shadow-sm" aria-labelledby="languageDropdown" style="min-width: 120px;">
+                            <a class="dropdown-item d-flex align-items-center {{ app()->getLocale() == 'en' ? 'active' : '' }}" href="{{ route('set-locale', 'en') }}">
+                                <span class="mr-2">🇺🇸</span> English
+                            </a>
+                            <a class="dropdown-item d-flex align-items-center {{ app()->getLocale() == 'sw' ? 'active' : '' }}" href="{{ route('set-locale', 'sw') }}">
+                                <span class="mr-2">🇹🇿</span> Swahili
+                            </a>
+                        </div>
+                    </li>
+                    @endif
                     <li class="nav-item dropdown">
                         <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
