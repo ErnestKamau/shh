@@ -263,6 +263,22 @@ class User extends Authenticatable implements Auditable
 		}
 		return false;
 	}
+	public function checkApproveMethodsRole(){
+		try {
+			$roleId = SpatieRole::query()
+				->where('guard_name', $this->guard_name)
+				->whereRaw('LOWER(name) = ?', ['can approvemethods'])
+				->value('id');
+
+			if ($roleId) {
+				return $this->hasRole((int) $roleId, true);
+			}
+		} catch (\Throwable $exception) {
+			return false;
+		}
+
+		return false;
+	}
 	public function CheckViewQcSample(){
 		$view_qc = SystemConfiguration::where('key','can_view_qc')->first();
 		if(isset($view_qc->id)){
