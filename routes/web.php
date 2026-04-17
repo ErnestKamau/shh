@@ -331,6 +331,31 @@ Route::get('/analysis-method/{id}', function ($id) {
     return view('livewire.lab.method-detail-page', ['methodId' => (int) $id]);
 })->name('analysis-method')->middleware('haspermission:Laboratory.components.Methods.View');
 
+// Uncertainty Budget Routes
+Route::prefix('lab-uncertainty')->name('uncertainty-budgets.')->group(function () {
+    Route::get('/', 'UncertaintyBudgetController@index')->name('index')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.View');
+    Route::get('/create', 'UncertaintyBudgetController@create')->name('create')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Add');
+    Route::post('/', 'UncertaintyBudgetController@store')->name('store')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Add');
+    Route::get('/{id}', 'UncertaintyBudgetController@show')->name('show')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.View');
+    Route::get('/{id}/edit', 'UncertaintyBudgetController@edit')->name('edit')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+    Route::put('/{id}', 'UncertaintyBudgetController@update')->name('update')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+    Route::delete('/{id}', 'UncertaintyBudgetController@destroy')->name('destroy')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Delete');
+
+    // Uncertainty Sources Routes
+    Route::post('/{budgetId}/sources', 'UncertaintyBudgetController@addSource')->name('sources.store')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+    Route::put('/sources/{sourceId}', 'UncertaintyBudgetController@updateSource')->name('sources.update')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+    Route::delete('/sources/{sourceId}', 'UncertaintyBudgetController@deleteSource')->name('sources.destroy')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+
+    // API Routes
+    Route::get('/api/analytes', 'UncertaintyBudgetController@getAnalytes')->name('api.analytes');
+    Route::get('/api/methods/{analyteId}', 'UncertaintyBudgetController@getMethods')->name('api.methods');
+    Route::get('/api/sources/{sourceId}', 'UncertaintyBudgetController@getSource')->name('api.sources');
+    Route::get('/api/existing-budgets/{analyteId}', 'UncertaintyBudgetController@getExistingBudgets')->name('api.existing-budgets');
+
+    // Recalculate Route
+    Route::post('/{budgetId}/recalculate', 'UncertaintyBudgetController@recalculate')->name('recalculate');
+});
+
 Route::post('/check_rft_no', 'SampleWorkFlowController@check_rft_no')->name('check_rft_no')->middleware('haspermission:Laboratory.components.RFT Form.View');
 Route::post('/reject-approval-request', 'SampleWorkFlowController@return_batch_reception')->name('return_batch_reception')->middleware('haspermission:Laboratory.components.Approve For Analysis.Edit');
 

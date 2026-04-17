@@ -271,6 +271,12 @@
 					<span class="menu-collapsed">Methods</span>
 				</div>
 			</a>
+			<a href="{{ route('uncertainty-budgets.index') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-calculator fa-fw mr-3"></span>
+					<span class="menu-collapsed">Uncertainty Budget</span>
+				</div>
+			</a>
 
 			<a href="#stock-monitoring-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
