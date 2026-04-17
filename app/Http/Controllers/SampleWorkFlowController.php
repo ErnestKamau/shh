@@ -35,6 +35,7 @@ use App\Models\Lab\TatCapturedView;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\Configurations\QcTypes;
 use App\Models\QcModule\QCProcessedResults;
+use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\Models\System\SystemConfiguration;
 use App\Services\SubmissionFormPdfService;
@@ -1042,7 +1043,7 @@ class SampleWorkFlowController extends Controller
     {
         $batchID = $batch;
 
-        $batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample', 'stagingDetails', 'sample_type')->find($batchID);
+        $batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample', 'stagingDetails', 'sample_type', 'sampleSubmissionRequest.suspects', 'sampleSubmissionRequest.exhibits', 'sampleSubmissionRequest.requestedAnalyses')->find($batchID);
         if (isset($batch->id) && $batch->crm_unit_id < 1) {
             $crm_unit = CRMCompanyUnit::where('crm_customer_id', $batch->crm_customer_id)->where('name', $batch->crm_unit_name)->first();
             $batch->crm_unit_id = isset($crm_unit->id) ? $crm_unit->id : $batch->crm_unit_id;
@@ -4783,6 +4784,31 @@ class SampleWorkFlowController extends Controller
         $samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
 
         return view('layouts.lab.sample-workflow.show-again', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'status', 'workflowstages', 'workflows', 'clients', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'samples', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'disposal_date'));
+    }
+
+    public function updateSampleSubmissionReception(Request $request, $requestId)
+    {
+        $submissionRequest = SampleSubmissionRequest::with('batch')->findOrFail($requestId);
+
+        $validated = $request->validate([
+            'received_by_full_name' => 'required|string|max:255',
+            'received_by_title' => 'required|string|max:255',
+            'received_by_signature' => 'nullable|string|max:255',
+            'received_by_date' => 'required|date_format:Y-m-d',
+            'received_by_time' => 'required|date_format:H:i',
+        ]);
+
+        $submissionRequest->fill($validated);
+        $submissionRequest->status = 'received_at_lab';
+        $submissionRequest->save();
+
+        if ($submissionRequest->batch) {
+            $submissionRequest->batch->receiving_officer_name = $validated['received_by_full_name'];
+            $submissionRequest->batch->receipt_date = $validated['received_by_date'];
+            $submissionRequest->batch->save();
+        }
+
+        return redirect()->back()->with('success', 'Receiving section updated successfully.');
     }
 
     public function getAnalysisTypeBySampleTypeIDAjax($sample_type_id)
