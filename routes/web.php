@@ -613,6 +613,16 @@ Route::get('/inventory-slot-contents/{slot}/{store}', 'InventoryStoreSlotContent
 Route::post('/inventory-slot-contents/{slot}/{store}', 'InventoryStoreSlotContentController@add')->name('add-inventory-slot-content')->middleware('haspermission:Inventory.components.Store.Add');
 
 //############################################SUBMISSION FORMS##########################################################
+Route::prefix('supporting-documents')->name('supporting-documents.')->middleware('auth')->group(function () {
+    Route::get('/templates', function () {
+        return view('livewire.supporting-documents.template-manager-page');
+    })->name('templates.index');
+
+    Route::get('/templates/{template}', function (int $template) {
+        return view('livewire.supporting-documents.template-editor-page', ['templateId' => $template]);
+    })->name('templates.edit');
+});
+
 Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')->group(function () {
     Route::get('/', 'SubmissionFormController@index')->name('index');
     Route::get('/create', 'SubmissionFormController@create')->name('create');

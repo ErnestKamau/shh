@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Portal\AuthController;
 use App\Http\Controllers\Api\Portal\ReferenceDataController;
 use App\Http\Controllers\Api\Portal\TestRequestController;
+use App\Http\Controllers\Api\Portal\SupportingDocumentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +60,14 @@ Route::prefix('portal')->group(function () {
             Route::post('/', [TestRequestController::class, 'store']);
             Route::get('/{id}', [TestRequestController::class, 'show']);
             Route::patch('/{id}/cancel', [TestRequestController::class, 'cancel']);
+
+            // Supporting documents attached to a test request
+            Route::get('/{id}/supporting-documents', [SupportingDocumentController::class, 'instancesForTestRequest']);
+            Route::post('/{id}/supporting-documents/submit', [SupportingDocumentController::class, 'submitForTestRequest']);
         });
+
+        // Supporting document templates (published + active)
+        Route::get('/supporting-document-templates', [SupportingDocumentController::class, 'templates']);
+        Route::get('/supporting-document-templates/{template}', [SupportingDocumentController::class, 'template']);
     });
 });
