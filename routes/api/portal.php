@@ -44,21 +44,14 @@ Route::prefix('portal')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
 
         // Reference data — used to populate form dropdowns in the portal
-        Route::prefix('reference')->group(function () {
-            Route::get('/sample-types', [ReferenceDataController::class, 'sampleTypes']);
-            Route::get('/analysis-types', [ReferenceDataController::class, 'analysisTypes']);
-            Route::get('/sample-conditions', [ReferenceDataController::class, 'sampleConditions']);
-            Route::get('/sample-points', [ReferenceDataController::class, 'samplePoints']);
-            Route::get('/units', [ReferenceDataController::class, 'units']);
-            Route::get('/contacts', [ReferenceDataController::class, 'contacts']);
-        });
+        // Route::prefix('reference')->group(function () {
+        //     Route::get('/sample-types', [ReferenceDataController::class, 'sampleTypes']);
+        //     Route::get('/analysis-types', [ReferenceDataController::class, 'analysisTypes']);
+        //     Route::get('/sample-conditions', [ReferenceDataController::class, 'sampleConditions']);
+        //     Route::get('/sample-points', [ReferenceDataController::class, 'samplePoints']);
+        //     Route::get('/units', [ReferenceDataController::class, 'units']);
+        //     Route::get('/contacts', [ReferenceDataController::class, 'contacts']);
+        // });
 
-        // Test requests (Samples En-Route batches)
-        Route::prefix('test-requests')->group(function () {
-            Route::get('/', [TestRequestController::class, 'index']);
-            Route::post('/', [TestRequestController::class, 'store']);
-            Route::get('/{id}', [TestRequestController::class, 'show']);
-            Route::patch('/{id}/cancel', [TestRequestController::class, 'cancel']);
-        });
     });
 });
