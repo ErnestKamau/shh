@@ -21,7 +21,7 @@ Groups:
 
 import re
 import logging
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -41,44 +41,10 @@ GREETING_PATTERNS = re.compile(
 # Order matters within a group: more specific patterns first.
 
 _GROUP_A_RULES: list[tuple[list[str], str]] = [
-    # ── High-Priority Specific Trackers (Check these first) ──
-    (["overdue batch", "overdue sample", "tat overdue", "overdue tat",
-      "batches overdue", "late samples", "overdue", "past deadline",
-      "how many overdue", "overdue count"],
-     "tat_overdue_batches"),
-
-    (["expiring soon", "inventory expiring", "expiry risk",
-      "items expiring", "reagent expiry", "expiration date", "expiring"],
-     "inventory_expiring_soon"),
-
-    (["tat by analyte", "analyte tat", "tat bottleneck",
-      "slowest analyte", "analyte turnaround"],
-     "tat_by_analyte"),
-
-    (["low stock", "below minimum", "reorder level", "stock shortage",
-      "items below minimum", "running low", "stock level", "inventory level"],
-     "inventory_low_stock"),
-
-    (["order status", "purchase order", "pending delivery",
-      "awaiting delivery", "order fulfillment"],
-     "inventory_order_status"),
-
-    (["supplier performance", "supplier fulfillment", "vendor performance",
-      "supplier_rate", "performing supplier", "fulfillment rate",
-      "best supplier", "vendor ranking"],
-     "supplier_order_performance"),
-
-    (["tested today with parameter", "samples tested today with parameter",
-      "samples tested with parameter", "tested with parameter",
-      "tested today with analyte", "samples tested for parameter",
-      "how many samples were tested with parameter",
-      "how many samples were tested today with parameter"],
-     "sample_tests_by_parameter"),
-
     # ── Samples: counts ──
     (["samples in the lab", "sample count in lab", "how many samples in lab",
       "how many samples are in the lab", "how many samples are in lab",
-      "samples currently in lab", "individual samples in lab", "in lab"],
+      "samples currently in lab", "individual samples in lab"],
      "sample_count_in_lab"),
 
     (["batches in the lab", "batch count in lab", "how many batches in lab",
@@ -103,21 +69,16 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
 
     (["samples pending review", "pending review", "awaiting review",
       "sample review", "approval pending", "pending approval",
-      "samples awaiting approval", "verification", "verified"],
+      "samples awaiting approval"],
      "sample_count_pending_review"),
 
     (["samples by status", "sample status breakdown", "status breakdown",
-      "sample distribution", "status distribution",
-      "distribution of samples", "distribution of the samples"],
+      "sample distribution", "status distribution"],
      "samples_by_status"),
 
     (["total samples", "sample count total", "how many samples",
       "total sample count", "number of samples", "all samples"],
      "sample_count_total"),
-
-    (["progress of", "status of", "find batch", "lookup sample",
-      "track batch", "where is batch", "batch status", "sample status"],
-     "sample_details_lookup"),
 
     (["individual sample count", "individual samples", "aliquots",
       "sample items count", "total individual"],
@@ -135,14 +96,30 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
       "daily registration", "batch registration trend"],
      "daily_ingestion_trend"),
 
-    (["inventory health", "stock health", "category health", "stock by category",
-      "inventory by category", "category stock", "inventory summary",
-      "stock grouped by"],
-     "inventory_stock_by_category"),
-
     (["sample type", "specimen type", "matrix type",
       "sample type distribution", "types of samples"],
      "sample_type_distribution"),
+
+    # ── Inventory ──
+    (["low stock", "below minimum", "reorder level", "stock shortage",
+      "items below minimum", "running low"],
+     "inventory_low_stock"),
+
+    (["order status", "purchase order", "pending delivery",
+      "awaiting delivery", "order fulfillment"],
+     "inventory_order_status"),
+
+    (["supplier performance", "supplier fulfillment", "vendor performance",
+      "supplier rate"],
+     "supplier_order_performance"),
+
+    (["stock by category", "inventory by category", "inventory health",
+      "category stock", "inventory summary"],
+     "inventory_stock_by_category"),
+
+    (["expiring soon", "inventory expiring", "expiry risk",
+      "items expiring", "reagent expiry", "expiration date"],
+     "inventory_expiring_soon"),
 
     # ── Equipment ──
     (["equipment utilization", "instrument usage", "equipment usage",
@@ -175,8 +152,7 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
      "qc_pass_rate"),
 
     (["drifting analyte", "analyte drift", "qc drift",
-      "unstable analyte", "analyte instability", "qc stability",
-      "stability drift", "instability", "drifting"],
+      "unstable analyte", "analyte instability", "qc stability"],
      "qc_drifting_analytes"),
 
     (["pending capa", "open capa", "corrective action",
@@ -200,6 +176,14 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
       "lab turnaround", "overall tat"],
      "tat_overall_average"),
 
+    (["overdue batch", "tat overdue", "overdue tat",
+      "batches overdue", "past deadline"],
+     "tat_overdue_batches"),
+
+    (["tat by analyte", "analyte tat", "tat bottleneck",
+      "slowest analyte", "analyte turnaround"],
+     "tat_by_analyte"),
+
     (["tat sla", "sla compliance", "within sla", "sla target",
       "tat compliance"],
      "tat_sla_compliance"),
@@ -222,12 +206,11 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
 
     # ── Personnel ──
     (["analyst verification", "batches verified", "who verified",
-      "verification count", "analyst verified", "verifications", 
-      "analyst verifications", "batches verification"],
+      "verification count", "analyst verified"],
      "analyst_verifications"),
 
     (["analyst approval", "batches approved", "who approved",
-      "approval count", "analyst approved", "approver", "approved by"],
+      "approval count", "analyst approved"],
      "analyst_approvals"),
 
     (["analyst workload", "analyst activity today", "workload today",
@@ -236,8 +219,7 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
 
     # ── CRM ──
     (["top client", "top customer", "biggest client",
-      "most samples client", "client volume", "customer ranking",
-      "top 10", "top 5", "top 20", "leading clients", "major customers"],
+      "most samples client", "client volume", "customer ranking"],
      "top_clients_by_volume"),
 
     (["inactive client", "dormant client", "churn risk",
@@ -283,125 +265,29 @@ class ManifestIntentRouter:
     def match(self, query: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Attempt to match query to a manifest intent via keyword rules.
-        (Backward compatible: returns only the first match).
 
         Returns:
             (intent_name, routing_tier) or (None, None)
         """
-        matches = self.match_all(query)
-        if matches:
-            return matches[0]
-        return None, None
-
-    def match_all(self, query: str) -> List[Tuple[str, str]]:
-        """
-        Attempt to match query to ALL applicable manifest intents via keyword rules.
-
-        Returns:
-            List of (intent_name, routing_tier)
-        """
         q = query.lower().strip()
-        matches = []
-        seen_intents = set()
-
-        # Semantic shortcut for distribution questions where wording varies,
-        # e.g. "distribution of the 77 samples provided".
-        if (
-          "distribution" in q
-          and ("sample" in q or "samples" in q or "status" in q)
-        ):
-          logger.info(
-            "ManifestIntentRouter: MATCHED 'samples_by_status' via semantic distribution rule"
-          )
-          matches.append(("samples_by_status", "keyword"))
-          seen_intents.add("samples_by_status")
-
-        # Semantic shortcut for explicit sample visualization requests,
-        # e.g. "visualize the samples" or "show a chart of samples".
-        wants_visualization = any(
-          token in q for token in [
-            "visualize", "visualization", "chart", "graph", "plot",
-            "show me", "breakdown",
-          ]
-        )
-        refers_to_samples = any(token in q for token in ["sample", "samples", "batch", "batches"])
-        if wants_visualization and refers_to_samples:
-          if any(token in q for token in ["type", "sample type", "specimen", "matrix"]):
-            if "sample_type_distribution" not in seen_intents:
-              logger.info(
-                "ManifestIntentRouter: MATCHED 'sample_type_distribution' via semantic visualization rule"
-              )
-              matches.append(("sample_type_distribution", "keyword"))
-              seen_intents.add("sample_type_distribution")
-          else:
-            if "samples_by_status" not in seen_intents:
-              logger.info(
-                "ManifestIntentRouter: MATCHED 'samples_by_status' via semantic visualization rule"
-              )
-              matches.append(("samples_by_status", "keyword"))
-              seen_intents.add("samples_by_status")
-
-        # Semantic shortcut for "total samples" with sample-type breakdown.
-        wants_total_samples = (
-          (("sample" in q or "samples" in q) and "total" in q)
-          or ("total samples" in q)
-          or ("sample count total" in q)
-          or ("total count of samples" in q)
-          or ("number of samples" in q)
-          or ("how many samples" in q)
-        )
-        wants_type_breakdown = (
-          ("type" in q or "types" in q or "sample type" in q)
-          and ("sample" in q or "samples" in q or "batch" in q or "batches" in q)
-        )
-        if wants_total_samples and wants_type_breakdown:
-          if "sample_count_total" not in seen_intents:
-            logger.info(
-              "ManifestIntentRouter: MATCHED 'sample_count_total' via semantic total+type rule"
-            )
-            matches.append(("sample_count_total", "keyword"))
-            seen_intents.add("sample_count_total")
-          if "sample_type_distribution" not in seen_intents:
-            logger.info(
-              "ManifestIntentRouter: MATCHED 'sample_type_distribution' via semantic total+type rule"
-            )
-            matches.append(("sample_type_distribution", "keyword"))
-            seen_intents.add("sample_type_distribution")
 
         # Group A: deterministic, high confidence
         for patterns, intent in self._group_a:
             if any(p in q for p in patterns):
-                if intent not in seen_intents:
-                    logger.info(
-                        f"ManifestIntentRouter: MATCHED '{intent}' via keyword (Group A)"
-                    )
-                    matches.append((intent, "keyword"))
-                    seen_intents.add(intent)
+                logger.info(
+                    f"ManifestIntentRouter: MATCHED '{intent}' via keyword (Group A)"
+                )
+                return intent, "keyword"
 
         # Group B: looser rules, medium confidence
         for patterns, intent in self._group_b:
             if any(p in q for p in patterns):
-                if intent not in seen_intents:
-                    logger.info(
-                        f"ManifestIntentRouter: MATCHED '{intent}' via keyword_loose (Group B)"
-                    )
-                    matches.append((intent, "keyword_loose"))
-                    seen_intents.add(intent)
+                logger.info(
+                    f"ManifestIntentRouter: MATCHED '{intent}' via keyword_loose (Group B)"
+                )
+                return intent, "keyword_loose"
 
-        # Disambiguation: parameter-specific tested sample queries should not
-        # be diluted by generic sample-count intents that also match "how many samples".
-        intents = {intent for intent, _ in matches}
-        if "sample_tests_by_parameter" in intents:
-          blocked_generic = {
-            "sample_count_total",
-            "sample_count_today",
-            "sample_count_this_week",
-            "sample_count_this_month",
-            "batch_count_total",
-          }
-          matches = [m for m in matches if m[0] not in blocked_generic]
-
-        return matches
+        return None, None
 
     def is_greeting(self, query: str) -> bool:
         """Check if the query is a simple greeting/pleasantry."""

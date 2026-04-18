@@ -7,8 +7,8 @@ from datetime import datetime
 from loguru import logger
 from typing import Dict, Any, List, Optional
 
-from celery_config import app as celery_app
-from py_etl.core.database import db_manager
+from config.celery_config import celery_app
+from python.py_etl.core.database import db_manager
 
 
 @celery_app.task(name="app.tasks.monitoring_tasks.check_health")
@@ -39,7 +39,7 @@ def update_etl_heartbeat() -> Dict[str, Any]:
     """Background task to refresh ETL health status in Redis."""
     logger.info("Heartbeat: Checking ETL synchronisation status")
     try:
-        from py_etl.services.etl_index_state_service import etl_index_state_service
+        from python.py_etl.services.etl_index_state_service import etl_index_state_service
         
         tables_to_check = ["sample_headers", "sample_details", "inventory_items", "equipment"]
         failed_tables = []

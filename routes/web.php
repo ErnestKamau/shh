@@ -1871,7 +1871,6 @@ Route::post('/imara-ai/conversations/{id}/attachments', 'AI\KnowledgeAssistantCo
 
 
 
-
 ########################################### AI ANALYTICS #######################################
 Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth']], function() {
     Route::get('/', '\App\Livewire\Mas\Overview')->name('mas.index');

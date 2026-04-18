@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import text
-from py_etl.core.database import db_manager
+from python.py_etl.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,9 @@ CREATE TABLE IF NOT EXISTS ai.ai_request_logs (
     id              BIGSERIAL PRIMARY KEY,
     trace_id        VARCHAR(64),
     query           TEXT NOT NULL,
-    mode            VARCHAR(128),
+    mode            VARCHAR(32),
     route_name      VARCHAR(128),
-    routing_tier    VARCHAR(64),
+    routing_tier    VARCHAR(16),
     latency_ms      INT,
     success         BOOLEAN DEFAULT TRUE,
     error_message   TEXT,
@@ -101,12 +101,6 @@ class RequestLogger:
         # Truncate query for safety
         if query and len(query) > 2000:
             query = query[:2000] + "…"
-
-        # Truncate mode and routing_tier for DB safety
-        if mode and len(mode) > 128:
-            mode = mode[:125] + "..."
-        if routing_tier and len(routing_tier) > 64:
-            routing_tier = routing_tier[:61] + "..."
 
         t = threading.Thread(
             target=self._write,

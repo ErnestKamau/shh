@@ -511,7 +511,6 @@ class LabTatDashboardService
                 'due_today_batches' => 0,
                 'workflow_stages' => 0,
                 'avg_completion_days' => null,
-                'sla_compliance_rate' => 0,
                 'tests_requested' => 0,
                 'tests_completed' => 0,
                 'tests_pending' => 0,
