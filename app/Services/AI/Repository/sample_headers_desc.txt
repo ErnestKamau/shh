@@ -1,0 +1,120 @@
+Field	Type	Null	Key	Default	Extra
+id	bigint	NO	PRI	NULL	auto_increment
+submission_form_instance_id	bigint unsigned	YES	MUL	NULL	
+batch_code	varchar(255)	NO	MUL	NULL	
+receipt_date	datetime	YES		NULL	
+date_collected	datetime	YES		NULL	
+crm_customer_id	int	NO	MUL	NULL	
+crm_unit_name	varchar(255)	NO		NULL	
+sample_type_id	int	NO	MUL	NULL	
+reference_number	varchar(255)	YES		NULL	
+status	varchar(255)	NO		NULL	
+sample_detail_processed	tinyint(1)	NO		0	
+is_routine	tinyint(1)	NO		NULL	
+routine_frequency	double	NO		NULL	
+created_at	timestamp	YES		NULL	
+updated_at	timestamp	YES		NULL	
+is_amendment	int	YES		1	
+schedule_sent	smallint	YES		0	
+sample_tracking_stage	int	YES		NULL	
+description	text	YES		NULL	
+document_number	varchar(100)	YES		NULL	
+importer_address	varchar(255)	YES		NULL	
+receiving_officer	int	YES		NULL	
+sampling_officer	int	YES		NULL	
+priority	varchar(100)	NO		Normal	
+reason_for_submission	text	YES		NULL	
+how_sample_was_obtained	text	YES		NULL	
+specialist_analyst_id	int	YES	MUL	NULL	
+declared_commodity_code	text	YES		NULL	
+net_quantity_and_unit_of_quantity	varchar(128)	YES		NULL	
+sample_appearance_description	text	YES		NULL	
+use_of_goods	text	YES		NULL	
+kra_office_ref	varchar(255)	YES		NULL	
+kra_office_station	varchar(255)	YES		NULL	
+where_sample_was_obtained	varchar(255)	YES		NULL	
+declared_amount	decimal(18,0)	YES		NULL	
+final_declared_amount	decimal(18,0)	YES		NULL	
+radio_active_levels	varchar(255)	YES		NULL	
+date_expected	date	YES		NULL	
+invoice_id	int	NO		0	
+verify_user_id	int	YES		NULL	
+approve_user_id	int	YES		NULL	
+processing_date	date	YES		NULL	
+approval_date	date	YES		NULL	
+email_date	date	YES		NULL	
+payment_date	date	YES		NULL	
+isactive	tinyint(1)	NO		1	
+ammendment_number	varchar(255)	YES		NULL	
+customer_paid	tinyint(1)	NO		0	
+payment_reference_no	varchar(255)	YES		NULL	
+verification_email_date	date	YES		NULL	
+approval_email_date	date	YES		NULL	
+sampling_officer_name	text	YES		NULL	
+receiving_officer_name	text	YES		NULL	
+submit_by	text	YES		NULL	
+batch_report_url	text	YES		NULL	
+current_account_status	varchar(255)	NO			
+quote_id	int	YES		NULL	
+user_agreement	int	YES		NULL	
+in_ammendment_proccess	tinyint(1)	NO		0	
+in_ammendment_process	tinyint(1)	NO		0	
+begin_proccess	tinyint(1)	YES		0	
+begin_process	tinyint(1)	YES		0	
+week	int	YES		NULL	
+year	int	YES		NULL	
+batch_type	text	YES		NULL	
+import_sample	tinyint(1)	YES		0	
+packlist_proccessed	tinyint(1)	YES		0	
+require_mu	tinyint(1)	YES		0	
+is_exception	tinyint(1)	YES		0	
+payment_done_by	text	YES		NULL	
+sampled_by_company_personnel	tinyint(1)	NO		1	
+in_lab_date	date	YES		NULL	
+crm_unit_id	int	YES	MUL	0	
+company_sub_unit_id	bigint unsigned	YES	MUL	NULL	
+other_id	int	YES		NULL	
+batch_scope	varchar(255)	YES		NULL	
+customer_survey	varchar(255)	YES		NULL	
+is_qc_batch	tinyint(1)	YES		0	
+qc_type_id	int	YES		NULL	
+qc_scheme_id	int	YES		NULL	
+repeat_batch_id	tinyint(1)	YES		0	
+repeat_sample_id	int	YES		NULL	
+quote_no	varchar(100)	YES		NULL	
+lab_capable	tinyint(1)	YES		0	
+batch_subcontracted_client_approval	tinyint(1)	YES		0	
+can_be_subcontracted	tinyint(1)	YES		NULL	
+client_instruction_clear	tinyint(1)	YES		0	
+batch_instructions	text	YES		NULL	
+condition_quality_sample	varchar(100)	YES		NULL	
+declaration_customer_approval_date	datetime	YES		NULL	
+declaration_customer_signature	text	YES		NULL	
+declaration_customer_contact_name	varchar(255)	YES		NULL	
+declaration_customer_review_approval_date	datetime	YES		NULL	
+invoice_amount	varchar(100)	YES		NULL	
+sampling_method_id	int	YES		NULL	
+days_of_analysis	int	YES		NULL	
+schedule_analysis_sent	datetime	YES		NULL	
+report_verified_date	date	YES		NULL	
+lab_section_ids	varchar(100)	YES		NULL	
+c_focus_ids_clustered	varchar(255)	YES		NULL	
+cluster_amount	varchar(100)	YES		NULL	
+cluster_balance	varchar(100)	YES		NULL	
+cluster_vat	varchar(100)	YES		NULL	
+cluster_amount_paid	varchar(100)	YES		NULL	
+crm_contact_id	int	YES	MUL	NULL	
+report_status	int	YES	MUL	0	
+prelim_batch_status	varchar(100)	YES		NULL	
+prelim_report_status	int	YES		0	
+schedule_analysis_sender	int	YES		NULL	
+invoice_number	varchar(100)	YES		NULL	
+case_id	int	YES		NULL	
+has_kenas	tinyint	YES		1	
+lab_id	int	YES		NULL	
+retention_date	date	YES		NULL	
+batch_report_online_url	text	YES		NULL	
+schedule_customer_email	varchar(100)	YES		NULL	
+ftp_not_sync	tinyint(1)	YES		0	
+excel_result_url	text	YES		NULL	
+sample_header_staging_id	int	YES		NULL	

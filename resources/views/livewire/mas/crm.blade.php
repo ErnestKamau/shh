@@ -8,9 +8,23 @@
             <p class="text-muted small mb-0">{{ __('mas/crm.subtitle') }}</p>
         </div>
         <div class="col-auto">
-            <a href="{{ route('mas.export', 'crm') }}" class="btn btn-success btn-sm mr-2">
-                <i class="mdi mdi-download"></i> {{ __('mas/common.download_report') }}
+            <div class="btn-group shadow-sm mr-2">
+                <button onclick="exportCrmPdf(false)" class="btn btn-primary btn-sm">
+                    <i class="mdi mdi-file-pdf"></i> {{ __('mas/common.download') }} PDF
+                </button>
+                <button onclick="exportCrmPdf(true)" class="btn btn-outline-primary btn-sm border-left-0">
+                    <i class="mdi mdi-eye"></i>
+                </button>
+            </div>
+            <a href="{{ route('mas.export', 'crm') }}" class="btn btn-success btn-sm">
+                <i class="mdi mdi-microsoft-excel"></i> Excel
             </a>
+
+            <form id="pdfExportForm" action="{{ route('mas.export.visuals', 'crm') }}" method="POST" style="display:none">
+                @csrf
+                <input type="hidden" name="chart_image" id="chart_image_input">
+                <input type="hidden" name="preview" id="preview_input" value="false">
+            </form>
         </div>
     </div>
 
@@ -32,7 +46,7 @@
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/crm.order_trend', ['period' => $stats['period_label'] ?? '']) }}</h5>
+                        <h5 class="mb-0 font-weight-bold text-dark">{{ __('mas/crm.order_trend_title', ['period' => $stats['period_label'] ?? '']) }}</h5>
                         <span class="text-muted x-small text-uppercase">{{ $stats['period_label'] ?? '' }}</span>
                     </div>
                     <div class="d-flex align-items-center">
@@ -80,15 +94,28 @@
                         <table class="table table-hover mb-0">
                             <thead class="bg-light">
                                 <tr>
+                                    <th class="border-0">{{ __('mas/crm.rank') }}</th>
                                     <th class="border-0">{{ __('mas/crm.client_name') }}</th>
-                                    <th class="border-0 text-right">{{ __('mas/crm.total_batches') }}</th>
+                                    <th class="border-0 text-center">{{ __('mas/crm.total_batches') }}</th>
+                                    <th class="border-0">{{ __('mas/crm.workload_share') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($stats['top_clients'] as $client)
+                                @php $totalAll = collect($stats['top_clients'])->sum('total') ?: 1; @endphp
+                                @foreach($stats['top_clients'] as $index => $client)
                                 <tr>
-                                    <td>{{ $client->name }}</td>
-                                    <td class="text-right font-weight-bold">{{ $client->total }}</td>
+                                    <td>#{{ $index + 1 }}</td>
+                                    <td class="font-weight-bold text-dark">{{ $client->name }}</td>
+                                    <td class="text-center font-weight-bold">{{ $client->total }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            @php $percent = round(($client->total / $totalAll) * 100); @endphp
+                                            <div class="progress flex-grow-1 mr-2" style="height: 6px;">
+                                                <div class="progress-bar bg-primary" style="width: {{ $percent }}%"></div>
+                                            </div>
+                                            <small class="text-muted">{{ $percent }}%</small>
+                                        </div>
+                                    </td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -162,6 +189,19 @@
         document.addEventListener('statsUpdated', function(event) {
             initCharts(event.detail.stats);
         });
+
+        window.exportCrmPdf = function(isPreview = false) {
+            const chart = crmChart; // Use the Doughnut chart for the report
+            if (chart) {
+                const base64Image = chart.toBase64Image();
+                document.getElementById('chart_image_input').value = base64Image;
+            }
+
+            const form = document.getElementById('pdfExportForm');
+            document.getElementById('preview_input').value = isPreview;
+            form.target = isPreview ? "_blank" : "_self";
+            form.submit();
+        }
     });
 </script>
 </div>

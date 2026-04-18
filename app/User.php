@@ -11,6 +11,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Models\Role as SpatieRole;
@@ -182,8 +183,24 @@ class User extends Authenticatable implements Auditable
 				}
 			}
 
-			return false;
+			return $this->hasLegacyAdminRole();
 		} catch (\Throwable $exception) {
+			return $this->hasLegacyAdminRole();
+		}
+	}
+
+	public function hasLegacyAdminRole(): bool
+	{
+		try {
+			$adminRoleNames = ['admin', 'super admin', 'super-admin', 'system admin', 'system-admin'];
+
+			return DB::table('user_roles')
+				->join('roles', 'roles.id', '=', 'user_roles.role_id')
+				->where('user_roles.user_id', $this->id)
+				->whereIn(DB::raw('LOWER(roles.name)'), $adminRoleNames)
+				->exists();
+		} catch (\Throwable $exception) {
+
 			return false;
 		}
 	}
@@ -244,6 +261,22 @@ class User extends Authenticatable implements Auditable
 			}
 			return false;
 		}
+		return false;
+	}
+	public function checkApproveMethodsRole(){
+		try {
+			$roleId = SpatieRole::query()
+				->where('guard_name', $this->guard_name)
+				->whereRaw('LOWER(name) = ?', ['can approvemethods'])
+				->value('id');
+
+			if ($roleId) {
+				return $this->hasRole((int) $roleId, true);
+			}
+		} catch (\Throwable $exception) {
+			return false;
+		}
+
 		return false;
 	}
 	public function CheckViewQcSample(){

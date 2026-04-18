@@ -135,6 +135,15 @@ class MasController extends Controller
     }
 
     /**
+     * Lab Logistics & Supplies Monitoring
+     */
+    public function labLogistics(ReportingMartDashboardService $service)
+    {
+        $stats = $service->getLabLogisticsSummary();
+        return view('layouts.mas.lab_logistics', compact('stats'));
+    }
+
+    /**
      * Inventory & Supply Chain Intel
      */
     public function inventory(ReportingMartDashboardService $service)
@@ -146,8 +155,31 @@ class MasController extends Controller
     /**
      * CRM & Financial Billing
      */
-    public function crm()
+    public function crm(Request $request)
     {
+        $period = $request->get('period', '1_month');
+        $fromDate = $request->get('from');
+        $toDate = $request->get('to');
+
+        if ($period === 'custom' && $fromDate && $toDate) {
+            $days = (int)now()->parse($fromDate)->diffInDays(now()->parse($toDate));
+            $periodLabel = $fromDate . ' - ' . $toDate;
+            $orderTrendQuery = SampleHeader::whereBetween('created_at', [$fromDate . ' 00:00:00', $toDate . ' 23:59:59']);
+        } else {
+            $days = match ($period) {
+                '1_week' => 7,
+                '2_weeks' => 14,
+                '1_month' => 30,
+                '2_months' => 60,
+                'quarterly' => 90,
+                'semi_annually' => 180,
+                'annually' => 365,
+                default => 30,
+            };
+            $periodLabel = __('mas/crm.label_' . $period);
+            $orderTrendQuery = SampleHeader::where('created_at', '>=', now()->subDays($days));
+        }
+
         $topClients = DB::table('crm_customers')
             ->join('sample_headers', 'sample_headers.crm_customer_id', '=', 'crm_customers.id')
             ->select('crm_customers.name', DB::raw('count(sample_headers.id) as total'))
@@ -156,8 +188,7 @@ class MasController extends Controller
             ->limit(10)
             ->get();
 
-        $orderTrend = SampleHeader::select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
-            ->where('created_at', '>=', now()->subDays(14))
+        $orderTrend = $orderTrendQuery->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
             ->groupBy('date')
             ->orderBy('date')
             ->get();
@@ -168,6 +199,10 @@ class MasController extends Controller
             'unpaid_invoices' => DB::table('customer_invoice')->count(),
             'top_clients' => $topClients,
             'order_trend' => $orderTrend,
+            'period' => $period,
+            'period_label' => $periodLabel,
+            'from' => $fromDate,
+            'to' => $toDate,
         ];
 
         return view('layouts.mas.crm', compact('stats'));
@@ -405,39 +440,76 @@ class MasController extends Controller
         $timestamp = date('Ymd_His');
 
         switch ($module) {
-            case 'lab':
+            case 'lab': // TAT Analysis
                 $period = $request->get('period', 'active');
                 $stats = $reportingService->getLabTatBoard($period);
+                $stats['sections'] = $reportingService->getLabSectionTatStats();
+                $stats['analyst_performance'] = $reportingService->getAnalystPerformanceStats($period);
+                $stats['smart_grid'] = $reportingService->getSmartActionGridData('urgent'); // Include urgent tasks in TAT report
+                $stats['detailed_logs'] = $reportingService->getDetailedAnalyteTatLogs($period, 100); // Top 100 for PDF appendix
                 $pdf = Pdf::loadView('layouts.mas.pdf.lab_pdf', compact('stats', 'chartImage'))
+
+
                     ->setPaper('a4', 'landscape');
                 $fileName = "Lab_Performance_Report_{$timestamp}.pdf";
                 break;
 
             case 'lab-general':
-                $labBoard = $reportingService->getLabTatBoard();
-                $topClients = DB::table('crm_customers')
-                    ->join('sample_headers', 'sample_headers.crm_customer_id', '=', 'crm_customers.id')
-                    ->select('crm_customers.name', DB::raw('count(sample_headers.id) as total'))
-                    ->where('sample_headers.isactive', 1)
-                    ->groupBy('crm_customers.id', 'crm_customers.name')
-                    ->orderByDesc('total')
-                    ->limit(10)
-                    ->get();
-
-                $stats = [
-                    'sample_type_distribution' => $labBoard['sample_type_distribution'] ?? [],
-                    'top_clients' => $topClients,
-                    'summary' => $labBoard['summary'] ?? [],
-                    'stage_counts' => $labBoard['stage_counts'] ?? []
-                ];
-                $pdf = Pdf::loadView('layouts.mas.pdf.lab_general_pdf', compact('stats', 'chartImage'));
+                $stats = $reportingService->getLabTatBoard(); // For basic completion summary
+                $stats['top_clients'] = $reportingService->getTopClientsData() ?? [];
+                $stats['monthly_trends'] = $reportingService->getLabMonthlyTrends();
+                $stats['geographic_data'] = $reportingService->getLabGeographicData();
+                $pdf = Pdf::loadView('layouts.mas.pdf.lab_general_pdf', compact('stats', 'chartImage'))
+                    ->setPaper('a4', 'landscape');
                 $fileName = "Lab_General_Analytics_{$timestamp}.pdf";
                 break;
 
             case 'lab-qc':
                 $stats = $reportingService->getQcStabilityBoard();
-                $pdf = Pdf::loadView('layouts.mas.pdf.lab_qc_pdf', compact('stats', 'chartImage'));
+                $stats['parameter_performance'] = $reportingService->getParameterPerformanceData();
+                $stats['testing_matrix'] = $reportingService->getTestingMatrixData();
+                $pdf = Pdf::loadView('layouts.mas.pdf.lab_qc_pdf', compact('stats', 'chartImage'))
+                    ->setPaper('a4', 'landscape');
                 $fileName = "Lab_QC_Stability_Report_{$timestamp}.pdf";
+                break;
+
+            case 'lab-logistics':
+                $stats = $reportingService->getLabLogisticsSummary();
+                $pdf = Pdf::loadView('layouts.mas.pdf.lab_logistics_pdf', compact('stats', 'chartImage'))
+                    ->setPaper('a4', 'landscape');
+                $fileName = "Lab_Logistics_Report_{$timestamp}.pdf";
+                break;
+
+            case 'crm':
+                $period = $request->get('period', '1_month');
+                $fromDate = $request->get('from');
+                $toDate = $request->get('to');
+                
+                // Get fresh stats for current filters
+                $topClients = DB::table('crm_customers')
+                    ->join('sample_headers', 'sample_headers.crm_customer_id', '=', 'crm_customers.id')
+                    ->select('crm_customers.name', DB::raw('count(sample_headers.id) as total'))
+                    ->groupBy('crm_customers.id', 'crm_customers.name')
+                    ->orderByDesc('total')->limit(10)->get();
+
+                $stats = [
+                    'total_clients' => DB::table('crm_customers')->count(),
+                    'recent_orders' => SampleHeader::where('created_at', '>=', now()->subDays(30))->count(),
+                    'unpaid_invoices' => DB::table('customer_invoice')->count(),
+                    'top_clients' => $topClients,
+                ];
+
+                $pdf = Pdf::loadView('layouts.mas.pdf.crm_pdf', compact('stats', 'chartImage'))
+                    ->setPaper('a4', 'landscape');
+                $fileName = "CRM_Performance_Report_{$timestamp}.pdf";
+                break;
+
+            case 'inventory':
+                $reportingService = app(ReportingMartDashboardService::class);
+                $stats = $reportingService->getInventoryRiskBoard();
+                $pdf = Pdf::loadView('layouts.mas.pdf.inventory_pdf', compact('stats', 'chartImage'))
+                    ->setPaper('a4', 'landscape');
+                $fileName = "Inventory_Risk_Report_{$timestamp}.pdf";
                 break;
 
             case 'ai':

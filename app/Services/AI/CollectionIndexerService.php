@@ -13,7 +13,7 @@ class CollectionIndexerService
 
     public function __construct()
     {
-        $this->apiBaseUrl = rtrim(config('imara_ai.api_base_url', env('AI_API_URL', 'http://127.0.0.1:8080')), '/');
+        $this->apiBaseUrl = AiEndpointResolver::resolve();
     }
 
     /**

@@ -40,4 +40,6 @@ return [
     'priority' => 'Priority',
     'type' => 'Type',
     'status' => 'Status',
+    'brand_name' => 'KEBS',
+    'brand_footer' => 'KEBS | LIMS',
 ];

@@ -30,7 +30,7 @@ class AIFeatureService
 
     public function __construct()
     {
-        $this->apiBaseUrl = config('imara_ai.api_base_url', 'http://127.0.0.1:8081');
+        $this->apiBaseUrl = AiEndpointResolver::resolve();
     }
 
     // =========================================================================

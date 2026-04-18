@@ -15,7 +15,7 @@ class AiFileIngestionService
     public function __construct(CollectionIndexerService $indexer)
     {
         $this->indexer    = $indexer;
-        $this->apiBaseUrl = rtrim((string) env('AI_API_URL', 'http://127.0.0.1:8000'), '/');
+        $this->apiBaseUrl = AiEndpointResolver::resolve();
     }
 
     /**

@@ -861,7 +861,13 @@
 
 										<td nowrap>{{ $item->client->name }}</td>
 									@endif
-									<td nowrap>{{ $item->reference_number ?? 'n/a' }}</td>
+									<td nowrap>
+										<div>{{ $item->reference_number ?? 'n/a' }}</div>
+										@if($item->sampleSubmissionRequest)
+											<div class="small text-info">{{ $item->sampleSubmissionRequest->submitting_agency }}</div>
+											<div class="small text-muted">Legal Sample Submission Request</div>
+										@endif
+									</td>
 									<td nowrap>{{ date('Y-m-d', strtotime($item->receipt_date)) }}</td>
 									<td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
 									<td nowrap>{{ date('Y-m-d', strtotime($target_date)) }}</td>
@@ -871,7 +877,14 @@
 										<td nowrap>{{ $item->unit_name }}</td>
 									@endif
 									<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
-									<td nowrap>{{ $item->sample_type->name ?? '' }}</td>
+									<td nowrap>
+										<div>{{ $item->sample_type->name ?? '' }}</div>
+										@if($item->sampleSubmissionRequest && $item->sampleSubmissionRequest->requestedAnalyses->count() > 0)
+											<div class="small text-muted">
+												{{ $item->sampleSubmissionRequest->requestedAnalyses->pluck('analysis_label')->implode(', ') }}
+											</div>
+										@endif
+									</td>
 
 
 

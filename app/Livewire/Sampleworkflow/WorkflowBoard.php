@@ -303,6 +303,7 @@ class WorkflowBoard extends Component
             'client',
             'sample_type',
             'invoice',
+            'sampleSubmissionRequest.requestedAnalyses',
         ])->where('isactive', 1);
     }
 
