@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Response;
 
 /*
 |--------------------------------------------------------------------------
@@ -442,6 +444,7 @@ Route::get(
 Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info')->middleware('haspermission:Laboratory.components.All Samples.Edit');
 Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples')->middleware('haspermission:Laboratory.components.All Samples.Edit');
 Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples')->middleware('haspermission:Laboratory.components.All Samples.Edit');
+Route::post('/sample-submission-requests/{request}/reception', 'SampleWorkFlowController@updateSampleSubmissionReception')->name('sample-submission-request-reception')->middleware('haspermission:Laboratory.components.All Samples.Edit');
 Route::post('/delete-sample/{id}', 'SampleDetailsController@delete')->name('delete-sample')->middleware('haspermission:Laboratory.components.All Samples.Delete');
 Route::post('/bulk-update-sample-data', 'SampleWorkFlowController@bulkUpdateSampleData')->name('bulk-update-sample-data')->middleware('haspermission:Laboratory.components.All Samples.Edit');
 
@@ -611,6 +614,16 @@ Route::get('/inventory-slot-contents/{slot}/{store}', 'InventoryStoreSlotContent
 Route::post('/inventory-slot-contents/{slot}/{store}', 'InventoryStoreSlotContentController@add')->name('add-inventory-slot-content')->middleware('haspermission:Inventory.components.Store.Add');
 
 //############################################SUBMISSION FORMS##########################################################
+Route::prefix('supporting-documents')->name('supporting-documents.')->middleware('auth')->group(function () {
+    Route::get('/templates', function () {
+        return view('livewire.supporting-documents.template-manager-page');
+    })->name('templates.index');
+
+    Route::get('/templates/{template}', function (int $template) {
+        return view('livewire.supporting-documents.template-editor-page', ['templateId' => $template]);
+    })->name('templates.edit');
+});
+
 Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')->group(function () {
     Route::get('/', 'SubmissionFormController@index')->name('index');
     Route::get('/create', 'SubmissionFormController@create')->name('create');
@@ -695,6 +708,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::post('/{instance}/apply-to-batches', 'FormInstanceController@applyToBatches')->name('apply-to-batches')->where('instance', '[0-9]+');
         Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples');
         Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status');
+        Route::post('/{instance}/intake-case/confirm', 'LabIntakeCaseController@confirm')->name('intake-case.confirm')->where('instance', '[0-9]+');
+        Route::post('/{instance}/intake-case/accept', 'LabIntakeCaseController@accept')->name('intake-case.accept')->where('instance', '[0-9]+');
+        Route::post('/{instance}/intake-case/reject', 'LabIntakeCaseController@reject')->name('intake-case.reject')->where('instance', '[0-9]+');
         Route::post('/bulk-create-samples', 'SampleCreationController@bulkCreate')->name('bulk-create-samples');
 
         // Instance-specific routes
@@ -1819,6 +1835,7 @@ Route::post('/imara-ai/conversations/{id}/attachments', 'AI\KnowledgeAssistantCo
 
 
 
+
 ########################################### AI ANALYTICS #######################################
 Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth']], function() {
     Route::get('/', '\App\Livewire\Mas\Overview')->name('mas.index');
@@ -1839,6 +1856,8 @@ Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth']], function() {
     Route::get('/export/{module}', 'Mas\MasController@export')->name('mas.export');
     Route::post('/export/{module}/visuals', 'Mas\MasController@exportWithVisuals')->name('mas.export.visuals');
 });
+
+
 
 
 

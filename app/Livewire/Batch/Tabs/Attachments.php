@@ -9,12 +9,15 @@ use App\BatchAttachment;
 use App\Models\System\SystemConfiguration;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class Attachments extends Component
 {
     use WithPagination;
+
+    protected ?bool $hasCapturedResultAttachmentColumn = null;
 
     public SampleHeader $batch;
     public string $search = '';
@@ -103,25 +106,40 @@ class Attachments extends Component
      */
     public function getSamplesWithResultsProperty()
     {
+        $hasAttachmentColumn = $this->hasCapturedResultAttachmentColumn();
+
         $samples = SampleDetails::where('sample_header_id', $this->batch->id)
             ->orderBy('id', 'asc')
             ->get();
 
-        return $samples->map(function ($sample) {
-            $capturedResults = CapturedResult::where('captured_results.sample_detail_id', $sample->id)
+        return $samples->map(function ($sample) use ($hasAttachmentColumn) {
+            $query = CapturedResult::where('captured_results.sample_detail_id', $sample->id)
                 ->where('captured_results.sample_header_id', $this->batch->id)
                 ->whereNotNull('captured_results.result')
                 ->join('analytes', 'analytes.id', '=', 'captured_results.analyte_id')
-                ->selectRaw(
+                ->orderBy('analytes.id', 'asc');
+
+            if ($hasAttachmentColumn) {
+                $query->selectRaw(
                     'captured_results.id,
                      captured_results.analyte_id,
                      captured_results.result,
                      captured_results.analyte_code,
                      captured_results.batch_attachment_id,
                      analytes.name as analyte_name'
-                )
-                ->orderBy('analytes.id', 'asc')
-                ->get();
+                );
+            } else {
+                $query->selectRaw(
+                    'captured_results.id,
+                     captured_results.analyte_id,
+                     captured_results.result,
+                     captured_results.analyte_code,
+                     null as batch_attachment_id,
+                     analytes.name as analyte_name'
+                );
+            }
+
+            $capturedResults = $query->get();
 
             $byAnalyte = $capturedResults->groupBy('analyte_id')->map(function ($group) {
                 $first = $group->first();
@@ -196,22 +214,24 @@ class Attachments extends Component
     {
         $attachment = BatchAttachment::find($attachmentId);
         if ($attachment) {
-            $linkedCapturedIds = CapturedResult::where('batch_attachment_id', $attachment->id)
-                ->pluck('id')
-                ->toArray();
+            if ($this->hasCapturedResultAttachmentColumn()) {
+                $linkedCapturedIds = CapturedResult::where('batch_attachment_id', $attachment->id)
+                    ->pluck('id')
+                    ->toArray();
 
-            // Detach captured results linked to this attachment to avoid stale foreign references.
-            if (!empty($linkedCapturedIds)) {
-                CapturedResult::whereIn('id', $linkedCapturedIds)
-                    ->update(['batch_attachment_id' => null]);
-            }
+                // Detach captured results linked to this attachment to avoid stale foreign references.
+                if (!empty($linkedCapturedIds)) {
+                    CapturedResult::whereIn('id', $linkedCapturedIds)
+                        ->update(['batch_attachment_id' => null]);
+                }
 
-            // Keep attachment-based placeholders consistent once detached.
-            if (!empty($linkedCapturedIds)) {
-                CapturedResult::whereIn('id', $linkedCapturedIds)
-                    ->whereNull('batch_attachment_id')
-                    ->where('result', 'as attached')
-                    ->update(['result' => 'No attachment']);
+                // Keep attachment-based placeholders consistent once detached.
+                if (!empty($linkedCapturedIds)) {
+                    CapturedResult::whereIn('id', $linkedCapturedIds)
+                        ->whereNull('batch_attachment_id')
+                        ->where('result', 'as attached')
+                        ->update(['result' => 'No attachment']);
+                }
             }
 
             $relativePath = urldecode($attachment->attachment_url);
@@ -254,5 +274,14 @@ class Attachments extends Component
             'selectedAttachmentTypeId'      => $this->selectedAttachmentTypeId,
             'samplesWithResults'            => $this->samplesWithResults,
         ]);
+    }
+
+    protected function hasCapturedResultAttachmentColumn(): bool
+    {
+        if ($this->hasCapturedResultAttachmentColumn === null) {
+            $this->hasCapturedResultAttachmentColumn = Schema::hasColumn('captured_results', 'batch_attachment_id');
+        }
+
+        return $this->hasCapturedResultAttachmentColumn;
     }
 }

@@ -275,6 +275,11 @@ class SampleHeader extends Model implements Auditable
 		return $this->belongsTo('App\Models\SubmissionFormInstance', 'submission_form_instance_id');
 	}
 
+	public function sampleSubmissionRequest()
+	{
+		return $this->hasOne('App\Models\SampleSubmissionRequest', 'sample_header_id');
+	}
+
 	public function hasSubmissionForm(): bool
 	{
 		return $this->submission_form_instance_id !== null && $this->submission_form_instance_id > 0;
