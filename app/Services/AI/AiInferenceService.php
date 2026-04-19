@@ -3,35 +3,21 @@
 namespace App\Services\AI;
 
 use App\Services\AI\Parts\AiChatService;
-use App\Services\AI\Parts\AiPredictionService;
-use App\Services\AI\Parts\AiReasoningService;
-use App\Services\AI\Parts\AiRegistryService;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * AiInferenceService - Gateway for the Modular AI Cluster.
+ * AiInferenceService - Industrialized Gateway for Imara AI.
  * 
  * This service coordinates interactions between the Laravel backend and
- * the modular FastAPI Python service. It delegates domain-specific logic
- * to specialized sub-services while maintaining a stable public API.
+ * the simplified Python AI service. It focuses exclusively on context-aware
+ * chat and knowledge management.
  */
 class AiInferenceService
 {
     protected AiChatService $chat;
-    protected AiPredictionService $prediction;
-    protected AiReasoningService $reasoning;
-    protected AiRegistryService $registry;
 
-    public function __construct(
-        AiChatService $chat,
-        AiPredictionService $prediction,
-        AiReasoningService $reasoning,
-        AiRegistryService $registry
-    ) {
+    public function __construct(AiChatService $chat) {
         $this->chat = $chat;
-        $this->prediction = $prediction;
-        $this->reasoning = $reasoning;
-        $this->registry = $registry;
     }
 
     /**
@@ -51,67 +37,6 @@ class AiInferenceService
     }
 
     /**
-     * Sync models from local Ollama instance into the database registry.
-     */
-    public function syncLocalModels(): array
-    {
-        return $this->registry->syncLocalModels();
-    }
-
-    /**
-     * Sync trained models (.joblib) from the local filesystem into the registry.
-     */
-    public function syncTrainedModels(): array
-    {
-        return $this->registry->syncTrainedModels();
-    }
-
-    /**
-     * Get a prediction for a given entity, using cache if available.
-     */
-    public function getPrediction(Model $entity, string $modelType, bool $forceFresh = false): array
-    {
-        return $this->prediction->getPrediction($entity, $modelType, $forceFresh);
-    }
-
-    /**
-     * Semantic intent classification.
-     */
-    public function classifyIntent(string $message): ?array
-    {
-        return $this->reasoning->classifyIntent($message);
-    }
-
-    /**
-     * Ask FastAPI reasoning endpoints for natural-language interpretation.
-     */
-    public function reasonPrediction(string $kind, array $prediction, array $features = [], array $context = []): array
-    {
-        return $this->reasoning->reasonPrediction($kind, $prediction, $features, $context);
-    }
-
-    /**
-     * Run predictions for multiple entities in a single batched call.
-     */
-    public function batchPredict(array $items, bool $includeReasoning = false): array
-    {
-        return $this->prediction->batchPredict($items, $includeReasoning);
-    }
-
-    /**
-     * Stream chat response with SSE.
-     */
-    public function streamChat($messages, array $sources = [], array $options = [])
-    {
-        // Handle legacy string signature
-        if (is_string($messages)) {
-            $messages = [['role' => 'user', 'content' => $messages]];
-        }
-
-        return $this->chat->streamChat($messages, $sources, $options);
-    }
-
-    /**
      * Simple chat retrieval (non-streaming).
      */
     public function chat(string $message, array $options = []): array
@@ -120,24 +45,52 @@ class AiInferenceService
     }
 
     /**
-     * Proxy for recording feedback (Logic maintained for now)
+     * Stream chat response with SSE.
      */
-    public function recordFeedback(int $predictionId, string $action, ?string $feedback = null): bool
+    public function streamChat($messages, array $options = [])
     {
-        $userId = auth()->id();
-        $hashedActor = $userId !== null
-            ? hash_hmac('sha256', (string) $userId, config('app.key'))
-            : null;
+        // Handle legacy string signature
+        if (is_string($messages)) {
+            $messages = [['role' => 'user', 'content' => $messages]];
+        }
 
-        return \Illuminate\Support\Facades\DB::connection('pgsql_ai')
-            ->table('ai.ai_predictions')
-            ->where('id', $predictionId)
-            ->update([
-                'user_action'  => $action,
-                'user_feedback' => $feedback,
-                'actor_id'     => $hashedActor,
-                'action_at'    => now(),
-                'updated_at'   => now(),
-            ]) > 0;
+        return $this->chat->streamChat($messages, $options);
+    }
+
+    /**
+     * Record interaction feedback.
+     */
+    public function recordFeedback(int $id, string $action, ?string $feedback = null): bool
+    {
+        return $this->chat->recordFeedback($id, $action, $feedback);
+    }
+
+    /**
+     * Index knowledge content via the Python service.
+     */
+    public function indexKnowledge(array $data): array
+    {
+        return $this->chat->indexKnowledge($data);
+    }
+
+    public function deleteKnowledge(string $entityType, $entityId, int $companyId = 0): array
+    {
+        return $this->chat->deleteKnowledge($entityType, $entityId, $companyId);
+    }
+
+    /**
+     * Test semantic search retrieval via the Python service.
+     */
+    public function searchKnowledge(string $query, array $options = []): array
+    {
+        return $this->chat->searchKnowledge($query, $options);
+    }
+
+    /**
+     * Upload and index a file via the Python service.
+     */
+    public function uploadKnowledgeFile($file, array $data): array
+    {
+        return $this->chat->uploadKnowledgeFile($file, $data);
     }
 }

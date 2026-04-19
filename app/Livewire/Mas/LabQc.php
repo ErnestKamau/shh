@@ -2,7 +2,8 @@
 
 namespace App\Livewire\Mas;
 
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\LabGeneralDashboardService;
+use App\Services\Dashboards\QcDashboardService;
 
 class LabQc extends BaseMasPage
 {
@@ -20,10 +21,12 @@ class LabQc extends BaseMasPage
 
     private function loadStats(): void
     {
-        $service = app(ReportingMartDashboardService::class);
-        $this->stats = $service->getQcStabilityBoard();
-        $this->stats['parameter_performance'] = $service->getParameterPerformanceData();
-        $this->stats['testing_matrix'] = $service->getTestingMatrixData();
+        $qcService      = app(QcDashboardService::class);
+        $generalService = app(LabGeneralDashboardService::class);
+
+        $this->stats = $qcService->getQcStabilityBoard();
+        $this->stats['parameter_performance'] = $qcService->getParameterPerformanceData();
+        $this->stats['testing_matrix'] = $generalService->getTestingMatrixData();
     }
 
     public function render()

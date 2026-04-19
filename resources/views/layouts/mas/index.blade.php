@@ -122,26 +122,7 @@
             </div>
         </div>
 
-        <!-- AI Intelligence KPI -->
-        <div class="col-lg-3 col-md-4 mb-4">
-            <div class="card shadow-sm border-0 h-100 overflow-hidden" style="border-left: 5px solid #6f42c1 !important;">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="text-muted text-uppercase font-weight-bold small mb-0">{{ __('mas/dashboard.ai_intelligence') }}</h6>
-                        <i class="mdi mdi-head-snowflake mdi-24px text-purple" style="color: #6f42c1;"></i>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h2 class="font-weight-bold mb-1 text-dark">{{ $stats['ai_health'] }}%</h2>
-                            <p class="text-muted small mb-0">{{ __('mas/dashboard.system_health') }}</p>
-                        </div>
-                        <a href="{{ route('mas.ai') }}" class="btn btn-sm btn-link p-0 mt-2 font-weight-bold text-purple" style="color: #6f42c1;">
-                            {{ __('mas/common.details') }} <i class="mdi mdi-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+
 
         <!-- QC & Stability -->
         <div class="col-lg-3 col-md-4 mb-4">

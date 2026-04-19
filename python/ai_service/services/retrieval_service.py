@@ -3,6 +3,7 @@ import re
 import hashlib
 import math
 import logging
+from threading import Lock
 from typing import List, Dict, Any, Optional
 from sqlalchemy import text
 from python.py_etl.core.database import db_manager
@@ -14,22 +15,39 @@ class RetrievalService:
         self.schema = os.getenv("AI_SCHEMA", "ai")
         self.embedding_dim = int(os.getenv("AI_EMBEDDING_DIM", "1536"))
         self._embedding_model = None
+        self._embedding_model_attempted = False
+        self._embedding_model_lock = Lock()
         from python.ai_service.services.rrf_fusion_service import RrfFusionService
         self.fusion_service = RrfFusionService()
 
     def _get_embedding_model(self):
         if self._embedding_model is not None:
             return self._embedding_model
-        
-        try:
-            from sentence_transformers import SentenceTransformer
-            model_name = os.getenv("AI_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-            self._embedding_model = SentenceTransformer(model_name)
-            logger.info(f"RetrievalService: Loaded embedding model: {model_name}")
-        except Exception as exc:
-            logger.warning(f"RetrievalService: sentence-transformers unavailable, using fallback: {exc}")
+
+        if self._embedding_model_attempted:
+            return None
+
+        with self._embedding_model_lock:
+            if self._embedding_model is not None:
+                return self._embedding_model
+            if self._embedding_model_attempted:
+                return None
+
+            self._embedding_model_attempted = True
+            try:
+                from sentence_transformers import SentenceTransformer
+                model_name = os.getenv("AI_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+                self._embedding_model = SentenceTransformer(model_name)
+                logger.info(f"RetrievalService: Loaded embedding model: {model_name}")
+            except (Exception, NameError) as exc:
+                logger.warning(f"RetrievalService: sentence-transformers/torch unavailable, using deterministic hashes: {exc}")
+                self._embedding_model = None
         
         return self._embedding_model
+
+    def preload_embedding_model(self) -> Optional[Any]:
+        """Warm the embedding model once so first retrieval doesn't block a user request."""
+        return self._get_embedding_model()
 
     def embed_text(self, text_value: str) -> List[float]:
         """Generate an embedding vector for a text input."""
@@ -176,6 +194,10 @@ class RetrievalService:
         """Helper to build consistent SQL WHERE conditions."""
         where_parts = []
         params = {}
+
+        # Stage 10: Knowledge Governance (Expiry Filter)
+        # Exclude documents that have an expires_at date in the past
+        where_parts.append("(expires_at IS NULL OR expires_at > NOW())")
 
         if collections:
             where_parts.append("collection_name = ANY(:collections)")

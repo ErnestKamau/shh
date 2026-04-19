@@ -29,59 +29,7 @@
                 </div>
             </a>
 
-            {{-- Agent Personality Card --}}
-            <a href="{{ route('ai.settings.agent-personality') }}" style="text-decoration: none; display: block; group;">
-                <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; overflow: hidden;"
-                     onmouseover="this.style.borderColor='#a72b2a'; this.style.boxShadow='0 10px 25px -5px rgba(167, 43, 42, 0.1), 0 8px 10px -6px rgba(167, 43, 42, 0.1)';"
-                     onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)';">
-                    
-                    <div style="width: 48px; height: 48px; background: #f3f4f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
-                        <i class="mdi mdi-robot-confused-outline" style="font-size: 1.5rem; color: #6b7280;"></i>
-                    </div>
-                    <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin: 0 0 8px 0;">Agent Personality</h3>
-                    <p style="color: #6b7280; font-size: 0.95rem; line-height: 1.5; margin: 0;">Configure the system prompt, tone of voice, and specific behavioral guidelines for Imarachat AI.</p>
-                    
-                    <div style="margin-top: 24px; display: flex; align-items: center; gap: 6px; color: #a72b2a; font-weight: 600; font-size: 0.9rem;">
-                        Configure Personality <i class="mdi mdi-arrow-right" style="font-size: 1.1rem;"></i>
-                    </div>
-                </div>
-            </a>
-
-            {{-- Model Settings Card --}}
-            <a href="{{ route('ai.settings.model-config') }}" style="text-decoration: none; display: block; group;">
-                <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; overflow: hidden;"
-                     onmouseover="this.style.borderColor='#a72b2a'; this.style.boxShadow='0 10px 25px -5px rgba(167, 43, 42, 0.1), 0 8px 10px -6px rgba(167, 43, 42, 0.1)';"
-                     onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)';">
-                    
-                    <div style="width: 48px; height: 48px; background: #f3f4f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
-                        <i class="mdi mdi-tune-vertical" style="font-size: 1.5rem; color: #6b7280;"></i>
-                    </div>
-                    <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin: 0 0 8px 0;">Model Configuration</h3>
-                    <p style="color: #6b7280; font-size: 0.95rem; line-height: 1.5; margin: 0;">Adjust temperature, max tokens, and select from available LLM engines (Ollama/Qwen).</p>
-                    
-                    <div style="margin-top: 24px; display: flex; align-items: center; gap: 6px; color: #a72b2a; font-weight: 600; font-size: 0.9rem;">
-                        Tune Settings <i class="mdi mdi-arrow-right" style="font-size: 1.1rem;"></i>
-                    </div>
-                </div>
-            </a>
-
-            {{-- Governance Dashboard Card --}}
-            <a href="{{ route('ai.governance.dashboard') }}" style="text-decoration: none; display: block; group;">
-                <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; overflow: hidden;"
-                     onmouseover="this.style.borderColor='#a72b2a'; this.style.boxShadow='0 10px 25px -5px rgba(167, 43, 42, 0.1), 0 8px 10px -6px rgba(167, 43, 42, 0.1)';"
-                     onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)';">
-                    
-                    <div style="width: 48px; height: 48px; background: #f3f4f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
-                        <i class="mdi mdi-shield-check-outline" style="font-size: 1.5rem; color: #6b7280;"></i>
-                    </div>
-                    <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin: 0 0 8px 0;">Governance Dashboard</h3>
-                    <p style="color: #6b7280; font-size: 0.95rem; line-height: 1.5; margin: 0;">Monitor AI model performance, registry status, and overall system transparency.</p>
-                    
-                    <div style="margin-top: 24px; display: flex; align-items: center; gap: 6px; color: #a72b2a; font-weight: 600; font-size: 0.9rem;">
-                        View Governance <i class="mdi mdi-arrow-right" style="font-size: 1.1rem;"></i>
-                    </div>
-                </div>
-            </a>
+        </div>
         </div>
 
         {{-- Help Section --}}

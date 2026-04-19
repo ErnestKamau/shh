@@ -5,7 +5,7 @@ namespace App\Livewire\Mas;
 use App\Models\RiskManagement\Risk;
 use App\SampleHeader;
 use App\Services\AI\PerformanceDashboardService;
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\InventoryDashboardService;
 use App\Services\Documents\Dashboards\EquipmentReliabilityDashboardService;
 use Illuminate\Support\Facades\DB;
 
@@ -25,12 +25,12 @@ class Overview extends BaseMasPage
 
     private function loadStats(): void
     {
-        $reportingService = app(ReportingMartDashboardService::class);
+        $inventoryService = app(InventoryDashboardService::class);
         $perfService      = app(PerformanceDashboardService::class);
         $equipService     = app(EquipmentReliabilityDashboardService::class);
 
         $labTotal        = SampleHeader::where('status', '!=', 'Finished Sample')->count();
-        $inventoryStats  = $reportingService->getInventoryRiskBoard();
+        $inventoryStats  = $inventoryService->getInventoryRiskBoard();
         $inventoryAlerts = $inventoryStats['summary']['items_below_minimum'] ?? 0;
         $billingTotal    = DB::table('customer_invoice')->sum('total') ?? 0;
         $riskHigh        = Risk::where('risk_level', 'Critical')->where('workflow_step', '<', 8)->count();

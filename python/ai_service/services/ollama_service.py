@@ -16,14 +16,16 @@ class OllamaService:
             self.client = None
             logger.warning("Ollama library not found. Service will only work with mocked calls.")
 
-    def chat(self, messages: List[Dict[str, str]], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def chat(self, messages: List[Dict[str, str]], options: Optional[Dict[str, Any]] = None, model: Optional[str] = None) -> Dict[str, Any]:
         """Synchronous chat call."""
         try:
-            return self.client.chat(
-                model=self.model,
+            target_model = model or self.model
+            response = self.client.chat(
+                model=target_model,
                 messages=messages,
                 options=options or {"temperature": 0.3}
             )
+            return self._normalize_chunk(response)
         except Exception as e:
             logger.error(f"OllamaService.chat failed: {e}")
             raise
@@ -44,7 +46,7 @@ class OllamaService:
                         stream=True
                     )
                     for chunk in stream:
-                        loop.call_soon_threadsafe(queue.put_nowait, chunk)
+                        loop.call_soon_threadsafe(queue.put_nowait, self._normalize_chunk(chunk))
                 except Exception as exc:
                     logger.error(f"OllamaService.chat_stream failed: {exc}")
                     loop.call_soon_threadsafe(queue.put_nowait, {"error": str(exc)})
@@ -64,12 +66,23 @@ class OllamaService:
             logger.error(f"OllamaService.chat_stream failed: {e}")
             yield {"error": str(e)}
 
-    def generate(self, prompt: str, system: Optional[str] = None) -> str:
+    def _normalize_chunk(self, chunk: Any) -> Dict[str, Any]:
+        """Return a plain dict regardless of whether Ollama returned a mapping or a typed response object."""
+        if isinstance(chunk, dict):
+            return chunk
+        if hasattr(chunk, "model_dump"):
+            return chunk.model_dump()
+        if hasattr(chunk, "dict"):
+            return chunk.dict()
+        logger.warning("Received unexpected Ollama chunk type: %s", type(chunk).__name__)
+        return {"message": {"content": str(chunk)}}
+
+    def generate(self, prompt: str, system: Optional[str] = None, model: Optional[str] = None) -> str:
         """Simple generation utility."""
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
         
-        response = self.chat(messages)
+        response = self.chat(messages, model=model)
         return response['message']['content']

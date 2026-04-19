@@ -31,7 +31,7 @@ return new class extends Migration
                     id SERIAL PRIMARY KEY,
                     collection_name TEXT NOT NULL, -- e.g., 'audits', 'sops', 'risks'
                     entity_type TEXT,              -- e.g., 'App\\Models\\Audit'
-                    entity_id BIGINT,              -- Reference to source entity
+                    entity_id TEXT,                -- Reference to source entity (Support for BIGINT, UUID, etc.)
                     content TEXT NOT NULL,         -- Chunks of raw text
                     embedding vector(1536),        -- Default matches OpenAI/Gemini standard
                     metadata JSONB,                -- Useful for filtering (e.g., tags, authors)

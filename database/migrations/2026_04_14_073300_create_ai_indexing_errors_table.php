@@ -11,20 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::connection('pgsql_ai')->hasTable('ai_indexing_errors')) {
-            Schema::connection('pgsql_ai')->create('ai_indexing_errors', function (Blueprint $table) {
-                $table->id();
-                $table->uuid('run_id')->nullable();
-                $table->string('entity_type')->index();
-                $table->string('record_id')->index();
-                $table->string('source_name')->nullable();
-                $table->string('error_type')->nullable();
-                $table->text('error_message');
-                $table->jsonb('payload_excerpt')->nullable();
-                $table->unsignedBigInteger('company_id')->index()->nullable();
-                $table->timestamps();
-            });
-        }
+        Schema::connection('pgsql_ai')->create('ai_indexing_errors', function (Blueprint $table) {
+            $table->id();
+            $table->uuid('run_id')->nullable();
+            $table->string('entity_type')->index();
+            $table->string('record_id')->index();
+            $table->string('source_name')->nullable();
+            $table->string('error_type')->nullable();
+            $table->text('error_message');
+            $table->jsonb('payload_excerpt')->nullable();
+            $table->unsignedBigInteger('company_id')->index()->nullable();
+            $table->timestamps();
+        });
     }
  
     /**

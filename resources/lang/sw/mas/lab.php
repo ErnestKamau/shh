@@ -81,4 +81,7 @@ return [
     'year' => 'Mwaka',
     'lifetime' => 'Maisha Yote',
     'batch_count' => 'Jumla ya Bachi',
+    'status_sample_registration' => 'Usajili wa Sampuli',
+    'status_sample_logged' => 'Sampuli Imerekodiwa',
+    'status_sample_approval' => 'Idhini ya Sampuli',
 ];

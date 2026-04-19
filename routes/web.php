@@ -328,6 +328,51 @@ Route::post('/analysis-method/edit', 'AnalysisMethodController@edit')->name('edi
 Route::get('/analysis-method/{id}', function ($id) {
     return view('livewire.lab.method-detail-page', ['methodId' => (int) $id]);
 })->name('analysis-method')->middleware('haspermission:Laboratory.components.Methods.View');
+Route::post('/send-for-validation', 'AnalysisMethodController@sendForValidation')->name('send-for-validation')->middleware('haspermission:Laboratory.components.Methods.Edit');
+
+// Method Validation Routes
+Route::prefix('analysis-methods/method-validation')->group(function () {
+    Route::get('/method-registration', 'Lab\\MethodValidation\\MethodRegistrationController@index')
+        ->name('method-validation.registration')
+        ->middleware('haspermission:Laboratory.components.Method-Validation.Registration.View');
+    Route::get('/method-registration/{id}', 'Lab\\MethodValidation\\MethodRegistrationController@show')
+        ->name('method-validation.registration.show')
+        ->middleware('haspermission:Laboratory.components.Method-Validation.Registration.View');
+    Route::get('/data-review-analysis', 'Lab\\MethodValidation\\DataReviewAnalysisController@index')
+        ->name('method-validation.data-review')
+        ->middleware('haspermission:Laboratory.components.Method-Validation.Data-Review.View');
+    Route::get('/method-comparison/{methodId}', 'MethodValidationController@methodComparison')
+        ->name('method-validation.comparison')
+        ->middleware('haspermission:Laboratory.components.Method-Validation.Data-Review.View');
+    Route::post('/process-action', 'MethodValidationController@processAction')
+        ->name('method-validation.process-action')
+        ->middleware('auth');
+});
+
+// Uncertainty Budget Routes
+Route::prefix('lab-uncertainty')->name('uncertainty-budgets.')->group(function () {
+    Route::get('/', 'UncertaintyBudgetController@index')->name('index')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.View');
+    Route::get('/create', 'UncertaintyBudgetController@create')->name('create')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Add');
+    Route::post('/', 'UncertaintyBudgetController@store')->name('store')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Add');
+    Route::get('/{id}', 'UncertaintyBudgetController@show')->name('show')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.View');
+    Route::get('/{id}/edit', 'UncertaintyBudgetController@edit')->name('edit')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+    Route::put('/{id}', 'UncertaintyBudgetController@update')->name('update')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+    Route::delete('/{id}', 'UncertaintyBudgetController@destroy')->name('destroy')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Delete');
+
+    // Uncertainty Sources Routes
+    Route::post('/{budgetId}/sources', 'UncertaintyBudgetController@addSource')->name('sources.store')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+    Route::put('/sources/{sourceId}', 'UncertaintyBudgetController@updateSource')->name('sources.update')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+    Route::delete('/sources/{sourceId}', 'UncertaintyBudgetController@deleteSource')->name('sources.destroy')->middleware('haspermission:Laboratory.components.Uncertainty-Budget.Edit');
+
+    // API Routes
+    Route::get('/api/analytes', 'UncertaintyBudgetController@getAnalytes')->name('api.analytes');
+    Route::get('/api/methods/{analyteId}', 'UncertaintyBudgetController@getMethods')->name('api.methods');
+    Route::get('/api/sources/{sourceId}', 'UncertaintyBudgetController@getSource')->name('api.sources');
+    Route::get('/api/existing-budgets/{analyteId}', 'UncertaintyBudgetController@getExistingBudgets')->name('api.existing-budgets');
+
+    // Recalculate Route
+    Route::post('/{budgetId}/recalculate', 'UncertaintyBudgetController@recalculate')->name('recalculate');
+});
 
 Route::post('/check_rft_no', 'SampleWorkFlowController@check_rft_no')->name('check_rft_no')->middleware('haspermission:Laboratory.components.RFT Form.View');
 Route::post('/reject-approval-request', 'SampleWorkFlowController@return_batch_reception')->name('return_batch_reception')->middleware('haspermission:Laboratory.components.Approve For Analysis.Edit');
@@ -438,6 +483,7 @@ Route::get('/regerateCustomerInvoice/{id}', 'SampleWorkFlowController@regerateCu
 Route::get('/split-contact', 'SampleWorkFlowController@splitSchoolContacts')->name('/split-contact')->middleware('haspermission:Laboratory.components.All Samples.View');
 //############################################################################################################################
 Route::get('/billing-quotation/{stage?}', 'Invoice\QuotationController@index')->name('quotation-index')->middleware('haspermission:Laboratory.components.Quotation.View');
+Route::get('/billing/analysis-options/{sampleTypeId}', 'Invoice\QuotationController@getAnalysisOptionsBySampleType')->name('billing.analysis-options')->middleware('haspermission:Laboratory.components.Quotation.View');
 Route::get('/billing/change-quotation-workflow/{id}/{stage}', 'Invoice\QuotationController@change_quotation_workflow')->name('change_quotation_workflow')->middleware('haspermission:Laboratory.components.Quotation.Edit');
 Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationController@view_quote_header_detail')->name('add-qoute-details-view')->middleware('haspermission:Laboratory.components.Quotation.View');
 Route::post('/billing-add-quote-header', 'Invoice\QuotationController@add_quotation_header')->name('add-quotation-header')->middleware('haspermission:Laboratory.components.Quotation.Add');
@@ -585,6 +631,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
 
     // Mapping Fields (must be before /{submissionForm} route)
     Route::get('/mapping-fields', 'FormBuilderController@getMappingFields')->name('mapping-fields');
+    Route::get('/preview/sampling-request-template', 'FormInstanceController@previewSamplingRequestTemplate')->name('preview-sampling-request-template');
 
     Route::get('/{submissionForm}', 'SubmissionFormController@show')->name('show');
     Route::get('/{submissionForm}/edit', 'SubmissionFormController@edit')->name('edit');
@@ -639,9 +686,6 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
 
         // Dynamic options route
         Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
-
-        // Depended field value route
-        Route::get('/depended-field-value', 'FormInstanceController@getDependedFieldValue')->name('depended-field-value');
 
         // Form creation routes
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
@@ -1342,19 +1386,17 @@ Route::get('/show-material-type/{id}', 'ModulePreConfigsController@show_material
 //###################################MODULE PRE_CONFIGS LINKS#######################################
 
 //###################################PRICELISTS#######################################
-// DEPRECATED: Pricelist routes - replaced by invoicable items system
-// Route::get('/pricelists', 'PricelistItemController@index')->name('view-pricelists')->middleware('haspermission:Laboratory.components.Pricelists.View');
-// Route::post('/pricelist/{id?}', 'PricelistItemController@update')->name('update-pricelist');
-// Route::post('/pricelist/{id}/upload', 'PricelistItemController@upload')->name('upload-pricelist-pdf');
-// Route::post('/pricelist/{id}/email', 'PricelistItemController@email')->name('email-pricelist-pdf');
-// Route::get('/pricelist/{id}/{print?}', 'PricelistItemController@show')->name('show-pricelist');
-// Route::post('/pricelist/{id}/item', 'PricelistItemController@update_item')->name('update-pricelist-item');
-// Route::post('/save-price-changes/{id}', 'PricelistItemController@save_price_changes')->name('save-price-changes');
-// Route::post('/clone-items-to-new-pricelist/{id}', 'PricelistItemController@clone_items_to_new_pricelist')->name('clone-items-to-new-pricelist');
-// Route::get('/move-pricelist-item/{direction}/{pricelist}/{element}', 'PricelistItemController@move_pricelist_item')->name('move-pricelist-item');
-// Route::post('/add-customer-to-pricelist/{id}', 'PricelistItemController@add_customer')->name('add-customer-to-pricelist');
-// Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remove_customer')->name('remove-customer-to-pricelist');
-
+Route::get('/pricelists', 'PricelistItemController@index')->name('view-pricelists')->middleware('haspermission:Laboratory.components.Pricelists.View');
+Route::post('/pricelist/{id?}', 'PricelistItemController@update')->name('update-pricelist');
+Route::post('/pricelist/{id}/upload', 'PricelistItemController@upload')->name('upload-pricelist-pdf');
+Route::post('/pricelist/{id}/email', 'PricelistItemController@email')->name('email-pricelist-pdf');
+Route::get('/pricelist/{id}/{print?}', 'PricelistItemController@show')->name('show-pricelist');
+Route::post('/pricelist/{id}/item', 'PricelistItemController@update_item')->name('update-pricelist-item');
+Route::post('/save-price-changes/{id}', 'PricelistItemController@save_price_changes')->name('save-price-changes');
+Route::post('/clone-items-to-new-pricelist/{id}', 'PricelistItemController@clone_items_to_new_pricelist')->name('clone-items-to-new-pricelist');
+Route::get('/move-pricelist-item/{direction}/{pricelist}/{element}', 'PricelistItemController@move_pricelist_item')->name('move-pricelist-item');
+Route::post('/add-customer-to-pricelist/{id}', 'PricelistItemController@add_customer')->name('add-customer-to-pricelist');
+Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remove_customer')->name('remove-customer-to-pricelist');
 //###################################PRICELISTS#######################################
 
 //######################################SYSTEMS ##################################################################
@@ -1689,16 +1731,9 @@ Route::post('/ajax/send-schedule', 'SampleWorkFlowController@sendScheduleAjax')-
 Route::get('/imara-ai','HomeController@aiIndex')->middleware(['auth', 'twofactor'])->name('imara-ai');
 Route::prefix('imara-ai/settings')->name('ai.settings.')->middleware(['auth', 'twofactor'])->group(function () {
     Route::get('/', 'KnowledgeBaseManagerController@settings')->name('index');
-    Route::get('/agent-personality', 'KnowledgeBaseManagerController@agentPersonality')->name('agent-personality');
-    Route::post('/agent-personality', 'KnowledgeBaseManagerController@updateAgentPersonality')->name('agent-personality.update');
-    Route::get('/model-config', 'KnowledgeBaseManagerController@modelConfig')->name('model-config');
-    Route::post('/model-config', 'KnowledgeBaseManagerController@updateModelConfig')->name('model-config.update');
-    Route::post('/model-config/sync', 'KnowledgeBaseManagerController@syncOllamaModels')->name('model-config.sync');
 });
 Route::get('/imara-ai/knowledge-manager','KnowledgeBaseManagerController@index')->middleware(['auth', 'twofactor'])->name('ai.knowledge.manager');
-Route::get('/imara/ai/index','HomeController@aiIndex')->middleware(['auth', 'twofactor'])->name('imara-ai-index');
-Route::post('/imara/ai/chat','HomeController@aiChat')->name('ai-chat-post');
-Route::post('/ai/predictions/{id}/feedback', 'AI\AiGovernanceController@recordFeedback')->name('ai-prediction-feedback');
+
 Route::post('/imara-ai/search', 'AI\KnowledgeAssistantController@search')
   ->middleware(['auth', 'twofactor', 'throttle:20,1'])
   ->name('ai.knowledge.search');
@@ -1714,11 +1749,7 @@ Route::post('/imara-ai/action/confirm', 'AI\KnowledgeAssistantController@confirm
   ->name('ai.knowledge.action.confirm');
 
 // LiveData / Operational Assistant Routes
-Route::prefix('live-data')->middleware(['auth', 'twofactor'])->group(function () {
-    Route::post('/query', 'LiveData\OperationalAssistantController@query')->name('live-data.query');
-    Route::post('/search', 'LiveData\OperationalAssistantController@search')->name('live-data.search');
-    Route::get('/intents', 'LiveData\OperationalAssistantController@listIntents')->name('live-data.intents');
-});
+
 
 Route::get('/imara-ai/knowledge', 'AI\AiKnowledgeBaseController@index')
   ->middleware(['auth', 'twofactor'])
@@ -1744,6 +1775,26 @@ Route::post('/imara-ai/knowledge/{id}/reindex', 'AI\AiKnowledgeBaseController@re
   ->middleware(['auth', 'twofactor'])
   ->name('ai.knowledge.reindex');
 
+Route::post('/imara-ai/knowledge/bulk-delete', 'AI\AiKnowledgeBaseController@batchDestroy')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.bulk-delete');
+
+Route::post('/imara-ai/knowledge/bulk-reindex', 'AI\AiKnowledgeBaseController@batchReindex')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.bulk-reindex');
+
+Route::post('/imara-ai/knowledge/search-preview', 'AI\AiKnowledgeBaseController@search')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.search-preview');
+
+Route::get('/imara-ai/knowledge-editor/{id?}', 'AI\AiKnowledgeBaseController@editor')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.editor');
+
+Route::post('/imara-ai/knowledge/upload-image', 'AI\AiKnowledgeBaseController@uploadImage')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.upload-image');
+
 // AI conversation persistence
 Route::get('/imara-ai/conversations', 'AI\KnowledgeAssistantController@listConversations')
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.list');
@@ -1759,17 +1810,14 @@ Route::delete('/imara-ai/conversations', 'AI\KnowledgeAssistantController@bulkDe
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.bulk-delete');
 Route::patch('/imara-ai/conversations/{id}', 'AI\KnowledgeAssistantController@renameConversation')
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.rename');
+Route::patch('/imara-ai/conversations/{id}/toggle-pin', 'AI\KnowledgeAssistantController@togglePin')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.toggle-pin');
 Route::post('/imara-ai/conversations/{convoId}/messages/{messageId}/feedback', 'AI\KnowledgeAssistantController@saveFeedback')
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.feedback');
 Route::post('/imara-ai/conversations/{id}/attachments', 'AI\KnowledgeAssistantController@uploadAttachment')
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.upload-attachment');
 
-// ML Governance Dashboard — model registry, performance, and monitoring
-Route::prefix('/imara-ai/governance')->name('ai.governance.')->middleware(['auth', 'twofactor'])->group(function () {
-    Route::get('/dashboard', 'AI\AiGovernanceController@mlDashboard')->name('dashboard');
-    Route::get('/models', 'AI\AiGovernanceController@listModels')->name('models.index');
-    Route::get('/models/{id}/performance', 'AI\AiGovernanceController@modelPerformance')->name('models.performance');
-});
+
 
 ########################################### AI ANALYTICS #######################################
 Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth']], function() {
@@ -1783,11 +1831,11 @@ Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth']], function() {
     Route::get('/inventory', '\App\Livewire\Mas\Inventory')->name('mas.inventory');
     Route::get('/crm', '\App\Livewire\Mas\Crm')->name('mas.crm');
     Route::get('/risk', '\App\Livewire\Mas\Risk')->name('mas.risk');
-    Route::get('/ai', '\App\Livewire\Mas\Ai')->name('mas.ai');
     Route::get('/equipment', '\App\Livewire\Mas\Equipment')->name('mas.equipment');
     Route::get('/personnel', '\App\Livewire\Mas\Personnel')->name('mas.personnel');
     Route::get('/qc', '\App\Livewire\Mas\Qc')->name('mas.qc');
     Route::get('/audit', '\App\Livewire\Mas\Audit')->name('mas.audit');
+    Route::get('/ai', 'Mas\MasController@ai')->name('mas.ai');
     Route::get('/export/{module}', 'Mas\MasController@export')->name('mas.export');
     Route::post('/export/{module}/visuals', 'Mas\MasController@exportWithVisuals')->name('mas.export.visuals');
 });
@@ -1946,3 +1994,4 @@ Route::prefix('documents')->name('documents.')->middleware('haspermission:Docume
     // Show document (keep last)
     Route::get('/{id}', 'Documents\DocumentController@show')->name('show')->middleware('haspermission:Documents.components.Document Management.View');
 });
+
