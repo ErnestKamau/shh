@@ -42,3 +42,6 @@ if (class_exists($developerWebhookController, false)) {
         ->middleware('verify.developer.webhook')
         ->name('api.webhooks.developer');
 }
+
+// Customer Portal API routes (auth + test requests)
+require __DIR__ . '/api/portal.php';
