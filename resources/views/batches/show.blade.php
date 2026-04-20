@@ -8,6 +8,32 @@
 		body{
 			overflow-x: hidden !important;
 		}
+
+		/* Page chrome */
+		.batch-show-page{
+			padding: 14px 18px 28px 18px;
+		}
+		.batch-show-shell{
+			background: #fff;
+			border: 1px solid #e9ecef;
+			border-radius: 12px;
+			box-shadow: 0 1px 0 rgba(16, 24, 40, 0.02);
+			padding: 14px;
+		}
+		.batch-show-breadcrumbs .breadcrumb-container{
+			margin-left: 0 !important;
+			margin-right: 0 !important;
+			margin-top: 8px;
+			margin-bottom: 12px;
+		}
+		.batch-show-alerts .alert{
+			border-radius: 10px;
+			border: 1px solid rgba(0,0,0,0.06);
+		}
+		.batch-show-alerts .alert i{
+			margin-right: 6px;
+		}
+
 		.form-part-toggler{
 			margin: 0px 0px 5px 0px !important;
 			padding: 6px 6px 6px 6px;
@@ -73,7 +99,7 @@
 @endsection
 
 @section('content2')
-  <main>
+  <main class="container-fluid lab-panel-theme batch-show-page">
     {{-- Breadcrumbs and alerts from original lines 435-530 --}}
     <?php
       if ($defaultClient) {
@@ -100,10 +126,10 @@
           ];
       }
     ?>
-    <div class="px-4 lab-panel-theme">
-    {{-- breadcrumb margin override so it aligns flush with header/cards --}}
-    <style>.breadcrumb-container { margin-left: 0 !important; margin-right: 0 !important; margin-top: 12px; margin-bottom: 12px; }</style>
-    <x-bread-crumb :items="$items"></x-bread-crumb>
+    <div class="batch-show-shell">
+    <div class="batch-show-breadcrumbs">
+      <x-bread-crumb :items="$items"></x-bread-crumb>
+    </div>
     
     <div class="batch-show-alerts">
     @if(session('success'))
@@ -134,7 +160,7 @@
     </div> {{-- batch-show-alerts --}}
 
     @if($batch && isset($batch->id))
-    <div class="pb-4">
+    <div class="pb-2">
       {{-- Livewire Components --}}
       @livewire('batch.header', [
         'batch' => $batch,
@@ -175,7 +201,7 @@
       </div>
     </div>
     @endif
-    </div> {{-- close outer px-4 lab-panel-theme --}}
+    </div> {{-- batch-show-shell --}}
 
     
     {{-- Add Sample Notes Modal (migrated from legacy sample-workflow show view) --}}

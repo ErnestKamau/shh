@@ -19,6 +19,8 @@ use Livewire\WithPagination;
 class WorkflowBoard extends Component
 {
     use WithPagination;
+
+    protected string $paginationTheme = 'bootstrap';
     /**
      * Current workflow status tab.
      */
