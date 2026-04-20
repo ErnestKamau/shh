@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\AI\AiEndpointResolver;
 
 /**
  * Controller for AI-powered predictions.
@@ -16,7 +17,7 @@ class AIPredictionsController extends Controller
 
     public function __construct()
     {
-        $this->inferenceApiUrl = env('AI_SERVICE_URL', env('AI_INFERENCE_URL', 'http://127.0.0.1:8081'));
+        $this->inferenceApiUrl = AiEndpointResolver::resolve();
     }
 
     /**
