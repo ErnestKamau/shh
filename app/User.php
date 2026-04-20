@@ -7,12 +7,14 @@ use OwenIt\Auditing\Contracts\Auditable;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\TicketPermission;
 use App\Models\System\SystemConfiguration;
+use App\Zone;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,7 +23,7 @@ class User extends Authenticatable implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
 
-	use Notifiable, HasFactory;
+	use Notifiable, HasFactory, HasApiTokens;
 	use HasRoles {
 		hasRole as private spatieHasRole;
 		hasPermissionTo as private spatieHasPermissionTo;
@@ -35,7 +37,7 @@ class User extends Authenticatable implements Auditable
 	 * @var array
 	 */
 	protected $fillable = [
-		'name', 'email', 'password','veriify_code','verify_code_expires'
+		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires'
 	];
 	protected $appends = ['labsectionname','labsectionids'];
 
@@ -237,6 +239,11 @@ class User extends Authenticatable implements Auditable
 
 	public function location(){
 		return InventoryLocation::find($this->location_id);
+	}
+
+	public function zone()
+	{
+		return $this->belongsTo(Zone::class, 'zone_id');
 	}
 
 	public function generateTwoFactorCode(){
