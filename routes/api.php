@@ -22,9 +22,6 @@ Route::post('/kcb/receive', 'KCBIntegrationController@receivepayment')->name('re
 // Include Knowledge Assistant routes (Phase 2 integration)
 require __DIR__ . '/api/knowledge.php';
 
-// Include AI insights orchestration and governance routes
-require __DIR__ . '/api/insights.php';
-
 // AI Predictions API
 Route::prefix('ai')->group(function () {
     Route::post('/predictions/tat', 'AIPredictionsController@predictTAT')->name('ai.predict.tat');
@@ -45,6 +42,3 @@ if (class_exists($developerWebhookController, false)) {
         ->middleware('verify.developer.webhook')
         ->name('api.webhooks.developer');
 }
-
-// Customer Portal API routes (auth + test requests)
-require __DIR__ . '/api/portal.php';

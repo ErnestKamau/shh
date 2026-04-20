@@ -1,0 +1,13 @@
+app/Livewire/Mas/Audit.php
+app/Livewire/Mas/BaseMasPage.php
+app/Livewire/Mas/Crm.php
+app/Livewire/Mas/Equipment.php
+app/Livewire/Mas/Inventory.php
+app/Livewire/Mas/LabGeneral.php
+app/Livewire/Mas/LabLogistics.php
+app/Livewire/Mas/LabQc.php
+app/Livewire/Mas/LabTat.php
+app/Livewire/Mas/Overview.php
+app/Livewire/Mas/Personnel.php
+app/Livewire/Mas/Qc.php
+app/Livewire/Mas/Risk.php

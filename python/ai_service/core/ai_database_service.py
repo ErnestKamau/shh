@@ -5,13 +5,15 @@ Extends the base DatabaseService with AI-specific operations.
 """
 from __future__ import annotations
 
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Optional, Any
 
 from loguru import logger
 from sqlalchemy import text
 
 from python.py_etl.core.database import db_manager as pyetl_db_manager
 from python.ai_service.config.settings import settings
+from python.ai_service.schemas.decision import DecisionFeedback
 
 
 class AIDataService:
@@ -25,6 +27,7 @@ class AIDataService:
     def __init__(self) -> None:
         self._db = pyetl_db_manager
         self._schema = settings.ai_schema
+        self._action_feedback_columns_cache: Optional[set[str]] = None
 
     # ── Snapshots ─────────────────────────────────────────────────────────
 
@@ -312,6 +315,337 @@ class AIDataService:
             )
             conn.commit()
         return result.rowcount
+
+    def record_decision_feedback(self, feedback: DecisionFeedback) -> int:
+        import json
+        columns = self._get_action_feedback_columns()
+
+        with self._db.postgres_connection() as conn:
+            if "decision_id" in columns:
+                sql = text(f"""
+                    INSERT INTO {self._schema}.ai_action_feedback
+                        (
+                            trace_id,
+                            decision_id,
+                            entity_id,
+                            module,
+                            suggested_action,
+                            features_snapshot,
+                            model_version,
+                            decision_output,
+                            user_action,
+                            outcome_result,
+                            user_feedback_text,
+                            created_at,
+                            updated_at
+                        )
+                    VALUES
+                        (
+                            :trace_id,
+                            :decision_id,
+                            :entity_id,
+                            :module,
+                            :suggested_action,
+                            CAST(:features_snapshot AS JSONB),
+                            :model_version,
+                            CAST(:decision_output AS JSONB),
+                            :user_action,
+                            :outcome_result,
+                            :user_feedback_text,
+                            :created_at,
+                            :updated_at
+                        )
+                """)
+
+                result = conn.execute(
+                    sql,
+                    {
+                        "trace_id": feedback.trace_id,
+                        "decision_id": feedback.decision_id,
+                        "entity_id": feedback.entity_id,
+                        "module": feedback.module,
+                        "suggested_action": feedback.suggested_action,
+                        "features_snapshot": json.dumps(feedback.features_snapshot or {}),
+                        "model_version": feedback.model_version,
+                        "decision_output": json.dumps(feedback.decision_output or {}),
+                        "user_action": feedback.user_action,
+                        "outcome_result": feedback.outcome_result,
+                        "user_feedback_text": feedback.user_feedback_text,
+                        "created_at": feedback.created_at,
+                        "updated_at": feedback.updated_at,
+                    },
+                )
+            else:
+                sql = text(f"""
+                    INSERT INTO {self._schema}.ai_action_feedback
+                        (
+                            module,
+                            entity_id,
+                            ai_action,
+                            ai_priority,
+                            ai_confidence,
+                            ai_reason,
+                            user_action,
+                            user_modification,
+                            actor_id,
+                            feedback_timestamp,
+                            reason,
+                            metadata,
+                            trace_id
+                        )
+                    VALUES
+                        (
+                            :module,
+                            :entity_id,
+                            :ai_action,
+                            :ai_priority,
+                            :ai_confidence,
+                            :ai_reason,
+                            :user_action,
+                            :user_modification,
+                            :actor_id,
+                            :feedback_timestamp,
+                            :reason,
+                            CAST(:metadata AS JSONB),
+                            CAST(:trace_id AS UUID)
+                        )
+                """)
+
+                decision_output = feedback.decision_output or {}
+                action_priority = str(decision_output.get("action_priority", "medium")).lower()
+                priority_map = {"low": 1, "medium": 2, "high": 3}
+
+                result = conn.execute(
+                    sql,
+                    {
+                        "module": feedback.module,
+                        "entity_id": feedback.entity_id,
+                        "ai_action": feedback.suggested_action,
+                        "ai_priority": priority_map.get(action_priority, 2),
+                        "ai_confidence": decision_output.get("confidence_score"),
+                        "ai_reason": decision_output.get("reason") or feedback.user_feedback_text,
+                        "user_action": feedback.user_action,
+                        "user_modification": feedback.user_feedback_text,
+                        "actor_id": 0,
+                        "feedback_timestamp": feedback.created_at,
+                        "reason": feedback.outcome_result,
+                        "metadata": json.dumps(
+                            {
+                                "features_snapshot": feedback.features_snapshot or {},
+                                "decision_output": decision_output,
+                                "model_version": feedback.model_version,
+                            }
+                        ),
+                        "trace_id": feedback.trace_id,
+                    },
+                )
+            conn.commit()
+        return result.rowcount
+
+    def get_decision_feedback(
+        self,
+        module: Optional[str] = None,
+        limit: int = 100,
+        completed_only: bool = False,
+    ) -> list[dict]:
+        columns = self._get_action_feedback_columns()
+        filters = ["1=1"]
+        params: dict[str, Any] = {"limit": limit}
+
+        if module:
+            filters.append("module = :module")
+            params["module"] = module
+
+        if completed_only:
+            filters.append("user_action IS NOT NULL")
+            filters.append("outcome_result IS NOT NULL")
+
+        where = " AND ".join(filters)
+        if "decision_id" in columns:
+            sql = text(f"""
+                SELECT
+                    id,
+                    trace_id,
+                    decision_id,
+                    entity_id,
+                    module,
+                    suggested_action,
+                    features_snapshot,
+                    model_version,
+                    decision_output,
+                    user_action,
+                    outcome_result,
+                    user_feedback_text,
+                    created_at,
+                    updated_at
+                FROM {self._schema}.ai_action_feedback
+                WHERE {where}
+                ORDER BY created_at DESC
+                LIMIT :limit
+            """)
+        else:
+            if completed_only:
+                filters = [f for f in filters if f != "outcome_result IS NOT NULL"]
+                filters.append("reason IS NOT NULL")
+                where = " AND ".join(filters)
+
+            sql = text(f"""
+                SELECT
+                    id,
+                    trace_id::text AS trace_id,
+                    NULL::text AS decision_id,
+                    entity_id,
+                    module,
+                    ai_action AS suggested_action,
+                    COALESCE(metadata->'features_snapshot', metadata, '{{}}'::jsonb) AS features_snapshot,
+                    COALESCE(metadata->>'model_version', 'legacy') AS model_version,
+                    COALESCE(metadata->'decision_output', '{{}}'::jsonb) AS decision_output,
+                    user_action,
+                    reason AS outcome_result,
+                    user_modification AS user_feedback_text,
+                    feedback_timestamp AS created_at,
+                    NULL::timestamp AS updated_at
+                FROM {self._schema}.ai_action_feedback
+                WHERE {where}
+                ORDER BY feedback_timestamp DESC
+                LIMIT :limit
+            """)
+        return self._query(sql, params)
+
+    def build_decision_training_dataset(
+        self,
+        module: str,
+        days: int = 30,
+        min_rows: int = 20,
+    ) -> dict:
+        columns = self._get_action_feedback_columns()
+        if "decision_id" in columns:
+            sql = text(f"""
+                SELECT
+                    trace_id,
+                    module,
+                    features_snapshot,
+                    user_action,
+                    outcome_result,
+                    created_at
+                FROM {self._schema}.ai_action_feedback
+                WHERE module = :module
+                  AND created_at >= NOW() - (:days || ' days')::interval
+                ORDER BY created_at DESC
+            """)
+            rows = self._query(sql, {"module": module, "days": days})
+        else:
+            sql = text(f"""
+                SELECT
+                    trace_id::text AS trace_id,
+                    module,
+                    COALESCE(metadata->'features_snapshot', metadata, '{{}}'::jsonb) AS features_snapshot,
+                    user_action,
+                    reason AS outcome_result,
+                    feedback_timestamp AS created_at
+                FROM {self._schema}.ai_action_feedback
+                WHERE module = :module
+                  AND feedback_timestamp >= NOW() - (:days || ' days')::interval
+                ORDER BY feedback_timestamp DESC
+            """)
+            rows = self._query(sql, {"module": module, "days": days})
+
+        training_rows = []
+        for row in rows:
+            label = self._derive_decision_label(
+                user_action=row.get("user_action"),
+                outcome_result=row.get("outcome_result"),
+            )
+            if label is None:
+                continue
+
+            numeric_features = self._extract_numeric_features(row.get("features_snapshot") or {})
+            if not numeric_features:
+                continue
+
+            training_rows.append(
+                {
+                    "trace_id": row.get("trace_id"),
+                    "module": row.get("module"),
+                    "features": numeric_features,
+                    "label": label,
+                    "weight": self._compute_row_weight(row.get("created_at")),
+                    "created_at": row.get("created_at"),
+                }
+            )
+
+        return {
+            "module": module,
+            "rows": training_rows,
+            "total": len(training_rows),
+            "days": days,
+            "min_rows_met": len(training_rows) >= min_rows,
+        }
+
+    @staticmethod
+    def _derive_decision_label(user_action: Optional[str], outcome_result: Optional[str]) -> Optional[int]:
+        if not user_action and not outcome_result:
+            return None
+
+        approved_actions = {"approved"}
+        positive_outcomes = {"action_taken", "sample_passed", "flagged", "resolved"}
+        negative_actions = {"rejected", "modified"}
+        negative_outcomes = {"failed", "not_taken", "negative", "unresolved"}
+
+        if (user_action or "").lower() in approved_actions:
+            return 1
+        if (outcome_result or "").lower() in positive_outcomes:
+            return 1
+        if (user_action or "").lower() in negative_actions:
+            return 0
+        if (outcome_result or "").lower() in negative_outcomes:
+            return 0
+        return None
+
+    @staticmethod
+    def _extract_numeric_features(features: dict[str, Any]) -> dict[str, float]:
+        extracted: dict[str, float] = {}
+        for key, value in features.items():
+            if isinstance(value, bool):
+                extracted[key] = 1.0 if value else 0.0
+            elif isinstance(value, (int, float)):
+                extracted[key] = float(value)
+        return extracted
+
+    @staticmethod
+    def _compute_row_weight(created_at: Any) -> float:
+        if not created_at:
+            return 1.0
+
+        try:
+            if isinstance(created_at, str):
+                parsed = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            else:
+                parsed = created_at
+
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+
+            age_days = max(0.0, (datetime.now(timezone.utc) - parsed).total_seconds() / 86400.0)
+            return max(0.5, 1.5 - min(age_days / 90.0, 1.0))
+        except Exception:
+            return 1.0
+
+    def _get_action_feedback_columns(self) -> set[str]:
+        if self._action_feedback_columns_cache is not None:
+            return self._action_feedback_columns_cache
+
+        sql = text(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = :schema_name
+              AND table_name = 'ai_action_feedback'
+            """
+        )
+        rows = self._query(sql, {"schema_name": self._schema})
+        self._action_feedback_columns_cache = {str(r.get("column_name")) for r in rows}
+        return self._action_feedback_columns_cache
 
     # ── Internal helpers ──────────────────────────────────────────────────
 

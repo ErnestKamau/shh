@@ -1,0 +1,263 @@
+# IMARA ETL – Table Mapping Configuration (PHASE 0 ENHANCED)
+# Mirrors config/imara_ai.php :: etl.tables
+# Keys must match the table_key identifiers used by ETLEngine.
+#
+# PHASE 0 Additions:
+# - critical_columns: Columns that MUST NOT be NULL (hard block)
+# - critical_validation_threshold: Fail if >X invalid rows (0.1 = 10%)
+
+etl:
+  chunk_size: 500
+
+  tables:
+    sample_headers:
+      source_table: sample_headers
+      target_table: sample_headers
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, sample_number, sample_date]
+      critical_validation_threshold: 0.10
+
+    sample_details:
+      source_table: sample_details
+      target_table: sample_details
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, sample_header_id]
+      critical_validation_threshold: 0.10
+
+    sample_dates:
+      source_table: sample_dates
+      target_table: sample_dates
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, sample_header_id]
+      critical_validation_threshold: 0.10
+
+    captured_results:
+      source_table: captured_results
+      target_table: captured_results
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, analyte_id, sample_id]
+      critical_validation_threshold: 0.10
+
+    maintainance_calibration_logs:
+      source_table: maintainance_calibration_logs
+      target_table: equipment_logs
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_table, source_id]
+      critical_columns: [source_id, equipment_id, log_date]
+      critical_validation_threshold: 0.05
+
+    verification_logs:
+      source_table: verification_logs
+      target_table: equipment_logs
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_table, source_id]
+      critical_columns: [source_id, equipment_id, log_date]
+      critical_validation_threshold: 0.05
+
+    sample_analysis_stages:
+      source_table: sample_analysis_stages
+      target_table: sample_analysis_stages
+      primary_key: id
+      conflict_strategy_merge: true
+      # No dependencies
+      
+    equipment:
+      source_table: equipment
+      target_table: equipment_assets
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, equipment_name]
+      critical_validation_threshold: 0.05
+
+    tat_captured:
+      source_table: tat_captured
+      target_table: tat_captured
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, sample_id]
+      critical_validation_threshold: 0.10
+
+    qc_processed_result:
+      source_table: qc_processed_result
+      target_table: qc_processed_results
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, analyte_id, result_value, qc_date]
+      critical_validation_threshold: 0.05
+
+    complaints:
+      source_table: complaints
+      target_table: complaints
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, complaint_date]
+      critical_validation_threshold: 0.10
+
+    documents:
+      source_table: documents
+      target_table: documents
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, document_type]
+      critical_validation_threshold: 0.10
+
+    inventory_items:
+      source_table: inventory_items
+      target_table: inventory_items
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, item_name]
+      critical_validation_threshold: 0.10
+
+    inventory_sub_categories:
+      source_table: inventory_sub_categories
+      target_table: inventory_sub_categories
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, category_name]
+      critical_validation_threshold: 0.10
+
+    audit_findings:
+      source_table: audit_module_findings
+      target_table: audit_findings
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, audit_date]
+      critical_validation_threshold: 0.10
+
+    corrective_actions:
+      source_table: corrective_actions
+      target_table: corrective_actions
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, audit_finding_id]
+      critical_validation_threshold: 0.10
+
+    qc_results:
+      source_table: qc_results
+      target_table: qc_results
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, analyte_id, result_value, qc_date]
+      critical_validation_threshold: 0.05
+
+    analytes:
+      source_table: analytes
+      target_table: analytes
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, analyte_name]
+      critical_validation_threshold: 0.05
+
+    inventory_orders:
+      source_table: inventory_orders
+      target_table: inventory_orders
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, order_number]
+      critical_validation_threshold: 0.10
+
+    suppliers:
+      source_table: suppliers
+      target_table: suppliers
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, name]
+      critical_validation_threshold: 0.05
+
+    inventory_categories:
+      source_table: inventory_categories
+      target_table: inventory_categories
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, name]
+      critical_validation_threshold: 0.05
+
+    users:
+      source_table: users
+      target_table: users
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      # Security: Only sync non-sensitive analytical fields
+      columns: [id, name, email, department_id, lab_section_id, position, designation, active, created_at]
+      critical_columns: [id, name]
+      critical_validation_threshold: 0.05
+
+    clients:
+      source_table: crm_customers
+      target_table: clients
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, name]
+      critical_validation_threshold: 0.05
+
+    ticket_priorities:
+      source_table: ticket_priorities
+      target_table: ticket_priorities
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, name]
+      critical_validation_threshold: 0.05
+
+    ticket_statuses:
+      source_table: ticket_statuses
+      target_table: ticket_statuses
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, name]
+      critical_validation_threshold: 0.05
+
+    ticket_categories:
+      source_table: ticket_categories
+      target_table: ticket_categories
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, name]
+      critical_validation_threshold: 0.05
+
+    departments:
+      source_table: inventory_departments
+      target_table: departments
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, name]
+      critical_validation_threshold: 0.05
+
+    sample_types:
+      source_table: sample_types
+      target_table: sample_types
+      schema: reporting
+      primary_key: id
+      conflict_target: [source_id]
+      critical_columns: [source_id, name]
+      critical_validation_threshold: 0.05

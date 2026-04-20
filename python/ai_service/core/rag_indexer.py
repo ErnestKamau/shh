@@ -97,12 +97,20 @@ class RagIndexer:
                     domain: str,
                     entity_type: str,
                     records: List[Dict[str, Any]],
-                    template_func: callable) -> int:
+                    template_func: callable,
+                    chunk_size: Optional[int] = None,
+                    chunk_overlap: Optional[int] = None) -> int:
         """
         Process and index a batch of records. Supports multi-chunk document processing.
         """
         if not records:
             return 0
+
+        # Initialize processor with tunable parameters
+        processor = DocumentProcessor(
+            chunk_size=chunk_size or 800,
+            chunk_overlap=chunk_overlap or 100
+        )
 
         indexed_count = 0
         is_document = entity_type.lower() in ["sop_metadata", "document", "manual"]
@@ -123,7 +131,7 @@ class RagIndexer:
                 if is_document and payload.get("full_content"):
                     # Stage 4: Document-Aware Processing
                     full_content = payload.get("full_content")
-                    prepared_chunks = self.document_processor.process_document(
+                    prepared_chunks = processor.process_document(
                         content=full_content,
                         document_id=source_id,
                         base_metadata={"domain": domain, "entity_type": entity_type}
@@ -144,6 +152,12 @@ class RagIndexer:
                 if not prepared_chunks:
                     continue
 
+                # Stage 2: Telemetry Initialization
+                total_chunks = len(prepared_chunks)
+                if etl_tracker.current_run_id:
+                    # Notify tracker of expected chunk count for this document
+                    pass 
+
                 # 3. Batch Index the chunks for this record
                 for i, chunk_data in enumerate(prepared_chunks):
                     content = chunk_data["content"]
@@ -163,25 +177,42 @@ class RagIndexer:
                     embedding = self.retrieval_service.embed_text(content)
                     embedding_json = "[" + ",".join(str(float(v)) for v in embedding) + "]"
 
+                    # Stage 10: Knowledge Governance & Lineage
+                    expires_at = payload.get('expires_at')
+                    
+                    # Generate automatic source lineage URL based on entity_type
+                    source_lineage_url = payload.get('external_source_url') or payload.get('source_lineage_url')
+                    if not source_lineage_url:
+                        if entity_type == 'samples':
+                            source_lineage_url = f"/laboratory/samples/view/{source_id}"
+                        elif entity_type == 'equipment':
+                            source_lineage_url = f"/laboratory/equipment/dashboard/{source_id}"
+                        elif entity_type == 'manual' and payload.get('manual_doc_id'):
+                            source_lineage_url = f"/imara-ai/knowledge-editor/{payload.get('manual_doc_id')}"
+
                     # Final Metadata Assembly
                     meta = {
                         **chunk_data["metadata"],
+                        **{k: v for k, v in payload.items() if k not in ['full_content', 'content', 'embedding', 'expires_at', 'source_lineage_url']},
                         "source_id": source_id,
                         "company_id": company_id,
                         "indexed_at": datetime.now().isoformat(),
                         "source_table": record.get('_source_table', 'unknown'),
-                        "display_label": payload.get('name', payload.get('reference_number', f"{entity_type} {source_id}"))
+                        "display_label": payload.get('name', payload.get('reference_number', f"{entity_type} {source_id}")),
+                        "source_lineage_url": source_lineage_url
                     }
 
-                    # Idempotent Upsert
+                    # Idempotent Upsert with Governance
                     sql = text(f"""
                         INSERT INTO {self.schema}.{self.table} 
-                        (chunk_id, collection_name, entity_type, entity_id, content, embedding, metadata, company_id)
-                        VALUES (:chunk_id, :collection, :entity_type, :entity_id, :content, CAST(:embedding AS vector), :metadata, :company_id)
+                        (chunk_id, collection_name, entity_type, entity_id, content, embedding, metadata, company_id, expires_at, source_lineage_url)
+                        VALUES (:chunk_id, :collection, :entity_type, :entity_id, :content, CAST(:embedding AS vector), :metadata, :company_id, :expires_at, :source_lineage_url)
                         ON CONFLICT (chunk_id) DO UPDATE SET
                             content = EXCLUDED.content,
                             embedding = EXCLUDED.embedding,
                             metadata = EXCLUDED.metadata,
+                            expires_at = EXCLUDED.expires_at,
+                            source_lineage_url = EXCLUDED.source_lineage_url,
                             updated_at = NOW()
                     """)
 
@@ -194,14 +225,31 @@ class RagIndexer:
                             "content": content,
                             "embedding": embedding_json,
                             "metadata": json.dumps(meta),
-                            "company_id": company_id
+                            "company_id": company_id,
+                            "expires_at": expires_at,
+                            "source_lineage_url": source_lineage_url
                         })
                         conn.commit()
                     
                     indexed_count += 1
+                    
+                    # Stage 2: Real-Time Telemetry Progress
+                    if etl_tracker.current_run_id:
+                        etl_tracker.record_chunk(
+                            chunk_id=f"{source_id}_{i}",
+                            rows_inserted=1 
+                        )
                 
             except Exception as e:
-                logger.error(f"RagIndexer: Failed to index {entity_type} {record.get('source_id')}: {e}")
+                error_msg = str(e)
+                logger.error(f"RagIndexer: Failed to index {entity_type} {record.get('source_id')}: {error_msg}")
+                
+                # Stage 2: Granular Error Telemetry
+                if etl_tracker.current_run_id:
+                    etl_tracker.record_chunk_failure(f"{source_id}")
+                    # Also update the run with the specific error message if it's a critical failure
+                    etl_tracker.fail_run(error_message=f"Indexing failed for {entity_type} {source_id}: {error_msg}")
+                
                 continue
 
         return indexed_count

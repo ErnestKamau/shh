@@ -60,6 +60,58 @@
         </div>
 
         <div class="input-box">
+            {{-- Engine button --}}
+            <button id="modelBtn" type="button" title="Select AI Engine" class="input-icon-btn">
+                <i class="mdi mdi-brain"></i>
+            </button>
+
+            {{-- Tools button --}}
+            <button id="toolsBtn" type="button" title="AI Capabilities" class="input-icon-btn">
+                <i class="mdi mdi-plus-circle-outline"></i>
+                <span class="tools-indicator" id="toolsIndicator"></span>
+            </button>
+
+            {{-- Model Menu (Drop-up) --}}
+            <div id="modelMenu" class="tools-dropup" style="display:none; left: 15px;">
+                <div class="menu-group">
+                    <div class="group-label">AI ENGINE</div>
+                    <select id="modelSelector" class="premium-select">
+                        <option value="qwen3.5:0.8b">⚡ Fast (Efficiency)</option>
+                        <option value="qwen3.5:2b" selected>⚖️ Balanced (Pro)</option>
+                        <option value="qwen2.5:3b">🧠 Advanced (Reasoning)</option>
+                    </select>
+                </div>
+            </div>
+
+            {{-- Tools Menu (Drop-up) --}}
+            <div id="toolsMenu" class="tools-dropup" style="display:none; left: 55px;">
+                <div class="menu-header">
+                    <span>Power Mode</span>
+                    <label class="premium-switch small" for="toggleMasterTools">
+                        <input type="checkbox" id="toggleMasterTools" checked>
+                        <span class="switch-slider"></span>
+                    </label>
+                </div>
+
+                <div class="tools-menu-item" id="btnToggleVisuals">
+                    <div class="tool-info">
+                        <i class="mdi mdi-chart-bubble"></i>
+                        <div class="tool-details">
+                            <span class="tool-name">Visualizations</span>
+                            <span class="tool-desc">Charts & data visuals</span>
+                        </div>
+                    </div>
+                    <div class="tool-control">
+                        <label class="premium-switch small" for="visualsToggle">
+                            <input type="checkbox" id="visualsToggle" checked>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                {{-- Future tools here --}}
+                <div class="tools-menu-footer">More tools coming soon</div>
+            </div>
+
             {{-- Attach button --}}
             <button id="attachBtn" type="button" title="Attach file (PDF or image)" class="input-icon-btn">
                 <i class="mdi mdi-paperclip"></i>
@@ -111,6 +163,24 @@
         <div class="modal-actions">
             <button id="modalCancelBtn" class="modal-btn modal-btn-cancel">Cancel</button>
             <button id="modalConfirmBtn" class="modal-btn modal-btn-confirm">Delete</button>
+        </div>
+    </div>
+</div>
+
+{{-- Chart expanded modal --}}
+<div id="chartModal" class="modal-backdrop" style="display:none">
+    <div class="modal-box chart-modal-box">
+        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 id="chartModalTitle" style="margin:0;">Visualization Analysis</h3>
+            <button id="closeChartModal" class="modal-icon-btn" style="background:none; border:none; cursor:pointer; font-size:24px; color:#555;">
+                <i class="mdi mdi-close"></i>
+            </button>
+        </div>
+        <div class="modal-body chart-modal-body">
+            <div class="modal-chart-container" style="width:100%; height:400px; margin-bottom:20px;">
+                <canvas id="modalChartCanvas"></canvas>
+            </div>
+            <div id="modalChartData" class="modal-chart-data"></div>
         </div>
     </div>
 </div>

@@ -7,23 +7,21 @@ use OwenIt\Auditing\Contracts\Auditable;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\TicketPermission;
 use App\Models\System\SystemConfiguration;
-use App\Zone;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
 
-	use Notifiable;
-	use HasApiTokens;
+	use Notifiable, HasFactory;
 	use HasRoles {
 		hasRole as private spatieHasRole;
 		hasPermissionTo as private spatieHasPermissionTo;
@@ -37,7 +35,7 @@ class User extends Authenticatable implements Auditable
 	 * @var array
 	 */
 	protected $fillable = [
-		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires'
+		'name', 'email', 'password','veriify_code','verify_code_expires'
 	];
 	protected $appends = ['labsectionname','labsectionids'];
 
@@ -206,17 +204,39 @@ class User extends Authenticatable implements Auditable
 		}
 	}
 
+	/**
+	 * Get a flat array of all permission names for the user.
+	 * Includes wildcard '*' if the user is a system admin.
+	 *
+	 * @return array<string>
+	 */
+	public function getFlatPermissions(): array
+	{
+		if ($this->isSystemAdmin()) {
+			return ['*'];
+		}
+
+		try {
+			// Ensure we are using names, and include a baseline General.View
+			$permissions = $this->getAllPermissions()->pluck('name')->toArray();
+
+			if (!in_array('General.View', $permissions)) {
+				$permissions[] = 'General.View';
+			}
+
+			return $permissions;
+		} catch (\Throwable $e) {
+			Log::error('getFlatPermissions failed', ['error' => $e->getMessage()]);
+			return ['General.View'];
+		}
+	}
+
 	public function department(){
 		return InventoryDepartment::find($this->department_id);
 	}
 
 	public function location(){
 		return InventoryLocation::find($this->location_id);
-	}
-
-	public function zone()
-	{
-		return $this->belongsTo(Zone::class, 'zone_id');
 	}
 
 	public function generateTwoFactorCode(){
@@ -366,5 +386,4 @@ class User extends Authenticatable implements Auditable
 			})
 			->update(['active' => 0]);
 	}
-
 }

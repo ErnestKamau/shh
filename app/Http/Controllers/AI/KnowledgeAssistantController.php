@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -30,50 +31,18 @@ class KnowledgeAssistantController extends Controller
 {
     /**
      * Phase 2: Canonical list of valid knowledge-base collection names.
-     * Collections not in this list are rejected with a 422 validation error.
      */
     private const ALLOWED_COLLECTIONS = [
         'sops', 'corrective_actions', 'anomalies', 'findings',
         'incidents', 'audits', 'sample_enrichments', 'manual_docs',
     ];
 
-    protected AssistantOrchestrator $orchestrator;
-    protected PromptInjectionDetector $injectionDetector;
     protected AiInferenceService $inferenceService;
-    protected ConversationContextBuilder $contextBuilder;
-    protected ReferenceResolverService $referenceResolver;
-    protected StopMechanismService $stopMechanism;
-    protected RegenerateResponseService $regenerateService;
-    protected RewriteGuardService $rewriteGuard;
-    protected ModelRoutingService $modelRouter;
-    protected AnalyticsCollectorService $analytics;
-    protected LiveDataQueryService $liveDataService;
 
-    public function __construct(
-        AssistantOrchestrator $orchestrator,
-        PromptInjectionDetector $injectionDetector,
-        AiInferenceService $inferenceService,
-        ConversationContextBuilder $contextBuilder,
-        ReferenceResolverService $referenceResolver,
-        StopMechanismService $stopMechanism,
-        RegenerateResponseService $regenerateService,
-        RewriteGuardService $rewriteGuard,
-        ModelRoutingService $modelRouter,
-        AnalyticsCollectorService $analytics,
-        LiveDataQueryService $liveDataService
-    ) {
-        $this->orchestrator        = $orchestrator;
-        $this->injectionDetector   = $injectionDetector;
-        $this->inferenceService    = $inferenceService;
-        $this->contextBuilder      = $contextBuilder;
-        $this->referenceResolver   = $referenceResolver;
-        $this->stopMechanism       = $stopMechanism;
-        $this->regenerateService   = $regenerateService;
-        $this->rewriteGuard        = $rewriteGuard;
-        $this->modelRouter         = $modelRouter;
-        $this->analytics           = $analytics;
-        $this->liveDataService     = $liveDataService;
+    public function __construct(AiInferenceService $inferenceService) {
+        $this->inferenceService = $inferenceService;
     }
+
 
 
     /**
@@ -106,32 +75,13 @@ class KnowledgeAssistantController extends Controller
     public function ask(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'question'       => 'required|string|max:1000',
-            'collections'    => 'sometimes|array',
-            'collections.*'  => ['string', Rule::in(self::ALLOWED_COLLECTIONS)],
-            'entity_types'   => 'sometimes|array',
-            'entity_types.*' => ['string', 'max:120', 'regex:/^[A-Za-z0-9_\\\\]+$/'],
+            'question' => 'required|string|max:1000',
         ]);
 
         $question = $this->normalizeInput($validated['question']);
 
-        // Phase 3: reject prompt injection attempts.
-        if ($this->injectionDetector->check($question, [
-            'user_id'  => Auth::id(),
-            'endpoint' => 'ask',
-        ])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Your message was flagged by our security filter. Please rephrase your question.',
-            ], 422);
-        }
-
         try {
-            $response = $this->orchestrator->ask($question, [
-                'collections' => $validated['collections'] ?? [],
-                'entity_types' => $validated['entity_types'] ?? [],
-                'mode' => config('ai.orchestration_mode', 'balanced'),
-            ]);
+            $response = $this->inferenceService->chat($question);
 
             return response()->json($response);
         } catch (\Throwable $e) {
@@ -158,33 +108,16 @@ class KnowledgeAssistantController extends Controller
     public function search(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'query'          => 'required|string|max:1000',
-            'collections'    => 'sometimes|array',
-            'collections.*'  => ['string', Rule::in(self::ALLOWED_COLLECTIONS)],
-            'entity_types'   => 'sometimes|array',
-            'entity_types.*' => ['string', 'max:120', 'regex:/^[A-Za-z0-0_\\\\]+$/'],
-            'limit'          => 'sometimes|integer|min:1|max:20',
+            'query' => 'required|string|max:1000',
+            'limit' => 'sometimes|integer|min:1|max:20',
         ]);
 
         $query = $this->normalizeInput($validated['query']);
 
-        // Phase 3: reject prompt injection attempts.
-        if ($this->injectionDetector->check($query, [
-            'user_id'  => Auth::id(),
-            'endpoint' => 'search',
-        ])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Your message was flagged by our security filter. Please rephrase your question.',
-            ], 422);
-        }
-
         try {
-            $response = $this->orchestrator->ask($query, [
-                'collections' => $validated['collections'] ?? [],
-                'entity_types' => $validated['entity_types'] ?? [],
+            $response = $this->inferenceService->chat($query, [
                 'limit' => $validated['limit'] ?? 5,
-                'mode' => config('ai.orchestration_mode', 'balanced'),
+                'search_only' => true
             ]);
 
             return response()->json($response);
@@ -196,110 +129,38 @@ class KnowledgeAssistantController extends Controller
 
     /**
      * Ask a question and get a streaming SSE response.
-     */
-    /**
-     * Ask a question and get a streaming SSE response.
      * Delegates initial routing and source discovery to the AssistantOrchestrator.
      */
     public function askStream(Request $request)
     {
         $validated = $request->validate([
             'question'         => 'required|string|max:1000',
-            'collections'      => 'sometimes|array',
             'conversation_id'  => 'sometimes|integer|exists:ai_conversations,id',
+            'use_visuals'      => 'nullable|boolean',
+            'model'            => 'nullable|string',
         ]);
 
         $question = $this->normalizeInput($validated['question']);
         $sessionId = Str::uuid()->toString();
 
-        // Check for prompt injection
-        if ($this->injectionDetector->check($question, [
-            'user_id'  => Auth::id(),
-            'endpoint' => 'askStream',
-        ])) {
-            return response()->stream(function () {
-                echo "data: " . json_encode(['kind' => 'chat_response', 'error' => 'Security policy violation.']) . "\n\n";
-                echo "data: [DONE]\n\n";
-            }, 200, ['Content-Type' => 'text/event-stream']);
-        }
+        return response()->stream(function () use ($question, $validated, $sessionId) {
+            $options = [
+                'session_id' => $sessionId, 
+                'trace_id' => Str::uuid()->toString(), 
+                'conversation_id' => $validated['conversation_id'] ?? null,
+                'use_visuals' => (bool) ($validated['use_visuals'] ?? true),
+                'model' => $validated['model'] ?? null,
+            ];
 
-        // 1. Orchestrate the routing decision
-        $routing = $this->orchestrator->orchestrateStream($question, [
-            'collections' => $validated['collections'] ?? [],
-            'mode' => config('ai.orchestration_mode', 'balanced'),
-        ]);
-
-        // 2. Handle non-streaming responses (LiveData match or No match)
-        if ($routing['kind'] === 'live_data' || $routing['kind'] === 'no_match') {
-            return response()->stream(function () use ($routing) {
-                if ($routing['kind'] === 'live_data') {
-                    $live = $routing['result'];
-                    echo "data: " . json_encode([
-                        'kind'               => 'data_response',
-                        'mode'               => 'live_data',
-                        'reply'              => $live->reply,
-                        'visualization'      => 'table',
-                        'intent_meta'        => [
-                            'intent'     => $live->intent,
-                            'metadata'   => $live->metadata,
-                        ]
-                    ]) . "\n\n";
-                } else {
-                    echo "data: " . json_encode([
-                        'kind' => 'chat_response',
-                        'reply' => $routing['reply']
-                    ]) . "\n\n";
-                }
-                echo "data: [DONE]\n\n";
-            }, 200, ['Content-Type' => 'text/event-stream']);
-        }
-
-        // 3. Handle Streaming AI Response
-        $sources = $routing['sources'] ?? [];
-        $conversationId = $validated['conversation_id'] ?? null;
-        $messages = [];
-
-        if ($conversationId) {
-            $messages = $this->contextBuilder->buildContext(
-                conversationId: $conversationId,
-                maxTurns: config('imara_ai.conversation_window.default_turns', 6),
-                maxTokens: config('imara_ai.conversation_window.max_tokens', 2000)
-            );
-            $resolvedRefs = $this->referenceResolver->resolveReferences($question, $messages);
-            if (!empty($resolvedRefs['references'])) {
-                $referenceContext = implode('; ', array_map(fn($r) => "{$r['phrase']} → {$r['context']}", $resolvedRefs['references']));
-                $messages[] = ['role' => 'system', 'content' => "Context from prior conversation:\n{$referenceContext}"];
-            }
-            $messages[] = ['role' => 'user', 'content' => $question];
-        }
-
-        $this->analytics->recordStreamStart($sessionId, Auth::id(), $conversationId, $question);
-
-        return response()->stream(function () use ($question, $sources, $messages, $conversationId, $sessionId) {
-            echo "data: " . json_encode([
-                'kind' => 'chat_response',
-                'mode' => 'streaming',
-                'session_id' => $sessionId,
-                'sources' => $sources
-            ]) . "\n\n";
-            
-            if (ob_get_level() > 0) ob_flush();
-            flush();
-
-            $input = !empty($messages) ? $messages : $question;
-            $options = ['session_id' => $sessionId, 'trace_id' => Str::uuid()->toString(), 'conversation_id' => $conversationId];
-            
-            foreach ($this->inferenceService->streamChat($input, $sources, $options) as $chunk) {
-                if ($this->stopMechanism->isStopRequested($sessionId)) {
-                    echo "data: " . json_encode(['kind' => 'stream_stopped', 'session_id' => $sessionId, 'reason' => 'user_requested']) . "\n\n";
-                    break;
-                }
+            foreach ($this->inferenceService->streamChat($question, $options) as $chunk) {
                 echo "data: " . $chunk . "\n\n";
                 if (ob_get_level() > 0) ob_flush();
                 flush();
             }
 
-            $this->analytics->recordStreamEnd($sessionId, Auth::id(), !$this->stopMechanism->isStopRequested($sessionId));
+            // Yield session_id explicitly as a control event so frontend can handle stop logic
+            echo "data: " . json_encode(['kind' => 'session_info', 'session_id' => $sessionId]) . "\n\n";
+
             echo "data: [DONE]\n\n";
             if (ob_get_level() > 0) ob_flush();
             flush();
@@ -317,11 +178,6 @@ class KnowledgeAssistantController extends Controller
     {
         $query = $request->query('filter');
 
-        // Safety: ensure filter is a meaningful string and not an object representation from JS events
-        if (!is_string($query) || $query === '[object PointerEvent]' || empty(trim($query))) {
-            $query = null;
-        }
-
         $conversationsQuery = AiConversation::where('user_id', Auth::id());
 
         if ($query) {
@@ -333,11 +189,24 @@ class KnowledgeAssistantController extends Controller
             });
         }
 
-        $conversations = $conversationsQuery->orderBy('updated_at', 'desc')
+        $conversations = $conversationsQuery
+            ->orderBy('is_pinned', 'desc')
+            ->orderBy('updated_at', 'desc')
             ->limit(50)
-            ->get(['id', 'title', 'updated_at', 'created_at']);
+            ->get(['id', 'title', 'is_pinned', 'updated_at', 'created_at']);
 
         return response()->json(['status' => 'ok', 'conversations' => $conversations]);
+    }
+
+    public function togglePin(Request $request, int $id): JsonResponse
+    {
+        $conversation = AiConversation::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $conversation->update(['is_pinned' => !$conversation->is_pinned]);
+
+        return response()->json(['status' => 'ok', 'is_pinned' => $conversation->is_pinned]);
     }
 
 
@@ -400,7 +269,7 @@ class KnowledgeAssistantController extends Controller
             'sources'           => 'nullable|array',
             'parent_message_id' => 'nullable|integer|exists:ai_messages,id',
             'is_edited'         => 'nullable|boolean',
-            'metadata'          => 'nullable|json',
+            'metadata'          => 'nullable|array',
         ]);
 
         $message = AiMessage::create([
@@ -494,15 +363,15 @@ class KnowledgeAssistantController extends Controller
             'processing_status'  => 'pending',
         ]);
 
-        // Run text extraction + indexing synchronously (small files complete fast)
-        $text = app(AiFileIngestionService::class)->ingest($attachment);
+        // Ingest logic moved to background or Python core
+        // $text = app(AiFileIngestionService::class)->ingest($attachment);
 
         return response()->json([
             'status'        => 'ok',
             'attachment_id' => $attachment->id,
             'original_name' => $attachment->original_name,
-            'has_text'      => !empty(trim($text)),
-            'status_msg'    => $attachment->fresh()->processing_status,
+            'has_text'      => false,
+            'status_msg'    => 'Attachment uploaded. Processing moved to backend.',
         ], 201);
     }
 
@@ -727,5 +596,18 @@ class KnowledgeAssistantController extends Controller
                 'kind'    => 'rewrite_response'
             ], 400);
         }
+    }
+
+    /**
+     * Legacy Trace Status - Stubbed for industrialized UI compatibility.
+     */
+    public function checkTraceStatus(string $traceId): JsonResponse
+    {
+        return response()->json([
+            'status' => 'ok',
+            'hallucination_detected' => false,
+            'notes' => [],
+            'verified_at' => now()
+        ]);
     }
 }

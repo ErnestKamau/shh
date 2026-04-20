@@ -51,5 +51,8 @@ class DatabaseService:
 
 
 # shared instance used by new layers
-
 db_manager = DatabaseService()
+
+def get_ai_db():
+    """Utility for raw SQL execution using pgsql_ai connection."""
+    return pyetl_db_manager.postgres_engine.connect()

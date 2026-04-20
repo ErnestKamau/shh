@@ -13,35 +13,40 @@ return new class extends Migration
     public function up(): void
     {
         // Add tsvector column for full-text search if it doesn't exist
-        // Note: Using IF NOT EXISTS in statement and IF NOT EXISTS for indexes
-        DB::connection('pgsql_ai')->statement(
-            'ALTER TABLE ai.ai_knowledge_chunks ADD COLUMN IF NOT EXISTS tsvector_content TSVECTOR 
-            GENERATED ALWAYS AS (to_tsvector(\'english\', COALESCE(content, \'\'))) STORED'
-        );
+        if (!Schema::connection('pgsql_ai')->hasColumn('ai_knowledge_chunks', 'tsvector_content')) {
+            Schema::connection('pgsql_ai')->table('ai_knowledge_chunks', function (Blueprint $table) {
+                // Add tsvector column for full-text search
+                // This will be automatically updated via generated column (computed column)
+                DB::connection('pgsql_ai')->statement(
+                    'ALTER TABLE ai.ai_knowledge_chunks ADD COLUMN tsvector_content TSVECTOR 
+                    GENERATED ALWAYS AS (to_tsvector(\'english\', COALESCE(content, \'\'))) STORED'
+                );
+            });
 
-        // Create GIN index on tsvector_content for efficient FTS queries
-        DB::connection('pgsql_ai')->statement(
-            'CREATE INDEX IF NOT EXISTS idx_ai_knowledge_chunks_tsvector_content 
-            ON ai.ai_knowledge_chunks USING GIN (tsvector_content)'
-        );
+            // Create GIN index on tsvector_content for efficient FTS queries
+            DB::connection('pgsql_ai')->statement(
+                'CREATE INDEX idx_ai_knowledge_chunks_tsvector_content 
+                ON ai.ai_knowledge_chunks USING GIN (tsvector_content)'
+            );
 
-        // Create index on entity_type and entity_id for quick ACL filtering
-        DB::connection('pgsql_ai')->statement(
-            'CREATE INDEX IF NOT EXISTS idx_ai_knowledge_chunks_entity 
-            ON ai.ai_knowledge_chunks (entity_type, entity_id)'
-        );
+            // Create index on entity_type and entity_id for quick ACL filtering
+            DB::connection('pgsql_ai')->statement(
+                'CREATE INDEX IF NOT EXISTS idx_ai_knowledge_chunks_entity 
+                ON ai.ai_knowledge_chunks (entity_type, entity_id)'
+            );
 
-        // Create index on required_permission for ACL enforcement
-        DB::connection('pgsql_ai')->statement(
-            'CREATE INDEX IF NOT EXISTS idx_ai_knowledge_chunks_permission 
-            ON ai.ai_knowledge_chunks (required_permission)'
-        );
+            // Create index on required_permission for ACL enforcement
+            DB::connection('pgsql_ai')->statement(
+                'CREATE INDEX IF NOT EXISTS idx_ai_knowledge_chunks_permission 
+                ON ai.ai_knowledge_chunks (required_permission)'
+            );
 
-        // Create composite index for common retrieval patterns
-        DB::connection('pgsql_ai')->statement(
-            'CREATE INDEX IF NOT EXISTS idx_ai_knowledge_chunks_composite 
-            ON ai.ai_knowledge_chunks (collection_name, entity_type, created_at)'
-        );
+            // Create composite index for common retrieval patterns
+            DB::connection('pgsql_ai')->statement(
+                'CREATE INDEX IF NOT EXISTS idx_ai_knowledge_chunks_composite 
+                ON ai.ai_knowledge_chunks (collection_name, entity_type, created_at)'
+            );
+        }
     }
 
     /**

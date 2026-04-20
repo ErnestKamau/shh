@@ -11,75 +11,37 @@ class AiChatService extends AiBaseService
     /**
      * Stream chat response with SSE (Server-Sent Events).
      */
-    public function streamChat(array $messages, array $sources = [], array $options = [])
+    public function streamChat(array $messages, array $options = [])
     {
-        $sessionId = $options['session_id'] ?? Str::uuid()->toString();
         $traceId = $options['trace_id'] ?? Str::uuid()->toString();
-        $model = $options['model'] ?? config('imara_ai.defaults.default_model', 'qwen2.5:3b');
-        $temperature = (float)($options['temperature'] ?? 0.3);
-
-        $this->log('info', 'chat_stream_request', [
-            'trace_id' => $traceId,
-            'session_id' => $sessionId,
-            'model' => $model,
-            'message_count' => count($messages),
-        ]);
-
-        $startTime = microtime(true);
-
+        
         try {
             $payload = [
                 'messages' => $messages,
-                'sources' => $sources,
-                'model' => $model,
-                'session_id' => $sessionId,
-                'trace_id' => $traceId,
                 'company_id' => optional(auth()->user())->company_id ?? 1,
-                'generation_options' => [
-                    'stream' => true,
-                    'temperature' => $temperature,
-                ],
+                'trace_id' => $traceId,
+                'use_visuals' => (bool) ($options['use_visuals'] ?? true),
+                'model' => $options['model'] ?? null,
             ];
 
-            $guzzleClient = new GuzzleClient();
-            $response = $guzzleClient->request('POST', "{$this->apiBaseUrl}/v1/chat/stream", [
-                'stream' => true,
-                'connect_timeout' => 5,
-                // Streaming responses can legitimately exceed 60s end-to-end.
-                'timeout' => 0,
-                'json' => $payload,
-            ]);
+            $response = \Illuminate\Support\Facades\Http::timeout(180)
+                ->post("{$this->apiBaseUrl}/v1/chat", $payload);
 
-            $body = $response->getBody();
-            $buffer = '';
-
-            while (!$body->eof()) {
-                $chunk = $body->read(1024);
-                $buffer .= $chunk;
-
-                while (($pos = strpos($buffer, "\n\n")) !== false) {
-                    $event = substr($buffer, 0, $pos);
-                    $buffer = substr($buffer, $pos + 2);
-
-                    foreach (explode("\n", $event) as $line) {
-                        if (strpos($line, 'data: ') === 0) {
-                            yield substr($line, 6);
-                        }
-                    }
-                }
+            if ($response->successful()) {
+                $data = $response->json();
+                // Return as a single SSE event for backward compatibility
+                yield json_encode([
+                    'token' => $data['reply'] ?? '',
+                    'sources' => $data['sources'] ?? [],
+                    'kind' => 'generation_started'
+                ]);
+            } else {
+                yield json_encode(['error' => 'AI Service error: ' . $response->status()]);
             }
 
-            $this->log('info', 'chat_stream_completed', [
-                'trace_id' => $traceId,
-                'latency_ms' => (int)((microtime(true) - $startTime) * 1000),
-            ]);
-
         } catch (\Throwable $e) {
-            $this->log('error', 'Stream chat failed', [
-                'trace_id' => $traceId,
-                'error' => $e->getMessage()
-            ]);
-            yield json_encode(['error' => 'AI Service unreachable: ' . $e->getMessage()]);
+            $this->log('error', 'Simplified stream chat failed', ['error' => $e->getMessage()]);
+            yield json_encode(['error' => 'AI Service unreachable']);
         }
     }
 
@@ -93,9 +55,9 @@ class AiChatService extends AiBaseService
                 ->connectTimeout(5)
                 ->post("{$this->apiBaseUrl}/v1/chat", [
                     'messages' => [['role' => 'user', 'content' => $message]],
-                    'sources' => $options['sources'] ?? [],
                     'company_id' => auth()->user()->company_id ?? 1,
                     'trace_id' => $options['trace_id'] ?? null,
+                    'use_visuals' => (bool) ($options['use_visuals'] ?? true),
                 ]);
 
             if ($response->successful()) {
@@ -106,6 +68,113 @@ class AiChatService extends AiBaseService
         } catch (\Exception $e) {
             $this->log('error', 'Chat failed', ['error' => $e->getMessage()]);
             return ['reply' => 'AI Service unreachable', 'error' => true];
+        }
+    }
+
+    /**
+     * Index knowledge content via the Python service.
+     */
+    public function indexKnowledge(array $data): array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(120)
+                ->post("{$this->apiBaseUrl}/v1/index", $data);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return ['status' => 'error', 'message' => 'Python indexing service failed: ' . $response->status()];
+        } catch (\Exception $e) {
+            $this->log('error', 'Indexing request failed', ['error' => $e->getMessage()]);
+            return ['status' => 'error', 'message' => 'AI Service unreachable'];
+        }
+    }
+
+    /**
+     * Delete knowledge entry/entries via the Python service.
+     */
+    public function deleteKnowledge(string $entityType, $entityId, int $companyId = 0): array
+    {
+        try {
+            if (is_array($entityId)) {
+                $response = \Illuminate\Support\Facades\Http::timeout(60)
+                    ->post("{$this->apiBaseUrl}/v1/index/bulk-delete", [
+                        'entity_type' => $entityType,
+                        'entity_ids' => $entityId,
+                        'company_id' => $companyId
+                    ]);
+            } else {
+                $response = \Illuminate\Support\Facades\Http::timeout(30)
+                    ->delete("{$this->apiBaseUrl}/v1/index/{$entityType}/{$entityId}?company_id={$companyId}");
+            }
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return ['status' => 'error', 'message' => 'Python deletion service failed: ' . $response->status()];
+        } catch (\Exception $e) {
+            $this->log('error', 'Knowledge deletion failed', ['error' => $e->getMessage()]);
+            return ['status' => 'error', 'message' => 'AI Service unreachable'];
+        }
+    }
+
+    /**
+     * Test semantic search retrieval via the Python service.
+     */
+    public function searchKnowledge(string $query, array $options = []): array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(30)
+                ->post("{$this->apiBaseUrl}/v1/index/search", [
+                    'query' => $query,
+                    'company_id' => $options['company_id'] ?? 1,
+                    'collections' => $options['collections'] ?? null,
+                    'limit' => $options['limit'] ?? 5,
+                ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return ['status' => 'error', 'message' => 'Python search service failed'];
+        } catch (\Exception $e) {
+            $this->log('error', 'Knowledge search failed', ['error' => $e->getMessage()]);
+            return ['status' => 'error', 'message' => 'AI Service unreachable'];
+        }
+    }
+
+    /**
+     * Upload and index a file via the Python service.
+     */
+    public function uploadKnowledgeFile($file, array $data): array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(300)
+                ->attach(
+                    'file', 
+                    file_get_contents($file->getRealPath()), 
+                    $file->getClientOriginalName()
+                )
+                ->post("{$this->apiBaseUrl}/v1/index/upload", [
+                    'collection'   => $data['collection'],
+                    'permission'   => $data['permission'] ?? 'General.View',
+                    'manual_doc_id' => $data['manual_doc_id'] ?? null,
+                    'metadata'     => json_encode($data['metadata'] ?? []),
+                ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return [
+                'status' => 'error', 
+                'message' => 'Python upload service failed: ' . ($response->json()['detail'] ?? $response->status())
+            ];
+        } catch (\Exception $e) {
+            $this->log('error', 'Knowledge file upload failed', ['error' => $e->getMessage()]);
+            return ['status' => 'error', 'message' => 'AI Service unreachable or request timed out'];
         }
     }
 }

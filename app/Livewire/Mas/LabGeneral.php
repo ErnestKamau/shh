@@ -2,7 +2,8 @@
 
 namespace App\Livewire\Mas;
 
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\LabGeneralDashboardService;
+use App\Services\Dashboards\LabTatDashboardService;
 use Illuminate\Support\Facades\DB;
 
 class LabGeneral extends BaseMasPage
@@ -21,13 +22,15 @@ class LabGeneral extends BaseMasPage
 
     private function loadStats(): void
     {
-        $service  = app(ReportingMartDashboardService::class);
-        $labBoard = $service->getLabTatBoard();
+        $tatService     = app(LabTatDashboardService::class);
+        $generalService = app(LabGeneralDashboardService::class);
+
+        $labBoard = $tatService->getLabTatBoard();
         
         $this->stats = [
             'sample_type_distribution' => $labBoard['sample_type_distribution'] ?? [],
-            'geographic_data'          => $service->getLabGeographicData(),
-            'monthly_trends'           => $service->getLabMonthlyTrends(),
+            'geographic_data'          => $generalService->getLabGeographicData(),
+            'monthly_trends'           => $generalService->getLabMonthlyTrends(),
             'charts'                   => [
                 'type_labels'    => $labBoard['charts']['type_labels'] ?? [],
                 'type_counts'    => $labBoard['charts']['type_counts'] ?? [],

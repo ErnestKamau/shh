@@ -1,14 +1,14 @@
 {{--
-    ImaraChat AI Manager Layout
+    Imara AI Manager Layout
     Used for KB Manager and other manager pages that integrate with Imara AI
-    Includes sidebar navigation and ImaraChat AI styling
+    Includes sidebar navigation and Imara AI styling
 --}}
 @extends('layouts.app')
 
 @section('module-name')
 <li class="nav-item">
     <a class="nav-link module-name" href="{{ route('imara-ai') }}">
-        <i class="mdi mdi-chip"></i> ImaraChat AI
+        <i class="mdi mdi-chip"></i> Imara AI
     </a>
 </li>
 @endsection
@@ -18,6 +18,7 @@
     @include('layouts.ImaraAi.partials._styles')
     @include('layouts.ImaraAi.partials._manager-styles')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.2.96/css/materialdesignicons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
 </style>
 @endsection
 
@@ -27,14 +28,10 @@
         @php
             $settingsRoutes = [
                 'ai.settings.index', 
-                'ai.settings.agent-personality', 
-                'ai.settings.model-config',
-                'ai.governance.dashboard',
-                'ai.governance.models.index',
-                'ai.governance.models.performance',
                 'ai.knowledge.manager', 
                 'ai.knowledge.dashboard', 
-                'ai.knowledge.show'
+                'ai.knowledge.show',
+                'ai.knowledge.editor'
             ];
             $isSettings = in_array(Route::currentRouteName(), $settingsRoutes);
         @endphp
@@ -64,5 +61,9 @@
         });
     }
 </script>
-@include('layouts.ImaraAi.partials._script')
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+<script>
+    @include('layouts.ImaraAi.partials._script')
+</script>
+
 @endpush

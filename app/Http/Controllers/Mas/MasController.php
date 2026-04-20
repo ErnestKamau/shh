@@ -11,7 +11,12 @@ use App\SampleHeader;
 use App\InventorySubCategories;
 use App\Models\RiskManagement\Risk;
 use Illuminate\Support\Facades\DB;
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\LabTatDashboardService;
+use App\Services\Dashboards\LabGeneralDashboardService;
+use App\Services\Dashboards\QcDashboardService;
+use App\Services\Dashboards\InventoryDashboardService;
+use App\Services\Dashboards\LabLogisticsDashboardService;
+use App\Services\Dashboards\EquipmentDashboardService as EquipmentBoardService;
 use App\Services\AI\PerformanceDashboardService;
 use App\Services\Documents\Dashboards\EquipmentReliabilityDashboardService;
 use Maatwebsite\Excel\Facades\Excel;
@@ -35,13 +40,13 @@ class MasController extends Controller
      * AI Analytics Index - Global KPI Overview
      */
     public function index(
-        ReportingMartDashboardService $reportingService,
+        InventoryDashboardService $inventoryService,
         PerformanceDashboardService $perfService,
         EquipmentReliabilityDashboardService $equipService
     ) {
         // High-Level Stats from Services & Models
         $labTotal = SampleHeader::where('status', '!=', 'Finished Sample')->count();
-        $inventoryStats = $reportingService->getInventoryRiskBoard();
+        $inventoryStats = $inventoryService->getInventoryRiskBoard();
         $inventoryAlerts = $inventoryStats['summary']['items_below_minimum'] ?? 0;
         
         $billingTotal = DB::table('customer_invoice')->sum('total') ?? 0;
@@ -86,7 +91,7 @@ class MasController extends Controller
     /**
      * Lab TAT Analytics & Monitoring (Turnaround Time)
      */
-    public function lab(Request $request, ReportingMartDashboardService $service)
+    public function lab(Request $request, LabTatDashboardService $service)
     {
         $period = $request->get('period', 'active');
         $stats = $service->getLabTatBoard($period);
@@ -96,9 +101,9 @@ class MasController extends Controller
     /**
      * General Laboratory Analytics & Workload Distribution
      */
-    public function labGeneral(ReportingMartDashboardService $service)
+    public function labGeneral(LabTatDashboardService $tatService, LabGeneralDashboardService $generalService)
     {
-        $labBoard = $service->getLabTatBoard();
+        $labBoard = $tatService->getLabTatBoard();
         
         // Additional General Stats: Volume by Client
         $topClients = DB::table('crm_customers')
@@ -128,7 +133,7 @@ class MasController extends Controller
     /**
      * Lab Quality Control & Stability Monitoring
      */
-    public function labQc(ReportingMartDashboardService $service)
+    public function labQc(QcDashboardService $service)
     {
         $stats = $service->getQcStabilityBoard();
         return view('layouts.mas.lab_qc', compact('stats'));
@@ -137,7 +142,7 @@ class MasController extends Controller
     /**
      * Lab Logistics & Supplies Monitoring
      */
-    public function labLogistics(ReportingMartDashboardService $service)
+    public function labLogistics(LabLogisticsDashboardService $service)
     {
         $stats = $service->getLabLogisticsSummary();
         return view('layouts.mas.lab_logistics', compact('stats'));
@@ -146,7 +151,7 @@ class MasController extends Controller
     /**
      * Inventory & Supply Chain Intel
      */
-    public function inventory(ReportingMartDashboardService $service)
+    public function inventory(InventoryDashboardService $service)
     {
         $stats = $service->getInventoryRiskBoard();
         return view('layouts.mas.inventory', compact('stats'));
@@ -231,8 +236,12 @@ class MasController extends Controller
     /**
      * AI Intelligence & Performance Insights (Consolidated Analytics + Governance)
      */
-    public function ai(PerformanceDashboardService $perfService, ReportingMartDashboardService $reportingService)
-    {
+    public function ai(
+        PerformanceDashboardService $perfService,
+        LabTatDashboardService $tatService,
+        QcDashboardService $qcService,
+        InventoryDashboardService $inventoryService
+    ) {
         // Governance & Drift Monitoring
         $govData = $perfService->getMLModelMetrics();
         $driftAlerts = $perfService->getFeatureDriftAlerts();
@@ -241,9 +250,9 @@ class MasController extends Controller
         $intents = $perfService->getIntentBreakdown();
         
         // LIMS AI Insights
-        $labTat = $reportingService->getLabTatBoard();
-        $qcStability = $reportingService->getQcStabilityBoard();
-        $inventoryRisk = $reportingService->getInventoryRiskBoard();
+        $labTat = $tatService->getLabTatBoard();
+        $qcStability = $qcService->getQcStabilityBoard();
+        $inventoryRisk = $inventoryService->getInventoryRiskBoard();
 
         $stats = [
             'performance' => $govData['overview'] ?? [],
@@ -293,7 +302,7 @@ class MasController extends Controller
     /**
      * Quality Control Monitoring
      */
-    public function qc(ReportingMartDashboardService $service)
+    public function qc(QcDashboardService $service)
     {
         $stats = $service->getQcStabilityBoard();
         return view('layouts.mas.qc', compact('stats'));
@@ -316,7 +325,9 @@ class MasController extends Controller
      */
     public function export(
         $module, 
-        ReportingMartDashboardService $reportingService, 
+        LabTatDashboardService $tatService,
+        InventoryDashboardService $inventoryService,
+        QcDashboardService $qcService,
         PerformanceDashboardService $perfService, 
         EquipmentReliabilityDashboardService $equipService
     ) {
@@ -326,7 +337,7 @@ class MasController extends Controller
 
         switch ($module) {
             case 'lab':
-                $stats = $reportingService->getLabTatBoard();
+                $stats = $tatService->getLabTatBoard();
                 $columns = ['Stage Name', 'Batch Count', 'Overdue Count', 'Avg Days in Stage'];
                 foreach ($stats['stage_counts'] as $stage => $count) {
                     $data[] = [$stage, $count, 0, 0]; // Simplified for base export
@@ -334,7 +345,7 @@ class MasController extends Controller
                 break;
 
             case 'inventory':
-                $stats = $reportingService->getInventoryRiskBoard();
+                $stats = $inventoryService->getInventoryRiskBoard();
                 $columns = ['Item Name', 'Code', 'Store', 'Available', 'Min Level', 'Near Expiry'];
                 foreach ($stats['priority_items'] as $item) {
                     $data[] = [
@@ -390,7 +401,7 @@ class MasController extends Controller
                 break;
 
             case 'qc':
-                $qc = $reportingService->getQcStabilityBoard();
+                $qc = $qcService->getQcStabilityBoard();
                 $columns = ['Stage', 'Batch Count', 'Critical Alerts', 'Warning Alerts', 'Avg Deviation'];
                 foreach ($qc['stages'] as $q) {
                     $data[] = [$q['name'], $q['batches'], $q['alerts_critical'], $q['alerts_warning'], $q['avg_deviation']];
@@ -432,7 +443,11 @@ class MasController extends Controller
     public function exportWithVisuals(
         Request $request, 
         $module, 
-        ReportingMartDashboardService $reportingService,
+        LabTatDashboardService $tatService,
+        LabGeneralDashboardService $generalService,
+        QcDashboardService $qcService,
+        LabLogisticsDashboardService $logisticsService,
+        InventoryDashboardService $inventoryService,
         PerformanceDashboardService $perfService
     ) {
         $chartImage = $request->input('chart_image');
@@ -442,11 +457,11 @@ class MasController extends Controller
         switch ($module) {
             case 'lab': // TAT Analysis
                 $period = $request->get('period', 'active');
-                $stats = $reportingService->getLabTatBoard($period);
-                $stats['sections'] = $reportingService->getLabSectionTatStats();
-                $stats['analyst_performance'] = $reportingService->getAnalystPerformanceStats($period);
-                $stats['smart_grid'] = $reportingService->getSmartActionGridData('urgent'); // Include urgent tasks in TAT report
-                $stats['detailed_logs'] = $reportingService->getDetailedAnalyteTatLogs($period, 100); // Top 100 for PDF appendix
+                $stats = $tatService->getLabTatBoard($period);
+                $stats['sections'] = $tatService->getLabSectionTatStats();
+                $stats['analyst_performance'] = $tatService->getAnalystPerformanceStats($period);
+                $stats['smart_grid'] = $tatService->getSmartActionGridData('urgent');
+                $stats['detailed_logs'] = $tatService->getDetailedAnalyteTatLogs($period, 100);
                 $pdf = Pdf::loadView('layouts.mas.pdf.lab_pdf', compact('stats', 'chartImage'))
 
 
@@ -455,26 +470,26 @@ class MasController extends Controller
                 break;
 
             case 'lab-general':
-                $stats = $reportingService->getLabTatBoard(); // For basic completion summary
-                $stats['top_clients'] = $reportingService->getTopClientsData() ?? [];
-                $stats['monthly_trends'] = $reportingService->getLabMonthlyTrends();
-                $stats['geographic_data'] = $reportingService->getLabGeographicData();
+                $stats = $tatService->getLabTatBoard();
+                $stats['top_clients'] = $generalService->getTopClientsData() ?? [];
+                $stats['monthly_trends'] = $generalService->getLabMonthlyTrends();
+                $stats['geographic_data'] = $generalService->getLabGeographicData();
                 $pdf = Pdf::loadView('layouts.mas.pdf.lab_general_pdf', compact('stats', 'chartImage'))
                     ->setPaper('a4', 'landscape');
                 $fileName = "Lab_General_Analytics_{$timestamp}.pdf";
                 break;
 
             case 'lab-qc':
-                $stats = $reportingService->getQcStabilityBoard();
-                $stats['parameter_performance'] = $reportingService->getParameterPerformanceData();
-                $stats['testing_matrix'] = $reportingService->getTestingMatrixData();
+                $stats = $qcService->getQcStabilityBoard();
+                $stats['parameter_performance'] = $qcService->getParameterPerformanceData();
+                $stats['testing_matrix'] = $generalService->getTestingMatrixData();
                 $pdf = Pdf::loadView('layouts.mas.pdf.lab_qc_pdf', compact('stats', 'chartImage'))
                     ->setPaper('a4', 'landscape');
                 $fileName = "Lab_QC_Stability_Report_{$timestamp}.pdf";
                 break;
 
             case 'lab-logistics':
-                $stats = $reportingService->getLabLogisticsSummary();
+                $stats = $logisticsService->getLabLogisticsSummary();
                 $pdf = Pdf::loadView('layouts.mas.pdf.lab_logistics_pdf', compact('stats', 'chartImage'))
                     ->setPaper('a4', 'landscape');
                 $fileName = "Lab_Logistics_Report_{$timestamp}.pdf";
@@ -505,8 +520,7 @@ class MasController extends Controller
                 break;
 
             case 'inventory':
-                $reportingService = app(ReportingMartDashboardService::class);
-                $stats = $reportingService->getInventoryRiskBoard();
+                $stats = $inventoryService->getInventoryRiskBoard();
                 $pdf = Pdf::loadView('layouts.mas.pdf.inventory_pdf', compact('stats', 'chartImage'))
                     ->setPaper('a4', 'landscape');
                 $fileName = "Inventory_Risk_Report_{$timestamp}.pdf";

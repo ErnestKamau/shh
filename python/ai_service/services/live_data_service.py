@@ -1,9 +1,11 @@
-import json
 import os
+import redis
 import logging
 import time
 import hashlib
+import json
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 import pandas as pd
 from sqlalchemy import text
 from python.py_etl.core.database import db_manager
@@ -32,6 +34,10 @@ class LiveDataService:
         self._circuit_reset_time = 0
         self.MAX_FAILURES = 5
         self.CIRCUIT_COOLDOWN_SECONDS = 60
+        
+        # Redis Heartbeat
+        redis_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+        self._redis = redis.from_url(redis_url)
 
     def _load_manifest(self) -> Dict[str, Any]:
         try:
@@ -114,14 +120,17 @@ class LiveDataService:
             self._consecutive_failures = 0
             
             # 6. Format result
-            formatted = self._format_result(df, template["output_format"], template["description"])
+            formatted = self._format_result(df, template["output_format"], template["description"], intent)
             formatted += etl_caveat
+            scalar_value = self._extract_scalar_value(df, template["output_format"])
             
             response = {
                 "intent": intent,
-                "data": df.fillna("").to_dict(orient="records"),
+                "data": json.loads(df.fillna("").to_json(orient="records")),
                 "summary": formatted,
                 "success": True,
+                "value": scalar_value,
+                "sql": sql,
                 "execution_latency_ms": round((time.time() - start_time) * 1000)
             }
             
@@ -152,19 +161,28 @@ class LiveDataService:
             }
 
     def _check_reporting_freshness(self) -> list[str]:
-        """Check if required tables have a successful ETL status recently."""
-        # For simplicity, just check if the service returns success for key tables.
-        from python.py_etl.services.etl_index_state_service import etl_index_state_service
-        
-        # We assume if the core tables are successful, the view is mostly fresh.
-        tables_to_check = ["sample_headers", "sample_details"]
-        failed = []
-        for t in tables_to_check:
-            state = etl_index_state_service.get_state(t)
-            if not state or state.get("etl_status") != "success":
-                failed.append(t)
-                
-        return failed
+        """Check the status of reporting tables via background heartbeat."""
+        try:
+            raw_heartbeat = self._redis.get("imara:ai:etl_heartbeat")
+            if raw_heartbeat:
+                data = json.loads(raw_heartbeat)
+                # If the heartbeat is fresh (within 5 mins), return the stored failures
+                updated_at = datetime.fromisoformat(data.get("updated_at"))
+                if (datetime.now() - updated_at).total_seconds() < 300:
+                    return data.get("failed_tables", [])
+            
+            # Fallback/Bootstrap: Perform one-time sync check if Redis is empty or stale
+            from python.py_etl.services.etl_index_state_service import etl_index_state_service
+            tables_to_check = ["sample_headers", "sample_details"]
+            failed = []
+            for t in tables_to_check:
+                state = etl_index_state_service.get_state(t)
+                if not state or state.get("etl_status") != "success":
+                    failed.append(t)
+            return failed
+        except Exception as e:
+            logger.warning(f"Heartbeat lookup failed, falling back to permissive mode: {e}")
+            return []
 
     def _resolve_template(self, intent: str) -> Optional[Dict[str, Any]]:
         for domain_name, domain_templates in self.templates.items():
@@ -172,23 +190,45 @@ class LiveDataService:
                 return domain_templates[intent]
         return None
 
-    def _format_result(self, df: pd.DataFrame, output_format: str, description: str) -> str:
+    def _format_result(self, df: pd.DataFrame, output_format: str, description: str, intent: str = "") -> str:
+        source_line = f"\n\n<!-- Source: live operational database · Route: {intent} -->" if intent else ""
+
         if df.empty:
-            return f"Search for '{description}' returned no records."
+            return (
+                f"No matching records were found for '{description}'.\n"
+                "This may indicate the data hasn't been synced yet, "
+                "or no records match the current filters."
+                f"{source_line}"
+            )
 
         if output_format == "count":
             val = df.iloc[0, 0]
-            return f"Authoritative Fact: The {description} is {val}."
-            
+            # Format large numbers with commas
+            try:
+                val_display = f"{int(val):,}" if float(val) == int(float(val)) else str(val)
+            except (ValueError, TypeError):
+                val_display = str(val)
+            return f"There are **{val_display}** {description}.{source_line}"
+
         if output_format == "percentage":
             val = df.iloc[0, 0]
-            return f"Authoritative Fact: The {description} is {val}%."
+            return f"The {description} is **{val}%**.{source_line}"
 
         if output_format == "table":
-            markdown = f"Authoritative Data for {description}:\n\n"
-            markdown += df.head(5).to_markdown(index=False)
-            if len(df) > 5:
-                markdown += f"\n\n*(Showing top 5 of {len(df)} records)*"
+            markdown = f"**{description.capitalize()}:**\n\n"
+            markdown += df.head(10).to_markdown(index=False)
+            if len(df) > 10:
+                markdown += f"\n\n*(Showing top 10 of {len(df)} records)*"
+            markdown += source_line
             return markdown
 
-        return df.to_json(orient="records")
+        return df.to_json(orient="records") + source_line
+
+    def _extract_scalar_value(self, df: pd.DataFrame, output_format: str) -> Optional[Any]:
+        """Return the primary scalar for count/percentage outputs."""
+        if df.empty:
+            return None
+        if output_format not in {"count", "percentage"}:
+            return None
+        val = df.iloc[0, 0]
+        return val.item() if hasattr(val, 'item') else val

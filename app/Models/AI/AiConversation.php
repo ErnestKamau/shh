@@ -14,12 +14,14 @@ class AiConversation extends Model
     protected $fillable = [
         'user_id',
         'title',
+        'is_pinned',
     ];
 
     protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'is_pinned'    => 'boolean',
+        'created_at'   => 'datetime',
+        'updated_at'   => 'datetime',
+        'deleted_at'   => 'datetime',
     ];
 
     public function messages()

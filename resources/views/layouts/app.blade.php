@@ -1766,10 +1766,9 @@
                     </li>
                     @endif
                     @else
-                    @yield('alerts')
                     @if(config('localization.enable_switcher'))
                     <li class="nav-item dropdown mr-1">
-                        <a id="languageDropdown" class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="cursor: pointer;">
+                        <a id="languageDropdown" class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             <i class="mdi mdi-translate mr-1"></i>
                             <span class="text-uppercase">{{ app()->getLocale() }}</span>
                         </a>
@@ -2456,6 +2455,7 @@
     });
 </script>
 @yield('script')
+@stack('scripts')
 @livewireScripts
 @if (isset(Auth::user()->company_id) && Auth::user()->company_id == 0)
 <div id="select-default-company" class="modal fade" role="dialog">

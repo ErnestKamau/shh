@@ -596,7 +596,7 @@
         @endif
 
         @if(isSystemModuleVisible('ai'))
-        <a class="app-card ai" href="{{route('imara-ai-index')}}" data-app="ai">
+        <a class="app-card ai" href="{{route('imara-ai')}}" data-app="ai">
             <div class="app-icon" style="background: linear-gradient(135deg, #FF9800, #F57C00);">
                 <i class="mdi mdi-chip"></i>
             </div>
