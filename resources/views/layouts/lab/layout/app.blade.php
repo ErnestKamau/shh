@@ -265,15 +265,27 @@
 					<span class="menu-collapsed">Reporting Units</span>
 				</div>
 			</a>
-			<a href="/analysis-methods" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-cogs fa-fw mr-3"></span>
-					<span class="menu-collapsed">Methods</span>
+				<a href="#method-validation-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+					<div class="d-flex w-100 justify-content-start align-items-center">
+						<span class="mdi mdi-clipboard-check-outline mr-3"></span>
+						<span class="menu-collapsed">Method Validation</span>
+						<span class="submenu-icon ml-auto"></span>
+					</div>
+				</a>
+				<div id="method-validation-menu" class="collapse sidebar-submenu">
+					<a href="/analysis-methods" class="list-group-item list-group-item-action bg-dark text-white">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Methods</span>
+					</a>
+					<a href="{{ route('method-validation.registration') }}" class="list-group-item list-group-item-action bg-dark text-white">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Method Registration</span>
+					</a>
+					<a href="{{ route('method-validation.data-review') }}" class="list-group-item list-group-item-action bg-dark text-white">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Data Review & Analysis</span>
+					</a>
 				</div>
-			</a>
-			<a href="{{ route('uncertainty-budgets.index') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-calculator fa-fw mr-3"></span>
+				<a href="{{ route('uncertainty-budgets.index') }}" class="bg-dark list-group-item list-group-item-action">
+					<div class="d-flex w-100 justify-content-start align-items-center">
+						<span class="mdi mdi-calculator fa-fw mr-3"></span>
 					<span class="menu-collapsed">Uncertainty Budget</span>
 				</div>
 			</a>
@@ -338,6 +350,11 @@
 		</a>
 		<a href="{{route('submission-forms.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Submission Form Templates
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+
+		<a href="{{ route('supporting-documents.templates.index') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Supporting Documents
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		

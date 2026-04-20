@@ -9,7 +9,27 @@ use OwenIt\Auditing\Contracts\Auditable;
 class AnalysisMethod extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	public $fillable = ['name','code','description','company_id','active','is_ltm'];
+	public $fillable = [
+		'name',
+		'code',
+		'description',
+		'company_id',
+		'active',
+		'is_ltm',
+		'is_sampling_method',
+		'reference_type_id',
+		'method_type_id',
+		'validation_status',
+		'sample_header_id',
+	];
+
+	const STATUS_PENDING = 'pending';
+	const STATUS_SENT_FOR_VALIDATION = 'sent_for_validation';
+	const STATUS_IN_VALIDATION = 'in_validation';
+	const STATUS_VALIDATED = 'validated';
+	const STATUS_VALIDATION_FAILED = 'validation_failed';
+	const STATUS_RETURNED_TO_LAB = 'returned_to_lab';
+	const STATUS_RELEASED = 'released';
   public function analysis_method_elements(){
     return $this->hasMany('App\AnalysisMethodElements');
 	}
@@ -36,5 +56,25 @@ class AnalysisMethod extends Model implements Auditable
 	}
 	public function methodtype(){
 		return $this->belongsTo(SystemConfiguration::class,'method_type_id');
+	}
+
+	public function company()
+	{
+		return $this->belongsTo('App\Company', 'company_id');
+	}
+
+	public function sampleHeader()
+	{
+		return $this->belongsTo('App\SampleHeader', 'sample_header_id');
+	}
+
+	public function validationRequests()
+	{
+		return $this->hasMany('App\MethodValidationRequest', 'method_id');
+	}
+
+	public function latestValidationRequest()
+	{
+		return $this->hasOne('App\MethodValidationRequest', 'method_id')->latest();
 	}
 }

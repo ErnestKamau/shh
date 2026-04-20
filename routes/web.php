@@ -330,6 +330,26 @@ Route::post('/analysis-method/edit', 'AnalysisMethodController@edit')->name('edi
 Route::get('/analysis-method/{id}', function ($id) {
     return view('livewire.lab.method-detail-page', ['methodId' => (int) $id]);
 })->name('analysis-method')->middleware('haspermission:Laboratory.components.Methods.View');
+Route::post('/send-for-validation', 'AnalysisMethodController@sendForValidation')->name('send-for-validation')->middleware('haspermission:Laboratory.components.Methods.Edit');
+
+// Method Validation Routes
+Route::prefix('analysis-methods/method-validation')->group(function () {
+    Route::get('/method-registration', 'Lab\\MethodValidation\\MethodRegistrationController@index')
+        ->name('method-validation.registration')
+        ->middleware('haspermission:Laboratory.components.Method-Validation.Registration.View');
+    Route::get('/method-registration/{id}', 'Lab\\MethodValidation\\MethodRegistrationController@show')
+        ->name('method-validation.registration.show')
+        ->middleware('haspermission:Laboratory.components.Method-Validation.Registration.View');
+    Route::get('/data-review-analysis', 'Lab\\MethodValidation\\DataReviewAnalysisController@index')
+        ->name('method-validation.data-review')
+        ->middleware('haspermission:Laboratory.components.Method-Validation.Data-Review.View');
+    Route::get('/method-comparison/{methodId}', 'MethodValidationController@methodComparison')
+        ->name('method-validation.comparison')
+        ->middleware('haspermission:Laboratory.components.Method-Validation.Data-Review.View');
+    Route::post('/process-action', 'MethodValidationController@processAction')
+        ->name('method-validation.process-action')
+        ->middleware('auth');
+});
 
 // Uncertainty Budget Routes
 Route::prefix('lab-uncertainty')->name('uncertainty-budgets.')->group(function () {
@@ -593,6 +613,16 @@ Route::get('/inventory-slot-contents/{slot}/{store}', 'InventoryStoreSlotContent
 Route::post('/inventory-slot-contents/{slot}/{store}', 'InventoryStoreSlotContentController@add')->name('add-inventory-slot-content')->middleware('haspermission:Inventory.components.Store.Add');
 
 //############################################SUBMISSION FORMS##########################################################
+Route::prefix('supporting-documents')->name('supporting-documents.')->middleware('auth')->group(function () {
+    Route::get('/templates', function () {
+        return view('livewire.supporting-documents.template-manager-page');
+    })->name('templates.index');
+
+    Route::get('/templates/{template}', function (int $template) {
+        return view('livewire.supporting-documents.template-editor-page', ['templateId' => $template]);
+    })->name('templates.edit');
+});
+
 Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')->group(function () {
     Route::get('/', 'SubmissionFormController@index')->name('index');
     Route::get('/create', 'SubmissionFormController@create')->name('create');

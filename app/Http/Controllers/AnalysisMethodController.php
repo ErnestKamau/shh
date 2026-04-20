@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Analyte;
 use App\Company;
 use App\AnalysisMethod;
+use App\MethodValidationRequest;
 
 use App\Models\System\SystemConfiguration;
 use Illuminate\Http\Request;
@@ -76,5 +77,36 @@ class AnalysisMethodController extends Controller
 
 
     return view('layouts.lab.methods.show', compact('analysis_method', 'analytes', 'companies'));
+  }
+
+  public function sendForValidation(Request $request)
+  {
+    $request->validate([
+      'method_id' => 'required|exists:analysis_methods,id',
+      'lab_assigned' => 'nullable|exists:users,id',
+      'sample_header_id' => 'nullable|exists:sample_headers,id',
+      'notes' => 'nullable|string',
+    ]);
+
+    $method = AnalysisMethod::findOrFail($request->method_id);
+    $method->validation_status = AnalysisMethod::STATUS_SENT_FOR_VALIDATION;
+
+    if ($request->filled('sample_header_id')) {
+      $method->sample_header_id = $request->sample_header_id;
+    }
+
+    $method->save();
+
+    MethodValidationRequest::create([
+      'method_id' => $method->id,
+      'requested_by' => auth()->id(),
+      'lab_assigned' => $request->lab_assigned,
+      'status' => MethodValidationRequest::STATUS_PENDING,
+      'validation_data' => $request->input('validation_data'),
+      'notes' => $request->notes,
+      'requested_at' => now(),
+    ]);
+
+    return redirect()->back()->with('success', 'Method sent for validation successfully.');
   }
 }
