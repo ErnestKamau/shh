@@ -1,3 +1,5 @@
 {
-    "QualityControl": true
+    "QualityControl": true,
+    "Prp": true,
+    "TemplateEngine": true
 }
