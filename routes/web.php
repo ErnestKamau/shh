@@ -131,6 +131,7 @@ Route::post('/set-default-company', 'HomeController@default_company')->name('set
 //#############CONFIGURATIONS###############################################################################
 Route::get('/system-settings', 'ConfigurationController@index')->name('system-settings')->middleware('haspermission:System.components.System Settings.View');
 Route::get('/system-settings/module-visibility', 'ConfigurationController@moduleVisibility')->name('system-settings.module-visibility')->middleware('haspermission:System.components.System Settings.View');
+Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware('haspermission:System.components.Translations.View');
 Route::post('/import-my-users', 'PersonnelController@importUser')->name('importUser');
 /* COMPANIES */
 Route::get('/companies', 'CompanyController@index')->name('companies');

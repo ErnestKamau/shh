@@ -46,5 +46,8 @@ if (class_exists($developerWebhookController, false)) {
         ->name('api.webhooks.developer');
 }
 
+Route::get('/translations', [\App\Http\Controllers\Api\TranslationController::class, 'index'])
+    ->name('api.translations.index');
+
 // Customer Portal API routes (auth + test requests)
 require __DIR__ . '/api/portal.php';

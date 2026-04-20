@@ -126,6 +126,9 @@ class User extends Authenticatable implements Auditable
 	}
 
 	public function hasRole($role_id, $isAnID=false){
+                if (\is_iterable($role_id) || ($role_id instanceof \Illuminate\Support\Collection)) {
+                        return $this->spatieHasRole($role_id, $this->guard_name);
+                }
 		try {
 			$roleName = null;
 
