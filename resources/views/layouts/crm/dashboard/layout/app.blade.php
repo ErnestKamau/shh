@@ -95,7 +95,7 @@
 					<span class="menu-collapsed">Lab Booking</span>
 				</div>
 			</a>
-			<a href="{{ route('crm-lab-reports') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-google-analytics fa-fw mr-3"></span>
 					<span class="menu-collapsed">Reports</span>
