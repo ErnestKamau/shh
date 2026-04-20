@@ -4,24 +4,24 @@ namespace App;
 
 use OwenIt\Auditing\Contracts\Auditable;
 
+use App\Models\CRM\CustomerContact;
 use App\Models\CRM\TicketPermission;
 use App\Models\System\SystemConfiguration;
-use App\Zone;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
 
-	use Notifiable;
-	use HasApiTokens;
+	use Notifiable, HasFactory;
 	use HasRoles {
 		hasRole as private spatieHasRole;
 		hasPermissionTo as private spatieHasPermissionTo;
@@ -35,7 +35,7 @@ class User extends Authenticatable implements Auditable
 	 * @var array
 	 */
 	protected $fillable = [
-		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires'
+		'name', 'email', 'password','veriify_code','verify_code_expires'
 	];
 	protected $appends = ['labsectionname','labsectionids'];
 
@@ -185,9 +185,52 @@ class User extends Authenticatable implements Auditable
 				}
 			}
 
-			return false;
+			return $this->hasLegacyAdminRole();
 		} catch (\Throwable $exception) {
+			return $this->hasLegacyAdminRole();
+		}
+	}
+
+	public function hasLegacyAdminRole(): bool
+	{
+		try {
+			$adminRoleNames = ['admin', 'super admin', 'super-admin', 'system admin', 'system-admin'];
+
+			return DB::table('user_roles')
+				->join('roles', 'roles.id', '=', 'user_roles.role_id')
+				->where('user_roles.user_id', $this->id)
+				->whereIn(DB::raw('LOWER(roles.name)'), $adminRoleNames)
+				->exists();
+		} catch (\Throwable $exception) {
+
 			return false;
+		}
+	}
+
+	/**
+	 * Get a flat array of all permission names for the user.
+	 * Includes wildcard '*' if the user is a system admin.
+	 *
+	 * @return array<string>
+	 */
+	public function getFlatPermissions(): array
+	{
+		if ($this->isSystemAdmin()) {
+			return ['*'];
+		}
+
+		try {
+			// Ensure we are using names, and include a baseline General.View
+			$permissions = $this->getAllPermissions()->pluck('name')->toArray();
+
+			if (!in_array('General.View', $permissions)) {
+				$permissions[] = 'General.View';
+			}
+
+			return $permissions;
+		} catch (\Throwable $e) {
+			Log::error('getFlatPermissions failed', ['error' => $e->getMessage()]);
+			return ['General.View'];
 		}
 	}
 
@@ -197,11 +240,6 @@ class User extends Authenticatable implements Auditable
 
 	public function location(){
 		return InventoryLocation::find($this->location_id);
-	}
-
-	public function zone()
-	{
-		return $this->belongsTo(Zone::class, 'zone_id');
 	}
 
 	public function generateTwoFactorCode(){
@@ -247,6 +285,22 @@ class User extends Authenticatable implements Auditable
 			}
 			return false;
 		}
+		return false;
+	}
+	public function checkApproveMethodsRole(){
+		try {
+			$roleId = SpatieRole::query()
+				->where('guard_name', $this->guard_name)
+				->whereRaw('LOWER(name) = ?', ['can approvemethods'])
+				->value('id');
+
+			if ($roleId) {
+				return $this->hasRole((int) $roleId, true);
+			}
+		} catch (\Throwable $exception) {
+			return false;
+		}
+
 		return false;
 	}
 	public function CheckViewQcSample(){
@@ -307,4 +361,32 @@ class User extends Authenticatable implements Auditable
 		return filter_var($value, FILTER_VALIDATE_BOOLEAN);
 	}
 
+	/**
+	 * Deactivate portal (CRM client) users when portal access is removed from a contact.
+	 *
+	 * Matches rows linked by {@see User::$crm_contact_id} or {@see User::$crmcontact_id}, and legacy
+	 * rows scoped by email + client when FK columns were not set.
+	 */
+	public static function deactivatePortalUsersForCustomerContact(
+		CustomerContact $contact,
+		int $crmCustomerId,
+		?string $previousContactEmail = null
+	): void {
+		$emails = array_values(array_unique(array_filter([
+			$contact->email,
+			$previousContactEmail,
+		])));
+
+		self::query()
+			->where('is_client', 1)
+			->where('client_id', $crmCustomerId)
+			->where(function ($query) use ($contact, $emails): void {
+				$query->where('crm_contact_id', $contact->id)
+					->orWhere('crmcontact_id', $contact->id);
+				if ($emails !== []) {
+					$query->orWhereIn('email', $emails);
+				}
+			})
+			->update(['active' => 0]);
+	}
 }

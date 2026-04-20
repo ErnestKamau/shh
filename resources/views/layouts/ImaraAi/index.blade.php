@@ -1,5 +1,5 @@
 {{--
-    ImaraChat AI — master layout
+    Imara AI — master layout
     Partials live in layouts/ImaraAi/partials/
       _styles.blade.php  — CSS
       _sidebar.blade.php — sidebar HTML

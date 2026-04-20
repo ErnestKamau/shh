@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Mas;
 
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\QcDashboardService;
 
 class Qc extends BaseMasPage
 {
@@ -20,7 +20,7 @@ class Qc extends BaseMasPage
 
     private function loadStats(): void
     {
-        $this->stats = app(ReportingMartDashboardService::class)->getQcStabilityBoard();
+        $this->stats = app(QcDashboardService::class)->getQcStabilityBoard();
     }
 
     public function render()

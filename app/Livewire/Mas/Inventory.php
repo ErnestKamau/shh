@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Mas;
 
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\InventoryDashboardService;
 
 class Inventory extends BaseMasPage
 {
@@ -20,7 +20,7 @@ class Inventory extends BaseMasPage
 
     private function loadStats(): void
     {
-        $this->stats = app(ReportingMartDashboardService::class)->getInventoryRiskBoard();
+        $this->stats = app(InventoryDashboardService::class)->getInventoryRiskBoard();
     }
 
     public function render()

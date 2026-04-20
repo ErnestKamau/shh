@@ -41,7 +41,7 @@
 </head>
 <body>
     <div class="footer">
-        Confidential | GCLA | {{ date('Y') }}
+        Confidential | IMARA LIMS | {{ date('Y') }}
     </div>
 
     <div class="container">
@@ -51,7 +51,7 @@
             <table style="width: 100%;">
                 <tr>
                     <td style="width: 50%;">
-                        <img src="{{ public_path('images/l.jpeg') }}" style="height: 60px; width: auto;">
+                        <img src="{{ public_path('assets/branding/logo.jpeg') }}" style="height: 60px; width: auto;">
                     </td>
                     <td style="width: 50%; text-align: right;">
                         <div style="font-size: 22px; font-weight: 900; color: #1e40af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;">TAT Analysis</div>

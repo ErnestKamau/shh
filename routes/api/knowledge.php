@@ -54,4 +54,7 @@ Route::middleware('auth:api')->prefix('conversations')->name('conversations.')->
     // ── Actions ───────────────────────────────────────────────────────────
     Route::post('actions/propose', [KnowledgeAssistantController::class, 'proposeAction'])->name('actions.propose');
     Route::post('actions/confirm', [KnowledgeAssistantController::class, 'confirmAction'])->name('actions.confirm');
+
+    // ── Trace Verification ────────────────────────────────────────────────
+    Route::get('traces/{traceId}/status', [KnowledgeAssistantController::class, 'checkTraceStatus'])->name('traces.status');
 });

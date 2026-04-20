@@ -505,6 +505,148 @@
 							<i class="mdi mdi-chevron-double-down"></i> BL Fields
 						</div>
 
+						@if(isset($batch->sampleSubmissionRequest) && $batch->sampleSubmissionRequest)
+						<div class="row p-2 mt-3">
+							<div class="col-md-12">
+								<div class="card border-info">
+									<div class="card-header bg-info text-white">
+										<h6 class="mb-0">Legal Sample Submission Request</h6>
+									</div>
+									<div class="card-body">
+										@php($legalRequest = $batch->sampleSubmissionRequest)
+										<div class="row">
+											<div class="col-md-6 mb-3">
+												<h6>Section 1: Contact Person Information</h6>
+												<p class="mb-1"><strong>Submitting Agency:</strong> {{ $legalRequest->submitting_agency }}</p>
+												<p class="mb-1"><strong>Submitting Officer:</strong> {{ $legalRequest->submitting_officer_full_name }}</p>
+												<p class="mb-1"><strong>Title:</strong> {{ $legalRequest->submitting_officer_title }}</p>
+												<p class="mb-1"><strong>Address:</strong> {{ $legalRequest->physical_address }}</p>
+												<p class="mb-1"><strong>Region / District:</strong> {{ $legalRequest->region }} / {{ $legalRequest->district }}</p>
+												<p class="mb-1"><strong>Working Station:</strong> {{ $legalRequest->working_station }}</p>
+												<p class="mb-1"><strong>Office / Mobile:</strong> {{ $legalRequest->office_telephone_no ?? 'N/A' }} / {{ $legalRequest->mobile_telephone_no ?? 'N/A' }}</p>
+												<p class="mb-1"><strong>Email:</strong> {{ $legalRequest->email }}</p>
+											</div>
+											<div class="col-md-6 mb-3">
+												<h6>Section 2: Case Information</h6>
+												<p class="mb-1"><strong>Case No:</strong> {{ $legalRequest->case_no }}</p>
+												<p class="mb-1"><strong>Offence:</strong> {{ $legalRequest->offence }}</p>
+												<p class="mb-1"><strong>Date of Seizure:</strong> {{ optional($legalRequest->date_of_seizure)->format('Y-m-d') }}</p>
+												<p class="mb-1"><strong>Area of Seizure:</strong> {{ $legalRequest->seizure_region }}, {{ $legalRequest->seizure_district }}, {{ $legalRequest->seizure_ward }}, {{ $legalRequest->seizure_village_street }}</p>
+											</div>
+										</div>
+
+										<div class="row">
+											<div class="col-md-6 mb-3">
+												<h6>Section 3: Suspect Information</h6>
+												@if($legalRequest->suspects->count() > 0)
+												<table class="table table-sm table-bordered">
+													<thead>
+														<tr>
+															<th>S/N</th>
+															<th>Name</th>
+															<th>Sex</th>
+															<th>DOB</th>
+															<th>Nationality</th>
+															<th>ID/Passport</th>
+														</tr>
+													</thead>
+													<tbody>
+														@foreach($legalRequest->suspects as $suspect)
+														<tr>
+															<td>{{ $suspect->serial_number }}</td>
+															<td>{{ trim(($suspect->first_name ?? '') . ' ' . ($suspect->middle_name ?? '') . ' ' . ($suspect->last_name ?? '')) }}</td>
+															<td>{{ $suspect->sex }}</td>
+															<td>{{ optional($suspect->date_of_birth)->format('Y-m-d') }}</td>
+															<td>{{ $suspect->nationality }}</td>
+															<td>{{ $suspect->id_passport_number }}</td>
+														</tr>
+														@endforeach
+													</tbody>
+												</table>
+												@else
+												<p class="text-muted mb-0">No suspects recorded.</p>
+												@endif
+											</div>
+											<div class="col-md-6 mb-3">
+												<h6>Section 4: Description of Exhibits</h6>
+												<table class="table table-sm table-bordered">
+													<thead>
+														<tr>
+															<th>S/N</th>
+															<th>No. of Items</th>
+															<th>Description</th>
+															<th>Suspected Item</th>
+														</tr>
+													</thead>
+													<tbody>
+														@foreach($legalRequest->exhibits as $exhibit)
+														<tr>
+															<td>{{ $exhibit->serial_number }}</td>
+															<td>{{ $exhibit->number_of_items }}</td>
+															<td>{{ $exhibit->item_description }}</td>
+															<td>{{ $exhibit->suspected_item }}</td>
+														</tr>
+														@endforeach
+													</tbody>
+												</table>
+											</div>
+										</div>
+
+										<div class="row">
+											<div class="col-md-6 mb-3">
+												<h6>Section 5: Requested Analysis</h6>
+												<ul class="mb-0 pl-3">
+													@foreach($legalRequest->requestedAnalyses as $analysis)
+													<li>{{ $analysis->analysis_label }}</li>
+													@endforeach
+												</ul>
+											</div>
+											<div class="col-md-6 mb-3">
+												<h6>Section 6: Submitted By</h6>
+												<p class="mb-1"><strong>Name:</strong> {{ $legalRequest->submitted_by_full_name }}</p>
+												<p class="mb-1"><strong>Title:</strong> {{ $legalRequest->submitted_by_title }}</p>
+												<p class="mb-1"><strong>Signature:</strong> {{ $legalRequest->submitted_by_signature ?? 'N/A' }}</p>
+												<p class="mb-1"><strong>Date / Time:</strong> {{ optional($legalRequest->submitted_by_date)->format('Y-m-d') }} {{ $legalRequest->submitted_by_time }}</p>
+											</div>
+										</div>
+
+										<div class="row">
+											<div class="col-md-12">
+												<h6>Section 7: Received By</h6>
+												<form method="POST" action="{{ route('sample-submission-request-reception', ['request' => $legalRequest->id]) }}" class="row">
+													@csrf
+													<div class="form-group col-md-3">
+														<label>Full Name</label>
+														<input type="text" name="received_by_full_name" class="form-control" value="{{ old('received_by_full_name', $legalRequest->received_by_full_name) }}" required>
+													</div>
+													<div class="form-group col-md-2">
+														<label>Title</label>
+														<input type="text" name="received_by_title" class="form-control" value="{{ old('received_by_title', $legalRequest->received_by_title) }}" required>
+													</div>
+													<div class="form-group col-md-2">
+														<label>Signature</label>
+														<input type="text" name="received_by_signature" class="form-control" value="{{ old('received_by_signature', $legalRequest->received_by_signature) }}">
+													</div>
+													<div class="form-group col-md-2">
+														<label>Date</label>
+														<input type="date" name="received_by_date" class="form-control" value="{{ old('received_by_date', optional($legalRequest->received_by_date)->format('Y-m-d')) }}" required>
+													</div>
+													<div class="form-group col-md-2">
+														<label>Time</label>
+														<input type="time" name="received_by_time" class="form-control" value="{{ old('received_by_time', $legalRequest->received_by_time) }}" required>
+													</div>
+													<div class="form-group col-md-1 d-flex align-items-end">
+														<button type="submit" class="btn btn-info btn-sm btn-block">Save</button>
+													</div>
+												</form>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						@endif
+
 
 						<div id="more-fields" class="hidden p-2">
 							<div class="row p-2 bg-light m-3">

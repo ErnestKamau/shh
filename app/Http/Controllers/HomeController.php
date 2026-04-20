@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File as PILE;
 use Illuminate\Support\Facades\Storage;
 use App\Services\Auth\LegacyPermissionSyncService;
+use App\Services\AI\AiInferenceService;
 
 class HomeController extends Controller
 {
@@ -46,13 +47,13 @@ class HomeController extends Controller
   /**
    * Show the application dashboard.
    *
-   * @return \Illuminate\Contracts\Support\Renderable
+   * @return \Illuminate\Contracts\Support\Renderable|\Illuminate\Http\RedirectResponse
    */
   public function index()
   {
 	$user = auth()->user();
 	if ($user->active == 0){
-		auth()->logout();
+		\Auth::logout();
 		return redirect()->route('login');
 	}elseif($user->is_client == 1){
 
@@ -107,7 +108,7 @@ class HomeController extends Controller
 		$attachment = new EntityAttachment;
 		$attachment->title = $request->title;
 		$attachment->type = "Page Attachment";
-		$attachment->model = $request->url;
+		$attachment->model = $request->input('url');
 		$attachment->model_id = "0";
 		if ($request->hasFile('attachment')){
       $path = $request->attachment->path();
@@ -202,4 +203,18 @@ class HomeController extends Controller
 		$company = getActiveCompany();
 		return view('layouts.ImaraAi.index', compact('company'));
 	}
+
+    /**
+     * Handle AI chat requests via the internal inference proxy.
+     */
+    public function aiChat(Request $request, AiInferenceService $aiService)
+    {
+        $request->validate([
+            'message' => 'required|string|max:5000',
+        ]);
+
+        $response = $aiService->chat($request->message);
+
+        return response()->json($response);
+    }
 }

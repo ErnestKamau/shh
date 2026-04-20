@@ -75,13 +75,7 @@
 				</div>
 			</a>
 
-			<!-- AI Intelligence -->
-			<a href="{{ route('mas.ai') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.ai') ? 'active' : '' }}">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-head-snowflake fa-fw mr-3 text-white"></span>
-					<span class="menu-collapsed">{{ __('mas/navigation.ai_intelligence') }}</span>
-				</div>
-			</a>
+
 
 			<!-- Equipment Management -->
 			<a href="{{ route('mas.equipment') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.equipment') ? 'active' : '' }}">

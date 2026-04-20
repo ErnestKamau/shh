@@ -2,7 +2,7 @@ from sqlalchemy import text
 from loguru import logger
 
 from python.py_etl.core.database import db_manager as pyetl_db_manager
-from config.settings import settings
+from python.ai_service.config.settings import settings
 
 
 class DatabaseService:
@@ -51,5 +51,8 @@ class DatabaseService:
 
 
 # shared instance used by new layers
-
 db_manager = DatabaseService()
+
+def get_ai_db():
+    """Utility for raw SQL execution using pgsql_ai connection."""
+    return pyetl_db_manager.postgres_engine.connect()

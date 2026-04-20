@@ -4,6 +4,7 @@ Manages versioned ML model artifacts for the model types:
   - tat_prediction      : turnaround-time regression
   - equipment_maintenance: binary classification (maintenance due)
   - qc_anomaly          : anomaly / Westgard violation detection
+    - decision_action     : decision support scoring classifier
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from python.py_etl.core.database import db_manager
 
 
 # Valid model types that the system understands
-MODEL_TYPES = ("tat_prediction", "equipment_maintenance", "qc_anomaly", "llm")
+MODEL_TYPES = ("tat_prediction", "equipment_maintenance", "qc_anomaly", "decision_action", "llm")
 
 
 class ModelRegistryService:

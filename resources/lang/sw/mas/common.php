@@ -40,4 +40,6 @@ return [
     'priority' => 'Kipaumbele',
     'type' => 'Aina',
     'status' => 'Hali',
+    'brand_name' => 'KEBS',
+    'brand_footer' => 'KEBS | LIMS',
 ];

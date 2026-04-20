@@ -6,9 +6,12 @@ use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
 use App\Models\SubmissionFormElement;
+use App\Directorate;
 use App\SampleHeader;
 use App\SampleDetails;
+use App\Services\LabIntakeCaseService;
 use App\Services\SubmissionFormBatchSyncService;
+use App\Zone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -85,8 +88,8 @@ class FormInstanceController extends Controller
         }
 
         // Determine if this is a public submission
-        $isPublicSubmission = !auth()->check();
-        $submittedBy = $isPublicSubmission ? null : auth()->id();
+        $isPublicSubmission = !Auth::check();
+        $submittedBy = $isPublicSubmission ? null : Auth::id();
 
         // Generate form number and create instance in a transaction with retry logic
         Log::info('Creating form instance', [
@@ -99,7 +102,7 @@ class FormInstanceController extends Controller
 
         // Log the creation (only if user is authenticated)
         if (!$isPublicSubmission) {
-            $instance->logAction('created', auth()->user());
+            $instance->logAction('created', Auth::user());
         }
 
         // Redirect based on submission type
@@ -246,10 +249,20 @@ class FormInstanceController extends Controller
                     $instance->refresh();
                 }
 
-                $instance->submit(auth()->user());
+                $instance->submit(Auth::user());
             }
 
             DB::commit();
+
+            try {
+                // Sync the intake workflow once the submission is durable.
+                app(LabIntakeCaseService::class)->syncFromSubmission($instance, Auth::user());
+            } catch (\Throwable $th) {
+                Log::warning('Lab intake case sync failed after form submit.', [
+                    'instance_id' => $instance->id,
+                    'message' => $th->getMessage(),
+                ]);
+            }
 
             return redirect()->route('submission-forms.instances.show', [
                 'submissionForm' => $submissionForm,
@@ -271,7 +284,8 @@ class FormInstanceController extends Controller
      */
     public function applyToBatches(int $instance, SubmissionFormBatchSyncService $syncService): \Illuminate\Http\RedirectResponse
     {
-        $user = auth()->user();
+        /** @var \App\User $user */
+        $user = Auth::user();
 
         if (! $user->hasRole('Sample Reception') && ! $user->hasRole('admin')) {
             abort(403, 'You are not allowed to update linked batches from this form.');
@@ -327,6 +341,16 @@ class FormInstanceController extends Controller
         $this->abortIfInstanceFormMismatch($submissionForm, $instance);
         $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to view this form instance.');
 
+        $instance->load([
+            'labIntakeCase.attachments',
+            'labIntakeCase.bookingEvent',
+            'labIntakeCase.zone',
+            'labIntakeCase.directorate',
+            'labIntakeCase.acceptedBatch',
+            'labIntakeCase.confirmedByUser',
+            'labIntakeCase.decisionByUser',
+        ]);
+
         // Load form with all relationships
         $submissionForm->load([
             'sections.elementHolders.elements' => function ($query) {
@@ -348,14 +372,30 @@ class FormInstanceController extends Controller
                 ->linkedBatchesOutOfSyncWithForm($instance);
         }
 
+        $intakeCase = $instance->labIntakeCase;
+        /** @var \App\User|null $currentUser */
+        $currentUser = Auth::user();
+        $canManageIntake = $currentUser && ($currentUser->hasRole('Sample Reception') || $currentUser->hasRole('admin'));
+        $zones = collect();
+        $directorates = collect();
+
+        if ($instance->isLabIntakeSubmission() && $canManageIntake) {
+            $zones = Zone::query()->orderBy('key')->get();
+            $directorates = Directorate::query()->where('active', 1)->orderBy('name')->get();
+        }
+
         // Check if user is on tablet
-        if (auth()->user()->is_tablet == 1) {
+        if (Auth::user()->is_tablet == 1) {
             return view('submission-forms.instances.show-tablet', compact(
                 'submissionForm',
                 'instance',
                 'existingValues',
                 'auditLogs',
-                'linkedBatchesOutOfSyncWithForm'
+                'linkedBatchesOutOfSyncWithForm',
+                'intakeCase',
+                'canManageIntake',
+                'zones',
+                'directorates'
             ));
         }
 
@@ -364,7 +404,11 @@ class FormInstanceController extends Controller
             'instance',
             'existingValues',
             'auditLogs',
-            'linkedBatchesOutOfSyncWithForm'
+            'linkedBatchesOutOfSyncWithForm',
+            'intakeCase',
+            'canManageIntake',
+            'zones',
+            'directorates'
         ));
     }
 
@@ -673,8 +717,8 @@ class FormInstanceController extends Controller
      */
     private function processSingleField(SubmissionFormInstance $instance, SubmissionFormElement $element, $value, Request $request): void
     {
-        if (($value === null || $value === '') && $element->element_type === 'user_select' && auth()->check()) {
-            $value = auth()->id();
+        if (($value === null || $value === '') && $element->element_type === 'user_select' && Auth::check()) {
+            $value = Auth::id();
         }
 
         // Handle file uploads
@@ -699,8 +743,8 @@ class FormInstanceController extends Controller
 
         // Save each value with array index
         foreach ($values as $index => $value) {
-            if (($value === null || $value === '') && $element->element_type === 'user_select' && auth()->check()) {
-                $value = auth()->id();
+            if (($value === null || $value === '') && $element->element_type === 'user_select' && Auth::check()) {
+                $value = Auth::id();
             }
 
             if ($value !== null && $value !== '') {
@@ -816,33 +860,6 @@ class FormInstanceController extends Controller
     }
 
     /**
-     * Get the value of a depended_field element based on the selected source record.
-     * Security: source_table and source_field are always read from the DB record, never from the request.
-     */
-    public function getDependedFieldValue(Request $request)
-    {
-        $request->validate([
-            'element_id' => 'required|integer',
-            'source_id'  => 'required|integer',
-        ]);
-
-        $element = \App\Models\SubmissionFormElement::findOrFail($request->get('element_id'));
-
-        if (!$element->source_table || !$element->source_field) {
-            return response()->json(['success' => false, 'message' => 'Element is not configured for auto-fill'], 422);
-        }
-
-        $value = \Illuminate\Support\Facades\DB::table($element->source_table)
-            ->where('id', $request->get('source_id'))
-            ->value($element->source_field);
-
-        return response()->json([
-            'success' => true,
-            'value'   => $value,
-        ]);
-    }
-
-    /**
      * Get dynamic options for custom elements
      */
     public function getDynamicOptions(Request $request)
@@ -852,7 +869,7 @@ class FormInstanceController extends Controller
         // Allow public access for certain element types (for public form submissions)
         $publicElementTypes = ['sample_condition_select', 'standard_select', 'sample_type_select', 'analysis_elements_select'];
 
-        if (!auth()->check() && !in_array($elementType, $publicElementTypes)) {
+        if (!Auth::check() && !in_array($elementType, $publicElementTypes)) {
             Log::warning('Unauthenticated request to dynamic options for restricted element type', ['element_type' => $elementType]);
             return response()->json(['error' => 'Unauthorized'], 401);
         }
@@ -1081,7 +1098,7 @@ class FormInstanceController extends Controller
                         ->where('is_client', 0)
                         ->where('supplier_id', 0);
 
-                    if (auth()->check() && function_exists('getUserCompany')) {
+                    if (Auth::check() && function_exists('getUserCompany')) {
                         $query->where('company_id', getUserCompany());
                     }
 

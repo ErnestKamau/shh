@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Mas;
 
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\LabLogisticsDashboardService;
 
 class LabLogistics extends BaseMasPage
 {
@@ -20,7 +20,7 @@ class LabLogistics extends BaseMasPage
 
     private function loadStats(): void
     {
-        $this->stats = app(ReportingMartDashboardService::class)->getLabLogisticsSummary();
+        $this->stats = app(LabLogisticsDashboardService::class)->getLabLogisticsSummary();
     }
 
     public function render()

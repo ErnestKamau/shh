@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Mas;
 
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\LabTatDashboardService;
 use Livewire\Attributes\Url;
 
 class LabTat extends BaseMasPage
@@ -39,7 +39,7 @@ class LabTat extends BaseMasPage
 
     private function loadStats(): void
     {
-        $service = app(ReportingMartDashboardService::class);
+        $service = app(LabTatDashboardService::class);
         $this->stats = $service->getLabTatBoard($this->period);
         $this->stats['sections'] = $service->getLabSectionTatStats();
         $this->stats['analyst_performance'] = $service->getAnalystPerformanceStats($this->period);
@@ -64,7 +64,7 @@ class LabTat extends BaseMasPage
     {
         $this->activeGridTab = $tab;
         $this->gridPage = 1;
-        $this->stats['smart_grid'] = app(ReportingMartDashboardService::class)->getSmartActionGridData($tab);
+        $this->stats['smart_grid'] = app(LabTatDashboardService::class)->getSmartActionGridData($tab);
     }
 
     public function setGridPage(int $page): void
@@ -80,7 +80,7 @@ class LabTat extends BaseMasPage
 
     public function getSmartGridData(string $tab): array
     {
-        return app(ReportingMartDashboardService::class)->getSmartActionGridData($tab);
+        return app(LabTatDashboardService::class)->getSmartActionGridData($tab);
     }
 
     public function render()

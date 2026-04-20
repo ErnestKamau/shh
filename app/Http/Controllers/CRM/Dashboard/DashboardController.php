@@ -27,7 +27,7 @@ class DashboardController extends Controller
     }
 
     public function index(Request $request){
-        dd("Testing");
+       
         $samples = SampleHeader::where('crm_customer_id',auth()->user()->client_id)->join('sample_details','sample_details.sample_header_id','=','sample_headers.id')->selectRaw('sample_headers.*,sample_details.id as sample_detail_id')->get();
 
         $sample_batches = SampleHeader::where('crm_customer_id',auth()->user()->client_id)->get();

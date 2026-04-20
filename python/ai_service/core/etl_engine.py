@@ -282,11 +282,20 @@ class ETLEngine:
             # 2) upsert from temp table — cast payload columns to JSONB;
             #    all other columns use pandas-inferred types which match the target.
             def _col_expr(c: str) -> str:
-                if c == "payload" or c.endswith("_payload"):
+                if c in ("payload", "publish_targets") or c.endswith("_payload"):
                     return f'"{c}"::jsonb'
                 # cast timestamps
-                if c.endswith("_at") or c.endswith("_date") or c == "expiry":
+                if c.endswith("_at") or c.endswith("_date") or c == "expiry" or c.endswith("_sent"):
                     return f'"{c}"::timestamptz'
+                # cast booleans (handle bit/int to bool via double cast)
+                if c in ("active", "is_active", "is_published", "is_current_version", "is_disposal", "rework_flag", "is_qc_batch", "isactive"):
+                    return f'"{c}"::int::boolean'
+                # cast numeric (ids, counts, days, scores)
+                # Exclude columns known to contain comma-separated lists or other non-bigint strings
+                if c in ("analysis_type_id", "sample_condition_id"):
+                    return f'"{c}"'
+                if "_id" in c or "_by" in c or "_count" in c or "_days" in c or "id" == c or "source_id" == c or "_score" in c or "expiry" in c:
+                    return f'"{c}"::bigint'
                 return f'"{c}"'
 
             select_cols = ", ".join([_col_expr(c) for c in df.columns])
