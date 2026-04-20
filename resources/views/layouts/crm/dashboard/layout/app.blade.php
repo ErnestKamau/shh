@@ -89,7 +89,7 @@
 					<span class="menu-collapsed">Client details</span>
 				</div>
 			</a>
-			<a href="{{ route('crm-lab-book') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-notebook-edit-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Lab Booking</span>
