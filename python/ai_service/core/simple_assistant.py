@@ -91,6 +91,7 @@ class SimpleAssistant:
         trace_id: Optional[str] = None,
         user_id: Optional[int] = None,
         session_id: Optional[str] = None,
+        module_context: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Main entry point for processing an operational query.
@@ -127,7 +128,7 @@ class SimpleAssistant:
                 logger.info(f"SimpleAssistant [{trace_id[:8]}]: Greeting detected")
                 routing_tier = "greeting"
                 route_name = "conversational"
-                result["answer"] = self._generate_conversational(message)
+                result["answer"] = self._generate_conversational(message, module_context=module_context)
                 result["meta"]["route"] = "conversational"
                 result["meta"]["routing_tier"] = routing_tier
                 result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
@@ -175,7 +176,7 @@ class SimpleAssistant:
             )
             
             if should_consult_llm:
-                llm_intent_map = self._llm_classify_intents(message)
+                llm_intent_map = self._llm_classify_intents(message, module_context=module_context)
                 if llm_intent_map and "none" not in llm_intent_map:
                     # Merge LLM results into all_intents
                     existing_intents = {m[0] for m in all_intents}
@@ -236,7 +237,7 @@ class SimpleAssistant:
                 route_name = "rag"
                 source_count = len(chunks)
                 result["sources"] = self._format_sources(chunks)
-                result["answer"] = self._synthesize_rag_answer(message, chunks)
+                result["answer"] = self._synthesize_rag_answer(message, chunks, module_context=module_context)
 
                 if not result["answer"]:
                     result["answer"] = _ERR_NO_RAG_SOURCES
@@ -254,10 +255,9 @@ class SimpleAssistant:
                     "No RAG sources, falling back to conversational"
                 )
 
-            # ── Step 5: Conversational fallback ───────────────────────
             routing_tier = "fallback"
             route_name = "conversational"
-            result["answer"] = self._generate_conversational(message)
+            result["answer"] = self._generate_conversational(message, module_context=module_context)
             result["meta"]["route"] = "conversational"
             result["meta"]["routing_tier"] = routing_tier
             result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
@@ -494,7 +494,7 @@ class SimpleAssistant:
 
     # ── LLM-based intent classification (Tier 2 fallback) ─────────────────
 
-    def _llm_classify_intents(self, message: str) -> Dict[str, Dict[str, Any]]:
+    def _llm_classify_intents(self, message: str, module_context: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
         """
         Use the LLM to classify a query into one or more manifest intents,
         including specific filters for each.
@@ -507,7 +507,12 @@ class SimpleAssistant:
                 intents_info.append(f"- {name}: {desc}")
                 all_intent_names.append(name)
 
+        context_hint = ""
+        if module_context == 'lab':
+            context_hint = "The user is currently in the Laboratory Module. Prioritize laboratory, sample, and equipment reports."
+
         prompt = f"""You are a specialized intent classifier for a Lab Information Management System (LIMS). 
+{context_hint}
 
 Map the user query to the most appropriate operational report(s). 
 If the user asks multiple questions, identify ALL relevant reports and their specific filters (dates, status, etc.).
@@ -628,7 +633,7 @@ Classification:"""
     # ── RAG synthesis ─────────────────────────────────────────────────────
 
     def _synthesize_rag_answer(
-        self, message: str, chunks: List[Dict[str, Any]]
+        self, message: str, chunks: List[Dict[str, Any]], module_context: Optional[str] = None
     ) -> str:
         """Build an answer from retrieved knowledge base chunks."""
         context = "\n\n".join(
@@ -637,7 +642,12 @@ Classification:"""
                 for c in chunks
             ]
         )
-        prompt = f"""You are a lab assistant. Use the following context to answer the user's question concisely.
+        
+        system_role = "You are a lab assistant."
+        if module_context == 'lab':
+            system_role = "You are a specialized Laboratory Assistant. Be precise and technical."
+
+        prompt = f"""{system_role} Use the following context to answer the user's question concisely.
 Context:
 {context}
 
@@ -666,16 +676,25 @@ Rules:
 
     # ── Conversational generation ─────────────────────────────────────────
 
-    def _generate_conversational(self, message: str) -> str:
+    def _generate_conversational(self, message: str, module_context: Optional[str] = None) -> str:
         """Generate a conversational response (greetings, general chat)."""
+        system_prompt = (
+            "You are Imarachat AI, a professional LIMS assistant. "
+            "Be concise and helpful. You have access to lab data and SOPs. "
+            "If the user greets you, respond warmly and briefly."
+        )
+        
+        if module_context == 'lab':
+            system_prompt = (
+                "You are the dedicated Laboratory Assistant. You help lab technicians "
+                "with sample status, equipment verification, and technical SOPs. "
+                "Be highly professional and focused on lab operations."
+            )
+
         try:
             return self.ollama.generate(
                 prompt=message,
-                system=(
-                    "You are Imarachat AI, a professional LIMS assistant. "
-                    "Be concise and helpful. You have access to lab data and SOPs. "
-                    "If the user greets you, respond warmly and briefly."
-                ),
+                system=system_prompt,
             )
         except Exception as e:
             logger.error(f"SimpleAssistant: Conversational generation failed: {e}")

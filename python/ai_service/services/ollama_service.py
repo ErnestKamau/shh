@@ -18,6 +18,10 @@ class OllamaService:
 
     def chat(self, messages: List[Dict[str, str]], options: Optional[Dict[str, Any]] = None, model: Optional[str] = None) -> Dict[str, Any]:
         """Synchronous chat call."""
+        if not self.client:
+            logger.error("Ollama client not initialized.")
+            return {"message": {"content": "AI service offline (client missing)."}, "error": "client_not_initialized"}
+            
         try:
             target_model = model or self.model
             response = self.client.chat(
@@ -28,10 +32,14 @@ class OllamaService:
             return self._normalize_chunk(response)
         except Exception as e:
             logger.error(f"OllamaService.chat failed: {e}")
-            raise
+            return {"message": {"content": f"AI service error: {str(e)}"}, "error": str(e)}
 
     async def chat_stream(self, messages: List[Dict[str, str]], options: Optional[Dict[str, Any]] = None, model: Optional[str] = None) -> AsyncGenerator[Dict[str, Any], None]:
         """Stream Ollama responses without blocking the event loop."""
+        if not self.client:
+            yield {"error": "Ollama client not initialized"}
+            return
+
         try:
             target_model = model or self.model
             queue: asyncio.Queue[Optional[Dict[str, Any]]] = asyncio.Queue()
@@ -56,12 +64,17 @@ class OllamaService:
             producer_task = asyncio.create_task(asyncio.to_thread(producer))
             try:
                 while True:
+                    # Removed strict wait_for as per user request to allow long LLM response times
                     chunk = await queue.get()
                     if chunk is None:
                         break
                     yield chunk
+            except Exception as e:
+                logger.error(f"OllamaService.chat_stream loop failed: {e}")
+                yield {"error": str(e)}
             finally:
-                await producer_task
+                if not producer_task.done():
+                    producer_task.cancel()
         except Exception as e:
             logger.error(f"OllamaService.chat_stream failed: {e}")
             yield {"error": str(e)}
