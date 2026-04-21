@@ -29,6 +29,7 @@ _DATE_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\bthis\s*month\b", re.I), "this_month"),
     (re.compile(r"\blast\s*month\b", re.I), "last_month"),
     (re.compile(r"\bthis\s*quarter\b", re.I), "this_quarter"),
+    (re.compile(r"\blast\s*quarter\b", re.I), "last_quarter"),
     (re.compile(r"\blast\s*(?:30|thirty)\s*days?\b", re.I), "last_30_days"),
     (re.compile(r"\blast\s*(?:90|ninety)\s*days?\b", re.I), "last_90_days"),
 ]
@@ -86,6 +87,13 @@ def _resolve_date_range(label: str) -> tuple[str, str]:
     if label == "this_quarter":
         q_start_month = ((today.month - 1) // 3) * 3 + 1
         return str(today.replace(month=q_start_month, day=1)), str(today)
+    if label == "last_quarter":
+        # Calculate end of last quarter
+        q_start_month = ((today.month - 1) // 3) * 3 + 1
+        end = today.replace(month=q_start_month, day=1) - timedelta(days=1)
+        # Calculate start of that quarter
+        start = end.replace(month=((end.month - 1) // 3) * 3 + 1, day=1)
+        return str(start), str(end)
     if label == "last_30_days":
         return str(today - timedelta(days=30)), str(today)
     if label == "last_90_days":

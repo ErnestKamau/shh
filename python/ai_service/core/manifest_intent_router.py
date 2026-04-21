@@ -21,7 +21,7 @@ Groups:
 
 import re
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,8 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
      "qc_pass_rate"),
 
     (["drifting analyte", "analyte drift", "qc drift",
-      "unstable analyte", "analyte instability", "qc stability"],
+      "unstable analyte", "analyte instability", "qc stability",
+      "stability drift", "instability", "drifting"],
      "qc_drifting_analytes"),
 
     (["pending capa", "open capa", "corrective action",
@@ -213,11 +214,12 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
 
     # ── Personnel ──
     (["analyst verification", "batches verified", "who verified",
-      "verification count", "analyst verified"],
+      "verification count", "analyst verified", "verifications", 
+      "analyst verifications", "batches verification"],
      "analyst_verifications"),
 
     (["analyst approval", "batches approved", "who approved",
-      "approval count", "analyst approved"],
+      "approval count", "analyst approved", "approver", "approved by"],
      "analyst_approvals"),
 
     (["analyst workload", "analyst activity today", "workload today",
@@ -226,7 +228,8 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
 
     # ── CRM ──
     (["top client", "top customer", "biggest client",
-      "most samples client", "client volume", "customer ranking"],
+      "most samples client", "client volume", "customer ranking",
+      "top 10", "top 5", "top 20", "leading clients", "major customers"],
      "top_clients_by_volume"),
 
     (["inactive client", "dormant client", "churn risk",
@@ -272,29 +275,48 @@ class ManifestIntentRouter:
     def match(self, query: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Attempt to match query to a manifest intent via keyword rules.
+        (Backward compatible: returns only the first match).
 
         Returns:
             (intent_name, routing_tier) or (None, None)
         """
+        matches = self.match_all(query)
+        if matches:
+            return matches[0]
+        return None, None
+
+    def match_all(self, query: str) -> List[Tuple[str, str]]:
+        """
+        Attempt to match query to ALL applicable manifest intents via keyword rules.
+
+        Returns:
+            List of (intent_name, routing_tier)
+        """
         q = query.lower().strip()
+        matches = []
+        seen_intents = set()
 
         # Group A: deterministic, high confidence
         for patterns, intent in self._group_a:
             if any(p in q for p in patterns):
-                logger.info(
-                    f"ManifestIntentRouter: MATCHED '{intent}' via keyword (Group A)"
-                )
-                return intent, "keyword"
+                if intent not in seen_intents:
+                    logger.info(
+                        f"ManifestIntentRouter: MATCHED '{intent}' via keyword (Group A)"
+                    )
+                    matches.append((intent, "keyword"))
+                    seen_intents.add(intent)
 
         # Group B: looser rules, medium confidence
         for patterns, intent in self._group_b:
             if any(p in q for p in patterns):
-                logger.info(
-                    f"ManifestIntentRouter: MATCHED '{intent}' via keyword_loose (Group B)"
-                )
-                return intent, "keyword_loose"
+                if intent not in seen_intents:
+                    logger.info(
+                        f"ManifestIntentRouter: MATCHED '{intent}' via keyword_loose (Group B)"
+                    )
+                    matches.append((intent, "keyword_loose"))
+                    seen_intents.add(intent)
 
-        return None, None
+        return matches
 
     def is_greeting(self, query: str) -> bool:
         """Check if the query is a simple greeting/pleasantry."""
