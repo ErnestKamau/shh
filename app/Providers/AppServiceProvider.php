@@ -11,9 +11,12 @@ use App\Observers\SupplierObserver;
 use App\RequestEntity;
 use App\Supplier;
 use App\Models\CRM\Complaint;
+use App\Models\SampleSubmissionRequest;
 use App\Observers\TicketObserver;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,6 +46,21 @@ class AppServiceProvider extends ServiceProvider
         $paths = array_merge([$mainPath], $directories);
         
         $this->loadMigrationsFrom($paths);
+
+        View::composer('layouts.lab.layout.app', function ($view): void {
+            $submissionRequestTotals = 0;
+
+            if (Schema::hasTable('sample_submission_requests')) {
+                $submissionRequestTotals = SampleSubmissionRequest::query()
+                    ->where(function ($query) {
+                        $query->whereNull('status')
+                            ->orWhere('status', '!=', 'received_at_lab');
+                    })
+                    ->count();
+            }
+
+            $view->with('submissionRequestTotals', $submissionRequestTotals);
+        });
         
         CapturedResult::observe(CapturedObserver::class);
         Supplier::observe(SupplierObserver::class);

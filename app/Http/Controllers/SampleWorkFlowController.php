@@ -37,6 +37,9 @@ use App\Models\QcModule\Configurations\QcTypes;
 use App\Models\QcModule\QCProcessedResults;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Models\SupportingDocumentInstance;
+use App\Models\SupportingDocumentTemplate;
+use App\Services\SupportingDocumentInstanceFormService;
 use App\Models\System\SystemConfiguration;
 use App\Services\SubmissionFormPdfService;
 use App\ModulePreConfigs;
@@ -75,6 +78,7 @@ use setasign\Fpdi\TcpdfFpdi;
 use Illuminate\Support\Facades\Log;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\ProcedureWorksheetPdfService;
+use App\Http\Requests\StoreSampleSubmissionRequest;
 
 class SampleWorkFlowController extends Controller
 {
@@ -83,8 +87,9 @@ class SampleWorkFlowController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function __construct()
-    {
+    public function __construct(
+        private readonly SupportingDocumentInstanceFormService $supportingDocumentInstanceFormService,
+    ) {
         $this->middleware('auth');
     }
 
@@ -98,6 +103,261 @@ class SampleWorkFlowController extends Controller
             'status' => $status,
             'initialFilters' => $request->all(),
         ]);
+    }
+
+    public function submissionRequestsIndex(Request $request): \Illuminate\View\View
+    {
+        $query = SampleSubmissionRequest::query()
+            ->with([
+                'batch:id,batch_code,status',
+                'customer:id,name',
+                'contact:id,first_name,middle_name,last_name,email',
+            ])
+            ->withCount(['exhibits', 'suspects', 'requestedAnalyses'])
+            ->orderByDesc('id');
+
+        if (trim((string) $request->get('q', '')) !== '') {
+            $search = trim((string) $request->get('q'));
+            $query->where(function ($q) use ($search) {
+                $q->where('case_no', 'like', "%{$search}%")
+                    ->orWhere('offence', 'like', "%{$search}%")
+                    ->orWhere('submitting_officer_full_name', 'like', "%{$search}%")
+                    ->orWhere('submitting_agency', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $requests = $query->paginate(15)->withQueryString();
+
+        $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
+        $contacts = collect();
+
+        $supportingDocumentTemplates = SupportingDocumentTemplate::query()
+            ->where('is_published', true)
+            ->where('is_active', true)
+            ->orderBy('title')
+            ->get(['id', 'document_code', 'title', 'subtitle', 'version', 'description']);
+
+        return view('layouts.lab.sample-workflow.submission-requests.index', compact('requests', 'customers', 'contacts', 'supportingDocumentTemplates'));
+    }
+
+    public function createSampleSubmissionRequest(): \Illuminate\View\View
+    {
+        $customers = \App\Models\CRM\CRMCustomer::where('active', 1)->orderBy('name')->get();
+        $contacts = \App\Models\CRM\CustomerContact::orderBy('first_name')->orderBy('last_name')->get();
+
+        return view('layouts.lab.sample-workflow.submission-requests.create', compact('customers', 'contacts'));
+    }
+
+    public function showSampleSubmissionRequest(\App\Models\SampleSubmissionRequest $request): \Illuminate\View\View
+    {
+        $request->load([
+            'batch',
+            'customer',
+            'contact',
+            'suspects',
+            'exhibits',
+            'requestedAnalyses',
+            'supportingDocumentTemplates',
+            'supportingDocumentInstances.template',
+        ]);
+
+        return view('layouts.lab.sample-workflow.submission-requests.show', [
+            'request' => $request,
+        ]);
+    }
+
+    public function getSubmissionRequestCustomerContacts(int $customer): \Illuminate\Http\JsonResponse
+    {
+        $contacts = \App\Models\CRM\CustomerContact::query()
+            ->where('crm_customer_id', $customer)
+            ->where('active', 1)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'email', 'job_occupation']);
+
+        return response()->json($contacts);
+    }
+
+    public function storeSampleSubmissionRequest(StoreSampleSubmissionRequest $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validated();
+
+        $submissionRequest = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+            /** @var \App\Models\SampleSubmissionRequest $submissionRequest */
+            $submissionRequest = SampleSubmissionRequest::create([
+                'crm_customer_id' => $data['crm_customer_id'],
+                'crm_contact_id' => $data['crm_contact_id'] ?? null,
+                'submitting_agency' => $data['submitting_agency'] ?? null,
+                'submitting_officer_full_name' => $data['submitting_officer_full_name'] ?? null,
+                'submitting_officer_title' => $data['submitting_officer_title'] ?? null,
+                'physical_address' => $data['physical_address'] ?? null,
+                'region' => $data['region'] ?? null,
+                'district' => $data['district'] ?? null,
+                'working_station' => $data['working_station'] ?? null,
+                'office_telephone_no' => $data['office_telephone_no'] ?? null,
+                'mobile_telephone_no' => $data['mobile_telephone_no'] ?? null,
+                'fax' => $data['fax'] ?? null,
+                'email' => $data['email'] ?? null,
+                'case_no' => $data['case_no'] ?? null,
+                'offence' => $data['offence'] ?? null,
+                'date_of_seizure' => $data['date_of_seizure'] ?? null,
+                'seizure_region' => $data['seizure_region'] ?? null,
+                'seizure_district' => $data['seizure_district'] ?? null,
+                'seizure_ward' => $data['seizure_ward'] ?? null,
+                'seizure_village_street' => $data['seizure_village_street'] ?? null,
+                'submitted_by_full_name' => $data['submitted_by_full_name'] ?? null,
+                'submitted_by_title' => $data['submitted_by_title'] ?? null,
+                'submitted_by_signature' => $data['submitted_by_signature'] ?? null,
+                'submitted_by_date' => $data['submitted_by_date'] ?? null,
+                'submitted_by_time' => $data['submitted_by_time'] ?? null,
+                'received_by_full_name' => $data['received_by_full_name'] ?? null,
+                'received_by_title' => $data['received_by_title'] ?? null,
+                'received_by_signature' => $data['received_by_signature'] ?? null,
+                'received_by_date' => $data['received_by_date'] ?? null,
+                'received_by_time' => $data['received_by_time'] ?? null,
+                'status' => 'Submitted',
+            ]);
+
+            foreach (($data['exhibits'] ?? []) as $row) {
+                $hasAnyValue = collect($row)->filter(function ($value) {
+                    return $value !== null && $value !== '';
+                })->isNotEmpty();
+
+                if (!$hasAnyValue) {
+                    continue;
+                }
+
+                $submissionRequest->exhibits()->create([
+                    'serial_number' => $row['serial_number'] ?? null,
+                    'number_of_items' => $row['number_of_items'] ?? null,
+                    'item_description' => $row['item_description'] ?? null,
+                    'suspected_item' => $row['suspected_item'] ?? null,
+                ]);
+            }
+
+            foreach (($data['suspects'] ?? []) as $row) {
+                $hasAnyValue = collect($row)->filter(function ($value) {
+                    return $value !== null && $value !== '';
+                })->isNotEmpty();
+
+                if (!$hasAnyValue) {
+                    continue;
+                }
+
+                $submissionRequest->suspects()->create([
+                    'serial_number' => $row['serial_number'] ?? null,
+                    'first_name' => $row['first_name'] ?? null,
+                    'middle_name' => $row['middle_name'] ?? null,
+                    'last_name' => $row['last_name'] ?? null,
+                    'sex' => $row['sex'] ?? null,
+                    'date_of_birth' => $row['date_of_birth'] ?? null,
+                    'nationality' => $row['nationality'] ?? null,
+                    'id_passport_number' => $row['id_passport_number'] ?? null,
+                ]);
+            }
+
+            if (! empty($data['supporting_document_template_ids'])) {
+                $submissionRequest->supportingDocumentTemplates()->sync($data['supporting_document_template_ids']);
+                $headerId = (int) ($submissionRequest->sample_header_id ?? 0);
+
+                foreach ($data['supporting_document_template_ids'] as $templateId) {
+                    $templateId = (int) $templateId;
+                    $template = SupportingDocumentTemplate::query()->whereKey($templateId)->first();
+
+                    SupportingDocumentInstance::query()->firstOrCreate(
+                        [
+                            'sample_submission_request_id' => $submissionRequest->id,
+                            'supporting_document_template_id' => $templateId,
+                        ],
+                        [
+                            'template_version' => (int) ($template?->version ?? 1),
+                            'sample_header_id' => $headerId,
+                            'status' => 'draft',
+                            'created_by' => auth()->id(),
+                        ]
+                    );
+                }
+            } else {
+                $submissionRequest->supportingDocumentTemplates()->sync([]);
+            }
+
+            return $submissionRequest;
+        });
+
+        return redirect()
+            ->route('sample-submission-requests.show', $submissionRequest)
+            ->with('success', 'Submission request created successfully. Request #' . $submissionRequest->id);
+    }
+
+    public function editSampleSubmissionSupportingDocument(
+        SampleSubmissionRequest $request,
+        SupportingDocumentInstance $instance,
+    ): \Illuminate\View\View {
+        if ((int) $instance->sample_submission_request_id !== (int) $request->id) {
+            abort(404);
+        }
+
+        $instance->load(['template.sections.elements', 'values']);
+
+        return view('layouts.lab.sample-workflow.submission-requests.supporting-document-fill', [
+            'submissionRequest' => $request,
+            'instance' => $instance,
+            'readOnly' => $instance->status === 'submitted',
+        ]);
+    }
+
+    public function updateSampleSubmissionSupportingDocument(
+        Request $httpRequest,
+        SampleSubmissionRequest $request,
+        SupportingDocumentInstance $instance,
+    ): \Illuminate\Http\RedirectResponse {
+        if ((int) $instance->sample_submission_request_id !== (int) $request->id) {
+            abort(404);
+        }
+
+        if ($instance->status === 'submitted') {
+            return redirect()
+                ->route('sample-submission-requests.supporting-documents.edit', [$request, $instance])
+                ->with('error', 'This supporting document has already been submitted and cannot be changed.');
+        }
+
+        $validated = $httpRequest->validate([
+            'action' => ['required', 'in:draft,submit'],
+            'values' => ['present', 'array'],
+        ]);
+
+        $instance->loadMissing(['template.sections.elements']);
+        $elements = $instance->template->sections->flatMap(function ($section) {
+            return $section->elements;
+        });
+
+        if ($validated['action'] === 'submit') {
+            $httpRequest->validate($this->supportingDocumentInstanceFormService->buildSubmitRules($elements));
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($instance, $elements, $validated) {
+            $this->supportingDocumentInstanceFormService->syncValuesFromInput(
+                $instance,
+                $elements,
+                $validated['values']
+            );
+
+            if ($validated['action'] === 'submit') {
+                $instance->update([
+                    'status' => 'submitted',
+                    'submitted_at' => now(),
+                ]);
+            }
+        });
+
+        $message = $validated['action'] === 'submit'
+            ? 'Supporting document submitted.'
+            : 'Supporting document saved as draft.';
+
+        return redirect()
+            ->route('sample-submission-requests.show', $request)
+            ->with('success', $message);
     }
 
     public function print_labels(Request $request)

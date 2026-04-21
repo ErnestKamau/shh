@@ -109,6 +109,16 @@
 						<small class="badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ $menuTotals[$item] ?? 0 }}</small>
 					</div>
 				</a>
+				@if($item == 'All Samples')
+				<a href="{{ route('sample-submission-requests.index') }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed">
+							<i class="mdi mdi-circle-medium"></i> Submission Requests
+						</span>
+						<small class="badge badge-pill badge-dark">{{ $submissionRequestTotals }}</small>
+					</div>
+				</a>
+				@endif
 				@endforeach
 
 			</div>

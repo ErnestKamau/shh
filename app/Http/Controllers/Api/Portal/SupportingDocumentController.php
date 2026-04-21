@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Portal\SupportingDocumentInstanceResource;
+use App\Support\SupportingDocumentElementValidation;
 use App\Http\Resources\Portal\SupportingDocumentTemplateDetailResource;
 use App\Http\Resources\Portal\SupportingDocumentTemplateResource;
-use App\Models\SupportingDocumentElement;
 use App\Models\SupportingDocumentInstance;
 use App\Models\SupportingDocumentInstanceValue;
 use App\Models\SupportingDocumentTemplate;
@@ -136,7 +136,7 @@ class SupportingDocumentController extends Controller
                 continue;
             }
 
-            $rules['values.' . $element->id] = $this->elementRules($element);
+            $rules['values.' . $element->id] = SupportingDocumentElementValidation::rulesForElement($element);
         }
 
         $request->validate($rules);
@@ -172,31 +172,5 @@ class SupportingDocumentController extends Controller
         return (new SupportingDocumentInstanceResource($instance))
             ->response()
             ->setStatusCode(201);
-    }
-
-    private function elementRules(SupportingDocumentElement $element): array
-    {
-        $rules = [];
-
-        $rules[] = $element->is_required ? 'required' : 'nullable';
-
-        switch ($element->element_type) {
-            case 'number':
-                $rules[] = 'numeric';
-                break;
-            case 'date':
-                $rules[] = 'date';
-                break;
-            case 'textarea':
-            case 'text':
-                $rules[] = 'string';
-                break;
-        }
-
-        if (! empty($element->validation_rules) && is_array($element->validation_rules)) {
-            $rules = array_merge($rules, $element->validation_rules);
-        }
-
-        return $rules;
     }
 }
