@@ -19,14 +19,14 @@ import uuid
 import pandas as pd
 from typing import List, Dict, Any, Optional
 
-from python.ai_service.services.ollama_service import OllamaService
-from python.ai_service.services.visualization_service import VisualizationService
-from python.ai_service.services.live_data_service import LiveDataService
-from python.ai_service.services.retrieval_service import RetrievalService
-from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
-from python.ai_service.core.query_classifier import QueryClassifier
-from python.ai_service.core.query_filter_extractor import QueryFilterExtractor
-from python.ai_service.core.request_logger import request_logger
+from ai_service.services.ollama_service import OllamaService
+from ai_service.services.visualization_service import VisualizationService
+from ai_service.services.live_data_service import LiveDataService
+from ai_service.services.retrieval_service import RetrievalService
+from ai_service.core.manifest_intent_router import ManifestIntentRouter
+from ai_service.core.query_classifier import QueryClassifier
+from ai_service.core.query_filter_extractor import QueryFilterExtractor
+from ai_service.core.request_logger import request_logger
 
 logger = logging.getLogger(__name__)
 
@@ -350,17 +350,28 @@ class SimpleAssistant:
         Use the LLM to classify a query into a manifest intent.
         Has a timeout to avoid blocking on slow LLM responses.
         """
-        intents = []
-        for domain in self.live_data.templates.values():
-            intents.extend(domain.keys())
+        intents_info = []
+        all_intent_names = []
+        for domain_templates in self.live_data.templates.values():
+            for name, details in domain_templates.items():
+                desc = details.get("description", "Data report")
+                intents_info.append(f"- {name}: {desc}")
+                all_intent_names.append(name)
 
-        prompt = f"""Map the user query to the most appropriate data report name.
-Available reports: {", ".join(intents)}
+        prompt = f"""You are a specialized intent classifier for a Lab Information Management System (LIMS). 
+Map the user query to the most appropriate operational report.
 
-Query: "{message}"
+Available Reports:
+{chr(10).join(intents_info)}
 
-If no report is a good match, return 'none'.
-Otherwise, return ONLY the report name, nothing else."""
+User Query: "{message}"
+
+Rules:
+1. Return ONLY the report name (the part before the colon).
+2. If no report is a clear match, return 'none'.
+3. Do NOT provide any explanation or preamble.
+
+Classification:"""
 
         try:
             import concurrent.futures
@@ -372,7 +383,7 @@ Otherwise, return ONLY the report name, nothing else."""
                 mapped = future.result(timeout=_LLM_ROUTE_TIMEOUT)
                 mapped = mapped.strip().lower().replace("'", "").replace('"', "")
 
-                if mapped in intents:
+                if mapped in all_intent_names:
                     logger.info(
                         f"SimpleAssistant: LLM classified intent '{mapped}'"
                     )

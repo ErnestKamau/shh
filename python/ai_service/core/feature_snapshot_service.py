@@ -11,8 +11,8 @@ import pandas as pd
 from loguru import logger
 from sqlalchemy import text
 
-from python.py_etl.core.database import DatabaseManager
-from python.py_etl.config.config import settings
+from py_etl.core.database import DatabaseManager
+from py_etl.config.config import settings
 
 
 class FeatureSnapshotService:

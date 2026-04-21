@@ -3,8 +3,8 @@ Transformer: sample_analysis_stages → reporting.sample_analysis_stages
 """
 from __future__ import annotations
 import pandas as pd
-from python.py_etl.transformers.base_transformer import BaseTransformer
-from python.py_etl.transformers.type_converters import to_string
+from py_etl.transformers.base_transformer import BaseTransformer
+from py_etl.transformers.type_converters import to_string
 
 
 class SampleAnalysisStagesTransformer(BaseTransformer):

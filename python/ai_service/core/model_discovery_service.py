@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 from loguru import logger
 
-from python.ai_service.core.model_registry_service import ModelRegistryService, MODEL_TYPES
+from ai_service.core.model_registry_service import ModelRegistryService, MODEL_TYPES
 
 # ARTIFACT_DIR should point to the models/ folder in the project root
 ROOT_DIR = Path(__file__).resolve().parents[3]
@@ -90,9 +90,9 @@ class ModelDiscoveryService:
         Matches the behavior of the original PHP implementation.
         """
         import requests
-        from python.py_etl.config.config import settings
+        from py_etl.config.config import settings
         from sqlalchemy import text
-        from python.py_etl.core.database import db_manager
+        from py_etl.core.database import db_manager
 
         host = settings.ollama_host
         try:

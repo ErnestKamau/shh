@@ -8,7 +8,7 @@ from __future__ import annotations
 import pandas as pd
 from sqlalchemy import text
 
-from python.py_etl.core.database import db_manager
+from py_etl.core.database import db_manager
 
 
 class ReportingReaderService:

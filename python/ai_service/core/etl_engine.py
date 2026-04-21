@@ -21,13 +21,13 @@ import yaml
 from loguru import logger
 from sqlalchemy import text
 
-from python.py_etl.config.config import settings
-from python.py_etl.core.database import db_manager
-from python.py_etl.core.etl_tracker import etl_tracker
-from python.py_etl.core.preflight_check import PreflightCheck, SchemaValidationError
-from python.py_etl.core.logging_config import get_contextual_logger
-from python.py_etl.transformers.registry import TRANSFORMER_REGISTRY
-from python.py_etl.transformers.validator import validator, CriticalValidationError
+from py_etl.config.config import settings
+from py_etl.core.database import db_manager
+from py_etl.core.etl_tracker import etl_tracker
+from py_etl.core.preflight_check import PreflightCheck, SchemaValidationError
+from py_etl.core.logging_config import get_contextual_logger
+from py_etl.transformers.registry import TRANSFORMER_REGISTRY
+from py_etl.transformers.validator import validator, CriticalValidationError
 
 
 class ETLEngine:
@@ -296,6 +296,8 @@ class ETLEngine:
                     return f'"{c}"'
                 if "_id" in c or "_by" in c or "_count" in c or "_days" in c or "id" == c or "source_id" == c or "_score" in c or "expiry" in c:
                     return f'"{c}"::bigint'
+                if c in ("guide_low", "guide_high", "result_value", "mean", "std_dev"):
+                    return f'"{c}"::numeric'
                 return f'"{c}"'
 
             select_cols = ", ".join([_col_expr(c) for c in df.columns])

@@ -14,19 +14,19 @@
     },
     "sample_count_pending_review": {
       "sql": "SELECT status, COUNT(*) as cnt FROM reporting.sample_headers WHERE status IN ('Samples Request Review', 'Sample Verification', 'Sample Approval') AND isactive = true GROUP BY status",
-      "description": "Batch counts awaiting laboratory review, verification, or final approval sign-off",
+      "description": "Counts of batches currently awaiting laboratory review, verification stages, or final approval sign-off. Use this for queries about verification.",
       "output_format": "table",
       "ttl_seconds": 10
     },
     "sample_count_in_lab": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_details sd INNER JOIN reporting.sample_headers sh ON sh.source_id = sd.sample_header_id INNER JOIN reporting.sample_analysis_stages sas ON sas.source_id = CAST(NULLIF(sh.sample_tracking_stage, '') AS BIGINT) WHERE sas.sample_workflow = 'Samples In Lab' AND sh.isactive = true",
-      "description": "Individual sample items currently in the lab",
+      "sql": "SELECT COUNT(sd.source_id) as n FROM reporting.sample_details sd INNER JOIN reporting.sample_headers sh ON sh.source_id = sd.sample_header_id WHERE (sh.status = 'Samples In Lab' OR sh.status = 'In Lab') AND sh.isactive = true",
+      "description": "Total number of individual sample items or aliquots currently inside the lab being processed.",
       "output_format": "count",
       "ttl_seconds": 10
     },
     "batch_count_in_lab": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers sh INNER JOIN reporting.sample_analysis_stages sas ON sas.source_id = CAST(NULLIF(sh.sample_tracking_stage, '') AS BIGINT) WHERE sas.sample_workflow = 'Samples In Lab' AND sh.isactive = true",
-      "description": "Sample batches (headers) currently in the lab",
+      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers sh WHERE (sh.status = 'Samples In Lab' OR sh.status = 'In Lab') AND sh.isactive = true",
+      "description": "Sample batches (headers) currently in the lab for processing",
       "output_format": "count",
       "ttl_seconds": 10
     },
@@ -79,14 +79,14 @@
       "ttl_seconds": 10
     },
     "daily_ingestion_trend": {
-      "sql": "SELECT source_created_at::timestamptz::date as day, COUNT(*) as batches FROM reporting.sample_headers WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '14 days') AND isactive = true GROUP BY day ORDER BY day DESC",
-      "description": "Batch registration volume per day for the last 2 weeks",
+      "sql": "SELECT source_created_at::timestamptz::date as day, COUNT(*) as batches FROM reporting.sample_headers WHERE source_created_at::timestamptz >= CAST(:date_start AS timestamptz) AND isactive = true GROUP BY day ORDER BY day DESC",
+      "description": "Batch registration volume per day",
       "output_format": "table",
       "visualize": {
         "type": "bar",
         "labels": "day",
         "values": "batches",
-        "title": "Registration Volume (14d)"
+        "title": "Registration Volume"
       },
       "ttl_seconds": 60
     },
@@ -101,11 +101,17 @@
         "title": "Sample Type Distribution"
       },
       "ttl_seconds": 120
+    },
+    "sample_details_lookup": {
+      "sql": "SELECT sh.batch_code, sh.status, c.name as client, sh.source_created_at::timestamptz::date as registered_on FROM reporting.sample_headers sh LEFT JOIN reporting.clients c ON sh.crm_customer_id = c.source_id WHERE sh.batch_code = :batch_code AND sh.isactive = true LIMIT 1",
+      "description": "Detailed status and ownership for a specific sample batch",
+      "output_format": "table",
+      "ttl_seconds": 0
     }
   },
   "inventory": {
     "inventory_low_stock": {
-      "sql": "SELECT c.name as category, sc.name as subcategory, ii.payload->>'batch_code' as batch_code, ii.stock_in, sc.minimum_level FROM reporting.inventory_items ii INNER JOIN reporting.inventory_sub_categories sc ON ii.inventory_sub_category_id = sc.source_id INNER JOIN reporting.inventory_categories c ON sc.inventory_category_id = c.source_id WHERE ii.stock_in < sc.minimum_level ORDER BY (sc.minimum_level - ii.stock_in) DESC LIMIT 10",
+      "sql": "SELECT c.name as category, sc.name as subcategory, COALESCE(ii.payload->>'batch_code', 'N/A') as batch_code, ii.stock_in, sc.minimum_level FROM reporting.inventory_items ii INNER JOIN reporting.inventory_sub_categories sc ON ii.inventory_sub_category_id = sc.source_id INNER JOIN reporting.inventory_categories c ON sc.inventory_category_id = c.source_id WHERE ii.stock_in < sc.minimum_level ORDER BY (sc.minimum_level - ii.stock_in) DESC LIMIT 10",
       "description": "Items below minimum reorder level (shortage analysis)",
       "output_format": "table",
       "ttl_seconds": 60
@@ -117,8 +123,8 @@
       "ttl_seconds": 60
     },
     "supplier_order_performance": {
-      "sql": "SELECT s.name as supplier, COUNT(io.source_id) as total_orders, SUM(CASE WHEN io.status = 'fulfilled' THEN 1 ELSE 0 END) as fulfilled, ROUND(100.0 * SUM(CASE WHEN io.status = 'fulfilled' THEN 1 ELSE 0 END) / NULLIF(COUNT(io.source_id), 0), 1) as fulfillment_pct FROM reporting.suppliers s JOIN reporting.inventory_orders io ON s.source_id = io.supplier_id WHERE io.source_created_at >= (NOW() - INTERVAL '90 days') GROUP BY s.name ORDER BY fulfillment_pct ASC LIMIT 10",
-      "description": "Supplier order fulfillment rate for the last quarter",
+      "sql": "SELECT s.name as supplier, COUNT(io.source_id) as total_orders, SUM(CASE WHEN io.status = 'fulfilled' THEN 1 ELSE 0 END) as fulfilled, ROUND(100.0 * SUM(CASE WHEN io.status = 'fulfilled' THEN 1 ELSE 0 END) / NULLIF(COUNT(io.source_id), 0), 1) as fulfillment_pct FROM reporting.suppliers s JOIN reporting.inventory_orders io ON s.source_id = io.supplier_id WHERE io.source_created_at >= CAST(:date_start AS timestamptz) GROUP BY s.name ORDER BY fulfillment_pct ASC LIMIT 10",
+      "description": "Supplier order fulfillment rate",
       "output_format": "table",
       "ttl_seconds": 600
     },
@@ -129,7 +135,7 @@
       "ttl_seconds": 120
     },
     "inventory_expiring_soon": {
-      "sql": "SELECT sc.name as item, c.name as category, ii.payload->>'expiry_date' as expiry_date, ii.stock_in as quantity FROM reporting.inventory_items ii INNER JOIN reporting.inventory_sub_categories sc ON ii.inventory_sub_category_id = sc.source_id INNER JOIN reporting.inventory_categories c ON sc.inventory_category_id = c.source_id WHERE ii.payload->>'expiry_date' IS NOT NULL AND (ii.payload->>'expiry_date')::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' ORDER BY (ii.payload->>'expiry_date')::date ASC LIMIT 15",
+      "sql": "SELECT sc.name as item, c.name as category, ii.payload->>'expiry' as expiry_date, ii.stock_in as quantity FROM reporting.inventory_items ii INNER JOIN reporting.inventory_sub_categories sc ON ii.inventory_sub_category_id = sc.source_id INNER JOIN reporting.inventory_categories c ON sc.inventory_category_id = c.source_id WHERE ii.payload->>'expiry' IS NOT NULL AND (ii.payload->>'expiry')::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' ORDER BY (ii.payload->>'expiry')::date ASC LIMIT 15",
       "description": "Inventory items expiring within the next 30 days",
       "output_format": "table",
       "ttl_seconds": 300
@@ -137,8 +143,8 @@
   },
   "equipment": {
     "equipment_utilization": {
-      "sql": "SELECT e.name as name, COUNT(eu.source_id) as usage_count, MAX(eu.event_date) as last_used FROM reporting.equipment_assets e LEFT JOIN reporting.equipment_logs eu ON e.source_id = eu.equipment_id WHERE eu.event_date >= (NOW() - INTERVAL '30 days')::text GROUP BY e.source_id, e.name ORDER BY usage_count DESC LIMIT 10",
-      "description": "Instrument usage statistics for the last 30 days",
+      "sql": "SELECT e.name as name, COUNT(eu.source_id) as usage_count, MAX(eu.event_date) as last_used FROM reporting.equipment_assets e LEFT JOIN reporting.equipment_logs eu ON e.source_id = eu.equipment_id WHERE eu.event_date >= CAST(:date_start AS text) GROUP BY e.source_id, e.name ORDER BY usage_count DESC LIMIT 10",
+      "description": "Instrument usage statistics",
       "output_format": "table",
       "ttl_seconds": 30
     },
@@ -181,7 +187,7 @@
       "ttl_seconds": 10
     },
     "samples_pending_qc": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers sh INNER JOIN reporting.sample_analysis_stages sas ON sas.source_id = CAST(NULLIF(sh.sample_tracking_stage, '') AS BIGINT) WHERE sas.sample_workflow = 'Quality Control' AND sh.isactive = true AND LOWER(COALESCE(sh.status, '')) NOT IN ('completed', 'approved')",
+      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers sh WHERE (sh.status = 'Quality Control' OR sh.status = 'Sample QC') AND sh.isactive = true AND LOWER(COALESCE(sh.status, '')) NOT IN ('completed', 'approved')",
       "description": "Samples currently awaiting QC review",
       "output_format": "count",
       "ttl_seconds": 10
@@ -201,19 +207,19 @@
   },
   "tat": {
     "tat_overall_average": {
-      "sql": "SELECT ROUND(AVG(tat_overdue_days * 24.0), 1) as avg_tat_hours FROM reporting.tat_captured WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '30 days') AND is_complete = true",
-      "description": "Mean laboratory turnaround time in hours for the last 30 days",
+      "sql": "SELECT COALESCE(ROUND(AVG(tat_overdue_days * 24.0), 1), 0) as avg_tat_hours FROM reporting.tat_captured WHERE source_created_at::timestamptz >= CAST(:date_start AS timestamptz) AND is_complete = true",
+      "description": "Mean laboratory turnaround time in hours",
       "output_format": "count",
       "ttl_seconds": 60
     },
     "tat_overdue_batches": {
-      "sql": "SELECT COUNT(DISTINCT sample_header_id) as overdue_batches FROM reporting.tat_captured WHERE tat_overdue_days > 0 AND is_complete = false AND source_created_at::timestamptz >= (NOW() - INTERVAL '30 days')",
-      "description": "Batches currently exceeding their TAT deadline",
+      "sql": "SELECT COUNT(DISTINCT sample_header_id) as overdue_batches FROM reporting.tat_captured WHERE tat_overdue_days > 0 AND is_complete = false AND source_created_at::timestamptz >= CAST(:date_start AS timestamptz)",
+      "description": "Total count of overdue or late sample batches",
       "output_format": "count",
       "ttl_seconds": 30
     },
     "tat_by_analyte": {
-      "sql": "SELECT a.name as analyte, ROUND(AVG(tc.tat_overdue_days * 24.0), 1) as avg_hours, COUNT(*) as test_count FROM reporting.tat_captured tc JOIN reporting.analytes a ON tc.analyte_id = a.source_id WHERE tc.source_created_at::timestamptz >= (NOW() - INTERVAL '30 days') GROUP BY a.name ORDER BY avg_hours DESC LIMIT 10",
+      "sql": "SELECT a.name as analyte, ROUND(AVG(tc.tat_overdue_days * 24.0), 1) as avg_hours, COUNT(*) as test_count FROM reporting.tat_captured tc JOIN reporting.analytes a ON tc.analyte_id = a.source_id WHERE tc.source_created_at::timestamptz >= CAST(:date_start AS timestamptz) GROUP BY a.name ORDER BY avg_hours DESC LIMIT 10",
       "description": "Average TAT in hours per analyte — bottleneck analysis",
       "output_format": "table",
       "visualize": {
@@ -225,8 +231,8 @@
       "ttl_seconds": 120
     },
     "tat_sla_compliance": {
-      "sql": "SELECT ROUND(100.0 * SUM(CASE WHEN tat_overdue_days <= 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 1) as sla_pct FROM reporting.tat_captured WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '30 days') AND is_complete = true",
-      "description": "Percentage of batches completed within SLA target (last 30 days)",
+      "sql": "SELECT COALESCE(ROUND(100.0 * SUM(CASE WHEN tat_overdue_days <= 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 1), 0) as sla_pct FROM reporting.tat_captured WHERE source_created_at::timestamptz >= CAST(:date_start AS timestamptz) AND is_complete = true",
+      "description": "Percentage of batches completed within SLA target",
       "output_format": "percentage",
       "ttl_seconds": 60
     }

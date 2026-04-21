@@ -41,10 +41,37 @@ GREETING_PATTERNS = re.compile(
 # Order matters within a group: more specific patterns first.
 
 _GROUP_A_RULES: list[tuple[list[str], str]] = [
+    # ── High-Priority Specific Trackers (Check these first) ──
+    (["overdue batch", "overdue sample", "tat overdue", "overdue tat",
+      "batches overdue", "late samples", "overdue", "past deadline",
+      "how many overdue", "overdue count"],
+     "tat_overdue_batches"),
+
+    (["expiring soon", "inventory expiring", "expiry risk",
+      "items expiring", "reagent expiry", "expiration date", "expiring"],
+     "inventory_expiring_soon"),
+
+    (["tat by analyte", "analyte tat", "tat bottleneck",
+      "slowest analyte", "analyte turnaround"],
+     "tat_by_analyte"),
+
+    (["low stock", "below minimum", "reorder level", "stock shortage",
+      "items below minimum", "running low", "stock level", "inventory level"],
+     "inventory_low_stock"),
+
+    (["order status", "purchase order", "pending delivery",
+      "awaiting delivery", "order fulfillment"],
+     "inventory_order_status"),
+
+    (["supplier performance", "supplier fulfillment", "vendor performance",
+      "supplier_rate", "performing supplier", "fulfillment rate",
+      "best supplier", "vendor ranking"],
+     "supplier_order_performance"),
+
     # ── Samples: counts ──
     (["samples in the lab", "sample count in lab", "how many samples in lab",
       "how many samples are in the lab", "how many samples are in lab",
-      "samples currently in lab", "individual samples in lab"],
+      "samples currently in lab", "individual samples in lab", "in lab"],
      "sample_count_in_lab"),
 
     (["batches in the lab", "batch count in lab", "how many batches in lab",
@@ -69,7 +96,7 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
 
     (["samples pending review", "pending review", "awaiting review",
       "sample review", "approval pending", "pending approval",
-      "samples awaiting approval"],
+      "samples awaiting approval", "verification", "verified"],
      "sample_count_pending_review"),
 
     (["samples by status", "sample status breakdown", "status breakdown",
@@ -79,6 +106,10 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
     (["total samples", "sample count total", "how many samples",
       "total sample count", "number of samples", "all samples"],
      "sample_count_total"),
+
+    (["progress of", "status of", "find batch", "lookup sample",
+      "track batch", "where is batch", "batch status", "sample status"],
+     "sample_details_lookup"),
 
     (["individual sample count", "individual samples", "aliquots",
       "sample items count", "total individual"],
@@ -96,30 +127,14 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
       "daily registration", "batch registration trend"],
      "daily_ingestion_trend"),
 
+    (["inventory health", "stock health", "category health", "stock by category",
+      "inventory by category", "category stock", "inventory summary",
+      "stock grouped by"],
+     "inventory_stock_by_category"),
+
     (["sample type", "specimen type", "matrix type",
       "sample type distribution", "types of samples"],
      "sample_type_distribution"),
-
-    # ── Inventory ──
-    (["low stock", "below minimum", "reorder level", "stock shortage",
-      "items below minimum", "running low"],
-     "inventory_low_stock"),
-
-    (["order status", "purchase order", "pending delivery",
-      "awaiting delivery", "order fulfillment"],
-     "inventory_order_status"),
-
-    (["supplier performance", "supplier fulfillment", "vendor performance",
-      "supplier rate"],
-     "supplier_order_performance"),
-
-    (["stock by category", "inventory by category", "inventory health",
-      "category stock", "inventory summary"],
-     "inventory_stock_by_category"),
-
-    (["expiring soon", "inventory expiring", "expiry risk",
-      "items expiring", "reagent expiry", "expiration date"],
-     "inventory_expiring_soon"),
 
     # ── Equipment ──
     (["equipment utilization", "instrument usage", "equipment usage",
@@ -175,14 +190,6 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
     (["average tat", "turnaround time", "mean tat", "tat average",
       "lab turnaround", "overall tat"],
      "tat_overall_average"),
-
-    (["overdue batch", "tat overdue", "overdue tat",
-      "batches overdue", "past deadline"],
-     "tat_overdue_batches"),
-
-    (["tat by analyte", "analyte tat", "tat bottleneck",
-      "slowest analyte", "analyte turnaround"],
-     "tat_by_analyte"),
 
     (["tat sla", "sla compliance", "within sla", "sla target",
       "tat compliance"],

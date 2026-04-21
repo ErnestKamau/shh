@@ -33,6 +33,11 @@ _DATE_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\blast\s*(?:90|ninety)\s*days?\b", re.I), "last_90_days"),
 ]
 
+# Generic durations (e.g. "last 2 weeks", "last 6 months")
+_DYNAMIC_DATE_PATTERN = re.compile(
+    r"\blast\s+(\d+)\s+(day|week|month|year)s?\b", re.I
+)
+
 # ── Status patterns ───────────────────────────────────────────────────────
 
 _STATUS_KEYWORDS = {
@@ -105,7 +110,7 @@ class QueryFilterExtractor:
         filters: Dict[str, Any] = {}
         q = query.lower().strip()
 
-        # Date extraction (first match wins)
+        # 1. Static date extraction
         for pattern, label in _DATE_PATTERNS:
             if pattern.search(q):
                 filters["date_label"] = label
@@ -114,16 +119,54 @@ class QueryFilterExtractor:
                 filters["date_end"] = end
                 break
 
+        # 2. Dynamic duration extraction (if no static match)
+        if "date_label" not in filters:
+            dyn_match = _DYNAMIC_DATE_PATTERN.search(q)
+            if dyn_match:
+                count = int(dyn_match.group(1))
+                unit = dyn_match.group(2).lower()
+                today = date.today()
+                
+                # Calculate start date
+                if "day" in unit:
+                    start = today - timedelta(days=count)
+                elif "week" in unit:
+                    start = today - timedelta(weeks=count)
+                elif "month" in unit:
+                    # Approximation
+                    start = today - timedelta(days=count * 30)
+                elif "year" in unit:
+                    try:
+                        start = today.replace(year=today.year - count)
+                    except ValueError: # leap year
+                        start = today - timedelta(days=count * 365)
+                else:
+                    start = today - timedelta(days=30)
+                
+                filters["date_label"] = f"last {count} {unit}{'s' if count > 1 else ''}"
+                filters["date_start"] = str(start)
+                filters["date_end"] = str(today)
+
         # Status extraction (first match wins)
         for status, keywords in _STATUS_KEYWORDS.items():
             if any(kw in q for kw in keywords):
                 filters["status"] = status
                 break
 
-        # Limit extraction
+        # 4. Limit extraction
+        # Don't extract limit if it's already part of the date_label
         limit_match = _LIMIT_PATTERN.search(q)
         if limit_match:
-            filters["limit"] = min(int(limit_match.group(1)), 100)
+            limit_val = int(limit_match.group(1))
+            extracted_as_date = False
+            if "date_label" in filters:
+                date_label = filters["date_label"].lower()
+                # If the limit value appears in the date label, it might be a double-capture
+                if str(limit_val) in date_label and ("last" in date_label or "top" in date_label):
+                    extracted_as_date = True
+            
+            if not extracted_as_date:
+                filters["limit"] = min(limit_val, 100)
 
         if filters:
             logger.info(f"QueryFilterExtractor: Extracted filters: {filters}")

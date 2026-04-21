@@ -13,7 +13,7 @@ Each model is evaluated over a rolling window of recent predictions (default: la
 
 Usage
 -----
-    from python.ai_service.drift_detector import ModelDriftDetector
+    from ai_service.drift_detector import ModelDriftDetector
     detector = ModelDriftDetector()
     report   = detector.check_all_models()
 
@@ -36,7 +36,7 @@ except ImportError:
     _HAS_SCIPY = False
 
 try:
-    from python.py_etl.core.database import db_manager
+    from py_etl.core.database import db_manager
     _HAS_DB = True
 except ImportError:
     _HAS_DB = False

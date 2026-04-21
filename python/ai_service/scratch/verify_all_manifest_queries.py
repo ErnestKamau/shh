@@ -8,7 +8,7 @@ import os
 # Ensure project root is in sys.path
 sys.path.append(os.getcwd())
 
-from python.py_etl.core.database import DatabaseManager
+from py_etl.core.database import DatabaseManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

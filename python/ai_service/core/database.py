@@ -1,8 +1,8 @@
 from sqlalchemy import text
 from loguru import logger
 
-from python.py_etl.core.database import db_manager as pyetl_db_manager
-from python.ai_service.config.settings import settings
+from py_etl.core.database import db_manager as pyetl_db_manager
+from ai_service.config.settings import settings
 
 
 class DatabaseService:

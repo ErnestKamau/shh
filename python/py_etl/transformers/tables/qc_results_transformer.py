@@ -5,8 +5,8 @@ for use by the QC Stability Board dashboard.
 """
 from __future__ import annotations
 import pandas as pd
-from python.py_etl.transformers.base_transformer import BaseTransformer
-from python.py_etl.transformers.type_converters import to_timestamp
+from py_etl.transformers.base_transformer import BaseTransformer
+from py_etl.transformers.type_converters import to_timestamp
 
 
 class QcResultsTransformer(BaseTransformer):
@@ -30,7 +30,7 @@ class QcResultsTransformer(BaseTransformer):
                 "guide_low":            self._get(row, "guide_low"),
                 "guide_high":           self._get(row, "guide_high"),
                 "unit_code":            self._get(row, "unit_code"),
-                "is_qc_processed":      bool(is_processed) if is_processed is not None else False,
+                "is_qc_processed":      bool(is_processed) if is_processed is not None else True,
                 "source_created_at":    to_timestamp(self._get(row, "created_at")),
                 "source_updated_at":    to_timestamp(self._get(row, "updated_at")),
                 "synced_at":            row["_synced_at"],

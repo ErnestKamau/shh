@@ -5,10 +5,10 @@ import time
 import hashlib
 import json
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import pandas as pd
 from sqlalchemy import text
-from python.py_etl.core.database import db_manager
+from py_etl.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +97,26 @@ class LiveDataService:
                 cached_response["summary"] += etl_caveat
             return cached_response
 
+        # 2b. Inject sensible parameter defaults if missing
+        if params is None:
+            params = {}
+            
+        sql = template["sql"]
+        if ":date_start" in sql and "date_start" not in params:
+            # Default lookup window based on intent
+            if "supplier" in intent:
+                days = 90
+            elif any(k in intent for k in ["equipment", "utilization", "tat", "overdue", "expiring"]):
+                days = 30
+            else:
+                days = 14
+            
+            params["date_start"] = str(date.today() - timedelta(days=days))
+            params["date_label"] = f"the last {days} days"
+        
+        if ":date_end" in sql and "date_end" not in params:
+            params["date_end"] = str(date.today())
+
         logger.info(f"LiveData cache MISS for {cache_key}. Executing against PostgreSQL.")
         
         # 4. Execute SQL (with bounded execution)
@@ -120,7 +140,11 @@ class LiveDataService:
             self._consecutive_failures = 0
             
             # 6. Format result
-            formatted = self._format_result(df, template["output_format"], template["description"], intent)
+            description = template["description"]
+            if params and "date_label" in params:
+                description += f" for {params['date_label']}"
+
+            formatted = self._format_result(df, template["output_format"], description, intent)
             formatted += etl_caveat
             scalar_value = self._extract_scalar_value(df, template["output_format"])
             
@@ -172,7 +196,7 @@ class LiveDataService:
                     return data.get("failed_tables", [])
             
             # Fallback/Bootstrap: Perform one-time sync check if Redis is empty or stale
-            from python.py_etl.services.etl_index_state_service import etl_index_state_service
+            from py_etl.services.etl_index_state_service import etl_index_state_service
             tables_to_check = ["sample_headers", "sample_details"]
             failed = []
             for t in tables_to_check:

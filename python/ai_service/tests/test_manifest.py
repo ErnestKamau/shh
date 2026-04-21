@@ -130,7 +130,7 @@ class TestManifestRouterCoverage:
             manifest_intents.update(templates.keys())
 
         # Collect all intent names from the router
-        from python.ai_service.core.manifest_intent_router import (
+        from ai_service.core.manifest_intent_router import (
             _GROUP_A_RULES,
             _GROUP_B_RULES,
         )
