@@ -4,7 +4,6 @@ namespace App;
 
 use OwenIt\Auditing\Contracts\Auditable;
 
-use App\Models\CRM\CustomerContact;
 use App\Models\CRM\TicketPermission;
 use App\Models\System\SystemConfiguration;
 use App\Zone;
@@ -363,34 +362,5 @@ class User extends Authenticatable implements Auditable
 		$value = $permissions[$permission] ?? false;
 
 		return filter_var($value, FILTER_VALIDATE_BOOLEAN);
-	}
-
-	/**
-	 * Deactivate portal (CRM client) users when portal access is removed from a contact.
-	 *
-	 * Matches rows linked by {@see User::$crm_contact_id} or {@see User::$crmcontact_id}, and legacy
-	 * rows scoped by email + client when FK columns were not set.
-	 */
-	public static function deactivatePortalUsersForCustomerContact(
-		CustomerContact $contact,
-		int $crmCustomerId,
-		?string $previousContactEmail = null
-	): void {
-		$emails = array_values(array_unique(array_filter([
-			$contact->email,
-			$previousContactEmail,
-		])));
-
-		self::query()
-			->where('is_client', 1)
-			->where('client_id', $crmCustomerId)
-			->where(function ($query) use ($contact, $emails): void {
-				$query->where('crm_contact_id', $contact->id)
-					->orWhere('crmcontact_id', $contact->id);
-				if ($emails !== []) {
-					$query->orWhereIn('email', $emails);
-				}
-			})
-			->update(['active' => 0]);
 	}
 }
