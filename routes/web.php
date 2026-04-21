@@ -123,8 +123,17 @@ Route::get('add/suppliers-user', 'SupplierController@make_suppliers_users')->nam
 Route::post('/logout/app/', 'Auth\TwoFactor@mylogout')->name('mylogout');
 Route::get('/verify/user', 'Auth\TwoFactor@index')->name('verify-user');
 Route::post('/verify-code/store', 'Auth\TwoFactor@storeVerifyCode')->name('verify-store');
+Route::get('/verify/totp', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'showVerify'])->name('verify-totp');
+Route::post('/verify/totp', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'storeVerify'])->name('verify-totp-store');
 Route::post('/verify-code/store/ext', 'Auth\TwoFactor@storeVerifyCodeExt')->name('verify-store-ext');
 Route::get('/verify-code/resend', 'Auth\TwoFactor@resendVerifyCode')->name('verify-resend');
+
+Route::prefix('account/2fa')->name('account.2fa.')->middleware(['auth', 'twofactor'])->group(function () {
+    Route::get('/setup', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'setup'])->name('setup');
+    Route::post('/confirm', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'confirm'])->name('confirm');
+    Route::post('/disable', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'disable'])->name('disable');
+    Route::post('/recovery-codes', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'regenerateRecoveryCodes'])->name('recovery-codes');
+});
 
 Route::get('/home', 'HomeController@index')->name('home');
 Route::post('/search-sample-code', 'HomeController@searchsample')->name('search-sample-code');

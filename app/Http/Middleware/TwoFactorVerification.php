@@ -16,6 +16,13 @@ class TwoFactorVerification
     public function handle($request, Closure $next)
     {
         $user = auth()->user();
+
+        if (auth()->check() && session()->get('totp_required') === true) {
+            if (! $request->is('verify/totp*')) {
+                return redirect()->route('verify-totp');
+            }
+        }
+
         if (auth()->check() && $user->verify_code){
             $expire_date = strtotime($user->verify_code_expires);
             $now = strtotime(now());

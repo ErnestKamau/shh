@@ -113,7 +113,8 @@ async function sendMessage(manualText = null) {
                 trace_id: crypto.randomUUID(),
                 use_visuals: (typeof toolsMasterEnabled !== 'undefined' ? toolsMasterEnabled : true) && 
                              (typeof visualsEnabled !== 'undefined' ? visualsEnabled : true),
-                model: document.getElementById('modelSelector')?.value || null
+                model: document.getElementById('modelSelector')?.value || null,
+                module_context: (typeof ImaraAiState !== 'undefined' ? ImaraAiState.module_context : null)
             }),
             signal: currentAbortController.signal,
         });
