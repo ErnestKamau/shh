@@ -11,22 +11,22 @@ Routing flow:
 
 Every request is logged to ai.ai_request_logs via RequestLogger.
 """
-
 import logging
+import re
 import time
 import json
 import uuid
 import pandas as pd
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
-from python.ai_service.services.ollama_service import OllamaService
-from python.ai_service.services.visualization_service import VisualizationService
-from python.ai_service.services.live_data_service import LiveDataService
-from python.ai_service.services.retrieval_service import RetrievalService
-from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
-from python.ai_service.core.query_classifier import QueryClassifier
-from python.ai_service.core.query_filter_extractor import QueryFilterExtractor
-from python.ai_service.core.request_logger import request_logger
+from ai_service.services.ollama_service import OllamaService
+from ai_service.services.visualization_service import VisualizationService
+from ai_service.services.live_data_service import LiveDataService
+from ai_service.services.retrieval_service import RetrievalService
+from ai_service.core.manifest_intent_router import ManifestIntentRouter
+from ai_service.core.query_classifier import QueryClassifier
+from ai_service.core.query_filter_extractor import QueryFilterExtractor
+from ai_service.core.request_logger import request_logger
 
 logger = logging.getLogger(__name__)
 
@@ -138,27 +138,71 @@ class SimpleAssistant:
             domain_hints = classification.get("domains", ["all"])
             extracted_filters = self.filter_extractor.extract(message)
 
-            # ── Step 2: Rule-based manifest routing ───────────────────
-            sql_intent, tier = self.intent_router.match(message)
+            # Inject extracted sample ID for specific batch lookups
+            for entity in classification.get("identifiers", []):
+                if entity["type"] == "sample":
+                    extracted_filters["batch_code"] = entity["id"].upper()
+                    break
 
-            if sql_intent:
-                routing_tier = tier  # 'keyword' or 'keyword_loose'
-                route_name = sql_intent
-                return self._execute_sql_route(
-                    message, sql_intent, company_id, use_visuals,
-                    start_time, trace_id, routing_tier, result,
-                    filters=extracted_filters
-                )
+            # ── Step 2: Rule-based manifest routing (Tier 1) ───────────
+            # We gather these, but don't exit early yet to allow LLM coverage for missing parts.
+            keyword_matches = self.intent_router.match_all(message)
+            all_intents: List[Tuple[str, str, Dict[str, Any]]] = []
+            
+            if keyword_matches:
+                # Assign granular filters for keywords by segmenting the query
+                all_intents = self._assign_granular_filters(message, keyword_matches)
 
-            # ── Step 3: LLM classifier fallback ──────────────────────
-            llm_intent = self._llm_classify_intent(message)
-            if llm_intent:
-                routing_tier = "llm"
-                route_name = llm_intent
-                return self._execute_sql_route(
-                    message, llm_intent, company_id, use_visuals,
-                    start_time, trace_id, routing_tier, result,
-                    filters=extracted_filters
+            # ── Step 3: LLM classifier fallback (Tier 2) ──────────────
+            # We consult the LLM if:
+            # - No keyword matches were found
+            # - OR if multiple segments exist (multi-query), to ensure full coverage
+            # - OR if we want maximum robustness
+            
+            # Smart coverage detection: count "questions" or segments
+            q_count = message.count("?")
+            quote_count = message.count('"')
+            conjunction_count = len(re.split(r"\band\b|\balso\b|\bas well as\b|\, ", message, flags=re.IGNORECASE))
+            
+            # Simple heuristic: if there are more "questions" than keyword matches, 
+            # or if the query is structurally complex, consult the LLM.
+            should_consult_llm = (
+                not all_intents or 
+                q_count > len(all_intents) or
+                (quote_count >= 4 and len(all_intents) < (quote_count // 2)) or
+                conjunction_count > len(all_intents) or
+                (" and " in message.lower() or " as well as " in message.lower())
+            )
+            
+            if should_consult_llm:
+                llm_intent_map = self._llm_classify_intents(message)
+                if llm_intent_map and "none" not in llm_intent_map:
+                    # Merge LLM results into all_intents
+                    existing_intents = {m[0] for m in all_intents}
+                    for intent, overrides in llm_intent_map.items():
+                        if intent in existing_intents:
+                            continue  # Keep the keyword match's granular filters
+                        
+                        # Merge overrides into the base filters
+                        f = extracted_filters.copy()
+                        if overrides:
+                            # If the LLM found a specific date label, resolve it
+                            if "date_label" in overrides:
+                                from ai_service.core.query_filter_extractor import _resolve_date_range
+                                try:
+                                    start, end = _resolve_date_range(overrides["date_label"])
+                                    overrides["date_start"] = start
+                                    overrides["date_end"] = end
+                                except Exception:
+                                    pass
+                            f.update(overrides)
+                        all_intents.append((intent, "llm", f))
+            
+            # ── Step 4: Execute SQL if any intents matched ────────────
+            if all_intents:
+                return self._execute_multi_sql_route(
+                    message, all_intents, company_id, use_visuals,
+                    start_time, trace_id, result
                 )
 
             # ── Step 4: RAG knowledge base search ─────────────────────
@@ -255,6 +299,111 @@ class SimpleAssistant:
 
     # ── SQL execution helper ──────────────────────────────────────────────
 
+    def _execute_multi_sql_route(
+        self,
+        message: str,
+        matches: List[Tuple[str, str, Dict[str, Any]]],
+        company_id: int,
+        use_visuals: bool,
+        start_time: float,
+        trace_id: str,
+        result: Dict[str, Any],
+        global_filters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute multiple SQL intents in parallel and aggregate results."""
+        logger.info(
+            f"SimpleAssistant [{trace_id[:8]}]: "
+            f"Executing {len(matches)} SQL intents: {[m[0] for m in matches]}"
+        )
+
+        summaries = []
+        all_data = {}
+        combined_latency = 0
+        success_count = 0
+        routing_tiers = list(set(m[1] for m in matches))
+        
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(matches)) as executor:
+            # Prepare futures with specific params for each intent
+            future_to_intent = {}
+            for intent, tier, specific_filters in matches:
+                params = {"company_id": company_id}
+                if global_filters:
+                    params.update(global_filters)
+                if specific_filters:
+                    params.update(specific_filters)
+                
+                future = executor.submit(self.live_data.execute_step, intent, params=params)
+                future_to_intent[future] = intent
+            
+            for future in concurrent.futures.as_completed(future_to_intent):
+                intent = future_to_intent[future]
+                try:
+                    sql_res = future.result(timeout=_SQL_TIMEOUT)
+                    if sql_res.get("success", False):
+                        success_count += 1
+                        summary = sql_res.get("summary", "")
+                        
+                        # Add visualization if enabled
+                        if use_visuals:
+                            template = self.live_data._resolve_template(intent)
+                            if template and "visualize" in template:
+                                df = pd.DataFrame(sql_res.get("data", []))
+                                chart_block = self.visualizer.generate_chart_block(
+                                    df, template["visualize"]
+                                )
+                                if chart_block:
+                                    summary = chart_block + "\n\n" + summary
+                        
+                        summaries.append(summary)
+                        all_data[intent] = sql_res.get("data", [])
+                        combined_latency += sql_res.get("execution_latency_ms", 0)
+                    else:
+                        logger.warning(f"Intent {intent} failed: {sql_res.get('error')}")
+                        summaries.append(f"*(Reporting error for '{intent}': {sql_res.get('summary', 'Unavailable')})*")
+                except Exception as e:
+                    logger.error(f"Execution failed for {intent}: {e}")
+                    summaries.append(f"*(Failed to retrieve data for '{intent}')*")
+
+        if success_count == 0:
+            result["answer"] = _ERR_DB_UNAVAILABLE
+            result["meta"]["route"] = "multi_sql_failed"
+        else:
+            result["answer"] = "\n\n---\n\n".join(summaries)
+            result["meta"]["route"] = f"multi_sql:{','.join([m[0] for m in matches])}"
+            result["meta"]["routing_tier"] = ",".join(routing_tiers)
+            result["meta"]["sql_execution_ms"] = combined_latency
+            result["meta"]["multi_count"] = len(matches)
+            result["meta"]["multi_report"] = True
+
+        result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
+        return result
+
+    def _assign_granular_filters(self, message: str, matches: List[Tuple[str, str]]) -> List[Tuple[str, str, Dict[str, Any]]]:
+        """
+        Split query by conjunctions and assign filters to intents based on proximity.
+        Fallback for keyword-based multi-queries.
+        """
+        import re
+        segments = re.split(r'\band\b|\balso\b|\bas well as\b|\,', message, flags=re.IGNORECASE)
+        final_matches = []
+        
+        for intent, tier in matches:
+            # Find which segment contains keywords for this intent
+            # This is a heuristic: we check which segment matches the intent router's rules
+            intent_filters = {}
+            for seg in segments:
+                # If the intent router would match this intent in this segment,
+                # use this segment's filters.
+                seg_matches = self.intent_router.match_all(seg)
+                if any(m[0] == intent for m in seg_matches):
+                    intent_filters = self.filter_extractor.extract(seg)
+                    break
+            
+            final_matches.append((intent, tier, intent_filters))
+        
+        return final_matches
+
     def _execute_sql_route(
         self,
         message: str,
@@ -345,22 +494,105 @@ class SimpleAssistant:
 
     # ── LLM-based intent classification (Tier 2 fallback) ─────────────────
 
+    def _llm_classify_intents(self, message: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Use the LLM to classify a query into one or more manifest intents,
+        including specific filters for each.
+        """
+        intents_info = []
+        all_intent_names = []
+        for domain_templates in self.live_data.templates.values():
+            for name, details in domain_templates.items():
+                desc = details.get("description", "Data report")
+                intents_info.append(f"- {name}: {desc}")
+                all_intent_names.append(name)
+
+        prompt = f"""You are a specialized intent classifier for a Lab Information Management System (LIMS). 
+
+Map the user query to the most appropriate operational report(s). 
+If the user asks multiple questions, identify ALL relevant reports and their specific filters (dates, status, etc.).
+
+Available Reports:
+{chr(10).join(intents_info)}
+
+User Query: "{message}"
+
+Rules:
+1. Return a JSON object where keys are report names and values are their specific filters (e.g. date_label, status, limit).
+2. If no report is a clear match, return '{{"none": {{}}}}'.
+3. Do NOT provide any explanation or preamble.
+
+Example: {{"sample_count_today": {{"date_label": "today"}}, "analyst_verifications": {{"date_label": "last month"}}}}
+
+Classification:"""
+
+        try:
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self.ollama.generate, prompt=prompt
+                )
+                raw_response = future.result(timeout=_LLM_ROUTE_TIMEOUT)
+                
+                # Parse JSON response
+                try:
+                    # Strip any potential markdown wrappers if the LLM ignores rules
+                    clean_res = raw_response.strip()
+                    if clean_res.startswith("```json"):
+                        clean_res = clean_res[7:-3].strip()
+                    elif clean_res.startswith("```"):
+                        clean_res = clean_res[3:-3].strip()
+                    
+                    mapping = json.loads(clean_res)
+                    # Filter for valid intent names
+                    valid_mapping = {k: v for k, v in mapping.items() if k in all_intent_names or k == "none"}
+                    
+                    if valid_mapping and "none" not in valid_mapping:
+                        logger.info(f"SimpleAssistant: LLM classified intents with filters: {valid_mapping}")
+                        return valid_mapping
+                except json.JSONDecodeError:
+                    # Fallback to simple comma-separated check if LLM fails JSON
+                    logger.warning("LLM failed to return JSON, falling back to simple parsing")
+                    parts = [p.strip().lower() for p in raw_response.split(",")]
+                    return {p: {} for p in parts if p in all_intent_names}
+
+                return {}
+
+        except concurrent.futures.TimeoutError:
+            logger.warning("SimpleAssistant: LLM routing timed out, skipping")
+            return {}
+        except Exception as e:
+            logger.warning(f"SimpleAssistant: LLM routing failed: {e}")
+            return {}
+
     def _llm_classify_intent(self, message: str) -> Optional[str]:
         """
         Use the LLM to classify a query into a manifest intent.
         Has a timeout to avoid blocking on slow LLM responses.
         """
-        intents = []
-        for domain in self.live_data.templates.values():
-            intents.extend(domain.keys())
+        intents_info = []
+        all_intent_names = []
+        for domain_templates in self.live_data.templates.values():
+            for name, details in domain_templates.items():
+                desc = details.get("description", "Data report")
+                intents_info.append(f"- {name}: {desc}")
+                all_intent_names.append(name)
 
-        prompt = f"""Map the user query to the most appropriate data report name.
-Available reports: {", ".join(intents)}
+        prompt = f"""You are a specialized intent classifier for a Lab Information Management System (LIMS). 
+Map the user query to the most appropriate operational report.
 
-Query: "{message}"
+Available Reports:
+{chr(10).join(intents_info)}
 
-If no report is a good match, return 'none'.
-Otherwise, return ONLY the report name, nothing else."""
+User Query: "{message}"
+
+Rules:
+1. Return ONLY the report name (the part before the colon).
+2. If no report is a clear match, return 'none'.
+3. Do NOT provide any explanation or preamble.
+
+Classification:"""
 
         try:
             import concurrent.futures
@@ -372,7 +604,7 @@ Otherwise, return ONLY the report name, nothing else."""
                 mapped = future.result(timeout=_LLM_ROUTE_TIMEOUT)
                 mapped = mapped.strip().lower().replace("'", "").replace('"', "")
 
-                if mapped in intents:
+                if mapped in all_intent_names:
                     logger.info(
                         f"SimpleAssistant: LLM classified intent '{mapped}'"
                     )

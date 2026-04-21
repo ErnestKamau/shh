@@ -11,8 +11,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.metrics import accuracy_score, roc_auc_score
 
-from python.ai_service.core.ai_database_service import AIDataService
-from python.ai_service.core.model_registry_service import ModelRegistryService
+from ai_service.core.ai_database_service import AIDataService
+from ai_service.core.model_registry_service import ModelRegistryService
 
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[3] / "models"

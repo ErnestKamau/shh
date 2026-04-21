@@ -5,8 +5,8 @@ from typing import Dict, Any
 from celery import Task
 from loguru import logger
 
-from config.celery_config import celery_app
-from python.ai_service.core.document_processor import DocumentProcessor
+from celery_config import app as celery_app
+from ai_service.core.document_processor import DocumentProcessor
 
 
 class IngestionTask(Task):

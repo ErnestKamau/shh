@@ -55,7 +55,7 @@
                                 </thead>
                                 <tbody>
                                     @foreach($this->contacts as $contact)
-                                        <tr>
+                                        <tr class="{{ (int) $contact->active === 1 ? '' : 'table-secondary' }}">
                                             <td>
                                                 <div>
                                                     <div class="fw-bold">{{ $contact->first_name }} {{ $contact->middle_name }} {{ $contact->last_name }}</div>
@@ -78,7 +78,7 @@
                                                 @if($contact->active == 1)
                                                     <span class="badge bg-success p-2" style="color: white;">Active</span>
                                                 @else
-                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">Deactivated</span>
                                                 @endif
                                             </td>
                                             <td>

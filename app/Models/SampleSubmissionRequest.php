@@ -2,8 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CustomerContact;
 use App\SampleHeader;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SampleSubmissionRequest extends Model
 {
@@ -53,6 +57,22 @@ class SampleSubmissionRequest extends Model
         return $this->belongsTo(SampleHeader::class, 'sample_header_id');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<CRMCustomer, $this>
+     */
+    public function customer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<CustomerContact, $this>
+     */
+    public function contact(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(CustomerContact::class, 'crm_contact_id');
+    }
+
     public function suspects()
     {
         return $this->hasMany(SampleSubmissionRequestSuspect::class)
@@ -71,5 +91,31 @@ class SampleSubmissionRequest extends Model
     {
         return $this->hasMany(SampleSubmissionRequestRequestedAnalysis::class)
             ->orderBy('id');
+    }
+
+    /**
+     * Published templates selected for this request.
+     *
+     * @return BelongsToMany<SupportingDocumentTemplate, $this>
+     */
+    public function supportingDocumentTemplates(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SupportingDocumentTemplate::class,
+            'sample_submission_request_supporting_document_templates',
+            'sample_submission_request_id',
+            'supporting_document_template_id'
+        )->withTimestamps();
+    }
+
+    /**
+     * Filled supporting document instances for this request (draft or submitted).
+     *
+     * @return HasMany<SupportingDocumentInstance, $this>
+     */
+    public function supportingDocumentInstances(): HasMany
+    {
+        return $this->hasMany(SupportingDocumentInstance::class, 'sample_submission_request_id')
+            ->orderByDesc('id');
     }
 }

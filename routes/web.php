@@ -439,6 +439,33 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}', 'SampleWorkFlowContro
 
 Route::post('/process-raw-results/lab', 'SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab')->middleware('haspermission:Laboratory.components.All Samples.Edit');
 Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.All Samples.View');
+Route::get('/sample-submission-requests', 'SampleWorkFlowController@submissionRequestsIndex')
+    ->name('sample-submission-requests.index')
+    ->middleware('haspermission:Laboratory.components.All Samples.View');
+
+Route::get('/sample-submission-requests/create', 'SampleWorkFlowController@createSampleSubmissionRequest')
+    ->name('sample-submission-requests.create')
+    ->middleware('haspermission:Laboratory.components.All Samples.Add');
+
+Route::get('/sample-submission-requests/{request}', 'SampleWorkFlowController@showSampleSubmissionRequest')
+    ->name('sample-submission-requests.show')
+    ->middleware('haspermission:Laboratory.components.All Samples.View');
+
+Route::get('/sample-submission-requests/{request}/supporting-documents/{instance}', 'SampleWorkFlowController@editSampleSubmissionSupportingDocument')
+    ->name('sample-submission-requests.supporting-documents.edit')
+    ->middleware('haspermission:Laboratory.components.All Samples.View');
+
+Route::put('/sample-submission-requests/{request}/supporting-documents/{instance}', 'SampleWorkFlowController@updateSampleSubmissionSupportingDocument')
+    ->name('sample-submission-requests.supporting-documents.update')
+    ->middleware('haspermission:Laboratory.components.All Samples.Edit');
+
+Route::post('/sample-submission-requests', 'SampleWorkFlowController@storeSampleSubmissionRequest')
+    ->name('sample-submission-requests.store')
+    ->middleware('haspermission:Laboratory.components.All Samples.Add');
+
+Route::get('/sample-submission-requests/customer/{customer}/contacts', 'SampleWorkFlowController@getSubmissionRequestCustomerContacts')
+    ->name('sample-submission-requests.customer-contacts')
+    ->middleware('haspermission:Laboratory.components.All Samples.Add');
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
 Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow-stage')->middleware('haspermission:Laboratory.components.All Samples.View');
 Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details')->middleware('haspermission:Laboratory.components.All Samples.View');

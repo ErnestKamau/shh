@@ -121,7 +121,7 @@ class ContactsManager extends Component
     public function getContactsProperty()
     {
         return CustomerContact::where('crm_customer_id', $this->customerId)
-            ->where('active', 1)
+            ->orderByDesc('active')
             ->orderBy('first_name')
             ->get();
     }
@@ -258,7 +258,7 @@ class ContactsManager extends Component
 
             DB::commit();
             
-            $this->message = 'Contact deleted successfully!';
+            $this->message = 'Contact deactivated successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {

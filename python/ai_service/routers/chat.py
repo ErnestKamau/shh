@@ -5,13 +5,13 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from python.ai_service.schemas.chat import ChatRequest, ChatResponse, ChatStreamRequest
-from python.ai_service.services.ollama_service import OllamaService
-from python.ai_service.services.retrieval_service import RetrievalService
-from python.ai_service.services.live_data_service import LiveDataService
-from python.ai_service.services.visualization_service import visualization_service
-from python.ai_service.core.simple_assistant import SimpleAssistant
-from python.ai_service.config.settings import settings
+from ai_service.schemas.chat import ChatRequest, ChatResponse, ChatStreamRequest
+from ai_service.services.ollama_service import OllamaService
+from ai_service.services.retrieval_service import RetrievalService
+from ai_service.services.live_data_service import LiveDataService
+from ai_service.services.visualization_service import visualization_service
+from ai_service.core.simple_assistant import SimpleAssistant
+from ai_service.config.settings import settings
 
 router = APIRouter(tags=["Chat"], prefix="/v1")
 logger = logging.getLogger(__name__)

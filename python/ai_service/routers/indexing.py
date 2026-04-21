@@ -4,8 +4,8 @@ from typing import Optional, Dict, Any, List
 import logging
 import json
 
-from python.ai_service.core.rag_indexer import RagIndexer
-from python.ai_service.core.file_parser import FileParser
+from ai_service.core.rag_indexer import RagIndexer
+from ai_service.core.file_parser import FileParser
 
 router = APIRouter(prefix="/v1/index", tags=["indexing"])
 logger = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ async def search_test(request: SearchRequest):
     Endpoint for testing retrieval logic (Semantic Preview).
     """
     try:
-        from python.ai_service.services.retrieval_service import RetrievalService
+        from ai_service.services.retrieval_service import RetrievalService
         retrieval = RetrievalService()
         
         results = retrieval.search(
