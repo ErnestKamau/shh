@@ -145,6 +145,24 @@ class SimpleAssistant:
                 result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
                 return result
 
+            # ── Step 0c: Visualization shortcut for sample queries ───
+            # Avoid slow LLM/RAG fallback when user clearly asks for sample charts.
+            visualization_intents = self._detect_visualization_intents(message)
+            if visualization_intents:
+                logger.info(
+                    f"SimpleAssistant [{trace_id[:8]}]: Visualization shortcut intents={visualization_intents}"
+                )
+                fast_matches = [(intent, "keyword", {}) for intent in visualization_intents]
+                return self._execute_multi_sql_route(
+                    message,
+                    fast_matches,
+                    company_id,
+                    use_visuals,
+                    start_time,
+                    trace_id,
+                    result,
+                )
+
             # ── Step 1: Feature Extraction (Classifier + Filters) ─────
             classification = self.query_classifier.classify(message)
             domain_hints = classification.get("domains", ["all"])
@@ -731,6 +749,45 @@ Rules:
             "The chat is available in the Imara AI panel. Open the panel and send your question; "
             "I can then return summaries, counts, and visual outputs where supported."
         )
+
+    def _detect_visualization_intents(self, message: str) -> List[str]:
+        q = (message or "").strip().lower()
+        if not q:
+            return []
+
+        visualization_tokens = ["visualize", "visualization", "chart", "graph", "plot", "breakdown"]
+        sample_tokens = ["sample", "samples", "batch", "batches", "status", "type"]
+        inventory_tokens = ["inventory", "stock", "stocks", "category", "categories", "reagent", "item", "items"]
+        equipment_tokens = ["equipment", "instrument", "instruments", "machine", "machines", "utilization", "usage"]
+        quality_tokens = ["qc", "quality", "analyte", "analytes", "stability", "drift", "trend", "trends", "complaints"]
+
+        if not any(token in q for token in visualization_tokens):
+            return []
+
+        intents: List[str] = []
+
+        if any(token in q for token in sample_tokens):
+            # Type-focused requests should use sample type pie chart.
+            if any(token in q for token in ["type", "sample type", "specimen", "matrix"]):
+                intents.append("sample_type_distribution")
+            else:
+                # Default sample visualization route is status distribution bar chart.
+                intents.append("samples_by_status")
+
+        if any(token in q for token in inventory_tokens):
+            intents.append("inventory_stock_by_category")
+
+        if any(token in q for token in equipment_tokens):
+            intents.append("equipment_utilization")
+
+        if any(token in q for token in quality_tokens):
+            if any(token in q for token in ["complaint", "complaints", "trend", "trends"]):
+                intents.append("complaints_trend")
+            else:
+                intents.append("qc_drifting_analytes")
+
+        # Preserve order while deduplicating.
+        return list(dict.fromkeys(intents))
 
     def _generate_conversational(self, message: str, module_context: Optional[str] = None) -> str:
         """Generate a conversational response (greetings, general chat)."""

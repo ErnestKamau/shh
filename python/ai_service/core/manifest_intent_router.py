@@ -316,6 +316,31 @@ class ManifestIntentRouter:
           matches.append(("samples_by_status", "keyword"))
           seen_intents.add("samples_by_status")
 
+        # Semantic shortcut for explicit sample visualization requests,
+        # e.g. "visualize the samples" or "show a chart of samples".
+        wants_visualization = any(
+          token in q for token in [
+            "visualize", "visualization", "chart", "graph", "plot",
+            "show me", "breakdown",
+          ]
+        )
+        refers_to_samples = any(token in q for token in ["sample", "samples", "batch", "batches"])
+        if wants_visualization and refers_to_samples:
+          if any(token in q for token in ["type", "sample type", "specimen", "matrix"]):
+            if "sample_type_distribution" not in seen_intents:
+              logger.info(
+                "ManifestIntentRouter: MATCHED 'sample_type_distribution' via semantic visualization rule"
+              )
+              matches.append(("sample_type_distribution", "keyword"))
+              seen_intents.add("sample_type_distribution")
+          else:
+            if "samples_by_status" not in seen_intents:
+              logger.info(
+                "ManifestIntentRouter: MATCHED 'samples_by_status' via semantic visualization rule"
+              )
+              matches.append(("samples_by_status", "keyword"))
+              seen_intents.add("samples_by_status")
+
         # Semantic shortcut for "total samples" with sample-type breakdown.
         wants_total_samples = (
           (("sample" in q or "samples" in q) and "total" in q)

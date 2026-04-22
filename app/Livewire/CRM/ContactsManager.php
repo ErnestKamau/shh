@@ -202,6 +202,12 @@ class ContactsManager extends Component
             // Handle user creation/update
             if ($this->contactForm['can_login']) {
                 $this->createOrUpdateUser($contact);
+            } else {
+                User::deactivatePortalUsersForCustomerContact(
+                    $contact,
+                    (int) $this->customerId,
+                    $this->editingContact?->email
+                );
             }
 
             DB::commit();

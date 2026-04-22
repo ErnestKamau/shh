@@ -106,12 +106,15 @@ class ContactForm extends BaseCrmComponent
             return;
         }
 
+        $previousContactEmail = null;
+
         if (!$this->contactId) {
             $this->checkPermission('CRM.components.Contacts.Add');
             $contact = new CustomerContact();
         } else {
             $this->checkPermission('CRM.components.Contacts.Edit');
             $contact = CustomerContact::find($this->contactId);
+            $previousContactEmail = $contact?->email;
         }
 
         $contact->first_name = $this->first_name;
@@ -136,6 +139,14 @@ class ContactForm extends BaseCrmComponent
         $contact->other_customers = is_array($this->other_customers) ? implode(',', $this->other_customers) : '';
 
         $contact->save();
+
+        if (! $this->can_login) {
+            User::deactivatePortalUsersForCustomerContact(
+                $contact,
+                (int) $this->customerId,
+                $previousContactEmail
+            );
+        }
 
         if ($this->can_login) {
             // Check if user exists with this email

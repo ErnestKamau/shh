@@ -138,6 +138,12 @@
       "sql": "SELECT c.name as category, COUNT(ii.source_id) as item_count, SUM(ii.stock_in) as total_stock, SUM(CASE WHEN ii.stock_in < sc.minimum_level THEN 1 ELSE 0 END) as below_minimum FROM reporting.inventory_categories c JOIN reporting.inventory_sub_categories sc ON sc.inventory_category_id = c.source_id JOIN reporting.inventory_items ii ON ii.inventory_sub_category_id = sc.source_id GROUP BY c.name ORDER BY below_minimum DESC",
       "description": "Inventory health summary grouped by category",
       "output_format": "table",
+      "visualize": {
+        "type": "bar",
+        "labels": "category",
+        "values": "total_stock",
+        "title": "Inventory Stock by Category"
+      },
       "ttl_seconds": 120
     },
     "inventory_expiring_soon": {
@@ -152,6 +158,12 @@
       "sql": "SELECT e.name as name, COUNT(eu.source_id) as usage_count, MAX(eu.event_date) as last_used FROM reporting.equipment_assets e LEFT JOIN reporting.equipment_logs eu ON e.source_id = eu.equipment_id WHERE eu.event_date >= CAST(:date_start AS text) GROUP BY e.source_id, e.name ORDER BY usage_count DESC LIMIT 10",
       "description": "Instrument usage statistics",
       "output_format": "table",
+      "visualize": {
+        "type": "bar",
+        "labels": "name",
+        "values": "usage_count",
+        "title": "Equipment Utilization"
+      },
       "ttl_seconds": 30
     },
     "equipment_maintenance_schedule": {
@@ -184,6 +196,12 @@
       "sql": "SELECT analyte_name, robust_cv_pct, pass_rate_pct FROM reporting.v_qc_stability_metrics WHERE robust_cv_pct > 15 ORDER BY robust_cv_pct DESC",
       "description": "Analytes showing warning or critical instability",
       "output_format": "table",
+      "visualize": {
+        "type": "bar",
+        "labels": "analyte_name",
+        "values": "robust_cv_pct",
+        "title": "QC Drifting Analytes"
+      },
       "ttl_seconds": 60
     },
     "capa_pending": {
@@ -202,6 +220,12 @@
       "sql": "SELECT DATE_TRUNC('month', source_created_at::timestamptz)::date as month, COUNT(*) as complaints FROM reporting.complaints WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '6 months') GROUP BY month ORDER BY month DESC",
       "description": "Monthly complaint volume trend for the last 6 months",
       "output_format": "table",
+      "visualize": {
+        "type": "bar",
+        "labels": "month",
+        "values": "complaints",
+        "title": "Complaints Trend"
+      },
       "ttl_seconds": 600
     },
     "audit_findings_open": {
