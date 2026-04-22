@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\MailController as Mailers;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Throwable;
 
 class LoginController extends Controller
 {
@@ -55,7 +56,11 @@ class LoginController extends Controller
 				sendTextMessage($user->phone, "Your Verification code is ".$user->verify_code);
 			}
 			
-			$sendmail = $mailer->html_email($mailData,'default');
+      try {
+        $sendmail = $mailer->html_email($mailData,'default');
+      } catch (Throwable $exception) {
+        report($exception);
+      }
 			
     }
     protected function credentials(Request $request)
