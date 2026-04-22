@@ -8,6 +8,7 @@ Supported filters:
     Dates:   today, yesterday, last 7 days, this week, this month, this quarter
     Status:  pending, completed, rejected, approved, overdue, open, closed
     Limits:  top 5, latest 10, last 3, first 20
+    Analyte: parameter/analyte names (e.g., "parameter magnesium")
 """
 
 import re
@@ -29,9 +30,15 @@ _DATE_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\bthis\s*month\b", re.I), "this_month"),
     (re.compile(r"\blast\s*month\b", re.I), "last_month"),
     (re.compile(r"\bthis\s*quarter\b", re.I), "this_quarter"),
+    (re.compile(r"\blast\s*quarter\b", re.I), "last_quarter"),
     (re.compile(r"\blast\s*(?:30|thirty)\s*days?\b", re.I), "last_30_days"),
     (re.compile(r"\blast\s*(?:90|ninety)\s*days?\b", re.I), "last_90_days"),
 ]
+
+# Generic durations (e.g. "last 2 weeks", "last 6 months")
+_DYNAMIC_DATE_PATTERN = re.compile(
+    r"\blast\s+(\d+)\s+(day|week|month|year)s?\b", re.I
+)
 
 # ── Status patterns ───────────────────────────────────────────────────────
 
@@ -51,6 +58,25 @@ _STATUS_KEYWORDS = {
 _LIMIT_PATTERN = re.compile(
     r"\b(?:top|latest|last|first|bottom|recent)\s+(\d{1,3})\b", re.I
 )
+
+# ── Analyte/parameter patterns ──────────────────────────────────────────
+
+_ANALYTE_PATTERNS: list[re.Pattern] = [
+    re.compile(r"\b(?:parameter|analyte)\s+([a-z][a-z0-9_\-\s]{1,40})\b", re.I),
+    re.compile(r"\b(?:tested\s+(?:for|with)|for)\s+parameter\s+([a-z][a-z0-9_\-\s]{1,40})\b", re.I),
+]
+
+
+def _normalize_analyte_name(raw: str) -> str:
+    name = re.sub(r"\s+", " ", raw.strip().lower())
+    # Trim trailing temporal filler words often attached in freeform queries.
+    name = re.sub(
+        r"\b(today|yesterday|this\s+week|this\s+month|last\s+\d+\s+days?)\b.*$",
+        "",
+        name,
+        flags=re.I,
+    ).strip()
+    return name
 
 
 def _resolve_date_range(label: str) -> tuple[str, str]:
@@ -81,6 +107,13 @@ def _resolve_date_range(label: str) -> tuple[str, str]:
     if label == "this_quarter":
         q_start_month = ((today.month - 1) // 3) * 3 + 1
         return str(today.replace(month=q_start_month, day=1)), str(today)
+    if label == "last_quarter":
+        # Calculate end of last quarter
+        q_start_month = ((today.month - 1) // 3) * 3 + 1
+        end = today.replace(month=q_start_month, day=1) - timedelta(days=1)
+        # Calculate start of that quarter
+        start = end.replace(month=((end.month - 1) // 3) * 3 + 1, day=1)
+        return str(start), str(end)
     if label == "last_30_days":
         return str(today - timedelta(days=30)), str(today)
     if label == "last_90_days":
@@ -99,13 +132,15 @@ class QueryFilterExtractor:
         date_end:    str   — ISO date
         status:      str   — e.g. "pending", "completed"
         limit:       int   — e.g. 5, 10
+        analyte_name: str  — e.g. "magnesium"
+        analyte_name_like: str — e.g. "%magnesium%"
     """
 
     def extract(self, query: str) -> Dict[str, Any]:
         filters: Dict[str, Any] = {}
         q = query.lower().strip()
 
-        # Date extraction (first match wins)
+        # 1. Static date extraction
         for pattern, label in _DATE_PATTERNS:
             if pattern.search(q):
                 filters["date_label"] = label
@@ -114,16 +149,65 @@ class QueryFilterExtractor:
                 filters["date_end"] = end
                 break
 
+        # 2. Dynamic duration extraction (if no static match)
+        if "date_label" not in filters:
+            dyn_match = _DYNAMIC_DATE_PATTERN.search(q)
+            if dyn_match:
+                count = int(dyn_match.group(1))
+                unit = dyn_match.group(2).lower()
+                today = date.today()
+                
+                # Calculate start date
+                if "day" in unit:
+                    start = today - timedelta(days=count)
+                elif "week" in unit:
+                    start = today - timedelta(weeks=count)
+                elif "month" in unit:
+                    # Approximation
+                    start = today - timedelta(days=count * 30)
+                elif "year" in unit:
+                    try:
+                        start = today.replace(year=today.year - count)
+                    except ValueError: # leap year
+                        start = today - timedelta(days=count * 365)
+                else:
+                    start = today - timedelta(days=30)
+                
+                filters["date_label"] = f"last {count} {unit}{'s' if count > 1 else ''}"
+                filters["date_start"] = str(start)
+                filters["date_end"] = str(today)
+
         # Status extraction (first match wins)
         for status, keywords in _STATUS_KEYWORDS.items():
             if any(kw in q for kw in keywords):
                 filters["status"] = status
                 break
 
-        # Limit extraction
+        # 4. Limit extraction
+        # Don't extract limit if it's already part of the date_label
         limit_match = _LIMIT_PATTERN.search(q)
         if limit_match:
-            filters["limit"] = min(int(limit_match.group(1)), 100)
+            limit_val = int(limit_match.group(1))
+            extracted_as_date = False
+            if "date_label" in filters:
+                date_label = filters["date_label"].lower()
+                # If the limit value appears in the date label, it might be a double-capture
+                if str(limit_val) in date_label and ("last" in date_label or "top" in date_label):
+                    extracted_as_date = True
+            
+            if not extracted_as_date:
+                filters["limit"] = min(limit_val, 100)
+
+        # 5. Analyte/parameter extraction
+        for pattern in _ANALYTE_PATTERNS:
+            m = pattern.search(q)
+            if not m:
+                continue
+            analyte = _normalize_analyte_name(m.group(1))
+            if analyte:
+                filters["analyte_name"] = analyte
+                filters["analyte_name_like"] = f"%{analyte}%"
+                break
 
         if filters:
             logger.info(f"QueryFilterExtractor: Extracted filters: {filters}")

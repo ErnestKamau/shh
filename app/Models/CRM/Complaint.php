@@ -3,11 +3,15 @@
 namespace App\Models\CRM;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Complaint extends Model implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
+    use SoftDeletes;
 
     protected $fillable = [
         'complaint_id',
@@ -61,6 +65,36 @@ class Complaint extends Model implements Auditable
         return $this->belongsTo(CRMCustomer::class, 'client_id');
     }
 
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(TicketCategory::class, 'ticket_category_id');
+    }
+
+    public function ticketStatus(): BelongsTo
+    {
+        return $this->belongsTo(TicketStatus::class, 'complaint_workflow', 'workflow_value');
+    }
+
+    public function ticketPriority(): BelongsTo
+    {
+        return $this->belongsTo(TicketPriority::class, 'priority', 'value');
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(\App\User::class, 'assigned_to');
+    }
+
+    public function assignedDevelopers(): HasMany
+    {
+        return $this->hasMany(TicketAssignment::class, 'ticket_id');
+    }
+
+    public function chat(): HasMany
+    {
+        return $this->hasMany(TicketChat::class, 'ticket_id');
+    }
+
     public function intakeApprovedBy()
     {
         return $this->belongsTo(\App\User::class, 'intake_approved_by');
@@ -94,5 +128,19 @@ class Complaint extends Model implements Auditable
     public function chainOfCustody()
     {
         return $this->hasMany(Chain_of_Custody_Complaint::class);
+    }
+
+    public function scopeForUser($query, int $userId)
+    {
+        $user = \App\User::query()->find($userId);
+
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($q) use ($user) {
+            $q->where('created_by', $user->id)
+                ->orWhere('created_by', $user->name);
+        });
     }
 }

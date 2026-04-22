@@ -7,6 +7,7 @@ use App\ModulePreConfigs;
 use App\SampleAnalysisStage;
 use App\User;
 use App\Zone;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\On;
@@ -49,6 +50,7 @@ class PersonnelTableManager extends Component
     public array $educationLevels = [];
     /** @var array<int, array{id:int,name:string}> */
     public array $zones = [];
+    public bool $zonesTableAvailable = false;
     /** @var array<int, array{id:int,name:string}> */
     public array $stages = [];
     /** @var array<string,int> */
@@ -133,12 +135,15 @@ class PersonnelTableManager extends Component
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (int) $item->id, 'name' => (string) $item->name])
             ->toArray();
-        $this->zones = Zone::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
-            ->orderBy('key')
-            ->get(['id', 'key', 'value'])
-            ->map(fn ($item): array => ['id' => (int) $item->id, 'key' => (string) $item->key, 'value' => (string) $item->value])
-            ->toArray();
+        $this->zonesTableAvailable = Schema::hasTable('zones');
+        $this->zones = $this->zonesTableAvailable
+            ? Zone::query()
+                ->where('inventory_location_id', getCurrentUserLocation()->id)
+                ->orderBy('key')
+                ->get(['id', 'key', 'value'])
+                ->map(fn ($item): array => ['id' => (int) $item->id, 'key' => (string) $item->key, 'value' => (string) $item->value])
+                ->toArray()
+            : [];
         $this->stages = SampleAnalysisStage::query()
             ->where('active', 1)
             ->orderBy('name')
@@ -164,7 +169,7 @@ class PersonnelTableManager extends Component
 
     public function savePersonnel(): void
     {
-        $this->validate([
+        $validationRules = [
             'personnelForm.designation' => 'required|integer',
             'personnelForm.first_name' => 'required|string|max:255',
             'personnelForm.middle_name' => 'nullable|string|max:255',
@@ -176,11 +181,17 @@ class PersonnelTableManager extends Component
             'personnelForm.educational_level' => 'nullable|integer',
             'personnelForm.position' => 'required|integer',
             'personnelForm.department' => 'required|integer',
-            'personnelForm.zone_id' => 'nullable|integer|exists:zones,id',
+            'personnelForm.zone_id' => 'nullable|integer',
             'personnelForm.lab_section_id' => 'array',
             'personnelForm.user_license' => 'required|string|max:255',
             'personnelForm.active' => 'boolean',
-        ]);
+        ];
+
+        if ($this->zonesTableAvailable) {
+            $validationRules['personnelForm.zone_id'] .= '|exists:zones,id';
+        }
+
+        $this->validate($validationRules);
 
         $personnel = new User();
         $personnel->first_name = (string) $this->personnelForm['first_name'];
@@ -197,7 +208,9 @@ class PersonnelTableManager extends Component
         $personnel->education_level = $this->personnelForm['educational_level'] !== '' ? (int) $this->personnelForm['educational_level'] : null;
         $personnel->employment_date = $this->personnelForm['employment_date'] !== '' ? (string) $this->personnelForm['employment_date'] : null;
         $personnel->id_number = (string) $this->personnelForm['id_number'];
-        $personnel->zone_id = $this->personnelForm['zone_id'] !== '' ? (int) $this->personnelForm['zone_id'] : null;
+        $personnel->zone_id = $this->zonesTableAvailable && $this->personnelForm['zone_id'] !== ''
+            ? (int) $this->personnelForm['zone_id']
+            : null;
         $personnel->active = $this->personnelForm['active'] ? 1 : 0;
         $personnel->lab_section_id = implode(',', $this->personnelForm['lab_section_id'] ?? []);
         $personnel->license_type = (string) $this->personnelForm['user_license'];

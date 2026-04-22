@@ -33,7 +33,7 @@ class AuditStatus extends Model implements Auditable
         'workflow_step' => 'integer',
     ];
 
-    public function audits(): HasMany
+    public function relatedAudits(): HasMany
     {
         return $this->hasMany(Audit::class, 'status_id');
     }

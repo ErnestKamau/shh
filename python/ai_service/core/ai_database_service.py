@@ -11,9 +11,9 @@ from typing import Optional, Any
 from loguru import logger
 from sqlalchemy import text
 
-from python.py_etl.core.database import db_manager as pyetl_db_manager
-from python.ai_service.config.settings import settings
-from python.ai_service.schemas.decision import DecisionFeedback
+from py_etl.core.database import db_manager as pyetl_db_manager
+from ai_service.config.settings import settings
+from ai_service.schemas.decision import DecisionFeedback
 
 
 class AIDataService:

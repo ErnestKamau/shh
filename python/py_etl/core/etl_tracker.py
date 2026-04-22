@@ -19,8 +19,8 @@ from time import time
 from loguru import logger
 from sqlalchemy import text
 
-from python.py_etl.core.database import db_manager
-from python.py_etl.config.config import settings
+from py_etl.core.database import db_manager
+from py_etl.config.config import settings
 
 
 _RUNS_TABLE = f"{settings.ai_reporting_schema}.sync_runs"

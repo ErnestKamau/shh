@@ -382,8 +382,8 @@ $items = array(
                                             <td>{{$event->status}}</td>
                                             <td>{{$event->start_date}} {{$event->start_time}}</td>
                                             <td>{{$event->end_date}} {{$event->end_time}}</td>
-                                            <td>{{getCrmCustomerByID($event->client_id)->name}}</td>
-                                            <td>{{getUserById($event->responsible_id)->name}}</td>
+                                            <td>{{ optional(getCrmCustomerByID($event->client_id))->name ?? '-' }}</td>
+                                            <td>{{ optional(getUserById($event->responsible_id))->name ?? '-' }}</td>
                                             <td>{{getfrequency((int) $event->frequency)}}</td>
                                             <td class="text-center">
                                                 @if($event->latitude != '')

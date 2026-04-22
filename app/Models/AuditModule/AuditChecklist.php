@@ -44,7 +44,7 @@ class AuditChecklist extends Model implements Auditable
         return $this->hasMany(AuditChecklistItem::class, 'audit_checklist_id')->orderBy('order_index');
     }
 
-    public function audits(): HasMany
+    public function relatedAudits(): HasMany
     {
         return $this->hasMany(Audit::class, 'checklist_id');
     }

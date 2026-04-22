@@ -86,7 +86,7 @@ def assistant(mock_ollama, mock_live_data, mock_retrieval, mock_visualizer):
     # Patch the request_logger to avoid DB writes during tests
     with patch("python.ai_service.core.simple_assistant.request_logger") as mock_logger:
         mock_logger.log = MagicMock()
-        from python.ai_service.core.simple_assistant import SimpleAssistant
+        from ai_service.core.simple_assistant import SimpleAssistant
         sa = SimpleAssistant(mock_ollama, mock_live_data, mock_retrieval, mock_visualizer)
         yield sa
 

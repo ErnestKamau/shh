@@ -7,9 +7,9 @@ import os
 from celery import Task
 from loguru import logger
 
-from python.celery_config import app as celery_app
-from python.ai_service.core.etl_engine import ETLEngine
-from python.py_etl.services.etl_index_state_service import etl_index_state_service
+from celery_config import app as celery_app
+from ai_service.core.etl_engine import ETLEngine
+from py_etl.services.etl_index_state_service import etl_index_state_service
 
 
 class ETLTask(Task):
@@ -44,7 +44,7 @@ def sync_table(self, table_key: str) -> dict:
         
         # Enqueue generic RAG domain reindex using the same table_key
         # Note: We must import late or at the top level to avoid circular imports.
-        from python.ai_service.tasks.rag_tasks import reindex_domain
+        from ai_service.tasks.rag_tasks import reindex_domain
         
         reindex_domain.apply_async(
             args=[table_key],

@@ -12,7 +12,7 @@ from datetime import datetime
 import pandas as pd
 from loguru import logger
 
-from python.py_etl.transformers.type_converters import to_json
+from py_etl.transformers.type_converters import to_json
 
 
 class BaseTransformer(ABC):

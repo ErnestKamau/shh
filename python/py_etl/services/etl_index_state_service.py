@@ -16,7 +16,7 @@ from typing import Any, Optional
 from loguru import logger
 from sqlalchemy import text
 
-from python.py_etl.core.database import db_manager
+from py_etl.core.database import db_manager
 
 _TABLE = "reporting.etl_index_state"
 

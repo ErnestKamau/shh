@@ -59,9 +59,9 @@ class CreateQcResultsJob implements ShouldQueue
             $qc_res->very_high_guide = $r->very_high_guide;
             $qc_res->analysis_type_id = $r->analysis_type_id;
             $qc_res->seond_guide = $r->seond_guide;
-            $qc_res->remark =$r->remark;
+            $qc_res->remarks =$r->remark;
             $qc_res->analyte_status_contracted = $r->analyte_status_contracted;
-            $qc_res->analyte_accreditted = $r->analyte_accredited;
+            $qc_res->analyte_accredited = $r->analyte_accredited;
             $qc_res->save();
 
         }

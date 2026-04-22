@@ -16,7 +16,7 @@ class AiEndpointResolver
      * Resolve the best reachable AI base URL.
      *
      * Resolution order:
-     * 1) Explicit env/config URLs (AI_SERVICE_URL, AI_INFERENCE_URL, AI_API_URL)
+        * 1) Explicit env/config URLs (IMARA_AI_ENDPOINT, AI_SERVICE_URL, AI_INFERENCE_URL, AI_API_URL)
      * 2) Config fallback list (imara_ai.api_base_urls)
      * 3) Hard fallback: 8080 then 8081
      */
@@ -54,6 +54,7 @@ class AiEndpointResolver
         $urls = [];
 
         $fromEnv = [
+            env('IMARA_AI_ENDPOINT'),
             env('AI_SERVICE_URL'),
             env('AI_INFERENCE_URL'),
             env('AI_API_URL'),
