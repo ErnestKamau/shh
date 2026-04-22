@@ -18,6 +18,16 @@
 
 @section('title')
 <style>
+    /* Standalone layout resets */
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+    body > nav + * {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
     @include('layouts.ImaraAi.partials._styles')
 </style>
 @endsection

@@ -185,7 +185,13 @@
 </style>
 
 {{-- 5. Scripts --}}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+    if (typeof Chart === 'undefined') {
+        const charScript = document.createElement('script');
+        charScript.src = "https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js";
+        document.head.appendChild(charScript);
+    }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
 
 <script>
@@ -196,9 +202,12 @@
         const closeBtn = document.getElementById('lab-ai-close');
 
         // Toggle Logic
+        let originalOverflow = '';
+
         function openDrawer() {
             drawer.classList.add('open');
             overlay.classList.add('active');
+            originalOverflow = window.getComputedStyle(document.body).overflow;
             document.body.style.overflow = 'hidden'; // Prevent background scroll
             
             // Focus the AI input if it exists
@@ -211,7 +220,7 @@
         function closeDrawer() {
             drawer.classList.remove('open');
             overlay.classList.remove('active');
-            document.body.style.overflow = '';
+            document.body.style.overflow = originalOverflow || '';
         }
 
         trigger.addEventListener('click', openDrawer);

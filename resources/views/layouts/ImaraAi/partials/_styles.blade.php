@@ -1,14 +1,6 @@
-/* ── Reset & full-page layout ─────────────────────────────────────── */
-html, body {
-    height: 100%;
-    overflow: hidden;
-}
+/* Global resets removed to prevent breaking host pages. 
+   These are now handled in standalone layouts. */
 
-/* Override any app-level page padding */
-body > nav + * {
-    margin: 0 !important;
-    padding: 0 !important;
-}
 
 #imara-ai-root {
     display: flex;

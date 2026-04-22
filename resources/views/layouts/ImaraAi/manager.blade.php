@@ -17,6 +17,16 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.2.96/css/materialdesignicons.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
 <style>
+    /* Standalone manager resets */
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+    body > nav + * {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
     @include('layouts.ImaraAi.partials._styles')
     @include('layouts.ImaraAi.partials._manager-styles')
 </style>
