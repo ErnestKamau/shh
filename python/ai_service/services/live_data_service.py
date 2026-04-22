@@ -117,6 +117,19 @@ class LiveDataService:
         if ":date_end" in sql and "date_end" not in params:
             params["date_end"] = str(date.today())
 
+        if ":analyte_name_like" in sql:
+            analyte_like = params.get("analyte_name_like")
+            if not analyte_like:
+                analyte_name = (params.get("analyte_name") or "").strip().lower()
+                if analyte_name:
+                    params["analyte_name_like"] = f"%{analyte_name}%"
+                else:
+                    return {
+                        "intent": intent,
+                        "summary": "Please specify the parameter/analyte name, for example: magnesium.",
+                        "success": False,
+                    }
+
         logger.info(f"LiveData cache MISS for {cache_key}. Executing against PostgreSQL.")
         
         # 4. Execute SQL (with bounded execution)

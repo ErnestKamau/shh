@@ -128,8 +128,19 @@ class SimpleAssistant:
                 logger.info(f"SimpleAssistant [{trace_id[:8]}]: Greeting detected")
                 routing_tier = "greeting"
                 route_name = "conversational"
-                result["answer"] = self._generate_conversational(message, module_context=module_context)
+                result["answer"] = self._generate_greeting_response(message)
                 result["meta"]["route"] = "conversational"
+                result["meta"]["routing_tier"] = routing_tier
+                result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
+                return result
+
+            # ── Step 0b: UI/feature help short-circuit ────────────────
+            if self._is_ui_help_query(message):
+                logger.info(f"SimpleAssistant [{trace_id[:8]}]: UI help query detected")
+                routing_tier = "ui_help"
+                route_name = "ui_help"
+                result["answer"] = self._generate_ui_help_response(message)
+                result["meta"]["route"] = "ui_help"
                 result["meta"]["routing_tier"] = routing_tier
                 result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
                 return result
@@ -366,8 +377,13 @@ class SimpleAssistant:
                     summaries.append(f"*(Failed to retrieve data for '{intent}')*")
 
         if success_count == 0:
-            result["answer"] = _ERR_DB_UNAVAILABLE
-            result["meta"]["route"] = "multi_sql_failed"
+            # Preserve explicit per-intent reporting failures when available.
+            if summaries:
+                result["answer"] = "\n\n---\n\n".join(summaries)
+                result["meta"]["route"] = "multi_sql_failed_detailed"
+            else:
+                result["answer"] = _ERR_DB_UNAVAILABLE
+                result["meta"]["route"] = "multi_sql_failed"
         else:
             result["answer"] = "\n\n---\n\n".join(summaries)
             result["meta"]["route"] = f"multi_sql:{','.join([m[0] for m in matches])}"
@@ -675,6 +691,46 @@ Rules:
             return _ERR_AI_UNAVAILABLE
 
     # ── Conversational generation ─────────────────────────────────────────
+
+    def _generate_greeting_response(self, message: str) -> str:
+        """Fast deterministic reply for simple greetings/health pings."""
+        m = (message or "").strip().lower()
+        if m in {"ping", "health", "status", "alive"}:
+            return "Imara AI is online. Ask a lab or inventory question when ready."
+        return "Hello! I am online and ready to help with lab operations, samples, inventory, and reports."
+
+    def _is_ui_help_query(self, message: str) -> bool:
+        m = (message or "").strip().lower()
+        # If the user includes operational/data terms, treat as data request.
+        operational_keywords = {
+            "sample", "samples", "status", "distribution", "count",
+            "today", "week", "month", "parameter", "analyte", "lab",
+            "batch", "inventory", "tested", "report",
+        }
+        if any(k in m for k in operational_keywords):
+            return False
+
+        patterns = [
+            r"\bgive me the chat\b",
+            r"\bopen (the )?chat\b",
+            r"\bshow (the )?chat\b",
+            r"\bhow do i (see|open|use) (the )?chat\b",
+            r"\bhow do i (see|open|use) (the )?chat visuali[sz]ation\b",
+        ]
+        return any(re.search(p, m) for p in patterns)
+
+    def _generate_ui_help_response(self, message: str) -> str:
+        m = (message or "").lower()
+        if "visual" in m:
+            return (
+                "To view chat visualization, open the chat panel, send at least one query, "
+                "then click the visualization/chart option in the chat tools menu. "
+                "If the chart does not appear, toggle Tools ON and retry the query."
+            )
+        return (
+            "The chat is available in the Imara AI panel. Open the panel and send your question; "
+            "I can then return summaries, counts, and visual outputs where supported."
+        )
 
     def _generate_conversational(self, message: str, module_context: Optional[str] = None) -> str:
         """Generate a conversational response (greetings, general chat)."""

@@ -8,6 +8,7 @@ Supported filters:
     Dates:   today, yesterday, last 7 days, this week, this month, this quarter
     Status:  pending, completed, rejected, approved, overdue, open, closed
     Limits:  top 5, latest 10, last 3, first 20
+    Analyte: parameter/analyte names (e.g., "parameter magnesium")
 """
 
 import re
@@ -57,6 +58,25 @@ _STATUS_KEYWORDS = {
 _LIMIT_PATTERN = re.compile(
     r"\b(?:top|latest|last|first|bottom|recent)\s+(\d{1,3})\b", re.I
 )
+
+# ── Analyte/parameter patterns ──────────────────────────────────────────
+
+_ANALYTE_PATTERNS: list[re.Pattern] = [
+    re.compile(r"\b(?:parameter|analyte)\s+([a-z][a-z0-9_\-\s]{1,40})\b", re.I),
+    re.compile(r"\b(?:tested\s+(?:for|with)|for)\s+parameter\s+([a-z][a-z0-9_\-\s]{1,40})\b", re.I),
+]
+
+
+def _normalize_analyte_name(raw: str) -> str:
+    name = re.sub(r"\s+", " ", raw.strip().lower())
+    # Trim trailing temporal filler words often attached in freeform queries.
+    name = re.sub(
+        r"\b(today|yesterday|this\s+week|this\s+month|last\s+\d+\s+days?)\b.*$",
+        "",
+        name,
+        flags=re.I,
+    ).strip()
+    return name
 
 
 def _resolve_date_range(label: str) -> tuple[str, str]:
@@ -112,6 +132,8 @@ class QueryFilterExtractor:
         date_end:    str   — ISO date
         status:      str   — e.g. "pending", "completed"
         limit:       int   — e.g. 5, 10
+        analyte_name: str  — e.g. "magnesium"
+        analyte_name_like: str — e.g. "%magnesium%"
     """
 
     def extract(self, query: str) -> Dict[str, Any]:
@@ -175,6 +197,17 @@ class QueryFilterExtractor:
             
             if not extracted_as_date:
                 filters["limit"] = min(limit_val, 100)
+
+        # 5. Analyte/parameter extraction
+        for pattern in _ANALYTE_PATTERNS:
+            m = pattern.search(q)
+            if not m:
+                continue
+            analyte = _normalize_analyte_name(m.group(1))
+            if analyte:
+                filters["analyte_name"] = analyte
+                filters["analyte_name_like"] = f"%{analyte}%"
+                break
 
         if filters:
             logger.info(f"QueryFilterExtractor: Extracted filters: {filters}")

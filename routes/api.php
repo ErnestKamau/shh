@@ -44,4 +44,7 @@ if (class_exists($developerWebhookController, false)) {
 }
 
 // Customer Portal API routes (auth + test requests)
-require __DIR__ . '/api/portal.php';
+// Note: portal.php was removed; portal auth now lives in web routes (TOTP flow).
+if (file_exists(__DIR__ . '/api/portal.php')) {
+    require __DIR__ . '/api/portal.php';
+}

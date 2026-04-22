@@ -78,9 +78,21 @@ class IntermediateAssistant:
         2. Operational (SimpleAssistant - SQL/RAG)
         3. General Conversation (IntermediateAssistant)
         """
-        trace_id = kwargs.get("trace_id", str(uuid.uuid4()))
+        trace_id = kwargs.get("trace_id") or str(uuid.uuid4())
         start_time = time.time()
         m = message.lower()
+
+        # 0. Fast health checks should never depend on LLM availability.
+        if m.strip() in {"ping", "health", "status", "alive"}:
+            return {
+                "answer": "Imara AI is online. Ask a lab or inventory question when ready.",
+                "sources": [],
+                "meta": {
+                    "route": "health_fast",
+                    "latency_ms": int((time.time() - start_time) * 1000),
+                    "trace_id": trace_id,
+                },
+            }
 
         # 1. Check for simple greetings - priority for SimpleAssistant
         if self.operational.intent_router.is_greeting(m):
@@ -142,8 +154,13 @@ class IntermediateAssistant:
         Stateless streaming entry point.
         Provides real-time tokens for conversational queries.
         """
-        trace_id = kwargs.get("trace_id", str(uuid.uuid4()))
+        trace_id = kwargs.get("trace_id") or str(uuid.uuid4())
         m = message.lower()
+
+        if m.strip() in {"ping", "health", "status", "alive"}:
+            yield {"kind": "token", "token": "Imara AI is online. Ask a lab or inventory question when ready."}
+            yield {"kind": "done", "meta": {"route": "health_fast", "trace_id": trace_id}}
+            return
 
         # 1. Check for simple greetings - Priority: SimpleAssistant
         if self.operational.intent_router.is_greeting(m):

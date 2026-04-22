@@ -31,7 +31,7 @@
       "ttl_seconds": 10
     },
     "samples_by_status": {
-      "sql": "SELECT sh.status, COUNT(sd.source_id) as cnt FROM reporting.sample_details sd INNER JOIN reporting.sample_headers sh ON sh.source_id = sd.sample_header_id WHERE sh.isactive = true GROUP BY sh.status ORDER BY cnt DESC",
+      "sql": "SELECT COALESCE(sh.status, 'Unknown') as status, COUNT(*) as cnt FROM reporting.sample_headers sh WHERE sh.isactive = true GROUP BY COALESCE(sh.status, 'Unknown') ORDER BY cnt DESC",
       "description": "Distribution of samples across workflow stages",
       "output_format": "table",
       "visualize": {
@@ -53,6 +53,12 @@
       "description": "Batches received today",
       "output_format": "count",
       "ttl_seconds": 10
+    },
+    "sample_tests_by_parameter": {
+      "sql": "SELECT COUNT(DISTINCT tc.sample_header_id) as n FROM reporting.tat_captured tc JOIN reporting.sample_headers sh ON sh.source_id = tc.sample_header_id WHERE sh.isactive = true AND tc.source_created_at::timestamptz::date BETWEEN CAST(:date_start AS date) AND CAST(:date_end AS date) AND LOWER(COALESCE(tc.payload::text, '')) LIKE :analyte_name_like",
+      "description": "Samples tested for the requested parameter",
+      "output_format": "count",
+      "ttl_seconds": 20
     },
     "sample_count_this_week": {
       "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers WHERE isactive = true AND source_created_at::timestamptz >= DATE_TRUNC('week', CURRENT_DATE)",
@@ -91,7 +97,7 @@
       "ttl_seconds": 60
     },
     "sample_type_distribution": {
-      "sql": "SELECT st.name as sample_type, COUNT(tc.source_id) as count FROM reporting.tat_captured tc JOIN reporting.sample_types st ON tc.sample_type_id = st.source_id JOIN reporting.sample_headers sh ON sh.source_id = tc.sample_header_id WHERE sh.isactive = true GROUP BY st.name ORDER BY count DESC",
+      "sql": "SELECT COALESCE(NULLIF(TRIM(sh.payload->>'sample_type_id'), ''), 'Unknown') as sample_type, COUNT(*) as count FROM reporting.sample_headers sh WHERE sh.isactive = true GROUP BY COALESCE(NULLIF(TRIM(sh.payload->>'sample_type_id'), ''), 'Unknown') ORDER BY count DESC",
       "description": "Sample volume breakdown by specimen/matrix type",
       "output_format": "table",
       "visualize": {

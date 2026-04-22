@@ -68,6 +68,13 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
       "best supplier", "vendor ranking"],
      "supplier_order_performance"),
 
+    (["tested today with parameter", "samples tested today with parameter",
+      "samples tested with parameter", "tested with parameter",
+      "tested today with analyte", "samples tested for parameter",
+      "how many samples were tested with parameter",
+      "how many samples were tested today with parameter"],
+     "sample_tests_by_parameter"),
+
     # ── Samples: counts ──
     (["samples in the lab", "sample count in lab", "how many samples in lab",
       "how many samples are in the lab", "how many samples are in lab",
@@ -100,7 +107,8 @@ _GROUP_A_RULES: list[tuple[list[str], str]] = [
      "sample_count_pending_review"),
 
     (["samples by status", "sample status breakdown", "status breakdown",
-      "sample distribution", "status distribution"],
+      "sample distribution", "status distribution",
+      "distribution of samples", "distribution of the samples"],
      "samples_by_status"),
 
     (["total samples", "sample count total", "how many samples",
@@ -296,6 +304,45 @@ class ManifestIntentRouter:
         matches = []
         seen_intents = set()
 
+        # Semantic shortcut for distribution questions where wording varies,
+        # e.g. "distribution of the 77 samples provided".
+        if (
+          "distribution" in q
+          and ("sample" in q or "samples" in q or "status" in q)
+        ):
+          logger.info(
+            "ManifestIntentRouter: MATCHED 'samples_by_status' via semantic distribution rule"
+          )
+          matches.append(("samples_by_status", "keyword"))
+          seen_intents.add("samples_by_status")
+
+        # Semantic shortcut for "total samples" with sample-type breakdown.
+        wants_total_samples = (
+          (("sample" in q or "samples" in q) and "total" in q)
+          or ("total samples" in q)
+          or ("sample count total" in q)
+          or ("total count of samples" in q)
+          or ("number of samples" in q)
+          or ("how many samples" in q)
+        )
+        wants_type_breakdown = (
+          ("type" in q or "types" in q or "sample type" in q)
+          and ("sample" in q or "samples" in q or "batch" in q or "batches" in q)
+        )
+        if wants_total_samples and wants_type_breakdown:
+          if "sample_count_total" not in seen_intents:
+            logger.info(
+              "ManifestIntentRouter: MATCHED 'sample_count_total' via semantic total+type rule"
+            )
+            matches.append(("sample_count_total", "keyword"))
+            seen_intents.add("sample_count_total")
+          if "sample_type_distribution" not in seen_intents:
+            logger.info(
+              "ManifestIntentRouter: MATCHED 'sample_type_distribution' via semantic total+type rule"
+            )
+            matches.append(("sample_type_distribution", "keyword"))
+            seen_intents.add("sample_type_distribution")
+
         # Group A: deterministic, high confidence
         for patterns, intent in self._group_a:
             if any(p in q for p in patterns):
@@ -315,6 +362,19 @@ class ManifestIntentRouter:
                     )
                     matches.append((intent, "keyword_loose"))
                     seen_intents.add(intent)
+
+        # Disambiguation: parameter-specific tested sample queries should not
+        # be diluted by generic sample-count intents that also match "how many samples".
+        intents = {intent for intent, _ in matches}
+        if "sample_tests_by_parameter" in intents:
+          blocked_generic = {
+            "sample_count_total",
+            "sample_count_today",
+            "sample_count_this_week",
+            "sample_count_this_month",
+            "batch_count_total",
+          }
+          matches = [m for m in matches if m[0] not in blocked_generic]
 
         return matches
 

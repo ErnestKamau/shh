@@ -19,7 +19,8 @@ fi
 HOST="${AI_SERVICE_HOST:-0.0.0.0}"
 PORT="${AI_SERVICE_PORT:-8081}"
 WORKERS="${AI_SERVICE_WORKERS:-2}"
-RELOAD="${AI_SERVICE_RELOAD:-true}"
+# Default is production-safe; set AI_SERVICE_RELOAD=true for local hot-reload development.
+RELOAD="${AI_SERVICE_RELOAD:-false}"
 
 echo "🚀 Starting AI Inference API from $PYTHON_DIR..."
 
