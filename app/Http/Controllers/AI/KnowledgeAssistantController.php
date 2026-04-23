@@ -138,6 +138,7 @@ class KnowledgeAssistantController extends Controller
             'conversation_id'  => 'sometimes|integer|exists:ai_conversations,id',
             'use_visuals'      => 'nullable|boolean',
             'model'            => 'nullable|string',
+            'module_context'   => 'nullable|string',
         ]);
 
         $question = $this->normalizeInput($validated['question']);
@@ -150,6 +151,7 @@ class KnowledgeAssistantController extends Controller
                 'conversation_id' => $validated['conversation_id'] ?? null,
                 'use_visuals' => (bool) ($validated['use_visuals'] ?? true),
                 'model' => $validated['model'] ?? null,
+                'module_context' => $validated['module_context'] ?? null,
             ];
 
             foreach ($this->inferenceService->streamChat($question, $options) as $chunk) {

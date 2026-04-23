@@ -177,7 +177,7 @@
             padding: 5px 0;
         }
 
-        .drawer-msg { padding: 10px 14px; border-radius: 12px; max-width: 85%; font-size: 0.9rem; line-height: 1.5; }
+        .drawer-msg { padding: 10px 14px; border-radius: 12px; max-width: 85%; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
         .drawer-msg-user { align-self: flex-end; background: #a72b2a; color: white; border-bottom-right-radius: 2px; }
         .drawer-msg-bot { align-self: flex-start; background: white; color: #1e293b; border-bottom-left-radius: 2px; border: 1px solid #e2e8f0; }
     </style>
@@ -189,6 +189,14 @@
              const sendBtn = document.getElementById('aiDrawerSend');
              const messagesContainer = document.getElementById('aiDrawerMessages');
              let drawerConvoId = null;
+
+             const formatMessage = (text) => {
+                 if (!text) return '';
+                 let formatted = text.replace(/</g, "&lt;").replace(/>/g, "&gt;"); // XSS
+                 formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold
+                 formatted = formatted.replace(/^[\s]*[\*\-][\s]+(.*?)$/gm, '&bull; $1'); // Bullet points
+                 return formatted;
+             };
 
              if (!input || !sendBtn) return;
 
@@ -233,7 +241,7 @@
                     const aiRes = await fetch('/imara-ai/ask-stream', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                        body: JSON.stringify({ question: text })
+                        body: JSON.stringify({ question: text, module_context: '{{ $context }}' })
                     });
 
                     const reader = aiRes.body.getReader();
@@ -255,13 +263,12 @@
                                     const data = JSON.parse(dataStr);
                                     if (data.token) {
                                         fullReply += data.token;
-                                        // Simple markdown bolding replacement just to look decent, or raw text
-                                        botDiv.textContent = fullReply;
+                                        botDiv.innerHTML = formatMessage(fullReply);
                                         messagesContainer.scrollTop = messagesContainer.scrollHeight;
                                     } else if (data.reply) {
                                         // Fallback for simple assistant payload
                                         fullReply += data.reply;
-                                        botDiv.textContent = fullReply;
+                                        botDiv.innerHTML = formatMessage(fullReply);
                                     }
                                 } catch (e) {}
                             }

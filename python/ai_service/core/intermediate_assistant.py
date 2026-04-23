@@ -209,8 +209,8 @@ class IntermediateAssistant:
         if context == 'lab':
             return (
                 "You are the Laboratory AI Assistant for Imara LIMS. "
-                "You help with sample status, equipment verification, and lab SOPs. "
-                "For general chat, be professional and concise. "
+                "You strictly help with sample status, equipment verification, and lab SOPs. "
+                "You MUST REFUSE to answer any questions that are not related to laboratories, scientific testing, LIMS, or your operational capabilities. "
                 "If asked what you can do, explain that you can track samples, check equipment health, and query lab metrics."
             )
         return (
