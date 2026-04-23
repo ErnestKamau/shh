@@ -275,23 +275,23 @@ class ManifestIntentRouter:
         # Group A
         for patterns, intent in self._group_a:
             if any(p in q for p in patterns):
-                matches.append((intent, "keyword"))
+                matches.append((intent, "keyword", 1.0))
                 
         # Group B
         for patterns, intent in self._group_b:
             if any(p in q for p in patterns):
                 # Only add if not already added by Group A (to prevent duplicates)
                 if not any(m[0] == intent for m in matches):
-                    matches.append((intent, "keyword_loose"))
+                    matches.append((intent, "keyword_loose", 0.8))
                     
         return matches
 
-    def match(self, query: str) -> Tuple[Optional[str], Optional[str]]:
+    def match(self, query: str) -> Tuple[Optional[str], Optional[str], float]:
         """
         Attempt to match query to a manifest intent via keyword rules.
 
         Returns:
-            (intent_name, routing_tier) or (None, None)
+            (intent_name, routing_tier, confidence) or (None, None, 0.0)
         """
         q = query.lower().strip()
 
@@ -301,7 +301,7 @@ class ManifestIntentRouter:
                 logger.info(
                     f"ManifestIntentRouter: MATCHED '{intent}' via keyword (Group A)"
                 )
-                return intent, "keyword"
+                return intent, "keyword", 1.0
 
         # Group B: looser rules, medium confidence
         for patterns, intent in self._group_b:
@@ -309,9 +309,9 @@ class ManifestIntentRouter:
                 logger.info(
                     f"ManifestIntentRouter: MATCHED '{intent}' via keyword_loose (Group B)"
                 )
-                return intent, "keyword_loose"
+                return intent, "keyword_loose", 0.8
 
-        return None, None
+        return None, None, 0.0
 
     def is_greeting(self, query: str) -> bool:
         """Check if the query is a simple greeting/pleasantry."""

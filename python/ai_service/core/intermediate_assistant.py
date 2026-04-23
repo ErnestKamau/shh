@@ -102,7 +102,7 @@ class IntermediateAssistant:
 
         # 2. Check for Operational Intent (LIMS keywords/IDs)
         # We only delegate to SimpleAssistant if it's a known data intent
-        intent, tier = self.operational.intent_router.match(m)
+        intent, tier, conf = self.operational.intent_router.match(m)
         if intent and not self._is_obviously_conversational(message):
             logger.info(f"IntermediateAssistant [{trace_id[:8]}]: Operational query ({intent}), delegating to SimpleAssistant")
             try:
@@ -168,7 +168,7 @@ class IntermediateAssistant:
             return
 
         # 2. Check for Operational Intent (LIMS keywords/IDs)
-        intent, tier = self.operational.intent_router.match(m)
+        intent, tier, conf = self.operational.intent_router.match(m)
         if intent and not self._is_obviously_conversational(message):
             try:
                 result = await asyncio.to_thread(

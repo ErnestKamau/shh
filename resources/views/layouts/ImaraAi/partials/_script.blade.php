@@ -766,6 +766,7 @@ function addUserMessage(text, isoTimestamp, metadata) {
         <div class="user-bubble-wrap">
             <div class="user-bubble">${escapeHtml(text)}</div>
             <div class="msg-row-actions">
+                <button class="msg-action-btn copy-btn" title="Copy message"><i class="mdi mdi-content-copy"></i></button>
                 <button class="msg-action-btn edit-btn" title="Edit message"><i class="mdi mdi-pencil-outline"></i></button>
             </div>
             ${editBadge}
@@ -814,6 +815,19 @@ function addUserMessage(text, isoTimestamp, metadata) {
             // Fetch new response
             sendMessage(editedText);
         }
+    });
+    
+    // Copy logic for user message
+    const userCopyBtn = row.querySelector('.copy-btn');
+    userCopyBtn?.addEventListener('click', () => {
+        navigator.clipboard.writeText(text).then(() => {
+            userCopyBtn.innerHTML = '<i class="mdi mdi-check"></i>';
+            userCopyBtn.classList.add('copied');
+            setTimeout(() => {
+                userCopyBtn.innerHTML = '<i class="mdi mdi-content-copy"></i>';
+                userCopyBtn.classList.remove('copied');
+            }, 2000);
+        });
     });
 
     chatMessages.appendChild(row);
@@ -1612,6 +1626,42 @@ messageInput?.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
+    }
+});
+
+// ── Drop-up Menus (Models & Tools) ─────────────────────────────────────────
+const modelBtn    = document.getElementById('modelBtn');
+const modelMenu   = document.getElementById('modelMenu');
+const toolsBtn    = document.getElementById('toolsBtn');
+const toolsMenu   = document.getElementById('toolsMenu');
+
+function toggleMenu(menu, otherMenu) {
+    const isVisible = menu.style.display === 'block';
+    
+    // Hide others
+    if (otherMenu) otherMenu.style.display = 'none';
+    
+    // Toggle current
+    menu.style.display = isVisible ? 'none' : 'block';
+}
+
+modelBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (modelMenu) toggleMenu(modelMenu, toolsMenu);
+});
+
+toolsBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (toolsMenu) toggleMenu(toolsMenu, modelMenu);
+});
+
+// Close menus when clicking outside
+document.addEventListener('click', (e) => {
+    if (modelMenu && modelMenu.style.display === 'block' && !modelMenu.contains(e.target)) {
+        modelMenu.style.display = 'none';
+    }
+    if (toolsMenu && toolsMenu.style.display === 'block' && !toolsMenu.contains(e.target)) {
+        toolsMenu.style.display = 'none';
     }
 });
 

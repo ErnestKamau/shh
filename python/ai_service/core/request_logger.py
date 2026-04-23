@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS ai.ai_request_logs (
     route_name      VARCHAR(128),
     routing_tier    VARCHAR(16),
     latency_ms      INT,
+    confidence      FLOAT DEFAULT 0.0,
     success         BOOLEAN DEFAULT TRUE,
     error_message   TEXT,
     company_id      INT,
@@ -81,6 +82,7 @@ class RequestLogger:
         route_name: Optional[str] = None,
         routing_tier: Optional[str] = None,
         latency_ms: int = 0,
+        confidence: float = 0.0,
         success: bool = True,
         error_message: Optional[str] = None,
         company_id: Optional[int] = None,
@@ -111,6 +113,7 @@ class RequestLogger:
                 route_name=route_name,
                 routing_tier=routing_tier,
                 latency_ms=latency_ms,
+                confidence=confidence,
                 success=success,
                 error_message=error_message,
                 company_id=company_id,
@@ -131,11 +134,11 @@ class RequestLogger:
 
             sql = text("""
                 INSERT INTO ai.ai_request_logs
-                    (trace_id, query, mode, route_name, routing_tier, latency_ms,
+                    (trace_id, query, mode, route_name, routing_tier, latency_ms, confidence,
                      success, error_message, company_id, user_id, session_id,
                      response_preview, source_count, cache_hit, created_at)
                 VALUES
-                    (:trace_id, :query, :mode, :route_name, :routing_tier, :latency_ms,
+                    (:trace_id, :query, :mode, :route_name, :routing_tier, :latency_ms, :confidence,
                      :success, :error_message, :company_id, :user_id, :session_id,
                      :response_preview, :source_count, :cache_hit, :created_at)
             """)
