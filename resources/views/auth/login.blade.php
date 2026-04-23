@@ -83,7 +83,7 @@
 									</div>
 									 <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
 										<label for="email" class="control-label w3-left w3-text-dark-grey"><strong>E-Mail Address</strong></label>
-										<input id="email" type="text" placeholder="{{ __('E-Mail Address') }}..." class="form-control" name="email" value="{{ old('email') }}" required autofocus>
+										<input id="email" type="email" placeholder="{{ __('E-Mail Address') }}..." class="form-control" name="email" value="{{ old('email') }}" required autofocus>
 
 										@if ($errors->has('email'))
 											 <span class="help-block">

@@ -72,6 +72,13 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
+
+			<a href="{{ route('system-settings') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-view-dashboard fa-fw mr-1"></span>
+					<span class="menu-collapsed">System Dashboard</span>
+				</div>
+			</a>
 			
 			<a href="/companies" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
@@ -80,18 +87,22 @@
 				</div>
 			</a>
 
-			<a href="{{ route('system-settings') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-view-dashboard fa-fw mr-1"></span>
-					<span class="menu-collapsed">System Dashboard</span>
-				</div>
-			</a>
+			
 
 			@if(auth()->user()->is_support_staff)
 			<a href="{{ route('system-settings.module-visibility') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-swap-horizontal fa-fw mr-1"></span>
 					<span class="menu-collapsed">Module Switching</span>
+				</div>
+			</a>
+			@endif
+
+			@if(auth()->user()->can('System.components.Translations.View') || auth()->user()->can('System.permission'))
+			<a href="{{ route('system-settings.translations') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-translate fa-fw mr-1"></span>
+					<span class="menu-collapsed">Languages &amp; Translations</span>
 				</div>
 			</a>
 			@endif

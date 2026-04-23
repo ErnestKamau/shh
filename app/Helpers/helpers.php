@@ -1235,7 +1235,7 @@ function getModulePermissions()
 		),
 		"System" => array(
 			"permission" => false,
-			"components" => array("System Settings", "Configuration Types", "Configurations")
+			"components" => array("System Settings", "Configuration Types", "Configurations", "Translations")
 		),
 		"Audit" => array(
 			"permission" => false,
