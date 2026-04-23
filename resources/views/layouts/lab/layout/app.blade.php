@@ -442,7 +442,6 @@
 		@endif
 	</div>
 	@yield('content2')
-	@include('layouts.lab.partials._lab_ai_drawer')
 </div>
 <!-- Main Col END -->
 </div>
