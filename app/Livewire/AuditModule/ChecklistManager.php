@@ -139,7 +139,7 @@ class ChecklistManager extends Component
         $checklist = AuditChecklist::forCompany()->findOrFail($id);
         
         // Check if checklist is used in any audits
-            if ($checklist->relatedAudits()->count() > 0) {
+        if ($checklist->auditModuleAudits()->count() > 0) {
             session()->flash('error', 'Cannot delete checklist that is used in audits.');
             return;
         }

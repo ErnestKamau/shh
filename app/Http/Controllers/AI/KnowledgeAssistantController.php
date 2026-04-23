@@ -180,6 +180,11 @@ class KnowledgeAssistantController extends Controller
 
         $conversationsQuery = AiConversation::where('user_id', Auth::id());
 
+        // Support context filtering (e.g. ?context=lab)
+        if ($context = $request->query('context')) {
+            $conversationsQuery->where('context', $context);
+        }
+
         if ($query) {
             $conversationsQuery->where(function ($q) use ($query) {
                 $q->whereFullText('title', $query)
@@ -193,7 +198,7 @@ class KnowledgeAssistantController extends Controller
             ->orderBy('is_pinned', 'desc')
             ->orderBy('updated_at', 'desc')
             ->limit(50)
-            ->get(['id', 'title', 'is_pinned', 'updated_at', 'created_at']);
+            ->get(['id', 'title', 'context', 'is_pinned', 'updated_at', 'created_at']);
 
         return response()->json(['status' => 'ok', 'conversations' => $conversations]);
     }
@@ -212,11 +217,15 @@ class KnowledgeAssistantController extends Controller
 
     public function createConversation(Request $request): JsonResponse
     {
-        $validated = $request->validate(['title' => 'required|string|max:255']);
+        $validated = $request->validate([
+            'title'   => 'required|string|max:255',
+            'context' => 'nullable|string|max:50',
+        ]);
 
         $conversation = AiConversation::create([
             'user_id' => Auth::id(),
             'title'   => $validated['title'],
+            'context' => $validated['context'] ?? 'general',
         ]);
 
         return response()->json(['status' => 'ok', 'conversation' => $conversation], 201);

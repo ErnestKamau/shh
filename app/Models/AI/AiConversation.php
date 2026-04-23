@@ -14,6 +14,7 @@ class AiConversation extends Model
     protected $fillable = [
         'user_id',
         'title',
+        'context',
         'is_pinned',
     ];
 

@@ -1969,4 +1969,32 @@ input:checked + .premium-switch.small .switch-slider:before { transform: transla
     }
 }
 
+/* ── Context Badges ── */
+.context-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-left: 6px;
+    flex-shrink: 0;
+}
+.context-lab {
+    background: #ecfdf5 !important;
+    color: #059669 !important;
+    border: 1px solid #d1fae5;
+}
+.context-general {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    border: 1px solid #e2e8f0;
+}
+.context-mas {
+    background: #fdf2f8 !important;
+    color: #db2777 !important;
+    border: 1px solid #fbcfe8;
+}
+
+
 
