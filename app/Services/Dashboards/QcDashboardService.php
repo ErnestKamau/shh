@@ -13,16 +13,32 @@ class QcDashboardService
     public function getQcStabilityBoard(): array
     {
         try {
-            $connection = DB::connection($this->repositoryConnection());
-            $schema     = $this->reportingSchema();
+            $connection = DB::connection('mysql');
 
-            // Read pre-computed ISO 13528 Algorithm A statistics from Postgres
-            $rows = $connection->table("{$schema}.v_qc_stability_metrics")
-                ->orderByDesc('robust_cv_pct')
+            // Robust Statistics are pulled from the pre-computed qc_processed_result table
+            // We join with analytes and aggregate pass/fail counts from qc_results
+            $rows = $connection->table('qc_processed_result as pr')
+                ->join('analytes as a', 'a.id', '=', 'pr.analyte_id')
+                ->leftJoin('qc_results as qr', function($join) {
+                    $join->on('qr.analyte_id', '=', 'pr.analyte_id')
+                         ->where('qr.is_qc_processed', 1);
+                })
+                ->select([
+                    'a.name as analyte_name',
+                    'a.code as analyte_code',
+                    'pr.robust_mean',
+                    'pr.robust_standard_deviation as robust_sd',
+                    'pr.robust_cv_percentage as robust_cv_pct',
+                    DB::raw('COUNT(qr.id) as total_tests'),
+                    DB::raw("SUM(CASE WHEN qr.status_code = 'PASSED' THEN 1 ELSE 0 END) as passed_tests"),
+                    DB::raw("SUM(CASE WHEN qr.status_code IN ('FAILED', 'OUT_OF_CONTROL') THEN 1 ELSE 0 END) as failed_tests")
+                ])
+                ->groupBy('a.name', 'a.code', 'pr.robust_mean', 'pr.robust_standard_deviation', 'pr.robust_cv_percentage')
+                ->orderByDesc('pr.robust_cv_percentage')
                 ->get();
 
             if ($rows->isEmpty()) {
-                return $this->emptyQcBoard('No QC data in reporting mart. Run ETL sync to populate.');
+                return $this->emptyQcBoard('No processed QC statistical data found in legacy tables.');
             }
 
             // CV% thresholds (aligned with settings in config/imara_ai.php)
@@ -31,6 +47,10 @@ class QcDashboardService
 
             $normalizedDetailRows = $rows->map(function ($row) use ($warnThreshold, $criticalThreshold) {
                 $cv = (float) ($row->robust_cv_pct ?? 0);
+                $total = (int) $row->total_tests;
+                $passed = (int) $row->passed_tests;
+                
+                $passRate = $total > 0 ? round(($passed / $total) * 100, 2) : 0;
 
                 $status = 'stable';
                 if ($cv >= $criticalThreshold) $status = 'critical';
@@ -45,12 +65,12 @@ class QcDashboardService
                     'robust_mean'                => round((float) ($row->robust_mean ?? 0), 4),
                     'robust_standard_deviation'  => round((float) ($row->robust_sd   ?? 0), 4),
                     'robust_cv_percentage'       => round($cv, 2),
-                    'ucl'                        => round((float) ($row->ucl ?? 0), 4),
-                    'lcl'                        => round((float) ($row->lcl ?? 0), 4),
-                    'total_tests'                => (int) ($row->total_tests  ?? 0),
-                    'passed_tests'               => (int) ($row->passed_tests ?? 0),
+                    'ucl'                        => round((float) (($row->robust_mean ?? 0) + (3 * ($row->robust_sd ?? 0))), 4),
+                    'lcl'                        => round((float) (($row->robust_mean ?? 0) - (3 * ($row->robust_sd ?? 0))), 4),
+                    'total_tests'                => $total,
+                    'passed_tests'               => $passed,
                     'failed_tests'               => (int) ($row->failed_tests ?? 0),
-                    'pass_rate_pct'              => (float) ($row->pass_rate_pct ?? 0),
+                    'pass_rate_pct'              => $passRate,
                     'stability_status'           => $status,
                     'status_label'               => $this->qcStatusLabels()[$status] ?? ucfirst($status),
                     'refreshed_at'               => now()->toDateTimeString(),
@@ -95,7 +115,7 @@ class QcDashboardService
                 'refreshed_at' => now()->toDateTimeString(),
             ];
         } catch (\Throwable $exception) {
-            Log::warning('QcStabilityBoard (Postgres) failed: ' . $exception->getMessage());
+            Log::warning('QcStabilityBoard (MySQL) failed: ' . $exception->getMessage());
             return $this->emptyQcBoard(null);
         }
     }
@@ -103,14 +123,11 @@ class QcDashboardService
     public function getParameterPerformanceData(): array
     {
         try {
-            $conn   = $this->repositoryConnection();
-            $schema = $this->reportingSchema();
-
-            $results = DB::connection($conn)->table("{$schema}.qc_results as qr")
-                ->join("{$schema}.analytes as a", "a.source_id", "=", "qr.analyte_id")
+            $results = DB::connection('mysql')->table("qc_results as qr")
+                ->join("analytes as a", "a.id", "=", "qr.analyte_id")
                 ->whereNotNull('qr.status_code')
-                ->whereIn('qr.status_code', ['PASSED', 'FAILED'])
-                ->where('qr.source_created_at', '>=', now()->subMonths(6))
+                ->whereIn('qr.status_code', ['PASSED', 'FAILED', 'OUT_OF_CONTROL'])
+                ->where('qr.created_at', '>=', now()->subMonths(6))
                 ->select('a.name', 'qr.status_code', DB::raw('count(*) as total'))
                 ->groupBy('a.name', 'qr.status_code')
                 ->get();
@@ -135,7 +152,7 @@ class QcDashboardService
             })->sortByDesc('total')->take(10)->values()->all();
 
         } catch (\Throwable $e) {
-            Log::warning('QcDashboardService::getParameterPerformanceData failed: ' . $e->getMessage());
+            Log::warning('QcDashboardService::getParameterPerformanceData (MySQL) failed: ' . $e->getMessage());
             return [];
         }
     }
@@ -164,7 +181,7 @@ class QcDashboardService
 
         return [
             'available' => false,
-            'message' => $message ?? 'QC stability reporting mart is unavailable.',
+            'message' => $message ?? 'QC stability metrics are currently unavailable.',
             'summary' => [
                 'total_records' => 0,
                 'stable_records' => 0,

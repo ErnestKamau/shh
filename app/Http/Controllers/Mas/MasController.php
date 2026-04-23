@@ -535,7 +535,8 @@ class MasController extends Controller
                         'models' => $govData['performance'] ?? [],
                         'registry' => $govData['models'] ?? []
                     ],
-                    'intents' => $intents
+                    'intents' => $intents,
+                    'alerts' => $govData['alerts'] ?? []
                 ];
                 $pdf = Pdf::loadView('layouts.mas.pdf.ai_pdf', compact('stats', 'chartImage'));
                 $fileName = "AI_Governance_Report_{$timestamp}.pdf";

@@ -97,3 +97,131 @@ if (!function_exists('getWorkflowStepName')) {
         return $steps[$step] ?? 'Step ' . $step;
     }
 }
+
+if (!function_exists('getActiveAuditStatuses')) {
+    /**
+     * Get all active audit statuses for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveAuditStatuses()
+    {
+        return \App\Models\AuditModule\AuditStatus::active()->forCompany()->ordered()->get();
+    }
+}
+
+if (!function_exists('getActiveAuditTypes')) {
+    /**
+     * Get all active audit types for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveAuditTypes()
+    {
+        return \App\Models\AuditModule\AuditType::active()->forCompany()->orderBy('name')->get();
+    }
+}
+
+if (!function_exists('getAuditorUsers')) {
+    /**
+     * Get users who can act as auditors.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getAuditorUsers()
+    {
+        // Default: return all active non-client employees
+        return \App\User::where('is_client', 0)
+            ->where('supplier_id', 0)
+            ->where('active', 1)
+            ->where('is_support_staff', 0)
+            ->orderBy('name')
+            ->get();
+    }
+}
+
+if (!function_exists('getActiveFindingCategories')) {
+    /**
+     * Get all active finding categories for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveFindingCategories()
+    {
+        return \App\Models\AuditModule\FindingCategory::active()->forCompany()->orderBy('name')->get();
+    }
+}
+
+if (!function_exists('getActiveRiskLevels')) {
+    /**
+     * Get all active risk levels for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveRiskLevels()
+    {
+        return \App\Models\AuditModule\RiskLevel::active()->forCompany()->ordered()->get();
+    }
+}
+
+if (!function_exists('getActiveWorkflowActions')) {
+    /**
+     * Get all active workflow actions for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveWorkflowActions()
+    {
+        return \App\Models\AuditModule\WorkflowAction::active()->forCompany()->ordered()->get();
+    }
+}
+
+if (!function_exists('getAvailableWorkflowActions')) {
+    /**
+     * Get available workflow action rules based on current status.
+     *
+     * @param int|null $statusId
+     * @param string|null $statusName
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getAvailableWorkflowActions($statusId = null, $statusName = null)
+    {
+        return \App\Models\AuditModule\WorkflowActionRule::active()
+            ->forCompany()
+            ->forStatus($statusId, $statusName)
+            ->with(['workflowAction', 'targetStatus'])
+            ->ordered()
+            ->get();
+    }
+}
+
+if (!function_exists('getWorkflowActionByCode')) {
+    /**
+     * Get a workflow action by its code.
+     *
+     * @param string $code
+     * @return \App\Models\AuditModule\WorkflowAction|null
+     */
+    function getWorkflowActionByCode($code)
+    {
+        return \App\Models\AuditModule\WorkflowAction::active()
+            ->forCompany()
+            ->where('code', $code)
+            ->first();
+    }
+}
+
+if (!function_exists('getWorkflowActionById')) {
+    /**
+     * Get a workflow action by its ID.
+     *
+     * @param int $id
+     * @return \App\Models\AuditModule\WorkflowAction|null
+     */
+    function getWorkflowActionById($id)
+    {
+        return \App\Models\AuditModule\WorkflowAction::active()
+            ->forCompany()
+            ->find($id);
+    }
+}

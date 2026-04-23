@@ -3,7 +3,7 @@
 return [
     'management_section' => 'Management Section',
     'analytical_suite' => 'Analytical Suite',
-    'ai_analytics' => 'AI Analytics',
+    'ai_analytics' => 'AI Monitoring',
     'global_overview' => 'Global Overview',
     'lab_insights' => 'Lab Insights',
     'tat_analysis' => 'TAT Analysis',
