@@ -11,6 +11,7 @@ from python.ai_service.services.retrieval_service import RetrievalService
 from python.ai_service.services.live_data_service import LiveDataService
 from python.ai_service.services.visualization_service import visualization_service
 from python.ai_service.core.simple_assistant import SimpleAssistant
+from python.ai_service.core.intermediate_assistant import IntermediateAssistant
 from python.ai_service.config.settings import settings
 
 router = APIRouter(tags=["Chat"], prefix="/v1")
@@ -21,6 +22,7 @@ ollama_service = OllamaService()
 retrieval_service = RetrievalService()
 live_data_service = LiveDataService()
 simple_assistant = SimpleAssistant(ollama_service, live_data_service, retrieval_service, visualization_service)
+intermediate_assistant = IntermediateAssistant(ollama_service, simple_assistant)
 
 # Dependency Helpers
 def get_ollama_service():
@@ -39,16 +41,17 @@ async def chat(
     if not last_message:
         raise HTTPException(status_code=400, detail="Empty message")
 
-    # Call the simplified assistant
-    result = await asyncio.to_thread(
-        simple_assistant.process_query, 
+    # Call the intermediate assistant for context-aware routing
+    result = await intermediate_assistant.process_query(
         last_message, 
+        request.messages,
         request.company_id,
         request.use_visuals,
         request.model,
         trace_id=request.trace_id,
         user_id=request.user_id,
         session_id=request.session_id,
+        module_context=request.module_context,
     )
 
     return ChatResponse(
@@ -67,27 +70,25 @@ async def chat(
 async def chat_stream(
     request: ChatStreamRequest,
 ):
-    """Compatibility placeholder for legacy streaming clients."""
+    """Real-time streaming assistant with context scoping."""
     trace_id = request.trace_id or str(uuid.uuid4())
-    last_message = request.messages[-1]["content"] if request.messages else ""
 
     async def event_generator():
         yield f"data: {json.dumps({'kind': 'upstream_connected', 'trace_id': trace_id})}\n\n"
         
-        # Call simple assistant synchronously in thread
-        result = await asyncio.to_thread(
-            simple_assistant.process_query, 
-            last_message, 
+        async for chunk in intermediate_assistant.process_query_stream(
+            request.messages[-1]["content"] if request.messages else "",
+            request.messages,
             request.company_id,
             request.use_visuals,
             request.model,
-            trace_id=request.trace_id or trace_id,
+            trace_id=trace_id,
             user_id=request.user_id,
             session_id=request.session_id,
-        )
+            module_context=request.module_context,
+        ):
+            yield f"data: {json.dumps(chunk)}\n\n"
         
-        # Return full answer as a single "streaming" chunk for compatibility
-        yield f"data: {json.dumps({'token': result['answer'], 'sources': result['sources']})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

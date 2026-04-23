@@ -715,14 +715,14 @@ Rules:
         import random
         m = (message or "").strip().lower()
         if m in {"ping", "health", "status", "alive"}:
-            return "Imara AI is online. Ask a lab or inventory question when ready."
+            return "Imara AI is online and connected to the GCLA database. Ask a lab or inventory question when ready."
         
         greetings = [
-            "Hello! I am online and ready to help with lab operations, samples, inventory, and reports.",
-            "Hi there! How can I assist you with the LIMS today?",
-            "Greetings! I'm here to help you query lab data, check inventory, or generate reports.",
-            "Hello! What lab operations or metrics can I help you look up today?",
-            "Hi! Imara AI is at your service. What do you need help with?"
+            "Hello! I am online and ready to help with GCLA lab operations, samples, inventory, and reports.",
+            "Hi there! How can I assist you with the GCLA LIMS today?",
+            "Greetings! I'm here to help you query GCLA lab data, check inventory, or generate reports.",
+            "Hello! What GCLA lab operations or metrics can I help you look up today?",
+            "Hi! Imara AI is at your service for all GCLA LIMS needs. What do you need help with?"
         ]
         return random.choice(greetings)
 

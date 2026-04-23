@@ -21,7 +21,7 @@ Groups:
 
 import re
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +261,30 @@ class ManifestIntentRouter:
         # Pre-compile for faster matching
         self._group_a = _GROUP_A_RULES
         self._group_b = _GROUP_B_RULES
+
+    def match_all(self, query: str) -> List[Tuple[str, str]]:
+        """
+        Find ALL matching intents in the query (used for multi-query analysis).
+        
+        Returns:
+            List of (intent_name, routing_tier)
+        """
+        q = query.lower().strip()
+        matches = []
+        
+        # Group A
+        for patterns, intent in self._group_a:
+            if any(p in q for p in patterns):
+                matches.append((intent, "keyword"))
+                
+        # Group B
+        for patterns, intent in self._group_b:
+            if any(p in q for p in patterns):
+                # Only add if not already added by Group A (to prevent duplicates)
+                if not any(m[0] == intent for m in matches):
+                    matches.append((intent, "keyword_loose"))
+                    
+        return matches
 
     def match(self, query: str) -> Tuple[Optional[str], Optional[str]]:
         """

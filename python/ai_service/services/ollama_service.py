@@ -31,7 +31,7 @@ class OllamaService:
                 self.client.chat,
                 model=target_model,
                 messages=messages,
-                options=options or {"temperature": 0.3},
+                options=options or {"temperature": 0.3, "num_predict": 4096},
             )
             response = future.result(timeout=self.request_timeout_s)
             return self._normalize_chunk(response)
@@ -74,7 +74,7 @@ class OllamaService:
                     stream = self.client.chat(
                         model=target_model,
                         messages=messages,
-                        options=options or {"temperature": 0.3},
+                        options=options or {"temperature": 0.3, "num_predict": 4096},
                         stream=True
                     )
                     for chunk in stream:
