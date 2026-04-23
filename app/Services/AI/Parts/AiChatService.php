@@ -24,21 +24,32 @@ class AiChatService extends AiBaseService
                 'model' => $options['model'] ?? null,
             ];
 
-            $response = \Illuminate\Support\Facades\Http::timeout(180)
-                ->post("{$this->apiBaseUrl}/v1/chat", $payload);
+            $client = new GuzzleClient();
+            $response = $client->post("{$this->apiBaseUrl}/v1/chat/stream", [
+                'json' => $payload,
+                'stream' => true,
+                'timeout' => 180,
+            ]);
 
-            if ($response->successful()) {
-                $data = $response->json();
-                // Return as a single SSE event for backward compatibility
-                yield json_encode([
-                    'token' => $data['reply'] ?? '',
-                    'sources' => $data['sources'] ?? [],
-                    'kind' => 'generation_started'
-                ]);
-            } else {
-                yield json_encode(['error' => 'AI Service error: ' . $response->status()]);
+            $body = $response->getBody();
+            $buffer = '';
+            
+            while (!$body->eof()) {
+                $chunk = $body->read(1024);
+                $buffer .= $chunk;
+                
+                while (($pos = strpos($buffer, "\n\n")) !== false) {
+                    $event = substr($buffer, 0, $pos);
+                    $buffer = substr($buffer, $pos + 2);
+                    
+                    if (strpos($event, "data: ") === 0) {
+                        $jsonData = substr($event, 6);
+                        if (trim($jsonData) !== '[DONE]') {
+                            yield $jsonData;
+                        }
+                    }
+                }
             }
-
         } catch (\Throwable $e) {
             $this->log('error', 'Simplified stream chat failed', ['error' => $e->getMessage()]);
             yield json_encode(['error' => 'AI Service unreachable']);

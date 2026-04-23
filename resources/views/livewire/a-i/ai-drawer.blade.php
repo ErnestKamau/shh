@@ -224,19 +224,59 @@
                         body: JSON.stringify({ role: 'user', content: text })
                     });
 
-                    const aiRes = await fetch('/imara-ai/ask', {
+                    // Create an empty bot message placeholder
+                    const botDiv = document.createElement('div');
+                    botDiv.className = `drawer-msg drawer-msg-bot`;
+                    messagesContainer.appendChild(botDiv);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                    const aiRes = await fetch('/imara-ai/ask-stream', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                         body: JSON.stringify({ question: text })
                     });
-                    const aiData = await aiRes.json();
-                    
-                    addMessage(aiData.reply || 'No response.', 'bot');
+
+                    const reader = aiRes.body.getReader();
+                    const decoder = new TextDecoder("utf-8");
+                    let fullReply = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const dataStr = line.substring(6).trim();
+                                if (dataStr === '[DONE]') continue;
+                                try {
+                                    const data = JSON.parse(dataStr);
+                                    if (data.token) {
+                                        fullReply += data.token;
+                                        // Simple markdown bolding replacement just to look decent, or raw text
+                                        botDiv.textContent = fullReply;
+                                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                                    } else if (data.reply) {
+                                        // Fallback for simple assistant payload
+                                        fullReply += data.reply;
+                                        botDiv.textContent = fullReply;
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+
+                    if (!fullReply) {
+                        botDiv.textContent = 'No response.';
+                        fullReply = 'No response.';
+                    }
 
                     await fetch(`/imara-ai/conversations/${drawerConvoId}/messages`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                        body: JSON.stringify({ role: 'bot', content: aiData.reply })
+                        body: JSON.stringify({ role: 'bot', content: fullReply })
                     });
                 } catch (e) {
                     addMessage('Error connecting to AI service.', 'bot');

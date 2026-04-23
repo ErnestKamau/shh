@@ -121,7 +121,7 @@ class IntermediateAssistant:
                 self.ollama.generate, 
                 prompt=message, 
                 system=system_prompt,
-                model=model
+                model=model or "gemma3:1b"
             )
             
             # Check for service errors
@@ -194,7 +194,7 @@ class IntermediateAssistant:
         # We use the full messages array for history in the stream
         stream = self.ollama.chat_stream(
             messages=[{"role": "system", "content": system_prompt}] + messages,
-            model=model
+            model=model or "gemma3:1b"
         )
         
         async for chunk in stream:
