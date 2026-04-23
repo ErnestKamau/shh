@@ -52,7 +52,7 @@
             <div class="card shadow-sm border-0 bg-success text-white h-100">
                 <div class="card-body">
                     <h6 class="text-uppercase small mb-2 opacity-75">{{ __('mas/logistics.restock_compliance') }}</h6>
-                    <h2 class="font-weight-bold mb-0 text-white">92%</h2>
+                    <h2 class="font-weight-bold mb-0 text-white">{{ $stats['restock_compliance'] }}%</h2>
                     <p class="small mb-0 mt-2">{{ __('mas/logistics.avg_lead_time') }}</p>
                 </div>
             </div>
@@ -166,25 +166,25 @@
                     <h5 class="mb-3 font-weight-bold text-dark">{{ __('mas/logistics.procurement_insight') }}</h5>
                     <div class="alert alert-info border-0 shadow-sm small">
                         <i class="mdi mdi-lightbulb-on mr-1"></i> 
-                        {!! __('mas/logistics.ai_suggestion_text') !!}
+                        {!! $stats['ai_suggestion'] !!}
                     </div>
                     <ul class="list-group list-group-flush bg-transparent">
                         <li class="list-group-item bg-transparent px-0 py-2 border-0">
                             <div class="d-flex justify-content-between x-small uppercase text-muted font-weight-bold">
                                 <span>{{ __('mas/logistics.prep_frequency') }}</span>
-                                <span>{{ __('mas/logistics.high') }}</span>
+                                <span>{{ $stats['prep_frequency'] }}</span>
                             </div>
                             <div class="progress mt-1" style="height: 4px;">
-                                <div class="progress-bar bg-primary" style="width: 85%"></div>
+                                <div class="progress-bar bg-primary" style="width: {{ $stats['prep_percentage'] }}%"></div>
                             </div>
                         </li>
                         <li class="list-group-item bg-transparent px-0 py-2 border-0">
                             <div class="d-flex justify-content-between x-small uppercase text-muted font-weight-bold">
                                 <span>{{ __('mas/logistics.waste_factor') }}</span>
-                                <span>{{ __('mas/logistics.minimal') }} (2.4%)</span>
+                                <span>{{ $stats['waste_factor'] }}%</span>
                             </div>
                             <div class="progress mt-1" style="height: 4px;">
-                                <div class="progress-bar bg-success" style="width: 15%"></div>
+                                <div class="progress-bar bg-success" style="width: {{ min(100, $stats['waste_factor'] * 10) }}%"></div>
                             </div>
                         </li>
                     </ul>

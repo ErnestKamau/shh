@@ -3,6 +3,7 @@
 namespace App\Services\AI;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 /**
  * AnalyticsCollectorService
@@ -62,6 +63,21 @@ class AnalyticsCollectorService
         if ($selectedModel === $recommendedModel) {
             $this->routingStats[$key]['correct_recommendations']++;
         }
+
+        // Persist to DB
+        try {
+            DB::table('ai_analytics_logs')->insert([
+                'intent' => $intent,
+                'model_used' => $selectedModel,
+                'confidence' => $confidence,
+                'success' => true,
+                'metadata' => json_encode(['recommended_model' => $recommendedModel]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AnalyticsCollector: Failed to persist routing log: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -117,6 +133,21 @@ class AnalyticsCollectorService
 
         if ($error) {
             $this->recordError($model, $error);
+        }
+
+        // Persist to DB
+        try {
+            DB::table('ai_analytics_logs')->insert([
+                'model_used' => $model,
+                'latency_ms' => $latencyMs,
+                'tokens_used' => $tokensUsed,
+                'success' => $success,
+                'error_message' => $error,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AnalyticsCollector: Failed to persist performance log: ' . $e->getMessage());
         }
     }
 
@@ -352,13 +383,24 @@ class AnalyticsCollectorService
      */
     public function getSystemHealth(): array
     {
-        // Calculate component scores
-        $routingAccuracy = $this->calculateRoutingAccuracy();
-        $modelSuccessRate = $this->calculateModelSuccessRate();
-        $errorRate = $this->calculateErrorRate();
+        // 1. Calculate current in-memory scores
+        $currRouting = $this->calculateRoutingAccuracy();
+        $currModel = $this->calculateModelSuccessRate();
+        $currError = $this->calculateErrorRate();
 
-        // Overall health score (weighted average)
-        $healthScore = ($routingAccuracy * 0.3) + ($modelSuccessRate * 0.5) + ((100 - $errorRate) * 0.2);
+        // 2. Fetch historical scores from DB (last 7 days)
+        $dbStats = DB::table('ai_analytics_logs')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->selectRaw('count(*) as total, sum(case when success = 1 then 1 else 0 end) as success_count')
+            ->first();
+        
+        $historicalSuccessRate = ($dbStats && $dbStats->total > 0) 
+            ? ($dbStats->success_count / $dbStats->total) * 100 
+            : 100;
+
+        // 3. Weighted Blend (current performance + historical stability)
+        $blendedSuccessRate = ($currModel * 0.7) + ($historicalSuccessRate * 0.3);
+        $healthScore = ($currRouting * 0.3) + ($blendedSuccessRate * 0.5) + ((100 - $currError) * 0.2);
 
         $status = match (true) {
             $healthScore >= 90 => 'healthy',
@@ -369,9 +411,9 @@ class AnalyticsCollectorService
         return [
             'health_score' => round($healthScore, 1),
             'status' => $status,
-            'routing_accuracy' => round($routingAccuracy, 1),
-            'model_success_rate' => round($modelSuccessRate, 1),
-            'error_rate' => round($errorRate, 1),
+            'routing_accuracy' => round($currRouting, 1),
+            'model_success_rate' => round($blendedSuccessRate, 1),
+            'error_rate' => round($currError, 1),
         ];
     }
 

@@ -5846,19 +5846,51 @@ class SampleWorkFlowController extends Controller
         $qc_config_percentage = SystemConfiguration::where('key', 'qc_percentage_config')->first();
         $batch = SampleHeader::with('qctype')->find($request->batch_id);
         $qc_results = [];
+        
         foreach ($captured_results as $c_result) {
-            // $analyte_processed = QCProcessedResults::where('analyte_id',$c_result->analyte_id)->where('analysis_type_id',$c_result->analysis_type_id)->where('sample_type_id',$batch->sample_type_id)->where('method_id',$c_result->method_id)->where('standard_id',$c_result->sample->main_standard)->first();
-            $analyte_processed = QCProcessedResults::where('analyte_id', $c_result->analyte_id)->where('analysis_type_id', $c_result->analysis_type_id)->where('sample_type_id', $batch->sample_type_id)->where('method_id', $c_result->method_id)->first();
+            $analyte_processed = QCProcessedResults::where('analyte_id', $c_result->analyte_id)
+                ->where('analysis_type_id', $c_result->analysis_type_id)
+                ->where('sample_type_id', $batch->sample_type_id)
+                ->where('method_id', $c_result->method_id)
+                ->first();
+
             if (!isset($analyte_processed->id)) {
                 $analyte_processed = QCProcessedResults::create([
                     'method_id' => $c_result->method_id,
                     "analyte_id" => $c_result->analyte_id,
                     "analysis_type_id" => $c_result->analysis_type_id,
                     "sample_type_id" => $batch->sample_type_id,
-                    // "standard_value_id" => $c_result->main_standard_id,
-                    // "standard_id" => $c_result->sample->main_standard
                 ]);
             }
+
+            // Determine status_code (PASSED/FAILED)
+            $status = 'PASSED';
+            if ($c_result->repeat_captured_id > 0) {
+                // Duplicate comparison logic
+                $captured = CapturedResult::find($c_result->repeat_captured_id);
+                if ($captured && is_numeric($captured->result) && is_numeric($c_result->result)) {
+                    $perc_val = (floatval($qc_config_percentage->value ?? 0) / 100) * floatval($captured->result);
+                    $low = floatval($captured->result) - $perc_val;
+                    $high = floatval($captured->result) + $perc_val;
+                    if (floatval($c_result->result) < $low || floatval($c_result->result) > $high) {
+                        $status = 'FAILED';
+                    }
+                }
+            } else {
+                // Standard range comparison logic
+                $standardId = $c_result->sample->main_standard ?? 0;
+                if ($standardId > 0 && is_numeric($c_result->result)) {
+                    $stdAnalyte = \App\StandardAnalytes::where('standard_id', $standardId)
+                        ->where('analyte_id', $c_result->analyte_id)
+                        ->first();
+                    if ($stdAnalyte) {
+                        if (floatval($c_result->result) < $stdAnalyte->low || floatval($c_result->result) > $stdAnalyte->high) {
+                            $status = 'FAILED';
+                        }
+                    }
+                }
+            }
+
             $qc_results[] = [
                 "captured_result_id" => $c_result->id,
                 "sample_detail_code" => $c_result->sample_detail_code,
@@ -5867,6 +5899,7 @@ class SampleWorkFlowController extends Controller
                 "analyte_id" => $c_result->analyte_id,
                 "analyte_code" => $c_result->analyte_code,
                 "result" => $c_result->result,
+                "status_code" => $status, // Added status code population
                 "analysis_type_id" => $c_result->analysis_type_id,
                 "remarks" => $c_result->remark,
                 "analyte_status_contracted" => $c_result->analyte_status_contracted,
@@ -5878,18 +5911,69 @@ class SampleWorkFlowController extends Controller
                 "repeat_captured_id" => $c_result->repeat_captured_id,
                 "previous_result" => $c_result->repeatsampleresult,
                 "config_percentage" => $qc_config_percentage->value ?? 0,
-                // "is_qc_processed" => $batch->qctype->use_existing_sample == 1 ? 1 : 0,
                 "is_qc_processed" => 0,
                 "analyte_processed_id" => $analyte_processed->id,
+                "created_at" => now(),
+                "updated_at" => now(),
             ];
         }
-        // return response()->json($qc_results);
-        QcResults::insert($qc_results);
+
+        if (!empty($qc_results)) {
+            QcResults::insert($qc_results);
+        }
+
+        // Automatic statistical processing (Robust CV logic from QualityControlController)
+        $this->autoProcessQcStats(collect($qc_results)->pluck('analyte_processed_id')->unique()->toArray());
+
         $previousStatus = $batch->status;
         $batch->status = 'Completed';
         $batch->save();
 
-        return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'QC batch marked as complete successfully. Note to processes the qc results on the qc module to incorporate the new results');
+        return redirect()->route('sample-workflow', ['status' => $previousStatus])
+            ->with('success', 'QC batch completed and analytics processed.');
+    }
+
+    /**
+     * Internal helper to trigger robust statistical processing automatically
+     */
+    private function autoProcessQcStats(array $analyteProcessedIds)
+    {
+        $unprocessed = QCProcessedResults::whereIn('id', $analyteProcessedIds)->get();
+        foreach ($unprocessed as $up) {
+            $raw_results = QcResults::where('analyte_processed_id', $up->id)
+                ->pluck('result')
+                ->filter(fn($v) => is_numeric($v))
+                ->map(fn($v) => (float)$v)
+                ->values()
+                ->toArray();
+
+            if (count($raw_results) > 0) {
+                // Basic Robust Stats Logic (Simplified version of QualityControlController methods)
+                $median = $this->calculateMedian($raw_results);
+                $deviations = array_map(fn($v) => abs($v - $median), $raw_results);
+                $mad = $this->calculateMedian($deviations);
+                $rSD = $mad * 1.4826;
+                $mean = array_sum($raw_results) / count($raw_results);
+                $rCV = $median != 0 ? $rSD / $median : 0;
+
+                $up->robust_standard_deviation = $rSD;
+                $up->robust_median = $median;
+                $up->robust_mean = $mean;
+                $up->robust_cv = $rCV;
+                $up->robust_cv_percentage = $rCV * 100;
+                $up->save();
+            }
+        }
+        QcResults::whereIn('analyte_processed_id', $analyteProcessedIds)->update(['is_qc_processed' => 1]);
+    }
+
+    private function calculateMedian(array $values): float
+    {
+        $count = count($values);
+        if ($count === 0) return 0;
+        sort($values);
+        $middle = (int) floor($count / 2);
+        return $count % 2 ? $values[$middle] : ($values[$middle - 1] + $values[$middle]) / 2;
     }
 
     /**

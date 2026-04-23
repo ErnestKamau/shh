@@ -7,7 +7,12 @@
             <h1 class="h3 font-weight-bold text-dark mb-1">{{ __('mas/dashboard.title') }}</h1>
             <p class="text-muted small mb-0">{{ __('mas/dashboard.subtitle') }}</p>
         </div>
-        <div class="col-auto">
+        <div class="col-auto d-flex align-items-center">
+            <button wire:click="runEtl" wire:loading.attr="disabled" class="btn btn-sm btn-outline-primary mr-3 shadow-sm bg-white">
+                <i class="mdi mdi-database-refresh mr-1 text-primary"></i> 
+                <span wire:loading.remove>{{ __('Refresh') }}</span>
+                <span wire:loading>{{ __('Refreshing...') }}</span>
+            </button>
             <span class="badge badge-info p-2 shadow-sm">
                 <i class="mdi mdi-calendar mr-1"></i> {{ date('Y-m-d H:i') }}
             </span>
