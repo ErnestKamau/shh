@@ -31,6 +31,7 @@ const selectAllConvos  = document.getElementById('selectAllConvos');
 const btnBulkDelete    = document.getElementById('btnBulkDelete');
 
 function enterSelectMode() {
+    if (!sidebarHistory) return;
     bulkSelectMode = true;
     selectedConvoIds.clear();
     if (btnSelectToggle) btnSelectToggle.classList.add('active');
@@ -42,6 +43,7 @@ function enterSelectMode() {
 }
 
 function exitSelectMode() {
+    if (!sidebarHistory) return;
     bulkSelectMode = false;
     selectedConvoIds.clear();
     if (btnSelectToggle) btnSelectToggle.classList.remove('active');
@@ -55,6 +57,7 @@ btnSelectToggle?.addEventListener('click', () => {
 });
 
 selectAllConvos?.addEventListener('change', () => {
+    if (!sidebarHistory) return;
     const checked = selectAllConvos.checked;
     conversations.forEach(c => {
         if (checked) selectedConvoIds.add(c.id);
@@ -83,6 +86,7 @@ let pendingDeleteId     = null;
 let pendingBulkIds      = null;
 
 function showDeleteModal(convoId) {
+    if (!deleteConvoModal || !modalIcon || !modalTitle || !modalBody || !modalConvoList || !modalConfirmBtn) return;
     pendingDeleteId = convoId;
     pendingBulkIds  = null;
     modalIcon.className  = 'modal-icon';
@@ -98,6 +102,7 @@ function showDeleteModal(convoId) {
 }
 
 function showBulkDeleteModal(ids) {
+    if (!deleteConvoModal || !modalIcon || !modalTitle || !modalBody || !modalConvoList || !modalConfirmBtn) return;
     pendingBulkIds  = ids;
     pendingDeleteId = null;
     const n = ids.length;
@@ -123,6 +128,7 @@ function showBulkDeleteModal(ids) {
 }
 
 function hideDeleteModal() {
+    if (!deleteConvoModal || !modalConvoList) return;
     deleteConvoModal.style.display = 'none';
     document.getElementById('imara-ai-root').classList.remove('modal-open');
     pendingDeleteId = null;
@@ -131,12 +137,12 @@ function hideDeleteModal() {
     modalConvoList.innerHTML = '';
 }
 
-modalCancelBtn.addEventListener('click', hideDeleteModal);
-deleteConvoModal.addEventListener('click', (e) => {
+modalCancelBtn?.addEventListener('click', hideDeleteModal);
+deleteConvoModal?.addEventListener('click', (e) => {
     if (e.target === deleteConvoModal) hideDeleteModal();
 });
 
-modalConfirmBtn.addEventListener('click', async () => {
+modalConfirmBtn?.addEventListener('click', async () => {
     if (pendingBulkIds !== null) {
         const ids = pendingBulkIds;
         hideDeleteModal();

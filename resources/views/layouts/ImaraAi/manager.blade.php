@@ -52,12 +52,12 @@
 @push('scripts')
 <script>
     // Minimal sidebar initialization for KB manager
-    const sidebar = document.getElementById('aiSidebar');
+    const managerSidebar = document.getElementById('aiSidebar');
     const toggle = document.getElementById('toggle-main-sidebar');
     
     if (toggle) {
         toggle.addEventListener('click', () => {
-            sidebar?.classList.toggle('collapsed');
+            managerSidebar?.classList.toggle('collapsed');
         });
     }
 </script>

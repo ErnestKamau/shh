@@ -127,11 +127,11 @@
         </div>
         
         <div style="background: #f9fafb; padding: 12px 24px; border-bottom: 1px solid #e5e7eb; display: flex; gap: 4px;">
-            <button type="button" id="tabManualText" onclick="switchKnowledgeTab('text')" style="padding: 8px 16px; border-radius: 8px; border: none; background: #fff; color: #a72b2a; font-weight: 700; font-size: 0.85rem; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                <i class="mdi mdi-text-box-outline" style="margin-right: 6px;"></i>Manual Text
-            </button>
-            <button type="button" id="tabFileUpload" onclick="switchKnowledgeTab('file')" style="padding: 8px 16px; border-radius: 8px; border: none; background: transparent; color: #6b7280; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="if(this.dataset.active !== 'true') this.style.background='transparent'">
+            <button type="button" id="tabFileUpload" onclick="switchKnowledgeTab('file')" style="padding: 8px 16px; border-radius: 8px; border: none; background: #fff; color: #a72b2a; font-weight: 700; font-size: 0.85rem; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                 <i class="mdi mdi-file-upload-outline" style="margin-right: 6px;"></i>Upload Document
+            </button>
+            <button type="button" id="tabManualText" onclick="switchKnowledgeTab('text')" style="padding: 8px 16px; border-radius: 8px; border: none; background: transparent; color: #6b7280; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="if(this.dataset.active !== 'true') this.style.background='transparent'">
+                <i class="mdi mdi-text-box-outline" style="margin-right: 6px;"></i>Manual Text
             </button>
         </div>
         
@@ -140,40 +140,43 @@
             <input type="hidden" id="kbCreatedBy">
             <input type="hidden" id="kbCreatedAt">
 
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Document Title</label>
-                <input type="text" id="kbTitle" required placeholder="e.g. Standard Operating Procedure for Lab Safety" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#a72b2a'">
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-                <div>
-                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Collection Name</label>
-                    <select id="kbCollection" required style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; background: white; outline: none;">
-                        <option value="General Ops">General Ops</option>
-                        <option value="Inventory">Inventory</option>
-                        <option value="SOPs">SOPs</option>
-                        <option value="Product Catalog">Product Catalog</option>
-                    </select>
+            <div id="kbSharedFields">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Document Title</label>
+                    <input type="text" id="kbTitle" required placeholder="e.g. Standard Operating Procedure for Lab Safety" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#a72b2a'">
                 </div>
-                <div>
-                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Required Permission</label>
-                    <select id="kbPermission" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; background: white; outline: none;">
-                        <option value="General.View">General Access</option>
-                        <option value="Laboratory.Samples.View">Lab Staff</option>
-                        <option value="Laboratory.Admin">Lab Admin</option>
-                        <option value="Quality.Control.Manage">QC Team</option>
-                    </select>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Collection Name</label>
+                        <select id="kbCollection" required style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; background: white; outline: none;">
+                            <option value="General Ops">General Ops</option>
+                            <option value="Inventory">Inventory</option>
+                            <option value="SOPs">SOPs</option>
+                            <option value="Product Catalog">Product Catalog</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Required Permission</label>
+                        <select id="kbPermission" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; background: white; outline: none;">
+                            <option value="General.View">General Access</option>
+                            <option value="Laboratory.Samples.View">Lab Staff</option>
+                            <option value="Laboratory.Admin">Lab Admin</option>
+                            <option value="Quality.Control.Manage">QC Team</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             {{-- Manual Content Input (Default) --}}
             <div id="manualTextInput">
-                <div style="margin-bottom: 24px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151;">Document Content</label>
-                        <span style="font-size: 0.75rem; color: #6b7280;">Markdown supported</span>
-                    </div>
-                    <textarea id="kbContent" rows="12" placeholder="Paste the content that the AI should know..." style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; font-family: inherit; font-size: 0.95rem; line-height: 1.5; transition: border-color 0.2s;" onfocus="this.style.borderColor='#a72b2a'"></textarea>
+                <div style="margin-bottom: 24px; text-align: center; padding: 32px 20px; border: 2px dashed #e5e7eb; border-radius: 12px; background: #fafafa;">
+                    <i class="mdi mdi-pencil-box-outline" style="font-size: 2.5rem; color: #a72b2a; display: block; margin-bottom: 12px;"></i>
+                    <p style="margin: 0 0 6px 0; font-weight: 600; color: #111827; font-size: 0.95rem;">Write with the Knowledge Editor</p>
+                    <p style="margin: 0 0 20px 0; color: #6b7280; font-size: 0.825rem;">Use the full editor for markdown, templates, and structured content.</p>
+                    <a href="{{ route('ai.knowledge.editor') }}" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; background: #a72b2a; color: white; border-radius: 8px; font-weight: 600; font-size: 0.875rem; text-decoration: none; box-shadow: 0 2px 4px rgba(167,43,42,0.2); transition: background 0.2s;" onmouseover="this.style.background='#8e2423'" onmouseout="this.style.background='#a72b2a'">
+                        <i class="mdi mdi-open-in-new"></i> Open Editor
+                    </a>
                 </div>
             </div>
 
@@ -203,7 +206,7 @@
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
+            <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 8px; border-top: 1px solid #f3f4f6;">
                 <button type="button" onclick="closeKnowledgeModal()" style="padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 8px; color: #4b5563; font-weight: 600; background: white; cursor: pointer;">Cancel</button>
                 <button type="submit" style="padding: 10px 24px; border: none; border-radius: 8px; color: white; font-weight: 600; background: #a72b2a; cursor: pointer; box-shadow: 0 2px 4px rgba(167, 43, 42, 0.2);">Save Document</button>
             </div>
@@ -218,7 +221,6 @@
 <script>
     // Constants from environment/blade
     const KB_URL = "{{ url('/imara-ai/knowledge') }}";
-    const CSRF_TOKEN = "{{ csrf_token() }}";
     
     // UI Elements
     const kbTableBody = document.getElementById('kbTableBody');

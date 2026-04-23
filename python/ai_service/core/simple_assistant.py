@@ -404,10 +404,10 @@ class SimpleAssistant:
                         combined_latency += sql_res.get("execution_latency_ms", 0)
                     else:
                         logger.warning(f"Intent {intent} failed: {sql_res.get('error')}")
-                        summaries.append(f"*(Reporting error for '{intent}': {sql_res.get('summary', 'Unavailable')})*")
+                        summaries.append(f"Note: Could not retrieve real-time data for '{intent}'. The database is busy or unavailable.")
                 except Exception as e:
                     logger.error(f"Execution failed for {intent}: {e}")
-                    summaries.append(f"*(Failed to retrieve data for '{intent}')*")
+                    summaries.append(f"Note: Failed to retrieve data for '{intent}'.")
 
         if success_count == 0:
             # Preserve explicit per-intent reporting failures when available.
