@@ -3,8 +3,8 @@ Transformer: corrective_actions → reporting.corrective_actions
 """
 from __future__ import annotations
 import pandas as pd
-from python.py_etl.transformers.base_transformer import BaseTransformer
-from python.py_etl.transformers.type_converters import to_date, to_timestamp
+from py_etl.transformers.base_transformer import BaseTransformer
+from py_etl.transformers.type_converters import to_date, to_timestamp
 
 
 class CorrectiveActionsTransformer(BaseTransformer):

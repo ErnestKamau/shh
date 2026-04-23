@@ -3,8 +3,8 @@ Transformer: inventory_sub_categories → reporting.inventory_sub_categories
 """
 from __future__ import annotations
 import pandas as pd
-from python.py_etl.transformers.base_transformer import BaseTransformer
-from python.py_etl.transformers.type_converters import to_timestamp
+from py_etl.transformers.base_transformer import BaseTransformer
+from py_etl.transformers.type_converters import to_timestamp
 
 
 class InventorySubCategoriesTransformer(BaseTransformer):

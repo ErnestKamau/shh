@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Any
 from celery import Task
 from loguru import logger
 
-from config.celery_config import celery_app
+from celery_config import app as celery_app
 # NOTE: Removed AIPipelineOrchestrator and ModelTrainer imports as they are deleted in Phase D.
 
 class AIFeatureTask(Task):

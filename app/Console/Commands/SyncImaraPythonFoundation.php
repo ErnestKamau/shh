@@ -8,7 +8,9 @@ use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use App\Models\AiRepository\OperationalSyncRun;
+use App\Services\AI\AiEndpointResolver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SyncImaraPythonFoundation extends Command
@@ -91,122 +93,45 @@ class SyncImaraPythonFoundation extends Command
         
         $startTime = now();
         try {
-            // ========== PHASE 0: BUILD PYTHON COMMAND ==========
-            $pythonBinary = env('AI_PYTHON_BIN', 'python3');
-            $scriptPath = base_path('python/py_etl/cli/sync_command.py');
-
-            if (!file_exists($scriptPath)) {
-                throw new \RuntimeException("Python ETL script not found at: {$scriptPath}");
-            }
-
-            $command = [$pythonBinary, $scriptPath, '--run-id', $syncRun->id];
-
+            // ========== PHASE 0: CALL MICROSERVICE API ==========
+            $aiBaseUrl = AiEndpointResolver::resolve();
+            $syncUrl = rtrim($aiBaseUrl, '/') . '/etl/sync';
+            
             $tables = $this->argument('tables') ?: [];
-            if (!empty($tables)) {
-                foreach ($tables as $table) {
-                    $command[] = $table;
-                }
-            }
+            $payload = [
+                'tables' => !empty($tables) ? $tables : null,
+            ];
 
-            if ($this->option('chunk')) {
-                $command[] = '--chunk';
-                $command[] = (string) ((int) $this->option('chunk'));
-            }
-
-            if ($this->option('all')) {
-                $command[] = '--all';
-            }
-
-            if ($this->option('test-connections')) {
-                $command[] = '--test-connections';
-            }
-
-            $this->line('Executing Python ETL engine...');
-            $this->line(implode(' ', array_map('strval', $command)));
+            $this->line("Pinging AI Microservice at: {$syncUrl}");
             
-            Log::channel('etl')->info('ETL starting', [
-                'run_id' => $syncRun->id,
-                'owner_id' => $ownerId,
-                'max_timeout_seconds' => $maxTimeout,
-                'idle_timeout_seconds' => $idleTimeout
-            ]);
+            $response = Http::withHeaders([
+                'X-Request-ID' => (string) $syncRun->id,
+            ])->timeout(10)->post($syncUrl, $payload);
 
-            // ========== PHASE 0: PROCESS TIMEOUT + HARD KILL ==========
-            $process = new Process($command, base_path());
-            $process->setTimeout($maxTimeout);      // 60 minutes max
-            $process->setIdleTimeout($idleTimeout);  // 2 minutes idle max
-
-            $startTime = microtime(true);
-            $process->run(function ($type, $buffer) use ($syncRun) {
-                $this->output->write($buffer);
-                // Log output to file
-                Log::channel('etl')->debug('ETL output', [
-                    'run_id' => $syncRun->id,
-                    'output' => trim($buffer)
-                ]);
-            });
-
-            // ========== PHASE 0: CALCULATE DURATION ==========
-            $duration = (int) abs(microtime(true) - $startTime);
-            if ($duration > ($maxTimeout * 0.9)) {
-                $this->warn("⚠️  ETL took {$duration}s (near timeout threshold of {$maxTimeout}s)");
+            if (!$response->successful()) {
+                $errorDetail = $response->json('detail');
+                $errorMsg = is_array($errorDetail) ? json_encode($errorDetail) : ($errorDetail ?? $response->body());
+                throw new \RuntimeException("AI Service returned error: " . $errorMsg);
             }
 
-            // ========== PHASE 0: CHECK EXIT CODE ==========
-            if ($process->getExitCode() !== 0) {
-                throw new \RuntimeException(
-                    "ETL process exited with code: {$process->getExitCode()}"
-                );
-            }
+            $this->info("✅ ETL sync request accepted by microservice.");
+            $this->line("Response: " . json_encode($response->json()));
 
-            // ========== SUCCESS CASE ==========
+            // NOTE: Since the sync is now asynchronous (BackgroundTasks in FastAPI),
+            // this command will exit early. The status will be updated by the 
+            // AI service writing directly to the sharing database or via 
+            // a callback. In this architecture, we rely on the DB shared state.
+            
             $syncRun->update([
-                'status' => 'completed',
-                'stage' => 'finalize',
-                'finished_at' => now(),
-                'duration_seconds' => $duration
+                'status' => 'pending', // Accepted by service but backgrounded
+                'stage' => 'microservice-delegated',
             ]);
 
-            Log::channel('etl')->info('ETL completed successfully', [
-                'run_id' => $syncRun->id,
-                'duration_seconds' => $duration,
-                'rows_synced' => $syncRun->rows_synced ?? 0,
-                'rows_quarantined' => $syncRun->rows_quarantined ?? 0
-            ]);
-
-            $this->info("✅ Python ETL execution completed successfully ({$duration}s)");
             return self::SUCCESS;
-            
-        } catch (ProcessTimedOutException $e) {
-            // ========== PHASE 0: HARD KILL ON TIMEOUT ==========
-            $this->error("❌ Process timeout: ETL did not complete within timeout window");
-            
-            try {
-                $process->stop(3);  // Force kill (SIGKILL)
-            } catch (\Throwable $killError) {
-                Log::channel('etl')->warning("Failed to force-kill process: " . $killError->getMessage());
-            }
-            
-            $duration = now()->diffInSeconds($startTime);
-            $syncRun->update([
-                'status' => 'failed',
-                'stage' => 'timeout-enforcement',
-                'finished_at' => now(),
-                'duration_seconds' => $duration,
-                'error_message' => "Process timeout after {$maxTimeout} seconds (stopped at {$duration}s)"
-            ]);
-            
-            Log::channel('etl')->error('ETL timeout', [
-                'run_id' => $syncRun->id,
-                'max_timeout' => $maxTimeout,
-                'actual_duration' => $duration
-            ]);
-            
-            return self::FAILURE;
             
         } catch (\Throwable $exception) {
             // ========== FAILURE CASE ==========
-            $duration = (int) abs(microtime(true) - $startTime);
+            $duration = (int) abs(microtime(true) - $startTime->timestamp);
             
             $syncRun->update([
                 'status' => 'failed',

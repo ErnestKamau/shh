@@ -17,7 +17,7 @@ from loguru import logger
 from sqlalchemy import create_engine, text, event
 from sqlalchemy.pool import NullPool
 
-from python.py_etl.config.config import settings
+from py_etl.config.config import settings
 
 
 class DatabaseManager:

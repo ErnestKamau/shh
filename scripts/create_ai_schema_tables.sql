@@ -5,7 +5,7 @@
 -- Run this against your imara-ai PostgreSQL database after bootstrap_db.sql
 -- 
 -- Usage:
---   psql -h localhost -U root -d imara_ai < scripts/create_ai_schema_tables.sql
+--   psql -h localhost -U ai_user -d imara_ai < scripts/create_ai_schema_tables.sql
 -- ============================================================================
 
 -- Ensure ai schema exists (should already exist from bootstrap_db.sql)

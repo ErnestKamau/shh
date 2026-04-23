@@ -49,7 +49,7 @@
                 <div class="card-body">
                     <div class="row text-center mb-4">
                         <div class="col-6 border-right">
-                            <h2 class="font-weight-bold text-success mb-0">{{ $stats['summary']['active_batches'] }}</h2>
+                            <h2 class="font-weight-bold text-success mb-0">{{ $stats['summary']['active_batches'] ?? 0 }}</h2>
                             <p class="text-muted text-uppercase x-small">{{ __('mas/dashboard.active_batches') }}</p>
                         </div>
                         <div class="col-6">
@@ -64,7 +64,7 @@
                             <div class="text-muted x-small uppercase">{{ __('mas/lab.tests_completed') }}</div>
                         </div>
                         <div class="col-6">
-                            <div class="font-weight-bold text-indigo h5 mb-0">{{ $stats['summary']['sla_compliance_rate'] }}%</div>
+                            <div class="font-weight-bold text-indigo h5 mb-0">{{ $stats['summary']['sla_compliance_rate'] ?? 0 }}%</div>
                             <div class="text-muted x-small uppercase">{{ __('mas/lab.sla_compliance_rate') }}</div>
                         </div>
                     </div>
@@ -73,12 +73,12 @@
                     <div class="mt-4 p-3 bg-light rounded">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="text-muted small uppercase font-weight-bold">{{ __('mas/lab.batch_sla_performance') }}</span>
-                            <span class="text-danger font-weight-bold small">{{ __('mas/lab.overdue_count', ['count' => $stats['summary']['overdue_batches']]) }}</span>
+                            <span class="text-danger font-weight-bold small">{{ __('mas/lab.overdue_count', ['count' => $stats['summary']['overdue_batches'] ?? 0]) }}</span>
                         </div>
                         <div class="progress" style="height: 8px;">
-                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ $stats['summary']['sla_compliance_rate'] }}%"></div>
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ $stats['summary']['sla_compliance_rate'] ?? 0 }}%"></div>
                         </div>
-                        <p class="text-center mt-2 mb-0 x-small text-muted">{{ __('mas/lab.batches_within_target', ['percent' => $stats['summary']['sla_compliance_rate']]) }}</p>
+                        <p class="text-center mt-2 mb-0 x-small text-muted">{{ __('mas/lab.batches_within_target', ['percent' => $stats['summary']['sla_compliance_rate'] ?? 0]) }}</p>
                     </div>
 
 

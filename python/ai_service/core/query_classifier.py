@@ -11,7 +11,7 @@ class QueryClassifier:
     ID_PATTERNS = {
         "document": r"(?:DOC|SOP)-\d{4}-\d+",
         "equipment": r"EQ-\d+",
-        "sample": r"(?:PO-QC|SAM)-[A-Z0-9-]+",
+        "sample": r"(?:PO-QC|SAM|[A-Z]{2,3}\d{0,3})/[\d-]+|[A-Z]{2,3}-\d+|[A-Z]{2,3}\d{5,}",
         "inventory": r"INV-\d+",
         "audit": r"(?:AUDIT|AUD|AF)-\d+",
         "capa": r"CAPA-\d+"

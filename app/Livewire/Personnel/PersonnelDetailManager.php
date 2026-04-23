@@ -7,6 +7,7 @@ use App\ModulePreConfigs;
 use App\SampleAnalysisStage;
 use App\User;
 use App\Zone;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 use Spatie\Permission\Models\Role;
 
@@ -233,6 +234,10 @@ class PersonnelDetailManager extends Component
 
     public function getZonesProperty()
     {
+        if (! Schema::hasTable('zones')) {
+            return collect();
+        }
+
         return Zone::query()
             ->where('inventory_location_id', getCurrentUserLocation()->id)
             ->orderBy('key')

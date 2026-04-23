@@ -6,7 +6,7 @@ from dataclasses import asdict
 
 from loguru import logger
 
-from python.ai_service.training import ModelTrainer
+from ai_service.training import ModelTrainer
 
 
 VALID_TARGETS = {"all", "tat", "equipment"}

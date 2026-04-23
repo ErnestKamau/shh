@@ -123,8 +123,17 @@ Route::get('add/suppliers-user', 'SupplierController@make_suppliers_users')->nam
 Route::post('/logout/app/', 'Auth\TwoFactor@mylogout')->name('mylogout');
 Route::get('/verify/user', 'Auth\TwoFactor@index')->name('verify-user');
 Route::post('/verify-code/store', 'Auth\TwoFactor@storeVerifyCode')->name('verify-store');
+Route::get('/verify/totp', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'showVerify'])->name('verify-totp');
+Route::post('/verify/totp', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'storeVerify'])->name('verify-totp-store');
 Route::post('/verify-code/store/ext', 'Auth\TwoFactor@storeVerifyCodeExt')->name('verify-store-ext');
 Route::get('/verify-code/resend', 'Auth\TwoFactor@resendVerifyCode')->name('verify-resend');
+
+Route::prefix('account/2fa')->name('account.2fa.')->middleware(['auth', 'twofactor'])->group(function () {
+    Route::get('/setup', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'setup'])->name('setup');
+    Route::post('/confirm', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'confirm'])->name('confirm');
+    Route::post('/disable', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'disable'])->name('disable');
+    Route::post('/recovery-codes', [\App\Http\Controllers\Auth\TotpTwoFactorController::class, 'regenerateRecoveryCodes'])->name('recovery-codes');
+});
 
 Route::get('/home', 'HomeController@index')->name('home');
 Route::post('/search-sample-code', 'HomeController@searchsample')->name('search-sample-code');
@@ -431,6 +440,33 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}', 'SampleWorkFlowContro
 
 Route::post('/process-raw-results/lab', 'SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab')->middleware('haspermission:Laboratory.components.All Samples.Edit');
 Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.All Samples.View');
+Route::get('/sample-submission-requests', 'SampleWorkFlowController@submissionRequestsIndex')
+    ->name('sample-submission-requests.index')
+    ->middleware('haspermission:Laboratory.components.All Samples.View');
+
+Route::get('/sample-submission-requests/create', 'SampleWorkFlowController@createSampleSubmissionRequest')
+    ->name('sample-submission-requests.create')
+    ->middleware('haspermission:Laboratory.components.All Samples.Add');
+
+Route::get('/sample-submission-requests/{request}', 'SampleWorkFlowController@showSampleSubmissionRequest')
+    ->name('sample-submission-requests.show')
+    ->middleware('haspermission:Laboratory.components.All Samples.View');
+
+Route::get('/sample-submission-requests/{request}/supporting-documents/{instance}', 'SampleWorkFlowController@editSampleSubmissionSupportingDocument')
+    ->name('sample-submission-requests.supporting-documents.edit')
+    ->middleware('haspermission:Laboratory.components.All Samples.View');
+
+Route::put('/sample-submission-requests/{request}/supporting-documents/{instance}', 'SampleWorkFlowController@updateSampleSubmissionSupportingDocument')
+    ->name('sample-submission-requests.supporting-documents.update')
+    ->middleware('haspermission:Laboratory.components.All Samples.Edit');
+
+Route::post('/sample-submission-requests', 'SampleWorkFlowController@storeSampleSubmissionRequest')
+    ->name('sample-submission-requests.store')
+    ->middleware('haspermission:Laboratory.components.All Samples.Add');
+
+Route::get('/sample-submission-requests/customer/{customer}/contacts', 'SampleWorkFlowController@getSubmissionRequestCustomerContacts')
+    ->name('sample-submission-requests.customer-contacts')
+    ->middleware('haspermission:Laboratory.components.All Samples.Add');
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
 Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow-stage')->middleware('haspermission:Laboratory.components.All Samples.View');
 Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details')->middleware('haspermission:Laboratory.components.All Samples.View');

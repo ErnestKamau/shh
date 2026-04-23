@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from python.ai_service.core.etl_engine import ETLEngine  # noqa: E402
-from python.py_etl.transformers.tables.qc_robust_stats_transformer import QcRobustStatsTransformer  # noqa: E402
+from ai_service.core.etl_engine import ETLEngine  # noqa: E402
+from py_etl.transformers.tables.qc_robust_stats_transformer import QcRobustStatsTransformer  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,7 +63,7 @@ def main() -> int:
     args = parser.parse_args()
 
     # PHASE 0: Initialize logging
-    from python.py_etl.core.logging_config import setup_etl_logging
+    from py_etl.core.logging_config import setup_etl_logging
     import uuid
     run_correlation_id = str(args.run_id) if args.run_id else f"manual-{uuid.uuid4().hex[:8]}"
     setup_etl_logging(run_correlation_id)

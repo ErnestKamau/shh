@@ -11,6 +11,7 @@ class ChatRequest(BaseModel):
     attachments: List[Dict[str, Any]] = []
     company_id: Optional[int] = None
     use_visuals: bool = True
+    module_context: Optional[str] = None
     generation_options: Optional[Dict[str, Any]] = None
 
 class ChatResponse(BaseModel):
@@ -32,4 +33,5 @@ class ChatStreamRequest(BaseModel):
     trace_id: Optional[str] = None
     attachments: List[Dict[str, Any]] = []
     use_visuals: bool = True
+    module_context: Optional[str] = None
     generation_options: Optional[Dict[str, Any]] = None

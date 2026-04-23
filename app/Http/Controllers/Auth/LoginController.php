@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\MailController as Mailers;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Support\Facades\Session;
 
 class LoginController extends Controller
 {
@@ -39,6 +40,13 @@ class LoginController extends Controller
 			$this->middleware('guest')->except('logout');
     }
     public function authenticated(Request $request, $user){
+			// Strict 2FA: if user has authenticator enabled, require TOTP instead of email OTP.
+			if ($user->two_factor_confirmed_at) {
+				$user->resetTwoFactor();
+				Session::put('totp_required', true);
+				return;
+			}
+
 			$user->generateTwoFactorCode();
             $app_name = env('APP_NAME', 'FIVET LIMS');
 			$body = 'Hi '.$user->first_name.',<br><br>

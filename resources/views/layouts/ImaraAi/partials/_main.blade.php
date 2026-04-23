@@ -42,14 +42,7 @@
 
     {{-- Input --}}
     <div class="ai-input-area">
-        {{-- Attachment preview bar (hidden until file selected) --}}
-        <div id="attachPreviewBar" style="display:none; align-items:center; gap:8px; padding:8px 12px; background:#f0f9ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:8px; font-size:0.85rem; color:#1d4ed8;">
-            <i class="mdi mdi-paperclip" style="font-size:1.1rem;"></i>
-            <span id="attachFileName" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
-            <span id="attachStatusBadge" style="font-size:0.75rem; padding:2px 8px; border-radius:9999px; background:#dbeafe;">Uploading…</span>
-            <button id="attachRemoveBtn" type="button" style="background:none;border:none;cursor:pointer;color:#64748b;padding:0;">&times;</button>
-        </div>
-        {{-- Attachment preview bar --}}
+        {{-- Attachment preview bar (hidden until file selected; styled via _styles.blade.php #attachPreviewBar rule) --}}
         <div id="attachPreviewBar">
             <i class="mdi mdi-paperclip attach-preview-icon"></i>
             <span id="attachFileName"></span>
@@ -76,9 +69,8 @@
                 <div class="menu-group">
                     <div class="group-label">AI ENGINE</div>
                     <select id="modelSelector" class="premium-select">
-                        <option value="qwen3.5:0.8b">⚡ Fast (Efficiency)</option>
-                        <option value="qwen3.5:2b" selected>⚖️ Balanced (Pro)</option>
-                        <option value="qwen2.5:3b">🧠 Advanced (Reasoning)</option>
+                        <option value="qwen2.5:3b" selected>🧠 qwen2.5:3b (Default)</option>
+                        <option value="qwen2.5:3b-instruct-q4_K_M">⚡ qwen2.5:3b-instruct-q4_K_M (Instruct)</option>
                     </select>
                 </div>
             </div>

@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'api_base_url' => env('AI_SERVICE_URL', 'http://127.0.0.1:8081'),
+    'api_base_url' => env('IMARA_AI_ENDPOINT', env('AI_SERVICE_URL', 'http://127.0.0.1:8081')),
     'api_base_urls' => array_values(array_filter(array_map('trim', explode(',', env('AI_SERVICE_URLS', 'http://127.0.0.1:8080,http://127.0.0.1:8081'))))),
 
     'source_connection' => env('AI_SOURCE_CONNECTION', env('DB_CONNECTION', 'mysql')),

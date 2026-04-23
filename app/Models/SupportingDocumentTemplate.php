@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use App\User;
 
 class SupportingDocumentTemplate extends Model
@@ -40,5 +41,20 @@ class SupportingDocumentTemplate extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Requests that have selected this template.
+     *
+     * @return BelongsToMany<SampleSubmissionRequest, $this>
+     */
+    public function sampleSubmissionRequests(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SampleSubmissionRequest::class,
+            'sample_submission_request_supporting_document_templates',
+            'supporting_document_template_id',
+            'sample_submission_request_id'
+        )->withTimestamps();
     }
 }
