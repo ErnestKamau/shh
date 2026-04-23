@@ -51,6 +51,7 @@
     "autoload": {
         "files": [
             "app/Helpers/helpers.php",
+            "app/Helpers/audit_helpers.php",
             "app/Helpers/CurrencyHelper.php",
             "app/Helpers/BillingHelper.php"
         ],
