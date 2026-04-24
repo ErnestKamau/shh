@@ -14,11 +14,11 @@
 @endsection
 
 @section('title')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.2.96/css/materialdesignicons.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
 <style>
     @include('layouts.ImaraAi.partials._styles')
     @include('layouts.ImaraAi.partials._manager-styles')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.2.96/css/materialdesignicons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
 </style>
 @endsection
 
@@ -52,12 +52,12 @@
 @push('scripts')
 <script>
     // Minimal sidebar initialization for KB manager
-    const sidebar = document.getElementById('aiSidebar');
+    const managerSidebar = document.getElementById('aiSidebar');
     const toggle = document.getElementById('toggle-main-sidebar');
     
     if (toggle) {
         toggle.addEventListener('click', () => {
-            sidebar?.classList.toggle('collapsed');
+            managerSidebar?.classList.toggle('collapsed');
         });
     }
 </script>

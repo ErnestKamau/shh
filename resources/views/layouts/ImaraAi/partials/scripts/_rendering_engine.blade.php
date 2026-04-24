@@ -164,52 +164,51 @@ function initCharts(container) {
                     borderRadius: 4,
                 };
             });
+            // v2.x horizontal bar support
+            let chartType = cfg.type || 'bar';
+            let isHorizontal = false;
+            if (chartType === 'bar' && (cfg.labels || []).length > 8) {
+                chartType = 'horizontalBar';
+                isHorizontal = true;
+            }
+
             new Chart(canvas, {
-                type: cfg.type || 'bar',
+                type: chartType,
                 data: { labels: cfg.labels || [], datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    indexAxis: cfg.type === 'bar' && (cfg.labels || []).length > 8 ? 'y' : 'x',
-                    elements: {
-                        bar: {
-                            borderWidth: 1,
-                            borderRadius: cfg.type === 'bar' ? 4 : 0,
-                        }
+                    legend: { 
+                        display: datasets.length > 1,
+                        position: 'bottom',
+                        labels: { fontSize: 13, fontStyle: 'bold' } 
                     },
-                    plugins: {
-                        legend: { 
-                            display: datasets.length > 1,
-                            position: 'bottom',
-                            labels: { font: { size: 13, weight: '600' } }
-                        },
-                        title: { 
-                            display: !!cfg.title, 
-                            text: cfg.title || '',
-                            font: { size: 16, weight: '700' },
-                            padding: { bottom: 20 }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                            titleColor: '#1e293b',
-                            bodyColor: '#475569',
-                            borderColor: '#e2e8f0',
-                            borderWidth: 1,
-                            padding: 12,
-                            displayColors: true,
-                            boxPadding: 4
-                        }
+                    title: { 
+                        display: !!cfg.title, 
+                        text: cfg.title || '',
+                        fontSize: 16,
+                        fontStyle: 'bold',
+                        padding: 20
                     },
-                    scales: cfg.type === 'pie' || cfg.type === 'doughnut' ? {} : { 
-                        y: { 
-                            beginAtZero: true, 
-                            grid: { color: '#f8fafc' },
-                            ticks: { precision: 0, font: { size: 12 } } 
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { font: { size: 12, weight: '500' } }
-                        }
+                    tooltips: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleFontColor: '#1e293b',
+                        bodyFontColor: '#475569',
+                        borderColor: '#e2e8f0',
+                        borderWidth: 1,
+                        xPadding: 12,
+                        yPadding: 12,
+                        displayColors: true
+                    },
+                    scales: (chartType === 'pie' || chartType === 'doughnut') ? {} : { 
+                        yAxes: [{ 
+                            ticks: { beginAtZero: true, fontSize: 12, precision: 0 },
+                            gridLines: { color: isHorizontal ? 'transparent' : '#f8fafc' }
+                        }],
+                        xAxes: [{
+                            ticks: { fontSize: 12, fontStyle: '500' },
+                            gridLines: { color: isHorizontal ? '#f8fafc' : 'transparent' }
+                        }]
                     },
                 },
             });

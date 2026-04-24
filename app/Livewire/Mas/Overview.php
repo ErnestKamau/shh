@@ -8,6 +8,7 @@ use App\Services\AI\PerformanceDashboardService;
 use App\Services\Dashboards\InventoryDashboardService;
 use App\Services\Documents\Dashboards\EquipmentReliabilityDashboardService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class Overview extends BaseMasPage
 {
@@ -61,6 +62,70 @@ class Overview extends BaseMasPage
             'qc_pending'        => $qcPending,
             'audit_alerts'      => $auditRecent,
         ];
+    }
+
+    public function runEtl(): void
+    {
+        $processedModel = new \App\Models\QcModule\QCProcessedResults();
+        $processedTable = $processedModel->getTable();
+        $processedConnection = $processedModel->getConnectionName();
+
+        if (!Schema::connection($processedConnection)->hasTable($processedTable)) {
+            $this->dispatch('notify', [
+                'type' => 'warning',
+                'message' => "ETL skipped: required table {$processedTable} is missing in the active database."
+            ]);
+
+            return;
+        }
+
+        // 1. Identify all QC Processed Results
+        $processedRecords = \App\Models\QcModule\QCProcessedResults::all();
+
+        foreach ($processedRecords as $up) {
+            // 2. Fetch raw results for this analyte
+            $raw_results = DB::table('qc_results')
+                ->where('analyte_processed_id', $up->id)
+                ->pluck('result')
+                ->filter(fn($v) => is_numeric($v))
+                ->map(fn($v) => (float)$v)
+                ->values()
+                ->toArray();
+
+            if (count($raw_results) > 0) {
+                sort($raw_results);
+                $count = count($raw_results);
+                $middle = (int) floor($count / 2);
+                $median = $count % 2 ? $raw_results[$middle] : ($raw_results[$middle - 1] + $raw_results[$middle]) / 2;
+                
+                $deviations = array_map(fn($v) => abs($v - $median), $raw_results);
+                sort($deviations);
+                $mad = $count % 2 ? $deviations[$middle] : ($deviations[$middle - 1] + $deviations[$middle]) / 2;
+                
+                $rSD = $mad * 1.4826;
+                $mean = array_sum($raw_results) / count($raw_results);
+                $rCV = $median != 0 ? $rSD / $median : 0;
+
+                $up->robust_standard_deviation = (float)$rSD;
+                $up->robust_median = (float)$median;
+                $up->robust_mean = (float)$mean;
+                $up->robust_cv = (float)$rCV;
+                $up->robust_cv_percentage = (float)($rCV * 100);
+                $up->save();
+            }
+        }
+
+        // 3. Mark all results as processed
+        DB::table('qc_results')->update(['is_qc_processed' => 1]);
+
+        // 4. Refresh stats
+        $this->loadStats();
+
+        // 5. Notify user
+        $this->dispatch('notify', [
+            'type' => 'success', 
+            'message' => 'Analytics ETL executed successfully. All QC statistics have been recalculated.'
+        ]);
     }
 
     public function render()

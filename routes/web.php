@@ -142,6 +142,7 @@ Route::post('/set-default-company', 'HomeController@default_company')->name('set
 //#############CONFIGURATIONS###############################################################################
 Route::get('/system-settings', 'ConfigurationController@index')->name('system-settings')->middleware('haspermission:System.components.System Settings.View');
 Route::get('/system-settings/module-visibility', 'ConfigurationController@moduleVisibility')->name('system-settings.module-visibility')->middleware('haspermission:System.components.System Settings.View');
+Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware('haspermission:System.components.Translations.View');
 Route::post('/import-my-users', 'PersonnelController@importUser')->name('importUser');
 /* COMPANIES */
 Route::get('/companies', 'CompanyController@index')->name('companies');
@@ -993,7 +994,7 @@ Route::get('/crm/customer/{id}', function ($id) {
     ]);
 })->middleware(['auth', 'haspermission:CRM.components.Customer-List.View'])->name('crm.customer.show');
 
-Route::get('/crm-dashboard', '\\' . \App\Livewire\Crm\CrmDashboard::class)
+Route::get('/crm-dashboard', '\\' . \App\Livewire\CRM\CrmDashboard::class)
     ->name('crm-dashboard')
     ->middleware('auth')
     ->middleware('haspermission:CRM.permission');
@@ -1869,7 +1870,6 @@ Route::post('/imara-ai/conversations/{convoId}/messages/{messageId}/feedback', '
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.feedback');
 Route::post('/imara-ai/conversations/{id}/attachments', 'AI\KnowledgeAssistantController@uploadAttachment')
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.upload-attachment');
-
 
 
 

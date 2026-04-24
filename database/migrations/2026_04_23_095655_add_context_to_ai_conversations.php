@@ -11,8 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('ai.ai_predictions', function (Blueprint $table) {
-            //
+        Schema::table('ai_conversations', function (Blueprint $table) {
+            $table->string('context', 50)->default('general')->after('title');
+            $table->index('context');
         });
     }
 
@@ -21,8 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('ai.ai_predictions', function (Blueprint $table) {
-            //
+        Schema::table('ai_conversations', function (Blueprint $table) {
+            $table->dropIndex(['context']);
+            $table->dropColumn('context');
         });
     }
 };

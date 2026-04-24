@@ -8,7 +8,7 @@ return [
     'stock_health' => 'Stock Health',
     'financials' => 'Financials',
     'risk_profile' => 'Risk Profile',
-    'ai_intelligence' => 'AI Intelligence',
+    'ai_intelligence' => 'AI Monitoring',
     'qc_stability' => 'QC & Stability',
     'asset_lifecycle' => 'Asset Lifecycle',
     'human_capital' => 'Human Capital',

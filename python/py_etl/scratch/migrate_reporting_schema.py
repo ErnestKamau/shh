@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
-from py_etl.core.database import db_manager
+from python.py_etl.core.database import db_manager
 
 ddl = """
 -- Analytical Expansion Schema initialization (V2)

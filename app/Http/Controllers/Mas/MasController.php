@@ -273,7 +273,7 @@ class MasController extends Controller
             ]
         ];
 
-        return view('layouts.mas.ai', compact('stats'));
+        return view('layouts.mas.ai', compact('stats'))->with('dataTable', true);
     }
 
     /**
@@ -535,9 +535,11 @@ class MasController extends Controller
                         'models' => $govData['performance'] ?? [],
                         'registry' => $govData['models'] ?? []
                     ],
-                    'intents' => $intents
+                    'intents' => $intents,
+                    'alerts' => $govData['alerts'] ?? []
                 ];
-                $pdf = Pdf::loadView('layouts.mas.pdf.ai_pdf', compact('stats', 'chartImage'));
+                $pdf = Pdf::loadView('layouts.mas.pdf.ai_pdf', compact('stats', 'chartImage'))
+                    ->setPaper('a4', 'landscape');
                 $fileName = "AI_Governance_Report_{$timestamp}.pdf";
                 break;
 

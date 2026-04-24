@@ -6,8 +6,7 @@
 <div id="lab-ai-container">
     {{-- 1. Floating Trigger Icon --}}
     <button id="lab-ai-trigger" title="Open Lab Assistant">
-        <i class="mdi mdi-flask-round-bottom"></i>
-        <span>Lab AI</span>
+        <img src="{{ asset('images/imara-sys.png') }}" alt="AI" class="ai-trigger-img">
     </button>
 
     {{-- 2. Slide-out Drawer --}}
@@ -49,25 +48,31 @@
         background: #a72b2a;
         color: #fff;
         border: none;
-        border-radius: 50px;
-        padding: 12px 20px;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        padding: 0;
         display: flex;
+        justify-content: center;
         align-items: center;
-        gap: 10px;
-        box-shadow: 0 4px 15px rgba(167, 43, 42, 0.35);
+        box-shadow: 0 4px 15px rgba(167, 43, 42, 0.4);
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        font-weight: 600;
+        overflow: hidden;
     }
 
     #lab-ai-trigger:hover {
-        transform: translateY(-5px) scale(1.05);
+        transform: translateY(-5px) scale(1.1);
         background: #8e1c1b;
-        box-shadow: 0 8px 25px rgba(167, 43, 42, 0.45);
+        box-shadow: 0 8px 25px rgba(167, 43, 42, 0.5);
     }
 
-    #lab-ai-trigger i {
-        font-size: 1.4rem;
+    .ai-trigger-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        padding: 10px;
+        filter: brightness(0) invert(1); /* Assuming the logo is dark and needs to be white on red */
     }
 
     /* Drawer Container */
@@ -185,7 +190,13 @@
 </style>
 
 {{-- 5. Scripts --}}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+    if (typeof Chart === 'undefined') {
+        const charScript = document.createElement('script');
+        charScript.src = "https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js";
+        document.head.appendChild(charScript);
+    }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
 
 <script>
@@ -196,9 +207,12 @@
         const closeBtn = document.getElementById('lab-ai-close');
 
         // Toggle Logic
+        let originalOverflow = '';
+
         function openDrawer() {
             drawer.classList.add('open');
             overlay.classList.add('active');
+            originalOverflow = window.getComputedStyle(document.body).overflow;
             document.body.style.overflow = 'hidden'; // Prevent background scroll
             
             // Focus the AI input if it exists
@@ -211,7 +225,7 @@
         function closeDrawer() {
             drawer.classList.remove('open');
             overlay.classList.remove('active');
-            document.body.style.overflow = '';
+            document.body.style.overflow = originalOverflow || '';
         }
 
         trigger.addEventListener('click', openDrawer);

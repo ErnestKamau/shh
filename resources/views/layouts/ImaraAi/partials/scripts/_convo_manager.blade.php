@@ -10,6 +10,7 @@ function startNewConversation() {
 }
 
 function showSidebarSkeleton() {
+    if (!sidebarHistory) return;
     sidebarHistory.innerHTML = [1, 2, 3, 4].map(() => `
         <div class="history-skeleton">
             <div class="sk-icon"></div>
@@ -18,10 +19,12 @@ function showSidebarSkeleton() {
 }
 
 function hideSidebarSkeleton() {
+    if (!sidebarHistory) return;
     sidebarHistory.querySelectorAll('.history-skeleton').forEach(el => el.remove());
 }
 
 function showSidebarError() {
+    if (!sidebarHistory) return;
     sidebarHistory.innerHTML = `
         <div class="sidebar-load-error">
             <i class="mdi mdi-wifi-off"></i>
@@ -32,6 +35,7 @@ function showSidebarError() {
 }
 
 async function loadConversationsFromBackend(filter) {
+    if (!sidebarHistory) return;
     showSidebarSkeleton();
     try {
         const url = filter ? `${CONVOS_URL}?filter=${encodeURIComponent(filter)}` : CONVOS_URL;
@@ -98,6 +102,7 @@ async function saveToHistory(userMessage) {
 }
 
 function renderSidebarHistory(filter, list) {
+    if (!sidebarHistory) return;
     hideSidebarSkeleton();
     const source = list ?? conversations;
     const q = (filter || '').toLowerCase().trim();
@@ -207,6 +212,7 @@ function renderSidebarHistory(filter, list) {
 }
 
 function startRename(labelEl, convo) {
+    if (!sidebarHistory) return;
     const input = document.createElement('input');
     input.type  = 'text';
     input.value = convo.title;

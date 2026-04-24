@@ -43,6 +43,8 @@ if (class_exists($developerWebhookController, false)) {
         ->name('api.webhooks.developer');
 }
 
+Route::get('/translations', [\App\Http\Controllers\Api\TranslationController::class, 'index'])
+    ->name('api.translations.index');
 // Customer Portal API routes (auth + test requests)
 // Note: portal.php was removed; portal auth now lives in web routes (TOTP flow).
 if (file_exists(__DIR__ . '/api/portal.php')) {

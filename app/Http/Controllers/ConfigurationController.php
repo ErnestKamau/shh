@@ -27,4 +27,9 @@ class ConfigurationController extends Controller
 
     return view('layouts.configuration.module-visibility');
   }
+
+  public function translations(): View
+  {
+    return view('layouts.configuration.translations');
+  }
 }

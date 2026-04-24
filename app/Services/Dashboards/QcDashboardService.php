@@ -102,42 +102,36 @@ class QcDashboardService
 
     public function getParameterPerformanceData(): array
     {
-        try {
-            $conn   = $this->repositoryConnection();
-            $schema = $this->reportingSchema();
+        $conn = $this->repositoryConnection();
+        $schema = $this->reportingSchema();
 
-            $results = DB::connection($conn)->table("{$schema}.qc_results as qr")
-                ->join("{$schema}.analytes as a", "a.source_id", "=", "qr.analyte_id")
-                ->whereNotNull('qr.status_code')
-                ->whereIn('qr.status_code', ['PASSED', 'FAILED'])
-                ->where('qr.source_created_at', '>=', now()->subMonths(6))
-                ->select('a.name', 'qr.status_code', DB::raw('count(*) as total'))
-                ->groupBy('a.name', 'qr.status_code')
-                ->get();
+        $results = DB::connection($conn)->table("{$schema}.qc_results as qr")
+            ->join("{$schema}.analytes as a", "a.source_id", "=", "qr.analyte_id")
+            ->whereNotNull('qr.status_code')
+            ->whereIn('qr.status_code', ['PASSED', 'FAILED'])
+            ->where('qr.source_created_at', '>=', now()->subMonths(6))
+            ->select('a.name', 'qr.status_code', DB::raw('count(*) as total'))
+            ->groupBy('a.name', 'qr.status_code')
+            ->get();
 
-            $performance = [];
-            foreach ($results as $res) {
-                if (!isset($performance[$res->name])) {
-                    $performance[$res->name] = ['name' => $res->name, 'pass' => 0, 'fail' => 0];
-                }
-                if ($res->status_code === 'PASSED') {
-                    $performance[$res->name]['pass'] += (int) $res->total;
-                } else {
-                    $performance[$res->name]['fail'] += (int) $res->total;
-                }
+        $performance = [];
+        foreach ($results as $res) {
+            if (!isset($performance[$res->name])) {
+                $performance[$res->name] = ['name' => $res->name, 'pass' => 0, 'fail' => 0];
             }
-
-            return collect($performance)->map(function ($p) {
-                $total = $p['pass'] + $p['fail'];
-                $p['rate']  = $total > 0 ? round(($p['pass'] / $total) * 100, 1) : 0;
-                $p['total'] = $total;
-                return $p;
-            })->sortByDesc('total')->take(10)->values()->all();
-
-        } catch (\Throwable $e) {
-            Log::warning('QcDashboardService::getParameterPerformanceData failed: ' . $e->getMessage());
-            return [];
+            if ($res->status_code === 'PASSED') {
+                $performance[$res->name]['pass'] += (int) $res->total;
+            } else {
+                $performance[$res->name]['fail'] += (int) $res->total;
+            }
         }
+
+        return collect($performance)->map(function($p) {
+            $total = $p['pass'] + $p['fail'];
+            $p['rate'] = $total > 0 ? round(($p['pass'] / $total) * 100, 1) : 0;
+            $p['total'] = $total;
+            return $p;
+        })->sortByDesc('total')->take(10)->values()->all();
     }
 
     protected function qcStatusLabels(): array

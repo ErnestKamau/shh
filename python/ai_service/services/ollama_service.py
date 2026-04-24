@@ -10,7 +10,7 @@ class OllamaService:
     def __init__(self):
         self.host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
-        self.request_timeout_s = float(os.getenv("OLLAMA_REQUEST_TIMEOUT_S", "20"))
+        self.request_timeout_s = float(os.getenv("OLLAMA_REQUEST_TIMEOUT_S", "120"))
         try:
             import ollama
             self.client = ollama.Client(host=self.host)
@@ -31,7 +31,7 @@ class OllamaService:
                 self.client.chat,
                 model=target_model,
                 messages=messages,
-                options=options or {"temperature": 0.3},
+                options=options or {"temperature": 0.3, "num_predict": 4096},
             )
             response = future.result(timeout=self.request_timeout_s)
             return self._normalize_chunk(response)
@@ -74,7 +74,7 @@ class OllamaService:
                     stream = self.client.chat(
                         model=target_model,
                         messages=messages,
-                        options=options or {"temperature": 0.3},
+                        options=options or {"temperature": 0.3, "num_predict": 4096},
                         stream=True
                     )
                     for chunk in stream:

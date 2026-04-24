@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import text
-from py_etl.core.database import db_manager
+from python.py_etl.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +24,11 @@ CREATE TABLE IF NOT EXISTS ai.ai_request_logs (
     id              BIGSERIAL PRIMARY KEY,
     trace_id        VARCHAR(64),
     query           TEXT NOT NULL,
-    mode            VARCHAR(128),
+    mode            VARCHAR(32),
     route_name      VARCHAR(128),
-    routing_tier    VARCHAR(64),
+    routing_tier    VARCHAR(16),
     latency_ms      INT,
+    confidence      FLOAT DEFAULT 0.0,
     success         BOOLEAN DEFAULT TRUE,
     error_message   TEXT,
     company_id      INT,
@@ -81,6 +82,7 @@ class RequestLogger:
         route_name: Optional[str] = None,
         routing_tier: Optional[str] = None,
         latency_ms: int = 0,
+        confidence: float = 0.0,
         success: bool = True,
         error_message: Optional[str] = None,
         company_id: Optional[int] = None,
@@ -102,12 +104,6 @@ class RequestLogger:
         if query and len(query) > 2000:
             query = query[:2000] + "…"
 
-        # Truncate mode and routing_tier for DB safety
-        if mode and len(mode) > 128:
-            mode = mode[:125] + "..."
-        if routing_tier and len(routing_tier) > 64:
-            routing_tier = routing_tier[:61] + "..."
-
         t = threading.Thread(
             target=self._write,
             kwargs=dict(
@@ -117,6 +113,7 @@ class RequestLogger:
                 route_name=route_name,
                 routing_tier=routing_tier,
                 latency_ms=latency_ms,
+                confidence=confidence,
                 success=success,
                 error_message=error_message,
                 company_id=company_id,
@@ -137,11 +134,11 @@ class RequestLogger:
 
             sql = text("""
                 INSERT INTO ai.ai_request_logs
-                    (trace_id, query, mode, route_name, routing_tier, latency_ms,
+                    (trace_id, query, mode, route_name, routing_tier, latency_ms, confidence,
                      success, error_message, company_id, user_id, session_id,
                      response_preview, source_count, cache_hit, created_at)
                 VALUES
-                    (:trace_id, :query, :mode, :route_name, :routing_tier, :latency_ms,
+                    (:trace_id, :query, :mode, :route_name, :routing_tier, :latency_ms, :confidence,
                      :success, :error_message, :company_id, :user_id, :session_id,
                      :response_preview, :source_count, :cache_hit, :created_at)
             """)

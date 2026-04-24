@@ -6,7 +6,7 @@ import logging
 from threading import Lock
 from typing import List, Dict, Any, Optional
 from sqlalchemy import text
-from py_etl.core.database import db_manager
+from python.py_etl.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class RetrievalService:
         self._embedding_model = None
         self._embedding_model_attempted = False
         self._embedding_model_lock = Lock()
-        from ai_service.services.rrf_fusion_service import RrfFusionService
+        from python.ai_service.services.rrf_fusion_service import RrfFusionService
         self.fusion_service = RrfFusionService()
 
     def _get_embedding_model(self):

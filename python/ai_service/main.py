@@ -5,9 +5,9 @@ import asyncio
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from ai_service.config.settings import settings
-from ai_service.middleware.request_id import RequestContextMiddleware
-from ai_service.routers import chat, health, etl_status, indexing
+from python.ai_service.config.settings import settings
+from python.ai_service.middleware.request_id import RequestContextMiddleware
+from python.ai_service.routers import chat, health, etl_status, indexing
 
 # Configure Logging
 logging.basicConfig(
@@ -49,7 +49,7 @@ async def startup_event():
     logger.info(f"Starting {settings.app_name} v{settings.version}...")
     # Ensure observability table exists
     try:
-        from ai_service.core.request_logger import request_logger
+        from python.ai_service.core.request_logger import request_logger
         request_logger.ensure_table()
     except Exception as exc:
         logger.warning(f"Could not ensure request logs table on startup: {exc}")
