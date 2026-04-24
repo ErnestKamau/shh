@@ -6,11 +6,8 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\MailController as Mailers;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
-<<<<<<< HEAD
 use Throwable;
-=======
 use Illuminate\Support\Facades\Session;
->>>>>>> 271e9b520a1fc74568e55d1e7b2144d6afa2727c
 
 class LoginController extends Controller
 {

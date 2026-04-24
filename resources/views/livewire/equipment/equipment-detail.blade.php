@@ -171,7 +171,7 @@
             <div class="card shadow-sm border-0 eq-main-card">
                 <div class="card-header bg-light border-0 eq-main-header">
                     <ul class="nav nav-tabs eq-main-tabs">
-                        @if(!$fromDailyLog)
+                        @if(!$fromEquipmentChecks)
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'maintenance' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('maintenance')" type="button">
@@ -2006,8 +2006,8 @@
             });
 
             document.addEventListener('click', function (event) {
-                var dailyLogTabButton = event.target.closest("[wire\\:click=\"setActiveTab('dailylog')\"]");
-                if (dailyLogTabButton) {
+                var equipmentChecksTabButton = event.target.closest("[wire\\:click=\"setActiveTab('equipment-checks')\"]");
+                if (equipmentChecksTabButton) {
                     scheduleBuild();
                 }
             });

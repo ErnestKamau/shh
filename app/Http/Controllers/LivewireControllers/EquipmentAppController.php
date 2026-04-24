@@ -49,7 +49,7 @@ class EquipmentAppController extends Controller
             'pageTitle' => 'Equipment Details - ' . $equipment->name,
             'equipment' => $equipment,
             'equipmentId' => $equipmentId,
-            'fromDailyLog' => request()->query('from') === 'daily-log',
+            'fromEquipmentChecks' => request()->query('from') === 'equipment-checks',
         ]);
     }
 
@@ -123,12 +123,23 @@ class EquipmentAppController extends Controller
     }
 
     /**
+     * Display the equipment checks page.
+     */
+    public function checksIndex()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'equipment-checks',
+            'pageTitle' => 'Equipment Checks',
+        ]);
+    }
+
+    /**
      * Display the equipment daily log page.
      */
     public function dailyLogIndex()
     {
         return view('livewire.layout.equipment-app', [
-            'componentType' => 'daily-log',
+            'componentType' => 'equipment-daily-log',
             'pageTitle' => 'Equipment Daily Log',
         ]);
     }

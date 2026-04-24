@@ -74,10 +74,20 @@
         }
     }
 
-    if (isset($componentType) && $componentType === 'daily-log') {
+    // Add Equipment Checks breadcrumb
+    if (isset($componentType) && $componentType === 'equipment-checks') {
         $breadcrumbItems[] = [
             'link' => null,
-            'name' => 'Daily Log',
+            'name' => 'Equipment Checks',
+            'icon' => null
+        ];
+    }
+
+    // Add Equipment Daily Log breadcrumb
+    if (isset($componentType) && $componentType === 'equipment-daily-log') {
+        $breadcrumbItems[] = [
+            'link' => null,
+            'name' => 'Equipment Daily Log',
             'icon' => null
         ];
     }
@@ -91,7 +101,7 @@
     @elseif($componentType === 'equipment-dashboard')
         @livewire('equipment.equipment-dashboard')
     @elseif($componentType === 'equipment-detail')
-        @livewire('equipment.equipment-detail', ['equipmentId' => $equipmentId, 'fromDailyLog' => $fromDailyLog ?? false])
+        @livewire('equipment.equipment-detail', ['equipmentId' => $equipmentId, 'fromEquipmentChecks' => $fromEquipmentChecks ?? false])
     @elseif($componentType === 'disposal-manager')
         @livewire('equipment.disposal-manager')
     @elseif($componentType === 'disposal-detail')
@@ -104,7 +114,9 @@
         @livewire('equipment.assets.asset-type-manager')
     @elseif($componentType === 'asset-location-manager')
         @livewire('equipment.assets.asset-location-manager')
-    @elseif($componentType === 'daily-log')
+    @elseif($componentType === 'equipment-checks')
+        @livewire('equipment.equipment-checks')
+    @elseif($componentType === 'equipment-daily-log')
         @livewire('equipment.equipment-daily-log')
     @endif
 </main>

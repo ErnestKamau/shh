@@ -32,6 +32,9 @@ class TwoFactor extends Controller
 		);
 		$mailer = new Mailers;
 		$sendmail = $mailer->html_email($mailData,'default');
+		if ($sendmail === false) {
+			return redirect()->back()->with('error', 'Verification code generated, but email could not be sent. Please verify mail settings or try again.');
+		}
 		return redirect()->back()->with('success','Verification code sent successfully!');
 	}
 

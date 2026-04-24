@@ -9,6 +9,19 @@
 			overflow-x: hidden !important;
 		}
 
+        /* Keep batch details page vertically scrollable in fixed-header layouts */
+        #main-container-body {
+            height: calc(100vh - 56px);
+            overflow-y: auto;
+        }
+
+        @media (max-width: 767.98px) {
+            #main-container-body {
+                height: auto;
+                overflow-y: visible;
+            }
+        }
+
 		/* Page chrome */
 		.batch-show-page{
 			padding: 14px 18px 28px 18px;
@@ -342,6 +355,26 @@
 
 @section('script2')
   <script>
+    (function () {
+        function unlockStuckScroll() {
+            var hasOpenModal = document.querySelector('.modal.show');
+
+            if (!hasOpenModal) {
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', unlockStuckScroll);
+        document.addEventListener('hidden.bs.modal', unlockStuckScroll);
+
+        document.addEventListener('livewire:initialized', function () {
+            unlockStuckScroll();
+            Livewire.hook('morph.updated', unlockStuckScroll);
+        });
+    })();
+
 	// Setup CSRF token for all AJAX requests
 	$.ajaxSetup({
 		headers: {

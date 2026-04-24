@@ -160,19 +160,19 @@ class EquipmentDetail extends Component
     public $message = '';
     public $messageType = 'success';
 
-    public $fromDailyLog = false;
+    public $fromEquipmentChecks = false;
 
     public $nonConformanceFromDate = '';
     public $nonConformanceToDate = '';
     public $nonConformancePerPage = 10;
     public $nonConformancePage = 1;
 
-    public function mount($equipmentId, bool $fromDailyLog = false): void
+    public function mount($equipmentId, bool $fromEquipmentChecks = false): void
     {
         $this->equipmentId = $equipmentId;
-        $this->fromDailyLog = $fromDailyLog;
-        if ($fromDailyLog) {
-            $this->activeTab = 'dailylog';
+        $this->fromEquipmentChecks = $fromEquipmentChecks;
+        if ($fromEquipmentChecks) {
+            $this->activeTab = 'equipment-checks';
         }
         $this->loadEquipment();
         $this->loadInitialData();
