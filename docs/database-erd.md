@@ -1455,7 +1455,7 @@ Where the lab **captures, validates, and reports** analytical results.
 erDiagram
     captured_results {
         uuid id PK
-        longText captured_result_data
+        string captured_result_data
     }
 
     results {
@@ -1466,16 +1466,16 @@ erDiagram
         uuid analyte_id FK
         uuid analysis_type_id FK
         string sample_detail_code
-        string result
+        string result_value
         string guide
         string comments
-        boolean recheck
+        bool recheck
         decimal guide_low
         decimal guide_high
         string unit_code
         integer status_code
         string reporting_symbol
-        boolean qc
+        bool qc
         decimal correct_target
         decimal standard_target
         string recommendations
@@ -1484,14 +1484,14 @@ erDiagram
         decimal very_low_guide
         decimal very_high_guide
         string remarks
-        boolean analyte_status_contracted
-        boolean analyte_accredited
+        bool analyte_status_contracted
+        bool analyte_accredited
         integer analysis_type_order
         integer parameters_order
         string remark_colour
         uuid lab_section_id FK
-        boolean remark_is_manual
-        boolean is_pesticide
+        bool remark_is_manual
+        bool is_pesticide
         uuid ltm_method_id FK
     }
 
@@ -1502,13 +1502,13 @@ erDiagram
         uuid sample_header_id FK
         uuid analyte_id FK
         uuid analysis_type_id FK
-        string result
+        string result_value
         string guide
         decimal guide_low
         decimal guide_high
         string unit_code
         string status_code
-        boolean is_qc_processed
+        bool is_qc_processed
         string reporting_symbol
         decimal correct_target
         decimal standard_target
@@ -1529,21 +1529,21 @@ erDiagram
     captured_view {
         uuid id PK
         uuid captured_result_id FK
-        longText view_data
+        string view_data
     }
 
     captured_procedure_values {
         uuid id PK
         uuid captured_result_id FK
         uuid procedure_worksheet_step_id FK
-        text step_value
+        string step_value
     }
 
     captured_procedure_config_values {
         uuid id PK
         uuid captured_result_id FK
         uuid procedure_config_field_id FK
-        text field_value
+        string field_value
     }
 
     procedure_test_kit_rows {
@@ -1565,15 +1565,15 @@ erDiagram
         uuid sample_detail_id FK
         uuid captured_result_id FK
         uuid formular_id FK
-        Date worksheet_date
+        string worksheet_date
         string lab_no
-        Time time_in
+        string time_in
         uuid done_by_user_id FK
-        Time time_out
+        string time_out
         uuid read_by_user_id FK
-        Date read_date
+        string read_date
         string final_result
-        timestamp posted_at
+        datetime posted_at
         uuid posted_by_user_id FK
     }
 
@@ -1581,14 +1581,14 @@ erDiagram
         uuid id PK
         uuid worksheet_formular_id FK
         uuid formula_mandatory_field_id FK
-        text field_value
+        string field_value
     }
 
     sample_worksheet_formular_step_data {
         uuid id PK
         uuid worksheet_formular_id FK
         uuid formula_step_id FK
-        text step_value
+        string step_value
         uuid overridden_lookup_table_id FK
     }
 
@@ -1599,12 +1599,12 @@ erDiagram
         uuid analyte_id FK
         uuid sample_type_id FK
         uuid sample_detail_id FK
-        string result
+        string result_value
         integer analyst_id
         integer tat_overdue_days
         datetime tat_date
         datetime finished_date
-        boolean is_complete
+        bool is_complete
         uuid sample_header_id FK
         datetime start_date_analysis
     }
@@ -1617,14 +1617,14 @@ erDiagram
 
     import_lab_results {
         uuid id PK
-        longText import_data
+        string import_data
         datetime import_date
         uuid created_by FK
     }
 
     lab_results_excel {
         uuid id PK
-        longText import_data
+        string import_data
     }
 
     captured_results ||--o{ results : "becomes"
