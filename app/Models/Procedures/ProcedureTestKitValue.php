@@ -2,6 +2,8 @@
 
 namespace App\Models\Procedures;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +13,11 @@ use App\CapturedResult;
 
 class ProcedureTestKitValue extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     use HasFactory;
@@ -20,6 +27,10 @@ class ProcedureTestKitValue extends Model implements Auditable
         'procedure_test_kit_row_id',
         'procedure_test_kit_column_id',
         'value',
+    ];
+
+    protected $casts = [
+        'value' => 'encrypted',
     ];
 
     public function capturedResult(): BelongsTo

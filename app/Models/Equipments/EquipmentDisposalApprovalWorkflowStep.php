@@ -2,6 +2,8 @@
 
 namespace App\Models\Equipments;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\User;
@@ -12,6 +14,11 @@ use Spatie\Permission\Models\Role as SpatieRole;
 
 class EquipmentDisposalApprovalWorkflowStep extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     protected $fillable = [

@@ -5,10 +5,16 @@ namespace App;
 use OwenIt\Auditing\Contracts\Auditable;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\CapturedResult;
 
 class SampleAnalysisTypeRelationView extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     protected $table="samples_to_analysis_relation_view";

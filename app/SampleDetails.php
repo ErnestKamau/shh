@@ -3,10 +3,33 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class SampleDetails extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
+    protected $casts = [
+        'barcode' => 'encrypted',
+        'comments' => 'encrypted',
+        'gps' => 'encrypted',
+        'section_details' => 'encrypted',
+        'main_body' => 'encrypted',
+        'header_body' => 'encrypted',
+        'notes_body' => 'encrypted',
+        'report_number' => 'encrypted',
+        'crm_unit_id' => 'string',
+        'main_standard' => 'string',
+        'secondary_standard' => 'string',
+        'third_standard_id' => 'string',
+        'store_id' => 'string',
+        'store_slot_id' => 'string'
+    ];
+
 	use \OwenIt\Auditing\Auditable;
 	// public $with = ['sample_detail_lab', 'captured_results'];
 	protected $guarded = ['id'];

@@ -2,6 +2,8 @@
 
 namespace App\Models\Procedures;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProcedureTestKitRow extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     use HasFactory;

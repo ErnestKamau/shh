@@ -4,11 +4,17 @@ namespace App;
 
 use App\Models\CRM\CRMCustomer;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\ModulePreConfigs;
 
 class Invoice extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'customer_invoice';
     protected $appends = ['batchcodes','samplecodes','invoicetotal'];

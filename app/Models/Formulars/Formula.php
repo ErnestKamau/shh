@@ -2,6 +2,8 @@
 
 namespace App\Models\Formulars;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +14,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Formula extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     use HasFactory, SoftDeletes;

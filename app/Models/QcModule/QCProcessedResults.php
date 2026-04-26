@@ -2,6 +2,8 @@
 
 namespace App\Models\QcModule;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\AnalysisMethod;
@@ -13,6 +15,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class QCProcessedResults extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     protected $table = "qc_processed_result";

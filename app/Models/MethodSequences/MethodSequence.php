@@ -2,6 +2,8 @@
 
 namespace App\Models\MethodSequences;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use App\Analyte;
 use App\AnalysisMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,6 +16,11 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class MethodSequence extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     use HasFactory, SoftDeletes, \OwenIt\Auditing\Auditable;

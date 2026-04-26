@@ -2,6 +2,8 @@
 
 namespace App\Models\Procedures;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,6 +11,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class CapturedProcedureValue extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     use HasFactory;
@@ -26,6 +33,7 @@ class CapturedProcedureValue extends Model implements Auditable
         'equipment_ids' => 'array',
         'measurand_ids' => 'array',
         'analyst_ids'   => 'array',
+        'value'         => 'encrypted',
     ];
 
     public function capturedResult()

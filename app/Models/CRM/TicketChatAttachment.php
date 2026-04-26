@@ -2,12 +2,19 @@
 
 namespace App\Models\CRM;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TicketChatAttachment extends Model
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use SoftDeletes;
 
     protected $table = 'ticket_chat_attachments';

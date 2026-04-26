@@ -2,6 +2,8 @@
 
 namespace App\Models\DMS;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\User;
@@ -11,6 +13,11 @@ use Illuminate\Support\Facades\Storage;
 
 class DocumentVersion extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     public $timestamps = false;

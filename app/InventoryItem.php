@@ -3,10 +3,16 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class InventoryItem extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
 	use \OwenIt\Auditing\Auditable;
 	public function category(){
 		return $this->belongsTo('App\InventoryCategories', 'inventory_category_id');

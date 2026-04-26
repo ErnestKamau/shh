@@ -2,12 +2,19 @@
 
 namespace App\Models\CRM;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TicketChangeHistory extends Model
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $table = 'ticket_change_history';
 
     public $timestamps = false;

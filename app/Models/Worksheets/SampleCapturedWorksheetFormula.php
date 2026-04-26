@@ -2,6 +2,8 @@
 
 namespace App\Models\Worksheets;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\CapturedResult;
@@ -16,6 +18,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SampleCapturedWorksheetFormula extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     use SoftDeletes;
@@ -44,6 +51,9 @@ class SampleCapturedWorksheetFormula extends Model implements Auditable
         'time_in' => 'datetime:H:i',
         'time_out' => 'datetime:H:i',
         'posted_at' => 'datetime',
+        'lab_no' => 'encrypted',
+        'sample_details' => 'encrypted',
+        'final_result' => 'encrypted',
     ];
 
     public function sampleHeader(): BelongsTo

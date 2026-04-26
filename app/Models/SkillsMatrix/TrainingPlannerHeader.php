@@ -2,6 +2,8 @@
 
 namespace App\Models\SkillsMatrix;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -9,6 +11,11 @@ use App\Models\SkillsMatrix\TrainingHeader;
 
 class TrainingPlannerHeader extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
     protected $table = "skills_training_planner_header";
 

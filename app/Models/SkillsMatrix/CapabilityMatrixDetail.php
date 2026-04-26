@@ -2,12 +2,19 @@
 
 namespace App\Models\SkillsMatrix;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use App\ModulePreConfigs;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class CapabilityMatrixDetail extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
     protected $table = "skill_capability_detail";
 

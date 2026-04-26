@@ -2,6 +2,8 @@
 
 namespace App\Models\Worksheets;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\Models\Formulars\FormulaStep;
@@ -10,6 +12,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SampleWorksheetFormularStepData extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     protected $fillable = [
@@ -17,6 +24,10 @@ class SampleWorksheetFormularStepData extends Model implements Auditable
         'formula_step_id',
         'step_value',
         'overridden_lookup_table_id',
+    ];
+
+    protected $casts = [
+        'step_value' => 'encrypted',
     ];
 
     public function worksheetFormula(): BelongsTo

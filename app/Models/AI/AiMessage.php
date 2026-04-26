@@ -2,10 +2,17 @@
 
 namespace App\Models\AI;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use Illuminate\Database\Eloquent\Model;
 
 class AiMessage extends Model
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $table = 'ai_messages';
 
     protected $fillable = [

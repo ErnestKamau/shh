@@ -6,10 +6,16 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\Currency;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class QuotationHeader extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'quotation_headers';
 

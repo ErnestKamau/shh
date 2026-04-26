@@ -2,6 +2,8 @@
 
 namespace App\Models\Worksheets;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\Models\MethodSequences\MethodSequence;
@@ -15,6 +17,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MethodSequenceRun extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     use SoftDeletes;
