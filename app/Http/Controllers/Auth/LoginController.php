@@ -60,14 +60,19 @@ class LoginController extends Controller
 			);
 			$mailer = new Mailers;
 			
-			if(trim($user->phone) != ""){
-				sendTextMessage($user->phone, "Your Verification code is ".$user->verify_code);
-			}
-			
+      if(trim($user->phone) != ""){
+        sendTextMessage($user->phone, "Your Verification code is ".$user->verify_code);
+      }
+
       try {
         $sendmail = $mailer->html_email($mailData,'default');
+        if ($sendmail === false) {
+          return redirect()->route('login')->with('error', 'Verification code generated, but email could not be sent. Please verify mail settings or try again.');
+        }
       } catch (Throwable $exception) {
         report($exception);
+
+        return redirect()->route('login')->with('error', 'Verification code generated, but email verification failed. Please try again.');
       }
 			
     }

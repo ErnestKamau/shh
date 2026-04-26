@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\VerifiesEmails;
+use Illuminate\Http\Request;
+use Throwable;
 
 class VerificationController extends Controller
 {
@@ -18,7 +20,10 @@ class VerificationController extends Controller
     |
     */
 
-    use VerifiesEmails;
+    use VerifiesEmails {
+        verify as protected traitVerify;
+        resend as protected traitResend;
+    }
 
     /**
      * Where to redirect users after verification.
@@ -37,5 +42,27 @@ class VerificationController extends Controller
         $this->middleware('auth');
         $this->middleware('signed')->only('verify');
         $this->middleware('throttle:6,1')->only('verify', 'resend');
+    }
+
+    public function verify(Request $request)
+    {
+        try {
+            return $this->traitVerify($request);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()->back()->with('error', 'Email verification failed. Please try again.');
+        }
+    }
+
+    public function resend(Request $request)
+    {
+        try {
+            return $this->traitResend($request);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()->back()->with('error', 'Unable to resend verification email. Please try again.');
+        }
     }
 }

@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class FormInstanceController extends Controller
@@ -1175,6 +1176,57 @@ class FormInstanceController extends Controller
             Log::error('Error stack trace: ' . $e->getTraceAsString());
             return response()->json(['success' => false, 'message' => 'Error loading options: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Resolve value for depended_field elements based on selected source record.
+     */
+    public function getDependedFieldValue(Request $request)
+    {
+        $validated = $request->validate([
+            'element_id' => 'required|integer|exists:submission_form_elements,id',
+            'source_id' => 'required',
+        ]);
+
+        $element = SubmissionFormElement::find($validated['element_id']);
+
+        if (! $element || $element->element_type !== 'depended_field') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid depended field element.',
+            ], 422);
+        }
+
+        $sourceTable = (string) ($element->source_table ?? '');
+        $sourceField = (string) ($element->source_field ?? '');
+
+        if ($sourceTable === '' || $sourceField === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Depended field source is not configured.',
+            ], 422);
+        }
+
+        if (! Schema::hasTable($sourceTable) || ! Schema::hasColumn($sourceTable, 'id') || ! Schema::hasColumn($sourceTable, $sourceField)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Depended field source is unavailable.',
+            ], 422);
+        }
+
+        $sourceId = $validated['source_id'];
+        if (is_string($sourceId) && str_contains($sourceId, ',')) {
+            $sourceId = trim(explode(',', $sourceId)[0]);
+        }
+
+        $record = DB::table($sourceTable)
+            ->where('id', $sourceId)
+            ->first([$sourceField]);
+
+        return response()->json([
+            'success' => true,
+            'value' => $record ? data_get($record, $sourceField) : null,
+        ]);
     }
 
     /**

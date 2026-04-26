@@ -15,6 +15,7 @@ class AiDrawer extends Component
     public function mount($context = 'general')
     {
         $this->context = $context;
+        $this->isOpen = false;
     }
 
     public function toggle()
@@ -32,6 +33,14 @@ class AiDrawer extends Component
     public function close()
     {
         $this->isOpen = false;
+    }
+
+    /**
+     * Safe serialization for frontend usage patterns that probe $wire.toJSON.
+     */
+    public function toJSON(): array
+    {
+        return ['id' => $this->getId()];
     }
 
     public function render()

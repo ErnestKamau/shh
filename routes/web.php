@@ -20,12 +20,18 @@ use App\Http\Controllers\LivewireControllers\LabAppController;
 use App\Http\Controllers\LivewireControllers\StandardsController;
 use App\Http\Controllers\LivewireControllers\CRMAppController;
 use App\Http\Controllers\LivewireControllers\EquipmentAppController;
+use App\Http\Controllers\System\PushSubscriptionController;
 
 Route::get('/', function () {
     return redirect()->route('home');
 });
 
 Auth::routes();
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
+    Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
+});
 
 Route::get('set-locale/{locale}', 'LocaleController@setLocale')->name('set-locale');
 
@@ -736,6 +742,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
 
         // Dynamic options route
         Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
+        Route::get('/depended-field-value', 'FormInstanceController@getDependedFieldValue')->name('depended-field-value');
 
         // Form creation routes
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
