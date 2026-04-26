@@ -1449,7 +1449,7 @@ Where the lab **captures, validates, and reports** analytical results.
 
 ---
 
-## ERD Diagram
+## ERD Diagram — Part A: Core Results
 
 ```mermaid
 erDiagram
@@ -1467,15 +1467,15 @@ erDiagram
         uuid analysis_type_id FK
         string sample_detail_code
         string result_value
-        string guide
+        string guide_label
         string comments
-        bool recheck
+        boolean recheck
         decimal guide_low
         decimal guide_high
         string unit_code
         integer status_code
         string reporting_symbol
-        bool qc
+        boolean qc
         decimal correct_target
         decimal standard_target
         string recommendations
@@ -1484,14 +1484,14 @@ erDiagram
         decimal very_low_guide
         decimal very_high_guide
         string remarks
-        bool analyte_status_contracted
-        bool analyte_accredited
+        boolean analyte_status_contracted
+        boolean analyte_accredited
         integer analysis_type_order
         integer parameters_order
         string remark_colour
         uuid lab_section_id FK
-        bool remark_is_manual
-        bool is_pesticide
+        boolean remark_is_manual
+        boolean is_pesticide
         uuid ltm_method_id FK
     }
 
@@ -1503,12 +1503,11 @@ erDiagram
         uuid analyte_id FK
         uuid analysis_type_id FK
         string result_value
-        string guide
         decimal guide_low
         decimal guide_high
         string unit_code
         string status_code
-        bool is_qc_processed
+        boolean is_qc_processed
         string reporting_symbol
         decimal correct_target
         decimal standard_target
@@ -1524,6 +1523,46 @@ erDiagram
         uuid result_id FK
         string processing_status
         datetime processed_at
+    }
+
+    tat_captured {
+        uuid id PK
+        uuid captured_result_id FK
+        uuid analysis_type_id FK
+        uuid analyte_id FK
+        uuid sample_type_id FK
+        uuid sample_detail_id FK
+        string result_value
+        integer analyst_id
+        integer tat_overdue_days
+        datetime tat_date
+        datetime finished_date
+        boolean is_complete
+        uuid sample_header_id FK
+        datetime start_date_analysis
+    }
+
+    method_sequence_stage_sample_results {
+        uuid id PK
+        uuid run_stage_data_id FK
+        uuid captured_result_id FK
+    }
+
+    captured_results ||--o{ results : "becomes"
+    captured_results ||--o{ qc_results : "validated as QC"
+    captured_results ||--o{ method_sequence_stage_sample_results : "stage result for"
+    results ||--o{ qc_results : "has QC mirror"
+    results ||--o{ qc_processed_result : "processed as"
+    results ||--o{ tat_captured : "has TAT record"
+```
+
+## ERD Diagram — Part B: Procedures & Worksheets
+
+```mermaid
+erDiagram
+    captured_results {
+        uuid id PK
+        string captured_result_data
     }
 
     captured_view {
@@ -1592,52 +1631,11 @@ erDiagram
         uuid overridden_lookup_table_id FK
     }
 
-    tat_captured {
-        uuid id PK
-        uuid captured_result_id FK
-        uuid analysis_type_id FK
-        uuid analyte_id FK
-        uuid sample_type_id FK
-        uuid sample_detail_id FK
-        string result_value
-        integer analyst_id
-        integer tat_overdue_days
-        datetime tat_date
-        datetime finished_date
-        bool is_complete
-        uuid sample_header_id FK
-        datetime start_date_analysis
-    }
-
-    method_sequence_stage_sample_results {
-        uuid id PK
-        uuid run_stage_data_id FK
-        uuid captured_result_id FK
-    }
-
-    import_lab_results {
-        uuid id PK
-        string import_data
-        datetime import_date
-        uuid created_by FK
-    }
-
-    lab_results_excel {
-        uuid id PK
-        string import_data
-    }
-
-    captured_results ||--o{ results : "becomes"
-    captured_results ||--o{ qc_results : "validated as QC"
     captured_results ||--o{ captured_view : "rendered as"
     captured_results ||--o{ captured_procedure_values : "has step values"
     captured_results ||--o{ captured_procedure_config_values : "has config values"
     captured_results ||--o{ procedure_test_kit_rows : "has kit rows"
     captured_results ||--o{ sample_captured_worksheet_formulas : "associated with"
-    captured_results ||--o{ method_sequence_stage_sample_results : "stage result for"
-    results ||--o{ qc_results : "has QC mirror"
-    results ||--o{ qc_processed_result : "processed as"
-    results ||--o{ tat_captured : "has TAT record"
     sample_captured_worksheet_formulas ||--o{ sample_worksheet_formular_mandatory_data : "has mandatory data"
     sample_captured_worksheet_formulas ||--o{ sample_worksheet_formular_step_data : "has step data"
     procedure_test_kit_rows ||--o{ procedure_test_kit_values : "has values"
