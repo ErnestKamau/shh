@@ -379,13 +379,14 @@ async function openKnowledgeModal(id = null) {
         }
     }
     
+    switchKnowledgeTab('file');
     knowledgeModal.style.display = 'flex';
 }
 
 function closeKnowledgeModal() {
     knowledgeModal.style.display = 'none';
     clearSelectedFile();
-    switchKnowledgeTab('text');
+    switchKnowledgeTab('file');
 }
 
 function switchKnowledgeTab(tab) {
@@ -394,6 +395,7 @@ function switchKnowledgeTab(tab) {
     const tabFile = document.getElementById('tabFileUpload');
     const textInput = document.getElementById('manualTextInput');
     const fileInput = document.getElementById('fileUploadInput');
+    const sharedFields = document.getElementById('kbSharedFields');
 
     if (tab === 'text') {
         tabText.style.background = '#fff';
@@ -410,7 +412,7 @@ function switchKnowledgeTab(tab) {
 
         textInput.style.display = 'block';
         fileInput.style.display = 'none';
-        document.getElementById('kbContent').setAttribute('required', 'required');
+        if (sharedFields) sharedFields.style.display = 'none';
     } else {
         tabFile.style.background = '#fff';
         tabFile.style.color = '#a72b2a';
@@ -426,7 +428,7 @@ function switchKnowledgeTab(tab) {
 
         textInput.style.display = 'none';
         fileInput.style.display = 'block';
-        document.getElementById('kbContent').removeAttribute('required');
+        if (sharedFields) sharedFields.style.display = 'block';
     }
 }
 

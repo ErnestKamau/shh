@@ -290,25 +290,53 @@ class AnalyticsCollectorService
     {
         $stats = [];
 
+        // 1. Fetch from database (Persistent logs from Python AI Service)
+        try {
+            $dbLogs = DB::connection('pgsql_ai')
+                ->table('ai.ai_request_logs')
+                ->select('route_name as intent', DB::raw('count(*) as count'), DB::raw('avg(latency_ms) as avg_latency'))
+                ->where('created_at', '>=', now()->subDays(30))
+                ->whereNotNull('route_name')
+                ->groupBy('route_name')
+                ->get();
+
+            foreach ($dbLogs as $log) {
+                $stats[$log->intent] = [
+                    'intent' => $log->intent,
+                    'model' => 'auto',
+                    'total' => (int)$log->count,
+                    'accuracy_percent' => 100.0, // Assumption for matched intents
+                    'avg_confidence' => 0.95,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning('AnalyticsCollector: Could not fetch routing logs from pgsql_ai: ' . $e->getMessage());
+        }
+
+        // 2. Merge with in-memory stats (if any)
         foreach ($this->routingStats as $key => $data) {
             if ($intent && $data['intent'] !== $intent) {
                 continue;
             }
 
-            $accuracy = $data['count'] > 0
-                ? ($data['correct_recommendations'] / $data['count']) * 100
-                : 0;
+            if (isset($stats[$data['intent']])) {
+                $stats[$data['intent']]['total'] += $data['count'];
+            } else {
+                $accuracy = $data['count'] > 0
+                    ? ($data['correct_recommendations'] / $data['count']) * 100
+                    : 0;
 
-            $stats[] = [
-                'intent' => $data['intent'],
-                'model' => $data['model'],
-                'total' => $data['count'],
-                'accuracy_percent' => round($accuracy, 1),
-                'avg_confidence' => round($data['avg_confidence'], 2),
-            ];
+                $stats[$data['intent']] = [
+                    'intent' => $data['intent'],
+                    'model' => $data['model'],
+                    'total' => $data['count'],
+                    'accuracy_percent' => round($accuracy, 1),
+                    'avg_confidence' => round($data['avg_confidence'], 2),
+                ];
+            }
         }
 
-        return $stats;
+        return array_values($stats);
     }
 
     /**
@@ -317,32 +345,75 @@ class AnalyticsCollectorService
      * @param string|null $model Filter by model, or null for all
      * @return array
      */
-    public function getModelPerformance(?string $model = null): array
+    public function getModelPerformance(?string $modelName = null): array
     {
         $stats = [];
 
+        // 1. Fetch from database (Persistent logs from Python AI Service)
+        try {
+            $dbLogs = DB::connection('pgsql_ai')
+                ->table('ai.ai_request_logs')
+                ->select(
+                    'mode as model',
+                    DB::raw('count(*) as total_requests'),
+                    DB::raw('sum(case when success = true then 1 else 0 end) as successful_requests'),
+                    DB::raw('avg(latency_ms) as avg_latency_ms'),
+                    DB::raw('avg(confidence) as avg_confidence'),
+                    DB::raw('avg(case when source_count > 0 then source_count else 0 end) as avg_tokens') // Using source_count as proxy if tokens not avail
+                )
+                ->where('created_at', '>=', now()->subDays(30))
+                ->groupBy('mode')
+                ->get();
+
+            foreach ($dbLogs as $log) {
+                $successRate = $log->total_requests > 0
+                    ? ($log->successful_requests / $log->total_requests) * 100
+                    : 0;
+
+                $stats[$log->model] = [
+                    'model' => $log->model,
+                    'total_requests' => (int)$log->total_requests,
+                    'success_rate_percent' => round($successRate, 1),
+                    'failed_count' => (int)($log->total_requests - $log->successful_requests),
+                    'avg_latency_ms' => round($log->avg_latency_ms, 1),
+                    'avg_confidence' => round($log->avg_confidence, 2),
+                    'min_latency_ms' => 0,
+                    'max_latency_ms' => 0,
+                    'avg_tokens_per_request' => round($log->avg_tokens, 0),
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning('AnalyticsCollector: Could not fetch model performance from pgsql_ai: ' . $e->getMessage());
+        }
+
+        // 2. Merge with in-memory stats
         foreach ($this->modelStats as $key => $data) {
-            if ($model && $data['model'] !== $model) {
+            if ($modelName && $data['model'] !== $modelName) {
                 continue;
             }
 
-            $successRate = $data['total_requests'] > 0
-                ? ($data['successful_requests'] / $data['total_requests']) * 100
-                : 0;
+            if (isset($stats[$data['model']])) {
+                // Aggregate (Simplified)
+                $stats[$data['model']]['total_requests'] += $data['total_requests'];
+            } else {
+                $successRate = $data['total_requests'] > 0
+                    ? ($data['successful_requests'] / $data['total_requests']) * 100
+                    : 0;
 
-            $stats[] = [
-                'model' => $data['model'],
-                'total_requests' => $data['total_requests'],
-                'success_rate_percent' => round($successRate, 1),
-                'failed_count' => $data['failed_requests'],
-                'avg_latency_ms' => $data['avg_latency_ms'],
-                'min_latency_ms' => $data['min_latency_ms'] === PHP_INT_MAX ? 0 : $data['min_latency_ms'],
-                'max_latency_ms' => $data['max_latency_ms'],
-                'avg_tokens_per_request' => $data['avg_tokens_per_request'],
-            ];
+                $stats[$data['model']] = [
+                    'model' => $data['model'],
+                    'total_requests' => $data['total_requests'],
+                    'success_rate_percent' => round($successRate, 1),
+                    'failed_count' => $data['failed_requests'],
+                    'avg_latency_ms' => $data['avg_latency_ms'],
+                    'min_latency_ms' => $data['min_latency_ms'] === PHP_INT_MAX ? 0 : $data['min_latency_ms'],
+                    'max_latency_ms' => $data['max_latency_ms'],
+                    'avg_tokens_per_request' => $data['avg_tokens_per_request'],
+                ];
+            }
         }
 
-        return $stats;
+        return array_values($stats);
     }
 
     /**

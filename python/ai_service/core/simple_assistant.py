@@ -103,6 +103,7 @@ class SimpleAssistant:
         route_name = "conversational"
         error_message = None
         success = True
+        confidence = 1.0 # Default for greetings/UI help
         source_count = 0
         cache_hit = False
 
@@ -131,6 +132,7 @@ class SimpleAssistant:
                 result["answer"] = self._generate_greeting_response(message)
                 result["meta"]["route"] = "conversational"
                 result["meta"]["routing_tier"] = routing_tier
+                result["meta"]["confidence"] = 1.0
                 result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
                 return result
 
@@ -142,6 +144,7 @@ class SimpleAssistant:
                 result["answer"] = self._generate_ui_help_response(message)
                 result["meta"]["route"] = "ui_help"
                 result["meta"]["routing_tier"] = routing_tier
+                result["meta"]["confidence"] = 1.0
                 result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
                 return result
 
@@ -152,7 +155,7 @@ class SimpleAssistant:
                 logger.info(
                     f"SimpleAssistant [{trace_id[:8]}]: Visualization shortcut intents={visualization_intents}"
                 )
-                fast_matches = [(intent, "keyword", {}) for intent in visualization_intents]
+                fast_matches = [(intent, "keyword", {}, 1.0) for intent in visualization_intents]
                 return self._execute_multi_sql_route(
                     message,
                     fast_matches,
@@ -177,7 +180,7 @@ class SimpleAssistant:
             # ── Step 2: Rule-based manifest routing (Tier 1) ───────────
             # We gather these, but don't exit early yet to allow LLM coverage for missing parts.
             keyword_matches = self.intent_router.match_all(message)
-            all_intents: List[Tuple[str, str, Dict[str, Any]]] = []
+            all_intents: List[Tuple[str, str, Dict[str, Any], float]] = []
             
             if keyword_matches:
                 # Assign granular filters for keywords by segmenting the query
@@ -209,7 +212,10 @@ class SimpleAssistant:
                 if llm_intent_map and "none" not in llm_intent_map:
                     # Merge LLM results into all_intents
                     existing_intents = {m[0] for m in all_intents}
-                    for intent, overrides in llm_intent_map.items():
+                    for intent, data in llm_intent_map.items():
+                        overrides = data.get("filters", {})
+                        llm_conf = data.get("confidence", 0.85)
+                        
                         if intent in existing_intents:
                             continue  # Keep the keyword match's granular filters
                         
@@ -226,7 +232,7 @@ class SimpleAssistant:
                                 except Exception:
                                     pass
                             f.update(overrides)
-                        all_intents.append((intent, "llm", f))
+                        all_intents.append((intent, "llm", f, llm_conf))
             
             # ── Step 4: Execute SQL if any intents matched ────────────
             if all_intents:
@@ -276,6 +282,7 @@ class SimpleAssistant:
                 result["meta"]["route"] = "rag"
                 result["meta"]["routing_tier"] = routing_tier
                 result["meta"]["source_count"] = source_count
+                result["meta"]["confidence"] = 0.9 # RAG synthesis confidence
                 result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
                 return result
             else:
@@ -289,6 +296,7 @@ class SimpleAssistant:
             result["answer"] = self._generate_conversational(message, module_context=module_context)
             result["meta"]["route"] = "conversational"
             result["meta"]["routing_tier"] = routing_tier
+            result["meta"]["confidence"] = 0.7 # Conversational fallback confidence
             result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
 
         except Exception as e:
@@ -314,6 +322,7 @@ class SimpleAssistant:
                 route_name=route_name,
                 routing_tier=routing_tier,
                 latency_ms=latency,
+                confidence=result["meta"].get("confidence", 0.0),
                 success=success,
                 error_message=error_message,
                 company_id=company_id,
@@ -331,7 +340,7 @@ class SimpleAssistant:
     def _execute_multi_sql_route(
         self,
         message: str,
-        matches: List[Tuple[str, str, Dict[str, Any]]],
+        matches: List[Tuple[str, str, Dict[str, Any], float]],
         company_id: int,
         use_visuals: bool,
         start_time: float,
@@ -348,14 +357,20 @@ class SimpleAssistant:
         summaries = []
         all_data = {}
         combined_latency = 0
+        total_confidence = 0
         success_count = 0
         routing_tiers = list(set(m[1] for m in matches))
+        
+        for m in matches:
+            total_confidence += m[3]
+        
+        avg_confidence = total_confidence / len(matches) if matches else 0.0
         
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(matches)) as executor:
             # Prepare futures with specific params for each intent
             future_to_intent = {}
-            for intent, tier, specific_filters in matches:
+            for intent, tier, specific_filters, conf in matches:
                 params = {"company_id": company_id}
                 if global_filters:
                     params.update(global_filters)
@@ -389,10 +404,10 @@ class SimpleAssistant:
                         combined_latency += sql_res.get("execution_latency_ms", 0)
                     else:
                         logger.warning(f"Intent {intent} failed: {sql_res.get('error')}")
-                        summaries.append(f"*(Reporting error for '{intent}': {sql_res.get('summary', 'Unavailable')})*")
+                        summaries.append(f"Note: Could not retrieve real-time data for '{intent}'. The database is busy or unavailable.")
                 except Exception as e:
                     logger.error(f"Execution failed for {intent}: {e}")
-                    summaries.append(f"*(Failed to retrieve data for '{intent}')*")
+                    summaries.append(f"Note: Failed to retrieve data for '{intent}'.")
 
         if success_count == 0:
             # Preserve explicit per-intent reporting failures when available.
@@ -406,6 +421,7 @@ class SimpleAssistant:
             result["answer"] = "\n\n---\n\n".join(summaries)
             result["meta"]["route"] = f"multi_sql:{','.join([m[0] for m in matches])}"
             result["meta"]["routing_tier"] = ",".join(routing_tiers)
+            result["meta"]["confidence"] = avg_confidence
             result["meta"]["sql_execution_ms"] = combined_latency
             result["meta"]["multi_count"] = len(matches)
             result["meta"]["multi_report"] = True
@@ -413,7 +429,7 @@ class SimpleAssistant:
         result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
         return result
 
-    def _assign_granular_filters(self, message: str, matches: List[Tuple[str, str]]) -> List[Tuple[str, str, Dict[str, Any]]]:
+    def _assign_granular_filters(self, message: str, matches: List[Tuple[str, str, float]]) -> List[Tuple[str, str, Dict[str, Any], float]]:
         """
         Split query by conjunctions and assign filters to intents based on proximity.
         Fallback for keyword-based multi-queries.
@@ -422,7 +438,7 @@ class SimpleAssistant:
         segments = re.split(r'\band\b|\balso\b|\bas well as\b|\,', message, flags=re.IGNORECASE)
         final_matches = []
         
-        for intent, tier in matches:
+        for intent, tier, conf in matches:
             # Find which segment contains keywords for this intent
             # This is a heuristic: we check which segment matches the intent router's rules
             intent_filters = {}
@@ -434,7 +450,7 @@ class SimpleAssistant:
                     intent_filters = self.filter_extractor.extract(seg)
                     break
             
-            final_matches.append((intent, tier, intent_filters))
+            final_matches.append((intent, tier, intent_filters, conf))
         
         return final_matches
 
@@ -557,11 +573,11 @@ Available Reports:
 User Query: "{message}"
 
 Rules:
-1. Return a JSON object where keys are report names and values are their specific filters (e.g. date_label, status, limit).
+1. Return a JSON object where keys are report names and values are objects containing "filters" and "confidence" (estimate 0.0-1.0 based on query fit).
 2. If no report is a clear match, return '{{"none": {{}}}}'.
 3. Do NOT provide any explanation or preamble.
 
-Example: {{"sample_count_today": {{"date_label": "today"}}, "analyst_verifications": {{"date_label": "last month"}}}}
+Example: {{"sample_count_today": {{"filters": {{"date_label": "today"}}, "confidence": 0.95}}, "analyst_verifications": {{"filters": {{"date_label": "last month"}}, "confidence": 0.88}}}}
 
 Classification:"""
 
@@ -584,11 +600,22 @@ Classification:"""
                         clean_res = clean_res[3:-3].strip()
                     
                     mapping = json.loads(clean_res)
-                    # Filter for valid intent names
-                    valid_mapping = {k: v for k, v in mapping.items() if k in all_intent_names or k == "none"}
+                    # Filter for valid intent names and normalize structure
+                    valid_mapping = {}
+                    for k, v in mapping.items():
+                        if k in all_intent_names or k == "none":
+                            if isinstance(v, dict):
+                                # Ensure it has the new structure
+                                if "filters" not in v:
+                                    # Fallback for old format
+                                    valid_mapping[k] = {"filters": v, "confidence": 0.85}
+                                else:
+                                    valid_mapping[k] = v
+                            else:
+                                valid_mapping[k] = {"filters": {}, "confidence": 0.85}
                     
                     if valid_mapping and "none" not in valid_mapping:
-                        logger.info(f"SimpleAssistant: LLM classified intents with filters: {valid_mapping}")
+                        logger.info(f"SimpleAssistant: LLM classified intents: {valid_mapping}")
                         return valid_mapping
                 except json.JSONDecodeError:
                     # Fallback to simple comma-separated check if LLM fails JSON
@@ -712,10 +739,19 @@ Rules:
 
     def _generate_greeting_response(self, message: str) -> str:
         """Fast deterministic reply for simple greetings/health pings."""
+        import random
         m = (message or "").strip().lower()
         if m in {"ping", "health", "status", "alive"}:
-            return "Imara AI is online. Ask a lab or inventory question when ready."
-        return "Hello! I am online and ready to help with lab operations, samples, inventory, and reports."
+            return "Imara AI is online and connected to the GCLA database. Ask a lab or inventory question when ready."
+        
+        greetings = [
+            "Hello! I am online and ready to help with GCLA lab operations, samples, inventory, and reports.",
+            "Hi there! How can I assist you with the GCLA LIMS today?",
+            "Greetings! I'm here to help you query GCLA lab data, check inventory, or generate reports.",
+            "Hello! What GCLA lab operations or metrics can I help you look up today?",
+            "Hi! Imara AI is at your service for all GCLA LIMS needs. What do you need help with?"
+        ]
+        return random.choice(greetings)
 
     def _is_ui_help_query(self, message: str) -> bool:
         m = (message or "").strip().lower()

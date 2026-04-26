@@ -993,7 +993,7 @@ Route::get('/crm/customer/{id}', function ($id) {
     ]);
 })->middleware(['auth', 'haspermission:CRM.components.Customer-List.View'])->name('crm.customer.show');
 
-Route::get('/crm-dashboard', '\\' . \App\Livewire\Crm\CrmDashboard::class)
+Route::get('/crm-dashboard', '\\' . \App\Livewire\CRM\CrmDashboard::class)
     ->name('crm-dashboard')
     ->middleware('auth')
     ->middleware('haspermission:CRM.permission');
@@ -1869,7 +1869,6 @@ Route::post('/imara-ai/conversations/{convoId}/messages/{messageId}/feedback', '
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.feedback');
 Route::post('/imara-ai/conversations/{id}/attachments', 'AI\KnowledgeAssistantController@uploadAttachment')
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.upload-attachment');
-
 
 
 

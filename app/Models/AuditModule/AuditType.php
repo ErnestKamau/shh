@@ -35,7 +35,7 @@ class AuditType extends Model implements Auditable
         'is_active' => 'boolean',
     ];
 
-    public function relatedAudits(): HasMany
+    public function auditModuleAudits(): HasMany
     {
         return $this->hasMany(Audit::class, 'audit_type_id');
     }

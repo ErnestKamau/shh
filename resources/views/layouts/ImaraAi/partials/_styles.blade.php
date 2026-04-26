@@ -1,6 +1,14 @@
-/* Global resets removed to prevent breaking host pages. 
-   These are now handled in standalone layouts. */
+/* ── Reset & full-page layout ─────────────────────────────────────── */
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
 
+/* Override any app-level page padding */
+body > nav + * {
+    margin: 0 !important;
+    padding: 0 !important;
+}
 
 #imara-ai-root {
     display: flex;
@@ -1929,83 +1937,6 @@ input:checked + .premium-switch.small .switch-slider:before { transform: transla
     background: #f1f7ff;
 }
 
-/* ── Multi-Query Report Cards ── */
-.multi-report-card {
-    background: #fdfdfd;
-    border: 1px solid #eef0f2;
-    border-left: 4px solid #a72b2a;
-    border-radius: 8px;
-    padding: 16px;
-    margin: 16px 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.multi-report-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-}
-
-.multi-report-card h2, 
-.multi-report-card h3 {
-    margin-top: 0 !important;
-}
-
-.report-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #fef2f2;
-    color: #a72b2a;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 4px;
-    margin-bottom: 12px;
-    letter-spacing: 0.02em;
-}
-
-.report-count-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: #eef2ff;
-    color: #4338ca;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 20px;
-    margin-bottom: 10px;
-}
-
-.report-card-footer {
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px dashed #eee;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.report-card-source {
-    font-size: 0.75rem;
-    color: #888;
-    background: #fdfdfd;
-    border: 1px solid #f0f0f0;
-    padding: 3px 10px;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
-}
-
-.report-card-source i {
-    color: #a72b2a;
-    font-size: 0.95rem;
-}
-
 /* ── Print Styles for Report Export ── */
 @media print {
     body * { visibility: hidden; }
@@ -2037,5 +1968,33 @@ input:checked + .premium-switch.small .switch-slider:before { transform: transla
         max-height: none !important;
     }
 }
+
+/* ── Context Badges ── */
+.context-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-left: 6px;
+    flex-shrink: 0;
+}
+.context-lab {
+    background: #ecfdf5 !important;
+    color: #059669 !important;
+    border: 1px solid #d1fae5;
+}
+.context-general {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    border: 1px solid #e2e8f0;
+}
+.context-mas {
+    background: #fdf2f8 !important;
+    color: #db2777 !important;
+    border: 1px solid #fbcfe8;
+}
+
 
 

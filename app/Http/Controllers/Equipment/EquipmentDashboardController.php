@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Equipment;
 
 use App\Http\Controllers\Controller;
-use App\Services\AI\Repository\ReportingMartDashboardService;
+use App\Services\Dashboards\EquipmentDashboardService;
 use Illuminate\Http\Request;
 
 class EquipmentDashboardController extends Controller
@@ -22,12 +22,12 @@ class EquipmentDashboardController extends Controller
      * Show the Equipment Management Dashboard.
      *
      * @param Request $request
-     * @param ReportingMartDashboardService $reportingMartDashboardService
+     * @param EquipmentDashboardService $equipmentDashboardService
      * @return \Illuminate\View\View
      */
-    public function index(Request $request, ReportingMartDashboardService $reportingMartDashboardService)
+    public function index(Request $request, EquipmentDashboardService $equipmentDashboardService)
     {
-        $equipmentReliabilityBoard = $reportingMartDashboardService->getEquipmentReliabilityBoard();
+        $equipmentReliabilityBoard = $equipmentDashboardService->getEquipmentReliabilityBoard();
 
         return view('layouts.equipment.dashboard', compact('equipmentReliabilityBoard'));
     }

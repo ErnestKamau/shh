@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pandas as pd
-from py_etl.transformers.base_transformer import BaseTransformer
-from py_etl.transformers.type_converters import to_timestamp
+from python.py_etl.transformers.base_transformer import BaseTransformer
+from python.py_etl.transformers.type_converters import to_timestamp
 
 class GenericReferenceTransformer(BaseTransformer):
     """Generic transformer for reference tables (id, name, created_at)."""

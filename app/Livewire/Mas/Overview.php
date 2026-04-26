@@ -8,6 +8,7 @@ use App\Services\AI\PerformanceDashboardService;
 use App\Services\Dashboards\InventoryDashboardService;
 use App\Services\Documents\Dashboards\EquipmentReliabilityDashboardService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class Overview extends BaseMasPage
 {
@@ -65,6 +66,19 @@ class Overview extends BaseMasPage
 
     public function runEtl(): void
     {
+        $processedModel = new \App\Models\QcModule\QCProcessedResults();
+        $processedTable = $processedModel->getTable();
+        $processedConnection = $processedModel->getConnectionName();
+
+        if (!Schema::connection($processedConnection)->hasTable($processedTable)) {
+            $this->dispatch('notify', [
+                'type' => 'warning',
+                'message' => "ETL skipped: required table {$processedTable} is missing in the active database."
+            ]);
+
+            return;
+        }
+
         // 1. Identify all QC Processed Results
         $processedRecords = \App\Models\QcModule\QCProcessedResults::all();
 

@@ -793,18 +793,19 @@
 					$sample_count = count($sample_codes);
 					$sampleEnd = end($sample_codes) ?? '';
 												?>
+								@php $clientId = $item->client->id ?? 'unknown'; @endphp
 								@if($item->current_account_status == 'Account Holder(Overdue)')
-									<tr class="batch-row overdue-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}"
-										data-class="{{ $item->client->id }}">
+									<tr class="batch-row overdue-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $clientId }}"
+										data-class="{{ $clientId }}">
 								@elseif($item->current_account_status == 'Pay Upfront')
-									<tr class="batch-row upfront-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}"
-										data-class="{{ $item->client->id }}">
+									<tr class="batch-row upfront-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $clientId }}"
+										data-class="{{ $clientId }}">
 								@elseif($item->in_ammendment_proccess)
-									<tr class="batch-row ammend-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}"
-										data-class="{{ $item->client->id }}">
+									<tr class="batch-row ammend-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $clientId }}"
+										data-class="{{ $clientId }}">
 								@else
-									<tr class="batch-row {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}"
-										data-class="{{ $item->client->id }}">
+									<tr class="batch-row {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $clientId }}"
+										data-class="{{ $clientId }}">
 								@endif
 									<td><input type="checkbox" data-batch="{{json_encode($item)}}" value="{{ $item->batch_code }}"
 											name="table_sample_id[]"></td>
@@ -858,8 +859,7 @@
 									<td style="min-width: 200px !important;">{{$item->status}}</td>
 									@if($status == 'Samples In Lab' || $status == 'Sample Verification')
 									@else
-
-										<td nowrap>{{ $item->client->name }}</td>
+										<td nowrap>{{ $item->client->name ?? 'Unknown' }}</td>
 									@endif
 									<td nowrap>
 										<div>{{ $item->reference_number ?? 'n/a' }}</div>

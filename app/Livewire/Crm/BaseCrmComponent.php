@@ -5,7 +5,7 @@ namespace App\Livewire\Crm;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Auth;
-use App\Livewire\Crm\Traits\HasCrmPermissions;
+use App\Livewire\CRM\Traits\HasCrmPermissions;
 
 abstract class BaseCrmComponent extends Component
 {

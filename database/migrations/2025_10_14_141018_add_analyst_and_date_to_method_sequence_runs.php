@@ -12,10 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('method_sequence_runs', function (Blueprint $table) {
-            $table->unsignedBigInteger('analyst_id')->nullable()->after('method_sequence_id');
-            $table->date('run_date')->nullable()->after('analyst_id');
-            
-            $table->foreign('analyst_id')->references('id')->on('users')->onDelete('set null');
+            if (!Schema::hasColumn('method_sequence_runs', 'analyst_id')) {
+                $table->unsignedBigInteger('analyst_id')->nullable()->after('method_sequence_id');
+                $table->foreign('analyst_id')->references('id')->on('users')->onDelete('set null');
+            }
+            if (!Schema::hasColumn('method_sequence_runs', 'run_date')) {
+                $table->date('run_date')->nullable()->after('analyst_id');
+            }
         });
     }
 

@@ -5,10 +5,10 @@ import time
 import hashlib
 import json
 from typing import Dict, Any, List, Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime
 import pandas as pd
 from sqlalchemy import text
-from py_etl.core.database import db_manager
+from python.py_etl.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -97,39 +97,6 @@ class LiveDataService:
                 cached_response["summary"] += etl_caveat
             return cached_response
 
-        # 2b. Inject sensible parameter defaults if missing
-        if params is None:
-            params = {}
-            
-        sql = template["sql"]
-        if ":date_start" in sql and "date_start" not in params:
-            # Default lookup window based on intent
-            if "supplier" in intent:
-                days = 90
-            elif any(k in intent for k in ["equipment", "utilization", "tat", "overdue", "expiring"]):
-                days = 30
-            else:
-                days = 14
-            
-            params["date_start"] = str(date.today() - timedelta(days=days))
-            params["date_label"] = f"the last {days} days"
-        
-        if ":date_end" in sql and "date_end" not in params:
-            params["date_end"] = str(date.today())
-
-        if ":analyte_name_like" in sql:
-            analyte_like = params.get("analyte_name_like")
-            if not analyte_like:
-                analyte_name = (params.get("analyte_name") or "").strip().lower()
-                if analyte_name:
-                    params["analyte_name_like"] = f"%{analyte_name}%"
-                else:
-                    return {
-                        "intent": intent,
-                        "summary": "Please specify the parameter/analyte name, for example: magnesium.",
-                        "success": False,
-                    }
-
         logger.info(f"LiveData cache MISS for {cache_key}. Executing against PostgreSQL.")
         
         # 4. Execute SQL (with bounded execution)
@@ -153,17 +120,13 @@ class LiveDataService:
             self._consecutive_failures = 0
             
             # 6. Format result
-            description = template["description"]
-            if params and "date_label" in params:
-                description += f" for {params['date_label']}"
-
-            formatted = self._format_result(df, template["output_format"], description, intent)
+            formatted = self._format_result(df, template["output_format"], template["description"], intent)
             formatted += etl_caveat
             scalar_value = self._extract_scalar_value(df, template["output_format"])
             
             response = {
                 "intent": intent,
-                "data": json.loads(df.fillna("").to_json(orient="records")),
+                "data": df.fillna("").to_dict(orient="records"),
                 "summary": formatted,
                 "success": True,
                 "value": scalar_value,
@@ -209,7 +172,7 @@ class LiveDataService:
                     return data.get("failed_tables", [])
             
             # Fallback/Bootstrap: Perform one-time sync check if Redis is empty or stale
-            from py_etl.services.etl_index_state_service import etl_index_state_service
+            from python.py_etl.services.etl_index_state_service import etl_index_state_service
             tables_to_check = ["sample_headers", "sample_details"]
             failed = []
             for t in tables_to_check:
@@ -228,7 +191,7 @@ class LiveDataService:
         return None
 
     def _format_result(self, df: pd.DataFrame, output_format: str, description: str, intent: str = "") -> str:
-        source_line = f"\n\n<!-- Source: live operational database · Route: {intent} -->" if intent else ""
+        source_line = f"\n\n_Source: live operational database · Route: `{intent}`_" if intent else ""
 
         if df.empty:
             return (
@@ -267,5 +230,4 @@ class LiveDataService:
             return None
         if output_format not in {"count", "percentage"}:
             return None
-        val = df.iloc[0, 0]
-        return val.item() if hasattr(val, 'item') else val
+        return df.iloc[0, 0]

@@ -7,10 +7,10 @@ from typing import Dict, Any
 # Ensureproject root is in sys.path
 sys.path.append(os.getcwd())
 
-from ai_service.core.simple_assistant import SimpleAssistant
-from ai_service.services.ollama_service import OllamaService
-from ai_service.services.retrieval_service import RetrievalService
-from ai_service.services.live_data_service import LiveDataService
+from python.ai_service.core.simple_assistant import SimpleAssistant
+from python.ai_service.services.ollama_service import OllamaService
+from python.ai_service.services.retrieval_service import RetrievalService
+from python.ai_service.services.live_data_service import LiveDataService
 
 async def test_simple_assistant():
     print("--- Starting SimpleAssistant Verification ---")
