@@ -1565,13 +1565,13 @@ erDiagram
         uuid sample_detail_id FK
         uuid captured_result_id FK
         uuid formular_id FK
-        date date
+        Date worksheet_date
         string lab_no
-        time time_in
+        Time time_in
         uuid done_by_user_id FK
-        time time_out
+        Time time_out
         uuid read_by_user_id FK
-        date read_date
+        Date read_date
         string final_result
         timestamp posted_at
         uuid posted_by_user_id FK
