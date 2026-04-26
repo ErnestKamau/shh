@@ -23,17 +23,17 @@ class TwoFactorVerification
             }
         }
 
-        if (auth()->check() && $user->verify_code){
-            $expire_date = strtotime($user->verify_code_expires);
-            $now = strtotime(now());
-            $diff = $expire_date - $now;
-            if(floor($diff/(60)) > 30){
+        if (auth()->check() && ! empty($user->verify_code)) {
+            $expireDate = $user->verify_code_expires ? strtotime((string) $user->verify_code_expires) : false;
+
+            if ($expireDate === false || $expireDate <= time()) {
                 $user->resetTwoFactor();
                 auth()->logout();
-                
+
                 return redirect()->route('login');
             }
-            if(!$request->is('verify*')){
+
+            if (! $request->is('verify*')) {
                 return redirect()->route('verify-user');
             }
         }
