@@ -2,6 +2,8 @@
 
 namespace App\Models\Worksheets;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\LabSubCategory;
@@ -11,6 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MethodSequenceStageControlUsage extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     protected $table = 'method_sequence_stage_control_usage';

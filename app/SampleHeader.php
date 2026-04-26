@@ -5,6 +5,7 @@ namespace App;
 use App\Models\CRM\CRMCustomer;
 use App\Models\QcModule\Configurations\QcTypes;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\InvoiceDetails;
 use App\BatchLabSectionApprover;
@@ -12,6 +13,55 @@ use App\Models\CRM\CRMCompanyUnit;
 
 class SampleHeader extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+    protected $casts = [
+        'crm_unit_name' => 'encrypted',
+        'reference_number' => 'encrypted',
+        'method_deviation_reason' => 'encrypted',
+        'document_number' => 'encrypted',
+        'description' => 'encrypted',
+        'importer_address' => 'encrypted',
+        'reason_for_submission' => 'encrypted',
+        'how_sample_was_obtained' => 'encrypted',
+        'sample_appearance_description' => 'encrypted',
+        'net_quantity_and_unit_of_quantity' => 'encrypted',
+        'use_of_goods' => 'encrypted',
+        'declared_amount' => 'encrypted',
+        'where_sample_was_obtained' => 'encrypted',
+        'radio_active_levels' => 'encrypted',
+        'ammendment_number' => 'encrypted',
+        'sampling_officer_name' => 'encrypted',
+        'receiving_officer_name' => 'encrypted',
+        'submit_by' => 'encrypted',
+        'batch_report_url' => 'encrypted',
+        'batch_instructions' => 'encrypted',
+        'condition_quality_sample' => 'encrypted',
+        'declaration_customer_signature' => 'encrypted',
+        'invoice_amount' => 'encrypted',
+        'cluster_amount' => 'encrypted',
+        'cluster_balance' => 'encrypted',
+        'cluster_amount_paid' => 'encrypted',
+        'case_id' => 'encrypted',
+        'batch_report_online_url' => 'encrypted',
+        'schedule_customer_email' => 'encrypted',
+        'receiving_officer' => 'string',
+        'sampling_officer' => 'string',
+        'specialist_analyst_id' => 'string',
+        'verify_user_id' => 'string',
+        'approve_user_id' => 'string',
+        'invoice_id' => 'string',
+        'quote_id' => 'string',
+        'crm_unit_id' => 'string',
+        'qc_scheme_id' => 'string',
+        'qc_type_id' => 'string',
+        'sampling_method_id' => 'string',
+        'crm_contact_id' => 'string'
+    ];
+
+
 	use \OwenIt\Auditing\Auditable;
 	protected $guarded = ['id'];
 	// public $with = ['get_target_date', 'client', 'samples', 'specialist_analyst', 'custody', 'comments'];

@@ -3,6 +3,7 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\User;
 use Modules\QualityControl\Entities\Configurations\QcSchemes;
@@ -10,6 +11,11 @@ use Modules\QualityControl\Entities\Configurations\QcTypes as ConfigurationsQcTy
 
 class Standards extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'standards';
     protected $fillable = [

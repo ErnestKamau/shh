@@ -2,6 +2,8 @@
 
 namespace App\Models\Worksheets;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\Models\MethodSequences\MethodSequenceStage;
@@ -12,6 +14,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MethodSequenceRunStageData extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     protected $fillable = [

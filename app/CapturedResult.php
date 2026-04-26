@@ -13,6 +13,32 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 // [ObservedBy([CapturedObserver::class])];
 class CapturedResult extends Model implements Auditable
 {
+	use \Illuminate\Database\Eloquent\Concerns\HasUuids;
+	protected $keyType = 'string';
+	public $incrementing = false;
+
+    protected $casts = [
+        'analyte_code' => 'encrypted',
+        'result' => 'encrypted',
+        'remark' => 'encrypted',
+        'main_value' => 'encrypted',
+        'secondary_value' => 'encrypted',
+        'sec_remark' => 'encrypted',
+        'third_remark' => 'encrypted',
+        'scienctific_result' => 'encrypted',
+        'superscript_number' => 'encrypted',
+        'superscript_negative' => 'encrypted',
+        'supercsript_base' => 'encrypted',
+        'operator_id' => 'string',
+        'method_id' => 'string',
+        'main_standard_id' => 'string',
+        'secondary_standard_id' => 'string',
+        'lab_section_id' => 'string',
+        'third_standard_id' => 'string',
+        'ltm_method_id' => 'string',
+        'formular_id' => 'string',
+        'method_sequence_id' => 'string'
+    ];
 	use \OwenIt\Auditing\Auditable;
 	protected $appends = ['repeatsampleresult', 'isitalic'];
 	protected $guarded = ['id'];

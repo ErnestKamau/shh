@@ -2,6 +2,8 @@
 
 namespace App\Models\CRM;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use App\Models\Area;
 use App\Models\SamplePoint as MasterSamplePoint;
 use App\Models\SamplePointArea;
@@ -11,6 +13,11 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class SamplePoint extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
 	use \OwenIt\Auditing\Auditable;
 
     protected $guarded = [];

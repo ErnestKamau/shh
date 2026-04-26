@@ -2,11 +2,18 @@
 
 namespace App\Models\AI;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AiConversation extends Model
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use SoftDeletes;
 
     protected $table = 'ai_conversations';

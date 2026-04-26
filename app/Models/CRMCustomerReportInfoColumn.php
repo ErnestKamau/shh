@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\Models\CRM\CRMCustomer;
@@ -10,6 +12,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CRMCustomerReportInfoColumn extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     protected $table = 'crm_report_info_columns';

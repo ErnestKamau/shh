@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\SampleHeader;
@@ -11,6 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SampleSubmissionRequest extends Model
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $fillable = [
         'sample_header_id',
         'crm_customer_id',

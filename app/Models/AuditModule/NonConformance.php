@@ -2,6 +2,8 @@
 
 namespace App\Models\AuditModule;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\User;
@@ -14,6 +16,11 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class NonConformance extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
     use SoftDeletes;

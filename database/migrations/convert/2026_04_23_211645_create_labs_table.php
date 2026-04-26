@@ -1,0 +1,55 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('labs', function (Blueprint $table) {
+            $table->uuid('id');
+            $table->string('code');
+            $table->string('name');
+            $table->string('address')->nullable();
+            $table->string('location')->nullable();
+            $table->string('fax')->nullable();
+            $table->string('email')->nullable();
+            $table->string('website')->nullable();
+            $table->uuid('company_id')->nullable()->index('idx_labs_company_id_e026319a');
+            $table->uuid('directorate_id')->nullable()->index('idx_labs_directorate_id_e95101c4');
+            $table->uuid('zone_id')->nullable()->index('idx_labs_zone_id_3bac05f2');
+            $table->uuid('manager_id')->nullable()->index('idx_labs_manager_id_b111a16e');
+            $table->json('analyst_ids')->nullable();
+            $table->boolean('is_external')->default(false);
+            $table->string('phone1');
+            $table->string('phone2')->nullable();
+            $table->string('phone3')->nullable();
+            $table->boolean('active')->default(true);
+            $table->timestamps();
+            $table->string('start_sample_no', 100)->nullable();
+
+            $table->unique(['directorate_id', 'code'], 'labs_directorate_code_unique');
+            $table->unique(['directorate_id', 'name'], 'labs_directorate_name_unique');
+            $table->foreign(['directorate_id'], 'fk_labs_directorate_id_a78b8d76')->references(['id'])->on('directorates')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['manager_id'], 'fk_labs_manager_id_92b47842')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['zone_id'], 'fk_labs_zone_id_1eca8233')->references(['id'])->on('zones')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['company_id'], 'fk_labs_company_id_f800269a')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('set null');
+
+            $table->primary(['id']);
+
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('labs');
+    }
+};

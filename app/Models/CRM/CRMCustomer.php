@@ -2,6 +2,8 @@
 
 namespace App\Models\CRM;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use App\ModulePreConfigs;
 use App\ZohoCustomers;
 use Illuminate\Database\Eloquent\Model;
@@ -9,12 +11,23 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class CRMCustomer extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
 	use \OwenIt\Auditing\Auditable;
 	protected $table = "crm_customers";
 
 	protected $casts = [
 		'report_columns_config' => 'array',
 		'is_internal' => 'boolean',
+		'code' => 'encrypted',
+		'postal_address' => 'encrypted',
+		'physical_address' => 'encrypted',
+		'email' => 'encrypted',
+		'telephone1' => 'encrypted',
+		'telephone2' => 'encrypted',
 	];
 
 	public function country(){
