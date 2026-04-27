@@ -51,7 +51,7 @@ return new class extends Migration
             $table->date('actual_closure_date')->nullable();
             $table->unsignedBigInteger('closed_by')->nullable();
             $table->text('closure_notes')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_non_conformances_created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->uuid('company_id')->default(0)->index('idx_non_conformances_company_id_dddcc827');
             $table->timestamps();
@@ -68,6 +68,7 @@ return new class extends Migration
             $table->foreign(['status_id'], 'fk_non_conformances_status_id_5c054baa')->references(['id'])->on('nc_statuses')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['company_id'], 'fk_non_conformances_company_id_85b6a89e')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['equipment_id'], 'fk_non_conformances_equipment_id_d579c041')->references(['id'])->on('equipment')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_non_conformances_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
 
             $table->primary(['id']);

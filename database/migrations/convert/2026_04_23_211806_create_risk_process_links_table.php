@@ -16,10 +16,11 @@ return new class extends Migration
             $table->uuid('risk_id')->index('risk_process_links_risk_id_foreign');
             $table->uuid('business_process_id')->index('risk_process_links_business_process_id_foreign');
             $table->text('description')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->uuid('created_by')->nullable()->index('idx_risk_process_links_created_by');
             $table->timestamps();
             $table->foreign(['business_process_id'], 'fk_risk_process_links_business_process_id_1371d30f')->references(['id'])->on('risk_business_processes')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['risk_id'], 'fk_risk_process_links_risk_id_ceac4996')->references(['id'])->on('risks')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_risk_process_links_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

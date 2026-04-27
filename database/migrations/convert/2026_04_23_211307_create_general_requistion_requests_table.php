@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('requesting_department');
             $table->string('laboratory')->nullable();
             $table->date('date_required');
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_general_requistion_requests_created_by');
             $table->string('status');
             $table->text('description')->nullable();
             $table->string('payment_mode', 192)->nullable();
@@ -32,6 +32,7 @@ return new class extends Migration
             $table->string('approved_by_1')->nullable();
             $table->string('approved_by_2')->nullable();
             $table->text('reason_for_approval')->nullable();
+            $table->foreign(['created_by'], 'fk_general_requistion_requests_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

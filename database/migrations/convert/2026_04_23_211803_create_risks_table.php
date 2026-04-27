@@ -71,7 +71,7 @@ return new class extends Migration
             $table->text('lessons_learned')->nullable();
             $table->date('closure_date')->nullable();
             $table->unsignedBigInteger('closed_by')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_risks_created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->uuid('company_id')->default(0)->index('idx_risks_company_id_ed72944e');
             $table->timestamps();
@@ -93,6 +93,7 @@ return new class extends Migration
             $table->foreign(['company_id'], 'fk_risks_company_id_91e8fdd9')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['complaint_id'], 'fk_risks_complaint_id_3229aa4f')->references(['id'])->on('complaints')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['equipment_id'], 'fk_risks_equipment_id_b8697cec')->references(['id'])->on('equipment')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_risks_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
 
 

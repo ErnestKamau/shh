@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('import_lab_results', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('batch_id');
+            $table->uuid('batch_id')->index('idx_import_lab_results_batch_id');
             $table->string('sample_no', 500);
             $table->string('result');
             $table->string('analyte_code');
@@ -35,6 +35,7 @@ return new class extends Migration
             $table->string('analyte_name', 500)->nullable();
             $table->integer('analyst_id')->nullable();
             $table->foreign(['analyte_id'], 'fk_import_lab_results_analyte_id_1d31291e')->references(['id'])->on('analytes')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['batch_id'], 'fk_import_lab_results_batch_id')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
 
             $table->primary(['id']);
 

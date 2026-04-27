@@ -14,12 +14,14 @@ return new class extends Migration
         Schema::create('batch_ammendments', function (Blueprint $table) {
             $table->uuid('id')->index('id');
             $table->timestamps();
-            $table->integer('batch_id')->index('batch_id');
-            $table->integer('created_by_id');
+            $table->uuid('batch_id')->index('idx_batch_ammendments_batch_id');
+            $table->uuid('created_by_id')->nullable()->index('idx_batch_ammendments_created_by_id');
             $table->text('reason');
             $table->string('samples');
             $table->string('report_url');
             $table->integer('version_number')->default(0);
+            $table->foreign(['batch_id'], 'fk_batch_ammendments_batch_id')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by_id'], 'fk_batch_ammendments_created_by_id')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
         });

@@ -19,12 +19,13 @@ return new class extends Migration
             $table->uuid('audit_type_id')->nullable()->index('audit_checklists_audit_type_id_foreign');
             $table->string('iso_standard')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->uuid('created_by')->nullable()->index('idx_audit_checklists_created_by');
             $table->uuid('company_id')->default(0)->index('idx_audit_checklists_company_id_3a5ac149');
             $table->timestamps();
             $table->softDeletes();
             $table->foreign(['audit_type_id'], 'fk_audit_checklists_audit_type_id_78022d85')->references(['id'])->on('audit_types')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['company_id'], 'fk_audit_checklists_company_id_52b583e1')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_audit_checklists_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

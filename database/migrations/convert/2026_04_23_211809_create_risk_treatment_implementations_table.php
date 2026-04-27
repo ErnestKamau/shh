@@ -30,7 +30,7 @@ return new class extends Migration
             $table->string('approved_by')->nullable();
             $table->date('approval_date')->nullable();
             $table->date('next_review_date')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_risk_treatment_implementations_created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->uuid('company_id')->default(0)->index('idx_risk_treatment_implementations_company_id_4c142b94');
             $table->timestamps();
@@ -42,6 +42,7 @@ return new class extends Migration
             $table->foreign(['risk_id'], 'fk_risk_treatment_implementations_risk_id_832cc869')->references(['id'])->on('risks')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['treatment_plan_id'], 'fk_risk_treatment_implementations_treatment_plan_id_f85d25ea')->references(['id'])->on('risk_treatment_plans')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['company_id'], 'fk_risk_treatment_implementations_company_id_67b49a1c')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_risk_treatment_implementations_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

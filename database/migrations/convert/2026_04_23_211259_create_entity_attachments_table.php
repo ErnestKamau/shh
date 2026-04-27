@@ -19,10 +19,11 @@ return new class extends Migration
             $table->string('description');
             $table->string('model');
             $table->integer('model_id');
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_entity_attachments_created_by');
             $table->timestamps();
             $table->string('mime', 100)->nullable();
             $table->string('size', 100)->nullable();
+            $table->foreign(['created_by'], 'fk_entity_attachments_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

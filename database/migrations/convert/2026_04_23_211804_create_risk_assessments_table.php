@@ -28,7 +28,7 @@ return new class extends Migration
             $table->boolean('is_current')->default(false);
             $table->integer('version')->default(1);
             $table->text('reassessment_reason')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_risk_assessments_created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->uuid('company_id')->default(0)->index('idx_risk_assessments_company_id_41f40a0c');
             $table->timestamps();
@@ -40,6 +40,7 @@ return new class extends Migration
             $table->foreign(['risk_id'], 'fk_risk_assessments_risk_id_8f60d3c9')->references(['id'])->on('risks')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['severity_scale_id'], 'fk_risk_assessments_severity_scale_id_3280c7b0')->references(['id'])->on('severity_scales')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['company_id'], 'fk_risk_assessments_company_id_6b228850')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_risk_assessments_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

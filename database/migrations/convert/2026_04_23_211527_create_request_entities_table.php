@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('request_type');
             $table->integer('approval_count')->default(0);
             $table->integer('required_approvals')->default(0);
-            $table->integer('created_by')->default(0);
+            $table->uuid('created_by')->nullable()->index('idx_request_entities_created_by');
             $table->string('description', 1024)->nullable();
             $table->string('nature_of_purchase', 100)->nullable();
             $table->timestamps();
@@ -56,6 +56,7 @@ return new class extends Migration
             $table->decimal('kit_total_price', 10)->nullable()->default(0);
             $table->foreign(['inventory_location_id'], 'fk_request_entities_inventory_location_id_baac4ff6')->references(['id'])->on('inventory_locations')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['supplier_id'], 'fk_request_entities_supplier_id_326a86c6')->references(['id'])->on('suppliers')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_request_entities_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
 
             $table->primary(['id']);

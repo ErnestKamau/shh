@@ -22,7 +22,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->longText('metadata')->nullable();
             $table->uuid('company_id')->default(0)->index('idx_risk_configuration_options_company_id_54ffd541');
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->uuid('created_by')->nullable()->index('idx_risk_configuration_options_created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -30,6 +30,7 @@ return new class extends Migration
             $table->index(['option_type', 'company_id', 'is_active'], 'risk_config_opt_type_comp_active_idx');
             $table->unique(['option_type', 'code', 'company_id'], 'risk_config_option_unique');
             $table->foreign(['company_id'], 'fk_risk_configuration_options_company_id_88281b71')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_risk_configuration_options_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

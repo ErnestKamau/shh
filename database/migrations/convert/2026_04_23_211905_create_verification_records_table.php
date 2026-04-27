@@ -31,7 +31,7 @@ return new class extends Migration
             $table->string('closure_status_name')->nullable();
             $table->date('closure_date')->nullable();
             $table->unsignedBigInteger('closed_by')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_verification_records_created_by');
             $table->timestamps();
             $table->softDeletes();
 
@@ -39,6 +39,7 @@ return new class extends Migration
             $table->foreign(['closure_status_id'], 'fk_verification_records_closure_status_id_17665657')->references(['id'])->on('verification_closure_statuses')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['corrective_action_id'], 'fk_verification_records_corrective_action_id_1d120db9')->references(['id'])->on('corrective_actions')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['effectiveness_result_id'], 'fk_verification_records_effectiveness_result_id_9eb622b5')->references(['id'])->on('verification_results')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_verification_records_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

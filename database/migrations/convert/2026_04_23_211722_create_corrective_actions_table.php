@@ -35,7 +35,7 @@ return new class extends Migration
             $table->string('priority_name')->nullable();
             $table->text('implementation_notes')->nullable();
             $table->text('implementation_evidence')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_corrective_actions_created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->uuid('company_id')->default(0)->index('idx_corrective_actions_company_id_9e77bc1f');
             $table->timestamps();
@@ -49,6 +49,7 @@ return new class extends Migration
             $table->foreign(['priority_id'], 'fk_corrective_actions_priority_id_d17bed10')->references(['id'])->on('capa_priorities')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['status_id'], 'fk_corrective_actions_status_id_8e89b6b0')->references(['id'])->on('capa_statuses')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['company_id'], 'fk_corrective_actions_company_id_9d86642a')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_corrective_actions_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

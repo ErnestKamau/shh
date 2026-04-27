@@ -17,7 +17,7 @@ return new class extends Migration
             $table->uuid('inventory_sub_category_id')->index('idx_inventory_items_inventory_sub_category_id_600814eb');
             $table->double('stock_in')->default(0);
             $table->double('stock_out')->default(0);
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_inventory_items_created_by');
             $table->uuid('supplier_id')->nullable()->index('idx_inventory_items_supplier_id_0d979b3b');
             $table->uuid('inventory_department_id')->default(0)->index('idx_inventory_items_inventory_department_id_a761aa1c');
             $table->integer('edited_by')->default(0);
@@ -46,6 +46,7 @@ return new class extends Migration
             $table->foreign(['inventory_sub_category_id'], 'fk_inventory_items_inventory_sub_category_id_08d9e9b3')->references(['id'])->on('inventory_sub_categories')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['item_brand_id'], 'fk_inventory_items_item_brand_id_2f67ff27')->references(['id'])->on('item_brands')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['supplier_id'], 'fk_inventory_items_supplier_id_9e0aa447')->references(['id'])->on('suppliers')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_inventory_items_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
 
 

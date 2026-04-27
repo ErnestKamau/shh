@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('batch_comments', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('comments')->nullable();
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_batch_comments_created_by');
             $table->integer('reminder_for')->index('reminder_for');
             $table->string('personnel_to_cc');
             $table->date('completed_at')->nullable();
@@ -22,6 +22,7 @@ return new class extends Migration
             $table->uuid('sample_header_id')->nullable()->index('sample_header_id');
             $table->string('comment_type')->nullable();
             $table->foreign(['sample_header_id'], 'fk_batch_comments_sample_header_id_6ca4c5ac')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_batch_comments_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

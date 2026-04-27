@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('procedure_worksheet_step_analysts', function (Blueprint $table) {
             $table->uuid('id');
-            $table->bigInteger('batch_id');
+            $table->uuid('batch_id')->index('idx_procedure_worksheet_step_analysts_batch_id');
             $table->uuid('analyte_id')->index('idx_procedure_worksheet_step_analysts_analyte_id_7c2dcb63');
             $table->uuid('procedure_worksheet_id')->index('idx_procedure_worksheet_step_analysts_procedure_worksh_01d853ba');
             $table->uuid('procedure_worksheet_step_id')->index('idx_procedure_worksheet_step_analysts_procedure_worksh_c70ed5fa');
@@ -24,6 +24,7 @@ return new class extends Migration
             $table->foreign(['analyte_id'], 'fk_procedure_worksheet_step_analysts_analyte_id_bd94285f')->references(['id'])->on('analytes')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['procedure_worksheet_id'], 'fk_procedure_worksheet_step_analysts_procedure_workshe_a59794e0')->references(['id'])->on('procedure_worksheets')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['procedure_worksheet_step_id'], 'fk_procedure_worksheet_step_analysts_procedure_workshe_b11f1c3b')->references(['id'])->on('procedure_worksheet_steps')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['batch_id'], 'fk_procedure_worksheet_step_analysts_batch_id')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
 
 
 

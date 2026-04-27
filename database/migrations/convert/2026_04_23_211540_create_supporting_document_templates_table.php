@@ -21,11 +21,12 @@ return new class extends Migration
             $table->boolean('is_published')->default(false);
             $table->boolean('is_active')->default(true);
             $table->uuid('company_id')->nullable()->index('idx_supporting_document_templates_company_id_f064488a');
-            $table->unsignedBigInteger('created_by')->nullable()->index('idx_supporting_document_templates_created_by_5a3da6bf');
+            $table->uuid('created_by')->nullable()->index('idx_supporting_document_templates_created_by_5a3da6bf');
             $table->timestamps();
 
             $table->index(['is_published', 'is_active'], 'sdoc_templates_pub_active_idx');
             $table->foreign(['company_id'], 'fk_supporting_document_templates_company_id_8b663750')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_supporting_document_templates_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

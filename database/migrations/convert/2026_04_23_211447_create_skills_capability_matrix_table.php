@@ -14,11 +14,12 @@ return new class extends Migration
         Schema::create('skills_capability_matrix', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_skills_capability_matrix_created_by');
             $table->integer('matrix_id');
             $table->string('name');
             $table->dateTime('deleted_at')->nullable();
             $table->boolean('status')->default(true);
+            $table->foreign(['created_by'], 'fk_skills_capability_matrix_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

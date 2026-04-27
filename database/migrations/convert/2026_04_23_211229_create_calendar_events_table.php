@@ -22,7 +22,7 @@ return new class extends Migration
             $table->integer('client_id')->nullable();
             $table->string('attachment')->nullable();
             $table->string('location')->nullable();
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_calendar_events_created_by');
             $table->string('status', 500)->nullable();
             $table->boolean('is_client_notify')->nullable()->default(true);
             $table->boolean('is_routine')->nullable()->default(false);
@@ -36,6 +36,7 @@ return new class extends Migration
             $table->text('logistics')->nullable();
             $table->string('latitude')->nullable();
             $table->string('longitude')->nullable();
+            $table->foreign(['created_by'], 'fk_calendar_events_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

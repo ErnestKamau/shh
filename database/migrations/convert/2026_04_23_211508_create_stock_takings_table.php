@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('stock_takings', function (Blueprint $table) {
             $table->uuid('id');
             $table->text('description');
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_stock_takings_created_by');
             $table->integer('updated_by')->nullable();
             $table->dateTime('completed_at')->nullable();
             $table->string('status')->default('In Preparation');
@@ -27,6 +27,7 @@ return new class extends Migration
             $table->smallInteger('stores_frozen')->default(0);
             $table->boolean('reviewed')->nullable();
             $table->foreign(['inventory_location_id'], 'fk_stock_takings_inventory_location_id_6aff6a64')->references(['id'])->on('inventory_locations')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_stock_takings_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

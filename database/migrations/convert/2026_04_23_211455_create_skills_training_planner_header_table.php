@@ -17,8 +17,9 @@ return new class extends Migration
             $table->string('name');
             $table->integer('training_need_header_id');
             $table->boolean('is_complete')->default(false);
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_skills_training_planner_header_created_by');
             $table->dateTime('deleted_at')->nullable();
+            $table->foreign(['created_by'], 'fk_skills_training_planner_header_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

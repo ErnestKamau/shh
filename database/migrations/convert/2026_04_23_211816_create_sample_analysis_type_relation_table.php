@@ -14,11 +14,12 @@ return new class extends Migration
         Schema::create('sample_analysis_type_relation', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('batch_id');
+            $table->uuid('batch_id')->index('idx_sample_analysis_type_relation_batch_id');
             $table->uuid('sample_detail_id')->index('idx_sample_analysis_type_relation_sample_detail_id_ca0562fc');
             $table->uuid('analysis_type_id')->index('idx_sample_analysis_type_relation_analysis_type_id_125f7a0e');
             $table->foreign(['analysis_type_id'], 'fk_sample_analysis_type_relation_analysis_type_id_09a1a145')->references(['id'])->on('analysis_types')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['sample_detail_id'], 'fk_sample_analysis_type_relation_sample_detail_id_31d9dff9')->references(['id'])->on('sample_details')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['batch_id'], 'fk_sample_analysis_type_relation_batch_id')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
 
 
             $table->primary(['id']);

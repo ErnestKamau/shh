@@ -18,8 +18,9 @@ return new class extends Migration
             $table->boolean('is_required')->default(false);
             $table->boolean('active')->default(false);
             $table->dateTime('deleted_at')->nullable();
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_sample_approval_checklist_created_by');
             $table->string('workflow_stage', 100)->nullable();
+            $table->foreign(['created_by'], 'fk_sample_approval_checklist_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

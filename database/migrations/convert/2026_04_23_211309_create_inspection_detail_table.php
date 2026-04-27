@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('inspection_detail', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_inspection_detail_created_by');
             $table->string('approved_vgm_no');
             $table->string('authorized_vgm_contact');
             $table->string('inspector_phone_no')->nullable();
@@ -57,6 +57,7 @@ return new class extends Migration
             $table->date('sec_surveyor_date')->nullable();
             $table->text('delete_reason')->nullable();
             $table->integer('deleted_by')->nullable();
+            $table->foreign(['created_by'], 'fk_inspection_detail_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

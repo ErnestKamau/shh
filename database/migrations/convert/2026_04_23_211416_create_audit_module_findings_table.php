@@ -30,7 +30,7 @@ return new class extends Migration
             $table->uuid('status_id')->nullable()->index('audit_module_findings_status_id_foreign');
             $table->string('status_name')->nullable();
             $table->integer('order_index')->default(0);
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->uuid('created_by')->nullable()->index('idx_audit_module_findings_created_by');
             $table->timestamps();
             $table->softDeletes();
 
@@ -40,6 +40,7 @@ return new class extends Migration
             $table->foreign(['finding_category_id'], 'fk_audit_module_findings_finding_category_id_6d005db6')->references(['id'])->on('finding_categories')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['risk_level_id'], 'fk_audit_module_findings_risk_level_id_e0f3c164')->references(['id'])->on('risk_levels')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['status_id'], 'fk_audit_module_findings_status_id_89f8ae96')->references(['id'])->on('finding_statuses')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_audit_module_findings_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

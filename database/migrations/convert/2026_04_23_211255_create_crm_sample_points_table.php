@@ -15,8 +15,9 @@ return new class extends Migration
             $table->uuid('id');
             $table->string('code')->unique();
             $table->string('name');
-            $table->bigInteger('created_by')->nullable();
+            $table->uuid('created_by')->nullable()->index('idx_crm_sample_points_created_by');
             $table->timestamps();
+            $table->foreign(['created_by'], 'fk_crm_sample_points_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

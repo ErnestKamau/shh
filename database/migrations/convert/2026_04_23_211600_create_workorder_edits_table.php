@@ -16,8 +16,9 @@ return new class extends Migration
             $table->integer('workorder_id');
             $table->text('reason');
             $table->string('created_by');
-            $table->integer('created_by_id');
+            $table->uuid('created_by_id')->nullable()->index('idx_workorder_edits_created_by_id');
             $table->timestamps();
+            $table->foreign(['created_by_id'], 'fk_workorder_edits_created_by_id')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

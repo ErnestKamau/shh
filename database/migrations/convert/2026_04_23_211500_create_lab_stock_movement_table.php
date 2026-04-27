@@ -19,13 +19,14 @@ return new class extends Migration
             $table->double('stock_in')->default(0);
             $table->double('stock_out')->default(0);
             $table->integer('uom_id');
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_lab_stock_movement_created_by');
             $table->uuid('preparation_id')->nullable()->index('lab_stock_movement_preparation_id_foreign');
             $table->string('batch_number')->nullable();
             $table->dateTime('updated_at')->nullable();
             $table->dateTime('created_at')->nullable();
             $table->foreign(['preparation_id'], 'fk_lab_stock_movement_preparation_id_9e41c528')->references(['id'])->on('solution_preparations')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['lab_sub_category_id'], 'fk_lab_stock_movement_lab_sub_category_id_574a498a')->references(['id'])->on('lab_sub_category')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_lab_stock_movement_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

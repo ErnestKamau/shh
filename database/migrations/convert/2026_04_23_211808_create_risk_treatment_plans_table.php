@@ -39,7 +39,7 @@ return new class extends Migration
             $table->date('implementation_end_date')->nullable();
             $table->uuid('capa_id')->nullable()->index('risk_treatment_plans_capa_id_foreign');
             $table->text('related_actions')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_risk_treatment_plans_created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -48,6 +48,7 @@ return new class extends Migration
             $table->foreign(['capa_id'], 'fk_risk_treatment_plans_capa_id_9589ef67')->references(['id'])->on('corrective_actions')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['risk_id'], 'fk_risk_treatment_plans_risk_id_8a847314')->references(['id'])->on('risks')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['treatment_type_id'], 'fk_risk_treatment_plans_treatment_type_id_3a6cb495')->references(['id'])->on('treatment_types')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_risk_treatment_plans_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

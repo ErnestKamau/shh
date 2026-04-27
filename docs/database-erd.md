@@ -541,14 +541,14 @@ erDiagram
         uuid id PK
         string code
         string name
-        bigint created_by
+        uuid created_by FK
     }
 
     crm_sample_points {
         uuid id PK
         string code
         string name
-        bigint created_by
+        uuid created_by FK
     }
 
     sample_point_area {
@@ -748,7 +748,7 @@ erDiagram
         uuid sample_type_id FK
         datetime book_date
         string book_no
-        integer created_by
+        uuid created_by FK
         integer status
         integer customer_id
         date date_collected
@@ -823,7 +823,7 @@ erDiagram
         text checklist
         boolean is_required
         boolean active
-        integer created_by
+        uuid created_by FK
         string workflow_stage
     }
 
@@ -857,15 +857,15 @@ erDiagram
 
     batch_sequences {
         uuid id PK
-        integer batch_id
-        integer sequence_order
-        string sequence_status
+        uuid submission_form_instance_id FK
+        integer year
+        integer batch_sequence
     }
 
     batch_ammendments {
         uuid id PK
-        integer batch_id
-        integer created_by_id
+        uuid batch_id FK
+        uuid created_by_id FK
         text reason
         string samples
         string report_url
@@ -874,7 +874,7 @@ erDiagram
 
     batch_attachments {
         uuid id PK
-        integer batch_id
+        uuid batch_id FK
         integer uploaded_by
         string attachment_url
         string title
@@ -898,16 +898,20 @@ erDiagram
 
     batch_comments {
         uuid id PK
-        integer batch_id
-        uuid user_id FK
-        text comment_text
+        string comments
+        uuid created_by FK
+        integer reminder_for
+        string personnel_to_cc
+        date completed_at
+        uuid sample_header_id FK
+        string comment_type
     }
 
     batch_notifications {
         uuid id PK
-        integer batch_id
+        uuid batch_id FK
         integer position_id
-        integer created_by
+        uuid created_by FK
         text notification
         string status
         boolean active
@@ -915,7 +919,7 @@ erDiagram
 
     batch_labsection_approval {
         uuid id PK
-        integer batch_id
+        uuid batch_id FK
         uuid user_id FK
         string title
         string lab_section_ids
@@ -1032,7 +1036,7 @@ This module defines **what the lab tests for and how**:
 
 ---
 
-## ERD Diagram
+## ERD Diagram — Part A: Core Lab Structure
 
 ```mermaid
 erDiagram
@@ -1071,7 +1075,7 @@ erDiagram
         uuid id PK
         string name
         string code
-        text description
+        string description
         boolean active
     }
 
@@ -1086,159 +1090,14 @@ erDiagram
         uuid id PK
         uuid method_id FK
         string element_name
-        text element_specification
+        string element_specification
     }
 
     analysis_guides {
         uuid id PK
         uuid analysis_type_id FK
         uuid analyte_id FK
-        text guide_text
-    }
-
-    method_sequences {
-        uuid id PK
-        string name
-        text description
-        uuid company_id FK
-    }
-
-    method_sequence_versions {
-        uuid id PK
-        uuid method_sequence_id FK
-        integer version_number
-        longText version_data
-    }
-
-    method_sequence_stages {
-        uuid id PK
-        uuid method_sequence_id FK
-        integer stage_number
-        string stage_name
-        text stage_description
-    }
-
-    method_sequence_runs {
-        uuid id PK
-        uuid sample_header_id FK
-        uuid method_sequence_id FK
-        uuid analyst_id FK
-        uuid current_stage_id FK
-        string run_status
-    }
-
-    method_sequence_run_stage_data {
-        uuid id PK
-        uuid run_id FK
-        longText stage_data
-    }
-
-    method_sequence_run_samples {
-        uuid id PK
-        uuid run_id FK
-        uuid sample_detail_id FK
-        uuid sample_header_id FK
-    }
-
-    formulas {
-        uuid id PK
-        string name
-        text description
-        boolean is_active
-    }
-
-    formula_versions {
-        uuid id PK
-        uuid formula_id FK
-        integer version_number
-        longText formula_data
-        uuid created_by FK
-    }
-
-    formula_steps {
-        uuid id PK
-        uuid formula_version_id FK
-        integer step_number
-        text step_description
-        text step_formula
-    }
-
-    formula_mandatory_fields {
-        uuid id PK
-        uuid formula_version_id FK
-        string field_name
-        string field_type
-    }
-
-    lookup_tables {
-        uuid id PK
-        string name
-        text description
-        longText key_columns
-        enum lookup_type
-        boolean is_active
-        boolean is_standard
-        boolean show_on_report
-    }
-
-    lookup_table_entries {
-        uuid id PK
-        uuid lookup_table_id FK
-        longText keys
-        text value
-    }
-
-    worksheet_executions {
-        uuid id PK
-        uuid formula_version_id FK
-        uuid sample_id FK
-        uuid batch_id FK
-        uuid executed_by FK
-        longText execution_data
-        text final_result
-        enum execution_mode
-        boolean is_saved
-    }
-
-    procedure_worksheets {
-        uuid id PK
-        string name
-        text description
-        boolean is_active
-        string document_control_no
-        string revision
-        date issue_date
-    }
-
-    procedure_worksheet_steps {
-        uuid id PK
-        uuid procedure_worksheet_id FK
-        string step
-        integer order
-        boolean is_active
-        longText default_equipment_id
-        longText default_analyst_id
-        string value_type
-        text default_value
-    }
-
-    procedure_config_fields {
-        uuid id PK
-        uuid procedure_worksheet_id FK
-        string label
-        enum field_type
-        integer order
-        boolean is_required
-    }
-
-    procedure_test_kit_columns {
-        uuid id PK
-        uuid procedure_worksheet_id FK
-        string label
-        string key
-        enum type
-        integer order
-        boolean is_required
+        string guide_text
     }
 
     standards {
@@ -1249,13 +1108,6 @@ erDiagram
         boolean main_standard
         boolean is_qc_standard
         uuid qc_type_id FK
-    }
-
-    standard_values {
-        uuid id PK
-        string code
-        string name
-        boolean status
     }
 
     standards_analytes {
@@ -1279,82 +1131,10 @@ erDiagram
         boolean is_active
     }
 
-    qc_approvers_config {
-        uuid id PK
-        integer personnel_id
-        integer created_by
-    }
-
-    uncertainty_budgets {
-        uuid id PK
-        uuid analyte_id FK
-        text method_ids
-        decimal coverage_factor_k
-        decimal combined_standard_uncertainty
-        decimal expanded_uncertainty
-        integer version_number
-        uuid company_id FK
-        boolean active
-    }
-
-    uncertainty_sources {
-        uuid id PK
-        uuid uncertainty_budget_id FK
-        string source_name
-        enum type
-        decimal std_uncertainty_value
-        decimal sensitivity_coefficient
-        decimal contribution_value
-    }
-
-    reporting_units {
-        uuid id PK
-        string name
-        boolean active
-    }
-
-    method_reagents {
-        uuid id PK
-        uuid inventory_sub_category_id FK
-        integer method_id
-        string reporting_unit
-        double quantity
-    }
-
-    method_validation_requests {
-        uuid id PK
-        bigint method_id
-        bigint requested_by
-        bigint lab_assigned
-        enum status
-        json validation_data
-        text notes
-    }
-
-    stage_headers {
-        uuid id PK
-        uuid method_id FK
-        uuid analyte_id FK
-        uuid sample_type_id FK
-    }
-
-    test_stages {
-        uuid id PK
-        uuid stage_header_id FK
-        integer order
-        string stage_name
-        integer duration_hours
-        longText media_required
-        longText equipment_required
-        longText controls_required
-        text instructions
-        boolean is_result_stage
-    }
-
     lab_section_approver_configuration {
         uuid id PK
         uuid lab_section_id FK
-        longText approver_configuration
+        string approver_configuration
     }
 
     lab_section_approver_relation {
@@ -1367,11 +1147,123 @@ erDiagram
     labs ||--o{ lab_section_approver_relation : "has approvers"
     analysis_types ||--o{ analysis_guides : "has guides"
     analytes ||--o{ analysis_guides : "referenced in"
-    analytes ||--o{ analytes_unik : "has unique categories"
+    analytes ||--o{ analytes_unik : "has categories"
     analytes ||--o{ standards_analytes : "measured by standards"
-    analytes ||--o{ uncertainty_budgets : "has budgets"
     analysis_methods ||--o{ analysis_elements : "has elements"
     analysis_methods ||--o{ analysis_method_elements : "has specifications"
+    standards ||--o{ standards_analytes : "covers analytes"
+```
+
+## ERD Diagram — Part B: Method Sequences & Formulas
+
+```mermaid
+erDiagram
+    method_sequences {
+        uuid id PK
+        string name
+        string description
+        uuid company_id FK
+    }
+
+    method_sequence_versions {
+        uuid id PK
+        uuid method_sequence_id FK
+        integer version_number
+        string version_data
+    }
+
+    method_sequence_stages {
+        uuid id PK
+        uuid method_sequence_id FK
+        integer stage_number
+        string stage_name
+        string stage_description
+    }
+
+    method_sequence_runs {
+        uuid id PK
+        uuid sample_header_id FK
+        uuid method_sequence_id FK
+        uuid analyst_id FK
+        uuid current_stage_id FK
+        string run_status
+    }
+
+    method_sequence_run_stage_data {
+        uuid id PK
+        uuid run_id FK
+        string stage_data
+    }
+
+    method_sequence_run_samples {
+        uuid id PK
+        uuid run_id FK
+        uuid sample_detail_id FK
+        uuid sample_header_id FK
+    }
+
+    formulas {
+        uuid id PK
+        string name
+        string description
+        boolean is_active
+    }
+
+    formula_versions {
+        uuid id PK
+        uuid formula_id FK
+        integer version_number
+        string formula_data
+        uuid created_by FK
+    }
+
+    formula_steps {
+        uuid id PK
+        uuid formula_version_id FK
+        integer step_number
+        string step_description
+        string step_formula
+    }
+
+    formula_mandatory_fields {
+        uuid id PK
+        uuid formula_version_id FK
+        string field_name
+        string field_type
+    }
+
+    worksheet_executions {
+        uuid id PK
+        uuid formula_version_id FK
+        uuid sample_id FK
+        uuid batch_id FK
+        uuid executed_by FK
+        string execution_data
+        string final_result
+        string execution_mode
+        boolean is_saved
+    }
+
+    stage_headers {
+        uuid id PK
+        uuid method_id FK
+        uuid analyte_id FK
+        uuid sample_type_id FK
+    }
+
+    test_stages {
+        uuid id PK
+        uuid stage_header_id FK
+        integer stage_order
+        string stage_name
+        integer duration_hours
+        string media_required
+        string equipment_required
+        string controls_required
+        string instructions
+        boolean is_result_stage
+    }
+
     method_sequences ||--o{ method_sequence_versions : "has versions"
     method_sequences ||--o{ method_sequence_stages : "has stages"
     method_sequences ||--o{ method_sequence_runs : "executed as runs"
@@ -1381,13 +1273,117 @@ erDiagram
     formula_versions ||--o{ formula_steps : "has steps"
     formula_versions ||--o{ formula_mandatory_fields : "requires fields"
     formula_versions ||--o{ worksheet_executions : "executed in"
+    stage_headers ||--o{ test_stages : "has stages"
+```
+
+## ERD Diagram — Part C: Worksheets, Lookup Tables & Uncertainty
+
+```mermaid
+erDiagram
+    lookup_tables {
+        uuid id PK
+        string name
+        string description
+        string key_columns
+        string lookup_type
+        boolean is_active
+        boolean is_standard
+        boolean show_on_report
+    }
+
+    lookup_table_entries {
+        uuid id PK
+        uuid lookup_table_id FK
+        string entry_keys
+        string entry_value
+    }
+
+    procedure_worksheets {
+        uuid id PK
+        string name
+        string description
+        boolean is_active
+        string document_control_no
+        string revision
+        string issue_date
+    }
+
+    procedure_worksheet_steps {
+        uuid id PK
+        uuid procedure_worksheet_id FK
+        string step_label
+        integer step_order
+        boolean is_active
+        string default_equipment_id
+        string default_analyst_id
+        string value_type
+        string default_value
+    }
+
+    procedure_config_fields {
+        uuid id PK
+        uuid procedure_worksheet_id FK
+        string label
+        string field_type
+        integer field_order
+        boolean is_required
+    }
+
+    procedure_test_kit_columns {
+        uuid id PK
+        uuid procedure_worksheet_id FK
+        string label
+        string column_key
+        string column_type
+        integer col_order
+        boolean is_required
+    }
+
+    uncertainty_budgets {
+        uuid id PK
+        uuid analyte_id FK
+        string method_ids
+        decimal coverage_factor_k
+        decimal combined_standard_uncertainty
+        decimal expanded_uncertainty
+        integer version_number
+        uuid company_id FK
+        boolean active
+    }
+
+    uncertainty_sources {
+        uuid id PK
+        uuid uncertainty_budget_id FK
+        string source_name
+        string uncertainty_type
+        decimal std_uncertainty_value
+        decimal sensitivity_coefficient
+        decimal contribution_value
+    }
+
+    method_reagents {
+        uuid id PK
+        uuid inventory_sub_category_id FK
+        integer method_id
+        string reporting_unit
+        decimal quantity
+    }
+
+    method_validation_requests {
+        uuid id PK
+        integer method_id
+        integer requested_by
+        integer lab_assigned
+        string request_status
+        string validation_data
+        string notes
+    }
+
     lookup_tables ||--o{ lookup_table_entries : "contains entries"
     procedure_worksheets ||--o{ procedure_worksheet_steps : "has steps"
     procedure_worksheets ||--o{ procedure_config_fields : "has config fields"
     procedure_worksheets ||--o{ procedure_test_kit_columns : "has kit columns"
-    standards ||--o{ standards_analytes : "covers analytes"
     uncertainty_budgets ||--o{ uncertainty_sources : "has sources"
-    stage_headers ||--o{ test_stages : "has stages"
 ```
 
 ## Table Descriptions
@@ -1465,41 +1461,24 @@ erDiagram
         uuid sample_header_id FK
         uuid analyte_id FK
         uuid analysis_type_id FK
-        string sample_detail_code
         string result_value
-        string guide_label
-        string comments
-        boolean recheck
+        string reporting_symbol
         decimal guide_low
         decimal guide_high
-        string unit_code
-        integer status_code
-        string reporting_symbol
-        boolean qc
-        decimal correct_target
-        decimal standard_target
-        string recommendations
-        decimal initial_result
-        string initial_reporting_symbol
         decimal very_low_guide
         decimal very_high_guide
-        string remarks
-        boolean analyte_status_contracted
+        string unit_code
+        integer status_code
         boolean analyte_accredited
-        integer analysis_type_order
-        integer parameters_order
-        string remark_colour
+        boolean recheck
+        string initial_reporting_symbol
+        decimal initial_result
         uuid lab_section_id FK
-        boolean remark_is_manual
-        boolean is_pesticide
-        uuid ltm_method_id FK
     }
 
     qc_results {
         uuid id PK
         uuid captured_result_id FK
-        uuid sample_detail_id FK
-        uuid sample_header_id FK
         uuid analyte_id FK
         uuid analysis_type_id FK
         string result_value
@@ -1509,12 +1488,8 @@ erDiagram
         string status_code
         boolean is_qc_processed
         string reporting_symbol
-        decimal correct_target
-        decimal standard_target
-        decimal initial_result
         uuid qc_scheme_id FK
         uuid qc_type_id FK
-        string standard_value
         uuid result_id FK
     }
 
@@ -1530,15 +1505,12 @@ erDiagram
         uuid captured_result_id FK
         uuid analysis_type_id FK
         uuid analyte_id FK
-        uuid sample_type_id FK
         uuid sample_detail_id FK
-        string result_value
-        integer analyst_id
+        uuid sample_header_id FK
         integer tat_overdue_days
         datetime tat_date
         datetime finished_date
         boolean is_complete
-        uuid sample_header_id FK
         datetime start_date_analysis
     }
 
@@ -1904,7 +1876,7 @@ erDiagram
         integer workorder_id
         text reason
         string created_by
-        integer created_by_id
+        uuid created_by_id FK
     }
 
     workorder_personnel_schedules {
@@ -2000,7 +1972,7 @@ Manages everything the lab **buys, stores, and consumes**:
 
 ---
 
-## ERD Diagram
+## ERD Diagram — Part A: Locations, Categories, Stores & Items
 
 ```mermaid
 erDiagram
@@ -2027,18 +1999,15 @@ erDiagram
     inventory_sub_categories {
         uuid id PK
         string name
-        string description
         uuid inventory_category_id FK
         string manufacturer
-        double minimum_level
+        decimal minimum_level
         string unit_type
-        double unit_price
-        double annual_consumption
+        decimal unit_price
         integer delivery_days
         string code
         uuid company_id FK
-        boolean is_lab
-        double reorder_level
+        decimal reorder_level
         boolean requires_reorder
     }
 
@@ -2078,22 +2047,20 @@ erDiagram
         uuid id PK
         uuid inventory_category_id FK
         uuid inventory_sub_category_id FK
-        double stock_in
-        double stock_out
-        int created_by
+        decimal stock_in
+        decimal stock_out
+        uuid created_by FK
         uuid supplier_id FK
-        uuid inventory_department_id FK
         uuid inventory_location_id FK
         string batch_code
-        date expiry
-        double price
+        string expiry_date
+        decimal price
         string po_number
         string barcode
         uuid inventory_store_id FK
         uuid inventory_store_slot_id FK
         uuid item_brand_id FK
         string lot_no
-        date date_of_manufacture
     }
 
     inventory_item_notes {
@@ -2104,170 +2071,95 @@ erDiagram
         string title
     }
 
-    inventory_orders {
-        uuid id PK
-        string order_number
-        uuid supplier_id FK
-        integer created_by
-        string status
-        uuid company_id FK
-        string comments
-    }
-
-    inventory_order_items {
-        uuid id PK
-        uuid inventory_order_id FK
-        uuid inventory_category_id FK
-        uuid inventory_sub_category_id FK
-        double quantity
-        boolean fulfilled
-    }
-
-    inventory_order_item_to_inventory_items {
-        uuid id PK
-        uuid inventory_order_id FK
-        uuid inventory_item_id FK
-        uuid inventory_order_item_id FK
-    }
-
-    inventory_location_users {
-        uuid id PK
-        uuid location_id FK
-        uuid user_id FK
-    }
-
-    inventory_store_contacts {
-        uuid id PK
-        uuid store_id FK
-        string contact_name
-        string contact_phone
-    }
-
-    inventory_supplier_ratings {
-        uuid id PK
-        uuid supplier_id FK
-        uuid inventory_item_id FK
-        integer rating
-        string title
-        string comments
-        integer rating_by
-    }
-
     item_brands {
         uuid id PK
         string name
-        string image
         uuid inventory_sub_category_id FK
         boolean status
     }
 
-    item_states {
-        uuid id PK
-        string name
-        integer uom
-        integer material_type_id
-        boolean is_default
-    }
+    inventory_locations ||--o{ inventory_categories : "contains"
+    inventory_locations ||--o{ inventory_stores : "has stores"
+    inventory_stores ||--o{ inventory_store_slots : "has slots"
+    inventory_store_slots ||--o{ inventory_store_slot_contents : "holds items"
+    inventory_categories ||--o{ inventory_sub_categories : "has sub-categories"
+    inventory_sub_categories ||--o{ inventory_items : "has stock batches"
+    inventory_items ||--o{ inventory_item_notes : "has notes"
+    inventory_items ||--o{ inventory_store_slot_contents : "stored in slot"
+```
 
-    lab_inventory_category {
-        uuid id PK
-        string name
-        text description
-        uuid company_id FK
-        uuid inventory_location_id FK
-        uuid inventory_category_id FK
-        boolean active
-    }
+## ERD Diagram — Part B: Lab Solutions & Stock Management
 
+```mermaid
+erDiagram
     lab_sub_category {
         uuid id PK
         string name
         integer category_id
         string reporting_unit
-        text description
         boolean active
-        double stock
+        decimal stock
         string current_batch_number
-        date batch_prepared_date
-        date batch_expiry_date
-        text stability_notes
-        enum batch_status
+        string batch_prepared_date
+        string batch_expiry_date
+        string stability_notes
+        string batch_status
     }
 
     lab_stock_movement {
         uuid id PK
-        text description
+        string description
         uuid lab_sub_category_id FK
         string stock_type
-        double stock_in
-        double stock_out
+        decimal stock_in
+        decimal stock_out
         integer uom_id
-        integer created_by
+        uuid created_by FK
         uuid preparation_id FK
         string batch_number
-    }
-
-    lab_category_items {
-        uuid id PK
-        uuid inventory_sub_category_id FK
-        uuid inventory_category_id FK
-        uuid inventory_item_id FK
-        uuid item_brand_id FK
-        boolean active
     }
 
     solution_preparations {
         uuid id PK
         uuid solution_id FK
         string batch_number
-        bigint prepared_by
-        timestamp prepared_at
-        enum status
-        text notes
+        integer prepared_by
+        datetime prepared_at
+        string prep_status
+        string notes
         decimal quantity_prepared
-        bigint uom_id
+        integer uom_id
     }
 
     solution_batch_history {
         uuid id PK
         uuid solution_id FK
         string batch_number
-        date prepared_date
-        date expiry_date
+        string prepared_date
+        string expiry_date
         decimal quantity_prepared
-        enum status
-        bigint prepared_by
-    }
-
-    solution_consumption_metrics {
-        uuid id PK
-        bigint solution_id
-        date period_start
-        date period_end
-        decimal total_consumption
-        decimal average_daily_consumption
-        decimal peak_consumption
-        decimal consumption_trend
+        string batch_status
+        integer prepared_by
     }
 
     preparation_steps {
         uuid id PK
-        bigint preparation_id
+        integer preparation_id
         integer step_number
         string step_name
-        text description
-        bigint ingredient_id
+        string description
+        integer ingredient_id
         decimal quantity_used
-        bigint uom_id
-        timestamp completed_at
-        bigint completed_by
-        text notes
+        integer uom_id
+        datetime completed_at
+        integer completed_by
+        string notes
     }
 
     stock_takings {
         uuid id PK
-        text description
-        integer created_by
+        string description
+        uuid created_by FK
         string status
         uuid inventory_location_id FK
         string code
@@ -2289,29 +2181,67 @@ erDiagram
         string code
         integer store_id
         integer slot_id
-        double system_quantity
-        double available_quantity
-        text comments
+        decimal system_quantity
+        decimal available_quantity
+        string comments
     }
 
     stock_transfers {
         uuid id PK
         string description
-        integer location_id
         integer department_id
         string code
         uuid inventory_location_id FK
-        string status
+        string transfer_status
     }
 
     stock_transfer_items {
         uuid id PK
         uuid stock_transfer_id FK
-        bigint local_item_id
-        bigint local_store_id
-        bigint target_store_id
-        double target_quantity
-        date expiry
+        integer local_item_id
+        integer local_store_id
+        integer target_store_id
+        decimal target_quantity
+        string expiry_date
+    }
+
+    lab_sub_category ||--o{ lab_stock_movement : "has movements"
+    lab_sub_category ||--o{ solution_preparations : "prepared as"
+    solution_preparations ||--o{ preparation_steps : "has steps"
+    lab_sub_category ||--o{ solution_batch_history : "has batch history"
+    stock_takings ||--o{ stock_taking_counters : "has counters"
+    stock_takings ||--o{ stock_taking_sheets : "has sheets"
+    stock_transfers ||--o{ stock_transfer_items : "transfers items"
+```
+
+## ERD Diagram — Part C: Procurement & Purchase Requests
+
+```mermaid
+erDiagram
+    inventory_orders {
+        uuid id PK
+        string order_number
+        uuid supplier_id FK
+        uuid created_by FK
+        string order_status
+        uuid company_id FK
+        string comments
+    }
+
+    inventory_order_items {
+        uuid id PK
+        uuid inventory_order_id FK
+        uuid inventory_category_id FK
+        uuid inventory_sub_category_id FK
+        decimal quantity
+        boolean fulfilled
+    }
+
+    inventory_order_item_to_inventory_items {
+        uuid id PK
+        uuid inventory_order_id FK
+        uuid inventory_item_id FK
+        uuid inventory_order_item_id FK
     }
 
     request_entities {
@@ -2319,14 +2249,13 @@ erDiagram
         string priority
         string currency
         string request_code
-        string status
-        date due_date
+        string request_status
+        string due_date
         string request_type
         integer approval_count
         integer required_approvals
-        integer created_by
-        text description
-        string nature_of_purchase
+        uuid created_by FK
+        string description
         decimal net_value
         uuid supplier_id FK
         uuid inventory_location_id FK
@@ -2339,10 +2268,9 @@ erDiagram
         uuid inventory_sub_category_id FK
         decimal quantity
         decimal net_value
-        date gr_expiry
         uuid inventory_item_id FK
         uuid item_brand_id FK
-        double unit_cost
+        decimal unit_cost
     }
 
     general_requistion_requests {
@@ -2350,17 +2278,17 @@ erDiagram
         string code
         string requesting_department
         string laboratory
-        date date_required
-        integer created_by
-        string status
-        text description
+        string date_required
+        uuid created_by FK
+        string req_status
+        string description
         string payment_mode
     }
 
     general_requisition_request_items {
         uuid id PK
         integer request_id
-        text item_description
+        string item_description
         decimal qty
         decimal last_unit_price
         uuid supplier_id FK
@@ -2379,27 +2307,12 @@ erDiagram
         uuid id PK
         string uom1
         string uom2
-        double ratio
+        decimal ratio
         uuid inventory_location_id FK
     }
 
-    inventory_locations ||--o{ inventory_categories : "contains"
-    inventory_locations ||--o{ inventory_stores : "has stores"
-    inventory_stores ||--o{ inventory_store_slots : "has slots"
-    inventory_store_slots ||--o{ inventory_store_slot_contents : "holds"
-    inventory_categories ||--o{ inventory_sub_categories : "has sub-categories"
-    inventory_sub_categories ||--o{ inventory_items : "has stock batches"
-    inventory_items ||--o{ inventory_item_notes : "has notes"
-    inventory_items ||--o{ inventory_store_slot_contents : "stored in"
     inventory_orders ||--o{ inventory_order_items : "contains items"
     inventory_order_items ||--o{ inventory_order_item_to_inventory_items : "fulfilled by"
-    stock_takings ||--o{ stock_taking_counters : "has counters"
-    stock_takings ||--o{ stock_taking_sheets : "has sheets"
-    stock_transfers ||--o{ stock_transfer_items : "transfers items"
-    lab_sub_category ||--o{ lab_stock_movement : "has movements"
-    lab_sub_category ||--o{ solution_preparations : "prepared as"
-    solution_preparations ||--o{ preparation_steps : "has steps"
-    lab_sub_category ||--o{ solution_batch_history : "has batch history"
     request_entities ||--o{ request_entity_items : "has items"
     general_requistion_requests ||--o{ general_requisition_request_items : "has items"
     general_requistion_requests ||--o{ general_requisition_supplier_quotes : "gets quotes"
@@ -2957,7 +2870,7 @@ erDiagram
         uuid id PK
         integer matrix_id
         string name
-        integer created_by
+        uuid created_by FK
     }
 
     skills_matrix_configurations {
@@ -3011,7 +2924,7 @@ erDiagram
         uuid id PK
         integer capability_id
         string name
-        integer created_by
+        uuid created_by FK
     }
 
     skill_training_header_staff {
@@ -3033,7 +2946,7 @@ erDiagram
         string name
         integer training_need_header_id
         boolean is_complete
-        integer created_by
+        uuid created_by FK
     }
 
     skills_training_planner_detail {
@@ -4233,6 +4146,7 @@ erDiagram
         boolean is_published
         boolean is_active
         uuid company_id FK
+        uuid created_by FK
     }
 
     supporting_document_sections {
@@ -4264,7 +4178,7 @@ erDiagram
         uuid sample_header_id FK
         string status
         timestamp submitted_at
-        bigint created_by
+        uuid created_by FK
     }
 
     supporting_document_instance_values {
@@ -4373,7 +4287,7 @@ erDiagram
         integer responsible_id
         integer client_id
         string location
-        integer created_by
+        uuid created_by FK
         string status
         boolean is_client_notify
         boolean is_routine

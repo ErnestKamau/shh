@@ -17,8 +17,9 @@ return new class extends Migration
             $table->string('status');
             $table->text('comments')->nullable();
             $table->string('created_by');
-            $table->integer('created_by_id');
+            $table->uuid('created_by_id')->nullable()->index('idx_work_order_status_histories_created_by_id');
             $table->timestamps();
+            $table->foreign(['created_by_id'], 'fk_work_order_status_histories_created_by_id')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

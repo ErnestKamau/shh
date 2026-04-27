@@ -38,7 +38,7 @@ return new class extends Migration
             $table->text('executive_summary')->nullable();
             $table->text('conclusions')->nullable();
             $table->text('recommendations')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_iso_audits_created_by');
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->unsignedBigInteger('closed_by')->nullable();
             $table->uuid('company_id')->default(0)->index('idx_iso_audits_company_id_f0fe7824');
@@ -52,6 +52,7 @@ return new class extends Migration
             $table->foreign(['checklist_id'], 'fk_iso_audits_checklist_id_ce19dcf5')->references(['id'])->on('audit_checklists')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['status_id'], 'fk_iso_audits_status_id_208efbcf')->references(['id'])->on('audit_statuses')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['company_id'], 'fk_iso_audits_company_id_0f65128f')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_iso_audits_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

@@ -15,11 +15,13 @@ return new class extends Migration
             $table->uuid('id');
             $table->timestamps();
             $table->integer('position_id');
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_batch_notifications_created_by');
             $table->text('notification');
-            $table->integer('batch_id')->index('batch_id');
+            $table->uuid('batch_id')->index('idx_batch_notifications_batch_id');
             $table->string('status')->nullable();
             $table->boolean('active')->default(true);
+            $table->foreign(['batch_id'], 'fk_batch_notifications_batch_id')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_batch_notifications_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

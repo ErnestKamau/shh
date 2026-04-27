@@ -14,8 +14,9 @@ return new class extends Migration
         Schema::create('qc_approvers_config', function (Blueprint $table) {
             $table->uuid('id');
             $table->integer('personnel_id');
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_qc_approvers_config_created_by');
             $table->timestamps();
+            $table->foreign(['created_by'], 'fk_qc_approvers_config_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

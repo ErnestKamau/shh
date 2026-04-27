@@ -19,13 +19,14 @@ return new class extends Migration
             $table->uuid('sample_header_id')->index('idx_supporting_document_instances_sample_header_id_0c3bb42e');
             $table->string('status', 30)->default('draft');
             $table->timestamp('submitted_at')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable()->index('idx_supporting_document_instances_created_by_055deaeb');
+            $table->uuid('created_by')->nullable()->index('idx_supporting_document_instances_created_by_055deaeb');
             $table->timestamps();
 
             $table->index(['sample_header_id', 'status'], 'sdoc_instances_sample_status_idx');
             $table->foreign(['sample_submission_request_id'], 'sdoc_instances_submission_request_fk')->references(['id'])->on('sample_submission_requests')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['supporting_document_template_id'], 'sdoc_instances_template_fk')->references(['id'])->on('supporting_document_templates')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['sample_header_id'], 'fk_supporting_document_instances_sample_header_id_09f8aa51')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_supporting_document_instances_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
 

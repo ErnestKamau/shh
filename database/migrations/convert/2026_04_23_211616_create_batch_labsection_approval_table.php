@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('batch_labsection_approval', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('batch_id')->index('batch_id');
+            $table->uuid('batch_id')->index('idx_batch_labsection_approval_batch_id');
             $table->uuid('user_id')->index('idx_batch_labsection_approval_user_id_9a7bb4b5');
             $table->string('title');
             $table->string('lab_section_ids');
@@ -25,6 +25,7 @@ return new class extends Migration
             $table->boolean('is_prelim')->nullable()->default(false);
             $table->boolean('show_report')->nullable()->default(false);
             $table->foreign(['user_id'], 'fk_batch_labsection_approval_user_id_51dabab5')->references(['id'])->on('users')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['batch_id'], 'fk_batch_labsection_approval_batch_id')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
 
             $table->primary(['id']);
 

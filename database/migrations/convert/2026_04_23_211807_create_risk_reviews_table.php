@@ -37,13 +37,14 @@ return new class extends Migration
             $table->string('review_decision')->nullable();
             $table->text('decision_justification')->nullable();
             $table->date('next_review_date')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_risk_reviews_created_by');
             $table->timestamps();
             $table->softDeletes();
 
             $table->unique(['review_number']);
             $table->index(['risk_id', 'review_date'], 'idx_risk_reviews_risk_id_review_date_7c6329ec');
             $table->foreign(['risk_id'], 'fk_risk_reviews_risk_id_d1946dee')->references(['id'])->on('risks')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['created_by'], 'fk_risk_reviews_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }

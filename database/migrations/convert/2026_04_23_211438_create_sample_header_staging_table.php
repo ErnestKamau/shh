@@ -19,7 +19,7 @@ return new class extends Migration
             $table->dateTime('deleted_at')->nullable();
             $table->dateTime('book_date');
             $table->string('book_no');
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_sample_header_staging_created_by');
             $table->integer('status');
             $table->text('excel_url')->nullable();
             $table->integer('customer_id')->nullable();
@@ -30,6 +30,7 @@ return new class extends Migration
             $table->text('cancel_reason')->nullable();
             $table->integer('cancelled_by')->nullable();
             $table->foreign(['sample_type_id'], 'fk_sample_header_staging_sample_type_id_ac1236b3')->references(['id'])->on('sample_types')->onUpdate('no action')->onDelete('set null');
+            $table->foreign(['created_by'], 'fk_sample_header_staging_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
 
             $table->primary(['id']);

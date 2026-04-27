@@ -18,9 +18,10 @@ return new class extends Migration
             $table->boolean('has_standards')->default(false);
             $table->boolean('has_configured_samples')->default(false);
             $table->boolean('is_active')->default(false);
-            $table->integer('created_by');
+            $table->uuid('created_by')->nullable()->index('idx_qc_types_created_by');
             $table->timestamps();
             $table->boolean('use_existing_sample')->nullable()->default(false);
+            $table->foreign(['created_by'], 'fk_qc_types_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->primary(['id']);
         });
     }
