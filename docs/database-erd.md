@@ -56,7 +56,7 @@ This is the **foundation of the entire platform**. It answers: *Who can log in? 
 
 ---
 
-## ERD Diagram
+## ERD Diagram — Part A: Companies & Users
 
 ```mermaid
 erDiagram
@@ -79,28 +79,28 @@ erDiagram
         string name
         string iso_code_2
         string iso_code_3
-        smallInteger status
+        integer status
     }
 
     zones {
         uuid id PK
-        string key
-        string value
-        string module
+        string zone_key
+        string zone_value
+        string zone_module
         uuid inventory_location_id FK
     }
 
     directorates {
         uuid id PK
         string directorate_name
-        text description
+        string description
         uuid company_id FK
     }
 
     users {
         uuid id PK
-        text name
-        text email
+        string name
+        string email
         string password
         uuid company_id FK
         integer location_id
@@ -113,10 +113,10 @@ erDiagram
         uuid crm_contact_id FK
         uuid supplier_id FK
         boolean is_online
-        text phone
-        text gender
-        text two_factor_secret
-        text two_factor_recovery_codes
+        string phone
+        string gender
+        string two_factor_secret
+        string two_factor_recovery_codes
         boolean is_support_staff
         boolean is_tablet
         datetime deleted_at
@@ -140,7 +140,7 @@ erDiagram
 
     user_alerts {
         uuid id PK
-        string type
+        string alert_type
         string title
         string description
         string url
@@ -157,15 +157,29 @@ erDiagram
         integer department_id
     }
 
+    companies ||--o{ users : "has many"
+    companies ||--o{ roles : "has many"
+    companies ||--o{ directorates : "has many"
+    countries ||--o{ companies : "belongs to"
+    users ||--o{ user_roles : "has roles"
+    roles ||--o{ user_roles : "assigned to users"
+    users ||--o{ user_alerts : "receives"
+    users ||--o{ user_departmental_approvals : "has"
+```
+
+## ERD Diagram — Part B: Security & Access Control
+
+```mermaid
+erDiagram
     personal_access_tokens {
         uuid id PK
         string tokenable_type
         bigint tokenable_id
-        text name
+        string token_name
         string token
-        text abilities
-        timestamp last_used_at
-        timestamp expires_at
+        string abilities
+        datetime last_used_at
+        datetime expires_at
     }
 
     spatie_roles {
@@ -207,8 +221,8 @@ erDiagram
         string event
         string auditable_type
         bigint auditable_id
-        longText old_values
-        longText new_values
+        string old_values
+        string new_values
         string url
         string ip_address
         string user_agent
@@ -221,27 +235,37 @@ erDiagram
         datetime expires_at
     }
 
+    spatie_roles ||--o{ spatie_role_has_permissions : "has"
+    spatie_permissions ||--o{ spatie_role_has_permissions : "granted to"
+    spatie_roles ||--o{ spatie_model_has_roles : "assigned to"
+    spatie_permissions ||--o{ spatie_model_has_permissions : "assigned to"
+```
+
+## ERD Diagram — Part C: System Configuration & Utilities
+
+```mermaid
+erDiagram
     system_configuration_types {
         uuid id PK
         string configuration_type
-        text description
+        string description
         boolean status
     }
 
     system_configurations {
         uuid id PK
         integer configuration_type_id
-        text value
-        string key
+        string config_value
+        string config_key
         boolean status
     }
 
     global_variables {
         uuid id PK
-        string name
-        text value
+        string var_name
+        string var_value
         string data_type
-        text description
+        string description
         boolean is_active
     }
 
@@ -255,35 +279,19 @@ erDiagram
 
     language_lines {
         uuid id PK
-        string group
-        string key
-        json text
+        string line_group
+        string line_key
+        json translations
     }
 
     naming_convension_consensuses {
         uuid id PK
         string string_part
         string integer_part
-        string model
+        string entity_model
         uuid company_id FK
     }
 
-    companies ||--o{ users : "has many"
-    companies ||--o{ roles : "has many"
-    companies ||--o{ spatie_roles : "has many"
-    companies ||--o{ directorates : "has many"
-    companies ||--o{ naming_convension_consensuses : "has many"
-    countries ||--o{ companies : "belongs to"
-    users ||--o{ user_roles : "has roles"
-    roles ||--o{ user_roles : "assigned to users"
-    users ||--o{ user_alerts : "receives"
-    users ||--o{ user_departmental_approvals : "has"
-    users ||--o{ audits : "creates audit trail"
-    users ||--o{ o_t_p_s : "generates"
-    spatie_roles ||--o{ spatie_role_has_permissions : "has"
-    spatie_permissions ||--o{ spatie_role_has_permissions : "granted to"
-    spatie_roles ||--o{ spatie_model_has_roles : "assigned to"
-    spatie_permissions ||--o{ spatie_model_has_permissions : "assigned to"
     languages ||--o{ language_lines : "has translations"
 ```
 
