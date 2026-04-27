@@ -1289,8 +1289,8 @@ erDiagram
 erDiagram
     lookup_tables {
         uuid id PK
-        string name
-        string description
+        string table_name
+        string table_desc
         string key_columns
         string lookup_type
         boolean is_active
@@ -1307,8 +1307,8 @@ erDiagram
 
     procedure_worksheets {
         uuid id PK
-        string name
-        string description
+        string worksheet_name
+        string worksheet_desc
         boolean is_active
         string document_control_no
         string revision
@@ -1330,7 +1330,7 @@ erDiagram
     procedure_config_fields {
         uuid id PK
         uuid procedure_worksheet_id FK
-        string label
+        string field_label
         string field_type
         integer field_order
         boolean is_required
@@ -1339,7 +1339,7 @@ erDiagram
     procedure_test_kit_columns {
         uuid id PK
         uuid procedure_worksheet_id FK
-        string label
+        string col_label
         string column_key
         string column_type
         integer col_order
@@ -1351,7 +1351,7 @@ erDiagram
         uuid analyte_id FK
         string method_ids
         decimal coverage_factor_k
-        decimal combined_standard_uncertainty
+        decimal combined_std_uncertainty
         decimal expanded_uncertainty
         integer version_number
         uuid company_id FK
@@ -1383,7 +1383,7 @@ erDiagram
         integer lab_assigned
         string request_status
         string validation_data
-        string notes
+        string val_notes
     }
 
     lookup_tables ||--o{ lookup_table_entries : "contains entries"
@@ -1461,7 +1461,7 @@ erDiagram
         string captured_result_data
     }
 
-    results {
+    analyte_results {
         uuid id PK
         uuid captured_result_id FK
         uuid sample_detail_id FK
@@ -1488,21 +1488,21 @@ erDiagram
         uuid captured_result_id FK
         uuid analyte_id FK
         uuid analysis_type_id FK
-        string result_value
+        string qc_result_value
         decimal guide_low
         decimal guide_high
         string unit_code
-        string status_code
+        string qc_status_code
         boolean is_qc_processed
         string reporting_symbol
         uuid qc_scheme_id FK
         uuid qc_type_id FK
-        uuid result_id FK
+        uuid analyte_result_id FK
     }
 
     qc_processed_result {
         uuid id PK
-        uuid result_id FK
+        uuid analyte_result_id FK
         string processing_status
         datetime processed_at
     }
@@ -1527,12 +1527,11 @@ erDiagram
         uuid captured_result_id FK
     }
 
-    captured_results ||--o{ results : "becomes"
+    captured_results ||--o{ analyte_results : "becomes"
     captured_results ||--o{ qc_results : "validated as QC"
     captured_results ||--o{ method_sequence_stage_sample_results : "stage result for"
-    results ||--o{ qc_results : "has QC mirror"
-    results ||--o{ qc_processed_result : "processed as"
-    results ||--o{ tat_captured : "has TAT record"
+    analyte_results ||--o{ qc_processed_result : "processed as"
+    analyte_results ||--o{ tat_captured : "has TAT record"
 ```
 
 ## ERD Diagram — Part B: Procedures & Worksheets
@@ -1544,10 +1543,10 @@ erDiagram
         string captured_result_data
     }
 
-    captured_view {
+    captured_result_renders {
         uuid id PK
         uuid captured_result_id FK
-        string view_data
+        string render_data
     }
 
     captured_procedure_values {
@@ -1577,7 +1576,7 @@ erDiagram
         uuid captured_result_id FK
     }
 
-    sample_captured_worksheet_formulas {
+    worksheet_formula_captures {
         uuid id PK
         uuid sample_header_id FK
         uuid sample_detail_id FK
@@ -1585,9 +1584,9 @@ erDiagram
         uuid formular_id FK
         string worksheet_date
         string lab_no
-        string time_in
+        string capture_time_in
         uuid done_by_user_id FK
-        string time_out
+        string capture_time_out
         uuid read_by_user_id FK
         string read_date
         string final_result
@@ -1595,14 +1594,14 @@ erDiagram
         uuid posted_by_user_id FK
     }
 
-    sample_worksheet_formular_mandatory_data {
+    worksheet_formula_mandatory_data {
         uuid id PK
         uuid worksheet_formular_id FK
         uuid formula_mandatory_field_id FK
         string field_value
     }
 
-    sample_worksheet_formular_step_data {
+    worksheet_formula_step_data {
         uuid id PK
         uuid worksheet_formular_id FK
         uuid formula_step_id FK
@@ -1610,13 +1609,13 @@ erDiagram
         uuid overridden_lookup_table_id FK
     }
 
-    captured_results ||--o{ captured_view : "rendered as"
+    captured_results ||--o{ captured_result_renders : "rendered as"
     captured_results ||--o{ captured_procedure_values : "has step values"
     captured_results ||--o{ captured_procedure_config_values : "has config values"
     captured_results ||--o{ procedure_test_kit_rows : "has kit rows"
-    captured_results ||--o{ sample_captured_worksheet_formulas : "associated with"
-    sample_captured_worksheet_formulas ||--o{ sample_worksheet_formular_mandatory_data : "has mandatory data"
-    sample_captured_worksheet_formulas ||--o{ sample_worksheet_formular_step_data : "has step data"
+    captured_results ||--o{ worksheet_formula_captures : "associated with"
+    worksheet_formula_captures ||--o{ worksheet_formula_mandatory_data : "has mandatory data"
+    worksheet_formula_captures ||--o{ worksheet_formula_step_data : "has step data"
     procedure_test_kit_rows ||--o{ procedure_test_kit_values : "has values"
 ```
 
