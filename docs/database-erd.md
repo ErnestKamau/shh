@@ -367,13 +367,13 @@ erDiagram
         uuid id PK
         string model_name
         string model_type
-        string version
+        string model_version
         string framework
         integer training_rows
         json metrics
         boolean is_active
         boolean is_deprecated
-        timestamp deployed_at
+        datetime deployed_at
     }
 
     ai_feature_snapshots {
@@ -389,7 +389,7 @@ erDiagram
     ai_conversations {
         uuid id PK
         uuid user_id FK
-        string title
+        string conv_title
         boolean is_pinned
         datetime deleted_at
     }
@@ -398,13 +398,13 @@ erDiagram
         uuid id PK
         uuid ai_conversation_id FK
         uuid parent_message_id FK
-        enum role
-        longText content
-        text reference_resolved_input
-        enum message_type
+        string message_role
+        string msg_content
+        string ref_resolved_input
+        string message_type
         boolean is_edited
         json sources
-        enum feedback
+        string feedback_rating
         json metadata
     }
 
@@ -416,17 +416,17 @@ erDiagram
         string stored_path
         string mime_type
         bigint file_size
-        enum processing_status
-        longText extracted_text
+        string processing_status
+        string extracted_text
     }
 
     ai_action_logs {
         uuid id PK
         uuid user_id FK
-        string intent
+        string action_intent
         json entities
-        enum status
-        timestamp expires_at
+        string action_status
+        datetime expires_at
         json result_meta
         string risk_level
     }
@@ -435,14 +435,14 @@ erDiagram
         uuid id PK
         string session_id
         uuid user_id FK
-        string intent
+        string log_intent
         string model_used
         integer latency_ms
         integer tokens_used
         boolean success
-        text error_message
+        string error_message
         double confidence
-        json metadata
+        json log_metadata
     }
 
     users ||--o{ ai_conversations : "has"
@@ -450,7 +450,6 @@ erDiagram
     users ||--o{ ai_analytics_logs : "tracked in"
     ai_conversations ||--o{ ai_messages : "contains"
     ai_conversations ||--o{ ai_chat_attachments : "has"
-    ai_messages ||--o{ ai_messages : "replies to (parent)"
     ai_messages ||--o{ ai_chat_attachments : "has attachment"
 ```
 
@@ -502,11 +501,11 @@ The CRM module manages **clients and their relationships** with the laboratory.
 erDiagram
     crm_customers {
         uuid id PK
-        string name
+        string customer_name
         string code
         uuid company_id FK
         boolean active
-        text address
+        string address
         string email
         string phone
     }
@@ -514,7 +513,7 @@ erDiagram
     crm_company_sections {
         uuid id PK
         uuid customer_id FK
-        string name
+        string section_name
         string code
         boolean active
     }
@@ -522,7 +521,7 @@ erDiagram
     crm_company_units {
         uuid id PK
         uuid section_id FK
-        string name
+        string unit_name
         string code
         boolean active
     }
@@ -530,7 +529,7 @@ erDiagram
     crm_company_sub_units {
         uuid id PK
         uuid unit_id FK
-        string name
+        string sub_unit_name
         string code
         boolean active
     }
@@ -538,7 +537,7 @@ erDiagram
     crm_customer_contacts {
         uuid id PK
         uuid customer_id FK
-        string name
+        string contact_name
         string email
         string phone
         string position
@@ -548,14 +547,14 @@ erDiagram
     crm_areas {
         uuid id PK
         string code
-        string name
+        string area_name
         uuid created_by FK
     }
 
     crm_sample_points {
         uuid id PK
         string code
-        string name
+        string point_name
         uuid created_by FK
     }
 
@@ -575,16 +574,16 @@ erDiagram
     customerfeedbacks {
         uuid id PK
         uuid customer_id FK
-        text feedback_text
+        string feedback_text
         datetime feedback_date
     }
 
     crm_evaluation_metrics {
         uuid id PK
-        string name
-        text prompt_text
+        string metric_name
+        string prompt_text
         integer max_rating
-        longText rating_labels
+        string rating_labels
         boolean is_active
         integer display_order
     }
@@ -597,14 +596,14 @@ erDiagram
         datetime expire_date
         string certification_body
         string certificate
-        boolean status
+        boolean qual_status
     }
 
     zoho_customers {
         uuid id PK
         string customer_no
-        string name
-        string status
+        string zoho_name
+        string zoho_status
         uuid currency_id FK
         string zoho_contact_id
         string email
@@ -613,7 +612,7 @@ erDiagram
     company_products {
         uuid id PK
         uuid company_id FK
-        string name
+        string product_name
         string code
         boolean active
     }
