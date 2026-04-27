@@ -1673,13 +1673,13 @@ Tracks all **laboratory instruments and their complete lifecycle**:
 
 ---
 
-## ERD Diagram
+## ERD Diagram — Part A: Equipment & Maintenance
 
 ```mermaid
 erDiagram
     equipment {
         uuid id PK
-        string name
+        string equipment_name
         string serial_number
         string asset_code
         uuid asset_type_id FK
@@ -1688,20 +1688,20 @@ erDiagram
         boolean active
         date purchase_date
         date warranty_expiry
-        string status
+        string equip_status
     }
 
     asset_types {
         uuid id PK
         string asset_code
-        string descripton
+        string asset_descripton
         boolean is_active
     }
 
     asset_locations {
         uuid id PK
         string location_code
-        string name
+        string location_name
         boolean is_active
     }
 
@@ -1709,7 +1709,7 @@ erDiagram
         uuid id PK
         uuid equipment_id FK
         string attachment_url
-        string title
+        string attach_title
         string file_type
     }
 
@@ -1717,7 +1717,7 @@ erDiagram
         uuid id PK
         uuid equipment_id FK
         date log_date
-        text entry_text
+        string entry_text
         uuid created_by FK
     }
 
@@ -1725,7 +1725,7 @@ erDiagram
         uuid id PK
         uuid equipment_id FK
         date evaluation_date
-        text evaluation_result
+        string evaluation_result
         uuid evaluator_id FK
     }
 
@@ -1748,7 +1748,7 @@ erDiagram
         uuid id PK
         uuid equipment_id FK
         string notification_type
-        text notification_message
+        string notification_message
     }
 
     maintainance_calibration_logs {
@@ -1756,7 +1756,7 @@ erDiagram
         uuid equipment_id FK
         date maintenance_date
         string maintenance_type
-        text calibration_result
+        string calibration_result
     }
 
     parts_repaireds {
@@ -1770,14 +1770,51 @@ erDiagram
     verification_logs {
         uuid id PK
         date verification_date
-        text procedure
+        string vlog_procedure
         string reference_standard
-        text response
-        text remarks
+        string vlog_response
+        string vlog_remarks
         integer operator_id
         uuid equipment_id FK
         string maintainance_type
         uuid supplier_id FK
+    }
+
+    disposal_reasons {
+        uuid id PK
+        string disposal_description
+    }
+
+    services {
+        uuid id PK
+        string service_name
+        integer created_by_id
+        string created_by_type
+    }
+
+    equipment ||--o{ equipment_attachments : "has files"
+    equipment ||--o{ equipment_daily_log_entries : "has daily logs"
+    equipment ||--o{ equipment_evaluations : "evaluated via"
+    equipment ||--o{ equipment_operators : "operated by"
+    equipment ||--o{ equipment_usage : "usage tracked"
+    equipment ||--o{ equipment_notification : "triggers notifications"
+    equipment ||--o{ maintainance_calibration_logs : "maintained via"
+    equipment ||--o{ parts_repaireds : "has part repairs"
+    equipment ||--o{ verification_logs : "verified via"
+```
+
+## ERD Diagram — Part B: Disposals & Work Orders
+
+```mermaid
+erDiagram
+    equipment {
+        uuid id PK
+        string equipment_name
+        string serial_number
+        uuid asset_type_id FK
+        uuid asset_location_id FK
+        uuid company_id FK
+        boolean active
     }
 
     equipment_disposals {
@@ -1785,9 +1822,9 @@ erDiagram
         uuid equipment_id FK
         date disposal_date
         uuid disposal_reason_id FK
-        string status
+        string disposal_status
         string disposal_method
-        text regulatory_notes
+        string regulatory_notes
     }
 
     equipment_disposal_approvals {
@@ -1802,7 +1839,7 @@ erDiagram
         uuid id PK
         uuid disposal_id FK
         uuid user_id FK
-        string action
+        string audit_action
         datetime action_date
     }
 
@@ -1815,22 +1852,22 @@ erDiagram
 
     equipment_disposal_methods {
         uuid id PK
-        string method
+        string method_code
         string display_name
-        text description
-        longText applicable_categories
-        longText regulatory_requirements
-        longText required_documentation
-        longText approved_vendors
-        text safety_requirements
-        text environmental_compliance
+        string method_description
+        string applicable_categories
+        string regulatory_requirements
+        string required_documentation
+        string approved_vendors
+        string safety_requirements
+        string environmental_compliance
         boolean is_active
     }
 
     equipment_disposal_approval_workflows {
         uuid id PK
         string workflow_name
-        text description
+        string workflow_description
     }
 
     equipment_disposal_approval_workflow_steps {
@@ -1844,16 +1881,16 @@ erDiagram
         uuid id PK
         integer client_id
         string ticket_no
-        enum routine
+        string routine
         string site
-        enum demand_type
-        enum priority
+        string demand_type
+        string wo_priority
         integer assigned_resource_id
-        enum current_status
+        string current_status
         uuid service_id FK
         date due_date
         date start_date
-        longText description
+        string wo_description
         integer created_from
         boolean approval_started
     }
@@ -1862,27 +1899,27 @@ erDiagram
         uuid id PK
         uuid work_order_id FK
         string resource_id
-        string name
-        string email
-        string phone
+        string resource_name
+        string resource_email
+        string resource_phone
         integer quantity
-        string type
+        string resource_type
         boolean is_external
     }
 
     work_order_status_histories {
         uuid id PK
         integer workorder_id
-        string status
-        text comments
-        string created_by
+        string wo_status
+        string wo_comments
+        string changed_by
     }
 
     workorder_edits {
         uuid id PK
         integer workorder_id
-        text reason
-        string created_by
+        string edit_reason
+        string edited_by
         uuid created_by_id FK
     }
 
@@ -1890,31 +1927,10 @@ erDiagram
         uuid id PK
         integer personnel_id
         integer workorder_id
-        datetime start
-        datetime end
+        datetime schedule_start
+        datetime schedule_end
     }
 
-    disposal_reasons {
-        uuid id PK
-        string description
-    }
-
-    services {
-        uuid id PK
-        string name
-        integer created_by_id
-        string created_by_type
-    }
-
-    equipment ||--o{ equipment_attachments : "has files"
-    equipment ||--o{ equipment_daily_log_entries : "has daily logs"
-    equipment ||--o{ equipment_evaluations : "evaluated via"
-    equipment ||--o{ equipment_operators : "operated by"
-    equipment ||--o{ equipment_usage : "usage tracked"
-    equipment ||--o{ equipment_notification : "triggers notifications"
-    equipment ||--o{ maintainance_calibration_logs : "maintained via"
-    equipment ||--o{ parts_repaireds : "has part repairs"
-    equipment ||--o{ verification_logs : "verified via"
     equipment ||--o{ equipment_disposals : "disposed via"
     equipment_disposals ||--o{ equipment_disposal_approvals : "approved by"
     equipment_disposals ||--o{ equipment_disposal_audit_logs : "audit trail"
@@ -1985,7 +2001,7 @@ Manages everything the lab **buys, stores, and consumes**:
 erDiagram
     inventory_locations {
         uuid id PK
-        string name
+        string location_name
         integer level
         uuid inventory_location_id FK
         boolean active
@@ -1994,8 +2010,8 @@ erDiagram
 
     inventory_categories {
         uuid id PK
-        string name
-        string description
+        string category_name
+        string category_description
         uuid company_id FK
         uuid inventory_location_id FK
         string category_type
@@ -2005,7 +2021,7 @@ erDiagram
 
     inventory_sub_categories {
         uuid id PK
-        string name
+        string subcat_name
         uuid inventory_category_id FK
         string manufacturer
         decimal minimum_level
@@ -2020,7 +2036,7 @@ erDiagram
 
     inventory_stores {
         uuid id PK
-        string name
+        string store_name
         uuid company_id FK
         uuid inventory_location_id FK
         string type_of_store
@@ -2029,7 +2045,7 @@ erDiagram
 
     inventory_store_slots {
         uuid id PK
-        string name
+        string slot_name
         uuid inventory_store_id FK
     }
 
@@ -2042,9 +2058,9 @@ erDiagram
 
     inventory_departments {
         uuid id PK
-        string name
+        string dept_name
         uuid company_id FK
-        string module
+        string dept_module
         boolean active
         integer location_id
         integer department_head_id
@@ -2073,16 +2089,16 @@ erDiagram
     inventory_item_notes {
         uuid id PK
         uuid inventory_item_id FK
-        string comments
+        string note_comments
         string document
-        string title
+        string note_title
     }
 
     item_brands {
         uuid id PK
-        string name
+        string brand_name
         uuid inventory_sub_category_id FK
-        boolean status
+        boolean brand_status
     }
 
     inventory_locations ||--o{ inventory_categories : "contains"
@@ -2101,7 +2117,7 @@ erDiagram
 erDiagram
     lab_sub_category {
         uuid id PK
-        string name
+        string subcat_label
         integer category_id
         string reporting_unit
         boolean active
@@ -2115,7 +2131,7 @@ erDiagram
 
     lab_stock_movement {
         uuid id PK
-        string description
+        string movement_description
         uuid lab_sub_category_id FK
         string stock_type
         decimal stock_in
@@ -2133,7 +2149,7 @@ erDiagram
         integer prepared_by
         datetime prepared_at
         string prep_status
-        string notes
+        string prep_notes
         decimal quantity_prepared
         integer uom_id
     }
@@ -2154,20 +2170,20 @@ erDiagram
         integer preparation_id
         integer step_number
         string step_name
-        string description
+        string step_description
         integer ingredient_id
         decimal quantity_used
         integer uom_id
         datetime completed_at
         integer completed_by
-        string notes
+        string step_notes
     }
 
     stock_takings {
         uuid id PK
-        string description
+        string taking_description
         uuid created_by FK
-        string status
+        string taking_status
         uuid inventory_location_id FK
         string code
         boolean reviewed
@@ -2185,19 +2201,19 @@ erDiagram
         uuid id PK
         uuid stock_taking_id FK
         uuid inventory_sub_category_id FK
-        string code
+        string sheet_code
         integer store_id
         integer slot_id
         decimal system_quantity
         decimal available_quantity
-        string comments
+        string sheet_comments
     }
 
     stock_transfers {
         uuid id PK
-        string description
+        string transfer_description
         integer department_id
-        string code
+        string transfer_code
         uuid inventory_location_id FK
         string transfer_status
     }
@@ -2253,8 +2269,8 @@ erDiagram
 
     request_entities {
         uuid id PK
-        string priority
-        string currency
+        string req_priority
+        string req_currency
         string request_code
         string request_status
         string due_date
@@ -2262,7 +2278,7 @@ erDiagram
         integer approval_count
         integer required_approvals
         uuid created_by FK
-        string description
+        string req_description
         decimal net_value
         uuid supplier_id FK
         uuid inventory_location_id FK
@@ -2282,13 +2298,13 @@ erDiagram
 
     general_requistion_requests {
         uuid id PK
-        string code
+        string req_code
         string requesting_department
         string laboratory
         string date_required
         uuid created_by FK
         string req_status
-        string description
+        string req_description
         string payment_mode
     }
 
