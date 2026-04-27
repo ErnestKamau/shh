@@ -9,7 +9,6 @@ use App\Models\SubmissionFormElement;
 use App\Directorate;
 use App\SampleHeader;
 use App\SampleDetails;
-use App\Services\LabIntakeCaseService;
 use App\Services\SubmissionFormBatchSyncService;
 use App\Zone;
 use Illuminate\Http\Request;
@@ -18,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class FormInstanceController extends Controller
@@ -254,14 +254,18 @@ class FormInstanceController extends Controller
 
             DB::commit();
 
-            try {
-                // Sync the intake workflow once the submission is durable.
-                app(LabIntakeCaseService::class)->syncFromSubmission($instance, Auth::user());
-            } catch (\Throwable $th) {
-                Log::warning('Lab intake case sync failed after form submit.', [
-                    'instance_id' => $instance->id,
-                    'message' => $th->getMessage(),
-                ]);
+            $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
+
+            if (class_exists($labIntakeCaseServiceClass)) {
+                try {
+                    // Sync the intake workflow once the submission is durable.
+                    app($labIntakeCaseServiceClass)->syncFromSubmission($instance, Auth::user());
+                } catch (\Throwable $th) {
+                    Log::warning('Lab intake case sync failed after form submit.', [
+                        'instance_id' => $instance->id,
+                        'message' => $th->getMessage(),
+                    ]);
+                }
             }
 
             return redirect()->route('submission-forms.instances.show', [
@@ -341,15 +345,19 @@ class FormInstanceController extends Controller
         $this->abortIfInstanceFormMismatch($submissionForm, $instance);
         $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to view this form instance.');
 
-        $instance->load([
-            'labIntakeCase.attachments',
-            'labIntakeCase.bookingEvent',
-            'labIntakeCase.zone',
-            'labIntakeCase.directorate',
-            'labIntakeCase.acceptedBatch',
-            'labIntakeCase.confirmedByUser',
-            'labIntakeCase.decisionByUser',
-        ]);
+        // Lab intake feature is optional in some deployments.
+        // Only eager-load intake relations when the model actually exposes them.
+        if (method_exists($instance, 'labIntakeCase')) {
+            $instance->load([
+                'labIntakeCase.attachments',
+                'labIntakeCase.bookingEvent',
+                'labIntakeCase.zone',
+                'labIntakeCase.directorate',
+                'labIntakeCase.acceptedBatch',
+                'labIntakeCase.confirmedByUser',
+                'labIntakeCase.decisionByUser',
+            ]);
+        }
 
         // Load form with all relationships
         $submissionForm->load([
@@ -372,14 +380,18 @@ class FormInstanceController extends Controller
                 ->linkedBatchesOutOfSyncWithForm($instance);
         }
 
-        $intakeCase = $instance->labIntakeCase;
+        $intakeCase = method_exists($instance, 'labIntakeCase') ? $instance->labIntakeCase : null;
         /** @var \App\User|null $currentUser */
         $currentUser = Auth::user();
         $canManageIntake = $currentUser && ($currentUser->hasRole('Sample Reception') || $currentUser->hasRole('admin'));
         $zones = collect();
         $directorates = collect();
 
-        if ($instance->isLabIntakeSubmission() && $canManageIntake) {
+        $isLabIntakeSubmission = method_exists($instance, 'isLabIntakeSubmission')
+            ? (bool) $instance->isLabIntakeSubmission()
+            : false;
+
+        if ($isLabIntakeSubmission && $canManageIntake) {
             $zones = Zone::query()->orderBy('key')->get();
             $directorates = Directorate::query()->where('active', 1)->orderBy('name')->get();
         }
@@ -1164,6 +1176,57 @@ class FormInstanceController extends Controller
             Log::error('Error stack trace: ' . $e->getTraceAsString());
             return response()->json(['success' => false, 'message' => 'Error loading options: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Resolve value for depended_field elements based on selected source record.
+     */
+    public function getDependedFieldValue(Request $request)
+    {
+        $validated = $request->validate([
+            'element_id' => 'required|integer|exists:submission_form_elements,id',
+            'source_id' => 'required',
+        ]);
+
+        $element = SubmissionFormElement::find($validated['element_id']);
+
+        if (! $element || $element->element_type !== 'depended_field') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid depended field element.',
+            ], 422);
+        }
+
+        $sourceTable = (string) ($element->source_table ?? '');
+        $sourceField = (string) ($element->source_field ?? '');
+
+        if ($sourceTable === '' || $sourceField === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Depended field source is not configured.',
+            ], 422);
+        }
+
+        if (! Schema::hasTable($sourceTable) || ! Schema::hasColumn($sourceTable, 'id') || ! Schema::hasColumn($sourceTable, $sourceField)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Depended field source is unavailable.',
+            ], 422);
+        }
+
+        $sourceId = $validated['source_id'];
+        if (is_string($sourceId) && str_contains($sourceId, ',')) {
+            $sourceId = trim(explode(',', $sourceId)[0]);
+        }
+
+        $record = DB::table($sourceTable)
+            ->where('id', $sourceId)
+            ->first([$sourceField]);
+
+        return response()->json([
+            'success' => true,
+            'value' => $record ? data_get($record, $sourceField) : null,
+        ]);
     }
 
     /**

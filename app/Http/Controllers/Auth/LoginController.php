@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\MailController as Mailers;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Throwable;
 use Illuminate\Support\Facades\Session;
 
 class LoginController extends Controller
@@ -59,11 +60,20 @@ class LoginController extends Controller
 			);
 			$mailer = new Mailers;
 			
-			if(trim($user->phone) != ""){
-				sendTextMessage($user->phone, "Your Verification code is ".$user->verify_code);
-			}
-			
-			$sendmail = $mailer->html_email($mailData,'default');
+      if(trim($user->phone) != ""){
+        sendTextMessage($user->phone, "Your Verification code is ".$user->verify_code);
+      }
+
+      try {
+        $sendmail = $mailer->html_email($mailData,'default');
+        if ($sendmail === false) {
+          return redirect()->route('login')->with('error', 'Verification code generated, but email could not be sent. Please verify mail settings or try again.');
+        }
+      } catch (Throwable $exception) {
+        report($exception);
+
+        return redirect()->route('login')->with('error', 'Verification code generated, but email verification failed. Please try again.');
+      }
 			
     }
     protected function credentials(Request $request)

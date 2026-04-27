@@ -2495,5 +2495,69 @@
 </div>
 @endif
 
+@auth
+<script>
+(function () {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    var vapidPublicKey = '{{ config("webpush.vapid.public_key") }}';
+    if (!vapidPublicKey) return;
+
+    function urlBase64ToUint8Array(base64String) {
+        var padding = '='.repeat((4 - base64String.length % 4) % 4);
+        var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        var rawData = atob(base64);
+        var outputArray = new Uint8Array(rawData.length);
+        for (var i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    function getBrowserName() {
+        var ua = navigator.userAgent;
+        if (ua.indexOf('Edg') !== -1) return 'Edge';
+        if (ua.indexOf('Chrome') !== -1) return 'Chrome';
+        if (ua.indexOf('Firefox') !== -1) return 'Firefox';
+        if (ua.indexOf('Safari') !== -1) return 'Safari';
+        return 'Unknown';
+    }
+
+    navigator.serviceWorker.register('/sw.js').then(function (reg) {
+        return Notification.requestPermission().then(function (permission) {
+            if (permission !== 'granted') return;
+
+            return reg.pushManager.getSubscription().then(function (existing) {
+                if (existing) return existing;
+
+                return reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+                });
+            }).then(function (sub) {
+                if (!sub) return;
+                var json = sub.toJSON();
+                return fetch('/push-subscriptions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify({
+                        endpoint: json.endpoint,
+                        p256dh: json.keys.p256dh,
+                        auth: json.keys.auth,
+                        browser_name: getBrowserName(),
+                    }),
+                });
+            });
+        });
+    }).catch(function (err) {
+        console.error('[WebPush] Service worker registration failed:', err);
+    });
+}());
+</script>
+@endauth
+
 </body>
 </html>

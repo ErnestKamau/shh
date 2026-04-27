@@ -22,6 +22,7 @@ use App\Models\Procedures\ProcedureWorksheet;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class Samples extends Component
 {
@@ -2094,6 +2095,7 @@ class Samples extends Component
     {
         try {
             $this->selectedSampleCode = $sampleCode;
+            $hasAttachmentColumn = Schema::hasColumn('captured_results', 'batch_attachment_id');
 
             // Find the sample
             $sample = SampleDetails::where('sample_code', $sampleCode)
@@ -2108,14 +2110,21 @@ class Samples extends Component
             $this->uncertaintyRequired = $this->batch->require_mu == 1;
 
             // Fetch all captured results for this sample with relationships
-            $capturedResults = DB::table('captured_results')
+            $capturedResultsQuery = DB::table('captured_results')
                 ->where('sample_detail_code', $sampleCode)
                 ->where('sample_header_id', $this->batch->id)
-            ->leftJoin('batch_attachments', 'batch_attachments.id', '=', 'captured_results.batch_attachment_id')
                 ->orderBy('analysis_type_order')
-                ->orderBy('parameters_order')
-            ->selectRaw('captured_results.*, batch_attachments.attachment_url as batch_attachment_url')
-            ->get();
+                ->orderBy('parameters_order');
+
+            if ($hasAttachmentColumn) {
+                $capturedResultsQuery
+                    ->leftJoin('batch_attachments', 'batch_attachments.id', '=', 'captured_results.batch_attachment_id')
+                    ->selectRaw('captured_results.*, batch_attachments.attachment_url as batch_attachment_url');
+            } else {
+                $capturedResultsQuery->selectRaw('captured_results.*, null as batch_attachment_id, null as batch_attachment_url');
+            }
+
+            $capturedResults = $capturedResultsQuery->get();
 
             if ($capturedResults->isEmpty()) {
                 $this->sampleParameters = [];

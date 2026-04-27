@@ -1,9 +1,9 @@
-<div x-data="{ open: @entangle('isOpen') }">
+<div>
     {{-- Floating Trigger Button --}}
-    <div 
+    <div
         class="ai-drawer-trigger" 
-        :class="{ 'active': open }"
-        @click="open = !open"
+        @class(['active' => $isOpen])
+        wire:click="toggle"
         title="AI Assistant"
         style="z-index: 10002;"
     >
@@ -11,17 +11,17 @@
     </div>
 
     {{-- Backdrop --}}
-    <div 
+    <div
         class="ai-drawer-backdrop" 
-        :class="{ 'show': open }"
-        @click="open = false"
+        @class(['show' => $isOpen])
+        wire:click="close"
         style="z-index: 10003;"
     ></div>
 
     {{-- Main Drawer --}}
-    <div 
+    <div
         class="ai-drawer" 
-        :class="{ 'open': open }" 
+        @class(['open' => $isOpen])
         id="ai-drawer-container"
         style="z-index: 10004;"
     >
@@ -37,7 +37,7 @@
                     </small>
                 </div>
             </div>
-            <button class="btn btn-transparent p-0 ml-auto" @click="open = false">
+            <button class="btn btn-transparent p-0 ml-auto" wire:click="close" type="button">
                 <i class="mdi mdi-close fa-2x text-muted"></i>
             </button>
         </div>

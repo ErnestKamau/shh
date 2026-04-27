@@ -58,7 +58,6 @@ class User extends Authenticatable implements Auditable
 	protected $casts = [
 		'email_verified_at' => 'datetime',
 		'email' => 'encrypted',
-		'verify_code' => 'encrypted',
 		'phone' => 'encrypted',
 		'gender' => 'encrypted',
 		'designation' => 'encrypted',
@@ -67,7 +66,6 @@ class User extends Authenticatable implements Auditable
 		'first_name' => 'encrypted',
 		'middle_name' => 'encrypted',
 		'last_name' => 'encrypted',
-		'verify_code_expires' => 'encrypted',
 		'two_factor_secret' => 'encrypted',
 		'two_factor_recovery_codes' => 'encrypted',
 		'client_id' => 'string',

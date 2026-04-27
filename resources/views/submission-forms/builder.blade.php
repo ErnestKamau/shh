@@ -760,22 +760,25 @@ const FormBuilder = {
     },
     
     deleteSection(sectionId) {
-        if (!confirm('Are you sure you want to delete this section? This will also delete all element holders and elements within it.')) {
+      if (!confirm('Are you sure you want to delete this section? This will also delete all element holders and elements within it.')) {
             return;
         }
         
         this.showLoading();
         
         $.ajax({
-            url: `/submission-forms/sections/${sectionId}`,
-            method: 'DELETE',
+          url: `/submission-forms/sections/${sectionId}`,
+          method: 'POST',
+          data: {
+            _method: 'DELETE'
+          },
             headers: {
                 'X-CSRF-TOKEN': this.csrfToken
             },
             success: (response) => {
                 this.hideLoading();
                 this.showMessage('success', response.message);
-                // Don't load form structure on init - it's already rendered by the server
+            location.reload();
             },
             error: (xhr) => {
                 this.hideLoading();
@@ -785,22 +788,25 @@ const FormBuilder = {
     },
     
     deleteHolder(holderId) {
-        if (!confirm('Are you sure you want to delete this element holder? This will also delete all elements within it.')) {
+      if (!confirm('Are you sure you want to delete this element holder? This will also delete all elements within it.')) {
             return;
         }
         
         this.showLoading();
         
         $.ajax({
-            url: `/submission-forms/holders/${holderId}`,
-            method: 'DELETE',
+          url: `/submission-forms/holders/${holderId}`,
+          method: 'POST',
+          data: {
+            _method: 'DELETE'
+          },
             headers: {
                 'X-CSRF-TOKEN': this.csrfToken
             },
             success: (response) => {
                 this.hideLoading();
                 this.showMessage('success', response.message);
-                // Don't load form structure on init - it's already rendered by the server
+            location.reload();
             },
             error: (xhr) => {
                 this.hideLoading();
@@ -817,15 +823,18 @@ const FormBuilder = {
         this.showLoading();
         
         $.ajax({
-            url: `/submission-forms/elements/${elementId}`,
-            method: 'DELETE',
+          url: `/submission-forms/elements/${elementId}`,
+          method: 'POST',
+          data: {
+            _method: 'DELETE'
+          },
             headers: {
                 'X-CSRF-TOKEN': this.csrfToken
             },
             success: (response) => {
                 this.hideLoading();
                 this.showMessage('success', response.message);
-                // Don't load form structure on init - it's already rendered by the server
+            location.reload();
             },
             error: (xhr) => {
                 this.hideLoading();
@@ -1932,6 +1941,9 @@ const FormBuilder = {
         this.reorderHolders(sectionId);
     }
 };
+
+// Expose for inline onclick handlers rendered in Blade partials.
+window.FormBuilder = FormBuilder;
 
 // Initialize form builder when document is ready
 $(document).ready(() => {

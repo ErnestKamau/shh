@@ -106,21 +106,34 @@ class FormBuilderController extends Controller
     public function deleteSection(SubmissionFormSection $section)
     {
         try {
-            $elementCount = $section->elementHolders()->withCount('elements')->get()->sum('elements_count');
-            
-            if ($elementCount > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Cannot delete section with {$elementCount} form elements. Please remove all elements first."
-                ], 400);
-            }
+            DB::transaction(function () use ($section) {
+                $holders = $section->elementHolders()->with('elements.instanceValues')->get();
 
-            $section->delete();
+                foreach ($holders as $holder) {
+                    foreach ($holder->elements as $element) {
+                        if ($element->instanceValues->isNotEmpty()) {
+                            throw new \RuntimeException('This section contains form elements with submitted data and cannot be deleted.');
+                        }
+                    }
+                }
+
+                foreach ($holders as $holder) {
+                    $holder->elements()->delete();
+                }
+
+                $section->elementHolders()->delete();
+                $section->delete();
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Section deleted successfully'
             ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -232,19 +245,28 @@ class FormBuilderController extends Controller
     public function deleteElementHolder(SubmissionFormElementHolder $holder)
     {
         try {
-            if ($holder->elements()->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot delete element holder that contains form elements. Please remove all elements first.'
-                ], 400);
-            }
+            DB::transaction(function () use ($holder) {
+                $elements = $holder->elements()->with('instanceValues')->get();
 
-            $holder->delete();
+                foreach ($elements as $element) {
+                    if ($element->instanceValues->isNotEmpty()) {
+                        throw new \RuntimeException('This element holder contains form elements with submitted data and cannot be deleted.');
+                    }
+                }
+
+                $holder->elements()->delete();
+                $holder->delete();
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Element holder deleted successfully'
             ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

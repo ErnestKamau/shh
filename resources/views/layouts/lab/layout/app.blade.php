@@ -51,6 +51,19 @@
 	.tab-card-header>.tab-content {
 		padding-bottom: 0;
 	}
+
+	/* Ensure lab module pages can scroll inside the fixed sidebar/header layout */
+	#main-container-body {
+		height: calc(100vh - 56px);
+		overflow-y: auto;
+	}
+
+	@media (max-width: 767.98px) {
+		#main-container-body {
+			height: auto;
+			overflow-y: visible;
+		}
+	}
 </style>
 @yield('title2')
 @endsection
@@ -449,5 +462,26 @@
 @endsection
 
 @section('script')
+<script>
+	(function () {
+		function unlockStuckScroll() {
+			var hasOpenModal = document.querySelector('.modal.show');
+
+			if (!hasOpenModal) {
+				document.body.classList.remove('modal-open');
+				document.body.style.removeProperty('overflow');
+				document.body.style.removeProperty('padding-right');
+			}
+		}
+
+		document.addEventListener('DOMContentLoaded', unlockStuckScroll);
+		document.addEventListener('hidden.bs.modal', unlockStuckScroll);
+
+		document.addEventListener('livewire:initialized', function () {
+			unlockStuckScroll();
+			Livewire.hook('morph.updated', unlockStuckScroll);
+		});
+	})();
+</script>
 @yield('script2')
 @endsection

@@ -7,6 +7,7 @@ use App\Http\Controllers\MailController as Mailers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Throwable;
 
 class TwoFactor extends Controller
 {
@@ -19,20 +20,30 @@ class TwoFactor extends Controller
 	}
 
 	public function resendVerifyCode(Request $request){
-		$user = auth()->user();
-		$user->generateTwoFactorCode();
-		$app_name = env('APP_NAME', 'FIVET LIMS');
-		$body = 'Hi '.$user->first_name.',<br><br>
-			Your verification code has been successfully generated. Your verification code is:
-			<br><br>'.$user->verify_code ;
-		$mailData = array(
-			'contacts'=>array($user->email),
-			'body'=>$body,
-			'subject'=>'['.$app_name.'] Verification Code -'.$user->email
-		);
-		$mailer = new Mailers;
-		$sendmail = $mailer->html_email($mailData,'default');
-		return redirect()->back()->with('success','Verification code sent successfully!');
+		try {
+			$user = auth()->user();
+			$user->generateTwoFactorCode();
+			$app_name = env('APP_NAME', 'FIVET LIMS');
+			$body = 'Hi '.$user->first_name.',<br><br>
+				Your verification code has been successfully generated. Your verification code is:
+				<br><br>'.$user->verify_code ;
+			$mailData = array(
+				'contacts'=>array($user->email),
+				'body'=>$body,
+				'subject'=>'['.$app_name.'] Verification Code -'.$user->email
+			);
+			$mailer = new Mailers;
+			$sendmail = $mailer->html_email($mailData,'default');
+			if ($sendmail === false) {
+				return redirect()->back()->with('error', 'Verification code generated, but email could not be sent. Please verify mail settings or try again.');
+			}
+
+			return redirect()->back()->with('success','Verification code sent successfully!');
+		} catch (Throwable $exception) {
+			report($exception);
+
+			return redirect()->back()->with('error', 'Verification code generated, but email verification failed. Please try again.');
+		}
 	}
 
 	public function storeVerifyCodeExt(Request $request){

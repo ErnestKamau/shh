@@ -386,7 +386,7 @@
                                                                 <div class="dropdown-results">
                                                                     @foreach($filteredEquipments as $equipment)
                                                                         <div class="dropdown-item"
-                                                                            wire:click="autoSaveEquipmentUsage({{ $stageData->id }}, {{ $equipment['id'] }}, '{{ $equipment['name'] }}')">
+                                                                            wire:mousedown.prevent="autoSaveEquipmentUsage({{ $stageData->id }}, {{ $equipment['id'] }})">
                                                                             {{ $equipment['name'] }}
                                                                         </div>
                                                                     @endforeach

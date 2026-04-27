@@ -1,7 +1,7 @@
 @extends('layouts.equipment.layout.app', ['dataTable'=>true])
 
 @section('title2')
-<title>Equipment Daily Log</title>
+<title>Equipment Checks</title>
 
 <style>
     /* Equipment Daily Log View Styling */
@@ -103,7 +103,7 @@
         ],
         [
             'link' => null,
-            'name' => 'Daily Log',
+            'name' => 'Equipment Checks',
             'icon' => null,
         ],
     ];
@@ -120,7 +120,7 @@
                             <div class="eq-kicker mb-1">Equipment Monitoring</div>
                             <h2 class="mb-1 eq-hero-title">
                                 <i class="mdi mdi-notebook-check-outline text-primary"></i>
-                                Equipment Daily Log
+                                Equipment Checks
                             </h2>
                             <p class="text-muted mb-0">Record and monitor equipment readings</p>
                         </div>
@@ -233,7 +233,7 @@
                                     <tr>
                                         <td>{{ $index + 1 }}</td>
                                         <td nowrap>
-                                            <a href="{{ route('view-equipment', ['equipmentId' => $item->id, 'from' => 'daily-log']) }}">{{ $item->name }}</a>
+                                            <a href="{{ route('view-equipment', ['equipmentId' => $item->id, 'from' => 'equipment-checks']) }}">{{ $item->name }}</a>
                                         </td>
                                         <td>{{ $item->equipment_number }}</td>
                                         <td>{{ $item->make }}</td>
@@ -251,7 +251,7 @@
                                                 : '<i class="mdi mdi-close-circle text-danger" title="Inactive"></i>' !!}
                                         </td>
                                         <td nowrap>
-                                            <a class="btn btn-outline-success btn-sm" href="{{ route('view-equipment', ['equipmentId' => $item->id, 'from' => 'daily-log']) }}" data-toggle="tooltip" title="View Equipment">
+                                            <a class="btn btn-outline-success btn-sm" href="{{ route('view-equipment', ['equipmentId' => $item->id, 'from' => 'equipment-checks']) }}" data-toggle="tooltip" title="View Equipment">
                                                 <i class="mdi mdi-eye-outline"></i>
                                             </a>
                                         </td>

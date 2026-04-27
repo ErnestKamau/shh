@@ -416,17 +416,19 @@ class MethodSequenceWorksheet extends Component
         }
     }
 
-    public function autoSaveEquipmentUsage($stageDataId, $equipmentId, $equipmentName): void
+    public function autoSaveEquipmentUsage($stageDataId, $equipmentId): void
     {
         try {
             // Delete existing equipment usage
             MethodSequenceStageEquipmentUsage::where('run_stage_data_id', $stageDataId)->delete();
 
             if ($equipmentId) {
+                $equipment = Equipment::find($equipmentId);
+
                 MethodSequenceStageEquipmentUsage::create([
                     'run_stage_data_id' => $stageDataId,
                     'equipment_id' => $equipmentId,
-                    'equipment_name' => $equipmentName,
+                    'equipment_name' => $equipment->name ?? '',
                 ]);
             }
 
@@ -435,6 +437,7 @@ class MethodSequenceWorksheet extends Component
             // Close dropdown and clear search
             $this->showEquipmentDropdown = false;
             $this->equipmentSearch = '';
+            $this->filteredEquipments = [];
         } catch (\Exception $e) {
             $this->setMessage('Error saving equipment usage: ' . $e->getMessage(), 'error');
         }

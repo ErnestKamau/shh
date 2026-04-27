@@ -114,10 +114,10 @@ class ElementManager extends Component
         'elementForm.method' => 'nullable|exists:analysis_methods,id',
         'elementForm.equipment_id' => 'nullable|exists:equipment,id',
         'elementForm.operator_id' => 'nullable|exists:users,id',
-        'elementForm.reporting_unit' => 'required|string|max:255',
-        'elementForm.decimal_places' => 'required|integer|min:0|max:10',
-        'elementForm.significant_figures' => 'required|integer|min:1|max:10',
-        'elementForm.level' => 'required|integer|min:1',
+        'elementForm.reporting_unit' => 'nullable|string|max:255',
+        'elementForm.decimal_places' => 'nullable|integer|min:0|max:10',
+        'elementForm.significant_figures' => 'nullable|integer|min:1|max:10',
+        'elementForm.level' => 'nullable|integer|min:1',
         'elementForm.remark_is_manual' => 'boolean',
         'elementForm.result_is_calculated' => 'boolean',
         'elementForm.formular_id' => 'nullable|integer',
@@ -292,6 +292,11 @@ class ElementManager extends Component
 
     public function saveElement()
     {
+        // Backward compatibility: older records can have null numeric defaults.
+        $this->elementForm['decimal_places'] = $this->elementForm['decimal_places'] ?? 2;
+        $this->elementForm['significant_figures'] = $this->elementForm['significant_figures'] ?? 3;
+        $this->elementForm['level'] = $this->elementForm['level'] ?? 1;
+
         $this->validate($this->getRules());
 
         try {

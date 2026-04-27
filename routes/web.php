@@ -20,12 +20,18 @@ use App\Http\Controllers\LivewireControllers\LabAppController;
 use App\Http\Controllers\LivewireControllers\StandardsController;
 use App\Http\Controllers\LivewireControllers\CRMAppController;
 use App\Http\Controllers\LivewireControllers\EquipmentAppController;
+use App\Http\Controllers\System\PushSubscriptionController;
 
 Route::get('/', function () {
     return redirect()->route('home');
 });
 
 Auth::routes();
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
+    Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
+});
 
 Route::get('set-locale/{locale}', 'LocaleController@setLocale')->name('set-locale');
 
@@ -736,6 +742,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
 
         // Dynamic options route
         Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
+        Route::get('/depended-field-value', 'FormInstanceController@getDependedFieldValue')->name('depended-field-value');
 
         // Form creation routes
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
@@ -899,6 +906,7 @@ Route::get('/equipment/asset-locations', [EquipmentAppController::class, 'assetL
 //############################################EQUIPMENT##########################################################
 Route::get('/equipment-home', [EquipmentAppController::class, 'equipmentManager'])->name('equipment-home')->middleware('haspermission:Equipment.permission');
 Route::get('/equipment-dashboard', [EquipmentAppController::class, 'equipmentDashboard'])->name('equipment-dashboard')->middleware('haspermission:Equipment.permission');
+Route::get('/equipment-checks', [EquipmentAppController::class, 'checksIndex'])->name('equipment-checks')->middleware('haspermission:Equipment.permission');
 Route::get('/equipment-daily-log', [EquipmentAppController::class, 'dailyLogIndex'])->name('equipment-daily-log')->middleware('haspermission:Equipment.permission');
 Route::post('/equipment', 'Equipment\EquipmentController@add')->name('add-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Add');
 Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])->name('view-equipment')->middleware('haspermission:Equipment.components.Equipment-List.View');

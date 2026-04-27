@@ -3,334 +3,172 @@
 namespace App\Livewire\Equipment;
 
 use App\Models\Equipments\Equipment;
-use App\Models\Equipments\EquipmentDailyLogEntry;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Worksheets\MethodSequenceStageEquipmentUsage;
+use Carbon\Carbon;
 use Livewire\Component;
 
 class EquipmentDailyLog extends Component
 {
-    public int $activeFrequency = 1;
-
     public string $logDate = '';
 
-    /** @var array<string, string> entryValues keyed as "{equipmentId}_{slot}" */
-    public array $entryValues = [];
+    public string $historyFromDate = '';
 
-    /** @var array<string, bool> track which entries were just saved */
-    public array $savedFlags = [];
+    public string $historyToDate = '';
 
-    /** @var array<int, string> */
-    public array $freqLabels = [
-        1 => 'Once a Day',
-        2 => 'Twice a Day',
-        3 => 'Three Times a Day',
-        4 => 'Four Times a Day',
-        5 => 'Five Times a Day',
-        6 => 'Six Times a Day',
-    ];
-
-    /** @var array<int, int> Counts per frequency */
-    public array $freqCounts = [];
-
-    public string $nonConformanceFromDate = '';
-
-    public string $nonConformanceToDate = '';
-
-    public int $nonConformancePerPage = 10;
-
-    public int $nonConformancePage = 1;
+    public ?int $selectedEquipmentId = null;
 
     public function mount(): void
     {
         $this->logDate = now()->toDateString();
+        $this->historyFromDate = now()->subDays(30)->toDateString();
+        $this->historyToDate = now()->toDateString();
+    }
 
-        $companyId = getUserCompany();
-
-        $counts = Equipment::where('company_id', $companyId)
-            ->where('requires_daily_log', true)
+    public function selectEquipment(int $equipmentId): void
+    {
+        $equipment = Equipment::where('company_id', getUserCompany())
             ->where('is_disposal', 0)
-            ->selectRaw('daily_log_frequency, COUNT(*) as cnt')
-            ->groupBy('daily_log_frequency')
-            ->pluck('cnt', 'daily_log_frequency')
-            ->toArray();
+            ->find($equipmentId);
 
-        foreach (array_keys($this->freqLabels) as $freq) {
-            $this->freqCounts[$freq] = (int) ($counts[$freq] ?? 0);
-        }
-
-        // Default to first non-empty tab
-        foreach (array_keys($this->freqLabels) as $freq) {
-            if ($this->freqCounts[$freq] > 0) {
-                $this->activeFrequency = $freq;
-                break;
-            }
-        }
-
-        $this->loadEntries();
-    }
-
-    public function setFrequency(int $freq): void
-    {
-        if (array_key_exists($freq, $this->freqLabels)) {
-            $this->activeFrequency = $freq;
+        if ($equipment) {
+            $this->selectedEquipmentId = $equipment->id;
         }
     }
 
-    public function updatedNonConformanceFromDate(): void
+    public function clearSelectedEquipment(): void
     {
-        $this->nonConformancePage = 1;
+        $this->selectedEquipmentId = null;
     }
 
-    public function updatedNonConformanceToDate(): void
+    public function getDailyUsageRowsProperty(): array
     {
-        $this->nonConformancePage = 1;
+        return MethodSequenceStageEquipmentUsage::query()
+            ->whereNotNull('started_at')
+            ->whereDate('started_at', $this->logDate)
+            ->whereHas('equipment', function ($query) {
+                $query->where('company_id', getUserCompany())
+                    ->where('is_disposal', 0);
+            })
+            ->with(['equipment', 'stageData.run.analyst', 'startedByUser', 'completedByUser'])
+            ->orderBy('started_at', 'desc')
+            ->get()
+            ->map(function (MethodSequenceStageEquipmentUsage $usage) {
+                $status = $usage->isCompleted() ? 'Completed' : ($usage->isInProgress() ? 'In Progress' : 'Not Started');
+
+                return [
+                    'usage_id' => $usage->id,
+                    'equipment_id' => $usage->equipment_id,
+                    'equipment_name' => $usage->equipment?->name ?? $usage->equipment_name ?? '-',
+                    'equipment_number' => $usage->equipment?->equipment_number ?? '-',
+                    'time_on' => $usage->started_at?->format('H:i:s') ?? '-',
+                    'time_off' => $usage->completed_at?->format('H:i:s') ?? '-',
+                    'duration' => $usage->getFormattedDuration() ?? '-',
+                    'status' => $status,
+                    'analyst' => $usage->stageData?->run?->analyst?->name
+                        ?? $usage->startedByUser?->name
+                        ?? '-',
+                ];
+            })
+            ->values()
+            ->all();
     }
 
-    public function updatedNonConformancePerPage($value): void
+    public function getSelectedEquipmentProperty(): ?Equipment
     {
-        $this->nonConformancePerPage = max(10, (int) $value);
-        $this->nonConformancePage = 1;
-    }
-
-    public function previousNonConformancePage(): void
-    {
-        $this->nonConformancePage = max(1, $this->nonConformancePage - 1);
-    }
-
-    public function nextNonConformancePage(): void
-    {
-        $this->nonConformancePage = min($this->nonConformanceTotalPages, $this->nonConformancePage + 1);
-    }
-
-    public function updatedLogDate(): void
-    {
-        $this->savedFlags = [];
-        $this->loadEntries();
-    }
-
-    private function loadEntries(): void
-    {
-        $this->entryValues = [];
-
-        $entries = EquipmentDailyLogEntry::where('company_id', getUserCompany())
-            ->where('log_date', $this->logDate)
-            ->with('equipment')
-            ->get();
-
-        foreach ($entries as $entry) {
-            $key = "{$entry->equipment_id}_{$entry->slot_number}";
-            $this->entryValues[$key] = $entry->recorded_value ?? '';
-        }
-    }
-
-    public function updatedEntryValues($value, $key): void
-    {
-        if (!$this->isToday()) {
-            return;
-        }
-
-        if (!preg_match('/^(\d+)_(\d+)$/', (string) $key, $matches)) {
-            return;
-        }
-
-        $this->saveEntry((int) $matches[1], (int) $matches[2]);
-    }
-
-    public function saveEntry(int $equipmentId, int $slot): void
-    {
-        $key = "{$equipmentId}_{$slot}";
-        $value = trim((string) ($this->entryValues[$key] ?? ''));
-        $value = $value !== '' ? $value : null;
-
-        EquipmentDailyLogEntry::updateOrCreate(
-            [
-                'equipment_id' => $equipmentId,
-                'log_date'     => $this->logDate,
-                'slot_number'  => $slot,
-                'company_id'   => getUserCompany(),
-            ],
-            [
-                'recorded_value' => $value,
-                'recorded_by'    => Auth::id(),
-            ]
-        );
-
-        $this->savedFlags[$key] = true;
-    }
-
-    public function getReadingRangeStatus(Equipment $equipment, ?string $reading): ?string
-    {
-        if ($equipment->daily_log_value_type !== 'range') {
+        if (!$this->selectedEquipmentId) {
             return null;
         }
 
-        if (!is_numeric($reading)) {
-            return null;
-        }
-
-        if ($equipment->daily_log_expected_min === null || $equipment->daily_log_expected_max === null) {
-            return null;
-        }
-
-        $readingValue = (float) $reading;
-        $expectedMin = (float) $equipment->daily_log_expected_min;
-        $expectedMax = (float) $equipment->daily_log_expected_max;
-
-        return ($readingValue >= $expectedMin && $readingValue <= $expectedMax) ? 'within' : 'outside';
-    }
-
-    public function getEquipmentForActiveTab(): Collection
-    {
         return Equipment::where('company_id', getUserCompany())
-            ->where('requires_daily_log', true)
             ->where('is_disposal', 0)
-            ->where('daily_log_frequency', $this->activeFrequency)
-            ->orderBy('name', 'asc')
-            ->get();
+            ->find($this->selectedEquipmentId);
     }
 
-    public function getNonConformanceRowsProperty(): array
+    public function getSelectedEquipmentUsageRowsProperty(): array
     {
-        if ($this->nonConformanceFromDate !== '' && $this->nonConformanceToDate !== ''
-            && $this->nonConformanceFromDate > $this->nonConformanceToDate) {
+        if (!$this->selectedEquipmentId || !$this->hasValidHistoryRange()) {
             return [];
         }
 
-        $query = EquipmentDailyLogEntry::where('company_id', getUserCompany())
-            ->whereNotNull('recorded_value')
-            ->where('recorded_value', '!=', '')
-            ->with('equipment')
-            ->whereHas('equipment', function ($q) {
-                $q->where('requires_daily_log', true)
-                    ->where('is_disposal', 0);
+        return MethodSequenceStageEquipmentUsage::query()
+            ->where('equipment_id', $this->selectedEquipmentId)
+            ->whereNotNull('started_at')
+            ->whereBetween('started_at', [
+                $this->historyFromDate . ' 00:00:00',
+                $this->historyToDate . ' 23:59:59',
+            ])
+            ->with(['stageData.run.analyst', 'startedByUser', 'completedByUser'])
+            ->orderBy('started_at', 'desc')
+            ->get()
+            ->map(function (MethodSequenceStageEquipmentUsage $usage) {
+                $status = $usage->isCompleted() ? 'Completed' : ($usage->isInProgress() ? 'In Progress' : 'Not Started');
+
+                $durationMinutes = $usage->getDurationMinutes();
+
+                if ($durationMinutes === null && $usage->started_at && !$usage->completed_at) {
+                    $durationMinutes = $usage->started_at->diffInMinutes(now());
+                }
+
+                return [
+                    'date' => $usage->started_at?->format('Y-m-d') ?? '-',
+                    'time_on' => $usage->started_at?->format('H:i:s') ?? '-',
+                    'time_off' => $usage->completed_at?->format('H:i:s') ?? '-',
+                    'duration' => $usage->getFormattedDuration() ?? ($durationMinutes !== null ? $this->formatDurationMinutes($durationMinutes) : '-'),
+                    'duration_minutes' => $durationMinutes,
+                    'status' => $status,
+                    'analyst' => $usage->stageData?->run?->analyst?->name
+                        ?? $usage->startedByUser?->name
+                        ?? '-',
+                    'started_at_raw' => $usage->started_at?->toDateTimeString(),
+                ];
             })
-            ->orderBy('log_date', 'desc')
-            ->orderBy('slot_number', 'desc');
-
-        if ($this->nonConformanceFromDate !== '') {
-            $query->whereDate('log_date', '>=', $this->nonConformanceFromDate);
-        }
-
-        if ($this->nonConformanceToDate !== '') {
-            $query->whereDate('log_date', '<=', $this->nonConformanceToDate);
-        }
-
-        $rows = [];
-
-        foreach ($query->get() as $entry) {
-            $equipment = $entry->equipment;
-            if (!$equipment) {
-                continue;
-            }
-
-            $reason = $this->getNonConformanceReason($equipment, $entry->recorded_value);
-
-            if ($reason === null) {
-                continue;
-            }
-
-            $rows[] = [
-                'date' => $entry->log_date ? $entry->log_date->format('D, M j Y') : '-',
-                'slot' => $entry->slot_number,
-                'equipment_name' => $equipment->name ?? '-',
-                'equipment_number' => $equipment->equipment_number ?? '-',
-                'recorded' => $entry->recorded_value,
-                'reason' => $reason,
-            ];
-        }
-
-        return $rows;
+            ->values()
+            ->all();
     }
 
-    public function getNonConformanceRowsPageProperty(): array
+    public function getUsageChartDataProperty(): array
     {
-        $rows = $this->nonConformanceRows;
-        $perPage = max(10, $this->nonConformancePerPage);
-        $totalPages = max(1, (int) ceil(count($rows) / $perPage));
-        $currentPage = min(max(1, $this->nonConformancePage), $totalPages);
+        $rows = collect($this->selectedEquipmentUsageRows)
+            ->filter(fn ($row) => $row['started_at_raw'] !== null)
+            ->sortBy('started_at_raw')
+            ->values();
 
-        if ($currentPage !== $this->nonConformancePage) {
-            $this->nonConformancePage = $currentPage;
-        }
+        $labels = $rows->map(function ($row) {
+            return Carbon::parse($row['started_at_raw'])->format('M j H:i');
+        })->all();
 
-        return array_slice($rows, ($currentPage - 1) * $perPage, $perPage);
+        $durations = $rows->map(function ($row) {
+            return $row['duration_minutes'] ?? 0;
+        })->all();
+
+        return [
+            'labels' => $labels,
+            'durations' => $durations,
+        ];
     }
 
-    public function getNonConformanceTotalPagesProperty(): int
+    private function hasValidHistoryRange(): bool
     {
-        $perPage = max(10, $this->nonConformancePerPage);
-
-        return max(1, (int) ceil(count($this->nonConformanceRows) / $perPage));
+        return $this->historyFromDate !== ''
+            && $this->historyToDate !== ''
+            && $this->historyFromDate <= $this->historyToDate;
     }
 
-    public function isToday(): bool
+    private function formatDurationMinutes(int $minutes): string
     {
-        return $this->logDate === now()->toDateString();
-    }
+        $hours = intdiv($minutes, 60);
+        $mins = $minutes % 60;
 
-    private function getNonConformanceReason(Equipment $equipment, ?string $recordedValue): ?string
-    {
-        $recordedValue = trim((string) $recordedValue);
-        if ($recordedValue === '') {
-            return null;
-        }
-
-        $type = $equipment->daily_log_value_type;
-        $nature = $equipment->daily_log_nature;
-        $tol = (int) ($equipment->daily_log_tolerance ?? 0);
-
-        if ($type === 'constant') {
-            if ($nature === 'qualitative') {
-                $expected = trim((string) ($equipment->daily_log_expected_value ?? ''));
-                if (strcasecmp($recordedValue, $expected) !== 0) {
-                    return 'Does not match expected "' . $expected . '"';
-                }
-
-                return null;
-            }
-
-            if ($nature === 'quantitative' && is_numeric($recordedValue) && is_numeric($equipment->daily_log_expected_value)) {
-                $expected = (float) $equipment->daily_log_expected_value;
-                $actual = (float) $recordedValue;
-
-                if ($tol > 0) {
-                    $lo = $expected * (1 - $tol / 100);
-                    $hi = $expected * (1 + $tol / 100);
-                    if ($actual < $lo || $actual > $hi) {
-                        return 'Value ' . $actual . ' outside tolerance ±' . $tol . '% of ' . $expected;
-                    }
-                } elseif ($actual != $expected) {
-                    return 'Recorded ' . $actual . ', expected ' . $expected;
-                }
-
-                return null;
-            }
-
-            return null;
-        }
-
-        if ($type === 'range' && is_numeric($recordedValue)
-            && $equipment->daily_log_expected_min !== null
-            && $equipment->daily_log_expected_max !== null) {
-            $actual = (float) $recordedValue;
-            $min = (float) $equipment->daily_log_expected_min;
-            $max = (float) $equipment->daily_log_expected_max;
-            $lo = $tol > 0 ? $min * (1 - $tol / 100) : $min;
-            $hi = $tol > 0 ? $max * (1 + $tol / 100) : $max;
-
-            if ($actual < $lo || $actual > $hi) {
-                return 'Recorded ' . $actual . ' outside ' . $min . '–' . $max . ($tol > 0 ? ' (±' . $tol . '% tol)' : '');
-            }
-        }
-
-        return null;
+        return sprintf('%02d:%02d:00', $hours, $mins);
     }
 
     public function render()
     {
         return view('livewire.equipment.equipment-daily-log', [
-            'equipment' => $this->getEquipmentForActiveTab(),
+            'dailyUsageRows' => $this->dailyUsageRows,
+            'selectedEquipment' => $this->selectedEquipment,
+            'selectedEquipmentUsageRows' => $this->selectedEquipmentUsageRows,
+            'usageChartData' => $this->usageChartData,
         ]);
     }
 }

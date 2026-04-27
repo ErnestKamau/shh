@@ -1056,7 +1056,7 @@ $locations = getAssetLocation();
 				</div>
 				<div class="form-group">
 					<label class="control-label"><input name="requires_daily_log" value="1" type="checkbox" {{ $equipment->requires_daily_log ? 'checked' : '' }} /> Requires Daily Log</label>
-					<small class="form-text text-muted">When checked, this equipment will appear on the Equipment Daily Log page.</small>
+					<small class="form-text text-muted">When checked, this equipment will appear on the Equipment Checks page.</small>
 				</div>
 			</div>
 			<div class="modal-footer">
