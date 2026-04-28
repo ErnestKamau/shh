@@ -20,8 +20,8 @@ return new class extends Migration
             $table->string('samples');
             $table->string('report_url');
             $table->integer('version_number')->default(0);
-            $table->foreign(['batch_id'], 'fk_batch_ammendments_batch_id')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['created_by_id'], 'fk_batch_ammendments_created_by_id')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
+            // $table->foreign(['batch_id'], 'fk_batch_ammendments_batch_id')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('cascade');
+            // $table->foreign(['created_by_id'], 'fk_batch_ammendments_created_by_id')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
             $table->primary(['id']);
         });
