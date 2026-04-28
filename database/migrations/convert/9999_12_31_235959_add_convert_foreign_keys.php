@@ -78,11 +78,6 @@ return new class extends Migration
             $table->foreign(['equipment_id'], 'fk_analytes_equipment_id_85658cec')->references(['id'])->on('equipment')->onUpdate('no action')->onDelete('set null');
         });
 
-        Schema::table('analytes_unik', function (Blueprint $table) {
-            $table->foreign(['company_id'], 'fk_analytes_unik_company_id_22954646')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['equipment_id'], 'fk_analytes_unik_equipment_id_4366a0e4')->references(['id'])->on('equipment')->onUpdate('no action')->onDelete('set null');
-        });
-
         Schema::table('approvals', function (Blueprint $table) {
             $table->foreign(['inventory_location_id'], 'fk_approvals_inventory_location_id_f6594aa9')->references(['id'])->on('inventory_locations')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['role_id'], 'fk_approvals_role_id_a3ff9e9b')->references(['id'])->on('roles')->onUpdate('no action')->onDelete('cascade');
@@ -3354,11 +3349,6 @@ return new class extends Migration
         Schema::table('approvals', function (Blueprint $table) {
             $table->dropForeign('fk_approvals_inventory_location_id_f6594aa9');
             $table->dropForeign('fk_approvals_role_id_a3ff9e9b');
-        });
-
-        Schema::table('analytes_unik', function (Blueprint $table) {
-            $table->dropForeign('fk_analytes_unik_company_id_22954646');
-            $table->dropForeign('fk_analytes_unik_equipment_id_4366a0e4');
         });
 
         Schema::table('analytes', function (Blueprint $table) {
