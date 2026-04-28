@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('phone_contacts', function (Blueprint $table) {
+            $table->uuid('id');
+            $table->string('name');
+            $table->uuid('company_id')->index('idx_phone_contacts_company_id_55e4144d');
+            $table->integer('entity_id');
+            $table->string('entity_type');
+            $table->timestamps();
+
+            $table->primary(['id']);
+
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('phone_contacts');
+    }
+};

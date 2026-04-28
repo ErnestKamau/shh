@@ -30,8 +30,6 @@ return new class extends Migration
             $table->softDeletes();
             $table->uuid('equipment_id')->nullable()->default('0')->index('equipment_id');
             $table->boolean('is_italic')->nullable()->default(false);
-            $table->foreign(['company_id'], 'fk_analytes_company_id_d5cb8dcd')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['equipment_id'], 'fk_analytes_equipment_id_85658cec')->references(['id'])->on('equipment')->onUpdate('no action')->onDelete('set null');
 
 
             $table->primary(['id']);

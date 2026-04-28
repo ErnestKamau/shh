@@ -13,25 +13,24 @@ return new class extends Migration
     {
         Schema::create('companies', function (Blueprint $table) {
             $table->uuid('id');
-            $table->string('name');
+            $table->text('name');
             $table->string('logo')->default('/images/no-logo.png');
-            $table->string('location')->nullable();
-            $table->string('address');
+            $table->text('location')->nullable();
+            $table->text('address');
             $table->uuid('country_id')->index('idx_companies_country_id_dbeffba5');
-            $table->string('website');
+            $table->text('website');
             $table->timestamps();
-            $table->string('license_key', 512)->nullable();
-            $table->date('license_expiry')->nullable();
+            $table->text('license_key')->nullable();
+            $table->text('license_expiry')->nullable();
             $table->boolean('active')->default(false);
             $table->boolean('show_on_reports')->default(false);
-            $table->string('client_number', 100)->nullable();
-            $table->string('email')->default('');
-            $table->string('cell_phone')->default('');
+            $table->text('client_number')->nullable();
+            $table->text('email')->nullable();
+            $table->text('cell_phone')->nullable();
             $table->string('telephone')->default('');
-            $table->string('street')->default('');
-            $table->string('fax', 100)->nullable();
+            $table->text('street')->nullable();
+            $table->text('fax')->nullable();
             $table->text('report_logo')->nullable();
-            $table->foreign(['country_id'], 'fk_companies_country_id_34dce04f')->references(['id'])->on('countries')->onUpdate('no action')->onDelete('cascade');
 
             $table->primary(['id']);
 

@@ -41,10 +41,6 @@ return new class extends Migration
             $table->string('quotation_type')->default('General');
             $table->uuid('currency_id')->default(14)->index('idx_quotation_headers_currency_id_aca9e287');
             $table->boolean('is_approved')->default(false);
-            $table->foreign(['crm_customer_contact_id'], 'fk_quotation_headers_crm_customer_contact_id_ec04541f')->references(['id'])->on('crm_customer_contacts')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['crm_customer_id'], 'fk_quotation_headers_crm_customer_id_7a859b41')->references(['id'])->on('crm_customers')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['currency_id'], 'fk_quotation_headers_currency_id_623c064b')->references(['id'])->on('currencies')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['pricelist_id'], 'fk_quotation_headers_pricelist_id_88831307')->references(['id'])->on('pricelists')->onUpdate('no action')->onDelete('set null');
 
 
 

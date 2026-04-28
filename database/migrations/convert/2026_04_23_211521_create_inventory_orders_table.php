@@ -20,9 +20,6 @@ return new class extends Migration
             $table->timestamps();
             $table->uuid('company_id')->default(1)->index('idx_inventory_orders_company_id_2915dc6d');
             $table->string('comments', 512)->nullable();
-            $table->foreign(['company_id'], 'fk_inventory_orders_company_id_a8270aff')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['supplier_id'], 'fk_inventory_orders_supplier_id_f38d7d14')->references(['id'])->on('suppliers')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['created_by'], 'fk_inventory_orders_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
 
 
             $table->primary(['id']);

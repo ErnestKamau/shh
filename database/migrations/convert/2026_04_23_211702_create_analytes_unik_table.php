@@ -29,8 +29,6 @@ return new class extends Migration
             $table->timestamps();
             $table->uuid('equipment_id')->nullable()->default('0')->index('equipment_id');
             $table->unique(['code'], 'code_unik');
-            $table->foreign(['company_id'], 'fk_analytes_unik_company_id_22954646')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['equipment_id'], 'fk_analytes_unik_equipment_id_4366a0e4')->references(['id'])->on('equipment')->onUpdate('no action')->onDelete('set null');
 
 
             $table->primary(['id']);

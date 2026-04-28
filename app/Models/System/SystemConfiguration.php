@@ -14,6 +14,10 @@ class SystemConfiguration extends Model implements Auditable
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected $casts = [
+        'value' => 'encrypted',
+    ];
+
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'system_configurations';
 }

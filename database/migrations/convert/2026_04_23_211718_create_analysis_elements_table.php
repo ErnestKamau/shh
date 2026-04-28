@@ -25,7 +25,7 @@ return new class extends Migration
             $table->boolean('show_on_report')->nullable()->default(true);
             $table->timestamps();
             $table->uuid('procedure_worksheet_id')->nullable()->index('idx_analysis_elements_procedure_worksheet_id_0d343afd');
-            $table->uuid('equipment_id')->nullable()->default(0)->index('equipment_id');
+            $table->uuid('equipment_id')->nullable()->index('equipment_id');
             $table->integer('method')->nullable()->index('method');
             $table->smallInteger('is_manual')->nullable()->default(0);
             $table->string('operator_id', 100)->nullable()->index('operator_id');
@@ -44,13 +44,6 @@ return new class extends Migration
             $table->unsignedBigInteger('formular_id')->nullable();
             $table->boolean('has_method_sequence')->default(false);
             $table->uuid('method_sequence_id')->nullable()->index('idx_analysis_elements_method_sequence_id_2b06e6a5');
-            $table->foreign(['method_sequence_id'], 'fk_analysis_elements_method_sequence_id_a8e0950f')->references(['id'])->on('method_sequences')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['remedy_header_id'], 'fk_analysis_elements_remedy_header_id_ba5aa4bf')->references(['id'])->on('remedy_headers')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['analysis_type_id'], 'fk_analysis_elements_analysis_type_id_bba30d9d')->references(['id'])->on('analysis_types')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['analyte_id'], 'fk_analysis_elements_analyte_id_eec905de')->references(['id'])->on('analytes')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['company_id'], 'fk_analysis_elements_company_id_b4f06a92')->references(['id'])->on('companies')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['equipment_id'], 'fk_analysis_elements_equipment_id_b3fd69bd')->references(['id'])->on('equipment')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['procedure_worksheet_id'], 'fk_analysis_elements_procedure_worksheet_id_c6c26d38')->references(['id'])->on('procedure_worksheets')->onUpdate('no action')->onDelete('set null');
 
 
 

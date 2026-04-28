@@ -14,7 +14,8 @@ return new class extends Migration
         Schema::create('system_configurations', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('configuration_type_id');
+            $table->foreignUuid('configuration_type_id')
+                ->nullable();
             $table->text('value');
             $table->string('key');
             $table->boolean('status')->default(false);
