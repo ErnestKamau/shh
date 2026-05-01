@@ -21,7 +21,7 @@
 			'icon' => null,
 		],
 		[
-			'link' => route('sample-submission-requests.show', $submissionRequest),
+			'link' => route('sample-submission-requests.show', ['request' => $submissionRequest, 'details' => 1]),
 			'name' => 'Request #' . $submissionRequest->id,
 			'icon' => null,
 		],

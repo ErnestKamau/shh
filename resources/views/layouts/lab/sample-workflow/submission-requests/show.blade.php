@@ -132,7 +132,7 @@
 			'icon' => null,
 		],
 		[
-			'link' => route('sample-submission-requests.show', $request),
+			'link' => route('sample-submission-requests.show', ['request' => $request, 'details' => 1]),
 			'name' => 'Request #' . $request->id,
 			'icon' => null,
 		],
@@ -181,6 +181,40 @@
 					</div>
 				</div>
 			</div>
+
+			@if($request->batch)
+			<div class="workflow-board-panel mb-3">
+				<div class="workflow-board-panel-body">
+					<div class="row align-items-end">
+						<div class="col-md-4 mb-2 mb-md-0">
+							<label class="form-label mb-1">Proposed Lab Booking Date</label>
+							<div class="fw-semibold">{{ $request->batch->date_expected ?: 'N/A' }}</div>
+						</div>
+						<div class="col-md-2 mb-2 mb-md-0">
+							<label class="form-label mb-1">Decision</label>
+							<div class="fw-semibold text-capitalize">{{ $request->booking_date_status ?: 'pending' }}</div>
+						</div>
+						<div class="col-md-6">
+							<div class="d-flex flex-wrap justify-content-md-end" style="gap: 8px;">
+								<form method="POST" action="{{ route('sample-submission-requests.booking-date.approve', $request) }}">
+									@csrf
+									<button type="submit" class="btn btn-success btn-action-sm">
+										<i class="mdi mdi-check-circle-outline"></i> Approve Date
+									</button>
+								</form>
+								<form method="POST" action="{{ route('sample-submission-requests.booking-date.reschedule', $request) }}" class="d-flex" style="gap: 8px;">
+									@csrf
+									<input type="date" name="date_expected" class="form-control" value="{{ old('date_expected', $request->batch->date_expected) }}" required>
+									<button type="submit" class="btn btn-outline-primary btn-action-sm">
+										<i class="mdi mdi-calendar-edit"></i> Move Date
+									</button>
+								</form>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			@endif
 
 			{{-- Section 1 & 2: Request Details + Seizure Address --}}
 			<div class="workflow-board-panel">

@@ -470,6 +470,14 @@ Route::post('/sample-submission-requests', 'SampleWorkFlowController@storeSample
     ->name('sample-submission-requests.store')
     ->middleware('haspermission:Laboratory.components.All Samples.Add');
 
+Route::post('/sample-submission-requests/{request}/booking-date/approve', 'SampleWorkFlowController@approveSampleSubmissionBookingDate')
+    ->name('sample-submission-requests.booking-date.approve')
+    ->middleware('haspermission:Laboratory.components.All Samples.Edit');
+
+Route::post('/sample-submission-requests/{request}/booking-date/reschedule', 'SampleWorkFlowController@rescheduleSampleSubmissionBookingDate')
+    ->name('sample-submission-requests.booking-date.reschedule')
+    ->middleware('haspermission:Laboratory.components.All Samples.Edit');
+
 Route::get('/sample-submission-requests/customer/{customer}/contacts', 'SampleWorkFlowController@getSubmissionRequestCustomerContacts')
     ->name('sample-submission-requests.customer-contacts')
     ->middleware('haspermission:Laboratory.components.All Samples.Add');

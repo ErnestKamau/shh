@@ -612,10 +612,117 @@
 
 										<div class="row">
 											<div class="col-md-12">
-												<h6>Section 7: Received By</h6>
-												<form method="POST" action="{{ route('sample-submission-request-reception', ['request' => $legalRequest->id]) }}" class="row">
+												<h6>Section 7: Lab Booking Date Decision</h6>
+												<div class="row mb-3">
+													<div class="col-md-3">
+														<label>Current Booking Date</label>
+														<input type="text" class="form-control" value="{{ $batch->date_expected ?? 'N/A' }}" readonly>
+													</div>
+													<div class="col-md-3">
+														<label>Booking Decision</label>
+														<input type="text" class="form-control text-capitalize" value="{{ $legalRequest->booking_date_status ?? 'pending' }}" readonly>
+													</div>
+													<div class="col-md-6 d-flex align-items-end" style="gap: 8px;">
+														<form method="POST" action="{{ route('sample-submission-requests.booking-date.approve', $legalRequest) }}">
+															@csrf
+															<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-check-circle-outline"></i> Approve Date</button>
+														</form>
+														<form method="POST" action="{{ route('sample-submission-requests.booking-date.reschedule', $legalRequest) }}" class="form-inline" style="gap: 8px;">
+															@csrf
+															<input type="date" name="date_expected" class="form-control form-control-sm" value="{{ $batch->date_expected ?? '' }}" required>
+															<button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-calendar-edit"></i> Move to New Date</button>
+														</form>
+													</div>
+												</div>
+
+												<h6>Section 8: Submission Form (At Reception)</h6>
+												@php
+													$enrouteContacts = collect($contacts ?? [])->map(function ($contact) {
+														$fullName = trim((($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')));
+														if ($fullName === '' && isset($contact->name)) {
+															$fullName = trim((string) $contact->name);
+														}
+
+														return [
+															'full_name' => $fullName,
+															'physical_address' => $contact->physical_address ?? $contact->address ?? $contact->postal_address ?? null,
+															'district' => $contact->district ?? null,
+															'region' => $contact->region ?? null,
+															'email' => $contact->email ?? null,
+															'mobile_telephone_no' => $contact->mobile_phone ?? $contact->phone ?? $contact->telephone ?? null,
+														];
+													})->filter(fn ($contact) => !empty($contact['full_name']))->values();
+												@endphp
+												<form method="POST" action="{{ route('sample-submission-request-reception', ['request' => $legalRequest->id]) }}" class="row" id="enroute-reception-form">
 													@csrf
 													<div class="form-group col-md-3">
+														<label>Submission Date</label>
+														<input type="date" name="submission_date" class="form-control" value="{{ old('submission_date', optional($legalRequest->submission_date)->format('Y-m-d') ?: optional($legalRequest->received_by_date)->format('Y-m-d')) }}" required>
+													</div>
+													<div class="form-group col-md-3">
+														<label>Submitting Personnel Name</label>
+														<input type="text" name="submitted_by_full_name" id="submitted_by_full_name" list="submitting-personnel-list" class="form-control" value="{{ old('submitted_by_full_name', $legalRequest->submitted_by_full_name) }}" required>
+														<datalist id="submitting-personnel-list">
+															@foreach($enrouteContacts as $contact)
+																<option value="{{ $contact['full_name'] }}"></option>
+															@endforeach
+														</datalist>
+													</div>
+													<div class="form-group col-md-3">
+														<label>Group of Samples</label>
+														<select name="group_of_samples" class="form-control" required>
+															<option value="">Select group...</option>
+															<option value="Confidential" {{ old('group_of_samples', $legalRequest->group_of_samples ?? $batch->batch_scope ?? '') === 'Confidential' ? 'selected' : '' }}>Confidential</option>
+															<option value="PT" {{ old('group_of_samples', $legalRequest->group_of_samples ?? $batch->batch_scope ?? '') === 'PT' ? 'selected' : '' }}>PT</option>
+															<option value="Research Government Samples" {{ old('group_of_samples', $legalRequest->group_of_samples ?? $batch->batch_scope ?? '') === 'Research Government Samples' ? 'selected' : '' }}>Research Government Samples</option>
+															<option value="Uknown Samples" {{ old('group_of_samples', $legalRequest->group_of_samples ?? $batch->batch_scope ?? '') === 'Uknown Samples' ? 'selected' : '' }}>Uknown Samples</option>
+														</select>
+													</div>
+													<div class="form-group col-md-3">
+														<label>Number of Samples</label>
+														<input type="number" min="1" name="number_of_samples" class="form-control" value="{{ old('number_of_samples', $legalRequest->number_of_samples ?? ($batch->samples->count() ?: '')) }}" required>
+													</div>
+													<div class="form-group col-md-3">
+														<label>Address</label>
+														<input type="text" name="physical_address" id="submitted_by_address" class="form-control" value="{{ old('physical_address', $legalRequest->physical_address) }}">
+													</div>
+													<div class="form-group col-md-2">
+														<label>District</label>
+														<input type="text" name="district" id="submitted_by_district" class="form-control" value="{{ old('district', $legalRequest->district) }}">
+													</div>
+													<div class="form-group col-md-2">
+														<label>Region</label>
+														<input type="text" name="region" id="submitted_by_region" class="form-control" value="{{ old('region', $legalRequest->region) }}">
+													</div>
+													<div class="form-group col-md-3">
+														<label>Email</label>
+														<input type="email" name="email" id="submitted_by_email" class="form-control" value="{{ old('email', $legalRequest->email) }}">
+													</div>
+													<div class="form-group col-md-2">
+														<label>Phone No.</label>
+														<input type="text" name="mobile_telephone_no" id="submitted_by_phone" class="form-control" value="{{ old('mobile_telephone_no', $legalRequest->mobile_telephone_no) }}">
+													</div>
+													<div class="form-group col-md-4">
+														<label>Description of Samples</label>
+														<input type="text" name="description_of_samples" class="form-control" value="{{ old('description_of_samples', $legalRequest->description_of_samples ?? $batch->description) }}">
+													</div>
+													<div class="form-group col-md-3">
+														<label>Laboratory Number (Batch Number)</label>
+														<input type="text" class="form-control" value="{{ $batch->batch_code }}" readonly>
+													</div>
+													<div class="form-group col-md-3">
+														<label>GCLA File Reference Number</label>
+														<input type="text" name="gcla_file_reference_number" class="form-control" value="{{ old('gcla_file_reference_number', $legalRequest->gcla_file_reference_number ?? $batch->reference_number) }}">
+													</div>
+													<div class="form-group col-md-2">
+														<label class="d-block">Police Sample?</label>
+														<input type="checkbox" name="is_police_sample" id="is_police_sample" value="1" {{ old('is_police_sample', $legalRequest->is_police_sample) ? 'checked' : '' }}>
+													</div>
+													<div class="form-group col-md-2">
+														<label>IR Number</label>
+														<input type="text" name="ir_number" id="ir_number" class="form-control" value="{{ old('ir_number', $legalRequest->ir_number ?? $batch->case_id) }}">
+													</div>
+													<div class="form-group col-md-2">
 														<label>Full Name</label>
 														<input type="text" name="received_by_full_name" class="form-control" value="{{ old('received_by_full_name', $legalRequest->received_by_full_name) }}" required>
 													</div>
@@ -639,6 +746,61 @@
 														<button type="submit" class="btn btn-info btn-sm btn-block">Save</button>
 													</div>
 												</form>
+												<script>
+													(function initSubmittingPersonnelPrefill() {
+														var contacts = @json($enrouteContacts);
+														var nameInput = document.getElementById('submitted_by_full_name');
+														if (!nameInput) {
+															return;
+														}
+
+														var addressInput = document.getElementById('submitted_by_address');
+														var districtInput = document.getElementById('submitted_by_district');
+														var regionInput = document.getElementById('submitted_by_region');
+														var emailInput = document.getElementById('submitted_by_email');
+														var phoneInput = document.getElementById('submitted_by_phone');
+
+														function normalize(value) {
+															return (value || '').toString().trim().toLowerCase();
+														}
+
+														function prefillFromName() {
+															var typed = normalize(nameInput.value);
+															if (!typed) {
+																return;
+															}
+
+															var matched = contacts.find(function (contact) {
+																return normalize(contact.full_name) === typed;
+															}) || contacts.find(function (contact) {
+																return normalize(contact.full_name).indexOf(typed) === 0;
+															});
+
+															if (!matched) {
+																return;
+															}
+
+															if (addressInput && !addressInput.value && matched.physical_address) {
+																addressInput.value = matched.physical_address;
+															}
+															if (districtInput && !districtInput.value && matched.district) {
+																districtInput.value = matched.district;
+															}
+															if (regionInput && !regionInput.value && matched.region) {
+																regionInput.value = matched.region;
+															}
+															if (emailInput && !emailInput.value && matched.email) {
+																emailInput.value = matched.email;
+															}
+															if (phoneInput && !phoneInput.value && matched.mobile_telephone_no) {
+																phoneInput.value = matched.mobile_telephone_no;
+															}
+														}
+
+														nameInput.addEventListener('blur', prefillFromName);
+														nameInput.addEventListener('change', prefillFromName);
+													})();
+												</script>
 											</div>
 										</div>
 									</div>

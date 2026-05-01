@@ -89,7 +89,11 @@
 								@forelse($requests as $req)
 								<tr>
 									<td class="text-muted fw-semibold">
-										<a href="{{ route('sample-submission-requests.show', $req) }}">#{{ $req->id }}</a>
+										@if($req->batch)
+											<a href="{{ route('view-batch-details', ['batch' => $req->batch->id, 'client' => 0, 'portal' => 0, 'status' => 'Samples En-Route']) }}">#{{ $req->id }}</a>
+										@else
+											<a href="{{ route('sample-submission-requests.show', ['request' => $req, 'details' => 1]) }}">#{{ $req->id }}</a>
+										@endif
 									</td>
 									<td>
 										@if($req->batch)

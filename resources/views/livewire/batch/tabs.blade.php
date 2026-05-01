@@ -27,6 +27,16 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" id="laboratory-acceptance-tab" data-toggle="tab" href="#laboratory-acceptance" role="tab" aria-controls="laboratory-acceptance" aria-selected="false">
+                <i class="mdi mdi-file-document-edit-outline"></i> Lab Acceptance (GCLA/F/03)
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="sample-receipt-notification-tab" data-toggle="tab" href="#sample-receipt-notification" role="tab" aria-controls="sample-receipt-notification" aria-selected="false">
+                <i class="mdi mdi-file-document-outline"></i> Sample Receipt Notification (GCLA 01)
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" id="notes-tab" data-toggle="tab" href="#notes" role="tab" aria-controls="notes" aria-selected="false">
                 <i class="mdi mdi-comment-text-outline"></i> Notes 
                 <span class="badge">{{ $batch->comments?->count() ?? 0 }}</span>
@@ -85,6 +95,16 @@
         {{-- Samples Tab --}}
         <div class="tab-pane fade show active" id="samples" role="tabpanel" aria-labelledby="samples-tab">
             @livewire('batch.tabs.samples', ['batch' => $batch], 'samples-tab-'.$batch->id)
+        </div>
+
+        {{-- Laboratory Analysis Acceptance Tab --}}
+        <div class="tab-pane fade" id="laboratory-acceptance" role="tabpanel" aria-labelledby="laboratory-acceptance-tab">
+            @livewire('batch.tabs.laboratory-analysis-acceptance', ['batch' => $batch], 'laboratory-acceptance-tab-'.$batch->id)
+        </div>
+
+        {{-- Sample Receipt Notification Tab --}}
+        <div class="tab-pane fade" id="sample-receipt-notification" role="tabpanel" aria-labelledby="sample-receipt-notification-tab">
+            @livewire('batch.tabs.sample-receipt-notification', ['batch' => $batch], 'sample-receipt-notification-tab-'.$batch->id)
         </div>
 
         {{-- Notes Tab --}}
