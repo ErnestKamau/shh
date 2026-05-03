@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Services\Auth\LegacyPermissionSyncService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\MailController as Mailers;
 use App\Http\Controllers\Controller;
@@ -41,12 +42,16 @@ class LoginController extends Controller
 			$this->middleware('guest')->except('logout');
     }
     public function authenticated(Request $request, $user){
+<<<<<<< HEAD
 			// Strict 2FA: if user has authenticator enabled, require TOTP instead of email OTP.
 			if ($user->two_factor_confirmed_at) {
 				$user->resetTwoFactor();
 				Session::put('totp_required', true);
 				return;
 			}
+=======
+      app(LegacyPermissionSyncService::class)->syncUser($user);
+>>>>>>> 17ef84d8a (form generator)
 
 			$user->generateTwoFactorCode();
             $app_name = env('APP_NAME', 'FIVET LIMS');

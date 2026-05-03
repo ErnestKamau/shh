@@ -6077,9 +6077,18 @@ class SampleWorkFlowController extends Controller
     public function getAvailableSubmissionForms()
     {
         try {
+            $contextRoute = request()->get('context_route');
+
             $forms = \App\Models\SubmissionForm::with(['creator', 'sections'])
                 ->where('is_published', true)
                 ->where('is_active', true)
+                ->when($contextRoute, function ($query) use ($contextRoute) {
+                    $query->where(function ($placementQuery) use ($contextRoute) {
+                        $placementQuery->whereNull('target_pages')
+                            ->orWhereJsonLength('target_pages', 0)
+                            ->orWhereJsonContains('target_pages', $contextRoute);
+                    });
+                })
                 ->withCount(['sections', 'instances'])
                 ->orderBy('name')
                 ->get()
@@ -6114,7 +6123,8 @@ class SampleWorkFlowController extends Controller
     {
         try {
             $request->validate([
-                'submission_form_id' => 'required|exists:submission_forms,id'
+                'submission_form_id' => 'required|exists:submission_forms,id',
+                'context_route' => 'nullable|string|max:255'
             ]);
 
             $submissionForm = \App\Models\SubmissionForm::findOrFail($request->submission_form_id);
@@ -6125,6 +6135,15 @@ class SampleWorkFlowController extends Controller
                     'success' => false,
                     'message' => 'Selected form is not available for submission'
                 ], 400);
+            }
+
+            $contextRoute = $request->get('context_route');
+            $targetPages = $submissionForm->target_pages ?? [];
+            if (!empty($targetPages) && $contextRoute && !in_array($contextRoute, $targetPages, true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected form is not configured for this page.'
+                ], 403);
             }
 
             // Create form instance

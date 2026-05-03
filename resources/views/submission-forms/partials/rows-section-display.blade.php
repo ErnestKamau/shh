@@ -1,4 +1,7 @@
 @if($section->elementHolders->count() > 0)
+    <div class="mb-3 {{ $section->getAlignmentClass() }}">
+        @include('submission-forms.partials.section-logos', ['section' => $section])
+    </div>
     @foreach($section->elementHolders as $holder)
         @if($holder->elements->count() > 0)
             <div class="rows-section-display">

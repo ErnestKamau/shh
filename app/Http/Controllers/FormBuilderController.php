@@ -42,6 +42,11 @@ class FormBuilderController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'section_type' => 'required|in:regular,rows_section',
+            'section_alignment' => 'required|in:left,middle,right',
+            'section_logos' => 'nullable|array',
+            'section_logos.*' => 'file|image|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+            'section_logo_positions' => 'nullable|array',
+            'section_logo_positions.*' => 'nullable|in:left,middle,right',
         ]);
 
         try {
@@ -49,6 +54,8 @@ class FormBuilderController extends Controller
                 'title' => $validated['title'],
                 'description' => $validated['description'],
                 'section_type' => $validated['section_type'],
+                'section_alignment' => $validated['section_alignment'],
+                'section_logos' => $this->storeSectionLogos($request, 'section_logos', 'section_logo_positions'),
                 'sort_order' => SubmissionFormSection::getNextSortOrder($submissionForm->id)
             ]);
 
@@ -78,11 +85,42 @@ class FormBuilderController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'section_type' => 'required|in:regular,rows_section',
+            'section_alignment' => 'required|in:left,middle,right',
+            'existing_section_logos' => 'nullable|array',
+            'existing_section_logos.*' => 'string|max:255',
+            'existing_section_logo_positions' => 'nullable|array',
+            'existing_section_logo_positions.*' => 'nullable|in:left,middle,right',
+            'section_logos' => 'nullable|array',
+            'section_logos.*' => 'file|image|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+            'section_logo_positions' => 'nullable|array',
+            'section_logo_positions.*' => 'nullable|in:left,middle,right',
             'sort_order' => 'nullable|integer|min:0'
         ]);
 
         try {
-            $section->update($validated);
+            $existingLogoPaths = array_values(array_filter($validated['existing_section_logos'] ?? [], function ($path) {
+                return is_string($path) && trim($path) !== '';
+            }));
+
+            $existingLogoPositions = $validated['existing_section_logo_positions'] ?? [];
+            $existingLogos = [];
+            foreach ($existingLogoPaths as $index => $path) {
+                $existingLogos[] = [
+                    'path' => $path,
+                    'position' => $existingLogoPositions[$index] ?? 'left',
+                ];
+            }
+
+            $newLogos = $this->storeSectionLogos($request, 'section_logos', 'section_logo_positions');
+
+            $section->update([
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'section_type' => $validated['section_type'],
+                'section_alignment' => $validated['section_alignment'],
+                'sort_order' => $validated['sort_order'] ?? $section->sort_order,
+                'section_logos' => array_values(array_merge($existingLogos, $newLogos)),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -95,6 +133,39 @@ class FormBuilderController extends Controller
                 'message' => 'Failed to update section: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Persist uploaded section logos and return their storage paths.
+     *
+     * @return array<int, string>
+     */
+    private function storeSectionLogos(Request $request, string $fileKey, string $positionKey): array
+    {
+        if (!$request->hasFile($fileKey)) {
+            return [];
+        }
+
+        $uploadedFiles = $request->file($fileKey);
+        if (!is_array($uploadedFiles)) {
+            $uploadedFiles = [$uploadedFiles];
+        }
+
+        $positions = $request->input($positionKey, []);
+        $storedPaths = [];
+
+        foreach ($uploadedFiles as $index => $logo) {
+            if (!$logo) {
+                continue;
+            }
+
+            $storedPaths[] = [
+                'path' => $logo->store('submission-form-sections/logos', 'public'),
+                'position' => $positions[$index] ?? 'left',
+            ];
+        }
+
+        return $storedPaths;
     }
 
     /**

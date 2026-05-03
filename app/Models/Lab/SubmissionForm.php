@@ -25,13 +25,25 @@ class SubmissionForm extends Model implements Auditable
         'naming_convention_format', 
         'is_published', 
         'is_active', 
+        'is_customer_portal_form',
         'version', 
-        'created_by'
+        'created_by',
+        'target_pages',
+        'lims_destination_pages',
+        'placement_mode',
+        'display_mode',
+        'placement_slot',
+        'trigger_button_ids',
     ];
 
     protected $casts = [
-        'is_published' => 'boolean',
-        'is_active' => 'boolean'
+        'is_published'       => 'boolean',
+        'is_active'          => 'boolean',
+        'is_customer_portal_form' => 'boolean',
+        'target_pages'       => 'array',
+        'lims_destination_pages' => 'array',
+        'placement_slot'     => 'array',
+        'trigger_button_ids' => 'array',
     ];
 
     /**

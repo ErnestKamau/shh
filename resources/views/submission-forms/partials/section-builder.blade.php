@@ -55,7 +55,13 @@ if (!function_exists('getElementIcon')) {
 }
 @endphp
 
-<div class="section-item" data-section-id="{{ $section->id }}">
+<div class="section-item"
+    data-section-id="{{ $section->id }}"
+    data-section-title="{{ $section->title }}"
+    data-section-description="{{ $section->description ?? '' }}"
+    data-section-type="{{ $section->section_type ?? 'regular' }}"
+    data-section-alignment="{{ $section->section_alignment ?? 'left' }}"
+    data-section-logos='@json($section->getSectionLogos())'>
     <div class="section-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
             <i class="mdi mdi-drag-horizontal text-muted mr-2" style="cursor: move;"></i>
@@ -64,6 +70,12 @@ if (!function_exists('getElementIcon')) {
                 {{ $section->title }}
                 @if($section->isRowsSection())
                     <span class="badge badge-info badge-sm ml-2">Rows Section</span>
+                @endif
+                <span class="badge badge-light badge-sm ml-2">{{ ucfirst($section->section_alignment ?? 'left') }}</span>
+                @if(count($section->getSectionLogos()) > 0)
+                    <span class="badge badge-outline-primary badge-sm ml-2">
+                        <i class="mdi mdi-image-multiple"></i> {{ count($section->getSectionLogos()) }} logo(s)
+                    </span>
                 @endif
             </h6>
             @if($section->description)

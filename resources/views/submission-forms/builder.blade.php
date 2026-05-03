@@ -237,7 +237,7 @@
           </button>
         </div>
         <div class="modal-body">
-          <form id="section-form">
+          <form id="section-form" enctype="multipart/form-data">
             <input type="hidden" id="section-id" name="section_id">
             <div class="form-group">
               <label for="section-title" class="required">Section Title</label>
@@ -256,6 +256,24 @@
             <div class="form-group">
               <label for="section-description">Description</label>
               <textarea class="form-control" id="section-description" name="description" rows="3" maxlength="1000"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="section-alignment" class="required">Section Position</label>
+              <select class="form-control" id="section-alignment" name="section_alignment" required>
+                <option value="left">Left</option>
+                <option value="middle">Middle</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="section-logos">Section Logos</label>
+              <input type="file" class="form-control-file" id="section-logos" name="section_logos[]" accept="image/*" multiple>
+              <small class="form-text text-muted">
+                Upload one or more logos to display in this section. Use Ctrl/Cmd to select multiple files.
+              </small>
+              <div id="new-section-logos" class="mt-2"></div>
+              <div id="existing-section-logos" class="mt-2"></div>
+              <div id="existing-section-logos-inputs"></div>
             </div>
           </form>
         </div>
@@ -587,6 +605,11 @@ const FormBuilder = {
             e.preventDefault();
             this.saveFormChanges();
         });
+
+        // Section logos selection
+        $('#section-logos').on('change', (e) => {
+          this.renderNewSectionLogos(e.target.files || []);
+        });
         
         // Holder selection
         $(document).on('click', '.holder-item', function(e) {
@@ -696,12 +719,18 @@ const FormBuilder = {
             $('#section-title').val(section.title);
             $('#section-description').val(section.description);
             $('#section-type').val(section.section_type || 'regular');
+          $('#section-alignment').val(section.section_alignment || 'left');
+          this.renderSectionLogoPreview(section.section_logos || []);
+          this.renderNewSectionLogos([]);
             $('#section-modal .modal-title').text('Edit Section');
         } else {
             // Add new section
             $('#section-form')[0].reset();
             $('#section-id').val('');
             $('#section-type').val('regular');
+          $('#section-alignment').val('left');
+          this.renderSectionLogoPreview([]);
+          this.renderNewSectionLogos([]);
             $('#section-modal .modal-title').text('Add Section');
         }
         
@@ -715,13 +744,13 @@ const FormBuilder = {
         const sectionId = $('#section-id').val();
         const isEdit = sectionId !== '';
         
-        const data = {
-            title: $('#section-title').val(),
-            description: $('#section-description').val(),
-            section_type: $('#section-type').val()
-        };
-        
-        console.log('Form data:', data);
+        const formData = new FormData(document.getElementById('section-form'));
+        formData.set('title', $('#section-title').val());
+        formData.set('description', $('#section-description').val());
+        formData.set('section_type', $('#section-type').val());
+        formData.set('section_alignment', $('#section-alignment').val() || 'left');
+
+        console.log('Form data prepared for section save');
         
         const url = isEdit 
             ? `/submission-forms/sections/${sectionId}`
@@ -736,13 +765,15 @@ const FormBuilder = {
         $.ajax({
             url: url,
             method: 'POST', // Always use POST for Laravel
-            data: {
-                ...data,
-                _method: isEdit ? 'PUT' : 'POST' // Laravel method spoofing
-            },
+          data: formData,
+          processData: false,
+          contentType: false,
             headers: {
                 'X-CSRF-TOKEN': this.csrfToken
             },
+          beforeSend: () => {
+            formData.set('_method', isEdit ? 'PUT' : 'POST');
+          },
             success: (response) => {
                 console.log('Success response:', response);
                 this.hideLoading();
@@ -1464,16 +1495,111 @@ const FormBuilder = {
         // Get section data from the DOM
         const sectionElement = $(`.section-item[data-section-id="${sectionId}"]`);
         if (sectionElement.length === 0) {
-            return { title: '', description: '' };
+        return { title: '', description: '', section_type: 'regular', section_alignment: 'left', section_logos: [] };
         }
-        
-        const title = sectionElement.find('.section-header h6').text().trim();
-        const description = sectionElement.find('.section-header small').text().trim();
-        
+
+      let logos = [];
+      const logosJson = sectionElement.attr('data-section-logos') || '[]';
+      try {
+        logos = JSON.parse(logosJson);
+      } catch (e) {
+        logos = [];
+      }
+
         return { 
-            title: title.replace(/^.*?\s/, ''), // Remove icon and get just the title
-            description: description 
+        title: sectionElement.attr('data-section-title') || '',
+        description: sectionElement.attr('data-section-description') || '',
+        section_type: sectionElement.attr('data-section-type') || 'regular',
+        section_alignment: sectionElement.attr('data-section-alignment') || 'left',
+        section_logos: logos
         };
+    },
+
+    renderSectionLogoPreview(logos) {
+      const preview = $('#existing-section-logos');
+      const inputs = $('#existing-section-logos-inputs');
+
+      preview.empty();
+      inputs.empty();
+
+      if (!Array.isArray(logos) || logos.length === 0) {
+        preview.append('<small class="text-muted">No existing logos.</small>');
+        return;
+      }
+
+      const container = $('<div class="d-flex flex-wrap"></div>');
+
+      logos.forEach((path, index) => {
+        const logoPath = typeof path === 'string' ? path : (path.path || '');
+        const logoPosition = typeof path === 'object' && path ? (path.position || 'left') : 'left';
+
+        if (!logoPath) {
+          return;
+        }
+
+        const item = $(
+          `<div class="border rounded p-2 mr-2 mb-2 text-center" data-logo-index="${index}">
+            <img src="/storage/${logoPath}" alt="Section logo" style="width: 56px; height: 56px; object-fit: contain; display: block; margin: 0 auto 6px auto;">
+            <select class="form-control form-control-sm mb-2 existing-logo-position" data-logo-index="${index}">
+              <option value="left" ${logoPosition === 'left' ? 'selected' : ''}>Left</option>
+              <option value="middle" ${logoPosition === 'middle' ? 'selected' : ''}>Middle</option>
+              <option value="right" ${logoPosition === 'right' ? 'selected' : ''}>Right</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-section-logo" data-logo-index="${index}">
+              Remove
+            </button>
+          </div>`
+        );
+        container.append(item);
+        inputs.append(`<input type="hidden" name="existing_section_logos[]" value="${logoPath}" data-logo-index="${index}">`);
+        inputs.append(`<input type="hidden" name="existing_section_logo_positions[]" value="${logoPosition}" data-logo-index="${index}" data-position-input="1">`);
+      });
+
+      preview.append(container);
+
+      preview.find('.remove-section-logo').off('click').on('click', function() {
+        const logoIndex = $(this).attr('data-logo-index');
+        preview.find(`[data-logo-index="${logoIndex}"]`).remove();
+        inputs.find(`input[data-logo-index="${logoIndex}"]`).remove();
+
+        if (preview.find('.remove-section-logo').length === 0) {
+          preview.html('<small class="text-muted">No existing logos.</small>');
+        }
+      });
+
+      preview.find('.existing-logo-position').off('change').on('change', function() {
+        const logoIndex = $(this).attr('data-logo-index');
+        const newPosition = $(this).val();
+        inputs.find(`input[data-logo-index="${logoIndex}"][data-position-input="1"]`).val(newPosition);
+      });
+    },
+
+    renderNewSectionLogos(files) {
+      const container = $('#new-section-logos');
+      container.empty();
+
+      if (!files || files.length === 0) {
+        return;
+      }
+
+      const wrapper = $('<div class="border rounded p-2"></div>');
+      wrapper.append('<small class="text-muted d-block mb-2">New logo positions</small>');
+
+      Array.from(files).forEach((file, index) => {
+        const row = $(
+          `<div class="d-flex align-items-center mb-2">
+            <span class="small text-truncate mr-2" style="max-width: 220px;">${file.name}</span>
+            <select class="form-control form-control-sm" name="section_logo_positions[]" style="max-width: 130px;">
+              <option value="left">Left</option>
+              <option value="middle">Middle</option>
+              <option value="right">Right</option>
+            </select>
+          </div>`
+        );
+        wrapper.append(row);
+      });
+
+      container.append(wrapper);
     },
     
     findHolderById(holderId) {

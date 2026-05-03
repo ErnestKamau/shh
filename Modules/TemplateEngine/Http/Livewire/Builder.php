@@ -1564,4 +1564,3 @@ class Builder extends Component
     {
         $this->fieldData['meta']['rows'][$rowIndex]['cells'][$cellIndex][$key] = $value;
     }
-}

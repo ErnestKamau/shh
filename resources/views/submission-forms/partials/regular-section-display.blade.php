@@ -1,4 +1,7 @@
 @if($section->elementHolders->count() > 0)
+    <div class="mb-3 {{ $section->getAlignmentClass() }}">
+        @include('submission-forms.partials.section-logos', ['section' => $section])
+    </div>
     <div class="row">
         @foreach($section->elementHolders as $holder)
             <div class="col-md-{{ $holder->max_elements > 1 ? '12' : '6' }} mb-3">

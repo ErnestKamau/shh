@@ -1,12 +1,19 @@
-@if($use_lab_layout)
+@php
+    $isInline = (bool) ($inline ?? false);
+    $useLabLayout = (bool) ($use_lab_layout ?? false);
+@endphp
+@if($isInline)
+  @extends('layouts.bare')
+@elseif($useLabLayout)
   @extends('layouts.lab.layout.app', ['select2'=>true])
 @else
   @extends('layouts.sample-submissions', ['select2' => true])
 @endif
 
-@section(isset($use_lab_layout) ? 'title2' : 'title')
+@if(!$isInline)
+@section($useLabLayout ? 'title2' : 'title')
   <title>Fill Form - {{ $submissionForm->name }}</title>
-  @if(isset($use_lab_layout))
+    @if($useLabLayout)
     <style>
         main{
             margin-top: 0px !important;
@@ -19,8 +26,10 @@
     </style>
   @endif
 @endsection
+@endif
 
-@section(isset($use_lab_layout) ? 'content2' : 'content')
+@section($isInline ? 'content' : ($useLabLayout ? 'content2' : 'content'))
+    @if(!$isInline)
     <?php
       $items = array(
         array(
@@ -67,6 +76,7 @@
         </div>
       </div>
     </div>
+    @endif
 
     <div class="bg-light p-4">
       <div class="row justify-content-center">
@@ -108,11 +118,12 @@
                         'allowedSampleTypeIds' => $allowedSampleTypeIds ?? null
                       ])
                     @else
-                      <div class="form-section mb-4">
-                        <div class="section-header mb-3">
+                                            <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
+                                                <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
                           <h5 class="text-primary border-bottom pb-2">
                             <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
                           </h5>
+                                                    @include('submission-forms.partials.section-logos', ['section' => $section])
                           @if($section->description)
                             <p class="text-muted small mb-0">{{ $section->description }}</p>
                           @endif
@@ -240,8 +251,6 @@
         </div>
       </div>
     </div>
-
-@include('submission-forms.partials.add-entity-modals')
 
 <style>
     /* Prevent horizontal overflow */

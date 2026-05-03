@@ -77,7 +77,7 @@
     );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    
+    <div data-sf-slot="after_breadcrumb"></div>
     <div class="p-4">
         <!-- HEADER -->
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -149,6 +149,7 @@
             </div>
         </div>
 
+        <div data-sf-slot="after_stats_row"></div>
         <!-- GEOGRAPHY & LAB SECTIONS -->
         <div class="row mb-4">
             <!-- Geographic Pulse Map -->

@@ -1,26 +1,36 @@
-@extends('layouts.lab.layout.app', ['select2'=>true])
+@if($use_lab_layout)
+  @extends('layouts.lab.layout.app', ['select2'=>true])
+@else
+  @extends('layouts.sample-submissions', ['select2' => true])
+@endif
 
-@section('title2')
+@section(isset($use_lab_layout) ? 'title2' : 'title')
   <title>Fill Form - {{ $submissionForm->name }}</title>
+  @if(isset($use_lab_layout))
+    <style>
+        main{
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+        #main-container-body{
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+    </style>
+  @endif
 @endsection
 
-@section('content2')
-  <main>
+@section(isset($use_lab_layout) ? 'content2' : 'content')
     <?php
       $items = array(
         array(
-          'link' => route('lab-home'),
-          'name' => 'Lab Management',
+          'link' => route('home'),
+          'name' => 'Home',
           'icon' => null
         ),
         array(
-          'link' => route('submission-forms.index'),
-          'name' => 'Submission Forms',
-          'icon' => null
-        ),
-        array(
-          'link' => route('submission-forms.instances.index'),
-          'name' => 'My Submissions',
+          'link' => route('sample-submissions'),
+          'name' => 'Sample Submissions',
           'icon' => null
         ),
         array(
@@ -32,24 +42,29 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     
-    <div class="d-flex justify-content-between align-items-center p-4">
-      <div>
-        <h2>
+    <div class="p-3 p-md-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 h-md-2 mb-0">
           <i class="mdi mdi-file-document-edit"></i> Fill Form
-          <small class="text-muted">{{ $submissionForm->name }}</small>
+          <small class="d-block d-md-inline text-muted mt-1 mt-md-0">{{ $submissionForm->name }}</small>
         </h2>
-        <div class="alert alert-info mt-2 mb-0">
+        <a href="{{ route('sample-submissions') }}" class="btn btn-outline-secondary">
+          <i class="mdi mdi-arrow-left"></i> 
+          <span class="d-none d-sm-inline">Back to Sample Submissions</span>
+          <span class="d-inline d-sm-none">Back</span>
+        </a>
+      </div>
+      
+      <div class="w-100">
+        
+        <div class="alert alert-info mb-0 p-2 p-md-3">
           <i class="mdi mdi-information-outline"></i>
-          <strong>Form Instance:</strong> {{ $instance->form_number }} - {{ $instance->title }}
-          <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-2">
+          <strong>Form Instance:</strong> 
+          <span class="d-block d-sm-inline">{{ $instance->form_number ?? 'New Submission' }} - {{ $instance->title }}</span>
+          <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-0 ml-sm-2 mt-1 mt-sm-0">
             {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
           </span>
         </div>
-      </div>
-      <div>
-        <a href="{{ route('submission-forms.instances.index') }}" class="btn btn-outline-secondary">
-          <i class="mdi mdi-arrow-left"></i> Back to My Submissions
-        </a>
       </div>
     </div>
 
@@ -66,7 +81,7 @@
                   @endif
                 </div>
                 <div class="text-right">
-                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number }}</strong></small>
+                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number ?? 'Pending' }}</strong></small>
                 </div>
               </div>
             </div>
@@ -88,14 +103,16 @@
                   </div>
                   @foreach($submissionForm->sections as $section)
                     @if($section->isRowsSection())
-                      @include('submission-forms.partials.rows-section', ['section' => $section])
+                      @include('submission-forms.partials.rows-section', [
+                        'section' => $section, 
+                        'allowedSampleTypeIds' => $allowedSampleTypeIds ?? null
+                      ])
                     @else
-                                            <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
-                                                <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
+                      <div class="form-section mb-4">
+                        <div class="section-header mb-3">
                           <h5 class="text-primary border-bottom pb-2">
                             <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
                           </h5>
-                                                    @include('submission-forms.partials.section-logos', ['section' => $section])
                           @if($section->description)
                             <p class="text-muted small mb-0">{{ $section->description }}</p>
                           @endif
@@ -133,9 +150,9 @@
                   <div class="form-actions mt-4 pt-3 border-top">
                     <div class="row">
                       <div class="col-md-6">
-                        <!--<button type="button" class="btn btn-outline-secondary" id="save-draft-btn">
+                        <button type="button" class="btn btn-outline-secondary" id="save-draft-btn">
                           <i class="mdi mdi-content-save-outline"></i> Save as Draft
-                        </button>-->
+                        </button>
                       </div>
                       <div class="col-md-6 text-right">
                         <button type="button" class="btn btn-outline-danger mr-2" id="clear-form-btn">
@@ -148,19 +165,24 @@
                     </div>
                   </div>
                 </form>
+                
+                {{-- Modals (rendered outside form to avoid nested forms) --}}
+                @include('submission-forms.partials.add-entity-modals')
               @else
                 <div class="text-center py-5">
                   <i class="mdi mdi-file-outline" style="font-size: 4rem; color: #ccc;"></i>
                   <h5 class="text-muted mt-3">No Form Content</h5>
                   <p class="text-muted">This form doesn't have any sections or elements yet.</p>
-                  <a href="{{ route('submission-forms.instances.index') }}" class="btn btn-primary mt-2">
-                    <i class="mdi mdi-arrow-left"></i> Back to My Submissions
+                  <a href="{{ route('sample-submissions') }}" class="btn btn-primary mt-2">
+                    <i class="mdi mdi-arrow-left"></i> Back to Sample Submissions
                   </a>
                 </div>
               @endif
             </div>
           </div>
           
+         
+
           @if($submissionForm->sections->count() > 0)
             <!-- Form Validation Summary -->
             <div class="card mt-3" id="validation-summary" style="display: none;">
@@ -175,7 +197,7 @@
             </div>
             
             <!-- Form Data Preview -->
-            <div class="card mt-3">
+            <div class="card mt-3 hidden">
               <div class="card-header">
                 <h6 class="mb-0">
                   <i class="mdi mdi-code-json"></i> Form Data Preview
@@ -190,7 +212,6 @@
         </div>
       </div>
     </div>
-</div>
 
 <!-- Submit Confirmation Modal -->
 <div class="modal fade" id="submitModal" tabindex="-1" role="dialog">
@@ -219,12 +240,9 @@
         </div>
       </div>
     </div>
-  </main>
 
 @include('submission-forms.partials.add-entity-modals')
-@endsection
 
-@push('styles')
 <style>
     /* Prevent horizontal overflow */
     body {
@@ -470,24 +488,63 @@
         max-height: 300px;
         overflow-y: auto;
     }
-</style>
-@endpush
 
-@section('script2')
+    /* User Signature Styling */
+    .user-signature-container {
+        margin-bottom: 1rem;
+    }
+
+    .signature-preview-wrapper {
+        position: relative;
+        width: 100%;
+        min-height: 120px;
+    }
+
+    .signature-preview {
+        max-height: 120px;
+        max-width: 100%;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 8px;
+        background-color: #f8f9fa;
+        object-fit: contain;
+    }
+
+    .signature-placeholder {
+        padding: 20px;
+        text-align: center;
+        border: 1px dashed #dee2e6;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .signature-placeholder i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 8px;
+        color: #6c757d;
+    }
+
+    .signature-placeholder small {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+</style>
 <!-- Custom Elements Initialization Script -->
+
 <script>
     // Emit required field specs derived from the form configuration
     $(()=>{
-
         window.requiredFieldSpecs = window.requiredFieldSpecs || [];
-        console.log('[DEBUG] Sections being rendered:', {{ $submissionForm->sections->count() }});
         @foreach($submissionForm->sections as $section)
-          console.log('[DEBUG] Rendering section {{ $section->id }}: {{ addslashes($section->title) }} ({{ $section->section_type }})');
           @php $inRows = $section->isRowsSection(); @endphp
           @foreach($section->elementHolders as $holder)
-            console.log('[DEBUG]   - Holder {{ $holder->id }} ({{ $holder->holder_type }}): {{ $holder->elements->count() }} elements');
             @foreach($holder->elements as $element)
-              console.log('[DEBUG]     - Element: {{ $element->name }} ({{ $element->element_type }}), required: {{ $element->is_required ? "yes" : "no" }}');
               @if($element->is_required)
                 window.requiredFieldSpecs.push({
                   name: '{{ $element->name }}',
@@ -498,8 +555,291 @@
             @endforeach
           @endforeach
         @endforeach
-        console.log('[DEBUG] Total sections processed:', {{ $submissionForm->sections->count() }});
     })
+</script>
+<script>
+// Define loadDynamicOptions globally FIRST so rows-section can use it
+(function() {
+    // Wait for jQuery before defining the function
+    function initLoadDynamicOptions() {
+        if (typeof $ === 'undefined') {
+            setTimeout(initLoadDynamicOptions, 50);
+            return;
+        }
+        
+        // Make loadDynamicOptions globally accessible for rows-section and other scripts
+        window.loadDynamicOptions = function($this, elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
+            const select = $this;
+            const originalHtml = select.html();
+            
+            // Only log for client_select
+            if (elementType === 'client_select') {
+                console.log('[CLIENT_SELECT] loadDynamicOptions called for:', elementId);
+            }
+            
+            // Use Select2 AJAX for client_select to handle large datasets (20k+ records)
+            if (elementType === 'client_select' && !select.data('select2-ajax-initialized')) {
+                console.log('[CLIENT_SELECT] Initializing Select2 AJAX for:', elementId);
+                
+                const savedValue = select.attr('data-saved-value');
+                if (savedValue) {
+                    console.log('[CLIENT_SELECT] Saved value found:', savedValue);
+                }
+                
+                // Destroy existing Select2 if it exists
+                if (select.data('select2')) {
+                    console.log('[CLIENT_SELECT] Destroying existing Select2');
+                    select.select2('destroy');
+                }
+                
+                const ajaxUrl = '{{ auth()->check() ? route("submission-forms.dynamic-options") : route("forms.dynamic-options") }}';
+                console.log('[CLIENT_SELECT] AJAX URL:', ajaxUrl);
+                
+                // Initialize Select2 with AJAX
+                try {
+                    select.select2({
+                    ajax: {
+                        url: ajaxUrl,
+                        dataType: 'json',
+                        delay: 250,  // Debounce typing for 250ms
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        data: function (params) {
+                            console.log('[CLIENT_SELECT] AJAX data function called with params:', params);
+                            const requestData = {
+                                element_type: 'client_select',
+                                search: params.term || '',
+                                page: params.page || 1,
+                                per_page: 100
+                            };
+                            console.log('[CLIENT_SELECT] Sending request:', requestData);
+                            return requestData;
+                        },
+                        processResults: function (data, params) {
+                            params.page = params.page || 1;
+                            
+                            console.log('[CLIENT_SELECT] AJAX Response:', data);
+                            
+                            // Handle both response formats (with/without 'success' wrapper)
+                            const options = data.options || (data.success ? data.options : []);
+                            
+                            // Map options to Select2 format
+                            const results = (options || []).map(function(option) {
+                                return {
+                                    id: option.value || option.id,
+                                    text: option.label || option.text || option.name
+                                };
+                            });
+                            
+                            console.log('[CLIENT_SELECT] Mapped ' + results.length + ' results, Has more:', data.pagination && data.pagination.has_more);
+                            
+                            return {
+                                results: results,
+                                pagination: {
+                                    more: data.pagination && data.pagination.has_more
+                                }
+                            };
+                        },
+                        cache: true,
+                        error: function(xhr, status, error) {
+                            console.error('[CLIENT_SELECT] AJAX Error:', {
+                                status: status,
+                                error: error,
+                                response: xhr.responseText
+                            });
+                        }
+                    },
+                    placeholder: 'Select a client...',
+                    allowClear: true,
+                    minimumInputLength: 0,
+                    width: '100%',
+                    language: {
+                        inputTooShort: function() {
+                            return 'Start typing to search clients...';
+                        },
+                        searching: function() {
+                            return 'Searching...';
+                        },
+                        noResults: function() {
+                            return 'No clients found';
+                        }
+                    }
+                });
+                console.log('[CLIENT_SELECT] Select2 AJAX initialized successfully for:', elementId);
+                
+                // Verify Select2 is configured with AJAX
+                const select2Data = select.data('select2');
+                if (select2Data) {
+                    console.log('[CLIENT_SELECT] Select2 options:', select2Data.options);
+                    console.log('[CLIENT_SELECT] Has AJAX config?', select2Data.options.ajax !== undefined);
+                } else {
+                    console.error('[CLIENT_SELECT] Select2 data not found after initialization!');
+                }
+                } catch (error) {
+                    console.error('[CLIENT_SELECT] Error initializing Select2:', error);
+                    console.error('[CLIENT_SELECT] Error details:', error.message, error.stack);
+                }
+                
+                // Handle saved values - fetch the specific client by ID
+                if (savedValue) {
+                    console.log('[CLIENT_SELECT] Loading saved client ID:', savedValue);
+                    $.ajax({
+                        url: '/api/clients/' + savedValue,
+                        dataType: 'json',
+                        success: function(client) {
+                            console.log('[CLIENT_SELECT] Loaded saved client:', client);
+                            const option = new Option(client.name, client.id, true, true);
+                            select.append(option).trigger('change');
+                        },
+                        error: function(xhr) {
+                            console.error('[CLIENT_SELECT] Failed to load saved client:', savedValue, xhr.status);
+                            select.val(savedValue).trigger('change');
+                        }
+                    });
+                }
+                
+                // Mark as initialized to prevent re-initialization
+                select.data('select2-ajax-initialized', true);
+                
+                // Add event listeners to debug Select2 behavior
+                select.on('select2:opening', function() {
+                    console.log('[CLIENT_SELECT] Select2 dropdown opening for:', elementId);
+                });
+                
+                select.on('select2:open', function() {
+                    console.log('[CLIENT_SELECT] Select2 dropdown opened');
+                });
+                
+                select.on('select2:selecting', function(e) {
+                    console.log('[CLIENT_SELECT] Selecting:', e.params.args.data);
+                });
+                
+                // Trigger change handler if this is a regular field to update dependent fields
+                select.trigger('change.custom-elements');
+                
+                return; // Exit early - Select2 handles everything from here
+            }
+            
+            // Show loading state for non-Select2 fields
+            select.html('<option value="">Loading...</option>').prop('disabled', true);
+            
+            // Make AJAX request
+            const ajaxUrl = '{{ auth()->check() ? route("submission-forms.dynamic-options") : route("forms.dynamic-options") }}';
+            const ajaxData = {
+                element_type: elementType,
+                client_id: clientId,
+                sample_type_id: sampleTypeId,
+                store_id: storeId,
+                client_unit_id: clientUnitId,
+                analysis_type_id: analysisTypeId,
+                submission_form_id: '{{ $submissionForm->id }}'
+            };
+            
+            $.ajax({
+                url: ajaxUrl,
+                method: 'GET',
+                data: ajaxData,
+                success: function(response) {
+                    
+                    let html = '';
+                    
+                    // Add placeholder option (always add for dependent elements)
+                    if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'client_submission_officers_select' || elementType === 'sample_point_select' || elementType === 'analysis_type_select') {
+                        html += '<option value="">Select...</option>';
+                    } else {
+                        // For non-dependent elements, check if required
+                        const elementData = window.customElementsToInit && window.customElementsToInit.find(e => e.elementId === elementId);
+                        if (!elementData || !elementData.isRequired) {
+                            const placeholder = elementData ? elementData.placeholder : 'Select...';
+                            html += '<option value="">' + placeholder + '</option>';
+                        }
+                    }
+                    
+                    // Add options from response
+                    if (response.options && response.options.length > 0) {
+                        response.options.forEach(function(option) {
+                            html += '<option value="' + option.value + '">' + option.label + '</option>';
+                        });
+                    } else {
+                        if (html === '') {
+                            html += '<option value="">No options available</option>';
+                        }
+                    }
+                    
+                    select.html(html).prop('disabled', false);
+                    
+                    // Handle saved values for both single and multiple selects
+                    const savedValue = select.attr('data-saved-value');
+                    const defaultUserId = select.attr('data-default-user-id');
+                    const valueToSet = savedValue || defaultUserId;
+                    
+                    if (valueToSet) {
+                        if (select.prop('multiple')) {
+                            // Handle multiple select saved values
+                            const savedMultipleValues = select.attr('data-saved-multiple-values');
+                            if (savedMultipleValues) {
+                                const values = savedMultipleValues.split(',').map(v => v.trim()).filter(v => v);
+                                select.val(values);
+                            }
+                        } else {
+                            // Handle single select saved values
+                            select.val(valueToSet);
+                        }
+                        
+                        // Trigger change event to update dependent elements
+                        select.trigger('change.custom-elements');
+                        
+                        // For user_select fields, trigger signature loading immediately
+                        if (elementType === 'user_select') {
+                            const fieldName = select.attr('name');
+                            // Use valueToSet directly as it's the correct value we just set
+                            const userIdToLoad = valueToSet;
+                            
+                            // Small delay to ensure DOM/Select2 is updated
+                            setTimeout(function() {
+                                // Trigger the user-signature change event (handlers should be set up by now)
+                                select.trigger('change.user-signature');
+                                
+                                // Also manually trigger signature loading for immediate feedback
+                                // This ensures signature loads even if event handlers aren't set up yet
+                                if (userIdToLoad) {
+                                    $('.user-signature-container').each(function() {
+                                        const dependsOn = $(this).data('depends-on');
+                                        if (dependsOn === fieldName) {
+                                            const signatureElementId = $(this).data('element-id');
+                                            loadUserSignature(userIdToLoad, signatureElementId);
+                                        }
+                                    });
+                                }
+                            }, 150); // Small delay to ensure value is set in DOM/Select2
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    //console.error('Error loading options for', elementType, ':', error);
+                    //console.error('Status:', status);
+                    //console.error('Response:', xhr.responseText);
+                    select.html(originalHtml).prop('disabled', false);
+                    
+                    // Show error message
+                    if (xhr.status === 403) {
+                        alert('You do not have permission to access this data.');
+                    } else if (xhr.status === 500) {
+                        //console.error('Server error loading dynamic options');
+                    } else {
+                        //console.error('Network error loading dynamic options');
+                    }
+                }
+            });
+        }; // End window.loadDynamicOptions
+        
+        console.log('[CLIENT_SELECT] loadDynamicOptions defined globally');
+    }
+    
+    initLoadDynamicOptions();
+})();
 </script>
 <script>
 // Wait for jQuery and DOM to be ready
@@ -513,14 +853,9 @@
 
     // Initialize all custom elements
     function initializeAllCustomElements() {
-        //console.log('Initializing custom elements...');
-        
         if (!window.customElementsToInit) {
-            //console.log('No custom elements to initialize');
             return;
         }
-        
-        //console.log('Found', window.customElementsToInit.length, 'custom elements to initialize');
         
         // Initialize each element
         window.customElementsToInit.forEach(function(elementData) {
@@ -533,18 +868,14 @@
         setupSampleTypeChangeHandlers();
         setupAnalysisTypeChangeHandlers();
         setupStoreChangeHandlers();
-        setupDependedFieldHandlers();
     }
 
     function initializeCustomElement(elementData) {
         const elementId = elementData.elementId;
         const elementType = elementData.elementType;
         
-        //console.log('Initializing element:', elementId, 'type:', elementType);
-        
         // Load initial options for non-dependent elements
-        if (elementType === 'client_select' || elementType === 'sample_type_select' || elementType === 'store_select' || elementType === 'standard_select' || elementType === 'sample_condition_select') {
-            //console.log('Loading initial options for:', elementType);
+        if (elementType === 'client_select' || elementType === 'sample_type_select' || elementType === 'store_select' || elementType === 'standard_select' || elementType === 'sample_condition_select' || elementType === 'user_select') {
             let $element = $('#' + elementId);
             loadDynamicOptions($element, elementId, elementType);
         }
@@ -567,21 +898,20 @@
             }
         }
         
-        // For client unit dependent elements
-        if (elementType === 'sample_point_select') {
-            //console.log('Setting up client unit dependent element:', elementType);
-            
-            // Ensure element starts empty
+        // For client unit dependent elements (sample points & company sub units)
+        if (elementType === 'sample_point_select' || elementType === 'company_sub_unit_select') {
             const placeholder = elementData.placeholder;
-            $('#' + elementId).html('<option value="">' + placeholder + '</option>');
+            const $element = $('#' + elementId);
+            $element.html('<option value="">' + placeholder + '</option>');
             
-            // Load options if client unit is already selected
+            // Load options based on current client unit (or all sub units if none selected)
             const clientUnitSelect = $('select[data-element-type="client_unit_select"]');
             const currentClientUnitId = clientUnitSelect.val();
-            //console.log('Current client unit ID:', currentClientUnitId);
             
-            if (currentClientUnitId) {
-                loadDynamicOptions($('#' + elementId), elementId, elementType, null, null, null, currentClientUnitId);
+            if (elementType === 'company_sub_unit_select') {
+                loadDynamicOptions($element, elementId, elementType, null, null, null, currentClientUnitId || null);
+            } else if (currentClientUnitId) {
+                loadDynamicOptions($element, elementId, elementType, null, null, null, currentClientUnitId);
             }
         }
         
@@ -634,7 +964,7 @@
             //console.log('Client changed to:', clientId);
             
             // Find all dependent elements (only direct dependencies)
-            const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"]');
+            const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"], select[data-element-type="client_submission_officers_select"]');
             //console.log('Found', dependentElements.length, 'client dependent elements');
             
             // Debug: Check what custom elements exist
@@ -669,10 +999,10 @@
                 });
                 
                 // Also clear elements that depend on client_unit_select
-                const clientUnitDependentElements = $(this).closest('tr').find('select[data-element-type="sample_point_select"]');
+                let clientUnitDependentElements = $(this).closest('tr').find('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
 
-                if(clientUnitDependentElements.length == 0){
-                    const clientUnitDependentElements = $('select[data-element-type="sample_point_select"]');
+                if(clientUnitDependentElements.length === 0){
+                    clientUnitDependentElements = $('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
                 }
 
                 clientUnitDependentElements.each(function() {
@@ -863,136 +1193,359 @@
         });
     }
 
-    function setupDependedFieldHandlers() {
-        $('input[data-element-type="depended_field"][data-depends-on]').each(function() {
-            const $input = $(this);
-            const dependsOnField = $input.data('depends-on');
-            const elementId = $input.data('element-id');
-            if (!dependsOnField || !elementId) return;
-            $('select[name="' + dependsOnField + '"]').on('change.depended-field', function() {
-                const sourceId = $(this).val();
-                if (!sourceId) { $input.val(''); return; }
-                $.ajax({
-                    url: '{{ route("submission-forms.instances.depended-field-value") }}',
-                    method: 'GET',
-                    data: { element_id: elementId, source_id: sourceId },
-                    success: function(response) {
-                        if (response.success) { $input.val(response.value || ''); }
-                    }
-                });
-            });
-        });
-    }
-
-    function loadDynamicOptions($this, elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
-        const select = $this;
-        const originalHtml = select.html();
-        
-        // Show loading state
-        select.html('<option value="">Loading...</option>').prop('disabled', true);
-        
-        // Make AJAX request
-        const ajaxUrl = '{{ auth()->check() ? route("submission-forms.dynamic-options") : route("forms.dynamic-options") }}';
-        const ajaxData = {
-            element_type: elementType,
-            client_id: clientId,
-            sample_type_id: sampleTypeId,
-            store_id: storeId,
-            client_unit_id: clientUnitId,
-            analysis_type_id: analysisTypeId
-        };
-        
-        // Debug log specifically for sample_point_select
-        if (elementType === 'sample_point_select') {
-            console.log('=== LOADING SAMPLE POINTS ===');
-            console.log('Element ID:', elementId);
-            console.log('Client Unit ID:', clientUnitId);
-            console.log('AJAX URL:', ajaxUrl);
-            console.log('AJAX Data:', ajaxData);
+    // User Signature Loading Functions
+    function loadUserSignature(userId, signatureElementId) {
+        if (!userId) {
+            // Clear signature if no user selected
+            clearUserSignature(signatureElementId);
+            return;
         }
-        
+
+        const signatureContainer = $('#' + signatureElementId + '_container');
+        const signatureImage = $('#' + signatureElementId + '_image');
+        const signaturePlaceholder = $('#' + signatureElementId + '_placeholder');
+        const signatureInput = $('#' + signatureElementId);
+
+        // Show loading state
+        signaturePlaceholder.html('<i class="mdi mdi-loading mdi-spin" style="font-size: 2rem;"></i><br><small>Loading signature...</small>');
+
         $.ajax({
-            url: ajaxUrl,
+            url: '{{ route("submission-forms.user-signature") }}',
             method: 'GET',
-            data: ajaxData,
+            data: { user_id: userId },
             success: function(response) {
-                // Debug log for sample_point_select response
-                if (elementType === 'sample_point_select') {
-                    console.log('=== SAMPLE POINTS RESPONSE ===');
-                    console.log('Response:', response);
-                    console.log('Options count:', response.options ? response.options.length : 0);
-                    if (response.options && response.options.length > 0) {
-                        console.log('Sample Points Data:', response.options);
-                    } else {
-                        console.warn('NO SAMPLE POINTS RETURNED!');
-                    }
-                }
-                
-                let html = '';
-                
-                // Add placeholder option (always add for dependent elements)
-                if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select' || elementType === 'analysis_type_select') {
-                    html += '<option value="">Select...</option>';
+                if (response.success && response.signature_url) {
+                    signatureImage.attr('src', response.signature_url).show();
+                    signaturePlaceholder.hide();
+                    signatureInput.val(response.signature_path);
                 } else {
-                    // For non-dependent elements, check if required
-                    const elementData = window.customElementsToInit.find(e => e.elementId === elementId);
-                    if (!elementData || !elementData.isRequired) {
-                        const placeholder = elementData ? elementData.placeholder : 'Select...';
-                        html += '<option value="">' + placeholder + '</option>';
-                    }
-                }
-                
-                // Add options from response
-                if (response.options && response.options.length > 0) {
-                    response.options.forEach(function(option) {
-                        html += '<option value="' + option.value + '">' + option.label + '</option>';
-                    });
-                } else {
-                    if (html === '') {
-                        html += '<option value="">No options available</option>';
-                    }
-                }
-                
-                select.html(html).prop('disabled', false);
-                
-                // Handle saved values for both single and multiple selects
-                const savedValue = select.attr('data-saved-value');
-                if (savedValue) {
-                    if (select.prop('multiple')) {
-                        // Handle multiple select saved values
-                        const savedMultipleValues = select.attr('data-saved-multiple-values');
-                        if (savedMultipleValues) {
-                            const values = savedMultipleValues.split(',').map(v => v.trim()).filter(v => v);
-                            select.val(values);
-                        }
-                    } else {
-                        // Handle single select saved values
-                        select.val(savedValue);
-                    }
-                    
-                    // Trigger change event to update dependent elements
-                    select.trigger('change.custom-elements');
+                    // No signature available
+                    signaturePlaceholder.html('<i class="mdi mdi-account-remove" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i><small>No signature available for this user</small>').show();
+                    signatureImage.hide();
+                    signatureInput.val('');
                 }
             },
-            error: function(xhr, status, error) {
-                //console.error('Error loading options for', elementType, ':', error);
-                //console.error('Status:', status);
-                //console.error('Response:', xhr.responseText);
-                select.html(originalHtml).prop('disabled', false);
-                
-                // Show error message
-                if (xhr.status === 403) {
-                    alert('You do not have permission to access this data.');
-                } else if (xhr.status === 500) {
-                    //console.error('Server error loading dynamic options');
-                } else {
-                    //console.error('Network error loading dynamic options');
-                }
+            error: function(xhr) {
+                console.error('Error loading user signature:', xhr);
+                signaturePlaceholder.html('<i class="mdi mdi-alert-circle" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i><small>Error loading signature</small>').show();
+                signatureImage.hide();
+                signatureInput.val('');
             }
         });
     }
 
-    // Form fill functionality
+    function clearUserSignature(signatureElementId) {
+        const signatureImage = $('#' + signatureElementId + '_image');
+        const signaturePlaceholder = $('#' + signatureElementId + '_placeholder');
+        const signatureInput = $('#' + signatureElementId);
+
+        signatureImage.hide().attr('src', '');
+        signaturePlaceholder.html('<i class="mdi mdi-account-check" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i><small>Signature will appear here when user is selected</small>').show();
+        signatureInput.val('');
+    }
+
+    function setupUserSignatureHandlers() {
+        // Set up change handlers for user_select fields that have dependent user_signature fields
+        // Handle both regular change and Select2 change events
+        $('select[data-element-type="user_select"]').on('change.user-signature select2:select.user-signature select2:unselect.user-signature', function() {
+            const userId = $(this).val();
+            const fieldName = $(this).attr('name');
+            
+            // Find all user_signature fields that depend on this field
+            $('.user-signature-container').each(function() {
+                const dependsOn = $(this).data('depends-on');
+                if (dependsOn === fieldName) {
+                    const signatureElementId = $(this).data('element-id');
+                    loadUserSignature(userId, signatureElementId);
+                }
+            });
+        });
+    }
+
+    // Contact Signature Loading Functions
+    function loadContactSignature(contactId, signatureElementId) {
+        if (!contactId) {
+            // Clear signature if no contact selected
+            clearContactSignature(signatureElementId);
+            return;
+        }
+
+        const signatureContainer = $('#' + signatureElementId + '_container');
+        const signatureImage = $('#' + signatureElementId + '_signature_image');
+        const signatureDisplay = $('#' + signatureElementId + '_signature_display');
+        const signaturePad = $('#' + signatureElementId + '_signature_pad');
+        const signaturePlaceholder = $('#' + signatureElementId + '_placeholder');
+        const signatureInput = $('#' + signatureElementId);
+        
+        // Store contact ID
+        signatureContainer.data('contact-id', contactId);
+
+        // Show loading state
+        signaturePlaceholder.html('<i class="mdi mdi-loading mdi-spin" style="font-size: 2rem;"></i><br><small>Loading signature...</small>').show();
+        signatureDisplay.hide();
+        signaturePad.hide();
+
+        $.ajax({
+            url: '{{ route("submission-forms.contact-signature") }}',
+            method: 'GET',
+            data: { contact_id: contactId },
+            success: function(response) {
+                if (response.success && response.signature_url) {
+                    // Contact has signature - display it
+                    signatureImage.attr('src', response.signature_url).show();
+                    signatureDisplay.show();
+                    signaturePlaceholder.hide();
+                    signaturePad.hide();
+                    signatureInput.val(response.signature_path);
+                } else {
+                    // No signature - show signature pad
+                    signaturePlaceholder.hide();
+                    signatureDisplay.hide();
+                    signaturePad.show();
+                    initializeContactSignaturePad(signatureElementId);
+                    signatureInput.val('');
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading contact signature:', xhr);
+                // On error, show signature pad
+                signaturePlaceholder.hide();
+                signatureDisplay.hide();
+                signaturePad.show();
+                initializeContactSignaturePad(signatureElementId);
+                signatureInput.val('');
+            }
+        });
+    }
+
+    function clearContactSignature(signatureElementId) {
+        const signatureImage = $('#' + signatureElementId + '_signature_image');
+        const signatureDisplay = $('#' + signatureElementId + '_signature_display');
+        const signaturePad = $('#' + signatureElementId + '_signature_pad');
+        const signaturePlaceholder = $('#' + signatureElementId + '_placeholder');
+        const signatureInput = $('#' + signatureElementId);
+        const signatureContainer = $('#' + signatureElementId + '_container');
+
+        // Clear the signature image
+        signatureImage.hide().attr('src', '');
+        signatureDisplay.hide();
+        
+        // Show signature pad for new signature
+        signaturePlaceholder.hide();
+        signaturePad.show();
+        initializeContactSignaturePad(signatureElementId);
+        
+        // Clear the input value
+        signatureInput.val('');
+        
+        // Keep contact ID so we can save the new signature
+        // Don't clear contact-id as we want to save to the same contact
+    }
+
+    function clearContactSignaturePad(signatureElementId) {
+        const canvas = document.getElementById(signatureElementId + '_canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Reset canvas styling
+            canvas.style.borderColor = '';
+            canvas.style.boxShadow = '';
+        }
+        const signatureInput = $('#' + signatureElementId);
+        signatureInput.val('');
+        
+        // Show placeholder again
+        const placeholder = canvas ? canvas.parentElement.querySelector('.signature-placeholder') : null;
+        if (placeholder) {
+            placeholder.style.opacity = '1';
+        }
+    }
+
+    function initializeContactSignaturePad(signatureElementId) {
+        const canvas = document.getElementById(signatureElementId + '_canvas');
+        if (!canvas || canvas.dataset.initialized === 'true') return;
+        
+        const ctx = canvas.getContext('2d');
+        const placeholder = canvas.parentElement.querySelector('.signature-placeholder');
+        let isDrawing = false;
+        let hasSignature = false;
+        let resizeTimeout;
+        let savedSignatureData = null;
+
+        function debouncedResize() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resizeCanvas, 100);
+        }
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const wrapper = container.parentElement;
+            const availableWidth = wrapper.clientWidth - 16;
+            const containerWidth = Math.max(200, Math.min(availableWidth, 800));
+            const containerHeight = 150;
+
+            canvas.style.width = containerWidth + 'px';
+            canvas.style.height = containerHeight + 'px';
+            canvas.style.maxWidth = '100%';
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (savedSignatureData) {
+                redrawSignature();
+            }
+        }
+
+        function redrawSignature() {
+            if (savedSignatureData) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                };
+                img.src = savedSignatureData;
+            }
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', debouncedResize);
+
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(debouncedResize);
+            resizeObserver.observe(canvas.parentElement.parentElement);
+        }
+
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const coords = getCanvasCoordinates(e);
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+            if (placeholder) placeholder.style.opacity = '0';
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const coords = getCanvasCoordinates(e);
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+            hasSignature = true;
+            canvas.style.borderColor = '#28a745';
+            canvas.style.boxShadow = '0 0 0 2px rgba(40, 167, 69, 0.25)';
+            
+            // Update hidden input with signature data
+            const dataURL = canvas.toDataURL('image/png');
+            $('#' + signatureElementId).val(dataURL);
+            savedSignatureData = dataURL;
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                const dataURL = canvas.toDataURL('image/png');
+                $('#' + signatureElementId).val(dataURL);
+                savedSignatureData = dataURL;
+            }
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            if (e.touches && e.touches.length > 0) {
+                startDrawing(e.touches[0]);
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (e.touches && e.touches.length > 0) {
+                draw(e.touches[0]);
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            stopDrawing();
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        canvas.dataset.initialized = 'true';
+    }
+
+    function setupContactSignatureHandlers() {
+        // Set up change handlers for contact select fields
+        $('select[data-element-type="client_contact_select"], select[data-element-type="client_submission_officers_select"]').on('change.contact-signature select2:select.contact-signature select2:unselect.contact-signature', function() {
+            const contactId = $(this).val();
+            const fieldName = $(this).attr('name');
+            
+            // Find all contact_signature fields that depend on this field
+            $('.contact-signature-container').each(function() {
+                const dependsOn = $(this).data('depends-on');
+                if (dependsOn === fieldName) {
+                    const signatureElementId = $(this).data('element-id');
+                    loadContactSignature(contactId, signatureElementId);
+                }
+            });
+        });
+    }
+
+    // Save contact signature when form is submitted (if checkbox is checked)
+    $(document).on('submit', '#fill-form', function() {
+        $('.contact-signature-container').each(function() {
+            const signatureElementId = $(this).data('element-id');
+            const saveCheckbox = $('#' + signatureElementId + '_save_signature');
+            const signatureInput = $('#' + signatureElementId);
+            const contactId = $(this).data('contact-id');
+            
+            if (saveCheckbox.is(':checked') && signatureInput.val() && contactId) {
+                const signatureData = signatureInput.val();
+                
+                // Save signature via AJAX
+                $.ajax({
+                    url: '{{ route("submission-forms.save-contact-signature") }}',
+                    method: 'POST',
+                    data: {
+                        contact_id: contactId,
+                        signature: signatureData,
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    async: false, // Wait for save to complete
+                    success: function(response) {
+                        if (response.success) {
+                            console.log('Contact signature saved successfully');
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Error saving contact signature:', xhr);
+                    }
+                });
+            }
+        });
+    });
+
+    // loadDynamicOptions is now defined globally at the top of this script
+
     const FormFill = {
             init() {
                 this.bindEvents();
@@ -1008,22 +1561,9 @@
             // Build logical groups for required fields using backend specs
             resolveRequiredFieldGroups() {
                 const specs = this.getRequiredSpecs();
-                console.log('[DEBUG] Required Field Specs:', specs);
-                
-                // DEBUG: Inspect actual DOM
-                console.log('[DEBUG] === DOM INSPECTION ===');
-                const allFields = $('#fill-form').find('input, select, textarea').not('[type="hidden"]');
-                console.log('[DEBUG] Total fields in DOM:', allFields.length);
-                allFields.each(function(idx) {
-                    const name = $(this).attr('name');
-                    const type = $(this).attr('type') || this.tagName.toLowerCase();
-                    console.log(`[DEBUG]   ${idx + 1}. name="${name}", type="${type}"`);
-                });
-                console.log('[DEBUG] === END DOM INSPECTION ===');
                 
                 if (!specs.length) {
                     // Fallback: derive groups from DOM [required]
-                    console.log('[DEBUG] No specs found, using DOM fallback');
                     const groups = {};
                     this.getAllFormFields().filter('[required]').each(function() {
                         const $el = $(this);
@@ -1032,7 +1572,6 @@
                         groups[name] = groups[name] || [];
                         groups[name].push($el);
                     });
-                    console.log('[DEBUG] DOM-based groups:', Object.keys(groups));
                     return groups;
                 }
                 
@@ -1041,13 +1580,11 @@
                 
                 specs.forEach(spec => {
                     if (!spec || !spec.name) return;
-                    console.log(`[DEBUG] Processing spec: ${spec.name}, inRows: ${spec.inRows}`);
                     
                     if (spec.inRows) {
                         // For rows: find all actual row instances
                         const selector = `[name^="${spec.name}["]`;
                         const $found = $form.find(selector);
-                        console.log(`[DEBUG] Row field ${spec.name}: found ${$found.length} elements`);
                         if ($found.length > 0) {
                             $found.each(function() {
                                 const $el = $(this);
@@ -1059,26 +1596,21 @@
                         } else {
                             // No rows exist yet - add placeholder for "at least 1 row needed"
                             groups[`${spec.name}[0]`] = [];
-                            console.log(`[DEBUG] Added placeholder for row field: ${spec.name}[0]`);
                         }
                     } else {
                         // For regular fields: find by exact name
                         const exactSelector = `[name="${spec.name}"]`;
                         const $found = $form.find(exactSelector);
-                        console.log(`[DEBUG] Regular field ${spec.name}: found ${$found.length} elements with selector ${exactSelector}`);
                         if ($found.length > 0) {
                             groups[spec.name] = [];
                             $found.each(function() { groups[spec.name].push($(this)); });
                         } else {
                             // Field not in DOM yet (or dynamic) - add placeholder
                             groups[spec.name] = [];
-                            console.log(`[DEBUG] Added placeholder for field: ${spec.name}`);
                         }
                     }
                 });
                 
-                console.log('[DEBUG] Final resolved groups:', Object.keys(groups));
-                console.log('[DEBUG] Total required groups:', Object.keys(groups).length);
                 return groups;
             },
 
@@ -1090,14 +1622,12 @@
             countFilledRequiredGroups() {
                 const groups = this.resolveRequiredFieldGroups();
                 let filled = 0;
-                console.log('[DEBUG] Counting filled groups...');
                 
                 Object.keys(groups).forEach(key => {
                     const elements = groups[key];
                     
                     // If no elements in group, it's not filled (placeholder or not found)
                     if (!elements || elements.length === 0) {
-                        console.log(`[DEBUG] Group "${key}": No elements (placeholder) - UNFILLED`);
                         return; // unfilled
                     }
                     
@@ -1130,11 +1660,9 @@
                         isFilled = typeof val === 'string' ? val.trim() !== '' : val !== null && val !== undefined && val !== '';
                     }
                     
-                    console.log(`[DEBUG] Group "${key}": ${isFilled ? 'FILLED' : 'UNFILLED'} (type: ${type || 'select'}, value: ${$first.val()})`);
                     if (isFilled) filled++;
                 });
                 
-                console.log(`[DEBUG] Total filled groups: ${filled}`);
                 return filled;
             },
             
@@ -1214,9 +1742,9 @@
                 });
                 
                 // Save draft
-                //$('#save-draft-btn').on('click', () => {
-                  //  this.saveDraft();
-                //});
+                $('#save-draft-btn').on('click', () => {
+                    this.saveDraft();
+                });
                 
                 // Clear form
                 $('#clear-form-btn').on('click', () => {
@@ -1279,12 +1807,9 @@
             
             updateProgress() {
                 const totalRequired = this.countRequiredGroups();
-                console.log('[DEBUG] updateProgress - Total required groups:', totalRequired);
                 if (totalRequired > 0) {
                     const filledRequired = this.countFilledRequiredGroups();
-                    console.log('[DEBUG] updateProgress - Filled required groups:', filledRequired);
                     const progress = Math.round((filledRequired / totalRequired) * 100);
-                    console.log('[DEBUG] updateProgress - Progress:', progress + '%');
                     $('#progressBar').css('width', progress + '%').attr('aria-valuenow', progress);
                     $('#progressText').text(progress + '% Complete');
                     if (progress < 25) {
@@ -1450,7 +1975,6 @@
                     this.hideValidationErrors();
                     this.updateFormDataPreview();
                     this.updateProgress();
-                    this.updateSubmitButtonState();
                     
                     // Reinitialize custom elements after clearing
                     initializeAllCustomElements();
@@ -1475,21 +1999,105 @@
         }
         
         $(document).ready(function() {
+            console.log('[CLIENT_SELECT] === Checking for client_select fields ===');
+            
+            // Check what client_select fields exist in DOM
+            const clientSelects = $('select[data-element-type="client_select"]');
+            console.log('[CLIENT_SELECT] Found', clientSelects.length, 'client_select field(s) in DOM');
+            clientSelects.each(function() {
+                console.log('[CLIENT_SELECT] Field ID:', $(this).attr('id'), 'Name:', $(this).attr('name'));
+            });
+            
             // Set route URL for dynamic options
             window.dynamicOptionsRoute = "{{ auth()->check() ? route('submission-forms.dynamic-options') : route('forms.dynamic-options') }}";
             
             // Initialize form fill
             FormFill.init();
             
+            // Setup user signature handlers FIRST so they're ready when values are set
+            setupUserSignatureHandlers();
+            
+            // Setup contact signature handlers
+            setupContactSignatureHandlers();
+            
             // Initialize custom elements with dependency management
             initializeAllCustomElements();
+            
+            // Initialize user signature fields if depends field already has value
+            // This runs after all elements are initialized, so we check both current value and data attributes
+            setTimeout(function() {
+            $('.user-signature-container').each(function() {
+                const dependsOn = $(this).data('depends-on');
+                if (dependsOn) {
+                    // Find the depends field by name
+                    const dependsField = $('select[data-element-type="user_select"][name="' + dependsOn + '"]');
+                    if (dependsField.length > 0) {
+                            // Check for value in the select field (after options are loaded)
+                            let userId = dependsField.val();
+                            
+                            // If no value, check for saved value or default user ID from data attributes
+                            if (!userId) {
+                                userId = dependsField.attr('data-saved-value');
+                            }
+                            if (!userId) {
+                                userId = dependsField.attr('data-default-user-id');
+                            }
+                            
+                        if (userId) {
+                            const signatureElementId = $(this).data('element-id');
+                            loadUserSignature(userId, signatureElementId);
+                            }
+                        }
+                    }
+                });
+            }, 1000); // Wait for all AJAX calls to complete and options to be loaded
+            
+            // Initialize contact signature fields if depends field already has value
+            $('.contact-signature-container').each(function() {
+                const dependsOn = $(this).data('depends-on');
+                if (dependsOn) {
+                    // Find the depends field by name (could be client_contact_select or client_submission_officers_select)
+                    const dependsField = $('select[data-element-type="client_contact_select"][name="' + dependsOn + '"], select[data-element-type="client_submission_officers_select"][name="' + dependsOn + '"]');
+                    if (dependsField.length > 0) {
+                        const contactId = dependsField.val();
+                        if (contactId) {
+                            const signatureElementId = $(this).data('element-id');
+                            loadContactSignature(contactId, signatureElementId);
+                        }
+                    }
+                }
+            });
+            
+            // FALLBACK: Initialize client_select with a delay to run AFTER any global Select2 init
+            console.log('[CLIENT_SELECT] Scheduling delayed initialization...');
+            setTimeout(function() {
+                console.log('[CLIENT_SELECT] Running delayed initialization...');
+                $('select[data-element-type="client_select"]').each(function() {
+                    const $select = $(this);
+                    const elementId = $select.attr('id');
+                    
+                    // Always force re-init to ensure AJAX config is applied
+                    console.log('[CLIENT_SELECT] Force reinitializing with AJAX:', elementId);
+                    
+                    // Remove flag to allow re-initialization
+                    $select.removeData('select2-ajax-initialized');
+                    
+                    // Reinitialize
+                    loadDynamicOptions($select, elementId, 'client_select');
+                });
+                
+                console.log('[CLIENT_SELECT] === Delayed initialization complete ===');
+            }, 1000); // Wait 1 second for other scripts to finish
+            
+            console.log('[CLIENT_SELECT] === Scheduled for delayed init ===');
         });
     })(); // End initFormFill
 </script>
 
+
 <!-- Include SweetAlert2 for better modals -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-@endsection
+
 
 @php
 function getColumnWidth($elementCount) {
@@ -1507,3 +2115,5 @@ function getColumnWidth($elementCount) {
     }
 }
 @endphp
+@endsection
+

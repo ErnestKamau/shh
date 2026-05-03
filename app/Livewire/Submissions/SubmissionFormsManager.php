@@ -99,6 +99,7 @@ class SubmissionFormsManager extends Component
     {
         $this->availableForms = SubmissionForm::where('is_published', true)
             ->where('is_active', true)
+            ->where('is_customer_portal_form', false)
             ->orderBy('name')
             ->get(['id', 'name']);
     }
@@ -111,6 +112,7 @@ class SubmissionFormsManager extends Component
         // Load published forms with full details
         $this->availableForms = SubmissionForm::where('is_published', true)
             ->where('is_active', true)
+            ->where('is_customer_portal_form', false)
             ->with('creator')
             ->withCount('sections')
             ->orderBy('name')
@@ -164,6 +166,12 @@ class SubmissionFormsManager extends Component
 
         if (!$submissionForm || !$submissionForm->is_published || !$submissionForm->is_active) {
             $this->message = 'Selected form is not available';
+            $this->messageType = 'danger';
+            return;
+        }
+
+        if ($submissionForm->is_customer_portal_form) {
+            $this->message = 'This form is configured for customer portal submissions only';
             $this->messageType = 'danger';
             return;
         }
