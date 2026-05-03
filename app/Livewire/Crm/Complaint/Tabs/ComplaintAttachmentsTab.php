@@ -64,7 +64,7 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new ComplaintTabExport($this->complaintId, 'attachments'))->download('complaint_attachments_' . now()->format('Ymd_His') . '.xlsx');
     }
 
@@ -76,7 +76,7 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
 
     public function editAttachment($id)
     {
-        $this->checkPermission('CRM.components.Complaints.Edit');
+        $this->checkPermission('crm.components.complaints.edit');
         
         $attachment = Complaintattachment::find($id);
         
@@ -101,7 +101,7 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
 
     public function uploadAttachment()
     {
-        $this->checkPermission('CRM.components.Complaints.Edit');
+        $this->checkPermission('crm.components.complaints.edit');
         
         $this->validate([
             'attachmentFile' => 'required|file|max:5120',
@@ -136,7 +136,7 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
 
     public function updateAttachment()
     {
-        $this->checkPermission('CRM.components.Complaints.Edit');
+        $this->checkPermission('crm.components.complaints.edit');
         
         $this->validate([
             'title' => 'required|string|max:255',
@@ -178,14 +178,14 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
 
     public function confirmDelete($id)
     {
-        $this->checkPermission('CRM.components.Complaints.Edit');
+        $this->checkPermission('crm.components.complaints.edit');
         $this->attachmentIdToDelete = $id;
         $this->dispatch('show-delete-confirmation');
     }
 
     public function deleteAttachment()
     {
-        $this->checkPermission('CRM.components.Complaints.Edit');
+        $this->checkPermission('crm.components.complaints.edit');
         
         $attachment = Complaintattachment::find($this->attachmentIdToDelete);
         if ($attachment) {

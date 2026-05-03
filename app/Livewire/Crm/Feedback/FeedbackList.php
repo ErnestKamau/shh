@@ -79,7 +79,7 @@ class FeedbackList extends BaseCrmComponent
     public function mount()
     {
         $this->initialize();
-        $this->checkPermission('CRM.components.Feedbacks.View');
+        $this->checkPermission('crm.components.feedbacks.view');
 
         // Hydrate filter state from URL for consistency on reload/navigation
         $query = request()->query();
@@ -489,7 +489,7 @@ class FeedbackList extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.components.Feedbacks.View');
+        $this->checkPermission('crm.components.feedbacks.view');
 
         $filters = [
             'search' => $this->search,
@@ -502,7 +502,7 @@ class FeedbackList extends BaseCrmComponent
 
     public function exportInsights()
     {
-        $this->checkPermission('CRM.components.Feedbacks.View');
+        $this->checkPermission('crm.components.feedbacks.view');
 
         $query = CustomerFeedback::query();
         if ($this->search) {

@@ -5,7 +5,7 @@ use Modules\TemplateEngine\Http\Controllers\TemplateBuilderController;
 use Modules\TemplateEngine\Http\Controllers\TemplateFieldsController;
 use Modules\TemplateEngine\Http\Controllers\TemplateDataController;
 
-Route::prefix('form-templates')->name('templates.')->middleware(['auth'])->group(function () {
+Route::prefix('form-templates')->name('templates.')->middleware(['auth', 'can:laboratory.components.lab-reports.view'])->group(function () {
     // Template CRUD
     Route::get('/', [TemplateBuilderController::class, 'index'])->name('index');
     Route::get('/create', [TemplateBuilderController::class, 'create'])->name('create');
@@ -30,7 +30,7 @@ Route::prefix('form-templates')->name('templates.')->middleware(['auth'])->group
 });
 
 // Data API for Dynamic Fields
-Route::prefix('template-data')->name('template-data.')->middleware(['auth'])->group(function () {
+Route::prefix('template-data')->name('template-data.')->middleware(['auth', 'can:laboratory.components.lab-reports.view'])->group(function () {
     Route::get('/tables', [TemplateDataController::class, 'getTables'])->name('tables');
     Route::get('/tables/{table}/columns', [TemplateDataController::class, 'getColumns'])->name('columns');
 });

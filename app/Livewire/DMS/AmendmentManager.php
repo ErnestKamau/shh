@@ -8,7 +8,7 @@ use Livewire\WithFileUploads;
 use App\Models\DMS\Document;
 use App\Models\DMS\DocumentAmendment;
 use App\Services\DMS\AmendmentWorkflowService;
-use App\Services\DMS\PermissionResolver;
+use Illuminate\Support\Facades\Gate;
 
 class AmendmentManager extends Component
 {
@@ -39,12 +39,10 @@ class AmendmentManager extends Component
     public $perPageOptions = [10, 25, 50, 100];
 
     protected $workflowService;
-    protected $permissionResolver;
 
-    public function boot(AmendmentWorkflowService $workflowService, PermissionResolver $permissionResolver)
+    public function boot(AmendmentWorkflowService $workflowService)
     {
         $this->workflowService = $workflowService;
-        $this->permissionResolver = $permissionResolver;
     }
 
     public function mount(): void
@@ -101,6 +99,12 @@ class AmendmentManager extends Component
         try {
             $document = Document::findOrFail($this->amendmentForm['document_id']);
 
+            if (!Gate::forUser(auth()->user())->allows('amend', $document)) {
+                $this->message = 'You do not have permission to request an amendment for this document';
+                $this->messageType = 'error';
+                return;
+            }
+
             $amendment = $this->workflowService->processAmendmentRequest(
                 $document,
                 $this->amendmentForm['amendment_reason'],
@@ -127,6 +131,12 @@ class AmendmentManager extends Component
     public function authorizeAmendment($approved): void
     {
         try {
+            if (!$this->currentAmendment || !$this->currentAmendment->canAuthorize(auth()->user())) {
+                $this->message = 'You do not have permission to authorize this amendment';
+                $this->messageType = 'error';
+                return;
+            }
+
             $this->workflowService->executeWorkflowStep(
                 $this->currentAmendment,
                 'authorization',
@@ -152,6 +162,12 @@ class AmendmentManager extends Component
         ]);
 
         try {
+            if (!$this->currentAmendment || !Gate::forUser(auth()->user())->allows('amend', $this->currentAmendment->document)) {
+                $this->message = 'You do not have permission to upload an amended file for this document';
+                $this->messageType = 'error';
+                return;
+            }
+
             $this->workflowService->uploadAmendedFile($this->currentAmendment, $this->file);
 
             $this->message = 'Amended file uploaded successfully';
@@ -168,6 +184,12 @@ class AmendmentManager extends Component
     public function approveAmendment($approved): void
     {
         try {
+            if (!$this->currentAmendment || !$this->currentAmendment->canApprove(auth()->user())) {
+                $this->message = 'You do not have permission to approve this amendment';
+                $this->messageType = 'error';
+                return;
+            }
+
             $this->workflowService->executeWorkflowStep(
                 $this->currentAmendment,
                 'approval',

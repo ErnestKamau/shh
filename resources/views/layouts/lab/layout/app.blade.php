@@ -75,6 +75,29 @@
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
+		@php
+			$user = auth()->user();
+			$canLabDashboard = $user->can('laboratory.components.dashboard.view');
+			$canAllSamples = $user->can('laboratory.components.all samples.view');
+			$canInterLabLogs = $user->can('laboratory.components.inter-lab-logs.view');
+			$canProformaInvoices = $user->can('laboratory.components.proforma invoices.view');
+			$canTaxRegime = $user->can('laboratory.components.tax regime.view');
+			$canQuotation = $user->can('laboratory.components.quotation.view');
+			$canQc = $user->can('laboratory.components.qc sample.view');
+			$canAnalytes = $user->can('laboratory.components.analytes.view');
+			$canLabs = $user->can('laboratory.components.labs.view');
+			$canSampleTrackingStages = $user->can('laboratory.components.sample-tracking-stages.view');
+			$canSampleTypes = $user->can('laboratory.components.sample-types.view');
+			$canRftForms = $user->can('laboratory.components.rft form.view');
+			$canMethodValidationRegistration = $user->can('laboratory.components.method-validation.registration.view');
+			$canMethodValidationDataReview = $user->can('laboratory.components.method-validation.data-review.view');
+			$canUncertaintyBudget = $user->can('laboratory.components.uncertainty-budget.view');
+			$canStockMonitoring = $user->can('laboratory.components.stock-monitoring.view');
+			$canConfigRouteAccess = $user->can('laboratory.module.access');
+			$canProducts = $user->can('crm.components.products.view');
+			$canLabReports = $user->can('laboratory.components.lab-reports.view');
+			$canReportingUnits = $user->can('laboratory.components.reporting-units.view');
+		@endphp
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-flask fa-3x"></i><br>
@@ -86,12 +109,15 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
+			@if($canLabDashboard)
 			<a href="{{ route('dashboard-lab') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-desktop-mac-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
 				</div>
 			</a>
+			@endif
+			@if($canAllSamples || $canInterLabLogs)
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
@@ -104,7 +130,7 @@
                 $menuTotals = getSampleWorkFLowTotals();
                 ?>
 				@foreach (getSampleWorflowStages() as $item)
-				@if($item == 'Samples In Lab')
+				@if($item == 'Samples In Lab' && $canInterLabLogs)
 				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<div class="d-flex w-100 justify-content-between align-items-center">
 						<span class="menu-collapsed">
@@ -114,6 +140,7 @@
 					</div>
 				</a>
 				@endif
+				@if($canAllSamples)
 				<a href="{{ route('sample-workflow', ['status'=>$item]) }}" class="list-group-item list-group-item-action bg-dark text-white">
 					<div class="d-flex w-100 justify-content-between align-items-center">
 						<span class="menu-collapsed">
@@ -132,9 +159,12 @@
 					</div>
 				</a>
 				@endif
+				@endif
 				@endforeach
 
 			</div>
+			@endif
+			@if($canProformaInvoices || $canTaxRegime || $canQuotation)
 			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
@@ -143,7 +173,7 @@
 				</div>
 			</a>
 		<div id="billing-menu" class="collapse sidebar-submenu">
-
+			@if($canProformaInvoices)
 			<a href="{{route('billing.invoices')}}" class="list-group-item list-group-item-action bg-dark text-white">
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sales Orders
 					<small class="float-right badge badge-pill"></small></span>
@@ -163,12 +193,16 @@
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Currencies
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+			@endif
 
+			@if($canTaxRegime)
 		<a href="{{route('billing.tax-regime')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Tax Regime
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
+			@endif
 
+			@if($canQuotation)
 			<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" mdi mdi-clipboard-text-outline mr-3"></span>
@@ -195,8 +229,11 @@
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 			</div>
+			@endif
 
 		</div>
+			@endif
+			@if($canQc)
 			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark hidden list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate-outline mr-3"></span>
@@ -227,24 +264,32 @@
 				</a>
 
 			</div>
+			@endif
+			@if($canAnalytes)
 			<a href="/analytes" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-molecule fa-fw mr-3"></span>
 					<span class="menu-collapsed">Analytes</span>
 				</div>
 			</a>
+			@endif
+			@if($canLabs)
 			<a href="/labs" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-flask fa-fw mr-3"></span>
 					<span class="menu-collapsed">Directorate Management</span>
 				</div>
 			</a>
+			@endif
+			@if($canSampleTrackingStages)
 			<a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
 					<span class="menu-collapsed">Labs</span>
 				</div>
 			</a>
+			@endif
+			@if($canSampleTypes)
 			<a href="{{ route('livewire.sample-types') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-test-tube fa-fw mr-3"></span>
@@ -281,13 +326,17 @@
 					<span class="menu-collapsed">Key Configurations</span>
 				</div>
 			</a>
+			@endif
 
+			@if($canReportingUnits)
 			<a href="/reporting-units" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
 					<span class="menu-collapsed">Reporting Units</span>
 				</div>
 			</a>
+			@endif
+			@if($canMethodValidationRegistration || $canMethodValidationDataReview)
 				<a href="#method-validation-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class="mdi mdi-clipboard-check-outline mr-3"></span>
@@ -299,20 +348,28 @@
 					<a href="/analysis-methods" class="list-group-item list-group-item-action bg-dark text-white">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Methods</span>
 					</a>
+					@if($canMethodValidationRegistration)
 					<a href="{{ route('method-validation.registration') }}" class="list-group-item list-group-item-action bg-dark text-white">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Method Registration</span>
 					</a>
+					@endif
+					@if($canMethodValidationDataReview)
 					<a href="{{ route('method-validation.data-review') }}" class="list-group-item list-group-item-action bg-dark text-white">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Data Review & Analysis</span>
 					</a>
+					@endif
 				</div>
+				@endif
+				@if($canUncertaintyBudget)
 				<a href="{{ route('uncertainty-budgets.index') }}" class="bg-dark list-group-item list-group-item-action">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class="mdi mdi-calculator fa-fw mr-3"></span>
 					<span class="menu-collapsed">Uncertainty Budget</span>
 				</div>
 			</a>
+			@endif
 
+			@if($canStockMonitoring)
 			<a href="#stock-monitoring-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
@@ -337,6 +394,7 @@
 
 
 	</div>
+			@endif
 
 	{{-- <a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
 		<div class="d-flex w-100 justify-content-start align-items-center">
@@ -344,6 +402,7 @@
 			<span class="menu-collapsed">Labs</span>
 		</div>
 	</a> --}}
+	@if($canProducts || $canSampleTypes || $canConfigRouteAccess || $canRftForms)
 	<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
@@ -355,10 +414,13 @@
 
 
 
+		@if($canProducts)
 		<a href="{{route('sample-product-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Products
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		@endif
+		@if($canSampleTypes)
 		<a href="{{route('sample_condition_index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Conditions
 				<small class="float-right badge badge-pill"></small></span>
@@ -367,10 +429,14 @@
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Type Category
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		@endif
+		@if($canConfigRouteAccess)
 		<a href="{{ route('module-pre-configs', ['config' => 'Zones', 'module' => 'Lab-Management']) }}" class="list-group-item list-group-item-action bg-dark text-white">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Zones
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Zone
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		@endif
+		@if($canRftForms)
 		<a href="{{route('submission-forms.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Submission Form Templates
 				<small class="float-right badge badge-pill"></small></span>
@@ -385,8 +451,10 @@
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Report Templates
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		@endif
 
 	</div>
+	@endif
 
 	<a href="/qualification-home" class="bg-dark hidden list-group-item list-group-item-action">
 		<div class="d-flex w-100 justify-content-start align-items-center">
@@ -395,6 +463,7 @@
 		</div>
 	</a>
 	
+	@if($canLabReports)
 	<a href="#report-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
@@ -418,6 +487,7 @@
 		</a>
 		
 	</div>
+	@endif
 
 	<div class="list-group-item copyright-lims p-4 text-center text-white">
 		Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>

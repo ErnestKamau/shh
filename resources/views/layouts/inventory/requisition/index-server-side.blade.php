@@ -21,6 +21,7 @@
   <main>
 		<?php
 			$stages = getRequisitionWorkflow();
+      $user = \Auth::user();
       $items = array(
         array(
           'link' => route('inventory-home'),
@@ -34,20 +35,20 @@
         )
 			);
 
-			$assistant_sup_roles = getConfigByName('assistant_supervisor_role_id');
-			$assistant_sup_role_id = count($assistant_sup_roles) > 0 ? $assistant_sup_roles[0]->value : 0;
-
-			$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-			$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
+			$inventoryAssistantSupervisorRoles = ['Inventory Assistant Supervisor Group', 'Assistant Supervisor', 'Supervisor', 'Admin'];
+			$inventoryProcurementRoles = ['Inventory Procurement Group', 'Procurement', 'Admin'];
+			$isInventoryAssistantSupervisor = $user->hasAnyRole($inventoryAssistantSupervisorRoles);
+			$isInventoryProcurement = $user->hasAnyRole($inventoryProcurementRoles);
 
 			$lab_department_id = getConfigByName('lab_department_id');
 			$lab_department_id = count($lab_department_id) > 0 ? $lab_department_id[0]->value : 0;
+			$isLabDepartmentUser = intval($user->department_id) === intval($lab_department_id);
 
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h3 class="p-4" id="has-procurement" data-procurement="{{ \Auth::user()->hasRole($procurement_officer_role_id, true) ? 'Yes' : 'No' }}">
+    <h3 class="p-4" id="has-procurement" data-procurement="{{ $isInventoryProcurement ? 'Yes' : 'No' }}">
 			<i class="mdi mdi-format-list-checks"></i> {{ $stage }}
-			@if(in_array($stage, array("Purchase Request", "Request to Store", "Gate Pass", "Loan", "Lend")) && Auth::user()->hasRole($assistant_sup_role_id, true))
+			@if(in_array($stage, array("Purchase Request", "Request to Store", "Gate Pass", "Loan", "Lend")) && $isInventoryAssistantSupervisor)
 				<a class="btn btn-primary btn-sm float-right" href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>time()]) }}">
 					<i class="mdi mdi-plus"></i> Create Request
 				</a>
@@ -70,7 +71,7 @@
 						<li class="nav-item">
 							<a class="nav-link" id="Completed-tab" data-toggle="tab" href="#Completed" role="tab" aria-controls="Completed" aria-selected="true">Completed</a>
 						</li>
-						@if(\Auth::user()->department_id == $lab_department_id && $stage == "Purchase Request")
+						@if($isLabDepartmentUser && $stage == "Purchase Request")
 							<li class="nav-item">
 								<a class="nav-link" id="Lab-Kits-tab" data-toggle="tab" href="#Lab-Kits" role="tab" aria-controls="Lab Kits" aria-selected="true">Lab Kits</a>
 							</li>
@@ -160,7 +161,7 @@
 							</table>
 						</div>
 					</div>
-					@if(\Auth::user()->department_id == $lab_department_id && $stage == "Purchase Request")
+					@if($isLabDepartmentUser && $stage == "Purchase Request")
 						<div class="tab-pane fade p-3" id="Lab-Kits" role="tabpanel" aria-labelledby="one-tab">
 							<h5 class="card-title mb-3">Lab-Kits</h5>
 							<div class="table-responsive">
@@ -179,7 +180,7 @@
 											<tr>
 												<td nowrap>
 													<input type="checkbox" name="request_id[]" class="submittable-entity-ids" data-code="{{ $l->request_code }}" value="{{ $l->id }}" />
-													@if(($l->created_by == \Auth::user()->id || \Auth::user()->hasRole($procurement_officer_role_id, true)) && $l->status == "In Preparation")
+													@if(($l->created_by == \Auth::user()->id || $isInventoryProcurement) && $l->status == "In Preparation")
 														<span class="btn btn-sm btn-transparent text-danger" data-toggle="modal"
 															data-target="#delete-entity-modal" data-stage="{{ $stage }}" data-id="{{ $l->id }}">
 															<i class="mdi mdi-delete"></i>
@@ -220,7 +221,7 @@
 											<tr>
 												<td nowrap>
 													<input type="checkbox" name="request_id[]" class="submittable-entity-ids" data-code="{{ $l->request_code }}" value="{{ $l->id }}" />
-													@if(($l->created_by == \Auth::user()->id || \Auth::user()->hasRole($procurement_officer_role_id, true)) && $l->status == "In Preparation")
+													@if(($l->created_by == \Auth::user()->id || $isInventoryProcurement) && $l->status == "In Preparation")
 														<span class="btn btn-sm btn-transparent text-danger" data-toggle="modal"
 															data-target="#delete-entity-modal" data-stage="{{ $stage }}" data-id="{{ $l->id }}">
 															<i class="mdi mdi-delete"></i>

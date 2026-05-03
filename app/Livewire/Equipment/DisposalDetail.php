@@ -9,6 +9,7 @@ use App\Services\Equipment\DisposalWorkflowService;
 use App\Services\Equipment\DisposalAuditService;
 use App\Services\Equipment\DisposalReportService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
 class DisposalDetail extends Component
@@ -171,6 +172,12 @@ class DisposalDetail extends Component
             return;
         }
 
+        if (!Gate::forUser(auth()->user())->allows('update', $this->disposal)) {
+            $this->message = 'You do not have permission to execute this disposal.';
+            $this->messageType = 'danger';
+            return;
+        }
+
         $this->executionForm = [
             'final_disposal_method' => $this->disposal->proposed_method ?? '',
             'disposal_date' => date('Y-m-d'),
@@ -199,6 +206,12 @@ class DisposalDetail extends Component
 
     public function executeDisposal(): void
     {
+        if (!Gate::forUser(auth()->user())->allows('update', $this->disposal)) {
+            $this->message = 'You do not have permission to execute this disposal.';
+            $this->messageType = 'danger';
+            return;
+        }
+
         $this->validate([
             'executionForm.final_disposal_method' => 'required|string|max:255',
             'executionForm.disposal_date' => 'required|date',
@@ -318,11 +331,17 @@ class DisposalDetail extends Component
     {
         return $this->disposal && 
                $this->disposal->status === 'approved' &&
-               auth()->user()->can('Equipment.components.Equipment-Disposal.Edit');
+               Gate::forUser(auth()->user())->allows('update', $this->disposal);
     }
 
     public function downloadReport(): void
     {
+        if (!Gate::forUser(auth()->user())->allows('view', $this->disposal)) {
+            $this->message = 'You do not have permission to download this report.';
+            $this->messageType = 'danger';
+            return;
+        }
+
         try {
             $this->reportService->downloadReport($this->disposal);
         } catch (\Exception $e) {
@@ -333,6 +352,12 @@ class DisposalDetail extends Component
 
     public function viewReport(): void
     {
+        if (!Gate::forUser(auth()->user())->allows('view', $this->disposal)) {
+            $this->message = 'You do not have permission to view this report.';
+            $this->messageType = 'danger';
+            return;
+        }
+
         try {
             $this->reportService->streamReport($this->disposal);
         } catch (\Exception $e) {

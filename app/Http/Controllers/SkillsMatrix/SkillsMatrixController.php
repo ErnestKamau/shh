@@ -4,8 +4,6 @@ namespace App\Http\Controllers\SkillsMatrix;
 use App\Models\SkillsMatrix\SkillMarixRole;
 use App\Models\SkillsMatrix\SkillMatrixDetailRole;
 use App\Models\SkillsMatrix\SkillMatrixDetails;
-use App\Models\System\SystemConfiguration;
-use App\UserRole;
 use Auth;
 use App\Country;
 use App\User;
@@ -30,6 +28,10 @@ class SkillsMatrixController extends Controller
 	public function __construct()
 	{
 		$this->middleware('auth');
+		$this->middleware('can:skills-matrix.components.skills-matrix.view')->only(['index', 'show']);
+		$this->middleware('can:skills-matrix.components.skills-matrix.add')->only(['add', 'createSkillsMatrix']);
+		$this->middleware('can:skills-matrix.components.skills-matrix.edit')->only(['edit', 'editMatrixdetailRole']);
+		$this->middleware('can:skills-matrix.components.skills-matrix.delete')->only(['deleteMatrixDetail']);
 	}
 
 	public function checkConfig()
@@ -51,9 +53,7 @@ class SkillsMatrixController extends Controller
 
 		$roles_info = ModulePreConfigs::where('type', 'Job Description')->selectRaw('id,description')->get();
 
-		$edit_skills_matrixs = SystemConfiguration::where('key', 'edit_skills_matrix_role_id')->first();
-		$checkAddPerm = UserRole::where('user_id', auth()->user()->id)->where('role_id', $edit_skills_matrixs->value)->first();
-		$can_edit_skills_matrix = isset($checkAddPerm->id) ? 1 : 0;
+		$can_edit_skills_matrix = auth()->user()->can('skills-matrix.components.skills-matrix.edit') ? 1 : 0;
 		return view('layouts.skillsmatrix.index', compact('matrix_info', 'module', 'departments', 'roles_info', 'can_edit_skills_matrix'));
 	}
 

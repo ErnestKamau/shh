@@ -159,10 +159,10 @@
                     <div>
                         <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Required Permission</label>
                         <select id="kbPermission" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; background: white; outline: none;">
-                            <option value="General.View">General Access</option>
-                            <option value="Laboratory.Samples.View">Lab Staff</option>
-                            <option value="Laboratory.Admin">Lab Admin</option>
-                            <option value="Quality.Control.Manage">QC Team</option>
+                            <option value="general.view">General Access</option>
+                            <option value="laboratory.samples.view">Lab Staff</option>
+                            <option value="laboratory.admin">Lab Admin</option>
+                            <option value="quality.control.manage">QC Team</option>
                         </select>
                     </div>
                 </div>

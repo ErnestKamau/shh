@@ -12,6 +12,8 @@ use App\Http\Controllers\MailController as Mailers;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailer;
 use Illuminate\Http\File;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Excel;
@@ -77,7 +79,7 @@ class PersonnelController extends Controller
 		return view('livewire.layout.personnel-app', [
 			'componentType' => 'personnel-detail',
 			'pageTitle' => 'Personnel Profile',
-			'userId' => (int) $id,
+			'userId' => $id,
 		]);
 
 	}
@@ -143,7 +145,12 @@ class PersonnelController extends Controller
 		}
 
 		$request->validate([
-			'zone_id' => 'nullable|integer|exists:zones,id',
+			'zone_id' => 'nullable|string|exists:zones,id',
+			'directorate_id' => 'nullable|string|exists:directorates,id',
+			'lab_id' => 'nullable|string|exists:labs,id',
+			'analyst_is_gazzetted' => 'nullable|boolean',
+			'date_of_gazzette' => 'nullable|date',
+			'start_of_career' => 'nullable|date',
 		]);
 		
 		$personnel = User::find($id) ?? new User();
@@ -197,6 +204,9 @@ class PersonnelController extends Controller
 		$personnel->position = $request->position;
 		$personnel->education_level = $request->educational_level;
 		$personnel->employment_date = $request->employment_date;
+		$personnel->analyst_is_gazzetted = $request->boolean('analyst_is_gazzetted');
+		$personnel->date_of_gazzette = $personnel->analyst_is_gazzetted ? ($request->date_of_gazzette ?: null) : null;
+		$personnel->start_of_career = $request->start_of_career ?: null;
 		$personnel->date_of_birth = $request->date_of_birth;
 		$personnel->id_number = $request->id_number;
 		$personnel->nssf = $request->nssf;
@@ -207,7 +217,7 @@ class PersonnelController extends Controller
 
 		$personnel->license_type = $request->user_license;
 		if (Schema::hasColumn('users', 'zone_id')) {
-			$personnel->zone_id = $request->zone_id ? (int) $request->zone_id : null;
+			$personnel->zone_id = $request->zone_id ? (string) $request->zone_id : null;
 		}
 
 		if(!isset($personnel->id)){
@@ -243,11 +253,64 @@ class PersonnelController extends Controller
 
       $fName = '/storage/personnel-signature/'.urlencode(end($file));
 
-	  	$personnel->electronic_sig = (String) $fName;
+		$personnel->electronic_sig = (String) $fName;
 	//   return response()->json($personnel,200);
 		}
 
+		if ($request->filled('signature_data') && str_starts_with($request->signature_data, 'data:image/')) {
+			if (preg_match('/^data:image\/(\w+);base64,/', $request->signature_data, $matches)) {
+				$extension = strtolower($matches[1]);
+				if ($extension === 'jpeg') {
+					$extension = 'jpg';
+				}
+
+				if (in_array($extension, ['png', 'jpg', 'gif', 'webp'], true)) {
+					$imageData = substr($request->signature_data, strpos($request->signature_data, ',') + 1);
+					$decoded = base64_decode($imageData, true);
+					if ($decoded !== false) {
+						$filename = Str::uuid()->toString() . '_' . time() . '.' . $extension;
+						$storagePath = 'personnel-signature/' . $filename;
+						Storage::put($storagePath, $decoded);
+						$personnel->electronic_sig = '/storage/personnel-signature/' . rawurlencode($filename);
+					}
+				}
+			}
+		}
+
 		$personnel->save();
+
+		if (Schema::hasTable('user_zone_relation')) {
+			if ($request->filled('zone_id')) {
+				DB::table('user_zone_relation')->updateOrInsert(
+					['user_id' => $personnel->id, 'zone_id' => (string) $request->zone_id],
+					['updated_at' => now(), 'created_at' => now()]
+				);
+			} else {
+				DB::table('user_zone_relation')->where('user_id', $personnel->id)->delete();
+			}
+		}
+
+		if (Schema::hasTable('user_directorate_relation')) {
+			if ($request->filled('directorate_id')) {
+				DB::table('user_directorate_relation')->updateOrInsert(
+					['user_id' => $personnel->id, 'directorate_id' => (string) $request->directorate_id],
+					['updated_at' => now(), 'created_at' => now()]
+				);
+			} else {
+				DB::table('user_directorate_relation')->where('user_id', $personnel->id)->delete();
+			}
+		}
+
+		if (Schema::hasTable('user_lab_relation')) {
+			if ($request->filled('lab_id')) {
+				DB::table('user_lab_relation')->updateOrInsert(
+					['user_id' => $personnel->id, 'lab_id' => (string) $request->lab_id],
+					['updated_at' => now(), 'created_at' => now()]
+				);
+			} else {
+				DB::table('user_lab_relation')->where('user_id', $personnel->id)->delete();
+			}
+		}
 		// return response()->json($personnel);
 		if(isset($personnelWorkHistoryChanged)){
 			$PWH = new PersonnelWorkHistoryController;

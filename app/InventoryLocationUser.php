@@ -13,6 +13,11 @@ class InventoryLocationUser extends Model implements Auditable
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected $fillable = [
+        'user_id',
+        'inventory_location_id',
+    ];
+
 	use \OwenIt\Auditing\Auditable;
   public function locations(){
 		return $this->hasMany('App\InventoryLocation');

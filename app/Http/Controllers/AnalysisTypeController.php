@@ -12,7 +12,6 @@ use App\AnalysisType;
 use App\CapturedResult;
 use App\Models\System\SystemConfiguration;
 use App\User;
-use App\UserRole;
 use Illuminate\Http\Request;
 
 class AnalysisTypeController extends Controller
@@ -118,9 +117,7 @@ class AnalysisTypeController extends Controller
     $ltmethods = AnalysisMethod::where('method_type_id',$ltm_id->value)->where('active',1)->get();
     $sample_types = SampleType::all();
     $labs = Lab::all();
-    $analyst_role = SystemConfiguration::where('key','analyst_role_id')->first();
-    $usersIds = UserRole::where('role_id',$analyst_role->value)->pluck('user_id')->toArray();
-    $usersAnalysts = User::whereIn('id',$usersIds)->get();
+    $usersAnalysts = User::role('Laboratory Analyst')->where('active', 1)->get();
 
     $analysis_type_id = $id;
     return view('layouts.lab.analysis-types.show', compact('analysis_type', 'sample_types', 'labs', 'analytes', 'analysis_type_id','usersAnalysts','methods','ltmethods'));

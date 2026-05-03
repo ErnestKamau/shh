@@ -26,12 +26,12 @@ class TranslationBulkUpload extends Component
 
     public function mount(): void
     {
-        $this->authorizeAction('System.components.Translations.Bulk Import');
+        $this->authorizeAction('system.components.translations.bulk import');
     }
 
     public function previewImport(): void
     {
-        $this->authorizeAction('System.components.Translations.Bulk Import');
+        $this->authorizeAction('system.components.translations.bulk import');
 
         $rows = $this->mode === 'json'
             ? $this->parseJsonRows()
@@ -61,7 +61,7 @@ class TranslationBulkUpload extends Component
 
     public function confirmImport(TranslationManagementService $translationService): void
     {
-        $this->authorizeAction('System.components.Translations.Bulk Import');
+        $this->authorizeAction('system.components.translations.bulk import');
 
         if ($this->pendingRows === []) {
             $this->addError('jsonPayload', 'Please preview rows before confirming import.');
@@ -215,7 +215,7 @@ class TranslationBulkUpload extends Component
             abort(403);
         }
 
-        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can('System.permission') || $user->can($permission)) {
+        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can($permission)) {
             return;
         }
 

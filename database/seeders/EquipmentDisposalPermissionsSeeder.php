@@ -15,19 +15,19 @@ class EquipmentDisposalPermissionsSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'Equipment.permission',
-            'Equipment.components.Equipment-Disposal.View',
-            'Equipment.components.Equipment-Disposal.Add',
-            'Equipment.components.Equipment-Disposal.Edit',
-            'Equipment.components.Equipment-Disposal.Delete',
-            'Equipment.components.Equipment-Evaluation.Add',
-            'Equipment.components.Equipment-Evaluation.View',
-            'Equipment.components.Equipment-Evaluation.Edit',
-            'Equipment.components.Equipment-Evaluation.Delete',
-            'Equipment.components.Equipment-Decommission.Add',
-            'Equipment.components.Equipment-Decommission.View',
-            'Equipment.components.Equipment-Decommission.Edit',
-            'Equipment.components.Equipment-Decommission.Delete',
+            'equipment.permission',
+            'equipment.components.equipment-disposal.view',
+            'equipment.components.equipment-disposal.add',
+            'equipment.components.equipment-disposal.edit',
+            'equipment.components.equipment-disposal.delete',
+            'equipment.components.equipment-evaluation.add',
+            'equipment.components.equipment-evaluation.view',
+            'equipment.components.equipment-evaluation.edit',
+            'equipment.components.equipment-evaluation.delete',
+            'equipment.components.equipment-decommission.add',
+            'equipment.components.equipment-decommission.view',
+            'equipment.components.equipment-decommission.edit',
+            'equipment.components.equipment-decommission.delete',
         ];
 
         foreach ($permissions as $permissionName) {

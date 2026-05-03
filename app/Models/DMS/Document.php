@@ -201,48 +201,6 @@ class Document extends Model implements Auditable
     }
 
     /**
-     * Check if user can access this document with specified permission
-     *
-     * @param \App\User $user
-     * @param string $permissionType
-     * @return bool
-     */
-    public function canUserAccess($user, string $permissionType = 'view'): bool
-    {
-        // Check document-level permissions first
-        $hasPermission = $this->permissions()
-            ->where(function($query) use ($user) {
-                $query->where(function($q) use ($user) {
-                    $q->where('subject_type', User::class)
-                      ->where('subject_id', $user->id);
-                })->orWhere(function($q) use ($user) {
-                    $q->where('subject_type', 'App\\Models\\Role')
-                      ->whereIn('subject_id', $user->roles->pluck('id'));
-                });
-            })
-            ->where('permission_type', $permissionType)
-            ->exists();
-
-        if ($hasPermission) {
-            return true;
-        }
-
-        // Fall back to document type permissions
-        return $this->documentType->permissions()
-            ->where(function($query) use ($user) {
-                $query->where(function($q) use ($user) {
-                    $q->where('subject_type', User::class)
-                      ->where('subject_id', $user->id);
-                })->orWhere(function($q) use ($user) {
-                    $q->where('subject_type', 'App\\Models\\Role')
-                      ->whereIn('subject_id', $user->roles->pluck('id'));
-                });
-            })
-            ->where('permission_type', $permissionType)
-            ->exists();
-    }
-
-    /**
      * Increment the amendment count
      *
      * @return void

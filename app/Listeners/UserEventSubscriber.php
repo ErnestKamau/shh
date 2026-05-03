@@ -2,7 +2,7 @@
 
 namespace App\Listeners;
 
-use OwenIt\Auditing\Models\Audit;
+use App\Models\Audit;
 use Carbon\Carbon;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;

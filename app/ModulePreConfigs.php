@@ -2,12 +2,31 @@
 
 namespace App;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class ModulePreConfigs extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
 	use \OwenIt\Auditing\Auditable;
+
+	protected $fillable = [
+		'name',
+		'type',
+		'description',
+		'level',
+		'color',
+		'active',
+		'module',
+		'inventory_location_id',
+		'zoho_id',
+		'code',
+	];
 
 	public function states(){
 		return \App\ItemState::where('material_type_id', $this->id)

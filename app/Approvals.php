@@ -10,9 +10,21 @@ class Approvals  extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
   public function user_roles()
 	{
-		return UserRole::join('users as u', 'u.id', '=', 'user_roles.user_id')
-			->selectRaw('u.id, u.name, u.email')
-			->where('user_roles.role_id', $this->role_id)->get();
+		// Use Spatie role group name (role_id legacy column mapping no longer supported)
+		if (empty($this->role_group_name)) {
+			// If role_group_name is not set, return empty collection
+			return collect([]);
+		}
+		
+		$users = User::role($this->role_group_name)->get();
+		
+		return $users->map(function ($user) {
+			return (object) [
+				'id' => $user->id,
+				'name' => $user->name,
+				'email' => $user->email,
+			];
+		});
 	}
 
 	public function entity_approval($model, $model_id){

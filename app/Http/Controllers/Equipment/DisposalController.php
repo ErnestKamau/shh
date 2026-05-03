@@ -23,10 +23,8 @@ class DisposalController extends Controller
     public function downloadReport(int $disposalId)
     {
         $disposal = EquipmentDisposal::findOrFail($disposalId);
-        
-        if (!auth()->user()->can('Equipment.components.Equipment-Disposal.View')) {
-            abort(403, 'You do not have permission to download disposal reports.');
-        }
+
+        $this->authorize('view', $disposal);
 
         $reportService = app(DisposalReportService::class);
         
@@ -42,10 +40,8 @@ class DisposalController extends Controller
     public function streamReport(int $disposalId)
     {
         $disposal = EquipmentDisposal::findOrFail($disposalId);
-        
-        if (!auth()->user()->can('Equipment.components.Equipment-Disposal.View')) {
-            abort(403, 'You do not have permission to view disposal reports.');
-        }
+
+        $this->authorize('view', $disposal);
 
         $reportService = app(DisposalReportService::class);
         

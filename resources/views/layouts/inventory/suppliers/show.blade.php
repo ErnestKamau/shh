@@ -174,8 +174,8 @@
       );
 
 
-			$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-			$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
+			$inventoryProcurementRoles = ['Inventory Procurement Group', 'Procurement', 'Admin'];
+			$isInventoryProcurement = \Auth::user()->hasAnyRole($inventoryProcurementRoles);
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
 		<h2 class="p-4">
@@ -346,7 +346,7 @@
 						<div class="tab-pane fade p-3" id="Ratings" role="tabpanel" aria-labelledby="one-tab">
 							<h5 class="card-title">
 								Ratings
-								@if(\Auth::user()->hasRole($procurement_officer_role_id, true))
+								@if($isInventoryProcurement)
 									<div class="btn btn-sm btn-transparent text-info" data-target="#add-rating-criteria-modal" data-toggle="modal">
 										<i class="mdi mdi-plus"></i> Criteria
 									</div>
@@ -377,7 +377,7 @@
 										<div class="mt-1 mb-1">
 											<div class="pt-1 pb-1" style="clear: both">
 												<h6>{{ $gSRC->title }}</h6>
-												@if(\Auth::user()->hasRole($procurement_officer_role_id, true))
+												@if($isInventoryProcurement)
 												<div class="mtools float-right pull-right">
 													<div class="btn-group" role="group">
 														<button type="button" class="btn btn-transparent text-info btn-sm"

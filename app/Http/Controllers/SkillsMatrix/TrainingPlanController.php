@@ -18,6 +18,10 @@ class TrainingPlanController extends Controller
     public function __construct()
 	{
 		$this->middleware('auth');
+        $this->middleware('can:skills-matrix.components.training-plan.view')->only(['index', 'show']);
+        $this->middleware('can:skills-matrix.components.training-plan.add')->only(['store', 'storeOther']);
+        $this->middleware('can:skills-matrix.components.training-plan.edit')->only(['storeDetail', 'editPlan']);
+        $this->middleware('can:skills-matrix.components.training-plan.delete')->only(['deleteOtherDetail', 'deletePlan']);
 	}
 
     public function index(){

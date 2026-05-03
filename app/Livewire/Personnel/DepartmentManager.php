@@ -16,7 +16,7 @@ class DepartmentManager extends Component
     public array $perPageOptions = [10, 25, 50, 100];
     public bool $showDepartmentModal = false;
     public bool $showDeleteModal = false;
-    public ?int $editingDepartmentId = null;
+    public ?string $editingDepartmentId = null;
     public string $departmentName = '';
     public bool $departmentActive = true;
     public string $message = '';
@@ -42,13 +42,9 @@ class DepartmentManager extends Component
         $this->showDepartmentModal = true;
     }
 
-    public function openEditModal(int $departmentId): void
+    public function openEditModal(string $departmentId): void
     {
-        $department = InventoryDepartment::query()
-            ->where('company_id', getUserCompany())
-            ->where('module', 'organizational')
-            ->where('location_id', getCurrentUserLocation()->id)
-            ->findOrFail($departmentId);
+        $department = InventoryDepartment::query()->findOrFail($departmentId);
 
         $this->editingDepartmentId = $department->id;
         $this->departmentName = (string) $department->name;
@@ -68,12 +64,10 @@ class DepartmentManager extends Component
             'departmentActive' => 'boolean',
         ]);
 
-        if ($this->editingDepartmentId) {
+        if ($this->editingDepartmentId !== null) {
             $department = InventoryDepartment::query()->findOrFail($this->editingDepartmentId);
         } else {
             $department = new InventoryDepartment();
-            $department->company_id = getUserCompany();
-            $department->location_id = getCurrentUserLocation()->id;
             $department->module = 'organizational';
         }
 
@@ -87,13 +81,9 @@ class DepartmentManager extends Component
         $this->resetPage();
     }
 
-    public function openDeleteModal(int $departmentId): void
+    public function openDeleteModal(string $departmentId): void
     {
-        $department = InventoryDepartment::query()
-            ->where('company_id', getUserCompany())
-            ->where('module', 'organizational')
-            ->where('location_id', getCurrentUserLocation()->id)
-            ->findOrFail($departmentId);
+        $department = InventoryDepartment::query()->findOrFail($departmentId);
 
         $this->editingDepartmentId = $department->id;
         $this->departmentName = (string) $department->name;
@@ -108,14 +98,10 @@ class DepartmentManager extends Component
     public function deleteDepartment(): void
     {
         $this->validate([
-            'editingDepartmentId' => 'required|integer',
+            'editingDepartmentId' => 'required|string',
         ]);
 
-        $department = InventoryDepartment::query()
-            ->where('company_id', getUserCompany())
-            ->where('module', 'organizational')
-            ->where('location_id', getCurrentUserLocation()->id)
-            ->findOrFail((int) $this->editingDepartmentId);
+        $department = InventoryDepartment::query()->findOrFail($this->editingDepartmentId);
 
         $department->delete();
         $this->showDeleteModal = false;
@@ -132,11 +118,7 @@ class DepartmentManager extends Component
 
     public function getDepartmentsProperty()
     {
-        $query = InventoryDepartment::query()
-            ->where('company_id', getUserCompany())
-            ->where('module', 'organizational')
-            ->where('location_id', getCurrentUserLocation()->id)
-            ->orderBy('name');
+        $query = InventoryDepartment::query()->orderBy('name');
 
         if ($this->search !== '') {
             $query->where('name', 'like', '%' . $this->search . '%');

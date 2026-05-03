@@ -19,8 +19,8 @@ class TranslationList extends Component
     public string $groupFilter = '';
     public string $keySearch = '';
     public int $perPage = 15;
-    public ?int $deleteLineId = null;
-    public ?int $inlineEditId = null;
+    public ?string $deleteLineId = null;
+    public ?string $inlineEditId = null;
     public string $inlineGroup = '';
     public string $inlineKey = '';
     /** @var array<string, string> */
@@ -30,7 +30,7 @@ class TranslationList extends Component
 
     public function mount(): void
     {
-        $this->authorizeAction('System.components.Translations.View');
+        $this->authorizeAction('system.translations.keys.view');
     }
 
     public function updatingGroupFilter(): void
@@ -49,9 +49,9 @@ class TranslationList extends Component
         $this->resetPage();
     }
 
-    public function askDelete(int $id): void
+    public function askDelete(string $id): void
     {
-        $this->authorizeAction('System.components.Translations.Delete');
+        $this->authorizeAction('system.translations.keys.delete');
         $this->deleteLineId = $id;
     }
 
@@ -62,7 +62,7 @@ class TranslationList extends Component
 
     public function deleteTranslation(TranslationManagementService $translationService): void
     {
-        $this->authorizeAction('System.components.Translations.Delete');
+        $this->authorizeAction('system.translations.keys.delete');
 
         if ($this->deleteLineId === null) {
             return;
@@ -95,9 +95,9 @@ class TranslationList extends Component
             ->pluck('group');
     }
 
-    public function startInlineEdit(int $id): void
+    public function startInlineEdit(string $id): void
     {
-        $this->authorizeAction('System.components.Translations.Edit');
+        $this->authorizeAction('system.translations.keys.edit');
 
         $line = TranslationLanguageLine::query()->findOrFail($id);
         $this->inlineEditId = $line->id;
@@ -121,7 +121,7 @@ class TranslationList extends Component
 
     public function saveInlineEdit(TranslationManagementService $translationService): void
     {
-        $this->authorizeAction('System.components.Translations.Edit');
+        $this->authorizeAction('system.translations.keys.edit');
 
         if ($this->inlineEditId === null) {
             return;
@@ -150,7 +150,7 @@ class TranslationList extends Component
 
     public function exportJson()
     {
-        $this->authorizeAction('System.components.Translations.View');
+        $this->authorizeAction('system.translations.keys.view');
 
         $lines = TranslationLanguageLine::query()
             ->select(['group', 'key', 'text'])
@@ -177,7 +177,7 @@ class TranslationList extends Component
 
     public function exportCsv()
     {
-        $this->authorizeAction('System.components.Translations.View');
+        $this->authorizeAction('system.translations.keys.view');
 
         return Excel::download(
             new TranslationsExport($this->activeLanguageCodes),
@@ -221,7 +221,7 @@ class TranslationList extends Component
             abort(403);
         }
 
-        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can('System.permission') || $user->can($permission)) {
+        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can($permission)) {
             return;
         }
 

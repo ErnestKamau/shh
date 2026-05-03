@@ -5,8 +5,8 @@ namespace App\Constants\CRM;
 class CrmConstants
 {
     // Permissions
-    const PERMISSION_COMPLAINT_VIEW = 'CRM.components.Complaints.View';
-    const PERMISSION_COMPLAINT_RESOLUTION_ADD = 'CRM.components.Complaint Verification.Add';
+    const PERMISSION_COMPLAINT_VIEW = 'crm.components.complaints.view';
+    const PERMISSION_COMPLAINT_RESOLUTION_ADD = 'crm.components.complaint verification.add';
 
     // Complaint Priorities
     const PRIORITY_HIGH = 'High';

@@ -13,13 +13,13 @@ class LanguageList extends Component
 
     public string $search = '';
     public int $perPage = 10;
-    public ?int $deleteLanguageId = null;
+    public ?string $deleteLanguageId = null;
 
     protected $paginationTheme = 'bootstrap';
 
     public function mount(): void
     {
-        $this->authorizeAction('System.components.Translations.View');
+        $this->authorizeAction('system.translations.language.view');
     }
 
     public function updatingSearch(): void
@@ -33,9 +33,9 @@ class LanguageList extends Component
         $this->resetPage();
     }
 
-    public function toggleActive(int $id): void
+    public function toggleActive(string $id): void
     {
-        $this->authorizeAction('System.components.Translations.Edit');
+        $this->authorizeAction('system.translations.language.edit');
 
         $language = Language::query()->findOrFail($id);
 
@@ -50,9 +50,9 @@ class LanguageList extends Component
         session()->flash('success', 'Language status updated.');
     }
 
-    public function setDefault(int $id): void
+    public function setDefault(string $id): void
     {
-        $this->authorizeAction('System.components.Translations.Edit');
+        $this->authorizeAction('system.translations.language.edit');
 
         $language = Language::query()->findOrFail($id);
         $language->is_default = true;
@@ -62,9 +62,9 @@ class LanguageList extends Component
         session()->flash('success', 'Default language updated.');
     }
 
-    public function askDelete(int $id): void
+    public function askDelete(string $id): void
     {
-        $this->authorizeAction('System.components.Translations.Delete');
+        $this->authorizeAction('system.translations.language.delete');
         $this->deleteLanguageId = $id;
     }
 
@@ -75,7 +75,7 @@ class LanguageList extends Component
 
     public function deleteLanguage(): void
     {
-        $this->authorizeAction('System.components.Translations.Delete');
+        $this->authorizeAction('system.translations.language.delete');
 
         if ($this->deleteLanguageId === null) {
             return;
@@ -119,7 +119,7 @@ class LanguageList extends Component
             abort(403);
         }
 
-        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can('System.permission') || $user->can($permission)) {
+        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can($permission)) {
             return;
         }
 

@@ -436,10 +436,7 @@ class InventoryItemController extends Controller
 		// return $body;
 
 		$contacts = [];
-		$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-		$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
-
-		$users = getUsersByRole($procurement_officer_role_id, true);
+		$users = getInventoryWorkflowUsers('procurement');
 
 		foreach ($users as $s) {
 			$contacts[] = $s->email;

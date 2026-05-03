@@ -48,7 +48,7 @@ class ComplaintClosureTab extends BaseCrmComponent
      */
     public function saveSettings()
     {
-        $this->checkPermission('CRM.components.Complaint Pending Closure.Edit');
+        $this->checkPermission('crm.components.complaint pending closure.edit');
 
         if (!$this->resolution) {
             $this->showError('No investigation record found. Please complete the investigation first.');

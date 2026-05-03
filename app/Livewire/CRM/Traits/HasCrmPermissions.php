@@ -2,9 +2,7 @@
 
 namespace App\Livewire\CRM\Traits;
 
-use App\Services\Auth\LegacyPermissionSyncService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -23,45 +21,7 @@ trait HasCrmPermissions
             return true;
         }
 
-        if (method_exists($user, 'hasLegacyAdminRole') && $user->hasLegacyAdminRole()) {
-            return true;
-        }
-
         return $user->hasRole('admin');
-    }
-
-    protected function syncLegacyRolesIfNeeded($user): void
-    {
-        /** @var \App\User|null $user */
-        if (! $user) {
-            return;
-        }
-
-        try {
-            $hasLegacyRoles = DB::table('user_roles')
-                ->where('user_id', $user->id)
-                ->exists();
-
-            if (! $hasLegacyRoles) {
-                return;
-            }
-
-            $hasSpatieRoles = $user->roles()->exists();
-
-            if ($hasSpatieRoles) {
-                return;
-            }
-
-            app(LegacyPermissionSyncService::class)->syncUser($user);
-            app(PermissionRegistrar::class)->forgetCachedPermissions();
-            $user->unsetRelation('roles');
-            $user->load('roles.permissions');
-        } catch (\Throwable $exception) {
-            Log::warning('Failed to auto-sync CRM permissions.', [
-                'user_id' => $user->id ?? null,
-                'error' => $exception->getMessage(),
-            ]);
-        }
     }
 
     protected function canAccessPermission($user, string $permissionKey): bool
@@ -98,7 +58,7 @@ trait HasCrmPermissions
 
     /**
      * Check if user has permission, abort if not
-     * @param string $permissionKey Format: "CRM.components.Component-Name.Action"
+     * @param string $permissionKey Format: "crm.components.component-name.action"
      */
     protected function checkPermission($permissionKey)
     {
@@ -113,8 +73,6 @@ trait HasCrmPermissions
             return;
         }
 
-        $this->syncLegacyRolesIfNeeded($user);
-
         if (! $this->canAccessPermission($user, (string) $permissionKey)) {
             app(PermissionRegistrar::class)->forgetCachedPermissions();
             $user->unsetRelation('roles');
@@ -128,7 +86,7 @@ trait HasCrmPermissions
 
     /**
      * Check if user has permission, return boolean
-     * @param string $permissionKey Format: "CRM.components.Component-Name.Action"
+     * @param string $permissionKey Format: "crm.components.component-name.action"
      * @return bool
      */
     protected function hasPermission($permissionKey)
@@ -143,8 +101,6 @@ trait HasCrmPermissions
         if ($this->isAdminUser()) {
             return true;
         }
-
-        $this->syncLegacyRolesIfNeeded($user);
 
         if ($this->canAccessPermission($user, (string) $permissionKey)) {
             return true;

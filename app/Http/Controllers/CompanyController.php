@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Company;
-use App\Country;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -22,10 +21,7 @@ class CompanyController extends Controller
 
   public function index()
   {
-    $companies = Company::join('countries as c', 'c.id', '=', 'companies.country_id')->selectRaw('companies.*, c.name as country')->get();
-    $countries = Country::all();
-
-    return view('layouts.configuration.company.index', compact('companies', 'countries'));
+    return view('layouts.configuration.company.index');
   }
 
   /**

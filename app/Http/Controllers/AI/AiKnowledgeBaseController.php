@@ -3,19 +3,64 @@
 namespace App\Http\Controllers\AI;
 
 use App\Http\Controllers\Controller;
+use App\Models\AI\AiManualDocument;
+use App\Services\AI\AiInferenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use App\Services\AI\AiInferenceService;
 
 class AiKnowledgeBaseController extends Controller
 {
     protected AiInferenceService $inference;
 
+    private function normalizePermission(?string $permission): string
+    {
+        $normalized = strtolower(trim((string) $permission));
+
+        return $normalized === '' ? 'general.view' : $normalized;
+    }
+
     public function __construct(AiInferenceService $inference)
     {
         $this->inference = $inference;
+    }
+
+    private function findManualDocument($id): ?AiManualDocument
+    {
+        return AiManualDocument::query()->find($id);
+    }
+
+    private function loadManualDocumentsForItems($items)
+    {
+        $ids = collect($items)
+            ->pluck('manual_doc_id')
+            ->filter()
+            ->map(static function ($id) {
+                return (int) $id;
+            })
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return AiManualDocument::query()
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+    }
+
+    private function userCanManageDocument($user, string $ability, AiManualDocument $document): bool
+    {
+        return $user !== null && Gate::forUser($user)->allows($ability, $document);
+    }
+
+    private function denyJson(string $message, int $status = 403): JsonResponse
+    {
+        return response()->json(['status' => 'error', 'message' => $message], $status);
     }
 
     /**
@@ -26,8 +71,10 @@ class AiKnowledgeBaseController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $user = auth()->user();
-            $flatPerms = $user ? $user->getFlatPermissions() : ['General.View'];
+            $this->authorize('viewAny', AiManualDocument::class);
+
+            $user = $request->user();
+            $flatPerms = $user ? $user->getFlatPermissions() : ['general.view', 'General.View'];
 
             // Query the ai_knowledge_chunks table and aggregate by entity
             // We want to group by collection_name, entity_type, and entity_id
@@ -54,9 +101,10 @@ class AiKnowledgeBaseController extends Controller
             }
 
             $items = $query->get(); // Get all for simplified mapping or keep paginate(50)
+            $manualDocuments = $this->loadManualDocumentsForItems($items);
             
             // Format for the frontend
-            $formattedItems = collect($items)->map(function ($item) use ($user) {
+            $formattedItems = collect($items)->map(function ($item) use ($manualDocuments, $user) {
                 // Try to make entity_type more readable: App\Models\Audit -> Audit
                 $readableType = $item->entity_type;
                 if ($readableType && str_contains($readableType, '\\')) {
@@ -82,23 +130,19 @@ class AiKnowledgeBaseController extends Controller
                 $externalSourceUrl = null;
 
                 if ($item->manual_doc_id) {
-                    // Try to get title and metadata for manual docs
-                    $doc = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $item->manual_doc_id)->first();
+                    $doc = $manualDocuments->get((int) $item->manual_doc_id);
                     $identifier = $doc ? $doc->title : "Manual Doc #{$item->manual_doc_id}";
                     
-                    // Permission checks: user must have created it or be admin
                     if ($doc && $user) {
                         $createdBy = $doc->created_by;
                         $createdAt = $doc->created_at;
-                        // Can edit/delete if user created it or if user has broad admin permission
-                        $canEdit = ($doc->created_by === $user->id) || $user->hasPermissionTo('AI.Knowledge.Manage') || in_array('*', $user->getFlatPermissions());
-                        $canDelete = ($doc->created_by === $user->id) || $user->hasPermissionTo('AI.Knowledge.Manage') || in_array('*', $user->getFlatPermissions());
+                        $canEdit = $this->userCanManageDocument($user, 'update', $doc);
+                        $canDelete = $this->userCanManageDocument($user, 'delete', $doc);
                         
-                        // Governance fields from manual doc
                         $expiresAt = $doc->expires_at;
-                        $isExpired = $doc->expires_at && \Carbon\Carbon::parse($doc->expires_at)->isPast();
-                        $metadata = json_decode($doc->metadata ?? '{}');
-                        $tags = $metadata->tags ?? [];
+                        $isExpired = $doc->expires_at ? $doc->expires_at->isPast() : false;
+                        $metadata = $doc->metadata ?? [];
+                        $tags = is_array($metadata['tags'] ?? null) ? $metadata['tags'] : [];
                         $externalSourceUrl = $doc->external_source_url;
                     }
 
@@ -120,7 +164,7 @@ class AiKnowledgeBaseController extends Controller
                     'created_by'       => $createdBy,
                     'created_at'       => $createdAt,
                     'indexing_status'  => $indexingStatus ?? 'system',
-                    'last_indexed_at'  => $lastIndexedAt ? \Carbon\Carbon::parse($lastIndexedAt)->diffForHumans() : null,
+                    'last_indexed_at'  => $lastIndexedAt ? $lastIndexedAt->diffForHumans() : null,
                     'expires_at'       => $expiresAt,
                     'is_expired'       => $isExpired,
                     'tags'             => $tags,
@@ -155,12 +199,16 @@ class AiKnowledgeBaseController extends Controller
             'chunk_overlap' => 'nullable|integer|min:0|max:1000'
         ]);
 
+        $this->authorize('create', AiManualDocument::class);
+
         try {
+            $requiredPermission = $this->normalizePermission($request->permission);
+
             $id = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->insertGetId([
                 'title' => $request->title,
                 'collection_name' => $request->collection,
                 'content' => $request->content,
-                'required_permission' => $request->permission ?? 'General.View',
+                'required_permission' => $requiredPermission,
                 'expires_at' => $request->expires_at,
                 'external_source_url' => $request->external_source_url,
                 'metadata' => json_encode([
@@ -179,7 +227,7 @@ class AiKnowledgeBaseController extends Controller
                 'content' => $request->content,
                 'metadata' => [
                     'title' => $request->title, 
-                    'permission' => $request->permission ?? 'General.View',
+                    'permission' => $requiredPermission,
                     'tags' => $request->tags ?? [],
                     'expires_at' => $request->expires_at,
                     'external_source_url' => $request->external_source_url,
@@ -206,15 +254,14 @@ class AiKnowledgeBaseController extends Controller
     {
         try {
             $user = auth()->user();
-            $doc = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->first();
+            $doc = $this->findManualDocument($id);
             
             if (!$doc) {
                 return response()->json(['status' => 'error', 'message' => 'Document not found.'], 404);
             }
 
-            // Authorization: user must have created it or have admin permission
-            if (!$user || !($doc->created_by === $user->id || $user->hasPermissionTo('AI.Knowledge.Manage') || in_array('*', $user->getFlatPermissions()))) {
-                return response()->json(['status' => 'error', 'message' => 'Unauthorized to edit this document.'], 403);
+            if (!$this->userCanManageDocument($user, 'view', $doc)) {
+                return $this->denyJson('Unauthorized to edit this document.');
             }
 
             return response()->json(['status' => 'ok', 'data' => $doc]);
@@ -242,25 +289,25 @@ class AiKnowledgeBaseController extends Controller
         ]);
 
         try {
+            $requiredPermission = $this->normalizePermission($request->permission);
             $user = auth()->user();
-            $doc = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->first();
+            $doc = $this->findManualDocument($id);
 
             if (!$doc) {
                 return response()->json(['status' => 'error', 'message' => 'Document not found.'], 404);
             }
 
-            // Authorization: user must have created it or have admin permission
-            if (!$user || !($doc->created_by === $user->id || $user->hasPermissionTo('AI.Knowledge.Manage') || in_array('*', $user->getFlatPermissions()))) {
+            if (!$this->userCanManageDocument($user, 'update', $doc)) {
                 Log::warning('Unauthorized KB edit attempt', ['user_id' => auth()->id(), 'document_id' => $id, 'doc_created_by' => $doc->created_by]);
-                return response()->json(['status' => 'error', 'message' => 'Unauthorized to edit this document.'], 403);
+                return $this->denyJson('Unauthorized to edit this document.');
             }
 
             // 1. Update text
-            DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->update([
+            $doc->update([
                 'title' => $request->title,
                 'collection_name' => $request->collection,
                 'content' => $request->content,
-                'required_permission' => $request->permission ?? 'General.View',
+                'required_permission' => $requiredPermission,
                 'expires_at' => $request->expires_at,
                 'external_source_url' => $request->external_source_url,
                 'metadata' => json_encode([
@@ -284,7 +331,7 @@ class AiKnowledgeBaseController extends Controller
                 'content' => $request->content,
                 'metadata' => [
                     'title' => $request->title, 
-                    'permission' => $request->permission ?? 'General.View',
+                    'permission' => $requiredPermission,
                     'tags' => $request->tags ?? [],
                     'chunk_size' => $request->chunk_size ?? 800,
                     'chunk_overlap' => $request->chunk_overlap ?? 100
@@ -309,16 +356,15 @@ class AiKnowledgeBaseController extends Controller
     {
         try {
             $user = auth()->user();
-            $doc = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->first();
+            $doc = $this->findManualDocument($id);
 
             if (!$doc) {
                 return response()->json(['status' => 'error', 'message' => 'Document not found.'], 404);
             }
 
-            // Authorization: user must have created it or have admin permission
-            if (!$user || !($doc->created_by === $user->id || $user->hasPermissionTo('AI.Knowledge.Manage') || in_array('*', $user->getFlatPermissions()))) {
+            if (!$this->userCanManageDocument($user, 'delete', $doc)) {
                 Log::warning('Unauthorized KB delete attempt', ['user_id' => auth()->id(), 'document_id' => $id, 'doc_created_by' => $doc->created_by]);
-                return response()->json(['status' => 'error', 'message' => 'Unauthorized to delete this document.'], 403);
+                return $this->denyJson('Unauthorized to delete this document.');
             }
 
             Log::info('Knowledge document deleted', ['document_id' => $id, 'document_title' => $doc->title, 'deleted_by' => $user->id]);
@@ -327,7 +373,7 @@ class AiKnowledgeBaseController extends Controller
             $this->inference->deleteKnowledge('manual', (string) $id);
 
             // 2. Delete source
-            DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->delete();
+            $doc->delete();
 
             return response()->json(['status' => 'ok', 'message' => 'Knowledge removed successfully.']);
         } catch (\Throwable $e) {
@@ -343,14 +389,14 @@ class AiKnowledgeBaseController extends Controller
     {
         try {
             $user = auth()->user();
-            $doc  = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->first();
+            $doc = $this->findManualDocument($id);
 
             if (!$doc) {
                 return response()->json(['status' => 'error', 'message' => 'Document not found.'], 404);
             }
 
-            if (!$user || !($doc->created_by === $user->id || $user->hasPermissionTo('AI.Knowledge.Manage') || in_array('*', $user->getFlatPermissions()))) {
-                return response()->json(['status' => 'error', 'message' => 'Unauthorized.'], 403);
+            if (!$this->userCanManageDocument($user, 'reindex', $doc)) {
+                return $this->denyJson('Unauthorized.');
             }
 
             // Clear existing chunks
@@ -359,9 +405,9 @@ class AiKnowledgeBaseController extends Controller
                 ->delete();
 
             // Parse metadata for tuning params
-            $meta = json_decode($doc->metadata ?? '{}');
-            $chunkSize = $meta->chunk_size ?? 800;
-            $chunkOverlap = $meta->chunk_overlap ?? 100;
+            $meta = $doc->metadata ?? [];
+            $chunkSize = $meta['chunk_size'] ?? 800;
+            $chunkOverlap = $meta['chunk_overlap'] ?? 100;
 
             // Re-index via Python Service
             $result = $this->inference->indexKnowledge([
@@ -369,8 +415,8 @@ class AiKnowledgeBaseController extends Controller
                 'content' => $doc->content,
                 'metadata' => [
                     'title' => $doc->title, 
-                    'permission' => $doc->required_permission ?? 'General.View',
-                    'tags' => $meta->tags ?? [],
+                    'permission' => $doc->required_permission ?? 'general.view',
+                    'tags' => $meta['tags'] ?? [],
                     'chunk_size' => $chunkSize,
                     'chunk_overlap' => $chunkOverlap
                 ],
@@ -402,16 +448,19 @@ class AiKnowledgeBaseController extends Controller
             'permission' => 'nullable|string'
         ]);
 
+        $this->authorize('create', AiManualDocument::class);
+
         try {
             $file = $request->file('file');
             $title = $file->getClientOriginalName();
+            $requiredPermission = $this->normalizePermission($request->permission);
             
             // 1. Create a placeholder record in the database
             $id = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->insertGetId([
                 'title' => $title,
                 'collection_name' => $request->collection,
                 'content' => "[Processing file: $title]",
-                'required_permission' => $request->permission ?? 'General.View',
+                'required_permission' => $requiredPermission,
                 'created_by' => auth()->id(),
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -420,7 +469,7 @@ class AiKnowledgeBaseController extends Controller
             // 2. Forward to Python Service for parsing and indexing
             $result = $this->inference->uploadKnowledgeFile($file, [
                 'collection' => $request->collection,
-                'permission' => $request->permission ?? 'General.View',
+                'permission' => $requiredPermission,
                 'manual_doc_id' => (int) $id,
                 'metadata' => [
                     'original_filename' => $title,
@@ -461,13 +510,17 @@ class AiKnowledgeBaseController extends Controller
         $ids = $request->ids;
 
         try {
-            $user = auth()->user();
-            foreach ($ids as $id) {
-                $doc = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->first();
-                if (!$doc) continue;
+            $user = $request->user();
+            $documents = AiManualDocument::query()->whereIn('id', $ids)->get()->keyBy('id');
+            $processed = 0;
 
-                // Authorization check for each
-                if ($doc->created_by !== $user->id && !$user->hasPermissionTo('AI.Knowledge.Manage') && !in_array('*', $user->getFlatPermissions())) {
+            foreach ($ids as $id) {
+                $doc = $documents->get((int) $id);
+                if (!$doc) {
+                    continue;
+                }
+
+                if (!$this->userCanManageDocument($user, 'delete', $doc)) {
                     continue; // Skip unauthorized
                 }
 
@@ -475,10 +528,11 @@ class AiKnowledgeBaseController extends Controller
                 $this->inference->deleteKnowledge('manual', (string) $id, $user->company_id ?? 0);
 
                 // 2. Delete source
-                DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->delete();
+                $doc->delete();
+                $processed++;
             }
 
-            return response()->json(['status' => 'ok', 'message' => count($ids) . ' items processed.']);
+            return response()->json(['status' => 'ok', 'message' => $processed . ' items processed.']);
         } catch (\Throwable $e) {
             Log::error('AiKnowledgeBaseController: batchDestroy failed', ['error' => $e->getMessage()]);
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
@@ -494,13 +548,17 @@ class AiKnowledgeBaseController extends Controller
         $ids = $request->ids;
 
         try {
-            $user = auth()->user();
-            foreach ($ids as $id) {
-                $doc = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->first();
-                if (!$doc) continue;
+            $user = $request->user();
+            $documents = AiManualDocument::query()->whereIn('id', $ids)->get()->keyBy('id');
+            $processed = 0;
 
-                // Authorization check
-                if ($doc->created_by !== $user->id && !$user->hasPermissionTo('AI.Knowledge.Manage') && !in_array('*', $user->getFlatPermissions())) {
+            foreach ($ids as $id) {
+                $doc = $documents->get((int) $id);
+                if (!$doc) {
+                    continue;
+                }
+
+                if (!$this->userCanManageDocument($user, 'reindex', $doc)) {
                     continue;
                 }
 
@@ -510,9 +568,9 @@ class AiKnowledgeBaseController extends Controller
                     ->delete();
 
                 // Parse metadata for tuning params
-                $meta = json_decode($doc->metadata ?? '{}');
-                $chunkSize = $meta->chunk_size ?? 800;
-                $chunkOverlap = $meta->chunk_overlap ?? 100;
+                $meta = $doc->metadata ?? [];
+                $chunkSize = $meta['chunk_size'] ?? 800;
+                $chunkOverlap = $meta['chunk_overlap'] ?? 100;
 
                 // Re-index via Python Service
                 $this->inference->indexKnowledge([
@@ -520,8 +578,8 @@ class AiKnowledgeBaseController extends Controller
                     'content' => $doc->content,
                     'metadata' => [
                         'title' => $doc->title, 
-                        'permission' => $doc->required_permission ?? 'General.View',
-                        'tags' => $meta->tags ?? [],
+                        'permission' => $doc->required_permission ?? 'general.view',
+                        'tags' => $meta['tags'] ?? [],
                         'company_id' => $user->company_id ?? 1,
                         'chunk_size' => $chunkSize,
                         'chunk_overlap' => $chunkOverlap
@@ -531,9 +589,11 @@ class AiKnowledgeBaseController extends Controller
                     'chunk_size' => $chunkSize,
                     'chunk_overlap' => $chunkOverlap
                 ]);
+
+                $processed++;
             }
 
-            return response()->json(['status' => 'ok', 'message' => count($ids) . ' items queued for re-indexing.']);
+            return response()->json(['status' => 'ok', 'message' => $processed . ' items queued for re-indexing.']);
         } catch (\Throwable $e) {
             Log::error('AiKnowledgeBaseController: batchReindex failed', ['error' => $e->getMessage()]);
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
@@ -589,13 +649,12 @@ class AiKnowledgeBaseController extends Controller
     {
         $doc = null;
         if ($id) {
-            $doc = DB::connection('pgsql_ai')->table('ai.ai_manual_documents')->where('id', $id)->first();
+            $doc = $this->findManualDocument($id);
             if (!$doc) abort(404);
-            
-            $user = auth()->user();
-            if ($doc->created_by !== $user->id && !$user->hasPermissionTo('AI.Knowledge.Manage') && !in_array('*', $user->getFlatPermissions())) {
-                abort(403);
-            }
+
+            $this->authorize('update', $doc);
+        } else {
+            $this->authorize('create', AiManualDocument::class);
         }
 
         return view('imara-ai.knowledge.editor', compact('doc'));

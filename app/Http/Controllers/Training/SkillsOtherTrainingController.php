@@ -20,6 +20,9 @@ class SkillsOtherTrainingController extends Controller
 
     public function __construct(){
     $this->middleware('auth');
+	$this->middleware('can:skills-matrix.components.other-training.view')->only(['index']);
+	$this->middleware('can:skills-matrix.components.other-training.add')->only(['add']);
+	$this->middleware('can:skills-matrix.components.other-training.edit')->only(['edit', 'training_acceptance']);
 	}
 
 	public function checkConfig(){
@@ -47,20 +50,7 @@ class SkillsOtherTrainingController extends Controller
 			->where('location_id', getCurrentUserLocation()->id)->selectRaw('inventory_departments.id,name')
 			->orderBy('name', 'asc')->get();
 		
-		
-		$edit_skills_matrixs = getConfigByName('edit_skills_matrix_role_id');
-		$edit_skills_matrix_role_id = count($edit_skills_matrixs) > 0 ? $edit_skills_matrixs[0]->value : 0;
-
-		$AppUsers = getUsersByRole($edit_skills_matrix_role_id, true);		
-		$user_id = Auth::id();
-		$editskillsList = [];
-		foreach($AppUsers as $au){
-			$editskillsList[] = $au->id;
-		}
-		$can_edit_skills_matrix = 0;
-		if(in_array($user_id,$editskillsList)){
-			$can_edit_skills_matrix = 1;
-		}   
+		$can_edit_skills_matrix = Auth::user()->can('skills-matrix.components.other-training.edit') ? 1 : 0;
 
 		$training_type_info = getConfigByName('training_type')->first();
 		$training_types = explode(',',$training_type_info->value);	

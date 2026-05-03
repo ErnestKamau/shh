@@ -2,12 +2,38 @@
 
 namespace App;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Company extends Model implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
 	use \OwenIt\Auditing\Auditable;
+
+    protected $fillable = [
+        'name',
+        'logo',
+        'report_logo',
+        'location',
+        'address',
+        'country_id',
+        'website',
+        'license_key',
+        'license_expiry',
+        'active',
+        'client_number',
+        'email',
+        'cell_phone',
+        'telephone',
+        'street',
+        'fax',
+        'show_on_reports',
+    ];
 
     protected $casts = [
         'name' => 'encrypted',

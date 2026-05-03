@@ -4,19 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\DMS\Document;
 use App\Models\DMS\DocumentAuditLog;
-use App\Services\DMS\PermissionResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DMSController extends Controller
 {
-    protected $permissionResolver;
-
-    public function __construct(PermissionResolver $permissionResolver)
+    public function __construct()
     {
         $this->middleware('auth');
-        $this->permissionResolver = $permissionResolver;
     }
 
     /**
@@ -29,10 +25,7 @@ class DMSController extends Controller
     {
         $document = Document::findOrFail($id);
 
-        // Check permission
-        if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'view')) {
-            abort(403, 'You do not have permission to download this document.');
-        }
+        $this->authorize('view', $document);
 
         // Log the download
         DocumentAuditLog::log(
@@ -57,10 +50,7 @@ class DMSController extends Controller
     {
         $document = Document::findOrFail($id);
 
-        // Check permission
-        if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'view')) {
-            abort(403, 'You do not have permission to preview this document.');
-        }
+        $this->authorize('view', $document);
 
         // Log the view
         DocumentAuditLog::log(
@@ -107,10 +97,7 @@ class DMSController extends Controller
         $document = Document::findOrFail($documentId);
         $version = $document->versions()->findOrFail($versionId);
 
-        // Check permission
-        if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'view')) {
-            abort(403, 'You do not have permission to download this document version.');
-        }
+        $this->authorize('view', $document);
 
         // Log the download
         DocumentAuditLog::log(

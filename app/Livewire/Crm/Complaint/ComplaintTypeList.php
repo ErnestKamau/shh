@@ -25,7 +25,7 @@ class ComplaintTypeList extends BaseCrmComponent
     public function mount()
     {
         $this->initialize();
-        $this->checkPermission('CRM.components.Complaint Type.View');
+        $this->checkPermission('crm.components.complaint type.view');
         // $this->loadTypes(); // Removed
     }
 
@@ -77,14 +77,14 @@ class ComplaintTypeList extends BaseCrmComponent
         $isEditing = $this->editingTypeId ? true : false;
 
         if ($isEditing) {
-            $this->checkPermission('CRM.components.Complaint Type.Edit');
+            $this->checkPermission('crm.components.complaint type.edit');
             $type = Complaint_Type::find($this->editingTypeId);
             if (!$type) {
                 $this->showError('Complaint Type not found.');
                 return;
             }
         } else {
-            $this->checkPermission('CRM.components.Complaint Type.Add');
+            $this->checkPermission('crm.components.complaint type.add');
             $type = new Complaint_Type();
         }
 
@@ -114,7 +114,7 @@ class ComplaintTypeList extends BaseCrmComponent
 
     public function delete()
     {
-        $this->checkPermission('CRM.components.Complaint Type.Delete');
+        $this->checkPermission('crm.components.complaint type.delete');
 
         $type = Complaint_Type::find($this->typeIdToDelete);
         if ($type) {
@@ -172,7 +172,7 @@ class ComplaintTypeList extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.components.Complaint Type.View');
+        $this->checkPermission('crm.components.complaint type.view');
 
         $filters = [
             'activeTab' => $this->activeTab,

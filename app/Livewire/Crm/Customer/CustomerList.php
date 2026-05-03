@@ -48,7 +48,7 @@ class CustomerList extends BaseCrmComponent
     public function mount()
     {
         $this->initialize();
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
 
         // Check if user is from lab department (skip if lab_department_id not configured)
         $lab_department = SystemConfiguration::where('key', 'lab_department_id')->first();
@@ -199,7 +199,7 @@ class CustomerList extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
 
         $filters = [
             'company_id' => $this->getUserCompany(),

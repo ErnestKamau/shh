@@ -146,7 +146,7 @@
     if (isset($componentType) && $componentType === 'zones') {
         $breadcrumbItems[] = [
             'link' => route('module-pre-configs', ['config' => $config, 'module' => $module]),
-            'name' => 'Zones',
+            'name' => 'Zone',
             'icon' => null
         ];
     }
@@ -173,7 +173,7 @@
     @elseif($componentType === 'report-formats')
     @livewire('reports.report-format-manager')
     @elseif($componentType === 'zones')
-    @livewire('zone-manager', ['module' => $module])
+    @livewire('personnel.zones.configuration-manager', ['module' => $module])
     @elseif($componentType === 'standards')
     @livewire('standards.standards-page')
     @elseif($componentType === 'standard-analytes')

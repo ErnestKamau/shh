@@ -18,7 +18,7 @@ class TranslationPermissionsTest extends TestCase
             ->assertExitCode(0);
 
         $exists = DB::table('spatie_permissions')
-            ->where('name', 'System.components.Translations.Bulk Import')
+            ->where('name', 'system.components.translations.bulk import')
             ->exists();
 
         $this->assertTrue($exists);

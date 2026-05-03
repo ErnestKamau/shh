@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Http\Middleware\checkHasPermission;
 use App\Livewire\Sampleworkflow\SubmissionSupportingDocumentFill;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SupportingDocumentElement;
@@ -24,8 +23,6 @@ class SampleSubmissionRequestSupportingDocumentFillTest extends TestCase
         if (! Schema::hasTable('supporting_document_instances') || ! Schema::hasColumn('supporting_document_instances', 'sample_submission_request_id')) {
             $this->markTestSkipped('Supporting document instance migration not applied.');
         }
-
-        $this->withoutMiddleware([checkHasPermission::class]);
 
         $user = User::create([
             'name' => 'Lab User',

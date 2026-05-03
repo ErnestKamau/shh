@@ -2,7 +2,7 @@
     <div class="lab-dashboard-subtitle mb-4">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <p class="text-muted mb-0">Personnel overview for staffing, licensing utilization, and organization readiness.</p>
+                <p class="text-muted mb-0">{{ __('personnel.personnel_overview') }}</p>
             </div>
             <div class="col-md-4 text-right">
                 <p class="mb-0 text-primary" style="font-size: 1rem; font-weight: 500;">
@@ -24,7 +24,7 @@
                                     <h4 class="kpi-card-value">{{ $totalPersonnel }}</h4>
                                     <div class="kpi-card-icon"><i class="mdi mdi-account-group" style="color: #0d6efd;"></i></div>
                                 </div>
-                                <div class="kpi-card-row"><p class="kpi-card-label">Total Personnel</p></div>
+                                <div class="kpi-card-row"><p class="kpi-card-label">{{ __('personnel.total_personnel') }}</p></div>
                             </div>
                         </div>
                     </div>
@@ -35,7 +35,7 @@
                                     <h4 class="kpi-card-value">{{ $activePersonnel }}</h4>
                                     <div class="kpi-card-icon"><i class="mdi mdi-account-check" style="color: #28a745;"></i></div>
                                 </div>
-                                <div class="kpi-card-row"><p class="kpi-card-label">Active Personnel</p></div>
+                                <div class="kpi-card-row"><p class="kpi-card-label">{{ __('personnel.active_personnel') }}</p></div>
                             </div>
                         </div>
                     </div>
@@ -46,7 +46,7 @@
                                     <h4 class="kpi-card-value">{{ $inactivePersonnel }}</h4>
                                     <div class="kpi-card-icon"><i class="mdi mdi-account-off" style="color: #dc3545;"></i></div>
                                 </div>
-                                <div class="kpi-card-row"><p class="kpi-card-label">Inactive Personnel</p></div>
+                                <div class="kpi-card-row"><p class="kpi-card-label">{{ __('personnel.inactive_personnel') }}</p></div>
                             </div>
                         </div>
                     </div>
@@ -57,7 +57,7 @@
                                     <h4 class="kpi-card-value">{{ $newThisMonth }}</h4>
                                     <div class="kpi-card-icon"><i class="mdi mdi-account-plus" style="color: #17a2b8;"></i></div>
                                 </div>
-                                <div class="kpi-card-row"><p class="kpi-card-label">New This Month</p></div>
+                                <div class="kpi-card-row"><p class="kpi-card-label">{{ __('personnel.new_this_month') }}</p></div>
                             </div>
                         </div>
                     </div>
@@ -66,16 +66,16 @@
                 <div class="row mb-4">
                     <div class="col-md-8">
                         <div class="chart-container h-100">
-                            <h5 class="mb-3"><i class="mdi mdi-key-variant"></i> License Utilization</h5>
-                            @foreach ($licenseUsage as $license)
+                            <h5 class="mb-3"><i class="mdi mdi-account-badge"></i> Analyst Gazzetted Matrix</h5>
+                            @foreach ($analystGazzettedMatrix as $item)
                                 @php
-                                    $limit = max($license['limit'], 1);
-                                    $percentage = min((int) round(($license['used'] / $limit) * 100), 100);
+                                    $limit = max($item['limit'], 1);
+                                    $percentage = min((int) round(($item['used'] / $limit) * 100), 100);
                                 @endphp
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted">{{ $license['label'] }}</span>
-                                        <span class="font-weight-bold">{{ $license['used'] }}/{{ $license['limit'] }}</span>
+                                        <span class="text-muted">{{ $item['label'] }}</span>
+                                        <span class="font-weight-bold">{{ $item['used'] }}/{{ $item['limit'] }}</span>
                                     </div>
                                     <div class="progress" style="height: 8px;">
                                         <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $percentage }}%;" aria-valuenow="{{ $percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
@@ -86,18 +86,18 @@
                     </div>
                     <div class="col-md-4">
                         <div class="chart-container h-100">
-                            <h5 class="mb-3"><i class="mdi mdi-lightning-bolt"></i> Quick Actions</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-lightning-bolt"></i> {{ __('personnel.quick_actions') }}</h5>
                             <button type="button" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2" wire:click="$dispatchTo('personnel.personnel-table-manager', 'personnel-open-add-modal')">
-                                <i class="mdi mdi-plus"></i> Add Personnel
+                                <i class="mdi mdi-plus"></i> {{ __('personnel.add_personnel') }}
                             </button>
                             <a href="{{ route('organizational-roles') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2">
-                                <i class="mdi mdi-account-key"></i> Manage Roles
+                                <i class="mdi mdi-account-key"></i> {{ __('personnel.manage_roles') }}
                             </a>
                             <a href="{{ route('show-organizational-departments') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2">
-                                <i class="mdi mdi-home-group"></i> Departments
+                                <i class="mdi mdi-home-group"></i> {{ __('personnel.departments') }}
                             </a>
                             <a href="{{ route('personnel-certification-home') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
-                                <i class="mdi mdi-certificate"></i> Certifications
+                                <i class="mdi mdi-certificate"></i> {{ __('personnel.certifications') }}
                             </a>
                         </div>
                     </div>
@@ -106,27 +106,27 @@
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="chart-container h-100">
-                            <h5 class="mb-3"><i class="mdi mdi-office-building"></i> Active by Department</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-office-building"></i> {{ __('personnel.active_by_department') }}</h5>
                             @forelse ($departmentDistribution as $department)
                                 <div class="d-flex justify-content-between border-bottom py-2">
                                     <span>{{ $department['name'] }}</span>
                                     <span class="badge badge-light">{{ $department['count'] }}</span>
                                 </div>
                             @empty
-                                <p class="text-muted mb-0">No department records available.</p>
+                                <p class="text-muted mb-0">{{ __('personnel.no_department_records') }}</p>
                             @endforelse
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="chart-container h-100">
-                            <h5 class="mb-3"><i class="mdi mdi-badge-account-horizontal"></i> Active by Designation</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-badge-account-horizontal"></i> {{ __('personnel.active_by_designation') }}</h5>
                             @forelse ($designationDistribution as $designation)
                                 <div class="d-flex justify-content-between border-bottom py-2">
                                     <span>{{ $designation['name'] }}</span>
                                     <span class="badge badge-light">{{ $designation['count'] }}</span>
                                 </div>
                             @empty
-                                <p class="text-muted mb-0">No designation records available.</p>
+                                <p class="text-muted mb-0">{{ __('personnel.no_designation_records') }}</p>
                             @endforelse
                         </div>
                     </div>
@@ -135,7 +135,7 @@
                 <div class="row mb-2">
                     <div class="col-md-6">
                         <div class="chart-container h-100">
-                            <h5 class="mb-3"><i class="mdi mdi-chart-line"></i> Hiring Trend (Last 6 Months)</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-chart-line"></i> {{ __('personnel.hiring_trend') }}</h5>
                             @foreach ($hireTrend as $trend)
                                 @php
                                     $maxTrend = max(array_column($hireTrend, 'count')) ?: 1;
@@ -155,7 +155,7 @@
                     </div>
                     <div class="col-md-6">
                         <div class="chart-container h-100">
-                            <h5 class="mb-3"><i class="mdi mdi-account-clock"></i> Recent Joiners</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-account-clock"></i> {{ __('personnel.recent_joiners') }}</h5>
                             @forelse ($recentJoiners as $joiner)
                                 <div class="border rounded p-2 mb-2">
                                     <a href="{{ route('view-personnel', ['id' => $joiner['id']]) }}" class="font-weight-bold">{{ $joiner['name'] }}</a>
@@ -163,8 +163,92 @@
                                     <div class="small">{{ $joiner['date'] }}</div>
                                 </div>
                             @empty
-                                <p class="text-muted mb-0">No recent personnel records found.</p>
+                                <p class="text-muted mb-0">{{ __('personnel.no_recent_joiners') }}</p>
                             @endforelse
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-2">
+                    <div class="col-12">
+                        <div class="chart-container h-100">
+                            <h5 class="mb-3"><i class="mdi mdi-office-building"></i> Organization Structure</h5>
+                            @php
+                                $structureRows = $organizationStructure;
+                                $zoneCount = count($structureRows);
+                                $maxValue = max(1, collect($structureRows)->max(fn ($row) => max($row['labs'], $row['users'])) ?? 1);
+
+                                $leftPad = 36;
+                                $rightPad = 18;
+                                $topPad = 20;
+                                $chartHeight = 210;
+                                $baseY = $topPad + $chartHeight;
+                                $chartWidth = max(760, $leftPad + $rightPad + (max($zoneCount, 1) * 150));
+                                $plotWidth = $chartWidth - $leftPad - $rightPad;
+                                $step = $plotWidth / max($zoneCount, 1);
+                                $barWidth = 34;
+                                $linePoints = [];
+
+                                foreach ($structureRows as $i => $row) {
+                                    $x = $leftPad + ($i * $step) + ($step / 2);
+                                    $y = $baseY - (($row['users'] / $maxValue) * $chartHeight);
+                                    $linePoints[] = [$x, $y];
+                                }
+
+                                $linePointText = collect($linePoints)->map(fn ($pt) => $pt[0] . ',' . $pt[1])->implode(' ');
+                                $areaPointText = '';
+                                if (!empty($linePoints)) {
+                                    $areaPointText = $linePoints[0][0] . ',' . $baseY . ' ' . $linePointText . ' ' . end($linePoints)[0] . ',' . $baseY;
+                                }
+                            @endphp
+
+                            @if($zoneCount === 0)
+                                <p class="text-muted mb-0">No zones available for the current location.</p>
+                            @else
+                                <div class="org-chart-wrap">
+                                    <svg class="org-structure-chart" viewBox="0 0 {{ $chartWidth }} {{ $baseY + 42 }}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Organization structure chart">
+                                        @for($i = 0; $i <= 4; $i++)
+                                            @php
+                                                $lineY = $topPad + (($chartHeight / 4) * $i);
+                                                $lineValue = (int) round($maxValue - (($maxValue / 4) * $i));
+                                            @endphp
+                                            <line x1="{{ $leftPad }}" y1="{{ $lineY }}" x2="{{ $chartWidth - $rightPad }}" y2="{{ $lineY }}" stroke="#e2e8f0" stroke-width="1" />
+                                            <text x="{{ $leftPad - 8 }}" y="{{ $lineY + 4 }}" text-anchor="end" class="org-axis-label">{{ $lineValue }}</text>
+                                        @endfor
+
+                                        @foreach($structureRows as $i => $row)
+                                            @php
+                                                $x = $leftPad + ($i * $step) + ($step / 2);
+                                                $barHeight = ($row['labs'] / $maxValue) * $chartHeight;
+                                                $barY = $baseY - $barHeight;
+                                                $barX = $x - ($barWidth / 2);
+                                                $zoneLabel = strlen($row['zone']) > 24 ? substr($row['zone'], 0, 24) . '...' : $row['zone'];
+                                            @endphp
+                                            <rect x="{{ $barX }}" y="{{ $barY }}" width="{{ $barWidth }}" height="{{ $barHeight }}" rx="6" class="org-bar" />
+                                            <text x="{{ $x }}" y="{{ max($barY - 6, 12) }}" text-anchor="middle" class="org-bar-value">{{ $row['labs'] }}</text>
+                                            <text x="{{ $x }}" y="{{ $baseY + 20 }}" text-anchor="middle" class="org-zone-label">{{ $zoneLabel }}</text>
+                                        @endforeach
+
+                                        @if($areaPointText !== '')
+                                            <polygon points="{{ $areaPointText }}" class="org-area" />
+                                            <polyline points="{{ $linePointText }}" class="org-line" />
+                                            @foreach($structureRows as $i => $row)
+                                                @php
+                                                    $x = $leftPad + ($i * $step) + ($step / 2);
+                                                    $y = $baseY - (($row['users'] / $maxValue) * $chartHeight);
+                                                @endphp
+                                                <circle cx="{{ $x }}" cy="{{ $y }}" r="4" class="org-line-dot" />
+                                                <text x="{{ $x }}" y="{{ max($y - 8, 12) }}" text-anchor="middle" class="org-line-value">{{ $row['users'] }}</text>
+                                            @endforeach
+                                        @endif
+                                    </svg>
+                                </div>
+
+                                <div class="org-chart-legend mt-2">
+                                    <span class="org-legend-item"><span class="org-legend-swatch org-legend-swatch--bar"></span> Labs per Zone (Bar)</span>
+                                    <span class="org-legend-item"><span class="org-legend-swatch org-legend-swatch--line"></span> Users per Zone (Area Line)</span>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -182,6 +266,43 @@
         .chart-container { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); }
         .quick-action-btn { display: block; width: 100%; padding: 12px; text-align: center; font-weight: 500; border-radius: 8px; }
         .quick-action-btn:hover { color: white !important; background-color: #0d6efd; border-color: #0d6efd; }
+
+        .org-chart-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; }
+        .org-structure-chart { width: 100%; min-width: 100%; height: 320px; }
+        .org-axis-label { font-size: 11px; fill: #64748b; font-weight: 600; }
+        .org-bar { fill: #3b82f6; opacity: 0.88; }
+        .org-bar-value { font-size: 11px; fill: #1e3a8a; font-weight: 700; }
+        .org-zone-label { font-size: 10px; fill: #334155; font-weight: 600; }
+        .org-area { fill: rgba(16, 185, 129, 0.2); }
+        .org-line { fill: none; stroke: #10b981; stroke-width: 2.5; }
+        .org-line-dot { fill: #10b981; stroke: #ffffff; stroke-width: 1.5; }
+        .org-line-value { font-size: 11px; fill: #047857; font-weight: 700; }
+
+        .org-chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .org-legend-item {
+            font-size: 12px;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .org-legend-swatch {
+            width: 16px;
+            height: 10px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .org-legend-swatch--bar { background: #3b82f6; }
+        .org-legend-swatch--line { background: rgba(16, 185, 129, 0.28); border: 2px solid #10b981; }
+
     </style>
 
     <div id="personnel-list" class="mt-4">

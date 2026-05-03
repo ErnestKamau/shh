@@ -58,7 +58,7 @@ class ComplaintNotesTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new ComplaintTabExport($this->complaintId, 'notes'))->download('complaint_notes_' . now()->format('Ymd_His') . '.xlsx');
     }
 
@@ -76,7 +76,7 @@ class ComplaintNotesTab extends BaseCrmComponent
 
     public function addNote()
     {
-        $this->checkPermission('CRM.components.Complaints.Edit');
+        $this->checkPermission('crm.components.complaints.edit');
         
         $rules = [
             'newNote' => 'required|string',
@@ -135,7 +135,7 @@ class ComplaintNotesTab extends BaseCrmComponent
     public function updateNote()
     {
         if ($this->editingNoteId) {
-            $this->checkPermission('CRM.components.Complaints.Edit');
+            $this->checkPermission('crm.components.complaints.edit');
             
             $rules = [
                 'editingNote' => 'required|string',
@@ -170,7 +170,7 @@ class ComplaintNotesTab extends BaseCrmComponent
 
     public function deleteNote($noteId)
     {
-        $this->checkPermission('CRM.components.Complaints.Edit');
+        $this->checkPermission('crm.components.complaints.edit');
         
         $note = Complaintnotes::find($noteId);
         if ($note) {

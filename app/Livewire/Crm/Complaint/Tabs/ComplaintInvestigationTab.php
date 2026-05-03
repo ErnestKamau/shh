@@ -53,7 +53,7 @@ class ComplaintInvestigationTab extends BaseCrmComponent
 
     public function saveInvestigation()
     {
-        $this->checkPermission('CRM.components.Complaint Investigation.Edit');
+        $this->checkPermission('crm.components.complaint investigation.edit');
 
         $this->validate([
             'cause_of_complaint' => 'required|string',

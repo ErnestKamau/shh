@@ -2,6 +2,7 @@
 
 namespace App;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,10 @@ use OwenIt\Auditing\Contracts\Auditable;
 class Directorate extends Model implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
 
     protected $table = 'directorates';
 
@@ -17,6 +22,7 @@ class Directorate extends Model implements Auditable
         'name',
         'code',
         'head_id',
+        'section_head_user_id',
         'zone_id',
         'active',
     ];
@@ -38,5 +44,10 @@ class Directorate extends Model implements Auditable
     public function labs(): HasMany
     {
         return $this->hasMany('App\Lab', 'directorate_id');
+    }
+
+    public function sectionHeadUser(): BelongsTo
+    {
+        return $this->belongsTo('App\\User', 'section_head_user_id');
     }
 }

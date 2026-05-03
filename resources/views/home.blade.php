@@ -18,6 +18,11 @@
         background-repeat: no-repeat;
         overflow: hidden;
         z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding-top: 140px;
     }
 
     .landing-container::before {
@@ -94,10 +99,9 @@
         position: relative;
         z-index: 10;
         text-align: center;
-        padding: 4rem 0 2rem 0;
+        padding: 1.2rem 0 0.5rem 0;
         animation: fadeInUp 1s ease-out;
-        margin-top: 60px;
-        /* Account for navbar height */
+        width: 100%;
     }
 
     @keyframes fadeInUp {
@@ -113,9 +117,9 @@
     }
 
     .company-logo {
-        width: 120px;
-        height: 120px;
-        margin: 0 auto 1.5rem;
+        width: 90px;
+        height: 90px;
+        margin: 0 auto 0.6rem;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(10px);
@@ -146,24 +150,24 @@
     }
 
     .company-logo img {
-        width: 80%;
-        height: 80%;
+        width: 90%;
+        height: 90%;
         object-fit: contain;
         border-radius: 50%;
     }
 
     .welcome-text {
         color: white;
-        font-size: 2.5rem;
+        font-size: 1.6rem;
         font-weight: 300;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.2rem;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         animation: slideInFromLeft 1s ease-out 0.5s both;
     }
 
     .welcome-subtitle {
         color: rgba(255, 255, 255, 0.8);
-        font-size: 1.2rem;
+        font-size: 0.85rem;
         font-weight: 300;
         animation: slideInFromRight 1s ease-out 0.7s both;
     }
@@ -194,11 +198,12 @@
 
     .apps-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.75rem;
         max-width: 1200px;
+        width: 100%;
         margin: 0 auto;
-        padding: 0 2rem 2rem 2rem;
+        padding: 0 1.5rem 1rem 1.5rem;
         animation: fadeInUp 1s ease-out 1s both;
         position: relative;
         z-index: 10;
@@ -208,8 +213,8 @@
         background: rgba(255, 255, 255, 0.15);
         backdrop-filter: blur(15px);
         border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 20px;
-        padding: 1.5rem;
+        border-radius: 16px;
+        padding: 0.9rem 0.75rem;
         text-align: center;
         text-decoration: none;
         color: white;
@@ -248,14 +253,14 @@
     }
 
     .app-icon {
-        width: 60px;
-        height: 60px;
-        margin: 0 auto 0.8rem;
-        border-radius: 15px;
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 0.5rem;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2rem;
+        font-size: 1.5rem;
         color: white;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         transition: all 0.3s ease;
@@ -284,7 +289,7 @@
     }
 
     .app-title {
-        font-size: 1rem;
+        font-size: 0.8rem;
         font-weight: 500;
         margin: 0;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -401,7 +406,7 @@
     /* Responsive Design */
     @media (max-width: 991px) and (min-width: 769px) {
         .apps-grid {
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 1.2rem;
             padding: 0 1.5rem 1.5rem 1.5rem;
         }
@@ -436,7 +441,7 @@
 
     @media (max-width: 768px) {
         .apps-grid {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 1rem;
             padding: 0 1rem;
         }
@@ -524,135 +529,157 @@
 
     <div class="apps-grid">
         @if(isSystemModuleVisible('laboratory'))
+        @can('laboratory.module.access')
         <a class="app-card lab" href="/lab-dashboard" data-app="laboratory">
             <div class="app-icon" style="background: linear-gradient(135deg, #4CAF50, #45a049);">
                 <i class="mdi mdi-flask"></i>
             </div>
             <h3 class="app-title">Laboratory</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('inventory'))
+        @can('inventory.module.access')
         <a class="app-card inventory" href="/inventory-home" data-app="inventory">
             <div class="app-icon" style="background: linear-gradient(135deg, #2196F3, #1976D2);">
                 <i class="mdi mdi-package-variant"></i>
             </div>
             <h3 class="app-title">Inventory</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('equipment'))
+        @can('equipment.module.access')
         <a class="app-card equipment" href="{{ route('equipment-dashboard') }}" data-app="equipment">
             <div class="app-icon" style="background: linear-gradient(135deg, #795548, #5D4037);">
                 <i class="mdi mdi-tools"></i>
             </div>
             <h3 class="app-title">Equipment</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('crm'))
+        @can('crm.module.access')
         <a class="app-card crm" href="{{ route('crm-dashboard') }}" data-app="crm">
             <div class="app-icon" style="background: linear-gradient(135deg, #00BCD4, #0097A7);">
                 <i class="mdi mdi-account-multiple-outline"></i>
             </div>
             <h3 class="app-title">CRM</h3>
         </a>
+        @endcan
         @endif
 
-        @if((auth()->user()->is_support_staff || isset($user_personel_access->id)) && isSystemModuleVisible('personnel'))
+        @if(isSystemModuleVisible('personnel'))
+        @can('personnel.module.access')
         <a class="app-card personnel" href="/personnel-home" data-app="personnel">
             <div class="app-icon" style="background: linear-gradient(135deg, #F44336, #D32F2F);">
                 <i class="mdi mdi-account-group"></i>
             </div>
             <h3 class="app-title">Personnel</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('dms'))
+        @can('dms.module.access')
         <a class="app-card dms" href="{{ route('dms.dashboard') }}" data-app="dms">
             <div class="app-icon" style="background: linear-gradient(135deg, #673AB7, #512DA8);">
                 <i class="mdi mdi-file-document-multiple"></i>
             </div>
             <h3 class="app-title">Document Management</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('calendar'))
+        @can('calendar.module.access')
         <a class="app-card calendar" href="/full-calendar/view" data-app="calendar">
             <div class="app-icon" style="background: linear-gradient(135deg, #FFC107, #FF8F00);">
                 <i class="mdi mdi-calendar"></i>
             </div>
             <h3 class="app-title">System Planner</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('matrix'))
+        @can('matrix.module.access')
         <a class="app-card matrix" href="{{route('matrix')}}" data-app="matrix">
             <div class="app-icon" style="background: linear-gradient(135deg, #9E9E9E, #616161);">
                 <i class="mdi mdi-account-star-outline"></i>
             </div>
             <h3 class="app-title">Skills Matrix</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('ai'))
+        @can('ai.module.access')
         <a class="app-card ai" href="{{route('imara-ai')}}" data-app="ai">
             <div class="app-icon" style="background: linear-gradient(135deg, #FF9800, #F57C00);">
                 <i class="mdi mdi-chip"></i>
             </div>
             <h3 class="app-title">ImaraChat AI</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('ai_analytics'))
+        @can('ai_analytics.module.access')
         <a class="app-card ai-analytics" href="{{ Route::has('mas.index') ? route('mas.index') : url('/mas') }}" data-app="ai-analytics">
             <div class="app-icon" style="background: linear-gradient(135deg, #3F51B5, #1A237E);">
                 <i class="mdi mdi-chart-line"></i>
             </div>
             <h3 class="app-title">AI Analytics</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('risk'))
+        @can('risk.module.access')
         <a class="app-card risk" href="{{ route('risk.dashboard') }}" data-app="risk">
             <div class="app-icon" style="background: linear-gradient(135deg, #F44336, #D32F2F);">
                 <i class="mdi mdi-alert-octagon-outline"></i>
             </div>
             <h3 class="app-title">Risk Management</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('audit'))
+        @can('audit.module.access')
         <a class="app-card audit" href="{{ route('audit.dashboard') }}" data-app="audit">
             <div class="app-icon" style="background: linear-gradient(135deg, #9C27B0, #7B1FA2);">
                 <i class="mdi mdi-clipboard-check-outline"></i>
             </div>
             <h3 class="app-title">Audit</h3>
         </a>
+        @endcan
         @endif
 
         @if(isSystemModuleVisible('tickets'))
+        @can('tickets.module.access')
         <a class="app-card tickets" href="{{ route('tickets.dashboard') }}" data-app="tickets">
             <div class="app-icon" style="background: linear-gradient(135deg, #E91E63, #C2185B);">
                 <i class="mdi mdi-ticket"></i>
             </div>
             <h3 class="app-title">Help Desk</h3>
         </a>
+        @endcan
         @endif
-        
-        @if(
-            (
-                auth()->user()->is_support_staff
-                || (method_exists(auth()->user(), 'isSystemAdmin') && auth()->user()->isSystemAdmin())
-                || auth()->user()->can('System.components.System Settings.View')
-            ) && isSystemModuleVisible('settings')
-        )
+
+        @if(isSystemModuleVisible('settings'))
+        @can('settings.module.access')
         <a class="app-card settings" href="/system-settings" data-app="settings">
             <div class="app-icon" style="background: linear-gradient(135deg, #424242, #212121);">
                 <i class="fas fa-cogs"></i>
             </div>
             <h3 class="app-title">System Settings</h3>
         </a>
+        @endcan
         @endif
     </div>
 </div>

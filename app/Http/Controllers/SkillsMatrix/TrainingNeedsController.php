@@ -18,6 +18,10 @@ class TrainingNeedsController extends Controller
     public function __construct()
 	{
 		$this->middleware('auth');
+        $this->middleware('can:skills-matrix.components.training-needs.view')->only(['index', 'getCapabilityUsers', 'show']);
+        $this->middleware('can:skills-matrix.components.training-needs.add')->only(['store']);
+        $this->middleware('can:skills-matrix.components.training-needs.edit')->only(['editTrainNeed']);
+        $this->middleware('can:skills-matrix.components.training-needs.delete')->only(['deleteTrainNeed']);
 	}
     public function index(){
         $trainings = TrainingHeader::whereNull('deleted_at')->get();

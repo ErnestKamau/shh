@@ -43,7 +43,7 @@ class CustomerReportsTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new \App\Exports\CRM\CustomerRegistryTabExport($this->customer->id, 'reports', $this->search))
             ->download('customer_reports_' . $this->customer->id . '_' . now()->format('Ymd_His') . '.xlsx');
     }

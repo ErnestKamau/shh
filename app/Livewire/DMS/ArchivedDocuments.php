@@ -7,8 +7,8 @@ use Livewire\WithPagination;
 use App\Models\DMS\Document;
 use App\Models\DMS\DocumentType;
 use App\Models\DMS\DocumentAuditLog;
-use App\Services\DMS\PermissionResolver;
 use App\User;
+use Illuminate\Support\Facades\Gate;
 
 class ArchivedDocuments extends Component
 {
@@ -25,13 +25,6 @@ class ArchivedDocuments extends Component
     public $documentTypes = [];
     public $users = [];
     public $perPageOptions = [10, 25, 50, 100];
-
-    protected $permissionResolver;
-
-    public function boot(PermissionResolver $permissionResolver)
-    {
-        $this->permissionResolver = $permissionResolver;
-    }
 
     public function mount(): void
     {
@@ -67,8 +60,7 @@ class ArchivedDocuments extends Component
         try {
             $document = Document::findOrFail($documentId);
 
-            // Check permission
-            if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'edit')) {
+            if (!Gate::forUser(auth()->user())->allows('restore', $document)) {
                 $this->message = 'You do not have permission to restore this document';
                 $this->messageType = 'error';
                 return;

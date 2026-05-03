@@ -137,11 +137,8 @@
 		$PERSONNEL = getPersonnel();
 		$statuses = isset($workorder) ? $workorder->status() : [];
 
-		$departmental_head_roles = getConfigByName('departmental_head_role_id');
-		$departmental_head_role_id = count($departmental_head_roles) > 0 ? $departmental_head_roles[0]->value : 0;
-
-		$engineering_head_roles = getConfigByName('engineering_head_role_id');
-		$engineering_head_role_id = count($engineering_head_roles) > 0 ? $engineering_head_roles[0]->value : 0;
+		$departmental_head_role_name = 'Lab Manager';
+		$engineering_head_role_name = 'Engineering Head Role';
 
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
@@ -179,7 +176,7 @@
 					<button id="btnGroupDrop1" type="button" class="btn-sm btn btn-transparent dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 						{{ isset($workorder->current_status) && $workorder->current_status == "REQUEST" ? "W.O. REQUEST" : "ENGINEERING APPROVAL" }}
 					</button>
-					@if((isset($workorder->current_status) && $workorder->current_status == 'REQUEST' && \Auth::user()->hasRole($departmental_head_role_id, true)) || ($workorder->current_status == 'PENDING' && \Auth::user()->hasRole($engineering_head_role_id, true)))
+					@if((isset($workorder->current_status) && $workorder->current_status == 'REQUEST' && \Auth::user()->hasRole($departmental_head_role_name)) || ($workorder->current_status == 'PENDING' && \Auth::user()->hasRole($engineering_head_role_name)))
 						<div class="dropdown-menu" style="cursor: pointer" aria-labelledby="btnGroupDrop1">
 							<a class="dropdown-item text-success" data-target="#request-approval-modal" data-toggle="modal">
 								<i class="mdi mdi-account-check"></i> {{ isset($workorder->current_status) && $workorder->current_status == "REQUEST" ? "APPROVE REQUEST" : "APPROVE" }}
@@ -593,16 +590,17 @@
 												$hasData = false;
 												if(($approval && $approval['status'] == "pending") || $approval == null){
 													if ($item['level'] == "Initial"){
-														if($item['role'] == "engineering_head_role_id"){
-															$role_id = $engineering_head_role_id;
-														}
+												$role_name = null;
+												if($item['role'] == "engineering_head_role_id"){
+													$role_name = $engineering_head_role_name;
+												}
 
-														if($item['role'] == "departmental_head_role_id"){
-															$role_id = $departmental_head_role_id;
-														}
+												if($item['role'] == "departmental_head_role_id"){
+													$role_name = $departmental_head_role_name;
+												}
 
-														$approvingUsers = getUsersByRole($role_id, true);
-													}
+												$approvingUsers = $role_name ? \App\User::role($role_name)->where('active', 1)->get() : collect();
+											}
 
 													if ($item['level'] == "Completion"){
 														if ($item['role'] == "created_by"){
@@ -627,7 +625,9 @@
 
 											@if($hasData)
 												<select class="form-control selected-approver {{ isset($defacto) ? 'trigger-autoselect' : '' }}">
+													}
 													<option value="">Select Approver</option>
+													if ($item['level'] == "Completion"){
 													@foreach($approvingUsers as $u)
 														<option value="{{ implode("^^", [$u->name,$u->email,$u->phone]) }}" {{ isset($defacto) ? (trim($defacto->email) == trim($approval['email']) ? 'selected' : '') : (trim($u->email) == trim($approval['email']) ? 'selected' : '') }}>{{ $u->name }}</option>
 													@endforeach

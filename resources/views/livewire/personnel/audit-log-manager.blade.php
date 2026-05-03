@@ -1,27 +1,42 @@
 <div class="container-fluid">
-    <div class="card tab-card">
-        <div class="card-header tab-card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="mdi mdi-file-search"></i> Audit Logs</h5>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-0">
+                                <i class="mdi mdi-file-search text-primary"></i>
+                                {{ __('personnel.audit_logs') }}
+                            </h2>
+                            <p class="text-muted mb-0">{{ __('personnel.audit_logs_overview') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <div class="card tab-card">
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <input type="text" class="form-control" wire:model.live.debounce.300ms="search" placeholder="Search user, email, event, entity, id, ip, url, user-agent, tags...">
+                    <input type="text" class="form-control" wire:model.live.debounce.300ms="search" placeholder="{{ __('personnel.search_audit_logs') }}">
                 </div>
                 <div class="col-md-2">
                     <button type="button" class="btn btn-outline-primary w-100" wire:click="toggleAdvancedFilters">
-                        <i class="mdi mdi-tune"></i> Filters
+                        <i class="mdi mdi-tune"></i> {{ __('personnel.filters') }}
                     </button>
                 </div>
                 <div class="col-md-2">
                     <button type="button" class="btn btn-outline-secondary w-100" wire:click="clearFilters">
-                        <i class="mdi mdi-refresh"></i> Clear
+                        <i class="mdi mdi-refresh"></i> {{ __('personnel.clear') }}
                     </button>
                 </div>
                 <div class="col-md-2">
                     <select class="form-control" wire:model.live="perPage">
                         @foreach($perPageOptions as $option)
-                            <option value="{{ $option }}">Show {{ $option }}</option>
+                            <option value="{{ $option }}">{{ __('personnel.show') }} {{ $option }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -30,42 +45,42 @@
             @if($showAdvancedFilters)
                 <div class="row mb-3">
                     <div class="col-md-3">
-                        <label class="small text-muted">User</label>
+                        <label class="small text-muted">{{ __('personnel.user') }}</label>
                         <select class="form-control" wire:model.live="userFilter">
-                            <option value="">All Users</option>
+                            <option value="">{{ __('personnel.all_users') }}</option>
                             @foreach($users as $user)
                                 <option value="{{ $user['id'] }}">{{ $user['name'] }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="small text-muted">Event</label>
+                        <label class="small text-muted">{{ __('personnel.event') }}</label>
                         <select class="form-control" wire:model.live="eventFilter">
-                            <option value="">All Events</option>
+                            <option value="">{{ __('personnel.all_events') }}</option>
                             @foreach($events as $event)
                                 <option value="{{ $event }}">{{ ucfirst($event) }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="small text-muted">Entity</label>
+                        <label class="small text-muted">{{ __('personnel.entity') }}</label>
                         <select class="form-control" wire:model.live="entityFilter">
-                            <option value="">All Entities</option>
+                            <option value="">{{ __('personnel.all_entities') }}</option>
                             @foreach($entities as $entity)
                                 <option value="{{ $entity }}">{{ class_basename($entity) }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="small text-muted">IP Address</label>
-                        <input type="text" class="form-control" wire:model.live.debounce.300ms="ipFilter" placeholder="Filter IP">
+                        <label class="small text-muted">{{ __('personnel.ip_address') }}</label>
+                        <input type="text" class="form-control" wire:model.live.debounce.300ms="ipFilter" placeholder="{{ __('personnel.filter_ip') }}">
                     </div>
                     <div class="col-md-1">
-                        <label class="small text-muted">From</label>
+                        <label class="small text-muted">{{ __('personnel.from') }}</label>
                         <input type="date" class="form-control" wire:model.live="dateFrom">
                     </div>
                     <div class="col-md-1">
-                        <label class="small text-muted">To</label>
+                        <label class="small text-muted">{{ __('personnel.to') }}</label>
                         <input type="date" class="form-control" wire:model.live="dateTo">
                     </div>
                 </div>
@@ -78,45 +93,45 @@
                             <th>#</th>
                             <th>
                                 <button type="button" class="btn btn-link p-0 text-dark" wire:click="sortBy('u.name')">
-                                    User <i class="{{ $this->sortIcon('u.name') }}"></i>
+                                    {{ __('personnel.user') }} <i class="{{ $this->sortIcon('u.name') }}"></i>
                                 </button>
                             </th>
                             <th>
                                 <button type="button" class="btn btn-link p-0 text-dark" wire:click="sortBy('u.email')">
-                                    Email <i class="{{ $this->sortIcon('u.email') }}"></i>
+                                    {{ __('personnel.email') }} <i class="{{ $this->sortIcon('u.email') }}"></i>
                                 </button>
                             </th>
                             <th>
                                 <button type="button" class="btn btn-link p-0 text-dark" wire:click="sortBy('audits.event')">
-                                    Event <i class="{{ $this->sortIcon('audits.event') }}"></i>
+                                    {{ __('personnel.event') }} <i class="{{ $this->sortIcon('audits.event') }}"></i>
                                 </button>
                             </th>
                             <th>
                                 <button type="button" class="btn btn-link p-0 text-dark" wire:click="sortBy('audits.auditable_type')">
-                                    Entity <i class="{{ $this->sortIcon('audits.auditable_type') }}"></i>
+                                    {{ __('personnel.entity') }} <i class="{{ $this->sortIcon('audits.auditable_type') }}"></i>
                                 </button>
                             </th>
                             <th>
                                 <button type="button" class="btn btn-link p-0 text-dark" wire:click="sortBy('audits.auditable_id')">
-                                    Entity ID <i class="{{ $this->sortIcon('audits.auditable_id') }}"></i>
+                                    {{ __('personnel.entity_id') }} <i class="{{ $this->sortIcon('audits.auditable_id') }}"></i>
                                 </button>
                             </th>
                             <th>
                                 <button type="button" class="btn btn-link p-0 text-dark" wire:click="sortBy('audits.ip_address')">
-                                    IP Address <i class="{{ $this->sortIcon('audits.ip_address') }}"></i>
+                                    {{ __('personnel.ip_address') }} <i class="{{ $this->sortIcon('audits.ip_address') }}"></i>
                                 </button>
                             </th>
                             <th>
                                 <button type="button" class="btn btn-link p-0 text-dark" wire:click="sortBy('audits.url')">
-                                    URL <i class="{{ $this->sortIcon('audits.url') }}"></i>
+                                    {{ __('personnel.url') }} <i class="{{ $this->sortIcon('audits.url') }}"></i>
                                 </button>
                             </th>
                             <th>
                                 <button type="button" class="btn btn-link p-0 text-dark" wire:click="sortBy('audits.created_at')">
-                                    Date <i class="{{ $this->sortIcon('audits.created_at') }}"></i>
+                                    {{ __('personnel.date') }} <i class="{{ $this->sortIcon('audits.created_at') }}"></i>
                                 </button>
                             </th>
-                            <th>Changes</th>
+                            <th>{{ __('personnel.changes') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -132,14 +147,14 @@
                                 <td>{{ $item->url }}</td>
                                 <td>{{ $item->created_at }}</td>
                                 <td>
-                                    <button type="button" class="btn btn-outline-info btn-sm" wire:click="openChangesModal({{ $item->id }})" title="View Changes">
+                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--info" wire:click="openChangesModal({{ $item->id }})" title="{{ __('personnel.view_changes') }}">
                                         <i class="mdi mdi-alert-decagram"></i>
                                     </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center text-muted">No audit logs found.</td>
+                                <td colspan="10" class="text-center text-muted">{{ __('personnel.no_audit_logs_found') }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -147,12 +162,12 @@
             </div>
 
             <div wire:loading.flex wire:target="search,perPage,userFilter,eventFilter,entityFilter,ipFilter,dateFrom,dateTo,sortBy" class="small text-muted mt-2">
-                <i class="mdi mdi-loading mdi-spin"></i> Loading audit logs...
+                <i class="mdi mdi-loading mdi-spin"></i> {{ __('personnel.loading_audit_logs') }}
             </div>
 
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <small class="text-muted">
-                    Showing {{ $this->audits->firstItem() ?? 0 }} to {{ $this->audits->lastItem() ?? 0 }} of {{ $this->audits->total() }} records
+                    {{ __('personnel.showing_to_of', ['from' => $this->audits->firstItem() ?? 0, 'to' => $this->audits->lastItem() ?? 0, 'total' => $this->audits->total()]) }}
                 </small>
                 {{ $this->audits->links('pagination::bootstrap-4') }}
             </div>
@@ -164,7 +179,7 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title"><i class="mdi mdi-alert-decagram"></i> Audit Changes</h4>
+                        <h4 class="modal-title"><i class="mdi mdi-alert-decagram"></i> {{ __('personnel.audit_changes') }}</h4>
                         <button type="button" class="close" wire:click="closeChangesModal"><span>&times;</span></button>
                     </div>
                     <div class="modal-body">
@@ -172,9 +187,9 @@
                             <table class="table-condensed table table-sm table-banded table-hover table-xs table-bordered mb-0">
                                 <thead>
                                     <tr>
-                                        <th>Field</th>
-                                        <th>New</th>
-                                        <th>Old</th>
+                                        <th>{{ __('personnel.field') }}</th>
+                                        <th>{{ __('personnel.new') }}</th>
+                                        <th>{{ __('personnel.old') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -187,7 +202,7 @@
                                     @empty
                                         <tr>
                                             <td colspan="3" class="text-center">
-                                                <i class="mdi mdi-information"></i> No Data Available
+                                                <i class="mdi mdi-information"></i> {{ __('personnel.no_data_available') }}
                                             </td>
                                         </tr>
                                     @endforelse
@@ -196,10 +211,17 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-default" wire:click="closeChangesModal">Close</button>
+                        <button type="button" class="btn btn-default" wire:click="closeChangesModal">{{ __('personnel.close') }}</button>
                     </div>
                 </div>
             </div>
         </div>
     @endif
+
+    <style>
+        .pm-act-btn { border-radius: 7px; padding: 4px 8px; margin-right: 3px; font-size: 12px; }
+        .pm-act-btn:last-child { margin-right: 0; }
+        .pm-act-btn--info { border: 1px solid #bae6fd; color: #0369a1; background: #f0f9ff; }
+        .pm-act-btn--info:hover { background: #e0f2fe; border-color: #7dd3fc; }
+    </style>
 </div>

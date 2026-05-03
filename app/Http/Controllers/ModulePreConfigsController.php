@@ -12,18 +12,55 @@ use Illuminate\Http\Request;
 
 class ModulePreConfigsController extends Controller
 {
+	/**
+	 * Module slug to accepted access permission names.
+	 */
+	private array $moduleAccessPermissionMap = [
+		'Inventory-Management' => ['access inventory', 'inventory.permission'],
+		'Lab-Management' => ['access laboratory', 'laboratory.permission'],
+		'Personnel-Management' => ['access personnel', 'personnel.permission', 'Personnel.permission', 'personnel.module.access', 'personnel.configurations.view'],
+		'Skills-Matrix' => ['access skills matrix', 'skills-matrix.permission'],
+		'Equipment-Management' => ['access equipment', 'equipment.permission'],
+		'CRM' => ['access crm', 'crm.permission'],
+	];
+
   public function __construct()
   {
     $this->middleware('auth');
 	}
 
+	private function authorizeModuleAccess(string $module): void
+	{
+		$user = auth()->user();
+
+		if ($user && method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) {
+			return;
+		}
+
+		$allowedPermissions = $this->moduleAccessPermissionMap[$module] ?? [];
+
+		$hasAccess = false;
+		foreach ($allowedPermissions as $permissionName) {
+			if ($user->can($permissionName)) {
+				$hasAccess = true;
+				break;
+			}
+		}
+
+		if (! $hasAccess) {
+			abort(403, 'You do not have access to this module.');
+		}
+	}
+
 	public function index(Request $request, $config, $module){
-		if ($config === 'Zones') {
+		$this->authorizeModuleAccess($module);
+
+		if (in_array($config, ['Zones', 'Zone'], true)) {
 			$layout = $module === 'Lab-Management' ? 'livewire.layout.lab-app' : 'livewire.layout.personnel-app';
 			return view($layout, [
 				'componentType' => 'zones',
-				'pageTitle' => 'Zones',
-				'config' => $config,
+				'pageTitle' => 'Zone Configuration',
+				'config' => 'Zones',
 				'module' => $module,
 			]);
 		}
@@ -44,6 +81,8 @@ class ModulePreConfigsController extends Controller
 	}
 
 	public function view_currency_conversion(Request $request){
+		$this->authorizeModuleAccess('Inventory-Management');
+
 		$currencies = CurrencyConversion::join('module_pre_configs as mpc', function($join){
 			$config = "Currency";
 			$module = "Inventory-Management";
@@ -63,6 +102,8 @@ class ModulePreConfigsController extends Controller
 	}
 
 	public function view_uom_conversion(Request $request){
+		$this->authorizeModuleAccess('Inventory-Management');
+
 		$config = "Reporting-Units";
 		$module = "Inventory-Management";
 		$uoms = UoMConversion::where('uom_conversions.inventory_location_id', getCurrentUserLocation()->id)
@@ -73,13 +114,21 @@ class ModulePreConfigsController extends Controller
 
 	public function show_material_type($id){
 		$materialType = ModulePreConfigs::find($id);
+		if (! $materialType) {
+			abort(404);
+		}
+
 		$module = $materialType->module;
+		$this->authorizeModuleAccess($module);
+
 		$config = $materialType->type;
 
 		return view('layouts.personnel.configs.material-type', compact('materialType', 'config', 'module'));
 	}
 
 	public function currency_conversion(Request $request){
+		$this->authorizeModuleAccess('Inventory-Management');
+
 		$currency = CurrencyConversion::find($request->conversion_id) ?? new CurrencyConversion;
 		$currency->currency_1 = $request->currency_1;
 		$currency->currency_2 = $request->currency_2;
@@ -92,6 +141,8 @@ class ModulePreConfigsController extends Controller
 	}
 
 	public function uom_conversion(Request $request){
+		$this->authorizeModuleAccess('Inventory-Management');
+
 		$uom = UoMConversion::find($request->conversion_id) ?? new UoMConversion;
 		$uom->uom1 = $request->uom1;
 		$uom->uom2 = $request->uom2;
@@ -104,7 +155,9 @@ class ModulePreConfigsController extends Controller
 	}
 
 	public function update(Request $request, $id, $config, $moduleT){
-		if ($config === 'Zones') {
+		$this->authorizeModuleAccess($moduleT);
+
+		if (in_array($config, ['Zones', 'Zone'], true)) {
 			$zone = \App\Zone::find($id) ?? new \App\Zone;
 			$zone->key = $request->name;
 			$zone->value = $request->value;
@@ -131,6 +184,8 @@ class ModulePreConfigsController extends Controller
 	}
 
 	public function addResponsibilities(Request $request,$id){
+		$this->authorizeModuleAccess('Personnel-Management');
+
 		$responsibility = new JobDescription();
 		$responsibility->job_id = $id;
 		$config = SystemConfiguration::find((int)$request->name);
@@ -146,6 +201,8 @@ class ModulePreConfigsController extends Controller
 
 	}
 	public function editResposibility(Request $request,$id){
+		$this->authorizeModuleAccess('Personnel-Management');
+
 		$responsibility = JobDescription::find($id);
 		$config = SystemConfiguration::find((int)$request->name);
 		$responsibility->config_id = $config->id;
@@ -161,6 +218,8 @@ class ModulePreConfigsController extends Controller
 		return redirect()->back()->with('success','Job responsibility edited successfully!');
 	}
 	public function showResponsibility($id){
+		$this->authorizeModuleAccess('Personnel-Management');
+
 		return view('livewire.layout.personnel-app', [
 			'componentType' => 'job-responsibility',
 			'pageTitle' => 'Job Responsibilities',
