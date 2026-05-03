@@ -41,10 +41,10 @@ class UnitForm extends BaseCrmComponent
         $this->validate();
 
         if ($this->unitId) {
-            $this->checkPermission('CRM.components.Company-Units.Edit');
+            $this->checkPermission('crm.components.company-units.edit');
             $unit = CRMCompanyUnit::find($this->unitId);
         } else {
-            $this->checkPermission('CRM.components.Company-Units.Add');
+            $this->checkPermission('crm.components.company-units.add');
             $unit = new CRMCompanyUnit();
             $unit->crm_customer_id = $this->customerId;
             $unit->company_id = $this->getUserCompany();

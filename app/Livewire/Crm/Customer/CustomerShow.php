@@ -31,7 +31,7 @@ class CustomerShow extends BaseCrmComponent
     public function mount(int $customerId): void
     {
         $this->initialize();
-        $this->checkPermission('CRM.components.Customer-List.View');
+        $this->checkPermission('crm.components.customer-list.view');
 
         $this->customerId = $customerId;
         $this->customer = CRMCustomer::with(['country'])->findOrFail($customerId);

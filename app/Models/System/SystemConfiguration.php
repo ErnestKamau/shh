@@ -19,5 +19,13 @@ class SystemConfiguration extends Model implements Auditable
     ];
 
 	use \OwenIt\Auditing\Auditable;
+
+    protected $fillable = [
+        'configuration_type_id',
+        'value',
+        'key',
+        'status',
+    ];
+
     protected $table = 'system_configurations';
 }

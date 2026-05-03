@@ -93,20 +93,6 @@ class SubmissionForm extends Model implements Auditable
     }
 
     /**
-     * Check if a user can access this form with the specified permission type
-     */
-    public function canUserAccess($user, $permissionType = 'view')
-    {
-        return $this->permissions()
-            ->where(function($query) use ($user) {
-                $query->where('user_id', $user->id)
-                      ->orWhereIn('role_id', $user->roles->pluck('id'));
-            })
-            ->where('permission_type', $permissionType)
-            ->exists();
-    }
-
-    /**
      * Check if the form is published and active
      * 
      * @return bool

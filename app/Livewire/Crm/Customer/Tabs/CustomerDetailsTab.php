@@ -89,7 +89,7 @@ class CustomerDetailsTab extends BaseCrmComponent
 
     public function save()
     {
-        $this->checkPermission('CRM.components.Customer-List.Edit');
+        $this->checkPermission('crm.components.customer-list.edit');
         $this->validate();
 
         $this->customer->name = $this->name;

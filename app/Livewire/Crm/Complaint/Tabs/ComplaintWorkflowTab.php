@@ -48,7 +48,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new ComplaintTabExport($this->complaintId, 'workflow'))->download('complaint_workflow_' . now()->format('Ymd_His') . '.xlsx');
     }
 
@@ -164,13 +164,13 @@ class ComplaintWorkflowTab extends BaseCrmComponent
         
         // Permission depends on the stage we are moving FROM
         $permissionMap = [
-            1 => 'CRM.components.Open Complaint.Edit',
-            2 => 'CRM.components.Complaint Investigation.Edit',
-            3 => 'CRM.components.Complaint Verification.Edit',
-            4 => 'CRM.components.Complaint Pending Closure.Edit',
+            1 => 'crm.components.open complaint.edit',
+            2 => 'crm.components.complaint investigation.edit',
+            3 => 'crm.components.complaint verification.edit',
+            4 => 'crm.components.complaint pending closure.edit',
         ];
         
-        $perm = $permissionMap[$current_stage] ?? 'CRM.components.Complaint Investigation.Edit';
+        $perm = $permissionMap[$current_stage] ?? 'crm.components.complaint investigation.edit';
         $this->checkPermission($perm);
         
         $current_stage = $this->complaint->complaint_workflow;
@@ -243,7 +243,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function logForRecordOnly()
     {
-        $this->checkPermission('CRM.components.Complaints Approval.Edit');
+        $this->checkPermission('crm.components.complaints approval.edit');
         
         $current_stage = $this->complaint->complaint_workflow;
         $this->complaint->complaint_workflow = 5; // Move straight to Closed
@@ -268,7 +268,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function reject()
     {
-        $this->checkPermission('CRM.components.Complaint Investigation.Delete');
+        $this->checkPermission('crm.components.complaint investigation.delete');
         
         $current_stage = $this->complaint->complaint_workflow;
         $this->complaint->rejected = 1;
@@ -292,7 +292,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function reverseApproval()
     {
-        $this->checkPermission('CRM.components.Complaint Investigation.Delete');
+        $this->checkPermission('crm.components.complaint investigation.delete');
         
         $current_stage = $this->complaint->complaint_workflow;
         $this->complaint->complaint_workflow = $current_stage - 1;
@@ -317,7 +317,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function requestResolutionApprove()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Add');
+        $this->checkPermission('crm.components.complaint verification.add');
         
         $current_stage = $this->complaint->complaint_workflow;
         $this->complaint->complaint_workflow = 4;
@@ -339,7 +339,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function approveResolution()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
         
         $current_stage = $this->complaint->complaint_workflow;
 
@@ -362,7 +362,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function regenerateReport()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
         
         $current_stage = $this->complaint->complaint_workflow;
 
@@ -474,7 +474,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
      */
     public function approveCapa()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
 
         $current_stage = $this->complaint->complaint_workflow;
 
@@ -518,7 +518,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
      */
     public function closeComplaint()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
 
         $current_stage = $this->complaint->complaint_workflow;
 
@@ -553,7 +553,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function sendReportAndClose()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
         
         $current_stage = $this->complaint->complaint_workflow;
         
@@ -629,7 +629,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function rejectResolution()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Delete');
+        $this->checkPermission('crm.components.complaint verification.delete');
         
         $current_stage = $this->complaint->complaint_workflow;
         $this->complaint->rejected = 1;
@@ -652,7 +652,7 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
     public function reverseResolution()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
         
         $current_stage = $this->complaint->complaint_workflow;
         $this->complaint->complaint_workflow = 3; // Back to Complaints Resolution
@@ -750,11 +750,11 @@ class ComplaintWorkflowTab extends BaseCrmComponent
     public function getResponsibleOfficersByStage()
     {
         $stages = [
-            1 => 'CRM.components.Open Complaints.Edit',
-            2 => 'CRM.components.Complaints Approval.Edit',
-            3 => 'CRM.components.Complaints Resolution.Edit',
-            4 => 'CRM.components.Resolution Approval.Edit',
-            5 => 'CRM.components.Resolution Approval.Edit',
+            1 => 'crm.components.open complaints.edit',
+            2 => 'crm.components.complaints approval.edit',
+            3 => 'crm.components.complaints resolution.edit',
+            4 => 'crm.components.resolution approval.edit',
+            5 => 'crm.components.resolution approval.edit',
         ];
 
         $officers = [];

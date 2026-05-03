@@ -1,12 +1,12 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <div>
-            <h5 class="mb-0"><i class="mdi mdi-translate text-primary"></i> Languages</h5>
-            <small class="text-muted">Manage available and default system languages.</small>
+            <h5 class="mb-0"><i class="mdi mdi-translate text-primary"></i> {{ __('system.languages') }}</h5>
+            <small class="text-muted">{{ __('system.manage_available_languages') }}</small>
         </div>
-        @if(auth()->user()->can('System.components.Translations.Add') || auth()->user()->can('System.permission'))
+        @if(auth()->user()->can('system.translations.language.add'))
             <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm" wire:click="$dispatch('open-language-create')">
-                <i class="mdi mdi-plus"></i> Add Language
+                <i class="mdi mdi-plus"></i> {{ __('system.add_language') }}
             </button>
         @endif
     </div>
@@ -18,22 +18,22 @@
             </div>
         @endif
 
-        @if(auth()->user()->can('System.components.Translations.Add') || auth()->user()->can('System.components.Translations.Edit') || auth()->user()->can('System.permission'))
+        @if(auth()->user()->can('system.translations.language.add') || auth()->user()->can('system.translations.language.edit'))
             @livewire('system.language-form')
         @endif
 
         <div class="form-row mb-3 align-items-end">
             <div class="col-md-9 mb-2">
-                <label class="text-muted font-weight-bold">Search</label>
-                <input type="text" class="form-control" wire:model.live.debounce.300ms="search" placeholder="Search by language name or code...">
+                <label class="text-muted font-weight-bold">{{ __('system.search') }}</label>
+                <input type="text" class="form-control" wire:model.live.debounce.300ms="search" placeholder="{{ __('system.search_by_language_or_code') }}">
             </div>
             <div class="col-md-3 mb-2">
-                <label class="text-muted font-weight-bold">Per Page</label>
+                <label class="text-muted font-weight-bold">{{ __('system.per_page') }}</label>
                 <select class="form-control" wire:model.live="perPage">
-                    <option value="10">10 records</option>
-                    <option value="25">25 records</option>
-                    <option value="50">50 records</option>
-                    <option value="100">100 records</option>
+                    <option value="10">10 {{ __('system.records') }}</option>
+                    <option value="25">25 {{ __('system.records') }}</option>
+                    <option value="50">50 {{ __('system.records') }}</option>
+                    <option value="100">100 {{ __('system.records') }}</option>
                 </select>
             </div>
         </div>
@@ -42,11 +42,11 @@
             <table class="table table-striped table-sm">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Code</th>
-                        <th>Status</th>
-                        <th>Default</th>
-                        <th class="text-right">Actions</th>
+                        <th>{{ __('system.name') }}</th>
+                        <th>{{ __('system.code') }}</th>
+                        <th>{{ __('system.status') }}</th>
+                        <th>{{ __('system.default') }}</th>
+                        <th class="text-right">{{ __('system.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,35 +55,35 @@
                             <td>{{ $language->name }}</td>
                             <td><span class="badge badge-light text-uppercase">{{ $language->code }}</span></td>
                             <td>
-                                @if(auth()->user()->can('System.components.Translations.Edit') || auth()->user()->can('System.permission'))
-                                    <button type="button" class="btn btn-sm {{ $language->is_active ? 'btn-success' : 'btn-outline-secondary' }}" wire:click="toggleActive({{ $language->id }})">
-                                        {{ $language->is_active ? 'Active' : 'Inactive' }}
+                                @if(auth()->user()->can('system.translations.language.edit'))
+                                    <button type="button" class="btn btn-sm {{ $language->is_active ? 'btn-success' : 'btn-outline-secondary' }}" wire:click="toggleActive('{{ $language->id }}')">
+                                        {{ $language->is_active ? __('system.active') : __('system.inactive') }}
                                     </button>
                                 @else
-                                    <span class="badge {{ $language->is_active ? 'badge-success' : 'badge-secondary' }}">{{ $language->is_active ? 'Active' : 'Inactive' }}</span>
+                                    <span class="badge {{ $language->is_active ? 'badge-success' : 'badge-secondary' }}">{{ $language->is_active ? __('system.active') : __('system.inactive') }}</span>
                                 @endif
                             </td>
                             <td>
                                 @if($language->is_default)
-                                    <span class="badge badge-primary">Default</span>
-                                @elseif(auth()->user()->can('System.components.Translations.Edit') || auth()->user()->can('System.permission'))
-                                    <button type="button" class="btn btn-sm btn-outline-primary" wire:click="setDefault({{ $language->id }})" title="Set Default"><i class="mdi mdi-star"></i></button>
+                                    <span class="badge badge-primary">{{ __('system.default') }}</span>
+                                @elseif(auth()->user()->can('system.translations.language.edit'))
+                                    <button type="button" class="btn btn-sm btn-outline-primary" wire:click="setDefault('{{ $language->id }}')" title="Set Default"><i class="mdi mdi-star"></i></button>
                                 @else
                                     <span class="badge badge-light">-</span>
                                 @endif
                             </td>
                             <td class="text-right">
-                                @if(auth()->user()->can('System.components.Translations.Edit') || auth()->user()->can('System.permission'))
-                                    <button type="button" class="btn btn-sm btn-outline-info" wire:click="$dispatch('open-language-edit', { id: {{ $language->id }} })" title="Edit"><i class="mdi mdi-pencil"></i></button>
+                                @if(auth()->user()->can('system.translations.language.edit'))
+                                    <button type="button" class="btn btn-sm btn-outline-info" wire:click="$dispatch('open-language-edit', { id: '{{ $language->id }}' })" title="Edit"><i class="mdi mdi-pencil"></i></button>
                                 @endif
-                                @if(auth()->user()->can('System.components.Translations.Delete') || auth()->user()->can('System.permission'))
-                                    <button type="button" class="btn btn-sm btn-outline-danger" wire:click="askDelete({{ $language->id }})" title="Delete"><i class="mdi mdi-trash-can"></i></button>
+                                @if(auth()->user()->can('system.translations.language.delete'))
+                                    <button type="button" class="btn btn-sm btn-outline-danger" wire:click="askDelete('{{ $language->id }}')" title="Delete"><i class="mdi mdi-trash-can"></i></button>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center text-muted">No languages found.</td>
+                            <td colspan="5" class="text-center text-muted">{{ __('system.no_languages_found') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -94,10 +94,10 @@
 
         @if($deleteLanguageId)
             <div class="alert alert-warning mt-3 mb-0 d-flex justify-content-between align-items-center">
-                <span>Confirm delete of this language?</span>
+                <span>{{ __('system.confirm_delete_language') }}</span>
                 <div>
-                    <button type="button" class="btn btn-sm btn-danger" wire:click="deleteLanguage">Yes, Delete</button>
-                    <button type="button" class="btn btn-sm btn-light" wire:click="cancelDelete">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-danger" wire:click="deleteLanguage">{{ __('system.yes_delete') }}</button>
+                    <button type="button" class="btn btn-sm btn-light" wire:click="cancelDelete">{{ __('system.cancel') }}</button>
                 </div>
             </div>
         @endif

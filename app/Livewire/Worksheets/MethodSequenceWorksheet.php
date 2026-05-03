@@ -665,23 +665,8 @@ class MethodSequenceWorksheet extends Component
 
     public function getAnalysts()
     {
-        // Get analyst role ID from system configuration
-        $analystRoleConfig = \App\Models\System\SystemConfiguration::where('key', 'analyst_role_id')->first();
-
-        if (!$analystRoleConfig) {
-            // Fallback to all active users if config not found
-            return User::where('active', 1)->get();
-        }
-
-        $analystRoleId = $analystRoleConfig->value;
-
-        // Get user IDs with analyst role
-        $analystUserIds = \App\UserRole::where('role_id', $analystRoleId)
-            ->pluck('user_id')
-            ->toArray();
-
-        // Return users with analyst role and active status
-        return User::whereIn('id', $analystUserIds)
+        // Get users with Laboratory Analyst role (Spatie)
+        return User::role('Laboratory Analyst')
             ->where('active', 1)
             ->orderBy('name')
             ->get();

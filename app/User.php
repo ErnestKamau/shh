@@ -4,23 +4,34 @@ namespace App;
 
 use OwenIt\Auditing\Contracts\Auditable;
 
+use App\Directorate;
+use App\Lab;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\TicketPermission;
 use App\Models\System\SystemConfiguration;
+use App\UserDirectorateRelation;
+use App\UserLabRelation;
+use App\UserZoneRelation;
 use App\Zone;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\HasApiTokens;
-use Spatie\Permission\Models\Role as SpatieRole;
+use App\Models\Auth\Role as SpatieRole;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable implements Auditable
 {
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     use \OwenIt\Auditing\Auditable;
 
 	use Notifiable, HasFactory, HasApiTokens;
@@ -37,7 +48,8 @@ class User extends Authenticatable implements Auditable
 	 * @var array
 	 */
 	protected $fillable = [
-		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires'
+		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires',
+		'company_id', 'department_id', 'location_id', 'active',
 	];
 	protected $appends = ['labsectionname','labsectionids'];
 
@@ -57,7 +69,9 @@ class User extends Authenticatable implements Auditable
 	 */
 	protected $casts = [
 		'email_verified_at' => 'datetime',
-		'email' => 'encrypted',
+		'analyst_is_gazzetted' => 'boolean',
+		'date_of_gazzette' => 'date',
+		'start_of_career' => 'datetime',
 		'phone' => 'encrypted',
 		'gender' => 'encrypted',
 		'designation' => 'encrypted',
@@ -71,13 +85,37 @@ class User extends Authenticatable implements Auditable
 		'client_id' => 'string',
 		'crm_contact_id' => 'string',
 		'crmcontact_id' => 'string',
+		'location_id' => 'string',
+		'department_id' => 'string',
+		'position' => 'string',
+		'lab_section_id' => 'string',
 	];
 
 	protected function getLabSectionNameAttribute(){
-		return implode(', ',SampleAnalysisStage::whereIn('id',explode(',',$this->lab_section_id))->pluck('name')->toArray()) ?? '';
+		$ids = collect(explode(',', (string) $this->lab_section_id))
+			->map(fn ($id) => trim($id))
+			->filter()
+			->values()
+			->all();
+
+		if ($ids === []) {
+			return '';
+		}
+
+		return implode(', ', SampleAnalysisStage::whereIn('id', $ids)->pluck('name')->toArray());
 	}
 	protected function getLabSectionIdsAttribute(){
-		return SampleAnalysisStage::whereIn('id',explode(',',$this->lab_section_id))->pluck('id')->toArray() ?? [];
+		$ids = collect(explode(',', (string) $this->lab_section_id))
+			->map(fn ($id) => trim($id))
+			->filter()
+			->values()
+			->all();
+
+		if ($ids === []) {
+			return [];
+		}
+
+		return SampleAnalysisStage::whereIn('id', $ids)->pluck('id')->toArray();
 	}
 
 	public function audit_logs()
@@ -151,16 +189,16 @@ class User extends Authenticatable implements Auditable
 			if (is_object($role_id)) {
 				if (isset($role_id->name) && is_string($role_id->name)) {
 					$roleName = trim($role_id->name);
-				} elseif (isset($role_id->id) && is_numeric($role_id->id)) {
+				} elseif (isset($role_id->id)) {
 					$roleName = SpatieRole::query()
 						->where('guard_name', $this->guard_name)
-						->where('id', (int) $role_id->id)
+						->where('id', (string) $role_id->id)
 						->value('name');
 				}
 			} elseif ($isAnID === true || is_numeric($role_id)) {
 				$roleName = SpatieRole::query()
 					->where('guard_name', $this->guard_name)
-					->where('id', (int) $role_id)
+					->where('id', (string) $role_id)
 					->value('name');
 			} elseif (is_string($role_id)) {
 				$roleName = trim($role_id);
@@ -201,24 +239,8 @@ class User extends Authenticatable implements Auditable
 				}
 			}
 
-			return $this->hasLegacyAdminRole();
+			return false;
 		} catch (\Throwable $exception) {
-			return $this->hasLegacyAdminRole();
-		}
-	}
-
-	public function hasLegacyAdminRole(): bool
-	{
-		try {
-			$adminRoleNames = ['admin', 'super admin', 'super-admin', 'system admin', 'system-admin'];
-
-			return DB::table('user_roles')
-				->join('roles', 'roles.id', '=', 'user_roles.role_id')
-				->where('user_roles.user_id', $this->id)
-				->whereIn(DB::raw('LOWER(roles.name)'), $adminRoleNames)
-				->exists();
-		} catch (\Throwable $exception) {
-
 			return false;
 		}
 	}
@@ -236,17 +258,22 @@ class User extends Authenticatable implements Auditable
 		}
 
 		try {
-			// Ensure we are using names, and include a baseline General.View
+			// Ensure we are using names, and include baseline general access keys.
 			$permissions = $this->getAllPermissions()->pluck('name')->toArray();
 
-			if (!in_array('General.View', $permissions)) {
+			if (!in_array('general.view', $permissions, true)) {
+				$permissions[] = 'general.view';
+			}
+
+			// Backward-compatibility for legacy AI required_permission values.
+			if (!in_array('General.View', $permissions, true)) {
 				$permissions[] = 'General.View';
 			}
 
 			return $permissions;
 		} catch (\Throwable $e) {
 			Log::error('getFlatPermissions failed', ['error' => $e->getMessage()]);
-			return ['General.View'];
+			return ['general.view', 'General.View'];
 		}
 	}
 
@@ -263,6 +290,39 @@ class User extends Authenticatable implements Auditable
 		return $this->belongsTo(Zone::class, 'zone_id');
 	}
 
+	public function zoneRelation(): HasOne
+	{
+		return $this->hasOne(UserZoneRelation::class, 'user_id', 'id');
+	}
+
+	public function directorateRelation(): HasOne
+	{
+		return $this->hasOne(UserDirectorateRelation::class, 'user_id', 'id');
+	}
+
+	public function labRelation(): HasOne
+	{
+		return $this->hasOne(UserLabRelation::class, 'user_id', 'id');
+	}
+
+	public function assignedZones()
+	{
+		return $this->belongsToMany(Zone::class, 'user_zone_relation', 'user_id', 'zone_id')
+			->withTimestamps();
+	}
+
+	public function assignedDirectorates()
+	{
+		return $this->belongsToMany(Directorate::class, 'user_directorate_relation', 'user_id', 'directorate_id')
+			->withTimestamps();
+	}
+
+	public function assignedLabs()
+	{
+		return $this->belongsToMany(Lab::class, 'user_lab_relation', 'user_id', 'lab_id')
+			->withTimestamps();
+	}
+
 	public function generateTwoFactorCode(){
 		$this->timestamps = false;
 		$this->verify_code = rand(100000,999999);
@@ -275,48 +335,21 @@ class User extends Authenticatable implements Auditable
 		$this->verify_code_expires = null;
 		$this->save();
 	}
-	public function check_permission($role){
-		if (!is_array($role) || count($role) < 2) {
-			return false;
-		}
-
-		$permissionName = implode('.', $role);
-
-		try {
-			return $this->spatieHasPermissionTo($permissionName, $this->guard_name);
-		} catch (\Throwable $exception) {
-			return false;
-		}
-	}
 	public function checkApproveLabSampleRole(){
-		$approve_role_id =SystemConfiguration::where('key','approve_lab_sample_role_id')->first();
-		if(isset($approve_role_id->id)){
-			if($this->hasRole((int) $approve_role_id->value, true)){
-				return true;
-			}
-			return false;
-		}
-		return false;
+		return $this->hasRole('Can Approve Samples');
 	}
 	public function checkVerifyLabSampleRole(){
-		$approve_role_id =SystemConfiguration::where('key','verify_lab_samples_role_id')->first();
-		if(isset($approve_role_id->id)){
-			if($this->hasRole((int) $approve_role_id->value, true)){
-				return true;
-			}
-			return false;
-		}
-		return false;
+		return $this->hasRole('Can Verify Samples');
 	}
 	public function checkApproveMethodsRole(){
 		try {
-			$roleId = SpatieRole::query()
+			$roleName = SpatieRole::query()
 				->where('guard_name', $this->guard_name)
 				->whereRaw('LOWER(name) = ?', ['can approvemethods'])
-				->value('id');
+				->value('name');
 
-			if ($roleId) {
-				return $this->hasRole((int) $roleId, true);
+			if (is_string($roleName) && $roleName !== '') {
+				return $this->hasRole($roleName);
 			}
 		} catch (\Throwable $exception) {
 			return false;
@@ -325,28 +358,11 @@ class User extends Authenticatable implements Auditable
 		return false;
 	}
 	public function CheckViewQcSample(){
-		$view_qc = SystemConfiguration::where('key','can_view_qc')->first();
-		if(isset($view_qc->id)){
-			if($this->hasRole((int) $view_qc->value, true)){
-				return true;
-			}else{
-				return false;
-			}
-		}
-		return false;
+		return $this->hasRole('Can View Qc Samples');
 	}
 	public function CheckDeactivatePersonnel(){
-		$deactivate_config = SystemConfiguration::where('key','can_deactivate_personnel')->first();
-		if(isset($deactivate_config->id)){
-			if($this->hasRole((int) $deactivate_config->value, true)){
-				return true;
-			}else{
-				return false;
-			}
-		}
-		return false;
-	}
-
+		return $this->hasRole('Deactivate Personnel');
+	}	
 	/**
 	 * @return HasOne<TicketPermission, $this>
 	 */

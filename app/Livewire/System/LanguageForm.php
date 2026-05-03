@@ -10,7 +10,7 @@ use Livewire\Component;
 class LanguageForm extends Component
 {
     public bool $showForm = false;
-    public ?int $editingLanguageId = null;
+    public ?string $editingLanguageId = null;
     public string $name = '';
     public string $code = '';
     public bool $is_active = true;
@@ -19,7 +19,7 @@ class LanguageForm extends Component
     #[On('open-language-create')]
     public function openCreate(): void
     {
-        $this->authorizeAction('System.components.Translations.Add');
+        $this->authorizeAction('system.translations.language.add');
 
         $this->editingLanguageId = null;
         $this->name = '';
@@ -30,9 +30,9 @@ class LanguageForm extends Component
     }
 
     #[On('open-language-edit')]
-    public function openEdit(int $id): void
+    public function openEdit(string $id): void
     {
-        $this->authorizeAction('System.components.Translations.Edit');
+        $this->authorizeAction('system.translations.language.edit');
 
         $language = Language::query()->findOrFail($id);
 
@@ -52,8 +52,8 @@ class LanguageForm extends Component
     public function save(): void
     {
         $permission = $this->editingLanguageId === null
-            ? 'System.components.Translations.Add'
-            : 'System.components.Translations.Edit';
+            ? 'system.translations.language.add'
+            : 'system.translations.language.edit';
 
         $this->authorizeAction($permission);
 
@@ -103,7 +103,7 @@ class LanguageForm extends Component
             abort(403);
         }
 
-        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can('System.permission') || $user->can($permission)) {
+        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can($permission)) {
             return;
         }
 

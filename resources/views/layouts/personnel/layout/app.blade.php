@@ -12,11 +12,25 @@
 
 
 @section('content')
+<style>
+	#main-container-body .btn:not(.pm-act-btn):not(.rm-act-btn) {
+		border-radius: 12px;
+	}
+</style>
 <div class="row" id="body-row">
 	<!-- Sidebar -->
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
+		@php
+			$user = auth()->user();
+			$canPersonnel = $user->can('personnel.personnel.view');
+			$canDepartments = $user->can('personnel.department.view');
+			$canRoles = $user->can('personnel.role.view');
+			$canAuditTrail = $user->can('personnel.audit_trail.view');
+			$canPersonnelConfigurations = $user->can('personnel.configuration.view');
+			$canModulePreConfigsRoute = $user->can('personnel.module.access');
+		@endphp
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
@@ -30,42 +44,53 @@
 			<!-- Menu with submenu -->
 
 
+			@if($canPersonnel)
 			<a href="{{ route('personnel-home') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
 				</div>
 			</a>
+			@endif
+			@if($canPersonnel)
 			<a href="{{ route('personnel-list') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-format-list-bulleted fa-fw mr-3"></span>
 					<span class="menu-collapsed">Personnel List</span>
 				</div>
 			</a>
+			@endif
+			@if($canDepartments)
 			<a href="/organizational-departments" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-home-group fa-fw mr-3"></span>
 					<span class="menu-collapsed">Departments</span>
 				</div>
 			</a>
+			@endif
+			@if($canRoles)
 			<a href="/organizational-roles" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-key fa-fw mr-3"></span>
 					<span class="menu-collapsed">Roles</span>
 				</div>
 			</a>
+			@endif
 			<!-- <a href="/organizational-locations" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-map-marker fa-fw mr-3"></span>
 					<span class="menu-collapsed">Organizational Structure</span>
 				</div>
 			</a> -->
+			@if($canAuditTrail)
 			<a href="{{ route('get-audit-logs') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-search fa-fw mr-3"></span>
 					<span class="menu-collapsed">Audit Trail</span>
 				</div>
 			</a>
+			@endif
+			@if($canPersonnelConfigurations || $canModulePreConfigsRoute)
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
@@ -75,17 +100,27 @@
 			</a>
 			<div id="sample-workflow-menu" class="collapse sidebar-submenu">
 				<?php
-					$menuTotals = array("Educational Levels", "Job Description", "Designation", "Zones");
+					$menuTotals = array(
+						array('config' => 'Educational Levels', 'label' => 'Educational Levels'),
+						array('config' => 'Job Description', 'label' => 'Job Description'),
+						array('config' => 'Designation', 'label' => 'Designation'),
+						array('config' => 'Zones', 'label' => 'Organization Structure'),
+					);
 				?>
+				@if($canModulePreConfigsRoute)
 				@foreach ($menuTotals as $item)
-					<a href="{{ route('module-pre-configs', ['config'=>$item, 'module'=>'Personnel-Management']) }}" class="list-group-item list-group-item-action bg-dark text-white">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}</span>
+					<a href="{{ route('module-pre-configs', ['config'=>$item['config'], 'module'=>'Personnel-Management']) }}" class="list-group-item list-group-item-action bg-dark text-white">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item['label'] }}</span>
 					</a>
 				@endforeach
-					<a href="{{ route('personnel-certification-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				@endif
+				@if($canPersonnelConfigurations)
+				<a href="{{ route('personnel-certification-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Certifications</span>
-					</a>
+				</a>
+				@endif
 			</div>
+			@endif
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>

@@ -13,7 +13,7 @@ class LegacyPermissionSyncService
 {
     protected string $guardName = 'web';
     /** @var array<int, string> */
-    protected array $defaultActions = ['Add', 'Edit', 'View', 'Delete'];
+    protected array $defaultActions = ['add', 'edit', 'view', 'delete'];
 
     public function syncAll(): void
     {

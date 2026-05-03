@@ -153,6 +153,11 @@ function renderKnowledgeTable(items) {
         
         // Get permission label
         const permissionMap = {
+            'general.view': 'General Access',
+            'laboratory.samples.view': 'Lab Staff',
+            'laboratory.admin': 'Lab Admin',
+            'quality.control.manage': 'QC Team',
+            // Legacy values kept for backward compatibility with existing rows.
             'General.View': 'General Access',
             'Laboratory.Samples.View': 'Lab Staff',
             'Laboratory.Admin': 'Lab Admin',

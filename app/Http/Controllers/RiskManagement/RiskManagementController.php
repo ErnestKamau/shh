@@ -2543,9 +2543,7 @@ class RiskManagementController extends Controller
 
         $risk = Risk::forCompany()->findOrFail($riskId);
 
-        if (!auth()->user()->can('Risk-Management.components.Risks.Edit')) {
-             return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $this->authorize('update', $risk);
 
         $link = new \App\Models\RiskManagement\RiskProcessLink();
         $link->risk_id = $risk->id;
@@ -2572,9 +2570,7 @@ class RiskManagementController extends Controller
     {
         $link = \App\Models\RiskManagement\RiskProcessLink::findOrFail($id);
 
-        if (!auth()->user()->can('Risk-Management.components.Risks.Edit')) {
-             return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $this->authorize('update', $link->risk);
 
         $validated = $request->validate([
             'business_process_id' => 'required|exists:risk_business_processes,id',
@@ -2602,10 +2598,8 @@ class RiskManagementController extends Controller
     public function destroyProcessLink($id)
     {
         $link = \App\Models\RiskManagement\RiskProcessLink::findOrFail($id);
-        
-        if (!auth()->user()->can('Risk-Management.components.Risks.Edit')) {
-             return response()->json(['message' => 'Unauthorized'], 403);
-        }
+
+        $this->authorize('update', $link->risk);
 
         $link->delete();
 

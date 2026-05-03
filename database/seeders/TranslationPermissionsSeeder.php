@@ -10,7 +10,7 @@ class TranslationPermissionsSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'System.components.Translations.Bulk Import',
+            'system.components.translations.bulk import',
         ];
 
         foreach ($permissions as $permissionName) {

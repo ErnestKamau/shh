@@ -1,24 +1,38 @@
 <?php
 
 namespace App\Http\Controllers\SkillsMatrix;
-use App\JobDescription;
-use App\Models\System\SystemConfiguration;
 use App\Http\Controllers\Controller;
-use App\Models\System\SystemConfigurationsType;
 use App\ModulePreConfigs;
-use App\CurrencyConversion;
-use App\UoMConversion;
 use Illuminate\Http\Request;
 
 class ModuleSkillsPreConfigsController extends Controller
 {
+	private array $moduleAccessPermissionMap = [
+		'Skills-Matrix' => ['access skills matrix', 'skills-matrix.permission'],
+	];
+
   public function __construct()
   {
     $this->middleware('auth');
 	}
 
+	private function authorizeModuleAccess(string $module): void
+	{
+		$user = auth()->user();
+		$allowedPermissions = $this->moduleAccessPermissionMap[$module] ?? [];
+
+		foreach ($allowedPermissions as $permissionName) {
+			if ($user->can($permissionName)) {
+				return;
+			}
+		}
+
+		abort(403, 'You do not have access to this module.');
+	}
+
 	public function index(Request $request, $config, $module){
-		
+		$this->authorizeModuleAccess($module);
+
 					
 		if($config=='Roles') {
 			$config = 'Job Description';			
@@ -45,6 +59,7 @@ class ModuleSkillsPreConfigsController extends Controller
 
 	
 	public function move_skills_types($direction,$module, $element){
+		$this->authorizeModuleAccess('Skills-Matrix');
 
 		$theElement = ModulePreConfigs::find($element);				
 		$currentLevel = $theElement->level;
@@ -82,6 +97,7 @@ class ModuleSkillsPreConfigsController extends Controller
 	}
 
 	public function update(Request $request, $id, $config, $moduleT){
+		$this->authorizeModuleAccess($moduleT);
 
 		// return response()->json($request->all());
 		

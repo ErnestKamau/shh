@@ -15,7 +15,7 @@ class ModuleVisibilityManager extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->check() && auth()->user()->is_support_staff, 403);
+        $this->authorizeAction('system.module-switching.view');
 
         $this->modules = getSystemModules();
         $this->visibility = getSystemModuleVisibilityMap();
@@ -23,6 +23,8 @@ class ModuleVisibilityManager extends Component
 
     public function save(): void
     {
+        $this->authorizeAction('system.module-switching.view');
+
         try {
             $configType = SystemConfigurationsType::where('configuration_type', 'Module Visibility')->first();
             if (!$configType) {
@@ -59,5 +61,20 @@ class ModuleVisibilityManager extends Component
     public function render()
     {
         return view('livewire.system.module-visibility-manager');
+    }
+
+    private function authorizeAction(string $permission): void
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            abort(403);
+        }
+
+        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can($permission)) {
+            return;
+        }
+
+        abort(403);
     }
 }

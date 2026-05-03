@@ -19,7 +19,7 @@ class ConfigurationController extends Controller
 
   public function moduleVisibility(): View|RedirectResponse
   {
-    if (!auth()->check() || !auth()->user()->is_support_staff) {
+    if (!auth()->check() || !auth()->user()->can('system.module-switching.view')) {
       return redirect()
         ->route('system-settings')
         ->with('error', 'You have no permission to perform the designated task!');

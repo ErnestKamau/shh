@@ -17,6 +17,10 @@ class CapabilityController extends Controller
     public function __construct()
 	{
 		$this->middleware('auth');
+        $this->middleware('can:skills-matrix.components.capability.view')->only(['index', 'getSkillMatrixRolesAjax', 'getMatrixUsersByPositionAjax', 'show']);
+        $this->middleware('can:skills-matrix.components.capability.add')->only(['store']);
+        $this->middleware('can:skills-matrix.components.capability.edit')->only(['storeDetails', 'editCapabaility']);
+        $this->middleware('can:skills-matrix.components.capability.delete')->only(['deleteCapabaility']);
 	}
     public function index(){
         $skillmatrixs = SkillsMatrix::where('status',1)->get();

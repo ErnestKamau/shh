@@ -68,9 +68,18 @@ class EquipmentDisposalApprovalWorkflowStep extends Model implements Auditable
             return true;
         }
 
-        // If assigned to role
+        // If assigned to role - resolve role name from Spatie and check via hasRole()
         if (in_array($this->assignee_type, ['App\\Models\\Role', 'App\\Role', SpatieRole::class], true)) {
-            return $user->roles->pluck('id')->contains($this->assignee_id);
+            $roleName = SpatieRole::query()
+                ->where('guard_name', 'web')
+                ->where('id', (int) $this->assignee_id)
+                ->value('name');
+
+            if (is_string($roleName) && $roleName !== '') {
+                return $user->hasRole($roleName);
+            }
+
+            return false;
         }
 
         return false;

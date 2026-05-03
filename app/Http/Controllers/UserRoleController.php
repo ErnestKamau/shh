@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
 class UserRoleController extends Controller
@@ -52,13 +51,12 @@ class UserRoleController extends Controller
 	public function remove(Request $request, $id){
 		$userId = (int) $request->input('user_id');
 		if ($userId < 1) {
-			$userId = (int) DB::table('user_roles')->where('id', $id)->value('user_id');
-		}
-		if ($userId < 1) {
-			$userId = (int) DB::table('model_has_roles')
-				->where('role_id', $id)
-				->where('model_type', User::class)
-				->value('model_id');
+			$userId = (int) Role::query()
+				->where('guard_name', 'web')
+				->where('id', (int) $id)
+				->first()?->users()
+				->where('users.active', 1)
+				->value('users.id');
 		}
 
 		$user = User::find($userId);

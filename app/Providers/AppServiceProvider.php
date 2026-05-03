@@ -17,6 +17,9 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use Livewire\Livewire;
+use App\Livewire\Personnel\Zones\ConfigurationManager as PersonnelZonesConfigurationManager;
+use App\Livewire\Personnel\Zones\Manager as PersonnelZonesManager;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -67,5 +70,14 @@ class AppServiceProvider extends ServiceProvider
         InventorySubCategories::observe(ItemObserver::class);
         RequestEntity::observe(PurchaseOrderObserver::class);
         Complaint::observe(TicketObserver::class);
+
+        // Keep old and current aliases stable while classes live under Personnel\Zones.
+        Livewire::component('zone-configuration-manager', PersonnelZonesConfigurationManager::class);
+        Livewire::component('personnel.zones.zone-configuration-manager', PersonnelZonesConfigurationManager::class);
+        Livewire::component('personnel.zones.configuration-manager', PersonnelZonesConfigurationManager::class);
+
+        Livewire::component('zone-manager', PersonnelZonesManager::class);
+        Livewire::component('personnel.zones.zone-manager', PersonnelZonesManager::class);
+        Livewire::component('personnel.zones.manager', PersonnelZonesManager::class);
     }
 }

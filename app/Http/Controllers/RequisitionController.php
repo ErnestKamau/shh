@@ -24,6 +24,28 @@ class RequisitionController extends Controller
 	{
 		$this->middleware('auth');
 	}
+
+	private function getUsersForRoleGroup($roleGroupName)
+	{
+		return User::role($roleGroupName)
+			->where('active', 1)
+			->get();
+	}
+
+	private function getFirstUserForRoleGroup($roleGroupName, array $excludedUserIds = [], $departmentId = null)
+	{
+		return $this->getUsersForRoleGroup($roleGroupName)
+			->reject(function ($user) use ($excludedUserIds) {
+				return in_array((int) $user->id, $excludedUserIds, true);
+			})
+			->when($departmentId !== null, function ($users) use ($departmentId) {
+				return $users->filter(function ($user) use ($departmentId) {
+					return (int) ($user->department_id ?? 0) === (int) $departmentId;
+				});
+			})
+			->sortBy('name')
+			->first();
+	}
 	/**
 	 * Display a listing of the resource.
 	 *
@@ -307,8 +329,8 @@ class RequisitionController extends Controller
 
 		$previousApprovers = [];
 		foreach ($approvals as $app) {
-			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-				->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id')->first()->id;
+			$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers);
+			$approverID = $approver->id;
 
 			$entity_approval =  \App\EntityApproval::where('model_id', $purchaseOrder->id)->where('approval_id', $app->id)
 				->where('model', 'Goods Receipt')->first() ?? new \App\EntityApproval;
@@ -483,10 +505,7 @@ class RequisitionController extends Controller
 			<br>Regards,<br>
 			' . $companyDetails['name'];
 
-		$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-		$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
-
-		$users = getUsersByRole($procurement_officer_role_id, true);
+		$users = getInventoryWorkflowUsers('procurement');
 
 		foreach ($users as $s) {
 			$contacts[] = $s->email;
@@ -528,8 +547,7 @@ class RequisitionController extends Controller
 			$iO->save();
 		}
 
-		$store_manager_role_id = getConfigByName('store_manager_role_id')[0]->value ?? 0;
-		$store_managers = \App\Role::find($store_manager_role_id)->getUsersByRole();
+		$store_managers = getInventoryWorkflowUsers('store_manager');
 		$store_manager_emails = $store_managers->pluck('email')->toArray();
 
 		if (isKECU()) {
@@ -597,8 +615,7 @@ class RequisitionController extends Controller
 
 		$req_user = \App\User::find($MATERIAL_REQUISITION->request_initiator);
 
-		$store_manager_role_id = getConfigByName('store_manager_role_id')[0]->value ?? 0;
-		$store_managers = \App\Role::find($store_manager_role_id)->getUsersByRole();
+		$store_managers = getInventoryWorkflowUsers('store_manager');
 		$store_manager_emails = $store_managers->pluck('email')->toArray();
 
 		$procurement_user = \App\User::find($purchaseOrder->request_initiator);
@@ -610,8 +627,8 @@ class RequisitionController extends Controller
 		$previousApprovers = [];
 		$firstApprover = false;
 		foreach ($approvals as $app) {
-			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-				->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id')->first()->id;
+			$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers);
+			$approverID = $approver->id;
 
 			$entity_approval = \App\EntityApproval::where('model_id', $purchaseOrder->id)->where('approval_id', $app->id)
 				->where('model', 'Goods Return')->first() ?? new \App\EntityApproval;
@@ -739,10 +756,7 @@ class RequisitionController extends Controller
 		}
 
 		if ($requiresProcurement) {
-			$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-			$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
-
-			$procurementOfficers = getUsersByRole($procurement_officer_role_id, true);
+			$procurementOfficers = getInventoryWorkflowUsers('procurement');
 
 			$emailList = [];
 
@@ -754,11 +768,7 @@ class RequisitionController extends Controller
 		}
 
 		if ($requiresSiteManager) {
-			$site_manager_roles = getConfigByName('site_manager_role_id');
-			$site_manager_role_id = count($site_manager_roles) > 0 ? $site_manager_roles[0]->value : 0;
-
-			$site_managers = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('ur.role_id', $site_manager_role_id)
-				->where('users.department_id', $initiator->department_id)->selectRaw('users.id, users.name, users.email')->get();
+			$site_managers = getInventoryWorkflowUsers('site_manager', $initiator->department_id);
 
 			foreach ($site_managers as $au) {
 				$emailList[] = $au->email;
@@ -768,11 +778,7 @@ class RequisitionController extends Controller
 		}
 
 		if ($requiresDepartmentHead) {
-			$departmental_head_roles = getConfigByName('departmental_head_role_id');
-			$departmental_head_role_id = count($departmental_head_roles) > 0 ? $departmental_head_roles[0]->value : 0;
-
-			$dHeads = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('ur.role_id', $departmental_head_role_id)
-				->where('users.department_id', $initiator->department_id)->selectRaw('users.id, users.name, users.email')->get();
+			$dHeads = getInventoryWorkflowUsers('department_head', $initiator->department_id);
 
 
 			foreach ($dHeads as $au) {
@@ -919,15 +925,14 @@ class RequisitionController extends Controller
 						->where('department_id', $CREATOR->department_id)->first();
 
 					if (!isset($hasDepartmentalApprovals->user_id)) {
-						$approver = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-							->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id);
+						$departmentId = null;
 
-						if (getDepartmentalHeadID() == $app->role_id) {
+						if ($app->role_group_name === 'Lab Manager') {
 							$requestInitiator = \App\User::find(isset($purchaseOrder->request_initiator) ? $purchaseOrder->request_initiator : $purchaseOrder->created_by);
-							$approver = $approver->where('users.department_id', $requestInitiator->department_id);
+							$departmentId = $requestInitiator->department_id;
 						}
 
-						$approver = $approver->selectRaw('users.id, users.email')->first();
+						$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers, $departmentId);
 					} else {
 						$approver = \App\User::find($hasDepartmentalApprovals->user_id);
 					}
@@ -1091,8 +1096,8 @@ class RequisitionController extends Controller
 		$previousApprovers = [];
 		$firstApprover = false;
 		foreach ($approvals as $app) {
-			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-				->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id')->first()->id;
+			$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers);
+			$approverID = $approver->id;
 
 			$entity_approval = \App\EntityApproval::where('model_id', $rfq->id)->where('approval_id', $app->id)
 				->where('model', 'Request for Quotation')->first() ?? new \App\EntityApproval;
@@ -1236,10 +1241,7 @@ class RequisitionController extends Controller
 
 		$subject = '[' . $rfq->request_code . '] Items from your Request to Store are available for pick-up.';
 
-		$store_manager_roles = getConfigByName('store_manager_role_id');
-		$store_manager_role_id = count($store_manager_roles) > 0 ? $store_manager_roles[0]->value : 0;
-
-		$storeManagers = getUsersByRole($store_manager_role_id, true);
+		$storeManagers = getInventoryWorkflowUsers('store_manager');
 
 		$emailList = [];
 
@@ -1463,10 +1465,7 @@ class RequisitionController extends Controller
 			' . $companyDetails['name'] . '
 			';
 
-			$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-			$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
-
-			$users = getUsersByRole($procurement_officer_role_id, true);
+			$users = getInventoryWorkflowUsers('procurement');
 
 			$emails = split_emails(';', $supplier->email);
 
@@ -1989,9 +1988,7 @@ class RequisitionController extends Controller
 		$req->status = "Awaiting Finance Approval";
 		$req->save();
 
-		$finance_role_id = getConfigByName('finance_department_role_id')[0]->value ?? 0;
-
-		$users = \App\Role::find($finance_role_id)->getUsersByRole();
+		$users = getInventoryWorkflowUsers('finance');
 
 		$userEmails = $users->pluck('email')->toArray();
 
@@ -2096,8 +2093,7 @@ class RequisitionController extends Controller
 				->where('department_idd', $CREATOR->department_id)->first();
 
 			if (!isset($hasDepartmentalApprovals->user_id)) {
-				$approver = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-					->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id, users.email')->first();
+				$approver = $this->getFirstUserForRoleGroup($app->role_group_name, $previousApprovers);
 			} else {
 				$approver = \App\User::find($hasDepartmentalApprovals->user_id);
 			}
@@ -2439,13 +2435,8 @@ class RequisitionController extends Controller
 					->where('department_id', $requestInitiator->department_id)->first();
 
 				if (!isset($hasDepartmentalApprovals->user_id)) {
-					$APPR_USER = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('ur.role_id', $app->role_id);
-
-					if (getDepartmentalHeadID() == $app->role_id) {
-						$APPR_USER = $APPR_USER->where('users.department_id', $requestInitiator->department_id);
-					}
-
-					$APPR_USER = $APPR_USER->selectRaw('users.id, users.name, users.email')->first();
+					$departmentId = $app->role_group_name === 'Lab Manager' ? $requestInitiator->department_id : null;
+					$APPR_USER = $this->getFirstUserForRoleGroup($app->role_group_name, [], $departmentId);
 				} else {
 					$APPR_USER = \App\User::find($hasDepartmentalApprovals->user_id);
 				}
@@ -2802,10 +2793,7 @@ class RequisitionController extends Controller
 			}
 
 			if ($req->request_type == "Purchase Request" && $req->status == "Approval Complete") {
-				$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-				$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
-
-				$procurementOfficers = getUsersByRole($procurement_officer_role_id, true);
+				$procurementOfficers = getInventoryWorkflowUsers('procurement');
 
 				$emailList = [];
 
@@ -2962,10 +2950,7 @@ class RequisitionController extends Controller
 
 				$subject = '[' . $req->request_code . '] Items are available at the store for pick-up.';
 
-				$store_manager_roles = getConfigByName('store_manager_role_id');
-				$store_manager_role_id = count($store_manager_roles) > 0 ? $store_manager_roles[0]->value : 0;
-
-				$storeManagers = getUsersByRole($store_manager_role_id, true);
+				$storeManagers = getInventoryWorkflowUsers('store_manager');
 
 				$emailList = [];
 
@@ -3553,11 +3538,8 @@ class RequisitionController extends Controller
 		$status = $entity->status;
 		$type = $entity->request_type;
 
-		$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-		$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
-
 		if ($status != "In Preparation") {
-			if (\Auth::user()->hasRole($procurement_officer_role_id, true)) {
+			if (currentUserHasInventoryWorkflowRole('procurement')) {
 				$entity->delete = 1;
 				$entity->save();
 			} else {

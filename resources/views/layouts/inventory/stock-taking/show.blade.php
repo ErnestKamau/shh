@@ -7,8 +7,8 @@
 <?php $disabled = (isset($taking->status) && in_array($taking->status, array("Awaiting Adjustment Approval", "Completed", "Rejected"))) ? 'readonly' : ''; ?>
 <main>
 	<?php
-	$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-	$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
+	$inventoryProcurementRoles = ['Inventory Procurement Group', 'Procurement', 'Admin'];
+	$isInventoryProcurement = \Auth::user()->hasAnyRole($inventoryProcurementRoles);
 
 		$items = array(
 			array(
@@ -44,14 +44,14 @@
 	<div class="pl-4 pb-4">
 		<span class="badge badge-pill bg-white pl-4 p-2 pr-4" style="font-weight: 500; font-size: 13px"><i class="mdi mdi-information"></i> {{ $taking->status }} </span>
 		@if(isset($taking->status) && in_array($taking->status, array("In Quantity Capture")))
-			@if (\Auth::user()->hasRole($procurement_officer_role_id, true))
+			@if ($isInventoryProcurement)
 				<button class="ml-2 btn badge-pill btn-outline-danger btn-sm save-capture-btn" data-type="request_adjustment" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
 					<i class="mdi mdi-check-decagram"></i> Request Adjustment Approval
 				</button>
 			@endif
 		@endif
 		@if(isset($taking->status) && $taking->status == "Awaiting Adjustment Approval")
-			@if (\Auth::user()->hasRole($procurement_officer_role_id, true))
+			@if ($isInventoryProcurement)
 				<span class="ml-2 badge-pill badge-success pl-4 pt-2 pr-4 pb-2" style="cursor: pointer" data-type="approve" data-target="#approve-deny-adjustment-modal" data-toggle="modal" {{ $taking->stores_frozen == "0" ? 'disabled': '' }}>
 					<i class="mdi mdi-check-bold"></i> Approve Adjustment
 				</span>

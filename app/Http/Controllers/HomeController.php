@@ -17,7 +17,6 @@ use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File as PILE;
 use Illuminate\Support\Facades\Storage;
-use App\Services\Auth\LegacyPermissionSyncService;
 use App\Services\AI\AiInferenceService;
 
 class HomeController extends Controller
@@ -32,15 +31,11 @@ class HomeController extends Controller
     $this->middleware(['auth','twofactor']);
   }
 
-  /**
-   * Load and merge user permissions from all roles
-   *
-   * @param \App\User $user
-   * @return void
-   */
+	/**
+	 * Refresh cached permission payload for the session.
+	 */
   public function loadUserPermissions($user)
   {
-		app(LegacyPermissionSyncService::class)->syncUser($user);
 		Session::forget('permissions');
   }
 
@@ -70,10 +65,9 @@ class HomeController extends Controller
 	else{
 		$user->is_online = 1;
 		$user->save();
-		$personnel_role = SystemConfiguration::where('key','personnel_role_id')->first();
-		$user_personel_access = isset($personnel_role->value) && (int) $personnel_role->value > 0
-			? $user->hasRole((int) $personnel_role->value, true)
-			: null;
+		$user_personel_access = $user->can('personnel.permission')
+			|| $user->can('Personnel.permission')
+			|| $user->hasRole('Access Personnel');
 
 		$this->loadUserPermissions($user);
 

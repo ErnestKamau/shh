@@ -62,11 +62,11 @@ class FeedbackForm extends BaseCrmComponent
         $this->validate();
 
         if ($this->feedbackId) {
-            $this->checkPermission('CRM.components.Feedbacks.Edit');
+            $this->checkPermission('crm.components.feedbacks.edit');
             $feedback = CustomerFeedback::find($this->feedbackId);
             $feedback->edited_by = auth()->user()->name;
         } else {
-            $this->checkPermission('CRM.components.Feedbacks.Add');
+            $this->checkPermission('crm.components.feedbacks.add');
             $feedback = new CustomerFeedback();
             $feedback->registered_by = auth()->user()->name;
             $feedback->user_type = 'Customer';

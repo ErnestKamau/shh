@@ -64,8 +64,6 @@ use App\Standards;
 use App\StandardValue;
 use App\TaxRegime;
 use App\User;
-use App\UserRole;
-use App\UserRoleView;
 use App\ZohoCustomers;
 use App\ZohoPricelist;
 use Illuminate\Http\File;
@@ -1382,10 +1380,11 @@ class SampleWorkFlowController extends Controller
         }
         $section_approvers_users = isset($batch->id) ? LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get() : [];
 
-        $receiving_role = SystemConfiguration::where('key', 'receiving_role_id')->first();
-        // $test =  UserRole::where('role_id',isset($receiving_role->value) ? $receiving_role->value : 0)->get();
-        // return response()->json($test);
-        $recieving_users = UserRole::where('role_id', isset($receiving_role->value) ? $receiving_role->value : 0)->join('users as u', 'u.id', '=', 'user_roles.user_id')->where('u.is_support_staff', 0)->selectRaw('u.*')->get();
+        $recieving_users = User::role('Sample Reception')
+            ->where('is_support_staff', 0)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
 
         $batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
@@ -1527,12 +1526,12 @@ class SampleWorkFlowController extends Controller
             // return response()->json($ammendable,200);
         }
 
-        $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+        $analysts = User::role('Laboratory Analyst')
+            ->where('is_support_staff', 0)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
         $labs = Lab::where('active', 1)->get();
-        // $analysts = getUsersByRole('Analyst');
-        $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-            ->join('roles as r', 'r.id', '=', 'ur.role_id')
-            ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
 
         // -----------------------------------
 
@@ -3176,6 +3175,8 @@ class SampleWorkFlowController extends Controller
 
     public function approve_batch($id)
     {
+        abort_unless(auth()->user()->can('laboratory.components.approve for analysis.edit'), 403);
+        
         $batch = getSampleHeaderByID($id);
         if ($batch->is_qc_batch) {
             $results = Result::where('sample_header_id', $id)->get();
@@ -3233,6 +3234,8 @@ class SampleWorkFlowController extends Controller
 
     public function delete_batch(Request $request)
     {
+        abort_unless(auth()->user()->can('laboratory.components.all samples.delete'), 403);
+        
         $codes = $request->batch_code;
 
         foreach ($codes as $code) {
@@ -3602,6 +3605,8 @@ class SampleWorkFlowController extends Controller
 
     public function approve_batch_begin_process(Request $request)
     {
+        abort_unless(auth()->user()->can('laboratory.components.approve for analysis.edit'), 403);
+        
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
             if (isset($batch->id)) {
@@ -5086,12 +5091,12 @@ class SampleWorkFlowController extends Controller
             $attachments = [];
             // return response()->json($ammendable,200);
         }
-        $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+        $analysts = User::role('Laboratory Analyst')
+            ->where('is_support_staff', 0)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
         $labs = Lab::where('active', 1)->get();
-        // $analysts = getUsersByRole('Analyst');
-        $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-            ->join('roles as r', 'r.id', '=', 'ur.role_id')
-            ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
 
         // -----------------------------------
         // ---------------------------------------
@@ -5188,8 +5193,11 @@ class SampleWorkFlowController extends Controller
     {
         $captured_results = CapturedResultView::where('sample_detail_id', $sample_id)->get();
         $equipments = Equipment::where('active', 1)->get();
-        $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
-        $analysts = UserRoleView::where('role_id', $role_a->value)->where('active', 1)->where('is_support_staff', 0)->orderBy('name')->get();
+        $analysts = User::role('Laboratory Analyst')
+            ->where('is_support_staff', 0)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
         $res = [
             'captured' => $captured_results,
             'equipments' => $equipments,
@@ -5617,10 +5625,11 @@ class SampleWorkFlowController extends Controller
             $data = $data->where('is_complete', 1)->orderBy('created_at', 'ASC')->get();
         }
         $sampletypes = SampleType::where('active', 1)->get();
-        $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
-        $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-            ->join('roles as r', 'r.id', '=', 'ur.role_id')
-            ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
+        $analysts = User::role('Laboratory Analyst')
+            ->where('is_support_staff', 0)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
         return view('layouts.lab.reports.tat-report', compact('sampletypes', 'analysts', 'filter', 'data'));
     }
     public function getAnalysisTypeAjax($sampletype)

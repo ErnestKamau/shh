@@ -149,15 +149,10 @@ class WorkflowBoard extends Component
         $this->labsections = SampleAnalysisStage::where('active', 1)->orderBy('name')->get();
         $this->zohoItems = InventorySubCategories::orderBy('name')->get();
 
-        $analystRoleId = SystemConfiguration::where('key', 'analyst_role_id')->value('value');
-        $this->analysts = User::query()
-            ->orderBy('users.name')
-            ->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-            ->join('roles as r', 'r.id', '=', 'ur.role_id')
-            ->when($analystRoleId, fn ($query) => $query->where('r.id', $analystRoleId))
-            ->where('users.active', 1)
-            ->where('users.is_support_staff', 0)
-            ->select('users.*')
+        $this->analysts = User::role('Laboratory Analyst')
+            ->where('active', 1)
+            ->where('is_support_staff', 0)
+            ->orderBy('name')
             ->get();
 
         $this->users = User::where('is_client', 0)

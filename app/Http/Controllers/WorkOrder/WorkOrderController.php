@@ -378,18 +378,12 @@ class WorkOrderController extends Controller
 			$workorder = WorkOrder::find($id);
 
 
-			$departmental_head_roles = getConfigByName('departmental_head_role_id');
-			$departmental_head_role_id = count($departmental_head_roles) > 0 ? $departmental_head_roles[0]->value : 0;
-
-			$users = getUsersByRole($departmental_head_role_id, true);
-
-			$departmentalHead = [];
-
-			foreach($users as $s){
-				if($s->department_id == $workorder->client_id){
-					$departmentalHead[] = $s->email;
-				}
-			}
+			$users = getInventoryWorkflowUsers('department_head', $workorder->client_id);
+			$departmentalHead = $users
+				->pluck('email')
+				->filter()
+				->values()
+				->toArray();
 
 			if(count($departmentalHead) == 0){
 				return redirect()->back()->with('error', 'No departmental head found.');

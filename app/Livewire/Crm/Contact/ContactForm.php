@@ -109,10 +109,10 @@ class ContactForm extends BaseCrmComponent
         $previousContactEmail = null;
 
         if (!$this->contactId) {
-            $this->checkPermission('CRM.components.Contacts.Add');
+            $this->checkPermission('crm.components.contacts.add');
             $contact = new CustomerContact();
         } else {
-            $this->checkPermission('CRM.components.Contacts.Edit');
+            $this->checkPermission('crm.components.contacts.edit');
             $contact = CustomerContact::find($this->contactId);
             $previousContactEmail = $contact?->email;
         }
@@ -221,7 +221,7 @@ class ContactForm extends BaseCrmComponent
     public function delete()
     {
         if ($this->contactId) {
-            $this->checkPermission('CRM.components.Contacts.Delete');
+            $this->checkPermission('crm.components.contacts.delete');
             $contact = CustomerContact::find($this->contactId);
             $contact->delete();
             

@@ -50,7 +50,7 @@ class RoleDetailManager extends Component
 
         $rules = getModulePermissions();
         $components = $rules[$module]['components'] ?? [];
-        $actions = ['Add', 'Edit', 'View', 'Delete'];
+        $actions = ['add', 'edit', 'view', 'delete'];
 
         foreach ($components as $component) {
             foreach ($actions as $action) {
@@ -66,7 +66,7 @@ class RoleDetailManager extends Component
 
         $rules = getModulePermissions();
         $components = $rules[$module]['components'] ?? [];
-        $actions = ['Add', 'Edit', 'View', 'Delete'];
+        $actions = ['add', 'edit', 'view', 'delete'];
         $hasAny = false;
         foreach ($components as $componentName) {
             foreach ($actions as $actionName) {
@@ -226,7 +226,7 @@ class RoleDetailManager extends Component
     private function initializePermissionsState(): void
     {
         $rules = getModulePermissions();
-        $actions = ['Add', 'Edit', 'View', 'Delete'];
+        $actions = ['add', 'edit', 'view', 'delete'];
         $rolePermissionNames = $this->role->permissions->pluck('name')->flip()->toArray();
 
         foreach ($rules as $moduleName => $rule) {

@@ -11,7 +11,6 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 use Response;
 use App\User;
-use App\Models\System\SystemConfiguration;
 use App\ModulePreConfigs;
 use App\CalendarEventsNotification;
 use App\EventHistory;
@@ -26,10 +25,6 @@ class EventController extends Controller
     }
     public function indexed()
     {
-        $config = SystemConfiguration::where('key', 'view_all_events_role_id')->first();
-        if (!isset($config->id)) {
-            return redirect()->back()->with('error', 'kindly add view_all_events_role_id configuration');
-        }
         // $events = Event::all();
         $users = getCompanyUsers();
         $clients = CRMCustomer::where('active', 1)->get();
@@ -180,10 +175,6 @@ class EventController extends Controller
     }
     public function index()
     {
-        $config = SystemConfiguration::where('key', 'view_all_events_role_id')->first();
-        if (!isset($config->id)) {
-            return redirect()->back()->with('error', 'kindly add view_all_events_role_id configuration');
-        }
         $statusCounts = Event::selectRaw('status, COUNT(*) as count')
             ->whereIn('status', ['Upcoming', 'Complete', 'Delayed', 'Cancelled', 'Expired'])
             ->groupBy('status')

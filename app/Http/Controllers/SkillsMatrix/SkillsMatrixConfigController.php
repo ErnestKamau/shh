@@ -23,6 +23,10 @@ class SkillsMatrixConfigController extends Controller
 
     public function __construct(){
     $this->middleware('auth');
+	$this->middleware('can:skills-matrix.components.matrix-configuration.view')->only(['index', 'getTopologies', 'competence_history', 'get_phase_comments', 'get_weeks_listing']);
+	$this->middleware('can:skills-matrix.components.matrix-configuration.add')->only(['add', 'save_new_week']);
+	$this->middleware('can:skills-matrix.components.matrix-configuration.edit')->only(['updat_user_role_matrix_Config', 'updat_matrix_Config', 'assign_phase_comments', 'update_trainner', 'assign_trainner']);
+	$this->middleware('can:skills-matrix.components.matrix-configuration.delete')->only(['remove']);
 	}
 
 	public function index($id,Request $request){
@@ -73,19 +77,8 @@ class SkillsMatrixConfigController extends Controller
 		$traning_need_proficiency = ModulePreConfigs::where('type', 'Training')->where('module','Skills-Matrix')
 			->where('inventory_location_id', getCurrentUserLocation()->id)->selectRaw('id,color,description')->orderBy('level', 'asc')->get();
 		
-		$edit_skills_matrixs = getConfigByName('edit_skills_matrix_role_id');
-		$edit_skills_matrix_role_id = count($edit_skills_matrixs) > 0 ? $edit_skills_matrixs[0]->value : 0;
-
-		$AppUsers = getUsersByRole($edit_skills_matrix_role_id, true);		
-		$user_id = Auth::id();
-		$editskillsList = [];
-		foreach($AppUsers as $au){
-			$editskillsList[] = $au->id;
-		}
-		$can_edit_skills_matrix = 0;
-		if(in_array($user_id,$editskillsList)){
-			$can_edit_skills_matrix = 1;
-		}   
+		$user_id = (int) Auth::id();
+		$can_edit_skills_matrix = Auth::user()->can('skills-matrix.components.matrix-configuration.edit') ? 1 : 0;
 
 		$training_type_phase = getConfigByName('skills_training_phase')->first();
 		$training_phases= isset($training_type_phase->id) ? explode(',',$training_type_phase->value) : [];

@@ -171,7 +171,7 @@ class AiChatService extends AiBaseService
                 )
                 ->post("{$this->apiBaseUrl}/v1/index/upload", [
                     'collection'   => $data['collection'],
-                    'permission'   => $data['permission'] ?? 'General.View',
+                    'permission'   => $data['permission'] ?? 'general.view',
                     'manual_doc_id' => $data['manual_doc_id'] ?? null,
                     'metadata'     => json_encode($data['metadata'] ?? []),
                 ]);

@@ -68,10 +68,10 @@ class SamplePointForm extends BaseCrmComponent
         }
 
         if ($this->pointId) {
-            $this->checkPermission('CRM.components.Sample-Points.Edit');
+            $this->checkPermission('crm.components.sample-points.edit');
             $point = SamplePoint::find($this->pointId);
         } else {
-            $this->checkPermission('CRM.components.Sample-Points.Add');
+            $this->checkPermission('crm.components.sample-points.add');
             $point = new SamplePoint();
         }
 

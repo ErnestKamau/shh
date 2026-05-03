@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class FormInstanceController extends Controller
@@ -1596,57 +1597,15 @@ class FormInstanceController extends Controller
 
     private function authorizeViewInstance(SubmissionForm $submissionForm, SubmissionFormInstance $instance, string $message): void
     {
-        if (! $this->canViewInstance(Auth::user(), $submissionForm, $instance)) {
+        if (! Gate::forUser(Auth::user())->allows('view', $instance)) {
             abort(403, $message);
         }
     }
 
     private function authorizeManageInstance(SubmissionForm $submissionForm, SubmissionFormInstance $instance, string $message): void
     {
-        if (! $this->canManageInstance(Auth::user(), $submissionForm, $instance)) {
+        if (! Gate::forUser(Auth::user())->allows('update', $instance)) {
             abort(403, $message);
         }
-    }
-
-    private function canViewInstance($user, SubmissionForm $submissionForm, SubmissionFormInstance $instance): bool
-    {
-        if ($this->canManageInstance($user, $submissionForm, $instance)) {
-            return true;
-        }
-
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->hasPermissionTo('Laboratory.components.All Samples.View')) {
-            return true;
-        }
-
-        return $submissionForm->canUserAccess($user, 'view');
-    }
-
-    private function canManageInstance($user, SubmissionForm $submissionForm, SubmissionFormInstance $instance): bool
-    {
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->hasRole('admin') || $user->hasRole('Sample Reception')) {
-            return true;
-        }
-
-        if ($user->hasPermissionTo('Laboratory.components.All Samples.Edit')) {
-            return true;
-        }
-
-        if ((int) $submissionForm->created_by === (int) $user->id) {
-            return true;
-        }
-
-        if ((int) $instance->submitted_by === (int) $user->id) {
-            return true;
-        }
-
-        return $submissionForm->canUserAccess($user, 'edit');
     }
 }

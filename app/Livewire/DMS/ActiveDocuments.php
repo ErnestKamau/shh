@@ -9,9 +9,9 @@ use App\Models\DMS\Document;
 use App\Models\DMS\DocumentType;
 use App\Models\DMS\DocumentAuditLog;
 use App\Services\DMS\DocumentNumberGenerator;
-use App\Services\DMS\PermissionResolver;
 use App\Services\DMS\PermissionManager;
 use App\User;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role as SpatieRole;
@@ -63,13 +63,11 @@ class ActiveDocuments extends Component
     public $enrichedDocuments = [];
 
     protected $numberGenerator;
-    protected $permissionResolver;
     protected $permissionManager;
 
-    public function boot(DocumentNumberGenerator $numberGenerator, PermissionResolver $permissionResolver, PermissionManager $permissionManager)
+    public function boot(DocumentNumberGenerator $numberGenerator, PermissionManager $permissionManager)
     {
         $this->numberGenerator = $numberGenerator;
-        $this->permissionResolver = $permissionResolver;
         $this->permissionManager = $permissionManager;
     }
 
@@ -157,6 +155,12 @@ class ActiveDocuments extends Component
 
     public function showCreateModal(): void
     {
+        if (!Gate::forUser(auth()->user())->allows('create', Document::class)) {
+            $this->message = 'You do not have permission to create documents';
+            $this->messageType = 'error';
+            return;
+        }
+
         $this->resetForm();
         $this->editingDocument = null;
         $this->inheritedPermissions = [];
@@ -226,8 +230,7 @@ class ActiveDocuments extends Component
     {
         $document = Document::findOrFail($documentId);
 
-        // Check permission
-        if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'edit')) {
+        if (!Gate::forUser(auth()->user())->allows('update', $document)) {
             $this->message = 'You do not have permission to edit this document';
             $this->messageType = 'error';
             return;
@@ -305,6 +308,13 @@ class ActiveDocuments extends Component
         try {
             if ($this->editingDocument) {
                 $document = Document::findOrFail($this->editingDocument);
+
+                if (!Gate::forUser(auth()->user())->allows('update', $document)) {
+                    $this->message = 'You do not have permission to update this document';
+                    $this->messageType = 'error';
+                    return;
+                }
+
                 $oldValues = $document->toArray();
 
                 // Update document metadata
@@ -332,6 +342,12 @@ class ActiveDocuments extends Component
 
                 $this->message = 'Document updated successfully';
             } else {
+                if (!Gate::forUser(auth()->user())->allows('create', Document::class)) {
+                    $this->message = 'You do not have permission to create this document';
+                    $this->messageType = 'error';
+                    return;
+                }
+
                 // Create new document
                 $documentType = DocumentType::findOrFail($this->documentForm['document_type_id']);
                 $documentNumber = $this->numberGenerator->generate($documentType);
@@ -400,8 +416,7 @@ class ActiveDocuments extends Component
         try {
             $document = Document::findOrFail($documentId);
 
-            // Check permission
-            if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'delete')) {
+            if (!Gate::forUser(auth()->user())->allows('delete', $document)) {
                 $this->message = 'You do not have permission to delete this document';
                 $this->messageType = 'error';
                 return;
@@ -436,8 +451,7 @@ class ActiveDocuments extends Component
         try {
             $document = Document::findOrFail($documentId);
 
-            // Check permission
-            if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'edit')) {
+            if (!Gate::forUser(auth()->user())->allows('archive', $document)) {
                 $this->message = 'You do not have permission to archive this document';
                 $this->messageType = 'error';
                 return;
@@ -467,8 +481,7 @@ class ActiveDocuments extends Component
         try {
             $document = Document::findOrFail($documentId);
 
-            // Check permission
-            if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'approve_amendment')) {
+            if (!Gate::forUser(auth()->user())->allows('approveAmendment', $document)) {
                 $this->message = 'You do not have permission to approve this document';
                 $this->messageType = 'error';
                 return;

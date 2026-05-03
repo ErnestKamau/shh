@@ -63,26 +63,39 @@
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-3 col-lg-2">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
+		@php
+			$user = auth()->user();
+			$canSkillsMatrix = $user->can('skills-matrix.components.skills-matrix.view');
+			$canCapability = $user->can('skills-matrix.components.capability.view');
+			$canTrainingNeeds = $user->can('skills-matrix.components.training-needs.view');
+			$canTrainingPlan = $user->can('skills-matrix.components.training-plan.view');
+			$canModulePreconfigs = $user->can('skills-matrix.components.module-preconfigs.view');
+		@endphp
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-star-outline fa-3x"></i><br>
 				<span class="text-lg text-bold">Skills Matrix</span>
 			</div>
 
+			@if($canSkillsMatrix)
 			<a href="{{route('matrix')}}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-star-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Skills Matrix</span>
 				</div>
 			</a>
+			@endif
 			
+			@if($canCapability)
 			<a href="{{route('capability-index')}}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi mdi-account-check-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Capability Matrix</span>
 				</div>
 			</a>
+			@endif
 
+			@if($canTrainingNeeds || $canTrainingPlan)
 			<a href="#training-menu" data-toggle="collapse" aria-expanded="false"
 				class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
@@ -92,17 +105,23 @@
 				</div>
 			</a>
 			<div id="training-menu" class="collapse sidebar-submenu">
+				@if($canTrainingNeeds)
 				<a href="{{route('train.needs.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Training Needs
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
+				@endif
+				@if($canTrainingPlan)
 				<a href="{{route('train.plan.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Training Plans
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
+				@endif
 
 			</div>
+			@endif
 
+			@if($canModulePreconfigs)
 			<a href="#skills-confflow-menu" data-toggle="collapse" aria-expanded="false"
 				class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
@@ -139,6 +158,7 @@ $menuTotals = array(
 					</a>
 				@endforeach
 			</div>
+			@endif
 			<a href="#" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-multiple-outline fa-fw mr-3"></span>

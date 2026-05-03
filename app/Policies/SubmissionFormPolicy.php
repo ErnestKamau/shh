@@ -11,12 +11,22 @@ class SubmissionFormPolicy
     use HandlesAuthorization;
 
     /**
+     * Determine whether the user is a sample reception user via Spatie roles.
+     */
+    private function isSampleReception(User $user): bool
+    {
+        return $user->roles->contains(function ($role) {
+            return strtolower((string) $role->name) === 'sample reception';
+        });
+    }
+
+    /**
      * Determine whether the user can view any submission forms.
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('Laboratory.components.RFT Form.View') ||
-               $user->hasPermissionTo('Laboratory.components.All Samples.View') ||
+        return $user->hasPermissionTo('laboratory.components.rft form.view') ||
+               $user->hasPermissionTo('laboratory.components.all samples.view') ||
                $user->hasRole('admin');
     }
 
@@ -25,13 +35,18 @@ class SubmissionFormPolicy
      */
     public function view(User $user, SubmissionForm $submissionForm): bool
     {
-        // Admin can view all forms
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $this->isSampleReception($user)) {
             return true;
         }
 
-        // Check if user has specific permission for this form
-        return $submissionForm->canUserAccess($user, 'view');
+        if (
+            $user->hasPermissionTo('laboratory.components.rft form.view') ||
+            $user->hasPermissionTo('laboratory.components.all samples.view')
+        ) {
+            return true;
+        }
+
+        return (int) $submissionForm->created_by === (int) $user->id;
     }
 
     /**
@@ -39,7 +54,7 @@ class SubmissionFormPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('Laboratory.components.RFT Form.Add') || 
+        return $user->hasPermissionTo('laboratory.components.rft form.add') || 
                $user->hasRole('admin');
     }
 
@@ -48,18 +63,18 @@ class SubmissionFormPolicy
      */
     public function update(User $user, SubmissionForm $submissionForm): bool
     {
-        // Admin can update all forms
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $this->isSampleReception($user)) {
             return true;
         }
 
-        // Form creator can always update their forms
-        if ($submissionForm->created_by === $user->id) {
+        if (
+            $user->hasPermissionTo('laboratory.components.rft form.edit') ||
+            $user->hasPermissionTo('laboratory.components.all samples.edit')
+        ) {
             return true;
         }
 
-        // Check if user has edit permission for this form
-        return $submissionForm->canUserAccess($user, 'edit');
+        return (int) $submissionForm->created_by === (int) $user->id;
     }
 
     /**
@@ -67,13 +82,15 @@ class SubmissionFormPolicy
      */
     public function delete(User $user, SubmissionForm $submissionForm): bool
     {
-        // Admin can delete all forms
         if ($user->hasRole('admin')) {
             return true;
         }
 
-        // Form creator can delete their forms if no instances exist
-        if ($submissionForm->created_by === $user->id) {
+        if ($user->hasPermissionTo('laboratory.components.rft form.delete')) {
+            return true;
+        }
+
+        if ((int) $submissionForm->created_by === (int) $user->id) {
             return !$submissionForm->instances()->exists();
         }
 
@@ -85,18 +102,7 @@ class SubmissionFormPolicy
      */
     public function publish(User $user, SubmissionForm $submissionForm): bool
     {
-        // Admin can publish/unpublish all forms
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        // Form creator can publish their forms
-        if ($submissionForm->created_by === $user->id) {
-            return true;
-        }
-
-        // Check if user has edit permission for this form
-        return $submissionForm->canUserAccess($user, 'edit');
+        return $this->update($user, $submissionForm);
     }
 
     /**
@@ -113,13 +119,11 @@ class SubmissionFormPolicy
      */
     public function managePermissions(User $user, SubmissionForm $submissionForm): bool
     {
-        // Admin can manage permissions for all forms
         if ($user->hasRole('admin')) {
             return true;
         }
 
-        // Form creator can manage permissions for their forms
-        return $submissionForm->created_by === $user->id;
+        return (int) $submissionForm->created_by === (int) $user->id;
     }
 
     /**

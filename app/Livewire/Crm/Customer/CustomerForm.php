@@ -87,11 +87,11 @@ class CustomerForm extends BaseCrmComponent
 
         if ($this->customer) {
             // Edit mode
-            $this->checkPermission('CRM.components.Customer-List.Edit');
+            $this->checkPermission('crm.components.customer-list.edit');
             $customer = $this->customer;
         } else {
             // Add mode
-            $this->checkPermission('CRM.components.Customer-List.Add');
+            $this->checkPermission('crm.components.customer-list.add');
             $customer = new CRMCustomer();
             $customer->code = getNamingConventionCode("Customers", $this->name);
         }

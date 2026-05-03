@@ -105,7 +105,7 @@ class CustomerSamplePointsTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new \App\Exports\CRM\CustomerRegistryTabExport($this->customer->id, 'sample_points', $this->search))
             ->download('customer_sample_points_' . $this->customer->id . '_' . now()->format('Ymd_His') . '.xlsx');
     }

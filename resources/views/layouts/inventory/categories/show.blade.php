@@ -69,21 +69,22 @@
           'icon' => null
         )
       );
-			$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-			$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
-
-			$store_manager_roles = getConfigByName('store_manager_role_id');
-			$store_manager_role_id = count($store_manager_roles) > 0 ? $store_manager_roles[0]->value : 0;
-
-			$userCanDelete = (\Auth::user()->hasRole($store_manager_role_id, true) || \Auth::user()->hasRole($procurement_officer_role_id, true));
+			$userCanAdd = \Auth::user()->can('inventory.components.categories.add');
+			$userCanEdit = \Auth::user()->can('inventory.components.categories.edit');
+			$userCanDelete = \Auth::user()->can('inventory.components.categories.delete');
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
 		<h3 class="p-4">
 			<i class="mdi mdi-format-list-bulleted"></i> Inventory Items
-			<div class="btn btn-sm btn-transparent text-primary float-right m-2" data-target="#edit-category-modal" data-toggle="modal"><i class="mdi mdi-share"></i> Edit</div>
-			<div class="btn btn-sm btn-transparent text-success float-right m-2" data-target="#add-sub-category" data-toggle="modal"><i class="mdi mdi-plus"></i> Add Item</div>
+			@if($userCanEdit)
+				<div class="btn btn-sm btn-transparent text-primary float-right m-2" data-target="#edit-category-modal" data-toggle="modal"><i class="mdi mdi-share"></i> Edit</div>
+			@endif
+			@if($userCanAdd)
+				<div class="btn btn-sm btn-transparent text-success float-right m-2" data-target="#add-sub-category" data-toggle="modal"><i class="mdi mdi-plus"></i> Add Item</div>
+			@endif
 		</h3>
 		<div class="p-4">
+			@if($userCanEdit)
 			<small data-target="#toggle-default-location-modal" data-toggle="modal" style="cursor: pointer">
 				<i class="mdi mdi-pencil text-success"></i> Default Location:
 				@if(trim($category->default_store_id) != "")
@@ -91,6 +92,7 @@
 					<i class="mdi mdi-grid-large"></i> {{ $category->slot }}
 				@endif
 			</small>
+			@endif
 		</div>
 		<div class="p-4 bg-light">
 			<div class="table-responsive">
@@ -161,6 +163,7 @@
 	</main>
 @endsection
 @section('script2')
+@if($userCanEdit)
 <div id="edit-category-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -198,6 +201,8 @@
 		</form>
 	</div>
 </div>
+@endif
+@if($userCanAdd)
 <div id="add-sub-category" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -307,6 +312,7 @@
 		</form>
 	</div>
 </div>
+@endif
 <div id="create-an-order" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -344,6 +350,7 @@
 		</form>
 	</div>
 </div>
+@if($userCanEdit)
 <div id="toggle-default-location-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -374,6 +381,7 @@
 		</form>
 	</div>
 </div>
+@endif
 @if($userCanDelete)
 <div id="delete-this-sub-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">

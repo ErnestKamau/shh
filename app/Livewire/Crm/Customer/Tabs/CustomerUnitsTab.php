@@ -150,7 +150,7 @@ class CustomerUnitsTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new \App\Exports\CRM\CustomerRegistryTabExport($this->customer->id, 'units', $this->search))
             ->download('customer_units_' . $this->customer->id . '_' . now()->format('Ymd_His') . '.xlsx');
     }

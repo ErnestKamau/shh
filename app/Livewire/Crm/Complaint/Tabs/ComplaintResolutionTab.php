@@ -46,7 +46,7 @@ class ComplaintResolutionTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new ComplaintTabExport($this->complaintId, 'resolutions'))->download('complaint_resolutions_' . now()->format('Ymd_His') . '.xlsx');
     }
 

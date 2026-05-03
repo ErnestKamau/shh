@@ -9,6 +9,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Gate;
 
 class DocumentAmendment extends Model implements Auditable
 {
@@ -202,7 +203,7 @@ class DocumentAmendment extends Model implements Auditable
      */
     public function canAuthorize($user): bool
     {
-        return $this->document->canUserAccess($user, 'authorize_amendment');
+        return Gate::forUser($user)->allows('authorizeAmendment', $this->document);
     }
 
     /**
@@ -213,7 +214,7 @@ class DocumentAmendment extends Model implements Auditable
      */
     public function canApprove($user): bool
     {
-        return $this->document->canUserAccess($user, 'approve_amendment');
+        return Gate::forUser($user)->allows('approveAmendment', $this->document);
     }
 }
 

@@ -12,7 +12,7 @@ use Livewire\Component;
 class TranslationForm extends Component
 {
     public bool $showForm = false;
-    public ?int $editingLineId = null;
+    public ?string $editingLineId = null;
     public string $group = '';
     public string $key = '';
     /** @var array<string, string> */
@@ -23,7 +23,7 @@ class TranslationForm extends Component
     #[On('open-translation-create')]
     public function openCreate(?string $group = null): void
     {
-        $this->authorizeAction('System.components.Translations.Add');
+        $this->authorizeAction('system.translations.keys.add');
 
         $this->editingLineId = null;
         $this->group = $group ? trim($group) : '';
@@ -34,9 +34,9 @@ class TranslationForm extends Component
     }
 
     #[On('open-translation-edit')]
-    public function openEdit(int $id): void
+    public function openEdit(string $id): void
     {
-        $this->authorizeAction('System.components.Translations.Edit');
+        $this->authorizeAction('system.translations.keys.edit');
 
         $line = TranslationLanguageLine::query()->findOrFail($id);
         $this->loadLanguages();
@@ -61,8 +61,8 @@ class TranslationForm extends Component
     public function save(TranslationManagementService $translationService): void
     {
         $permission = $this->editingLineId === null
-            ? 'System.components.Translations.Add'
-            : 'System.components.Translations.Edit';
+            ? 'system.translations.keys.add'
+            : 'system.translations.keys.edit';
 
         $this->authorizeAction($permission);
 
@@ -129,7 +129,7 @@ class TranslationForm extends Component
             abort(403);
         }
 
-        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can('System.permission') || $user->can($permission)) {
+        if ((method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) || $user->can($permission)) {
             return;
         }
 

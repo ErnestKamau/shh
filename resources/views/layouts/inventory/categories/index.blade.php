@@ -19,19 +19,15 @@
         )
       );
 
-			$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-			$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
-
-			$store_manager_roles = getConfigByName('store_manager_role_id');
-			$store_manager_role_id = count($store_manager_roles) > 0 ? $store_manager_roles[0]->value : 0;
-
-			$userCanDelete = (\Auth::user()->hasRole($store_manager_role_id, true) || \Auth::user()->hasRole($procurement_officer_role_id, true));
+			$userCanAdd = \Auth::user()->can('inventory.components.categories.add');
+			$userCanEdit = \Auth::user()->can('inventory.components.categories.edit');
+			$userCanDelete = \Auth::user()->can('inventory.components.categories.delete');
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h3 class="p-4">
       <i class="mdi mdi-format-list-bulleted-type"></i>Categories
 
-			@if(\Auth::user()->hasRole($store_manager_role_id, true) || \Auth::user()->hasRole($procurement_officer_role_id, true))
+			@if($userCanAdd)
       	<button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-inventory-category"><i class="mdi mdi-plus"></i> Add</button>
 			@endif
 			<span class="btn btn-transparent btn-sm float-right" data-toggle="modal" data-target="#jump-to-item-modal">
@@ -69,8 +65,11 @@
 										{{ number_format($category->available()['available'])." ".$category->unit_type }} <small class="text-muted">(+{{ number_format($category->available()['pending'])." ".$category->unit_type }} pending)</small>
 									</td>
 									<td nowrap>
-										<button class="btn btn-transparent text-primary btn-sm" data-target="#edit-inventory-category-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
+										@if($userCanEdit)
+											<button class="btn btn-transparent text-primary btn-sm" data-target="#edit-inventory-category-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
+										@endif
 										<a class="btn btn-transparent text-success btn-sm" href="{{ route('show-inventory-category', ['id'=>$category->id]) }}"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
+										@if($userCanEdit)
 										<div id="edit-inventory-category-{{ $loop->iteration }}" class="modal fade" role="dialog">
 											<div class="modal-dialog">
 												<!-- Modal content-->
@@ -100,6 +99,7 @@
 												</form>
 											</div>
 										</div>
+										@endif
 										@if($userCanDelete)
 											<button class="btn btn-transparent text-danger btn-sm" data-id="{{ $category->id }}" data-toggle="modal" data-target="#delete-this-category-modal">
 												<i class="mdi mdi-delete-empty"></i>
@@ -143,7 +143,8 @@
 			</div>
 		</div>
 	</div>
-  <div id="add-inventory-category" class="modal fade" role="dialog">
+	@if($userCanAdd)
+	<div id="add-inventory-category" class="modal fade" role="dialog">
     <div class="modal-dialog">
       <!-- Modal content-->
       <form class="modal-content" method="POST" action="{{ route('add-inventory-category') }}" enctype="multipart/form-data">
@@ -172,6 +173,7 @@
       </form>
     </div>
   </div>
+	@endif
 	@if($userCanDelete)
   <div id="delete-this-category-modal" class="modal fade" role="dialog">
     <div class="modal-dialog">

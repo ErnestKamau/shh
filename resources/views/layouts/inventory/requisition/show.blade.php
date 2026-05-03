@@ -198,22 +198,17 @@
 	$gate_pass_category = getConfigByName('gate_pass_category_id');
 	$gate_pass_category_id = count($gate_pass_category) > 0 ? $gate_pass_category[0]->value : 0;
 
-	$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-	$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
+	$inventoryProcurementRoles = ['Inventory Procurement Group', 'Procurement', 'Admin'];
+	$inventoryDepartmentHeadRoles = ['Inventory Department Head Group', 'Department Head', 'Admin'];
+	$inventoryManagerRoles = ['Inventory Manager Group', 'Manager', 'Admin'];
+	$inventoryFinanceRoles = ['Inventory Finance Group', 'Financial Accountant', 'Finance', 'Admin'];
+	$inventoryStoreManagerRoles = ['Inventory Store Manager Group', 'Store Manager', 'Store', 'Admin'];
 
-	$departmental_head_roles = getConfigByName('departmental_head_role_id');
-	$departmental_head_role_id = count($departmental_head_roles) > 0 ? $departmental_head_roles[0]->value : 0;
-
-
-	$manager_roles = getConfigByName('manager_role_id');
-	$manager_role_id = count($manager_roles) > 0 ? $manager_roles[0]->value : 0;
-
-	$finance_department_roles = getConfigByName('finance_department_role_id');
-	$finance_department_role_id = count($finance_department_roles) > 0 ? $finance_department_roles[0]->value : 0;
-
-	$store_manager_roles = getConfigByName('store_manager_role_id');
-	// echo "This is it ".json_encode($store_manager_roles);
-	$store_manager_role_id = count($store_manager_roles) > 0 ? $store_manager_roles[0]->value : 0;
+	$isInventoryProcurement = \Auth::user()->hasAnyRole($inventoryProcurementRoles);
+	$isInventoryDepartmentHead = \Auth::user()->hasAnyRole($inventoryDepartmentHeadRoles);
+	$isInventoryManager = \Auth::user()->hasAnyRole($inventoryManagerRoles);
+	$isInventoryFinance = \Auth::user()->hasAnyRole($inventoryFinanceRoles);
+	$isInventoryStoreManager = \Auth::user()->hasAnyRole($inventoryStoreManagerRoles);
 
 	$lab_department_id = getConfigByName('lab_department_id');
 	$lab_department_id = count($lab_department_id) > 0 ? $lab_department_id[0]->value : 0;
@@ -383,7 +378,7 @@
 			<i class="mdi mdi-bell-ring"></i> Notify User
 		</button>
 		@endif
-		@if($request->status == 'Completed' && \Auth::user()->hasRole($store_manager_role_id, true))
+		@if($request->status == 'Completed' && $isInventoryStoreManager)
 		<button class="btn btn-default text-success float-right btn-sm" data-target="#reverse-entity-action"
 			data-toggle="modal">
 			<i class="mdi mdi-undo"></i> Reverse Material Issuance
@@ -392,7 +387,7 @@
 		@endif
 		@if ($request->request_type == "Purchase Orders")
 		@if (in_array($request->status, array("Approval Complete", "Purchase Order Sent", "Goods Accepted")))
-		@if(\Auth::user()->hasRole($store_manager_role_id, true))
+		@if($isInventoryStoreManager)
 		<?php
 			$hasMI = issue_received_complete($request->id);
 		?>
@@ -428,7 +423,7 @@
 				<i class="mdi mdi-send"></i> Send Purchase Order
 			</button> --}}
 			@endif
-			@if (isset($request->status) && \Auth::user()->hasRole($procurement_officer_role_id, true))
+			@if (isset($request->status) && $isInventoryProcurement)
 			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
 				data-alert="Are you sure you want to proceed?">
 				<i class="mdi mdi-content-save"></i> Mark as Complete
@@ -480,7 +475,7 @@
 			</button>
 			@endif
 			@endif
-			@if($request->status == "Awaiting Finance Approval" && \Auth::user()->hasRole($finance_department_role_id, true))
+			@if($request->status == "Awaiting Finance Approval" && $isInventoryFinance)
 			<button class="btn btn-default text-primary float-right btn-sm" data-target="#finance-department-modal"
 				data-toggle="modal">
 				<i class="mdi mdi-content-save"></i> Mark as Complete
@@ -488,7 +483,7 @@
 			@endif
 
 			@if(in_array($request->status, ['Completed', 'Goods Accepted', 'Awaiting Finance Approval']) &&
-			\Auth::user()->hasRole($store_manager_role_id, true))
+			$isInventoryStoreManager)
 			<button class="btn btn-default text-success float-right btn-sm" data-target="#reverse-entity-action"
 				data-toggle="modal">
 				<i class="mdi mdi-undo"></i> Reverse Goods Receipt
@@ -518,7 +513,7 @@
 			@endif
 			@endif
 
-			@if ($stage == "Request for Quotation" && isETCU() && \Auth::user()->hasRole($procurement_officer_role_id, true))
+			@if ($stage == "Request for Quotation" && isETCU() && $isInventoryProcurement)
 			@if(in_array($request->status, ["Awarded", "RFQs sent out", "In Preparation"]))
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="get-approval-details">
 				<i class="mdi mdi-account-check"></i> Get Approval
@@ -545,7 +540,7 @@
 
 			@if ($stage == "Request for Quotation" && $request->supplier_rfqs()->count() > 0)
 			@if (!in_array($request->status, ["Approval Complete", "Rejected"]) &&
-			\Auth::user()->hasRole($procurement_officer_role_id, true) && trim($request->email_body) != "")
+			$isInventoryProcurement && trim($request->email_body) != "")
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
 				<i class="mdi mdi-email-send"></i> Send Out RFQS
 			</button>
@@ -555,13 +550,13 @@
 				<i class="mdi mdi-account-check"></i> Get Approval
 			</button>
 			@endif
-			@if ($request->status == "Approval Complete" && Auth::user()->hasRole($procurement_officer_role_id, true))
+			@if ($request->status == "Approval Complete" && $isInventoryProcurement)
 			<?php $approvalStatus = $request->approvals(); ?>
 			<button class="btn btn-default text-dark float-right btn-sm" data-target="#create-po-confirmation-modal"
 				data-toggle="modal">
 				<i class="mdi mdi-file-move"></i> Create Purchase Order
 			</button>
-			@if (isset($request->status) && \Auth::user()->hasRole($procurement_officer_role_id, true))
+			@if (isset($request->status) && $isInventoryProcurement)
 			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"
 				data-alert="Are you sure you want to proceed?">
 				<i class="mdi mdi-content-save"></i> Mark as Complete
@@ -581,7 +576,7 @@
 				@endif
 				@endif
 				@if ($request->status == "Approval Complete" && $stage=="Purchase Request" &&
-				Auth::user()->hasRole($procurement_officer_role_id, true))
+				$isInventoryProcurement)
 				<?php
 						$hasAnRFQ = \App\RequestEntity::where('request_type', 'Request for Quotation')->where('parent_material_requisition', $request->id)->first();
 						$hasAnPO = \App\RequestEntity::where('request_type', 'Purchase Orders')->where('parent_material_requisition', $request->id)->first();
@@ -721,7 +716,7 @@
 				<div class="tab-pane fade p-3" id="Ratings" role="tabpanel" aria-labelledby="one-tab">
 					<h5 class="card-title">
 						Ratings
-						@if(\Auth::user()->hasRole($procurement_officer_role_id, true))
+						@if($isInventoryProcurement)
 						<div class="btn btn-sm text-info float-right" data-target="#update-supplier-criteria-rating-modal"
 							data-toggle="modal">
 							<i class="mdi mdi-star"></i> Rate Goods Receipt
@@ -953,8 +948,7 @@
 								class="mdi mdi-delete"></i> Remove</span>
 						@endif
 						@endif
-						@if ($request->request_type == "Purchase Orders" && Auth::user()->hasRole($procurement_officer_role_id,
-						true))
+						@if ($request->request_type == "Purchase Orders" && $isInventoryProcurement)
 						@if (in_array($request->status, array("Approval Complete", "Purchase Order Sent")))
 						<span class="btn btn-default text-dark float-right" data-target="#Make-Amendment-Modal" data-toggle="modal">
 							<i class="mdi mdi-file-move"></i> Make Amendment
@@ -1633,7 +1627,7 @@
 					<h5 class="card-title mb-3 mt-1">Suppliers
 						@if (isset($request->status) && in_array($request->status, ["In Preparation", "RFQs sent out", "Receiving
 						Quotes", "Awarded"]) || !isset($request->status))
-						@if(\Auth::user()->hasRole($procurement_officer_role_id, true))
+						@if($isInventoryProcurement)
 						<span class="btn btn-default btn-sm text-primary float-right add-supplier-row">
 							<i class="mdi mdi-plus"></i> Supplier
 						</span>
@@ -1721,9 +1715,11 @@
 											<span class="text-muted">-</span>
 											@endif
 											<?php
-														$users = \App\Role::find($app->role_id)->getUsersByRole()->pluck('id', 'name');
+														$users = \App\User::role($app->role_group_name ?? '')->where('active', 1)->pluck('id', 'name');
 
-														$man_users = \App\Role::find($manager_role_id)->getUsersByRole()->pluck('id', 'name');
+														$man_users = \App\User::query()
+															->role($inventoryManagerRoles)
+															->pluck('id', 'name');
 													?>
 											@if (isset($request->status) && ($request->status == 'Awaiting Approval' || $request->status ==
 											'Partially Approved'))
@@ -1773,7 +1769,7 @@
 											@endif
 											@if(!($entityApproval && intval($entityApproval->user_id) > 0))
 											<?php
-																	$users = \App\Role::find($app->role_id)->getUsersByRole()->pluck('id', 'name');
+																	$users = \App\User::role($app->role_group_name ?? '')->where('active', 1)->pluck('id', 'name');
 																?>
 											<span class="ml-2 btn btn-transparent btn-sm text-primary trigger-change-approver"
 												data-approval="{{ json_encode($entityApproval->id) }}" data-users="{{ json_encode($users) }}"
@@ -3684,8 +3680,7 @@
 					<div class="p-1 border-bottom select-location" style="cursor: pointer">{{ $l->name }}</div>
 					@endforeach
 				</div>
-				@if (\Auth::user()->hasRole($procurement_officer_role_id, true) ||
-				\Auth::user()->hasRole($store_manager_role_id, true))
+				@if ($isInventoryProcurement || $isInventoryStoreManager)
 				<div class="form-group text-center" id="toggle-hidden-add-location">
 					<i class="mdi mdi-plus"></i> Add Location
 				</div>

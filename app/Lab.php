@@ -34,6 +34,7 @@ class Lab extends Model implements Auditable
     'directorate_id',
     'zone_id',
     'manager_id',
+    'section_head_user_id',
     'analyst_ids',
   ];
 
@@ -60,6 +61,11 @@ class Lab extends Model implements Auditable
   public function manager(): BelongsTo
   {
     return $this->belongsTo('App\User', 'manager_id');
+  }
+
+  public function sectionHeadUser(): BelongsTo
+  {
+    return $this->belongsTo('App\\User', 'section_head_user_id');
   }
 
   public function analysis_types(){

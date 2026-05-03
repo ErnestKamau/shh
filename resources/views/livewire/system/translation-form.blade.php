@@ -4,7 +4,7 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center border-0 pt-4 pb-2 px-4">
                 <h5 class="mb-0 font-weight-bold text-dark d-flex align-items-center">
                     <i class="mdi {{ $editingLineId ? 'mdi-pencil-circle text-info' : 'mdi-plus-circle text-primary' }} mr-2" style="font-size: 1.8rem;"></i>
-                    {{ $editingLineId ? 'Edit Translation' : 'Add New Translation' }}
+                    {{ $editingLineId ? __('system.edit_translation') : __('system.add_new_translation') }}
                 </h5>
                 <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm" wire:click="close" title="Close" style="width: 32px; height: 32px; padding: 0;">
                     <i class="mdi mdi-close" style="font-size: 1.2rem;"></i>
@@ -15,13 +15,13 @@
                 <div class="bg-light p-4 rounded mb-4" style="border: 2px dashed #ced4da;">
                     <div class="form-row">
                         <div class="form-group col-md-6 mb-md-0 pr-md-3">
-                            <label class="text-muted font-weight-bold mb-2">Group <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control shadow-sm" wire:model.defer="group" placeholder="e.g., trips, system, modules">
+                            <label class="text-muted font-weight-bold mb-2">{{ __('system.group') }} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control shadow-sm" wire:model.defer="group" placeholder="{{ __('system.group_placeholder') }}">
                             @error('group') <small class="text-danger mt-1 d-block">{{ $message }}</small> @enderror
                         </div>
                         <div class="form-group col-md-6 mb-0 pl-md-3">
-                            <label class="text-muted font-weight-bold mb-2">Key <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control shadow-sm" wire:model.defer="key" placeholder="e.g., trip_assigned">
+                            <label class="text-muted font-weight-bold mb-2">{{ __('system.key') }} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control shadow-sm" wire:model.defer="key" placeholder="{{ __('system.key_placeholder') }}">
                             @error('key') <small class="text-danger mt-1 d-block">{{ $message }}</small> @enderror
                         </div>
                     </div>
@@ -29,7 +29,7 @@
 
                 <div class="mb-3 px-2">
                     <h6 class="font-weight-bold text-dark mb-4 border-bottom pb-2">
-                        <i class="mdi mdi-earth mr-1"></i> Language Values
+                        <i class="mdi mdi-earth mr-1"></i> {{ __('system.language_values') }}
                     </h6>
                     <div class="row">
                         @foreach($languages as $language)
@@ -49,12 +49,12 @@
 
                 <div class="d-flex justify-content-end px-2">
                     <button type="button" class="btn btn-light rounded-pill px-4 mr-2 shadow-sm" wire:click="close">
-                        Cancel
+                        {{ __('system.cancel') }}
                     </button>
                     <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" wire:click="save" wire:loading.attr="disabled">
                         <i class="mdi mdi-content-save mr-1" wire:loading.remove wire:target="save"></i> 
-                        <span wire:loading.remove wire:target="save">{{ $editingLineId ? 'Update Translation' : 'Save Translation' }}</span>
-                        <span wire:loading wire:target="save"><i class="mdi mdi-loading mdi-spin mr-1"></i> Saving...</span>
+                        <span wire:loading.remove wire:target="save">{{ $editingLineId ? __('system.update_translation') : __('system.save_translation') }}</span>
+                        <span wire:loading wire:target="save"><i class="mdi mdi-loading mdi-spin mr-1"></i> {{ __('system.saving') }}</span>
                     </button>
                 </div>
             </div>

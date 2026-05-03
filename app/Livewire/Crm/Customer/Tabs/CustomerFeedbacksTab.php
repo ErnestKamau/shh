@@ -66,7 +66,7 @@ class CustomerFeedbacksTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new \App\Exports\CRM\CustomerRegistryTabExport($this->customer->id, 'feedbacks', $this->search))
             ->download('customer_feedbacks_' . $this->customer->id . '_' . now()->format('Ymd_His') . '.xlsx');
     }

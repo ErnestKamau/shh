@@ -32,7 +32,7 @@ class CustomerOrdersTab extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('CRM.permission');
+        $this->checkPermission('crm.permission');
         return (new \App\Exports\CRM\CustomerRegistryTabExport($this->customer->id, 'orders', $this->search))
             ->download('customer_orders_' . $this->customer->id . '_' . now()->format('Ymd_His') . '.xlsx');
     }

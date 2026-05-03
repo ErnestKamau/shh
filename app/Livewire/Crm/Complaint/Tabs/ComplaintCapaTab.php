@@ -211,7 +211,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function toggleEdit()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
         $this->isEditing = true;
         $this->dispatch('edit-mode-activated');
     }
@@ -225,7 +225,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function saveCapaInit()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
 
         if (!$this->resolution) {
             $this->resolution = new Complaintsresolutions();
@@ -274,7 +274,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function approveCapaVerification()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
 
         $this->validate([
             'acceptance' => 'required|string',
@@ -363,7 +363,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function saveDraftNcr()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
 
         $this->saveNcrData();
         $this->dispatch('alert', ['type' => 'success', 'message' => 'NCR draft saved successfully.']);
@@ -371,7 +371,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function saveNcrOnly()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
 
         $this->validate([
             'problem_statement' => 'required|string',
@@ -388,7 +388,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function returnToCapa()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
         
         // Ensure NCR is saved before returning
         if (!$this->isNcrSaved) {
@@ -498,7 +498,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function rejectCapa()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.Edit');
+        $this->checkPermission('crm.components.complaint verification.edit');
         
         $this->complaint->complaint_workflow = 2; // Back to Stage 2
         $this->complaint->save();
@@ -521,7 +521,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function downloadCapaReport()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.View');
+        $this->checkPermission('crm.components.complaint verification.view');
         if (!$this->resolution) return;
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.capa_report', [
@@ -538,7 +538,7 @@ class ComplaintCapaTab extends BaseCrmComponent
 
     public function downloadNcrReport()
     {
-        $this->checkPermission('CRM.components.Complaint Verification.View');
+        $this->checkPermission('crm.components.complaint verification.view');
         if (!$this->capaRecord) return;
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.ncr_report', [

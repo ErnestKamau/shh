@@ -29,12 +29,15 @@ function myCurl($url, $payload)
 function textBetween($str, $starting_word, $ending_word)
 {
 	$subtring_start = strpos($str, $starting_word);
-	//Adding the strating index of the strating word to
-	//its length would give its ending index
+	if ($subtring_start === false) {
+		return '';
+	}
 	$subtring_start += strlen($starting_word);
-	//Length of our required sub string
-	$size = strpos($str, $ending_word, $subtring_start) - $subtring_start;
-	// Return the substring from the index substring_start of length size
+	$end = strpos($str, $ending_word, $subtring_start);
+	if ($end === false) {
+		return '';
+	}
+	$size = $end - $subtring_start;
 	return substr($str, $subtring_start, $size);
 }
 
@@ -75,7 +78,7 @@ function getCompanyDetails()
 }
 function getAllUsers()
 {
-	return App\User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->where('is_support_staff', 0)->get();
+	return App\User::where('is_client', 0)->whereNull('supplier_id')->where('active', 1)->where('is_support_staff', 0)->get();
 }
 function getBatchAmmendmentsById($id)
 {
@@ -544,7 +547,7 @@ function getUserById($user_id)
 }
 function getOperators()
 {
-	return App\User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->where('is_support_staff', 0)->get();
+	return App\User::where('is_client', 0)->whereNull('supplier_id')->where('active', 1)->where('is_support_staff', 0)->get();
 }
 
 function updateContractStatus($contract_id, $status)
@@ -661,7 +664,11 @@ function mamboSawa($licenseType = false)
 {
 	$license = \Auth::user()->available_license();
 
-	return $licenseType ? $license[$licenseType] : $license;
+	if (!is_array($license)) {
+		return $licenseType ? 0 : [];
+	}
+
+	return $licenseType ? ($license[$licenseType] ?? 0) : $license;
 }
 
 function getAllComplaintsOrder()
@@ -1042,7 +1049,7 @@ function getEquipmentById($id)
 }
 function getCompanyUsers()
 {
-	$users =  App\User::where('active', 1)->where('is_client', 0)->where('supplier_id', 0)->where('id', '!=', auth()->user()->id)->get();
+	$users =  App\User::where('active', 1)->where('is_client', 0)->whereNull('supplier_id')->where('id', '!=', auth()->user()->id)->get();
 	foreach ($users as $user) {
 		$chats = App\ChatMessage::where('to_user_id', auth()->user()->id)->where('from_user_id', $user->id)->where('is_new', 1)->get();
 		$user['chats'] = $chats->count();
@@ -1070,30 +1077,86 @@ function getUserChats()
 function getUsers($all = false)
 {
 	if ($all) {
-		return App\User::orderBy('name')->where('company_id', getUserCompany())->where('active', 1)->where('is_support_staff', 0)->where('is_client', 0)->where('supplier_id', 0)->get();
+		return App\User::orderBy('name')->where('company_id', getUserCompany())->where('active', 1)->where('is_support_staff', 0)->where('is_client', 0)->whereNull('supplier_id')->get();
 	}
 	return App\User::orderBy('name')->where('location_id', getCurrentUserLocation()->id)
-		->where('company_id', getUserCompany())->where('active', 1)->where('is_support_staff', 0)->where('is_client', 0)->where('supplier_id', 0)->get();
+		->where('company_id', getUserCompany())->where('active', 1)->where('is_support_staff', 0)->where('is_client', 0)->whereNull('supplier_id')->get();
 }
 
-function getUsersByRole($role, $is_id = false)
-{
-	$roleName = $role;
 
-	if ($is_id) {
-		$legacyRole = App\Role::find((int) $role);
-		if (! isset($legacyRole->id)) {
-			return collect();
-		}
-		$roleName = $legacyRole->name;
+function getInventoryWorkflowRoleConfig($workflowRole)
+{
+	$map = [
+		'assistant_supervisor' => [
+			'role_names' => ['Inventory Assistant Supervisor Group', 'Assistant Supervisor', 'Supervisor', 'Requester', 'Admin'],
+		],
+		'procurement' => [
+			'role_names' => ['Inventory Procurement Group', 'Procurement', 'Financial Accountant', 'Admin'],
+		],
+		'department_head' => [
+			'role_names' => ['Inventory Department Head Group', 'Department Head', 'Lab Manager', 'Admin'],
+		],
+		'manager' => [
+			'role_names' => ['Inventory Manager Group', 'Manager', 'Admin'],
+		],
+		'finance' => [
+			'role_names' => ['Inventory Finance Group', 'Finance', 'Financial Accountant', 'Admin'],
+		],
+		'store_manager' => [
+			'role_names' => ['Inventory Store Manager Group', 'Store Manager', 'Lab Manager', 'Admin'],
+		],
+		'site_manager' => [
+			'role_names' => ['Inventory Site Manager Group', 'Site Manager', 'Admin'],
+		],
+	];
+
+	return $map[$workflowRole] ?? ['role_names' => []];
+}
+
+function getInventoryWorkflowUsers($workflowRole, $departmentId = null)
+{
+	$config = getInventoryWorkflowRoleConfig($workflowRole);
+	$roleNames = $config['role_names'] ?? [];
+
+	$users = ! empty($roleNames)
+		? App\User::role($roleNames)
+			->orderBy('name')
+			->where('users.company_id', getUserCompany())
+			->where('users.active', 1)
+			->where('users.is_support_staff', 0)
+			->get()
+		: collect();
+
+	if ($departmentId !== null) {
+		$users = $users->filter(function ($user) use ($departmentId) {
+			return ($user->department_id ?? '') === (string) $departmentId;
+		});
 	}
 
-	return App\User::role($roleName)
-		->orderBy('name')
-		->where('users.company_id', getUserCompany())
-		->where('users.active', 1)
-		->where('users.is_support_staff', 0)
-		->get();
+	return $users->sortBy('name')->values();
+}
+
+function getFirstInventoryWorkflowUser($workflowRole, array $excludedUserIds = [], $departmentId = null)
+{
+	return getInventoryWorkflowUsers($workflowRole, $departmentId)
+		->reject(function ($user) use ($excludedUserIds) {
+			return in_array((string) $user->id, array_map('strval', $excludedUserIds), true);
+		})
+		->values()
+		->first();
+}
+
+function currentUserHasInventoryWorkflowRole($workflowRole)
+{
+	if (! \Auth::check()) {
+		return false;
+	}
+
+	$user = \Auth::user();
+	$config = getInventoryWorkflowRoleConfig($workflowRole);
+	$roleNames = $config['role_names'] ?? [];
+
+	return ! empty($roleNames) && $user->hasRole($roleNames);
 }
 
 function getReportingUnitsByID($id)
@@ -1192,7 +1255,7 @@ function getRepairLogParts($id)
 
 function getModulePermissions()
 {
-	return array(
+	$modules = array(
 		"Laboratory" => array(
 			"permission" => false,
 			"components" => array_merge(array_diff(getSampleWorflowStages(), array("All Samples")), array("All Samples", "Analytes", "Labs", "Sample-Types", "Reporting-Units", "Methods", "Sample-Tracking-Stages", "Analysis Types", "Proforma Invoices", "Tax Regime", "Pricelists", "Quotation", "Approve For Analysis", "Generate Invoice", "RFT Form", "Qc Sample", "Dashboard", "Stock-Monitoring", "Lab-Reports", "Standards", "Inter-Lab-Logs", "Sales-Orders", "Customer-Focus", "Verification-Approvals"))
@@ -1246,6 +1309,32 @@ function getModulePermissions()
 			"components" => array("Risk Dashboard", "Risks", "Risk Settings")
 		)
 	);
+
+	$normalizedModules = [];
+
+	foreach ($modules as $moduleName => $moduleConfig) {
+		$moduleKey = strtolower(trim((string) $moduleName));
+		if ($moduleKey === '') {
+			continue;
+		}
+
+		$components = $moduleConfig['components'] ?? [];
+		if (!is_array($components)) {
+			$components = [];
+		}
+
+		$normalizedComponents = array_values(array_unique(array_filter(array_map(function ($component) {
+			$componentKey = strtolower(trim((string) $component));
+			return $componentKey === '' ? null : $componentKey;
+		}, $components))));
+
+		$normalizedModules[$moduleKey] = [
+			'permission' => (bool) ($moduleConfig['permission'] ?? false),
+			'components' => $normalizedComponents,
+		];
+	}
+
+	return $normalizedModules;
 }
 
 function getCompanies()
@@ -1853,58 +1942,26 @@ function getCostCenter()
 
 function isUserSomebody($USER)
 {
-	$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
-	$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
+	if (! $USER) {
+		return false;
+	}
 
-	$finance_department_roles = getConfigByName('finance_department_role_id');
-	$finance_department_role_id = count($finance_department_roles) > 0 ? $finance_department_roles[0]->value : 0;
+	if ($USER->hasRole(['admin', 'super admin', 'super-admin', 'system admin', 'system-admin'])) {
+		return true;
+	}
 
-	$manager_roles = getConfigByName('manager_role_id');
-	$manager_role_id = count($manager_roles) > 0 ? $manager_roles[0]->value : 0;
+	$workflowRoles = ['procurement', 'finance', 'manager', 'store_manager'];
 
-	$store_manager_roles = getConfigByName('store_manager_role_id');
-	$store_manager_role_id = count($store_manager_roles) > 0 ? $store_manager_roles[0]->value : 0;
+	foreach ($workflowRoles as $workflowRole) {
+		$config = getInventoryWorkflowRoleConfig($workflowRole);
+		$roleNames = $config['role_names'] ?? [];
 
-	$admin_role_id = 1;
-
-	$somebodyRoles = [$procurement_officer_role_id, $finance_department_role_id, $manager_role_id, $store_manager_role_id, $admin_role_id];
-
-	$isSomeBody = false;
-
-	foreach ($somebodyRoles as $sR) {
-		if ($isSomeBody === false) {
-			$isSomeBody = $USER->hasRole($sR, true);
+		if (! empty($roleNames) && $USER->hasRole($roleNames)) {
+			return true;
 		}
 	}
 
-	return $isSomeBody;
-}
-
-function refreshPermissions($refreshOnly = false){
-	if(\Auth::check()){
-		$user = \Auth::user();
-		app(App\Services\Auth\LegacyPermissionSyncService::class)->syncUser($user);
-	}
-	return true;
-}
-
-function permissionInModule($vars, $altVar=false){
-	$perms = getModulePermissions();
-
-	if(count($vars) == 2){
-		$check = isset($perms[$vars[0]]) ? isset($perms[$vars[0]][$vars[1]]) : false;
-	}
-	else{
-		$items = $perms[$vars[0]][$vars[1]];
-		$check = in_array($vars[2], $items);
-
-		if($check == false){
-			$vars[2] = $altVar ?? false;
-			$check = in_array($vars[2], $items);
-		}
-	}
-
-	return $check == false ? false : $vars;
+	return false;
 }
 
 function status_colors($status){
@@ -2004,8 +2061,7 @@ function getAvailableStockByCostCenter($item_id, $cc){
 }
 
 function getDepartmentalHeadID(){
-	$departmental_head_roles = getConfigByName('departmental_head_role_id');
-	return count($departmental_head_roles) > 0 ? $departmental_head_roles[0]->value : 0;
+	return 'Lab Manager';
 }
 
 function getTatRemark($id = null){

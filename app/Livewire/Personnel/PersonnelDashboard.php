@@ -3,6 +3,7 @@
 namespace App\Livewire\Personnel;
 
 use App\User;
+use App\Zone;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -17,6 +18,12 @@ class PersonnelDashboard extends Component
 
     /** @var array<int, array{label: string, used: int, limit: int}> */
     public array $licenseUsage = [];
+
+    /** @var array<int, array{label: string, used: int, limit: int}> */
+    public array $analystGazzettedMatrix = [];
+
+    /** @var array<int, array{zone: string, labs: int, users: int}> */
+    public array $organizationStructure = [];
 
     /** @var array<int, array{name: string, count: int}> */
     public array $departmentDistribution = [];
@@ -40,19 +47,19 @@ class PersonnelDashboard extends Component
         $companyId = getUserCompany();
         $baseQuery = User::query()->where('company_id', $companyId);
 
-        $totals = (clone $baseQuery)
-            ->selectRaw('
+        $totals = (clone $baseQuery)->selectRaw('
                 COUNT(*) as total_count,
                 SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) as active_count,
-                SUM(CASE WHEN active = 0 THEN 1 ELSE 0 END) as inactive_count,
-                SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as new_this_month
-            ', [now()->month, now()->year])
-            ->first();
+                SUM(CASE WHEN active = 0 THEN 1 ELSE 0 END) as inactive_count
+            ')->first();
 
         $this->totalPersonnel = (int) ($totals->total_count ?? 0);
         $this->activePersonnel = (int) ($totals->active_count ?? 0);
         $this->inactivePersonnel = (int) ($totals->inactive_count ?? 0);
-        $this->newThisMonth = (int) ($totals->new_this_month ?? 0);
+        $this->newThisMonth = (clone $baseQuery)
+            ->whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->count();
 
         $this->namedUsers = (clone $baseQuery)->where('license_type', 'named_user')->count();
         $this->sharedUsers = (clone $baseQuery)->where('license_type', 'shared_user')->count();
@@ -76,45 +83,107 @@ class PersonnelDashboard extends Component
             ->values()
             ->toArray();
 
+        $gazzettedCount = (clone $baseQuery)
+            ->where('analyst_is_gazzetted', true)
+            ->count();
+
+        $ungazzettedCount = (clone $baseQuery)
+            ->where(function ($query): void {
+                $query->where('analyst_is_gazzetted', false)
+                    ->orWhereNull('analyst_is_gazzetted');
+            })
+            ->count();
+
+        $matrixTotal = max($this->totalPersonnel, 1);
+        $this->analystGazzettedMatrix = [
+            [
+                'label' => 'Gazzetted',
+                'used' => (int) $gazzettedCount,
+                'limit' => $matrixTotal,
+            ],
+            [
+                'label' => 'Ungazzetted',
+                'used' => (int) $ungazzettedCount,
+                'limit' => $matrixTotal,
+            ],
+        ];
+
+        $zones = Zone::query()
+            ->where('inventory_location_id', getCurrentUserLocation()->id)
+            ->orderBy('key')
+            ->get(['id', 'key', 'value']);
+
+        $zoneIds = $zones->pluck('id')->values();
+        $labCountsByZone = collect();
+        $userCountsByZone = collect();
+
+        if ($zoneIds->isNotEmpty()) {
+            $labCountsByZone = \DB::table('labs')
+                ->selectRaw('zone_id, COUNT(*) as total')
+                ->whereIn('zone_id', $zoneIds)
+                ->groupBy('zone_id')
+                ->pluck('total', 'zone_id');
+
+            $userCountsByZone = User::query()
+                ->where('company_id', $companyId)
+                ->whereIn('zone_id', $zoneIds)
+                ->selectRaw('zone_id, COUNT(*) as total')
+                ->groupBy('zone_id')
+                ->pluck('total', 'zone_id');
+        }
+
+        $this->organizationStructure = $zones
+            ->map(function (Zone $zone) use ($labCountsByZone, $userCountsByZone): array {
+                $zoneLabel = trim((string) $zone->key . ((string) $zone->value !== '' ? ' - ' . (string) $zone->value : ''));
+
+                return [
+                    'zone' => $zoneLabel,
+                    'labs' => (int) ($labCountsByZone[$zone->id] ?? 0),
+                    'users' => (int) ($userCountsByZone[$zone->id] ?? 0),
+                ];
+            })
+            ->values()
+            ->toArray();
+
         $this->departmentDistribution = User::query()
             ->from('users')
-            ->leftJoin('inventory_departments as departments', 'departments.id', '=', 'users.department_id')
+            ->leftJoin('inventory_departments as departments', \DB::raw('departments.id::text'), '=', \DB::raw('users.department_id::text'))
             ->where('users.company_id', $companyId)
             ->where('users.active', 1)
-            ->selectRaw('COALESCE(departments.name, "Unassigned") as name, COUNT(users.id) as count')
-            ->groupBy('name')
-            ->orderByDesc('count')
+            ->select(\DB::raw("COALESCE(departments.name, 'Unassigned') as dept_name"), \DB::raw('COUNT(users.id) as dept_count'))
+            ->groupBy('departments.name')
+            ->orderByDesc('dept_count')
             ->limit(6)
             ->get()
             ->map(fn ($row): array => [
-                'name' => (string) $row->name,
-                'count' => (int) $row->count,
+                'name' => (string) $row->dept_name,
+                'count' => (int) $row->dept_count,
             ])
             ->toArray();
 
         $this->designationDistribution = User::query()
             ->from('users')
             ->leftJoin('module_pre_configs as designation', function ($join): void {
-                $join->on('designation.id', '=', 'users.designation')
+                $join->on(\DB::raw('designation.id::text'), '=', \DB::raw('users.designation::text'))
                     ->where('designation.type', '=', 'Designation');
             })
             ->where('users.company_id', $companyId)
             ->where('users.active', 1)
-            ->selectRaw('COALESCE(designation.name, "Not Set") as name, COUNT(users.id) as count')
-            ->groupBy('name')
-            ->orderByDesc('count')
+            ->select(\DB::raw("COALESCE(designation.name, 'Not Set') as desig_name"), \DB::raw('COUNT(users.id) as desig_count'))
+            ->groupBy('designation.name')
+            ->orderByDesc('desig_count')
             ->limit(6)
             ->get()
             ->map(fn ($row): array => [
-                'name' => (string) $row->name,
-                'count' => (int) $row->count,
+                'name' => (string) $row->desig_name,
+                'count' => (int) $row->desig_count,
             ])
             ->toArray();
 
         $monthlyRows = User::query()
             ->where('company_id', $companyId)
             ->whereDate('created_at', '>=', Carbon::now()->subMonths(5)->startOfMonth())
-            ->selectRaw("DATE_FORMAT(created_at, '%b %Y') as month, DATE_FORMAT(created_at, '%Y-%m') as sort_key, COUNT(*) as count")
+            ->selectRaw("TO_CHAR(created_at, 'Mon YYYY') as month, TO_CHAR(created_at, 'YYYY-MM') as sort_key, COUNT(*) as count")
             ->groupBy('month', 'sort_key')
             ->orderBy('sort_key')
             ->get()
@@ -140,9 +209,9 @@ class PersonnelDashboard extends Component
 
         $this->recentJoiners = User::query()
             ->from('users')
-            ->leftJoin('inventory_departments as departments', 'departments.id', '=', 'users.department_id')
+            ->leftJoin('inventory_departments as departments', \DB::raw('departments.id::text'), '=', \DB::raw('users.department_id::text'))
             ->where('users.company_id', $companyId)
-            ->selectRaw('users.id, users.name, COALESCE(departments.name, "Unassigned") as department, users.created_at')
+            ->select('users.id', 'users.name', \DB::raw("COALESCE(departments.name, 'Unassigned') as department"), 'users.created_at')
             ->orderByDesc('users.created_at')
             ->limit(6)
             ->get()

@@ -3,7 +3,7 @@
 
 @section('module-name')
 <li class="nav-item">
-  <a class="nav-link module-name" href="{{ route('system-settings') }}"><i class="fas fa-cogs"></i> SYSTEM SETTINGS</a>
+	<a class="nav-link module-name" href="{{ route('system-settings') }}"><i class="fas fa-cogs"></i> {{ __('system.system_settings') }}</a>
 </li>
 @endsection
 
@@ -64,7 +64,7 @@
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="fas fa-cogs fa-3x"></i><br>
-				<span class="text-lg text-bold">SYSTEM SETTINGS</span>
+				<span class="text-lg text-bold">{{ __('system.system_settings') }}</span>
 			</div>
 			<!-- Separator with title -->
 			{{-- <li class="list-group-item bg-black sidebar-separator-title text-muted d-flex align-items-center menu-collapsed">
@@ -76,33 +76,35 @@
 			<a href="{{ route('system-settings') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-1"></span>
-					<span class="menu-collapsed">System Dashboard</span>
+					<span class="menu-collapsed">{{ __('system.system_dashboard') }}</span>
 				</div>
 			</a>
 			
+			@can('system.companies.view')
 			<a href="/companies" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-domain fa-fw mr-1"></span>
-					<span class="menu-collapsed">Companies</span>
+					<span class="menu-collapsed">{{ __('system.companies') }}</span>
 				</div>
 			</a>
+			@endcan
 
 			
 
-			@if(auth()->user()->is_support_staff)
+			@can('system.module-switching.view')
 			<a href="{{ route('system-settings.module-visibility') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-swap-horizontal fa-fw mr-1"></span>
-					<span class="menu-collapsed">Module Switching</span>
+					<span class="menu-collapsed">{{ __('system.module_switching') }}</span>
 				</div>
 			</a>
-			@endif
+			@endcan
 
-			@if(auth()->user()->can('System.components.Translations.View') || auth()->user()->can('System.permission'))
+			@if(auth()->user()->can('system.translations.view'))
 			<a href="{{ route('system-settings.translations') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-translate fa-fw mr-1"></span>
-					<span class="menu-collapsed">Languages &amp; Translations</span>
+					<span class="menu-collapsed">{{ __('system.languages_and_translations') }}</span>
 				</div>
 			</a>
 			@endif
@@ -110,25 +112,26 @@
 			<a href="#system-defaults" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-cogs fa-fw mr-1"></span>
-					<span class="menu-collapsed">System Defaults</span>
+					<span class="menu-collapsed">{{ __('system.system_defaults') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
 			<div id="system-defaults" class="collapse sidebar-submenu">
 				
 				
-					<a href="{{ route('configuration-type-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Configuration Type</span>
-					</a>
-					<a href="{{ route('configuration-system-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> System Configurations</span>
-					</a>
-				
-			</div>
-		
+						@can('system.configuration-types.view')
+						<a href="{{ route('configuration-type-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
+							<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.configuration_type') }}</span>
+						</a>
+						@endcan
+						@can('system.configurations.view')
+						<a href="{{ route('configuration-system-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
+							<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.system_configurations') }}</span>
+						</a>
+						@endcan
 		
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="position: fixed;bottom:0">
-				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
+				{{ __('system.copyright') }} {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->
 		</ul>

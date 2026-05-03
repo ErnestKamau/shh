@@ -1823,7 +1823,7 @@
             tags,
             chunk_size: parseInt(chunkSize, 10),
             chunk_overlap: parseInt(chunkOverlap, 10),
-            permission: 'General.View'
+            permission: 'general.view'
         };
 
         const saveBtn = document.getElementById('saveBtn');
