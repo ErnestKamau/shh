@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Portal\PortalAccessRequestController;
 
 $ticketSyncController = 'App\\Http\\Controllers\\Api\\TicketSyncController';
 $developerWebhookController = 'App\\Http\\Controllers\\Api\\DeveloperWebhookController';
@@ -45,6 +46,12 @@ if (class_exists($developerWebhookController, false)) {
 
 Route::get('/translations', [\App\Http\Controllers\Api\TranslationController::class, 'index'])
     ->name('api.translations.index');
+
+Route::prefix('v1')->group(function () {
+    Route::prefix('auth')->group(function () {
+        Route::post('access-requests', [PortalAccessRequestController::class, 'store'])->middleware('throttle:60,1');
+    });
+});
 // Customer Portal API routes (auth + test requests)
 // Note: portal.php was removed; portal auth now lives in web routes (TOTP flow).
 if (file_exists(__DIR__ . '/api/portal.php')) {

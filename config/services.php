@@ -30,4 +30,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'portal_relay' => [
+        'shared_key' => env('PORTAL_RELAY_SHARED_KEY'),
+        'auth_api_base_url' => env('PORTAL_AUTH_API_BASE_URL'),
+    ],
+
 ];

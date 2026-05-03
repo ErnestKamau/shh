@@ -4,6 +4,8 @@ namespace App\Livewire\Sampleworkflow;
 
 use App\InventorySubCategories;
 use App\Models\CRM\CRMCustomer;
+use App\Models\PortalAccessRequest;
+use App\Services\Portal\PortalAccessInvitationService;
 use App\SampleAnalysisStage;
 use App\SampleDate;
 use App\SampleDetails;
@@ -13,6 +15,8 @@ use App\Models\System\SystemConfiguration;
 use App\User;
 use App\Models\SubmissionFormInstance;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Throwable;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -76,6 +80,10 @@ class WorkflowBoard extends Component
      * Track if component has finished initial load.
      */
     public bool $initialLoadComplete = false;
+
+    public ?int $selectedPortalAccessRequestId = null;
+    public bool $notifyRejectedClient = true;
+    public string $portalRejectionReason = '';
 
     /**
      * Shared datasets required by the legacy modals/forms.
@@ -291,6 +299,111 @@ class WorkflowBoard extends Component
 
         $instance->delete();
         session()->flash('message', 'Draft submission deleted successfully.');
+    }
+
+    /**
+     * Computed list of account access requests for Samples En-Route review.
+     */
+    public function getPortalAccessRequestsProperty()
+    {
+        return PortalAccessRequest::query()
+            ->latest()
+            ->paginate(10, ['*'], 'access_requests_page');
+    }
+
+    public function approvePortalAccessRequest(int $id): void
+    {
+        $request = PortalAccessRequest::query()->findOrFail($id);
+
+        if ($request->status !== 'pending') {
+            session()->flash('error', 'This access request has already been reviewed.');
+            return;
+        }
+
+        try {
+            $service = app(PortalAccessInvitationService::class);
+            $invite = $service->createInvite($request, Auth::id());
+
+            if (trim((string) ($invite['invitation_url'] ?? '')) === '') {
+                throw new \RuntimeException('Invite link was not generated.');
+            }
+
+            $service->sendApprovalEmail(
+                (string) $request->email,
+                (string) $request->full_name_or_organisation,
+                (string) $invite['invitation_url'],
+            );
+
+            $request->status = 'approved';
+            $request->reviewed_by = Auth::id();
+            $request->reviewed_at = now();
+            $request->review_notes = 'Invite link sent to client email.';
+            $request->save();
+
+            session()->flash('message', 'Access request approved and invite link sent successfully.');
+        } catch (Throwable $e) {
+            report($e);
+            session()->flash('error', 'Failed to approve request and send invite. '.$e->getMessage());
+        }
+    }
+
+    public function prepareRejectPortalAccessRequest(int $id): void
+    {
+        $request = PortalAccessRequest::query()->findOrFail($id);
+
+        if ($request->status !== 'pending') {
+            session()->flash('error', 'This access request has already been reviewed.');
+            return;
+        }
+
+        $this->selectedPortalAccessRequestId = $request->id;
+        $this->notifyRejectedClient = true;
+        $this->portalRejectionReason = '';
+    }
+
+    public function confirmRejectPortalAccessRequest(): void
+    {
+        if (! $this->selectedPortalAccessRequestId) {
+            session()->flash('error', 'No access request selected for rejection.');
+            return;
+        }
+
+        $request = PortalAccessRequest::query()->findOrFail($this->selectedPortalAccessRequestId);
+
+        if ($request->status !== 'pending') {
+            session()->flash('error', 'This access request has already been reviewed.');
+            return;
+        }
+
+        try {
+            if ($this->notifyRejectedClient) {
+                app(PortalAccessInvitationService::class)->sendRejectionEmail(
+                    (string) $request->email,
+                    (string) $request->full_name_or_organisation,
+                    $this->portalRejectionReason,
+                );
+            }
+
+            $request->status = 'rejected';
+            $request->reviewed_by = Auth::id();
+            $request->reviewed_at = now();
+            $request->review_notes = $this->portalRejectionReason ?: null;
+            $request->save();
+
+            $this->selectedPortalAccessRequestId = null;
+            $this->notifyRejectedClient = true;
+            $this->portalRejectionReason = '';
+
+            session()->flash('message', 'Access request rejected successfully.');
+        } catch (Throwable $e) {
+            report($e);
+            session()->flash('error', 'Failed to reject request. '.$e->getMessage());
+        }
+    }
+
+    public function rejectPortalAccessRequest(int $id): void
+    {
+        $this->prepareRejectPortalAccessRequest($id);
     }
 
     protected function baseBatchQuery()
