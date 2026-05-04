@@ -76,7 +76,7 @@ class ContactsManager extends Component
             : 'required_if:contactForm.can_login,true|same:contactForm.main_password';
 
         return [
-            'contactForm.title_id'    => 'required|exists:module_pre_configs,id',
+            'contactForm.title_id'    => 'nullable|exists:module_pre_configs,id',
             'contactForm.first_name'  => 'required|string|max:255',
             'contactForm.email'       => 'required|email|max:255',
             'contactForm.telephone'   => 'required|string|max:50',
@@ -88,7 +88,6 @@ class ContactsManager extends Component
     }
 
     protected $messages = [
-        'contactForm.title_id.required' => 'Title selection is required.',
         'contactForm.first_name.required' => 'First name is required.',
         'contactForm.email.required' => 'Email address is required.',
         'contactForm.email.email' => 'Please enter a valid email address.',
@@ -180,7 +179,8 @@ class ContactsManager extends Component
                 $contact->crm_customer_id = $this->customerId;
             }
 
-            $contact->title_id = $this->contactForm['title_id'];
+            $contact->company_id = getUserCompany();
+            $contact->title_id = is_numeric($this->contactForm['title_id']) ? (int) $this->contactForm['title_id'] : null;
             $contact->first_name = $this->contactForm['first_name'];
             $contact->middle_name = $this->contactForm['middle_name'];
             $contact->last_name = $this->contactForm['last_name'];

@@ -83,28 +83,28 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditContactModal({{ $contact->id }})" 
+                                                    <button wire:click="showEditContactModal('{{ $contact->id }}')" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
                                                             title="Edit"
                                                             wire:loading.attr="disabled"
-                                                            wire:target="showEditContactModal({{ $contact->id }})">
-                                                        <span wire:loading.remove wire:target="showEditContactModal({{ $contact->id }})">
+                                                            wire:target="showEditContactModal('{{ $contact->id }}')">
+                                                        <span wire:loading.remove wire:target="showEditContactModal('{{ $contact->id }}')">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </span>
-                                                        <span wire:loading wire:target="showEditContactModal({{ $contact->id }})">
+                                                        <span wire:loading wire:target="showEditContactModal('{{ $contact->id }}')">
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
                                                         </span>
                                                     </button>
-                                                    <button wire:click="deleteContact({{ $contact->id }})" 
+                                                    <button wire:click="deleteContact('{{ $contact->id }}')" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
                                                             wire:loading.attr="disabled"
-                                                            wire:target="deleteContact({{ $contact->id }})"
+                                                            wire:target="deleteContact('{{ $contact->id }}')"
                                                             onclick="return confirm('Are you sure you want to delete this contact?')">
-                                                        <span wire:loading.remove wire:target="deleteContact({{ $contact->id }})">
+                                                        <span wire:loading.remove wire:target="deleteContact('{{ $contact->id }}')">
                                                             <i class="mdi mdi-delete"></i>
                                                         </span>
-                                                        <span wire:loading wire:target="deleteContact({{ $contact->id }})">
+                                                        <span wire:loading wire:target="deleteContact('{{ $contact->id }}')">
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
                                                         </span>
                                                     </button>
@@ -153,7 +153,7 @@
                                     <div class="col-md-4">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-account-star text-info"></i> Title <span class="text-danger">*</span>
+                                                <i class="mdi mdi-account-star text-info"></i> Title
                                             </label>
                                             <select wire:model="contactForm.title_id" class="form-select modern-select">
                                                 <option value="">Select Title</option>

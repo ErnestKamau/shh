@@ -508,10 +508,10 @@
 											<tr>
 												<td nowrap>
 													@if($accessRequest->status == 'pending')
-														<button class="btn btn-sm btn-outline-success" wire:click="approvePortalAccessRequest({{ $accessRequest->id }})" wire:confirm="Approve this account access request?">
+														<button class="btn btn-sm btn-outline-success" wire:click="approvePortalAccessRequest('{{ $accessRequest->id }}')" wire:confirm="Approve this account access request?">
 															<i class="mdi mdi-check"></i> Approve
 														</button>
-														<button class="btn btn-sm btn-outline-danger" wire:click="prepareRejectPortalAccessRequest({{ $accessRequest->id }})" data-toggle="modal" data-target="#portal-access-request-reject-modal">
+														<button class="btn btn-sm btn-outline-danger" wire:click="prepareRejectPortalAccessRequest('{{ $accessRequest->id }}')" data-toggle="modal" data-target="#portal-access-request-reject-modal">
 															<i class="mdi mdi-close"></i> Reject
 														</button>
 													@else

@@ -91,7 +91,7 @@ class CustomerManager extends Component
         'customerForm.email' => 'required|email|max:255',
         'customerForm.telephone1' => 'required|string|max:50',
         'customerForm.country_id' => 'required|exists:countries,id',
-        'customerForm.account_status' => 'required|exists:module_pre_configs,id',
+        'customerForm.account_status' => 'nullable|exists:module_pre_configs,id',
         'customerForm.zoho_customer_id' => 'nullable|exists:zoho_customers,id',
     ];
 
@@ -103,7 +103,6 @@ class CustomerManager extends Component
         'customerForm.email.email' => 'Please enter a valid email address.',
         'customerForm.telephone1.required' => 'Primary phone number is required.',
         'customerForm.country_id.required' => 'Country selection is required.',
-        'customerForm.account_status.required' => 'Account settings selection is required.',
     ];
 
     public function mount()
@@ -443,6 +442,7 @@ class CustomerManager extends Component
             $customer->name = $this->customerForm['name'];
             $customer->postal_address = $this->customerForm['postal_address'];
             $customer->physical_address = $this->customerForm['physical_address'];
+            $customer->company_id = getUserCompany();
             $customer->website = $this->customerForm['website'];
             $customer->fax = $this->customerForm['fax'];
             $customer->email = $this->customerForm['email'];

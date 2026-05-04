@@ -180,10 +180,6 @@ class FormInstanceController extends Controller
      */
     protected function canAccessForms(): bool
     {
-<<<<<<< HEAD
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to access this form instance.');
-=======
         $user = auth()->user();
         if (! $user) {
             return false;
@@ -240,7 +236,6 @@ class FormInstanceController extends Controller
         if (! $this->canAccessForms()) {
             abort(403, 'You are not authorized to access this form instance.');
         }
->>>>>>> 17ef84d8a (form generator)
 
         // Check if form is still available
         if (!$submissionForm->isPublishedAndActive()) {
@@ -279,10 +274,6 @@ class FormInstanceController extends Controller
      */
     public function fillSample(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-<<<<<<< HEAD
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to access this form instance.');
-=======
         if ($submissionForm->is_customer_portal_form) {
             abort(403, 'This form can only be filled from the customer portal.');
         }
@@ -291,7 +282,6 @@ class FormInstanceController extends Controller
         if (! $this->canAccessForms()) {
             abort(403, 'You are not authorized to access this form instance.');
         }
->>>>>>> 17ef84d8a (form generator)
 
         // Check if form is still available
         if (!$submissionForm->isPublishedAndActive()) {
@@ -328,10 +318,6 @@ class FormInstanceController extends Controller
      */
     public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-<<<<<<< HEAD
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to update this form instance.');
-=======
         if ($submissionForm->is_customer_portal_form) {
             abort(403, 'This form can only be submitted from the customer portal.');
         }
@@ -342,7 +328,6 @@ class FormInstanceController extends Controller
         if (! $this->canAccessForms()) {
             abort(403, 'You are not authorized to update this form instance.');
         }
->>>>>>> 17ef84d8a (form generator)
 
 
         // Check if instance can be updated
@@ -432,14 +417,7 @@ class FormInstanceController extends Controller
      */
     public function applyToBatches(int $instance, SubmissionFormBatchSyncService $syncService): \Illuminate\Http\RedirectResponse
     {
-<<<<<<< HEAD
-        /** @var \App\User $user */
-        $user = Auth::user();
-
-        if (! $user->hasRole('Sample Reception') && ! $user->hasRole('admin')) {
-=======
         if (! $this->canAccessForms()) {
->>>>>>> 17ef84d8a (form generator)
             abort(403, 'You are not allowed to update linked batches from this form.');
         }
 
@@ -490,27 +468,9 @@ class FormInstanceController extends Controller
      */
     public function show(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-<<<<<<< HEAD
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to view this form instance.');
-
-        // Lab intake feature is optional in some deployments.
-        // Only eager-load intake relations when the model actually exposes them.
-        if (method_exists($instance, 'labIntakeCase')) {
-            $instance->load([
-                'labIntakeCase.attachments',
-                'labIntakeCase.bookingEvent',
-                'labIntakeCase.zone',
-                'labIntakeCase.directorate',
-                'labIntakeCase.acceptedBatch',
-                'labIntakeCase.confirmedByUser',
-                'labIntakeCase.decisionByUser',
-            ]);
-=======
         // Allow view if user has RFT Form permission or is admin
         if (! $this->canAccessForms()) {
             abort(403, 'You are not authorized to view this form instance.');
->>>>>>> 17ef84d8a (form generator)
         }
 
         // Load form with all relationships
@@ -583,15 +543,10 @@ class FormInstanceController extends Controller
      */
     public function print(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-<<<<<<< HEAD
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to print this form instance.');
-=======
         // Allow print if user has RFT Form permission or is admin
         if (! $this->canAccessForms()) {
             abort(403, 'You are not authorized to print this form instance.');
         }
->>>>>>> 17ef84d8a (form generator)
 
         // Load form with all relationships
         $submissionForm->load([
@@ -632,17 +587,12 @@ class FormInstanceController extends Controller
      */
     public function edit(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-<<<<<<< HEAD
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to edit this form instance.');
-=======
         $user = auth()->user();
 
         // Allow edit if user has RFT Form permission or is admin
         if (! $this->canAccessForms()) {
             abort(403, 'You are not authorized to edit this form instance.');
         }
->>>>>>> 17ef84d8a (form generator)
 
         // Check if instance can be edited
         if (!$instance->isDraft()) {

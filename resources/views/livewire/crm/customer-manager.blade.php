@@ -172,7 +172,7 @@
                                         <tr>
                                            
                                         <td>
-                                            <a wire:click="viewCustomer({{ $customer->id }})" class="btn btn-sm fw-bold text-primary">{{ $customer->code }}</a>
+                                            <a wire:click="viewCustomer('{{ $customer->id }}')" class="btn btn-sm fw-bold text-primary">{{ $customer->code }}</a>
                                         </td>
                                         <td>
                                             <div>
@@ -208,22 +208,22 @@
                                         </td>
                                             <td>
                                             <div class="btn-group" role="group">
-                                                <button wire:click="viewCustomer({{ $customer->id }})" 
+                                                <button wire:click="viewCustomer('{{ $customer->id }}')" 
                                                             class="btn btn-sm btn-outline-primary mr-1" 
                                                         title="View Profile">
                                                     <i class="mdi mdi-eye"></i>
                                                 </button>
-                                                <button wire:click="showEditCustomerModal({{ $customer->id }})" 
+                                                <button wire:click="showEditCustomerModal('{{ $customer->id }}')" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
                                                         title="Edit">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
-                                                <button wire:click="showCloneModal({{ $customer->id }})" 
+                                                <button wire:click="showCloneModal('{{ $customer->id }}')" 
                                                             class="btn btn-sm btn-outline-info mr-1" 
                                                         title="Clone Customer">
                                                     <i class="mdi mdi-content-copy"></i>
                                                 </button>
-                                                <button wire:click="deleteCustomer({{ $customer->id }})" 
+                                                <button wire:click="deleteCustomer('{{ $customer->id }}')" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                         title="Delete"
                                                         onclick="return confirm('Are you sure you want to delete this customer?')">
@@ -326,7 +326,7 @@
                                             @if($showCountryDropdown && $this->filteredCountries->count() > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($this->filteredCountries as $country)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectCountry({{ $country->id }})">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectCountry('{{ $country->id }}')">
                                                             {{ $country->name }}
                                                         </div>
                                                     @endforeach
@@ -338,7 +338,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> Account Settings <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> Account Settings</label>
                                         <div class="tag-select-container" wire:click="$set('showAccountDropdown', true); $set('showCountryDropdown', false); $set('showZohoCustomerDropdown', false)">
                                             <div class="tag-select-input">
                                                 @if($this->selectedAccountName)
@@ -359,7 +359,7 @@
                                             @if($showAccountDropdown && $this->filteredAccounts->count() > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($this->filteredAccounts as $account)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccount({{ is_object($account) ? $account->id : ($account['id'] ?? 0) }})">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccount('{{ is_object($account) ? $account->id : ($account['id'] ?? '') }}')">
                                                             {{ is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '') }}
                                                         </div>
                                                     @endforeach

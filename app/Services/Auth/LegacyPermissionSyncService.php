@@ -5,9 +5,9 @@ namespace App\Services\Auth;
 use App\Role;
 use App\User;
 use App\UserRole;
+use App\Models\Auth\Permission;
+use App\Models\Auth\Role as SpatieRole;
 use Illuminate\Support\Facades\Schema;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role as SpatieRole;
 
 class LegacyPermissionSyncService
 {

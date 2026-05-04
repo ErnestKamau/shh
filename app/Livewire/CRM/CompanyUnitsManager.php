@@ -81,6 +81,7 @@ class CompanyUnitsManager extends Component
                 // Create new unit
                 $unit = new CRMCompanyUnit();
                 $unit->crm_customer_id = $this->customerId;
+                $unit->company_id = getUserCompany();
             }
 
             $unit->name = $this->unitForm['name'];

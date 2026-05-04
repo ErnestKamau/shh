@@ -64,28 +64,28 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditUnitModal({{ $unit->id }})" 
+                                                    <button wire:click="showEditUnitModal('{{ $unit->id }}')" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
                                                             title="Edit"
                                                             wire:loading.attr="disabled" 
-                                                            wire:target="showEditUnitModal({{ $unit->id }})">
-                                                        <span wire:loading.remove wire:target="showEditUnitModal({{ $unit->id }})">
+                                                            wire:target="showEditUnitModal('{{ $unit->id }}')">
+                                                        <span wire:loading.remove wire:target="showEditUnitModal('{{ $unit->id }}')">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </span>
-                                                        <span wire:loading wire:target="showEditUnitModal({{ $unit->id }})">
+                                                        <span wire:loading wire:target="showEditUnitModal('{{ $unit->id }}')">
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
                                                         </span>
                                                     </button>
-                                                    <button wire:click="deleteUnit({{ $unit->id }})" 
+                                                    <button wire:click="deleteUnit('{{ $unit->id }}')" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
                                                             wire:loading.attr="disabled"
-                                                            wire:target="deleteUnit({{ $unit->id }})"
+                                                            wire:target="deleteUnit('{{ $unit->id }}')"
                                                             onclick="return confirm('Are you sure you want to delete this unit?')">
-                                                        <span wire:loading.remove wire:target="deleteUnit({{ $unit->id }})">
+                                                        <span wire:loading.remove wire:target="deleteUnit('{{ $unit->id }}')">
                                                             <i class="mdi mdi-delete"></i>
                                                         </span>
-                                                        <span wire:loading wire:target="deleteUnit({{ $unit->id }})">
+                                                        <span wire:loading wire:target="deleteUnit('{{ $unit->id }}')">
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
                                                         </span>
                                                     </button>

@@ -183,7 +183,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Account Settings <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">Account Settings</label>
                                             <select wire:model="customerForm.account_status" class="form-select">
                                                 <option value="">Select Account Settings</option>
                                                 @foreach($accounts as $account)

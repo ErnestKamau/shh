@@ -70,6 +70,7 @@ use Illuminate\Http\File;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use App\Models\BatchAttachmentAnnotation;
 use setasign\Fpdi\TcpdfFpdi;
@@ -6078,11 +6079,12 @@ class SampleWorkFlowController extends Controller
     {
         try {
             $contextRoute = request()->get('context_route');
+            $hasTargetPagesColumn = Schema::hasColumn('submission_forms', 'target_pages');
 
             $forms = \App\Models\SubmissionForm::with(['creator', 'sections'])
                 ->where('is_published', true)
                 ->where('is_active', true)
-                ->when($contextRoute, function ($query) use ($contextRoute) {
+                ->when($contextRoute && $hasTargetPagesColumn, function ($query) use ($contextRoute) {
                     $query->where(function ($placementQuery) use ($contextRoute) {
                         $placementQuery->whereNull('target_pages')
                             ->orWhereJsonLength('target_pages', 0)

@@ -521,7 +521,7 @@
     <div class="welcome-section">
         <div class="company-logo">
             <?php $active = getActiveCompany() ?>
-            <img src="{{$active->logo}}" alt="Company Logo" />
+            <img src="{{ $active->logo ?? '/images/no-logo.png' }}" alt="Company Logo" />
         </div>
         <h1 class="welcome-text">Welcome to IMARA LIMS</h1>
         <p class="welcome-subtitle">Laboratory Information Management System</p>

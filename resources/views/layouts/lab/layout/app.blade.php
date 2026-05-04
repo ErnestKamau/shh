@@ -527,22 +527,26 @@
 	@php
 		$currentRouteName = optional(request()->route())->getName();
 		$disableDynamicSubmissionForms = \Illuminate\Support\Str::startsWith((string) $currentRouteName, 'submission-forms.instances.');
+		$hasTargetPagesColumn = \Illuminate\Support\Facades\Schema::hasColumn('submission_forms', 'target_pages');
 		$pageSectionForms = collect();
 		$pageButtonForms  = collect();
 
 		if ($currentRouteName && !$disableDynamicSubmissionForms) {
 			$cacheKey = 'sf_page_forms_' . $currentRouteName;
-			$formsForCurrentPage = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($currentRouteName) {
-				return \App\Models\SubmissionForm::query()
+			$formsForCurrentPage = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($currentRouteName, $hasTargetPagesColumn) {
+				$query = \App\Models\SubmissionForm::query()
 					->where('is_published', true)
-					->where('is_active', true)
-					->where(function ($q) use ($currentRouteName) {
+					->where('is_active', true);
+
+				if ($hasTargetPagesColumn) {
+					$query->where(function ($q) use ($currentRouteName) {
 						$q->whereNull('target_pages')
 						  ->orWhereJsonLength('target_pages', 0)
 						  ->orWhereJsonContains('target_pages', $currentRouteName);
-					})
-					->orderBy('name')
-					->get();
+					});
+				}
+
+				return $query->orderBy('name')->get();
 			});
 
 			$pageSectionForms = $formsForCurrentPage->where('placement_mode', 'page_section')->values();

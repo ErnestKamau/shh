@@ -66,20 +66,20 @@ class SystemSetupSeeder extends Seeder
                     'edit companies',
                     'delete companies',
                     // Module access (controls home dashboard visibility)
-                    'module.laboratory',
-                    'module.inventory',
-                    'module.equipment',
-                    'module.crm',
-                    'module.personnel',
-                    'module.dms',
-                    'module.calendar',
-                    'module.matrix',
-                    'module.ai',
-                    'module.ai_analytics',
-                    'module.risk',
-                    'module.audit',
-                    'module.tickets',
-                    'module.settings',
+                    'laboratory.module.access',
+                    'inventory.module.access',
+                    'equipment.module.access',
+                    'crm.module.access',
+                    'personnel.module.access',
+                    'dms.module.access',
+                    'calendar.module.access',
+                    'matrix.module.access',
+                    'ai.module.access',
+                    'ai_analytics.module.access',
+                    'risk.module.access',
+                    'audit.module.access',
+                    'tickets.module.access',
+                    'settings.module.access',
                 ];
 
                 $permissions = [];
@@ -332,9 +332,9 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info("  Using location UUID : {$adminLocationUuid}");
 
                 $user = User::updateOrCreate(
-                    ['email' => 'dannyagah13@gmail.com'],
+                    ['email' => 'karokin35@gmail.com'],
                     [
-                        'name'          => 'Dan Agah',
+                        'name'          => 'Nancy Karoki',
                         'password'      => Hash::make('Admin@2026!'),
                         'company_id'    => $company->id,
                         'department_id' => $adminDeptUuid,
