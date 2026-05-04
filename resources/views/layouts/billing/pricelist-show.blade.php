@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app')
 
 @section('title2')
-    <title>Create Draft Invoice</title>
+    <title>Pricelist Details</title>
 @endsection
 
 @section('content2')
@@ -14,20 +14,19 @@
                     'icon' => null
                 ],
                 [
-                    'link' => route('billing.invoices'),
-                    'name' => 'Draft Invoices',
+                    'link' => route('view-pricelists'),
+                    'name' => 'Pricelists',
                     'icon' => null
                 ],
                 [
-                    'link' => '#',
-                    'name' => 'Create Draft Invoice',
+                    'link' => route('show-pricelist', ['id' => $pricelistId]),
+                    'name' => 'Details',
                     'icon' => null
                 ]
             ];
         ?>
         <x-bread-crumb :items="$items"></x-bread-crumb>
-        
-        @livewire('billing.sales-order-wizard', ['batchCodes' => $batchCodes ?? []])
+
+        @livewire('billing.pricelist-show-manager', ['pricelistId' => $pricelistId, 'print' => $print])
     </main>
 @endsection
-

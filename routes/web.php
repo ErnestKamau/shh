@@ -324,7 +324,7 @@ Route::get('/billing/quotations', function () {
 Route::get('/billing/sales-order/create', function () {
     $batchCodes = request()->get('batches', []);
     return view('layouts.billing.sales-order-create', ['batchCodes' => $batchCodes]);
-})->name('billing.sales-order.create')->middleware('can:laboratory.components.sales-orders.add');
+})->name('billing.sales-order.create')->middleware('can:laboratory.components.draft-invoices.add');
 
 Route::get('/analysis-types', 'AnalysisTypeController@index')->name('analysis-types')->middleware('can:laboratory.components.analysis types.view');
 Route::post('/analysis-types', 'AnalysisTypeController@add')->name('add-analysis-types')->middleware('can:laboratory.components.analysis types.add');
@@ -525,13 +525,13 @@ Route::post('/return-back-verification', 'SampleWorkFlowController@return_back_v
 Route::post('/update-invoice', 'SampleWorkFlowController@updateInvoiceDetails')->name('updateinvoicedetail')->middleware('can:laboratory.components.proforma invoices.edit');
 Route::get('/get-invoice/itemData/{invoice_id}/{item_id}', 'SampleWorkFlowController@getInvoiceItemData')->name('getInvoiceItemData')->middleware('can:laboratory.components.proforma invoices.view');
 // -----------------------------------SALES ORDERS----------------------
-Route::post('/generate/batch-invoice/ajax', 'SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax')->middleware('can:laboratory.components.sales-orders.add');
-Route::get('/send/Sales-Order/{id}', 'SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder')->middleware('can:laboratory.components.sales-orders.add');
-Route::get('/delete/sales-order/{id}', 'SampleWorkFlowController@deleteSalesOrder')->name('deleteSalesOrder')->middleware('can:laboratory.components.sales-orders.delete');
-Route::post('/send/sales/order-ajax', 'SampleWorkFlowController@moveToLabAjax')->name('move-to-lab-ajax')->middleware('can:laboratory.components.sales-orders.add');
+Route::post('/generate/batch-invoice/ajax', 'SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax')->middleware('can:laboratory.components.draft-invoices.add');
+Route::get('/send/Sales-Order/{id}', 'SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder')->middleware('can:laboratory.components.draft-invoices.add');
+Route::get('/delete/sales-order/{id}', 'SampleWorkFlowController@deleteSalesOrder')->name('deleteSalesOrder')->middleware('can:laboratory.components.draft-invoices.delete');
+Route::post('/send/sales/order-ajax', 'SampleWorkFlowController@moveToLabAjax')->name('move-to-lab-ajax')->middleware('can:laboratory.components.draft-invoices.add');
 
-Route::get('/zoho-item/analysis-types', 'SampleTypeController@zohotoAnalysisTypes')->name('zoho-item-analysis')->middleware('can:laboratory.components.sales-orders.view');
-Route::post('zoho/item/analysis-store', 'SampleTypeController@zohoAnalysisStore')->name('zoho-item-analysis-store')->middleware('can:laboratory.components.sales-orders.add');
+Route::get('/zoho-item/analysis-types', 'SampleTypeController@zohotoAnalysisTypes')->name('zoho-item-analysis')->middleware('can:laboratory.components.draft-invoices.view');
+Route::post('zoho/item/analysis-store', 'SampleTypeController@zohoAnalysisStore')->name('zoho-item-analysis-store')->middleware('can:laboratory.components.draft-invoices.add');
 // -----------------------------------SALES ORDERS----------------------
 
 
@@ -1460,11 +1460,18 @@ Route::get('/show-material-type/{id}', 'ModulePreConfigsController@show_material
 //###################################MODULE PRE_CONFIGS LINKS#######################################
 
 //###################################PRICELISTS#######################################
-Route::get('/pricelists', 'PricelistItemController@index')->name('view-pricelists')->middleware('can:laboratory.components.pricelists.view');
+Route::get('/pricelists', function () {
+    return view('layouts.billing.pricelists-index');
+})->name('view-pricelists')->middleware('can:laboratory.components.pricelists.view');
 Route::post('/pricelist/{id?}', 'PricelistItemController@update')->name('update-pricelist');
 Route::post('/pricelist/{id}/upload', 'PricelistItemController@upload')->name('upload-pricelist-pdf');
 Route::post('/pricelist/{id}/email', 'PricelistItemController@email')->name('email-pricelist-pdf');
-Route::get('/pricelist/{id}/{print?}', 'PricelistItemController@show')->name('show-pricelist');
+Route::get('/pricelist/{id}/{print?}', function ($id, $print = null) {
+    return view('layouts.billing.pricelist-show', [
+        'pricelistId' => $id,
+        'print' => $print,
+    ]);
+})->name('show-pricelist')->middleware('can:laboratory.components.pricelists.view');
 Route::post('/pricelist/{id}/item', 'PricelistItemController@update_item')->name('update-pricelist-item');
 Route::post('/save-price-changes/{id}', 'PricelistItemController@save_price_changes')->name('save-price-changes');
 Route::post('/clone-items-to-new-pricelist/{id}', 'PricelistItemController@clone_items_to_new_pricelist')->name('clone-items-to-new-pricelist');
@@ -1797,8 +1804,8 @@ Route::post('/vgm/store', 'Inspection\InspectionController@store')->name('vgm.st
 Route::post('/vgm/delete', 'Inspection\InspectionController@delete')->name('vgm.delete');
 
 #################################SAMPLE WORKFLOW SEND SALES ORDER#######################
-Route::post('/validate/client-batches', 'SampleWorkFlowController@validateClientBatches')->name('validate-clients')->middleware('can:laboratory.components.sales-orders.add');
-Route::post('/ajax/send-schedule', 'SampleWorkFlowController@sendScheduleAjax')->name('ajax-send-schedule')->middleware('can:laboratory.components.sales-orders.add');
+Route::post('/validate/client-batches', 'SampleWorkFlowController@validateClientBatches')->name('validate-clients')->middleware('can:laboratory.components.draft-invoices.add');
+Route::post('/ajax/send-schedule', 'SampleWorkFlowController@sendScheduleAjax')->name('ajax-send-schedule')->middleware('can:laboratory.components.draft-invoices.add');
 #######################################################################################
 
 ##################################### IMARACHAT AI #######################

@@ -2,7 +2,7 @@
 
 
 @section('title2')
-<title> Sales Order - Show </title>
+<title> Draft Invoice - Show </title>
 <style type="text/css">
     .tab-card {
         border: 1px solid #eee;
@@ -93,23 +93,23 @@ $items = array(
 
     array(
         'link' => route('invoice-home'),
-        'name' => 'Sales Orders',
+        'name' => 'Draft Invoices',
         'icon' => null
     ),
     array(
         'link' => null,
-        'name' => 'Sales Order - ' . $invoice->invoice_number,
+        'name' => 'Draft Invoice - ' . $invoice->invoice_number,
         'icon' => null
     ),
 );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
-        <i class="mdi mdi-file-cad"></i> Sales Order |{{$invoice->invoice_number}}
+        <i class="mdi mdi-file-cad"></i> Draft Invoice |{{$invoice->invoice_number}}
     </h2>
     <div class="invoice-section">
         <div class="card p-3 mb-3">
-            <span class="card-title" style="font-weight: 600;"><u><i class="mdi mdi-file-cad"></i> Sales Order No
+            <span class="card-title" style="font-weight: 600;"><u><i class="mdi mdi-file-cad"></i> Draft Invoice No
                     {{$invoice->invoice_number}}</u></span>
             <div class="row ml-3">
                 <div class="col-md-6">
@@ -121,7 +121,7 @@ $items = array(
                     <span class="span-body">{{implode(', ',$invoice->samplecodes)}}</span>
                 </div>
                 <div class="col-md-4">
-                    <b class="span-header text-muted"><i class="mdi mdi-chevron-right"></i> Zoho Sales Order ID</b><br>
+                    <b class="span-header text-muted"><i class="mdi mdi-chevron-right"></i> Zoho Draft Invoice ID</b><br>
                     <span class="span-body">{{$invoice->sales_order_id}}</span>
                 </div>
                 <div class="col-md-4">

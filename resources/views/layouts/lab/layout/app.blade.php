@@ -83,6 +83,7 @@
 			$canProformaInvoices = $user->can('laboratory.components.proforma invoices.view');
 			$canTaxRegime = $user->can('laboratory.components.tax regime.view');
 			$canQuotation = $user->can('laboratory.components.quotation.view');
+			$canPricelists = $user->can('laboratory.components.pricelists.view');
 			$canQc = $user->can('laboratory.components.qc sample.view');
 			$canAnalytes = $user->can('laboratory.components.analytes.view');
 			$canLabs = $user->can('laboratory.components.labs.view');
@@ -164,7 +165,7 @@
 
 			</div>
 			@endif
-			@if($canProformaInvoices || $canTaxRegime || $canQuotation)
+			@if($canProformaInvoices || $canTaxRegime || $canQuotation || $canPricelists)
 			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
@@ -175,22 +176,19 @@
 		<div id="billing-menu" class="collapse sidebar-submenu">
 			@if($canProformaInvoices)
 			<a href="{{route('billing.invoices')}}" class="list-group-item list-group-item-action bg-dark text-white">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sales Orders
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Draft Invoices
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
-
-			<a href="{{route('billing.invoicable-items')}}" class="list-group-item list-group-item-action bg-dark text-white">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Invoicable Items
-					<small class="float-right badge badge-pill"></small></span>
-			</a>
-
-		<a href="{{route('billing.dynamics-customers')}}" class="list-group-item list-group-item-action bg-dark text-white">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Dynamics Customers
-				<small class="float-right badge badge-pill"></small></span>
-		</a>
 
 		<a href="{{route('billing.currencies')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Currencies
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+			@endif
+
+			@if($canPricelists)
+		<a href="{{ route('view-pricelists') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Pricelists
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 			@endif

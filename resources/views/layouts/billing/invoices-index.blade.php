@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app')
 
 @section('title2')
-    <title>Sales Orders Management</title>
+    <title>Draft Invoices Management</title>
 @endsection
 
 @section('content2')
@@ -15,7 +15,7 @@
                 ],
                 [
                     'link' => route('billing.invoices'),
-                    'name' => 'Sales Orders',
+                    'name' => 'Draft Invoices',
                     'icon' => null
                 ]
             ];

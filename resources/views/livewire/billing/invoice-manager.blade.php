@@ -8,9 +8,9 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-file-document-outline text-primary"></i>
-                                Sales Orders Management
+                                Draft Invoices Management
                             </h2>
-                            <p class="text-muted mb-0">View and manage customer sales orders</p>
+                            <p class="text-muted mb-0">View and manage customer draft invoices</p>
                         </div>
                     </div>
                 </div>
@@ -107,7 +107,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Sales Orders</h5>
+                    <h5 class="card-title mb-0">Draft Invoices</h5>
                     <div class="d-flex align-items-center">
                         <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
                         <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
@@ -123,7 +123,7 @@
                             <table class="table table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
-                                        <th>Sales Order #</th>
+                                        <th>Draft Invoice #</th>
                                         <th>Customer</th>
                                         <th>Reference</th>
                                         <th>Date</th>
@@ -207,8 +207,8 @@
                     @else
                         <div class="text-center py-5">
                             <i class="mdi mdi-file-document-outline text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No Sales Order Found</h5>
-                            <p class="text-muted">Adjust your filters or generate sales order from sample batches.</p>
+                            <h5 class="text-muted mt-3">No Draft Invoice Found</h5>
+                            <p class="text-muted">Adjust your filters or generate draft invoice from sample batches.</p>
                         </div>
                     @endif
                 </div>

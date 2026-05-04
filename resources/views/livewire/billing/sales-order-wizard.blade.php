@@ -3,7 +3,7 @@
         <div class="workflow-board-panel-header d-flex justify-content-between align-items-center px-4 py-3" style="background: #ffffff; border-bottom: 1px solid #f1f5f9;">
             <h5 class="mb-0 font-weight-bold">
                 <i class="mdi mdi-file-document-plus-outline mr-2 text-primary"></i>
-                Generate Sales Order
+                Generate Draft Invoice
             </h5>
             <div class="ml-auto">
                 <button wire:click="cancel" class="wizard-cancel-btn">
@@ -405,7 +405,7 @@
 
                     @if($currentStep === 5)
                         <div class="animate-fade-in">
-                            <h6 class="text-uppercase text-muted font-weight-bold mb-4 small"><i class="mdi mdi-file-find"></i> Sales Order Final Review</h6>
+                            <h6 class="text-uppercase text-muted font-weight-bold mb-4 small"><i class="mdi mdi-file-find"></i> Draft Invoice Final Review</h6>
                             
                             <div class="row">
                                 <div class="col-lg-8">
