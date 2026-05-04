@@ -49,7 +49,7 @@ class SubmissionSupportingDocumentFill extends Component
         });
 
         session()->flash('success', 'Supporting document saved as draft.');
-        $this->redirect(route('sample-submission-requests.show', $this->submissionRequestId), navigate: true);
+        $this->redirect(route('sample-submission-requests.show', ['request' => $this->submissionRequestId, 'details' => 1]), navigate: true);
     }
 
     public function submitDocument(SupportingDocumentInstanceFormService $formService): void
@@ -73,7 +73,7 @@ class SubmissionSupportingDocumentFill extends Component
         });
 
         session()->flash('success', 'Supporting document submitted.');
-        $this->redirect(route('sample-submission-requests.show', $this->submissionRequestId), navigate: true);
+        $this->redirect(route('sample-submission-requests.show', ['request' => $this->submissionRequestId, 'details' => 1]), navigate: true);
     }
 
     /**

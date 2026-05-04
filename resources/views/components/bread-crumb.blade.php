@@ -27,3 +27,5 @@
 		</ol>
 	</nav>
 </div>
+{{-- Slot anchor: emitted on every page that uses this component --}}
+<div data-sf-slot="after_breadcrumb" style="display:none;"></div>

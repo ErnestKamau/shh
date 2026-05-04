@@ -5,9 +5,9 @@ namespace App\Services\Auth;
 use App\Role;
 use App\User;
 use App\UserRole;
+use App\Models\Auth\Permission;
+use App\Models\Auth\Role as SpatieRole;
 use Illuminate\Support\Facades\Schema;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role as SpatieRole;
 
 class LegacyPermissionSyncService
 {
@@ -178,6 +178,8 @@ class LegacyPermissionSyncService
 
     public function syncUser(User $user): void
     {
+        $this->syncModulePermissions();
+
         $roleNames = UserRole::query()
             ->join('roles', 'roles.id', '=', 'user_roles.role_id')
             ->where('user_roles.user_id', $user->id)
@@ -195,6 +197,10 @@ class LegacyPermissionSyncService
             ]);
 
             $legacyRole = Role::query()->where('name', $roleName)->first();
+
+            if ($legacyRole) {
+                $spatieRole = $this->syncRole($legacyRole);
+            }
 
             if (Schema::hasTable('spatie_roles')) {
                 if (Schema::hasColumn('spatie_roles', 'description') && $spatieRole->description === null) {

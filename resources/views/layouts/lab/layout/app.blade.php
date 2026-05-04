@@ -524,7 +524,468 @@
 		@endif
 		@endif
 	</div>
+	@php
+		$currentRouteName = optional(request()->route())->getName();
+		$disableDynamicSubmissionForms = \Illuminate\Support\Str::startsWith((string) $currentRouteName, 'submission-forms.instances.');
+		$hasTargetPagesColumn = \Illuminate\Support\Facades\Schema::hasColumn('submission_forms', 'target_pages');
+		$pageSectionForms = collect();
+		$pageButtonForms  = collect();
+
+		if ($currentRouteName && !$disableDynamicSubmissionForms) {
+			$cacheKey = 'sf_page_forms_' . $currentRouteName;
+			$formsForCurrentPage = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($currentRouteName, $hasTargetPagesColumn) {
+				$query = \App\Models\SubmissionForm::query()
+					->where('is_published', true)
+					->where('is_active', true);
+
+				if ($hasTargetPagesColumn) {
+					$query->where(function ($q) use ($currentRouteName) {
+						$q->whereNull('target_pages')
+						  ->orWhereJsonLength('target_pages', 0)
+						  ->orWhereJsonContains('target_pages', $currentRouteName);
+					});
+				}
+
+				return $query->orderBy('name')->get();
+			});
+
+			$pageSectionForms = $formsForCurrentPage->where('placement_mode', 'page_section')->values();
+			$pageButtonForms  = $formsForCurrentPage->where('placement_mode', 'button_trigger')->values();
+		}
+
+		// Split page_section forms: those for before/after content slots are rendered in PHP.
+		// Forms with other slots (after_breadcrumb, etc.) are rendered via JS after page load.
+		$phpBeforeForms = $pageSectionForms->filter(function ($f) use ($currentRouteName) {
+			$slot = $f->placement_slot[$currentRouteName]['slot_id'] ?? '';
+			return $slot === 'before_page_content' || $slot === '';
+		})->values();
+
+		$phpAfterForms = $pageSectionForms->filter(function ($f) use ($currentRouteName) {
+			$slot = $f->placement_slot[$currentRouteName]['slot_id'] ?? '';
+			return $slot === 'after_page_content';
+		})->values();
+
+		$jsSectionForms = $pageSectionForms->filter(function ($f) use ($currentRouteName) {
+			$slot = $f->placement_slot[$currentRouteName]['slot_id'] ?? '';
+			return $slot !== '' && $slot !== 'before_page_content' && $slot !== 'after_page_content';
+		})->values();
+
+		// Split button forms: those with trigger IDs go to JS binding; rest go to the dropdown
+		$dropdownButtonForms = $pageButtonForms->filter(function ($f) use ($currentRouteName) {
+			$triggers = $f->trigger_button_ids[$currentRouteName] ?? [];
+			return empty($triggers);
+		})->values();
+
+		$jsButtonForms = $pageButtonForms->filter(function ($f) use ($currentRouteName) {
+			$triggers = $f->trigger_button_ids[$currentRouteName] ?? [];
+			return !empty($triggers);
+		})->values();
+	@endphp
+
+	{{-- ── Before-content page_section forms ─────────────────────────────────── --}}
+	@if($phpBeforeForms->count() > 0)
+		<div class="px-3 pt-2" id="sf-before-content-forms">
+			@foreach($phpBeforeForms as $embeddedForm)
+				@include('submission-forms.partials.page-section-card', [
+					'form'    => $embeddedForm,
+					'context' => 'before_page_content',
+				])
+			@endforeach
+		</div>
+	@endif
+
+	{{-- Anchor for JS-injected forms that target slots inside the content area --}}
+	<div id="sf-js-form-host" style="display:none;"></div>
+
 	@yield('content2')
+
+	{{-- ── After-content page_section forms ──────────────────────────────────── --}}
+	@if($phpAfterForms->count() > 0)
+		<div class="px-3 pb-2" id="sf-after-content-forms">
+			@foreach($phpAfterForms as $embeddedForm)
+				@include('submission-forms.partials.page-section-card', [
+					'form'    => $embeddedForm,
+					'context' => 'after_page_content',
+				])
+			@endforeach
+		</div>
+	@endif
+
+	{{-- ── Global Page Forms dropdown (button_trigger forms with no specific binding) ── --}}
+	{{-- Hidden: Page Forms dropdown removed from UI (forms are placed inline on pages) --}}
+	@if(false && $dropdownButtonForms->count() > 0)
+		<div class="page-form-launcher dropdown">
+			<button class="btn btn-primary dropdown-toggle" type="button" id="pageFormLauncher"
+			        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				<i class="mdi mdi-file-document-plus"></i> Page Forms
+			</button>
+			<div class="dropdown-menu dropdown-menu-right" aria-labelledby="pageFormLauncher">
+				@foreach($dropdownButtonForms as $buttonForm)
+					{{--
+					<a class="dropdown-item" href="{{ route('submission-forms.instances.create', $buttonForm) }}">
+						<i class="mdi mdi-file-document-edit-outline mr-1"></i>
+						{{ $buttonForm->name }}
+					</a>
+					--}}
+					<a class="dropdown-item sf-open-inline-form"
+					   href="#"
+					   data-form-name="{{ e($buttonForm->name) }}"
+					   {{-- data-fill-url="{{ route('submission-forms.instances.create', $buttonForm) }}" --}}
+					   data-launch-url="{{ route('submission-forms.instances.launch-inline', $buttonForm) }}">
+						<i class="mdi mdi-file-document-edit-outline mr-1"></i>
+						{{ $buttonForm->name }}
+					</a>
+				@endforeach
+			</div>
+		</div>
+
+		<style>
+			.page-form-launcher { position: fixed; right: 20px; bottom: 20px; z-index: 1050; }
+		</style>
+	@endif
+
+	{{-- ── Smart placement JS ────────────────────────────────────────────────── --}}
+	@if($phpBeforeForms->count() > 0 || $phpAfterForms->count() > 0 || $dropdownButtonForms->count() > 0 || $jsSectionForms->count() > 0 || $jsButtonForms->count() > 0)
+	<style>
+		/* Inline form modal */
+		.sf-inline-modal .sf-inline-dialog {
+			max-width: 78vw;
+			width: 78vw;
+			margin: 5vh auto;
+		}
+		.sf-inline-modal .sf-inline-content {
+			height: 84vh;
+			border: 0;
+			border-radius: 6px;
+			overflow: hidden;
+			box-shadow: 0 10px 40px rgba(0,0,0,.35);
+			display: flex;
+			flex-direction: column;
+			position: relative;
+		}
+		.sf-inline-modal .sf-inline-body {
+			flex: 1 1 auto;
+			overflow: hidden;
+			position: relative;
+		}
+		.sf-inline-modal .sf-inline-loading {
+			position: absolute;
+			inset: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: #fff;
+			z-index: 2;
+		}
+		.sf-inline-modal .sf-inline-frame {
+			width: 100%;
+			height: 100%;
+			border: 0;
+			display: block;
+			opacity: 0;
+			transition: opacity .2s ease;
+		}
+		.sf-inline-modal .sf-inline-frame.is-ready {
+			opacity: 1;
+		}
+		.sf-inline-modal .sf-inline-close {
+			position: absolute;
+			top: 8px;
+			right: 12px;
+			z-index: 10;
+			background: rgba(0,0,0,.45);
+			color: #fff;
+			border: 0;
+			border-radius: 50%;
+			width: 32px;
+			height: 32px;
+			font-size: 20px;
+			line-height: 1;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			opacity: .8;
+			transition: opacity .15s;
+		}
+		.sf-inline-modal .sf-inline-close:hover { opacity: 1; }
+		@media (max-width: 768px) {
+			.sf-inline-modal .sf-inline-dialog { max-width: 100vw; width: 100vw; margin: 0; }
+			.sf-inline-modal .sf-inline-content { height: 100vh; border-radius: 0; }
+		}
+	</style>
+	@php
+		$jsSectionFormsData = $jsSectionForms->map(function ($f) use ($currentRouteName) {
+			$slotId = $f->placement_slot[$currentRouteName]['slot_id'] ?? '';
+			return [
+				'id'           => $f->id,
+				'name'         => $f->name,
+				'description'  => $f->description,
+				'display_mode' => $f->display_mode ?? 'expanded',
+				'slot_id'      => $slotId,
+				'selector'     => \App\Services\PageLayoutRegistry::getSelectorForSlot($currentRouteName, $slotId),
+				// Old navigation URL (kept for rollback): route('submission-forms.instances.create', $f)
+				'launch_url'   => route('submission-forms.instances.launch-inline', $f),
+			];
+		})->values()->all();
+		$jsButtonFormsData = $jsButtonForms->map(function ($f) use ($currentRouteName) {
+			return [
+				'id'          => $f->id,
+				'name'        => $f->name,
+				'description' => $f->description,
+				// Old navigation URL (kept for rollback): route('submission-forms.instances.create', $f)
+				'launch_url'  => route('submission-forms.instances.launch-inline', $f),
+				'triggers'    => $f->trigger_button_ids[$currentRouteName] ?? [],
+			];
+		})->values()->all();
+	@endphp
+	<script>
+	(function () {
+		if (window.__sfInlineRuntimeInitialized === true) {
+			return;
+		}
+		window.__sfInlineRuntimeInitialized = true;
+
+		var currentRoute   = @json($currentRouteName);
+		var jsSectionForms = @json($jsSectionFormsData);
+		var jsButtonForms  = @json($jsButtonFormsData);
+		var csrfToken      = @json(csrf_token());
+		var launchState = window.__sfInlineLaunchState || {
+			inProgress: false,
+			lastLaunchAt: 0,
+			activeXhr: null,
+		};
+		window.__sfInlineLaunchState = launchState;
+		var listenersBound = window.__sfInlineLauncherBound === true;
+
+		// ── Helpers ───────────────────────────────────────────────────────────
+		function esc(s) {
+			return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+		}
+
+		function buildSectionCard(form) {
+			var isCollapsible = form.display_mode === 'collapsible';
+			var collapseId    = 'sf-collapse-' + form.id;
+			var desc = form.description
+				? '<p class="text-muted small mb-2">' + esc(form.description.substring(0, 120)) + '</p>'
+				: '';
+			var body = '<div class="' + (isCollapsible ? 'collapse' : '') + '" id="' + collapseId + '">'
+				+ desc
+				+ '<button type="button" class="btn btn-sm btn-primary sf-open-inline-form"'
+				+ ' data-form-name="' + esc(form.name) + '" data-launch-url="' + esc(form.launch_url) + '">'
+				+ '<i class="mdi mdi-pencil-plus mr-1"></i>Fill Form</button>'
+				+ '</div>';
+
+			var header = isCollapsible
+				? '<div class="card-header py-2 d-flex align-items-center justify-content-between">'
+					+ '<strong class="small">' + esc(form.name) + '</strong>'
+					+ '<button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button"'
+					+ ' data-toggle="collapse" data-target="#' + collapseId + '"'
+					+ ' aria-expanded="false">'
+					+ '<i class="mdi mdi-chevron-down"></i></button>'
+					+ '</div>'
+				: '<div class="card-header py-2"><strong class="small">' + esc(form.name) + '</strong></div>';
+
+			return '<div class="card sf-injected-card mb-2 shadow-sm">' + header + '<div class="card-body py-2">' + body + '</div></div>';
+		}
+
+		function insertAfterSlot(slotId, selector, html) {
+			// 1. Explicit data-sf-slot attribute — most precise, always wins
+			var anchor = document.querySelector('[data-sf-slot="' + slotId + '"]');
+			// 2. CSS selector fallback — auto-detects position without per-page HTML changes
+			if (!anchor && selector) {
+				anchor = document.querySelector(selector);
+			}
+			if (!anchor) {
+				// Nothing found — show at top of content area
+				var host = document.getElementById('sf-js-form-host');
+				if (host) {
+					host.style.display = '';
+					host.insertAdjacentHTML('beforeend', '<div class="px-3 pt-2">' + html + '</div>');
+				}
+				return;
+			}
+			var wrapper = document.createElement('div');
+			wrapper.className = 'px-3 pt-2 sf-slot-injection';
+			wrapper.innerHTML = html;
+			anchor.parentNode.insertBefore(wrapper, anchor.nextSibling);
+		}
+
+		// ── Inject section forms at their declared slots ───────────────────────
+		document.addEventListener('DOMContentLoaded', function () {
+			jsSectionForms.forEach(function (form) {
+				insertAfterSlot(form.slot_id, form.selector, buildSectionCard(form));
+			});
+
+			if (!listenersBound) {
+				// Inline launcher for dropdown and PHP-rendered cards.
+				document.addEventListener('click', function (e) {
+					var launcher = e.target.closest('.sf-open-inline-form');
+					if (!launcher) return;
+					e.preventDefault();
+					launchAndOpenInlineForm({
+						name: launcher.getAttribute('data-form-name') || 'Submission Form',
+						launch_url: launcher.getAttribute('data-launch-url') || ''
+					}, launcher);
+				});
+
+				// ── Bind button-trigger forms via event delegation ─────────────────
+				if (jsButtonForms.length > 0) {
+					document.addEventListener('click', function (e) {
+						jsButtonForms.forEach(function (form) {
+							(form.triggers || []).forEach(function (triggerId) {
+								var el = e.target.closest('[data-sf-trigger="' + triggerId + '"]');
+								if (el) {
+									launchAndOpenInlineForm(form, el);
+								}
+							});
+						});
+					});
+				}
+
+				window.__sfInlineLauncherBound = true;
+			}
+		});
+
+		function launchAndOpenInlineForm(form, sourceEl) {
+			if (!form.launch_url) return;
+			var now = Date.now();
+			if (launchState.inProgress || (now - launchState.lastLaunchAt) < 700) return;
+			launchState.inProgress = true;
+			launchState.lastLaunchAt = now;
+
+			if (sourceEl) {
+				sourceEl.setAttribute('disabled', 'disabled');
+				sourceEl.classList.add('disabled');
+			}
+
+			launchState.activeXhr = $.ajax({
+				url: form.launch_url,
+				method: 'POST',
+				headers: { 'X-CSRF-TOKEN': csrfToken },
+				success: function (resp) {
+					if (!resp || !resp.success || !resp.fill_url) {
+						return;
+					}
+					openFormModal({ name: form.name, fill_url: resp.fill_url });
+				},
+				error: function (xhr) {
+					if (xhr && xhr.statusText === 'abort') {
+						return;
+					}
+					var msg = 'Unable to open form right now. Please try again.';
+					if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+						msg = xhr.responseJSON.message;
+					}
+					alert(msg);
+				},
+				complete: function () {
+					launchState.inProgress = false;
+					launchState.activeXhr = null;
+					if (sourceEl) {
+						sourceEl.removeAttribute('disabled');
+						sourceEl.classList.remove('disabled');
+					}
+				}
+			});
+		}
+
+		// ── Lightweight form launcher modal ────────────────────────────────────
+		function openFormModal(form) {
+			var existing = document.getElementById('sf-button-modal');
+			if (existing) existing.remove();
+			if (!form.fill_url) return;
+
+			// Append ?inline=1 so the fill view uses the bare layout (no nav/sidebar)
+			var inlineUrl = form.fill_url + (form.fill_url.indexOf('?') === -1 ? '?' : '&') + 'inline=1';
+
+			var modal = document.createElement('div');
+			modal.id = 'sf-button-modal';
+			modal.innerHTML = [
+				'<div class="modal fade sf-inline-modal" tabindex="-1" role="dialog">',
+				  '<div class="modal-dialog modal-xl modal-dialog-centered sf-inline-dialog" role="document">',
+				    '<div class="modal-content sf-inline-content">',
+				      '<button type="button" class="sf-inline-close" data-dismiss="modal" aria-label="Close">',
+				        '<span aria-hidden="true">&times;</span>',
+				      '</button>',
+				      '<div class="sf-inline-body">',
+				        '<div class="sf-inline-loading">',
+				          '<div class="text-center text-muted">',
+				            '<span class="spinner-border text-primary" role="status" aria-hidden="true"></span>',
+				            '<div class="mt-2">Loading form...</div>',
+				          '</div>',
+				        '</div>',
+				        '<iframe src="' + esc(inlineUrl) + '" class="sf-inline-frame" title="Fill ' + esc(form.name) + '"></iframe>',
+				      '</div>',
+				    '</div>',
+				  '</div>',
+				'</div>',
+			].join('');
+
+			document.body.appendChild(modal);
+			var modalEl = $(modal).find('.modal');
+			var frame = modal.querySelector('.sf-inline-frame');
+			var loader = modal.querySelector('.sf-inline-loading');
+
+			function hideIframeLimsChrome() {
+				if (!frame) return;
+				try {
+					var doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+					if (!doc) return;
+
+					var navToRemove = doc.querySelector('nav.navbar.fixed-top');
+					if (navToRemove) {
+						navToRemove.remove();
+					}
+
+					var styleId = 'sf-inline-hide-lims-style';
+					if (!doc.getElementById(styleId)) {
+						var style = doc.createElement('style');
+						style.id = styleId;
+						style.textContent = [
+							'#main-app-header { display: none !important; }',
+							'nav.navbar.fixed-top { display: none !important; }',
+							'#app > nav.navbar { display: none !important; }',
+							'#sidebar-container { display: none !important; }',
+							'body { padding-top: 0 !important; }',
+							'#app, #app > main { margin-top: 0 !important; padding-top: 0 !important; }',
+							'#main-container-body { margin-left: 0 !important; width: 100% !important; padding-top: 0 !important; }',
+							'#body-row { margin-left: 0 !important; margin-right: 0 !important; }'
+						].join('\\n');
+						(doc.head || doc.documentElement).appendChild(style);
+					}
+				} catch (e) {
+					// Ignore DOM access errors; iframe can still render the form normally.
+				}
+			}
+
+			if (frame && loader) {
+				frame.addEventListener('load', function () {
+					hideIframeLimsChrome();
+					loader.style.display = 'none';
+					frame.classList.add('is-ready');
+				}, { once: true });
+
+				setTimeout(function () {
+					if (loader.style.display !== 'none') {
+						loader.style.display = 'none';
+						frame.classList.add('is-ready');
+					}
+				}, 10000);
+			}
+
+			modalEl.modal({ backdrop: true, keyboard: true });
+			modalEl.modal('show');
+			modalEl.on('hidden.bs.modal', function () {
+				if (frame) {
+					frame.setAttribute('src', 'about:blank');
+				}
+				modal.remove();
+			});
+		}
+	}());
+	</script>
+	@endif
 </div>
 <!-- Main Col END -->
 </div>

@@ -10,7 +10,9 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
+use App\Services\PageLayoutRegistry;
 
 class SubmissionFormController extends Controller
 {
@@ -71,7 +73,9 @@ class SubmissionFormController extends Controller
             ->where('is_sample_stage', 0)
             ->orderBy('name')
             ->get();
-        return view('submission-forms.create', compact('labSections'));
+        $availablePages = $this->getAvailablePlacementPages();
+
+        return view('submission-forms.create', compact('labSections', 'availablePages'));
     }
 
     /**
@@ -82,6 +86,8 @@ class SubmissionFormController extends Controller
      */
     public function store(Request $request)
     {
+        $availablePageNames = $this->getAvailablePlacementPageNames();
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:submission_forms,name'],
             'document_code' => ['required', 'string', 'max:50'],
@@ -89,13 +95,29 @@ class SubmissionFormController extends Controller
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
+            'is_customer_portal_form' => ['boolean'],
+            'lims_destination_pages' => ['nullable', 'array'],
+            'lims_destination_pages.*' => ['string', Rule::in($availablePageNames)],
             'start_submission_number' => ['nullable', 'integer', 'min:1'],
             'version' => ['required', 'string', 'max:50'],
             'issue_date' => ['required', 'date'],
             'print_template_name' => ['nullable', 'string', 'max:255'],
+            'target_pages' => ['nullable', 'array'],
+            'target_pages.*' => ['string', Rule::in($availablePageNames)],
+            'placement_mode' => ['required', Rule::in(['button_trigger', 'page_section'])],
+            'display_mode' => ['nullable', Rule::in(['expanded', 'collapsible'])],
+            'placement_slot' => ['nullable', 'array'],
+            'trigger_button_ids' => ['nullable', 'array'],
             'sample_analysis_stage_ids' => ['nullable', 'array'],
             'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id']
         ]);
+
+        $validated['target_pages'] = array_values($validated['target_pages'] ?? []);
+        $validated['display_mode'] = $validated['display_mode'] ?? 'expanded';
+        $validated['is_customer_portal_form'] = $request->boolean('is_customer_portal_form');
+        $validated['lims_destination_pages'] = $validated['is_customer_portal_form']
+            ? array_values($validated['lims_destination_pages'] ?? ['sample-workflow'])
+            : [];
 
         $validated['created_by'] = Auth::id();
         $validated['is_published'] = false; // New forms start as drafts
@@ -106,6 +128,8 @@ class SubmissionFormController extends Controller
         if (isset($validated['sample_analysis_stage_ids'])) {
             $form->sampleAnalysisStages()->sync($validated['sample_analysis_stage_ids']);
         }
+
+        $this->bustSubmissionFormPageCache($validated['target_pages'] ?? []);
 
         return redirect()
             ->route('submission-forms.show', $form)
@@ -142,8 +166,11 @@ class SubmissionFormController extends Controller
             ->where('is_sample_stage', 0)
             ->orderBy('name')
             ->get();
+
+        $availablePages = $this->getAvailablePlacementPages();
         $submissionForm->load('sampleAnalysisStages');
-        return view('submission-forms.edit', compact('submissionForm', 'labSections'));
+
+        return view('submission-forms.edit', compact('submissionForm', 'labSections', 'availablePages'));
     }
 
     /**
@@ -155,6 +182,8 @@ class SubmissionFormController extends Controller
      */
     public function update(Request $request, SubmissionForm $submissionForm)
     {
+        $availablePageNames = $this->getAvailablePlacementPageNames();
+
         $validated = $request->validate([
             'name' => [
                 'required', 
@@ -167,15 +196,33 @@ class SubmissionFormController extends Controller
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
+            'is_customer_portal_form' => ['boolean'],
+            'lims_destination_pages' => ['nullable', 'array'],
+            'lims_destination_pages.*' => ['string', Rule::in($availablePageNames)],
             'start_submission_number' => ['nullable', 'integer', 'min:1'],
             'version' => ['required', 'string', 'max:50'],
             'issue_date' => ['required', 'date'],
             'print_template_name' => ['nullable', 'string', 'max:255'],
+            'target_pages' => ['nullable', 'array'],
+            'target_pages.*' => ['string', Rule::in($availablePageNames)],
+            'placement_mode' => ['required', Rule::in(['button_trigger', 'page_section'])],
+            'display_mode' => ['nullable', Rule::in(['expanded', 'collapsible'])],
+            'placement_slot' => ['nullable', 'array'],
+            'trigger_button_ids' => ['nullable', 'array'],
             'sample_analysis_stage_ids' => ['nullable', 'array'],
             'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id']
         ]);
 
+        $validated['target_pages'] = array_values($validated['target_pages'] ?? []);
+        $validated['display_mode'] = $validated['display_mode'] ?? 'expanded';
+        $validated['is_customer_portal_form'] = $request->boolean('is_customer_portal_form');
+        $validated['lims_destination_pages'] = $validated['is_customer_portal_form']
+            ? array_values($validated['lims_destination_pages'] ?? ['sample-workflow'])
+            : [];
+
         $submissionForm->update($validated);
+
+        $this->bustSubmissionFormPageCache($validated['target_pages'] ?? []);
 
         if (isset($validated['sample_analysis_stage_ids'])) {
             $submissionForm->sampleAnalysisStages()->sync($validated['sample_analysis_stage_ids']);
@@ -190,6 +237,91 @@ class SubmissionFormController extends Controller
         return redirect()
             ->route('submission-forms.show', $submissionForm)
             ->with('success', 'Submission form updated successfully.');
+    }
+
+    /**
+     * Build a list of routable pages where a submission form can be embedded.
+     *
+     * @return array<int, array<string, string>>
+     */
+    private function getAvailablePlacementPages(): array
+    {
+        return collect(Route::getRoutes()->getRoutes())
+            ->filter(function ($route) {
+                if (!in_array('GET', $route->methods(), true)) {
+                    return false;
+                }
+
+                $name = $route->getName();
+                if (empty($name)) {
+                    return false;
+                }
+
+                $uri = (string) $route->uri();
+                if (str_starts_with($uri, '_ignition') || str_starts_with($uri, 'telescope')) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->map(function ($route) {
+                $name = (string) $route->getName();
+                $uri = '/' . ltrim((string) $route->uri(), '/');
+
+                return [
+                    'value' => $name,
+                    'label' => $name . ' (' . $uri . ')',
+                    'name' => $name,
+                    'uri' => $uri,
+                ];
+            })
+            ->unique('value')
+            ->sortBy('name')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Get valid route-name values for placement validation.
+     *
+     * @return array<int, string>
+     */
+    private function getAvailablePlacementPageNames(): array
+    {
+        return collect($this->getAvailablePlacementPages())
+            ->pluck('value')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Bust the per-route submission form page cache.
+     * Called after any change that affects which forms appear on a page.
+     *
+     * @param array $targetPages  Route names this form targets; empty means all routes.
+     */
+    private function bustSubmissionFormPageCache(array $targetPages): void
+    {
+        $routesToClear = empty($targetPages)
+            ? array_keys(PageLayoutRegistry::getManifest())
+            : $targetPages;
+
+        foreach ($routesToClear as $routeName) {
+            \Illuminate\Support\Facades\Cache::forget('sf_page_forms_' . $routeName);
+        }
+    }
+
+    /**
+     * Return slots and trigger-buttons for the given route names.
+     * Called via AJAX from the create/edit form when the admin selects target pages.
+     *
+     * GET /submission-forms/page-layout?routes[]=dashboard-lab&routes[]=sample-workflow
+     */
+    public function getPageLayout(Request $request)
+    {
+        $routes = array_filter((array) $request->get('routes', []), fn($r) => is_string($r) && strlen($r) <= 255);
+        $layout = PageLayoutRegistry::getLayoutForRoutes(array_values($routes));
+        return response()->json(['success' => true, 'layout' => $layout]);
     }
 
     /**
@@ -250,6 +382,8 @@ class SubmissionFormController extends Controller
         $submissionForm->update([
             'is_published' => !$submissionForm->is_published
         ]);
+
+        $this->bustSubmissionFormPageCache($submissionForm->target_pages ?? []);
 
         $status = $submissionForm->is_published ? 'published' : 'unpublished';
         

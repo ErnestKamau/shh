@@ -65,7 +65,7 @@
 						</span>
 					</div>
 				</div>
-				<a class="btn btn-outline-secondary btn-action-sm" href="{{ route('sample-submission-requests.show', $submissionRequest) }}">
+				<a class="btn btn-outline-secondary btn-action-sm" href="{{ route('sample-submission-requests.show', ['request' => $submissionRequest, 'details' => 1]) }}">
 					<i class="mdi mdi-arrow-left"></i> Back to request
 				</a>
 			</div>

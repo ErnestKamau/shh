@@ -50,6 +50,15 @@ class SampleSubmissionRequest extends Model
         'received_by_signature',
         'received_by_date',
         'received_by_time',
+        'submission_date',
+        'group_of_samples',
+        'number_of_samples',
+        'description_of_samples',
+        'gcla_file_reference_number',
+        'is_police_sample',
+        'ir_number',
+        'booking_date_status',
+        'booking_date_reviewed_at',
         'status',
     ];
 
@@ -57,6 +66,10 @@ class SampleSubmissionRequest extends Model
         'date_of_seizure' => 'date',
         'submitted_by_date' => 'date',
         'received_by_date' => 'date',
+        'submission_date' => 'date',
+        'booking_date_reviewed_at' => 'datetime',
+        'number_of_samples' => 'integer',
+        'is_police_sample' => 'boolean',
     ];
 
     public function batch()

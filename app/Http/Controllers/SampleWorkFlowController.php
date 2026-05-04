@@ -70,6 +70,7 @@ use Illuminate\Http\File;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use App\Models\BatchAttachmentAnnotation;
 use setasign\Fpdi\TcpdfFpdi;
@@ -147,7 +148,7 @@ class SampleWorkFlowController extends Controller
         return view('layouts.lab.sample-workflow.submission-requests.create', compact('customers', 'contacts'));
     }
 
-    public function showSampleSubmissionRequest(\App\Models\SampleSubmissionRequest $request): \Illuminate\View\View
+    public function showSampleSubmissionRequest(\App\Models\SampleSubmissionRequest $request): \Illuminate\Http\RedirectResponse|\Illuminate\View\View
     {
         $request->load([
             'batch',
@@ -160,9 +161,70 @@ class SampleWorkFlowController extends Controller
             'supportingDocumentInstances.template',
         ]);
 
+        if ($request->batch && ! request()->boolean('details')) {
+            return redirect()->route('view-batch-details', [
+                'batch' => $request->batch->id,
+                'client' => 0,
+                'portal' => 0,
+                'status' => 'Samples En-Route',
+            ]);
+        }
+
         return view('layouts.lab.sample-workflow.submission-requests.show', [
             'request' => $request,
         ]);
+    }
+
+    public function approveSampleSubmissionBookingDate(\Illuminate\Http\Request $httpRequest, SampleSubmissionRequest $request): \Illuminate\Http\RedirectResponse
+    {
+        $request->loadMissing('batch');
+
+        if (! $request->batch) {
+            return redirect()->back()->with('error', 'This submission request is not linked to a batch.');
+        }
+
+        $batch = $request->batch;
+        $approvedDate = $batch->date_expected ?: now()->toDateString();
+
+        $batch->date_expected = $approvedDate;
+        if ($batch->status === 'Samples Request Review' || $batch->status === 'Samples Reception') {
+            $batch->status = 'Samples En-Route';
+        }
+        $batch->save();
+
+        $request->booking_date_status = 'approved';
+        $request->booking_date_reviewed_at = now();
+        $request->status = 'booking_date_approved';
+        $request->save();
+
+        return redirect()->back()->with('success', 'Lab booking date approved successfully.');
+    }
+
+    public function rescheduleSampleSubmissionBookingDate(\Illuminate\Http\Request $httpRequest, SampleSubmissionRequest $request): \Illuminate\Http\RedirectResponse
+    {
+        $validated = $httpRequest->validate([
+            'date_expected' => ['required', 'date'],
+        ]);
+
+        $request->loadMissing('batch');
+
+        if (! $request->batch) {
+            return redirect()->back()->with('error', 'This submission request is not linked to a batch.');
+        }
+
+        $batch = $request->batch;
+        $batch->date_expected = $validated['date_expected'];
+        if ($batch->status === 'Samples Request Review' || $batch->status === 'Samples Reception') {
+            $batch->status = 'Samples En-Route';
+        }
+        $batch->save();
+
+        $request->booking_date_status = 'rescheduled';
+        $request->booking_date_reviewed_at = now();
+        $request->status = 'booking_date_rescheduled';
+        $request->save();
+
+        return redirect()->back()->with('success', 'Lab booking date moved to the new date successfully.');
     }
 
     public function getSubmissionRequestCustomerContacts(int $customer): \Illuminate\Http\JsonResponse
@@ -284,7 +346,7 @@ class SampleWorkFlowController extends Controller
         });
 
         return redirect()
-            ->route('sample-submission-requests.show', $submissionRequest)
+            ->route('sample-submission-requests.show', ['request' => $submissionRequest, 'details' => 1])
             ->with('success', 'Submission request created successfully. Request #' . $submissionRequest->id);
     }
 
@@ -354,7 +416,7 @@ class SampleWorkFlowController extends Controller
             : 'Supporting document saved as draft.';
 
         return redirect()
-            ->route('sample-submission-requests.show', $request)
+            ->route('sample-submission-requests.show', ['request' => $request, 'details' => 1])
             ->with('success', $message);
     }
 
@@ -5061,15 +5123,40 @@ class SampleWorkFlowController extends Controller
             'received_by_signature' => 'nullable|string|max:255',
             'received_by_date' => 'required|date_format:Y-m-d',
             'received_by_time' => 'required|date_format:H:i',
+            'submission_date' => 'required|date_format:Y-m-d',
+            'submitted_by_full_name' => 'required|string|max:255',
+            'physical_address' => 'nullable|string|max:255',
+            'district' => 'nullable|string|max:255',
+            'region' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'mobile_telephone_no' => 'nullable|string|max:255',
+            'description_of_samples' => 'nullable|string|max:2000',
+            'group_of_samples' => 'required|in:Confidential,PT,Research Government Samples,Uknown Samples',
+            'number_of_samples' => 'required|integer|min:1',
+            'gcla_file_reference_number' => 'nullable|string|max:255',
+            'is_police_sample' => 'nullable|boolean',
+            'ir_number' => 'nullable|required_if:is_police_sample,1|string|max:255',
         ]);
 
         $submissionRequest->fill($validated);
+        $submissionRequest->is_police_sample = $request->boolean('is_police_sample');
+        if (! $submissionRequest->is_police_sample) {
+            $submissionRequest->ir_number = null;
+        }
         $submissionRequest->status = 'received_at_lab';
         $submissionRequest->save();
 
         if ($submissionRequest->batch) {
             $submissionRequest->batch->receiving_officer_name = $validated['received_by_full_name'];
-            $submissionRequest->batch->receipt_date = $validated['received_by_date'];
+            $submissionRequest->batch->receipt_date = $validated['submission_date'];
+            $submissionRequest->batch->submit_by = $validated['submitted_by_full_name'];
+            $submissionRequest->batch->description = $validated['description_of_samples'] ?? $submissionRequest->batch->description;
+            $submissionRequest->batch->batch_scope = $validated['group_of_samples'];
+            $submissionRequest->batch->reference_number = $validated['gcla_file_reference_number'] ?? $submissionRequest->batch->reference_number;
+            $submissionRequest->batch->schedule_customer_email = $validated['email'] ?? $submissionRequest->batch->schedule_customer_email;
+            $submissionRequest->batch->case_id = $submissionRequest->is_police_sample
+                ? ($validated['ir_number'] ?? null)
+                : $submissionRequest->batch->case_id;
             $submissionRequest->batch->save();
         }
 
@@ -5991,9 +6078,19 @@ class SampleWorkFlowController extends Controller
     public function getAvailableSubmissionForms()
     {
         try {
+            $contextRoute = request()->get('context_route');
+            $hasTargetPagesColumn = Schema::hasColumn('submission_forms', 'target_pages');
+
             $forms = \App\Models\SubmissionForm::with(['creator', 'sections'])
                 ->where('is_published', true)
                 ->where('is_active', true)
+                ->when($contextRoute && $hasTargetPagesColumn, function ($query) use ($contextRoute) {
+                    $query->where(function ($placementQuery) use ($contextRoute) {
+                        $placementQuery->whereNull('target_pages')
+                            ->orWhereJsonLength('target_pages', 0)
+                            ->orWhereJsonContains('target_pages', $contextRoute);
+                    });
+                })
                 ->withCount(['sections', 'instances'])
                 ->orderBy('name')
                 ->get()
@@ -6028,7 +6125,8 @@ class SampleWorkFlowController extends Controller
     {
         try {
             $request->validate([
-                'submission_form_id' => 'required|exists:submission_forms,id'
+                'submission_form_id' => 'required|exists:submission_forms,id',
+                'context_route' => 'nullable|string|max:255'
             ]);
 
             $submissionForm = \App\Models\SubmissionForm::findOrFail($request->submission_form_id);
@@ -6039,6 +6137,15 @@ class SampleWorkFlowController extends Controller
                     'success' => false,
                     'message' => 'Selected form is not available for submission'
                 ], 400);
+            }
+
+            $contextRoute = $request->get('context_route');
+            $targetPages = $submissionForm->target_pages ?? [];
+            if (!empty($targetPages) && $contextRoute && !in_array($contextRoute, $targetPages, true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected form is not configured for this page.'
+                ], 403);
             }
 
             // Create form instance

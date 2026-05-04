@@ -25,7 +25,13 @@ class SubmissionFormSection extends Model implements Auditable
         'title',
         'description',
         'section_type',
+        'section_alignment',
+        'section_logos',
         'sort_order'
+    ];
+
+    protected $casts = [
+        'section_logos' => 'array',
     ];
 
     /**
@@ -115,6 +121,75 @@ class SubmissionFormSection extends Model implements Auditable
     public function isRegularSection()
     {
         return $this->section_type === 'regular' || empty($this->section_type);
+    }
+
+    /**
+     * Get alignment class for section rendering.
+     */
+    public function getAlignmentClass(): string
+    {
+        $alignment = $this->section_alignment ?: 'left';
+
+        if ($alignment === 'right') {
+            return 'text-right';
+        }
+
+        if ($alignment === 'middle') {
+            return 'text-center';
+        }
+
+        return 'text-left';
+    }
+
+    /**
+     * Get section logos as a safe array of paths.
+     *
+     * @return array<int, string>
+     */
+    public function getSectionLogos(): array
+    {
+        $logos = $this->section_logos ?? [];
+
+        if (!is_array($logos)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($logos as $logo) {
+            if (is_string($logo) && trim($logo) !== '') {
+                $normalized[] = [
+                    'path' => $logo,
+                    'position' => 'left',
+                ];
+                continue;
+            }
+
+            if (is_array($logo) && !empty($logo['path']) && is_string($logo['path'])) {
+                $position = $logo['position'] ?? 'left';
+                if (!in_array($position, ['left', 'middle', 'right'], true)) {
+                    $position = 'left';
+                }
+
+                $normalized[] = [
+                    'path' => $logo['path'],
+                    'position' => $position,
+                ];
+            }
+        }
+
+        return array_values($normalized);
+    }
+
+    /**
+     * Get section logos filtered by position.
+     *
+     * @return array<int, array{path:string,position:string}>
+     */
+    public function getSectionLogosByPosition(string $position): array
+    {
+        return array_values(array_filter($this->getSectionLogos(), function ($logo) use ($position) {
+            return ($logo['position'] ?? 'left') === $position;
+        }));
     }
 
     /**

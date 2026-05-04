@@ -106,12 +106,17 @@ class Attachments extends Component
      */
     public function getSamplesWithResultsProperty()
     {
+<<<<<<< HEAD
         $hasAttachmentColumn = $this->hasCapturedResultAttachmentColumn();
+=======
+        $hasBatchAttachmentColumn = Schema::hasColumn('captured_results', 'batch_attachment_id');
+>>>>>>> 17ef84d8a (form generator)
 
         $samples = SampleDetails::where('sample_header_id', $this->batch->id)
             ->orderBy('id', 'asc')
             ->get();
 
+<<<<<<< HEAD
         return $samples->map(function ($sample) use ($hasAttachmentColumn) {
             $query = CapturedResult::where('captured_results.sample_detail_id', $sample->id)
                 ->where('captured_results.sample_header_id', $this->batch->id)
@@ -140,6 +145,30 @@ class Attachments extends Component
             }
 
             $capturedResults = $query->get();
+=======
+        return $samples->map(function ($sample) use ($hasBatchAttachmentColumn) {
+            $capturedResultsQuery = CapturedResult::where('captured_results.sample_detail_id', $sample->id)
+                ->where('captured_results.sample_header_id', $this->batch->id)
+                ->whereNotNull('captured_results.result')
+                ->join('analytes', 'analytes.id', '=', 'captured_results.analyte_id')
+                ->select(
+                    'captured_results.id',
+                    'captured_results.analyte_id',
+                    'captured_results.result',
+                    'captured_results.analyte_code',
+                    'analytes.name as analyte_name'
+                );
+
+            if ($hasBatchAttachmentColumn) {
+                $capturedResultsQuery->addSelect('captured_results.batch_attachment_id');
+            } else {
+                $capturedResultsQuery->selectRaw('NULL as batch_attachment_id');
+            }
+
+            $capturedResults = $capturedResultsQuery
+                ->orderBy('analytes.id', 'asc')
+                ->get();
+>>>>>>> 17ef84d8a (form generator)
 
             $byAnalyte = $capturedResults->groupBy('analyte_id')->map(function ($group) {
                 $first = $group->first();
@@ -214,6 +243,7 @@ class Attachments extends Component
     {
         $attachment = BatchAttachment::find($attachmentId);
         if ($attachment) {
+<<<<<<< HEAD
             if ($this->hasCapturedResultAttachmentColumn()) {
                 $linkedCapturedIds = CapturedResult::where('batch_attachment_id', $attachment->id)
                     ->pluck('id')
@@ -225,6 +255,21 @@ class Attachments extends Component
                         ->update(['batch_attachment_id' => null]);
                 }
 
+=======
+            $linkedCapturedIds = [];
+
+            if (Schema::hasColumn('captured_results', 'batch_attachment_id')) {
+                $linkedCapturedIds = CapturedResult::where('batch_attachment_id', $attachment->id)
+                    ->pluck('id')
+                    ->toArray();
+
+                // Detach captured results linked to this attachment to avoid stale foreign references.
+                if (!empty($linkedCapturedIds)) {
+                    CapturedResult::whereIn('id', $linkedCapturedIds)
+                        ->update(['batch_attachment_id' => null]);
+                }
+
+>>>>>>> 17ef84d8a (form generator)
                 // Keep attachment-based placeholders consistent once detached.
                 if (!empty($linkedCapturedIds)) {
                     CapturedResult::whereIn('id', $linkedCapturedIds)

@@ -508,10 +508,10 @@
 											<tr>
 												<td nowrap>
 													@if($accessRequest->status == 'pending')
-														<button class="btn btn-sm btn-outline-success" wire:click="approvePortalAccessRequest({{ $accessRequest->id }})" wire:confirm="Approve this account access request?">
+														<button class="btn btn-sm btn-outline-success" wire:click="approvePortalAccessRequest('{{ $accessRequest->id }}')" wire:confirm="Approve this account access request?">
 															<i class="mdi mdi-check"></i> Approve
 														</button>
-														<button class="btn btn-sm btn-outline-danger" wire:click="prepareRejectPortalAccessRequest({{ $accessRequest->id }})" data-toggle="modal" data-target="#portal-access-request-reject-modal">
+														<button class="btn btn-sm btn-outline-danger" wire:click="prepareRejectPortalAccessRequest('{{ $accessRequest->id }}')" data-toggle="modal" data-target="#portal-access-request-reject-modal">
 															<i class="mdi mdi-close"></i> Reject
 														</button>
 													@else
@@ -3187,11 +3187,15 @@
 				$('#no-forms-message').hide();
 		
 				const url = '{{ route("sample-workflow.submission-forms") }}';
+				const contextRoute = '{{ request()->route() ? request()->route()->getName() : '' }}';
 				console.log('Making AJAX request to:', url);
 		
 				$.ajax({
 					url: url,
 					method: 'GET',
+					data: {
+						context_route: contextRoute
+					},
 					headers: {
 						'X-Requested-With': 'XMLHttpRequest',
 						'Accept': 'application/json'
@@ -3257,6 +3261,7 @@
 			function createFormInstance(formId) {
 				const btn = $('#create-form-instance-btn');
 				const originalText = btn.html();
+				const contextRoute = '{{ request()->route() ? request()->route()->getName() : '' }}';
 				
 				// Show loading state
 				btn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Creating...');
@@ -3266,6 +3271,7 @@
 					method: 'POST',
 					data: {
 						submission_form_id: formId,
+						context_route: contextRoute,
 						_token: '{{ csrf_token() }}'
 					},
 					success: function(response) {

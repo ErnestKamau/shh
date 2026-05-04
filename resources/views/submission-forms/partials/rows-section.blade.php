@@ -1,9 +1,10 @@
 {{-- Rows Section Rendering --}}
-<div class="rows-section mb-4" data-section-id="{{ $section->id }}">
-  <div class="section-header mb-3">
+<div class="rows-section mb-4 {{ $section->getAlignmentClass() }}" data-section-id="{{ $section->id }}">
+  <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
     <h5 class="text-primary border-bottom pb-2">
       <i class="mdi mdi-table"></i> {{ $section->title }}
     </h5>
+    @include('submission-forms.partials.section-logos', ['section' => $section])
     @if($section->description)
       <p class="text-muted small mb-0">{{ $section->description }}</p>
     @endif

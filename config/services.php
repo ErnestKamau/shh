@@ -35,4 +35,12 @@ return [
         'auth_api_base_url' => env('PORTAL_AUTH_API_BASE_URL'),
     ],
 
+    'africastalking' => [
+        'username' => env('AFRICASTALKING_USERNAME'),
+        'api_key' => env('AFRICASTALKING_API_KEY'),
+        'whatsapp_from' => env('AFRICASTALKING_WHATSAPP_FROM'),
+        'use_sandbox' => env('AFRICASTALKING_USE_SANDBOX', true),
+        'base_url' => env('AFRICASTALKING_BASE_URL', 'https://chat.sandbox.africastalking.com'),
+    ],
+
 ];

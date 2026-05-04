@@ -474,6 +474,14 @@ Route::post('/sample-submission-requests', 'SampleWorkFlowController@storeSample
     ->name('sample-submission-requests.store')
     ->middleware('can:laboratory.components.all samples.add');
 
+Route::post('/sample-submission-requests/{request}/booking-date/approve', 'SampleWorkFlowController@approveSampleSubmissionBookingDate')
+    ->name('sample-submission-requests.booking-date.approve')
+    ->middleware('haspermission:Laboratory.components.All Samples.Edit');
+
+Route::post('/sample-submission-requests/{request}/booking-date/reschedule', 'SampleWorkFlowController@rescheduleSampleSubmissionBookingDate')
+    ->name('sample-submission-requests.booking-date.reschedule')
+    ->middleware('haspermission:Laboratory.components.All Samples.Edit');
+
 Route::get('/sample-submission-requests/customer/{customer}/contacts', 'SampleWorkFlowController@getSubmissionRequestCustomerContacts')
     ->name('sample-submission-requests.customer-contacts')
     ->middleware('can:laboratory.components.all samples.add');
@@ -676,6 +684,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::get('/create', 'SubmissionFormController@create')->name('create')->middleware('can:laboratory.components.rft form.add');
     Route::post('/', 'SubmissionFormController@store')->name('store')->middleware('can:laboratory.components.rft form.add');
 
+    // Page layout metadata (slots + buttons) for selected target routes
+    Route::get('/page-layout', 'SubmissionFormController@getPageLayout')->name('page-layout');
+
     // Dynamic Options for Custom Elements (must be before /{submissionForm} route)
     Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options')->middleware('can:submission-forms.access');
     Route::get('/user-signature', 'SubmissionFormController@getUserSignature')->name('user-signature')->middleware('can:submission-forms.access');
@@ -750,6 +761,8 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
 
         // Form creation routes
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create')->middleware('can:submission-forms.submit');
+        Route::post('/{submissionForm}', 'FormInstanceController@store')->name('store')->middleware('can:submission-forms.submit');
+        Route::post('/{submissionForm}/launch-inline', 'FormInstanceController@launchInline')->name('launch-inline')->middleware('can:submission-forms.submit');
         Route::post('/{submissionForm}', 'FormInstanceController@store')->name('store')->middleware('can:submission-forms.submit');
 
         // Sample creation / sync (numeric {instance} only; register before generic /{submissionForm}/{instance} routes)

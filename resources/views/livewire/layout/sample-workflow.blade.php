@@ -40,11 +40,14 @@ $items = [
 ];
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
+	<div data-sf-slot="after_breadcrumb"></div>
+	<div data-sf-slot="before_workflow_table"></div>
 
 	@livewire('sampleworkflow.workflow-board', [
 		'status' => $status,
 		'initialFilters' => $initialFilters ?? [],
 	])
+	<div data-sf-slot="after_workflow_table"></div>
 </main>
 @endsection
 @section('script2')

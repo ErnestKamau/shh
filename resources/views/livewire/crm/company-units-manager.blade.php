@@ -64,19 +64,19 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditUnitModal({{ $unit->id }})" 
+                                                    <button wire:click="showEditUnitModal('{{ $unit->id }}')" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
                                                             title="{{ __('crm.edit') }}"
                                                             wire:loading.attr="disabled" 
-                                                            wire:target="showEditUnitModal({{ $unit->id }})">
-                                                        <span wire:loading.remove wire:target="showEditUnitModal({{ $unit->id }})">
+                                                            wire:target="showEditUnitModal('{{ $unit->id }}')">
+                                                        <span wire:loading.remove wire:target="showEditUnitModal('{{ $unit->id }}')">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </span>
                                                         <span wire:loading wire:target="showEditUnitModal({{ $unit->id }})">
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.opening_form') }}
                                                         </span>
                                                     </button>
-                                                    <button wire:click="deleteUnit({{ $unit->id }})" 
+                                                    <button wire:click="deleteUnit('{{ $unit->id }}')" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="{{ __('crm.delete') }}"
                                                             wire:loading.attr="disabled"

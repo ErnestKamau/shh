@@ -9,6 +9,7 @@ use App\SampleHeader;
 use App\Services\SampleCreationService;
 use App\Services\SubmissionFormPdfService;
 use App\SampleDate;
+use App\SampleAnalysisStage;
 use App\AnalysisType;
 use App\AnalysisElements;
 use App\SampleAnalysisTypeRelationView;
@@ -77,7 +78,10 @@ class SampleCreationController extends Controller
                 }
             }
 
-            $instance->load('submissionForm');
+            $instance->load(['submissionForm.sampleAnalysisStages']);
+
+            $destinationStatus = $this->resolveDestinationStatus($instance);
+            $forceClientOrder = (bool) optional($instance->submissionForm)->is_customer_portal_form;
 
             $createdBatches = [];
 
@@ -95,7 +99,13 @@ class SampleCreationController extends Controller
 
 
                 // Create sample header using our custom method with batch count
-                $sampleHeader = $this->createSampleHeader($batch['sample_header'], $instance->id, $totalBatchCount);
+                $sampleHeader = $this->createSampleHeader(
+                    $batch['sample_header'],
+                    $instance->id,
+                    $totalBatchCount,
+                    $destinationStatus,
+                    $forceClientOrder
+                );
 
                 // Update the sample header with the instance ID
                 $sampleHeader->submission_form_instance_id = $instance->id;
@@ -225,7 +235,13 @@ class SampleCreationController extends Controller
     /**
      * Create a sample header directly
      */
-    private function createSampleHeader(array $sampleHeaderData, $submissionFormInstanceId = null, $batchCount = 1)
+    private function createSampleHeader(
+        array $sampleHeaderData,
+        $submissionFormInstanceId = null,
+        $batchCount = 1,
+        string $destinationStatus = 'Samples In Lab',
+        bool $forceClientOrder = false
+    )
     {
         // Helper function to get single value from array or return the value itself
         $getSingleValue = function ($value) {
@@ -285,6 +301,15 @@ class SampleCreationController extends Controller
         // Generate batch code with smart logic
         $batchCode = $this->generateBatchCode($sampleHeaderData, $submissionFormInstanceId, $batchCount);
 
+        $isClientOrder = $getIntegerValue($sampleHeaderData['is_client_order'] ?? 0);
+        if ($forceClientOrder) {
+            $isClientOrder = 1;
+        }
+
+        $trackingStage = SampleAnalysisStage::where('sample_workflow', $destinationStatus)
+            ->orderBy('level', 'asc')
+            ->first();
+
         // Create the sample header
         $sampleHeader = new SampleHeader();
         Log::info('Sample header data', [
@@ -318,14 +343,15 @@ class SampleCreationController extends Controller
             'reference_number' => $getSingleValue($sampleHeaderData['reference_number'] ?? 'n/a'),
             'is_routine' => $getIntegerValue($sampleHeaderData['is_routine'] ?? 0),
             'routine_frequency' => $getIntegerValue($sampleHeaderData['routine_frequency'] ?? 0),
-            'is_client_order' => $getIntegerValue($sampleHeaderData['is_client_order'] ?? 0),
+            'is_client_order' => $isClientOrder,
             'submit_by' => $getSingleValue($sampleHeaderData['submit_by'] ?? ''),
             'crm_unit_name' => $crmUnitName,
             'crm_unit_id' => $crmUnitId,
             'lab_capable' => 1,
             'client_instruction_clear' => 1,
 
-            'status' => 'Samples In Lab',
+            'status' => $destinationStatus,
+            'sample_tracking_stage' => $trackingStage->id ?? null,
             'radio_active_levels' => date('H:i:s', strtotime($getSingleValue($sampleHeaderData['radio_active_levels'] ?? now()->format('Y-m-d H:i:s')) ?? '')),
             'submission_form_instance_id' => null, // Will be set by the calling method
         ]);
@@ -1375,6 +1401,70 @@ class SampleCreationController extends Controller
                 'date' => $date,
             ]
         );
+    }
+
+    private function resolveDestinationStatus(SubmissionFormInstance $instance): string
+    {
+        $submissionForm = $instance->submissionForm;
+
+        if (!$submissionForm) {
+            return 'Samples In Lab';
+        }
+
+        $destinationPages = array_values(array_filter((array) $submissionForm->lims_destination_pages));
+        foreach ($destinationPages as $pageName) {
+            $mappedStatus = $this->mapDestinationPageToStatus((string) $pageName);
+            if ($mappedStatus !== null) {
+                return $mappedStatus;
+            }
+        }
+
+        $stageStatus = $submissionForm->sampleAnalysisStages()
+            ->orderBy('level', 'asc')
+            ->pluck('sample_workflow')
+            ->filter()
+            ->first();
+
+        if (!empty($stageStatus)) {
+            return (string) $stageStatus;
+        }
+
+        if ($submissionForm->is_customer_portal_form) {
+            return 'Samples En-Route';
+        }
+
+        return 'Samples In Lab';
+    }
+
+    private function mapDestinationPageToStatus(string $pageName): ?string
+    {
+        $value = strtolower(trim($pageName));
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (str_contains($value, 'en-route') || str_contains($value, 'en_route') || str_contains($value, 'enroute')) {
+            return 'Samples En-Route';
+        }
+
+        if (str_contains($value, 'reception')) {
+            return 'Samples Reception';
+        }
+
+        if (str_contains($value, 'request') && str_contains($value, 'review')) {
+            return 'Samples Request Review';
+        }
+
+        if (str_contains($value, 'in-lab') || str_contains($value, 'in_lab') || str_contains($value, 'inlab')) {
+            return 'Samples In Lab';
+        }
+
+        if ($value === 'sample-workflow' || $value === 'sample-workflow-stage') {
+            return 'Samples En-Route';
+        }
+
+        return null;
     }
 
     /**

@@ -46,17 +46,10 @@
             <div class="card-body">
               <form method="POST" action="{{ route('submission-forms.store') }}">
                 @csrf
-                
+
                 <div class="form-group">
                   <label for="name" class="required">Form Name</label>
-                  <input type="text" 
-                         class="form-control @error('name') is-invalid @enderror" 
-                         id="name" 
-                         name="name" 
-                         value="{{ old('name') }}" 
-                         required 
-                         maxlength="255"
-                         placeholder="Enter a descriptive name for your form">
+                  <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name') }}" required maxlength="255" placeholder="Enter a descriptive name for your form">
                   @error('name')
                     <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
@@ -73,14 +66,7 @@
                   <div class="col-md-4">
                     <div class="form-group">
                       <label for="document_code" class="required">Document Control Number</label>
-                      <input type="text" 
-                             class="form-control @error('document_code') is-invalid @enderror" 
-                             id="document_code" 
-                             name="document_code" 
-                             value="{{ old('document_code') }}" 
-                             required
-                             maxlength="50"
-                             placeholder="e.g. FM/QA/047">
+                      <input type="text" class="form-control @error('document_code') is-invalid @enderror" id="document_code" name="document_code" value="{{ old('document_code') }}" required maxlength="50" placeholder="e.g. FM/QA/047">
                       @error('document_code')
                         <div class="invalid-feedback">{{ $message }}</div>
                       @enderror
@@ -89,14 +75,7 @@
                   <div class="col-md-4">
                     <div class="form-group">
                       <label for="version" class="required">Revision Number</label>
-                      <input type="text" 
-                             class="form-control @error('version') is-invalid @enderror" 
-                             id="version" 
-                             name="version" 
-                             value="{{ old('version') }}" 
-                             required 
-                             maxlength="50"
-                             placeholder="e.g. 01">
+                      <input type="text" class="form-control @error('version') is-invalid @enderror" id="version" name="version" value="{{ old('version', '1.0') }}" required maxlength="50" placeholder="e.g. 01">
                       @error('version')
                         <div class="invalid-feedback">{{ $message }}</div>
                       @enderror
@@ -105,12 +84,7 @@
                   <div class="col-md-4">
                     <div class="form-group">
                       <label for="issue_date" class="required">Issue Date</label>
-                      <input type="date" 
-                             class="form-control @error('issue_date') is-invalid @enderror" 
-                             id="issue_date" 
-                             name="issue_date" 
-                             value="{{ old('issue_date') }}"
-                             required>
+                      <input type="date" class="form-control @error('issue_date') is-invalid @enderror" id="issue_date" name="issue_date" value="{{ old('issue_date') }}" required>
                       @error('issue_date')
                         <div class="invalid-feedback">{{ $message }}</div>
                       @enderror
@@ -120,144 +94,158 @@
 
                 <div class="form-group">
                   <label for="description">Description</label>
-                  <textarea class="form-control @error('description') is-invalid @enderror" 
-                            id="description" 
-                            name="description" 
-                            rows="3" 
-                            maxlength="1000"
-                            placeholder="Provide a brief description of what this form is used for">{{ old('description') }}</textarea>
+                  <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="3" maxlength="1000" placeholder="Provide a brief description of what this form is used for">{{ old('description') }}</textarea>
                   @error('description')
                     <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
-                  <small class="form-text text-muted">
-                    Optional. This helps users understand the purpose of the form.
-                  </small>
+                  <small class="form-text text-muted">Optional. This helps users understand the purpose of the form.</small>
                 </div>
 
                 <div class="row">
                   <div class="col-md-6">
                     <div class="form-group">
                       <label for="naming_convention_prefix" class="required">Form Number Prefix</label>
-                      <input type="text" 
-                             class="form-control @error('naming_convention_prefix') is-invalid @enderror" 
-                             id="naming_convention_prefix" 
-                             name="naming_convention_prefix" 
-                             value="{{ old('naming_convention_prefix', 'SF') }}" 
-                             required 
-                             maxlength="50"
-                             placeholder="SF">
+                      <input type="text" class="form-control @error('naming_convention_prefix') is-invalid @enderror" id="naming_convention_prefix" name="naming_convention_prefix" value="{{ old('naming_convention_prefix', 'SF') }}" required maxlength="50" placeholder="SF">
                       @error('naming_convention_prefix')
                         <div class="invalid-feedback">{{ $message }}</div>
                       @enderror
-                      <small class="form-text text-muted">
-                        Used to generate unique form numbers (e.g., SF for Submission Form).
-                      </small>
+                      <small class="form-text text-muted">Used to generate unique form numbers (e.g., SF for Submission Form).</small>
                     </div>
                   </div>
                   <div class="col-md-6">
                     <div class="form-group">
                       <label for="naming_convention_format" class="required">Form Number Format</label>
-                      <select class="form-control @error('naming_convention_format') is-invalid @enderror" 
-                              id="naming_convention_format" 
-                              name="naming_convention_format" 
-                              required>
-                        <option value="{prefix}/{year}/{sequence}" {{ old('naming_convention_format') == '{prefix}/{year}/{sequence}' ? 'selected' : '' }}>
-                          SF/2025/001
-                        </option>
-                        <option value="{prefix}-{year}-{sequence}" {{ old('naming_convention_format') == '{prefix}-{year}-{sequence}' ? 'selected' : '' }}>
-                          SF-2025-001
-                        </option>
-                        <option value="{prefix}{year}{sequence}" {{ old('naming_convention_format') == '{prefix}{year}{sequence}' ? 'selected' : '' }}>
-                          SF2025001
-                        </option>
-                        <option value="{prefix}/{sequence}" {{ old('naming_convention_format') == '{prefix}/{sequence}' ? 'selected' : '' }}>
-                          SF/001
-                        </option>
+                      <select class="form-control @error('naming_convention_format') is-invalid @enderror" id="naming_convention_format" name="naming_convention_format" required>
+                        <option value="{prefix}/{year}/{sequence}" {{ old('naming_convention_format', '{prefix}/{year}/{sequence}') == '{prefix}/{year}/{sequence}' ? 'selected' : '' }}>{prefix}/{year}/{sequence}</option>
+                        <option value="{prefix}-{year}-{sequence}" {{ old('naming_convention_format') == '{prefix}-{year}-{sequence}' ? 'selected' : '' }}>{prefix}-{year}-{sequence}</option>
+                        <option value="{prefix}{year}{sequence}" {{ old('naming_convention_format') == '{prefix}{year}{sequence}' ? 'selected' : '' }}>{prefix}{year}{sequence}</option>
+                        <option value="{prefix}/{sequence}" {{ old('naming_convention_format') == '{prefix}/{sequence}' ? 'selected' : '' }}>{prefix}/{sequence}</option>
                       </select>
                       @error('naming_convention_format')
                         <div class="invalid-feedback">{{ $message }}</div>
                       @enderror
-                      <small class="form-text text-muted">
-                        Format for generating unique form instance numbers.
-                      </small>
+                      <small class="form-text text-muted">Format for generating unique form instance numbers.</small>
                     </div>
                   </div>
                 </div>
 
                 <div class="form-group">
                   <label for="print_template_name">Print Template</label>
-                  <select class="form-control @error('print_template_name') is-invalid @enderror" 
-                          id="print_template_name" 
-                          name="print_template_name">
+                  <select class="form-control @error('print_template_name') is-invalid @enderror" id="print_template_name" name="print_template_name">
                     <option value="">Use Default Template</option>
-                    <option value="submission-forms.print.default" {{ old('print_template_name') == 'submission-forms.print.default' ? 'selected' : '' }}>
-                      Default Template
-                    </option>
-                    <option value="submission-forms.print.microbiology" {{ old('print_template_name') == 'submission-forms.print.microbiology' ? 'selected' : '' }}>
-                      Microbiology Template
-                    </option>
-                    <option value="submission-forms.print.serology" {{ old('print_template_name') == 'submission-forms.print.serology' ? 'selected' : '' }}>
-                      Serology Template
-                    </option>
-                    <!-- Add your new template here -->
-                    <option value="submission-forms.print.your-template-name" {{ old('print_template_name') == 'submission-forms.print.your-template-name' ? 'selected' : '' }}>
-                      Your Template Name
-                    </option>
+                    <option value="submission-forms.print.default" {{ old('print_template_name') == 'submission-forms.print.default' ? 'selected' : '' }}>Default Template</option>
+                    <option value="submission-forms.print.microbiology" {{ old('print_template_name') == 'submission-forms.print.microbiology' ? 'selected' : '' }}>Microbiology Template</option>
+                    <option value="submission-forms.print.serology" {{ old('print_template_name') == 'submission-forms.print.serology' ? 'selected' : '' }}>Serology Template</option>
                   </select>
                   @error('print_template_name')
                     <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
-                  <small class="form-text text-muted">
-                    Select a custom print template for this form. If not specified, the default template will be used.
-                  </small>
+                  <small class="form-text text-muted">Select a custom print template for this form. If not specified, the default template will be used.</small>
                 </div>
 
                 <div class="form-group">
                   <label for="sample_analysis_stage_ids">Lab Sections</label>
-                  <select class="form-control select2 @error('sample_analysis_stage_ids') is-invalid @enderror" 
-                          id="sample_analysis_stage_ids" 
-                          name="sample_analysis_stage_ids[]"
-                          multiple>
+                  <select class="form-control select2 @error('sample_analysis_stage_ids') is-invalid @enderror" id="sample_analysis_stage_ids" name="sample_analysis_stage_ids[]" multiple>
+                    @php($selectedStages = old('sample_analysis_stage_ids', []))
                     @foreach($labSections as $section)
-                      <option value="{{ $section->id }}" {{ in_array($section->id, old('sample_analysis_stage_ids', [])) ? 'selected' : '' }}>
-                        {{ $section->name }}
-                      </option>
+                      <option value="{{ $section->id }}" {{ in_array($section->id, $selectedStages) ? 'selected' : '' }}>{{ $section->name }}</option>
                     @endforeach
                   </select>
                   @error('sample_analysis_stage_ids')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
                   @enderror
-                  <small class="form-text text-muted">
-                    Select the lab sections associated with this form.
-                  </small>
+                  <small class="form-text text-muted">Select the lab sections associated with this form.</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="target_pages">Target Pages</label>
+                  <select class="form-control select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
+                    @php($selectedPages = old('target_pages', []))
+                    @foreach($availablePages as $page)
+                      <option value="{{ $page['value'] }}" {{ in_array($page['value'], $selectedPages, true) ? 'selected' : '' }}>{{ $page['label'] }}</option>
+                    @endforeach
+                  </select>
+                  @error('target_pages')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                  @enderror
+                  @error('target_pages.*')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">Select one or more system pages where this form should be used.</small>
                 </div>
 
                 <div class="form-group">
                   <div class="form-check">
-                    <input type="checkbox" 
-                           class="form-check-input" 
-                           id="is_active" 
-                           name="is_active" 
-                           value="1" 
-                           {{ old('is_active', true) ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_active">
-                      Active
-                    </label>
+                    <input class="form-check-input" type="checkbox" id="is_customer_portal_form" name="is_customer_portal_form" value="1" {{ old('is_customer_portal_form') ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_customer_portal_form">Filled only from customer portal</label>
                   </div>
-                  <small class="form-text text-muted">
-                    Inactive forms cannot be used to create new instances.
-                  </small>
+                  <small class="form-text text-muted">If checked, this form can only be submitted via customer portal and will route to LIMS destination page(s).</small>
+                </div>
+
+                <div class="form-group" id="lims-destination-wrapper" style="display:none;">
+                  <label for="lims_destination_pages">LIMS Destination Page(s)</label>
+                  <select class="form-control select2 @error('lims_destination_pages') is-invalid @enderror" id="lims_destination_pages" name="lims_destination_pages[]" multiple>
+                    @foreach($availablePages as $page)
+                      <option value="{{ $page['value'] }}" {{ in_array($page['value'], old('lims_destination_pages', []), true) ? 'selected' : '' }}>{{ $page['label'] }}</option>
+                    @endforeach
+                  </select>
+                  @error('lims_destination_pages')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                  @enderror
+                  @error('lims_destination_pages.*')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">Default destination is Samples En-Route when no page is selected.</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="placement_mode" class="required">How Should The Form Appear?</label>
+                  <select class="form-control @error('placement_mode') is-invalid @enderror" id="placement_mode" name="placement_mode" required>
+                    <option value="button_trigger" {{ old('placement_mode', 'button_trigger') === 'button_trigger' ? 'selected' : '' }}>Open by button/action</option>
+                    <option value="page_section" {{ old('placement_mode') === 'page_section' ? 'selected' : '' }}>Render inside page section</option>
+                  </select>
+                  @error('placement_mode')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">Choose whether users open this form from a page action or fill it directly inside a page section.</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="display_mode" class="required">Display Mode</label>
+                  <select class="form-control @error('display_mode') is-invalid @enderror" id="display_mode" name="display_mode" required>
+                    <option value="expanded" {{ old('display_mode', 'expanded') === 'expanded' ? 'selected' : '' }}>Always visible</option>
+                    <option value="collapsible" {{ old('display_mode') === 'collapsible' ? 'selected' : '' }}>Collapsible</option>
+                  </select>
+                  @error('display_mode')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted"><strong>Always visible</strong>: form content is shown immediately on the page. <strong>Collapsible</strong>: only a header/toggle is shown; users expand it when needed.</small>
+                </div>
+
+                {{-- Advanced Placement: per-page slot / button binding --}}
+                <div id="advanced-placement-section" class="d-none">
+                  <div class="col-12 mt-2 mb-1 px-0">
+                    <h6 class="text-primary font-weight-bold small text-uppercase">
+                      <i class="mdi mdi-map-marker-multiple mr-1"></i> Advanced Placement
+                    </h6>
+                    <p class="text-muted small mb-2">
+                      Fine-tune exactly <em>where</em> on each selected page this form should appear.
+                    </p>
+                  </div>
+                  <div id="placement-pages-container">
+                    {{-- Populated by JS --}}
+                  </div>
+                </div>
+
+                <div class="form-group form-check mt-3">
+                  <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
+                  <label class="form-check-label" for="is_active">Active</label>
+                  <small class="form-text text-muted">Inactive forms cannot be used to create new instances.</small>
                 </div>
 
                 <div class="form-group">
                   <label for="start_submission_number">Start submission from number</label>
-                  <input type="number" 
-                         class="form-control @error('start_submission_number') is-invalid @enderror" 
-                         id="start_submission_number" 
-                         name="start_submission_number" 
-                         value="{{ old('start_submission_number', 1) }}" 
-                         min="1"
-                         placeholder="1">
+                  <input type="number" class="form-control @error('start_submission_number') is-invalid @enderror" id="start_submission_number" name="start_submission_number" value="{{ old('start_submission_number', 1) }}" min="1" placeholder="1">
                   @error('start_submission_number')
                     <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
@@ -343,53 +331,170 @@
 
 @section('script2')
 <script>
-  // Auto-hide alerts after 5 seconds
-  setTimeout(function() {
-    $('.alert').fadeOut('slow');
-  }, 5000);
-
-  // Form validation
-  document.getElementById('name').addEventListener('input', function() {
-    const value = this.value.trim();
-    if (value.length > 0) {
-      this.classList.remove('is-invalid');
-    }
-  });
-
-  // Preview form number format
+  // ── Form number format preview ────────────────────────────────────────────────
   document.getElementById('naming_convention_format').addEventListener('change', function() {
     const prefix = document.getElementById('naming_convention_prefix').value || 'SF';
     const format = this.value;
     const year = new Date().getFullYear();
-    
     let preview = format
       .replace('{prefix}', prefix)
       .replace('{year}', year)
       .replace('{sequence}', '001');
-    
-    // Update the selected option text to show preview
     const selectedOption = this.options[this.selectedIndex];
-    const originalText = selectedOption.textContent;
-    if (!originalText.includes('→')) {
-      // Reset all options first
-      Array.from(this.options).forEach(option => {
-        option.textContent = option.textContent.split(' → ')[0];
-      });
-      // Add preview to selected option
-      selectedOption.textContent = originalText + ' → ' + preview;
-    }
+    const originalText = selectedOption.textContent.split(' → ')[0].trim();
+    Array.from(this.options).forEach(opt => {
+      opt.textContent = opt.textContent.split(' → ')[0].trim();
+    });
+    selectedOption.textContent = originalText + ' → ' + preview;
   });
 
-  // Update preview when prefix changes
   document.getElementById('naming_convention_prefix').addEventListener('input', function() {
     document.getElementById('naming_convention_format').dispatchEvent(new Event('change'));
+  });
+
+  // ── Advanced Placement ────────────────────────────────────────────────────────
+  const pageLayoutUrl = '{{ route('submission-forms.page-layout') }}';
+  const oldPlacementSlot    = @json(old('placement_slot', []));
+  const oldTriggerButtonIds = @json(old('trigger_button_ids', []));
+
+  function getSelectedRoutes() {
+    return $('#target_pages').val() || [];
+  }
+
+  function getPlacementMode() {
+    return $('#placement_mode').val();
+  }
+
+  function toggleLimsDestinationVisibility() {
+    const isPortal = $('#is_customer_portal_form').is(':checked');
+    if (isPortal) {
+      $('#lims-destination-wrapper').show();
+      return;
+    }
+
+    $('#lims-destination-wrapper').hide();
+    $('#lims_destination_pages').val(null).trigger('change');
+  }
+
+  function refreshAdvancedPlacement() {
+    const routes = getSelectedRoutes();
+    const mode   = getPlacementMode();
+    const $section   = $('#advanced-placement-section');
+    const $container = $('#placement-pages-container');
+
+    if (routes.length === 0) {
+      $section.addClass('d-none');
+      $container.empty();
+      return;
+    }
+
+    // Build query string
+    const qs = routes.map(r => 'routes[]=' + encodeURIComponent(r)).join('&');
+
+    $.get(pageLayoutUrl + '?' + qs, function(resp) {
+      if (!resp.success) return;
+      $container.empty();
+      const layout = resp.layout;
+
+      routes.forEach(function(route) {
+        const info = layout[route] || { label: route, slots: [], buttons: [] };
+        const $card = buildPageCard(route, info, mode);
+        $container.append($card);
+      });
+
+      $section.removeClass('d-none');
+    });
+  }
+
+  function buildPageCard(route, info, mode) {
+    const $card = $('<div class="card border-left border-primary mb-3 shadow-sm">');
+    const $header = $('<div class="card-header py-2 d-flex align-items-center">').html(
+      '<i class="mdi mdi-file-document-outline mr-2 text-primary"></i>' +
+      '<strong class="mr-1">' + escapeHtml(info.label) + '</strong>' +
+      '<small class="text-muted">(' + escapeHtml(route) + ')</small>'
+    );
+    const $body = $('<div class="card-body py-3">');
+
+    if (mode === 'page_section') {
+      $body.append(buildSlotPicker(route, info.slots));
+    } else {
+      $body.append(buildButtonPicker(route, info.buttons));
+    }
+
+    return $card.append($header).append($body);
+  }
+
+  function buildSlotPicker(route, slots) {
+    const savedSlotId = (oldPlacementSlot[route] && oldPlacementSlot[route]['slot_id']) || '';
+    let optionsHtml = '<option value="">— Default position (top of page) —</option>';
+    (slots || []).forEach(function(s) {
+      const sel = savedSlotId === s.id ? ' selected' : '';
+      optionsHtml += '<option value="' + escapeHtml(s.id) + '"' + sel + '>' + escapeHtml(s.label) + '</option>';
+    });
+
+    return $('<div class="form-group mb-0">').html(
+      '<label class="small font-weight-bold"><i class="mdi mdi-map-marker mr-1"></i>Where on this page should the form appear?</label>' +
+      '<select class="form-control form-control-sm" name="placement_slot[' + escapeHtml(route) + '][slot_id]">' +
+        optionsHtml +
+      '</select>' +
+      '<small class="form-text text-muted">Select the exact position on the page where this form will be embedded.</small>'
+    );
+  }
+
+  function buildButtonPicker(route, buttons) {
+    const savedButtons = (oldTriggerButtonIds && oldTriggerButtonIds[route]) || [];
+
+    if (!buttons || buttons.length === 0) {
+      return $('<div class="alert alert-light border small py-2 mb-0">').html(
+        '<i class="mdi mdi-information-outline mr-1 text-info"></i>' +
+        'No specific buttons are registered for this page. The form will appear in the global <strong>Page Forms</strong> dropdown.'
+      );
+    }
+
+    let optionsHtml = '';
+    buttons.forEach(function(b) {
+      const sel = savedButtons.includes(b.trigger_id) ? ' selected' : '';
+      optionsHtml += '<option value="' + escapeHtml(b.trigger_id) + '"' + sel + '>' + escapeHtml(b.label) + '</option>';
+    });
+
+    return $('<div class="form-group mb-0">').html(
+      '<label class="small font-weight-bold"><i class="mdi mdi-gesture-tap mr-1"></i>Which button(s) should open this form?</label>' +
+      '<select class="form-control form-control-sm select2-btn-picker" name="trigger_button_ids[' + escapeHtml(route) + '][]" multiple>' +
+        optionsHtml +
+      '</select>' +
+      '<small class="form-text text-muted">Select one or more buttons. If none selected, the form appears in the global <strong>Page Forms</strong> dropdown.</small>'
+    );
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Wire up listeners
+  $('#target_pages, #placement_mode').on('change', refreshAdvancedPlacement);
+
+  // Delegate select2 init to dynamically added selects
+  $(document).on('DOMNodeInserted', '#placement-pages-container', function() {
+    $('#placement-pages-container .select2-btn-picker').not('.select2-hidden-accessible').select2({
+      placeholder: 'Any button (global Page Forms dropdown)',
+      allowClear: true,
+      width: '100%',
+    });
+  });
+
+  // Trigger on load if old values were restored after validation failure
+  $(function() {
+    if (getSelectedRoutes().length > 0) {
+      refreshAdvancedPlacement();
+    }
+
+    toggleLimsDestinationVisibility();
+    $('#is_customer_portal_form').on('change', toggleLimsDestinationVisibility);
   });
 </script>
 
 <style>
-  .required::after {
-    content: " *";
-    color: red;
-  }
+  .required::after { content: " *"; color: red; }
+  #advanced-placement-section .card { border-left-width: 3px !important; }
 </style>
 @endsection

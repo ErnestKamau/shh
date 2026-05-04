@@ -83,19 +83,19 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditContactModal({{ $contact->id }})" 
+                                                    <button wire:click="showEditContactModal('{{ $contact->id }}')" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
                                                             title="{{ __('crm.edit') }}"
                                                             wire:loading.attr="disabled"
-                                                            wire:target="showEditContactModal({{ $contact->id }})">
-                                                        <span wire:loading.remove wire:target="showEditContactModal({{ $contact->id }})">
+                                                            wire:target="showEditContactModal('{{ $contact->id }}')">
+                                                        <span wire:loading.remove wire:target="showEditContactModal('{{ $contact->id }}')">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </span>
-                                                        <span wire:loading wire:target="showEditContactModal({{ $contact->id }})">
+                                                        <span wire:loading wire:target="showEditContactModal('{{ $contact->id }}')">
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
                                                         </span>
                                                     </button>
-                                                    <button wire:click="deleteContact({{ $contact->id }})" 
+                                                    <button wire:click="deleteContact('{{ $contact->id }}')" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="{{ __('crm.delete') }}"
                                                             wire:loading.attr="disabled"
@@ -104,7 +104,7 @@
                                                         <span wire:loading.remove wire:target="deleteContact({{ $contact->id }})">
                                                             <i class="mdi mdi-delete"></i>
                                                         </span>
-                                                        <span wire:loading wire:target="deleteContact({{ $contact->id }})">
+                                                        <span wire:loading wire:target="deleteContact('{{ $contact->id }}')">
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
                                                         </span>
                                                     </button>

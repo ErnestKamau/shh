@@ -12,10 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         // inventory_departments.location_id: integer → varchar(255)
-        DB::statement('ALTER TABLE inventory_departments ALTER COLUMN location_id TYPE varchar(255) USING NULL');
+        DB::statement('ALTER TABLE inventory_departments ALTER COLUMN location_id DROP NOT NULL');
+        DB::statement('ALTER TABLE inventory_departments ALTER COLUMN location_id TYPE varchar(255) USING location_id::varchar');
 
         // users.location_id: integer → varchar(255)
-        DB::statement('ALTER TABLE users ALTER COLUMN location_id TYPE varchar(255) USING NULL');
+        DB::statement('ALTER TABLE users ALTER COLUMN location_id TYPE varchar(255) USING location_id::varchar');
+
+        // users.department_id: integer → varchar(255)
+        DB::statement('ALTER TABLE users ALTER COLUMN department_id TYPE varchar(255) USING department_id::varchar');
     }
 
     public function down(): void

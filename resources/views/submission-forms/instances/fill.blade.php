@@ -90,11 +90,12 @@
                     @if($section->isRowsSection())
                       @include('submission-forms.partials.rows-section', ['section' => $section])
                     @else
-                      <div class="form-section mb-4">
-                        <div class="section-header mb-3">
+                                            <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
+                                                <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
                           <h5 class="text-primary border-bottom pb-2">
                             <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
                           </h5>
+                                                    @include('submission-forms.partials.section-logos', ['section' => $section])
                           @if($section->description)
                             <p class="text-muted small mb-0">{{ $section->description }}</p>
                           @endif

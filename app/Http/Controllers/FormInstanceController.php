@@ -63,6 +63,11 @@ class FormInstanceController extends Controller
      */
     public function create(SubmissionForm $submissionForm)
     {
+        if ($submissionForm->is_customer_portal_form && request()->routeIs('submission-forms.instances.create')) {
+            return redirect()->route('submission-forms.index')
+                ->with('error', 'This form is configured for customer portal submissions only.');
+        }
+
         // Check if user can create instances for this form
         if (!$submissionForm->isPublishedAndActive()) {
             return redirect()->back()->with('error', 'This form is not available for submission.');
@@ -86,6 +91,10 @@ class FormInstanceController extends Controller
         // Check if user can create instances for this form
         if (!$submissionForm->isPublishedAndActive()) {
             return redirect()->back()->with('error', 'This form is not available for submission.');
+        }
+
+        if ($submissionForm->is_customer_portal_form && auth()->check()) {
+            return redirect()->back()->with('error', 'This form can only be submitted from the customer portal.');
         }
 
         // Determine if this is a public submission
@@ -119,12 +128,114 @@ class FormInstanceController extends Controller
     }
 
     /**
+     * Launch form filling inline (no navigation to create-instance page).
+     * Creates a draft instance and returns the fill URL as JSON.
+     */
+    public function launchInline(Request $request, SubmissionForm $submissionForm)
+    {
+        if (!$submissionForm->isPublishedAndActive()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This form is not available for submission.',
+            ], 422);
+        }
+
+        if (!auth()->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required.',
+            ], 401);
+        }
+
+        $title = trim((string) $request->input('title', ''));
+        if ($title === '') {
+            $title = $submissionForm->name . ' - ' . now()->format('Y-m-d H:i');
+        }
+
+        $instance = SubmissionFormInstance::create([
+            'submission_form_id' => $submissionForm->id,
+            'form_number' => null,
+            'sequence_number' => null,
+            'title' => $title,
+            'submitted_by' => auth()->id(),
+            'status' => 'draft',
+            'priority' => 'normal',
+            'due_date' => null,
+        ]);
+
+        $instance->logAction('created', auth()->user());
+
+        return response()->json([
+            'success' => true,
+            'instance_id' => $instance->id,
+            'fill_url' => route('submission-forms.instances.fill-sample', [
+                'submissionForm' => $submissionForm,
+                'instance' => $instance,
+            ]),
+        ]);
+    }
+
+    /**
      * Display the form for filling out
      */
+    protected function canAccessForms(): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+        if (method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) {
+            return true;
+        }
+        // Spatie permission check
+        if ($user->can('Laboratory.components.RFT Form.View') || $user->can('Laboratory.permission')) {
+            return true;
+        }
+        // Legacy role check: any role the user holds that grants Laboratory access
+        $userRoles = \Illuminate\Support\Facades\DB::table('user_roles')
+            ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+            ->where('user_roles.user_id', $user->id)
+            ->get(['roles.name', 'roles.permissions']);
+
+        foreach ($userRoles as $role) {
+            $lower = strtolower($role->name ?? '');
+            if (in_array($lower, ['admin', 'super admin', 'super-admin', 'system admin', 'system-admin', 'sample reception'], true)) {
+                return true;
+            }
+            // Check legacy JSON permissions for Laboratory access
+            $perms = json_decode($role->permissions ?? '{}', true);
+            if (! is_array($perms)) {
+                continue;
+            }
+            $labPerms = $perms['Laboratory'] ?? null;
+            if (! is_array($labPerms)) {
+                continue;
+            }
+            // Module-level permission flag
+            $flag = $labPerms['permission'] ?? null;
+            if ($flag === true || $flag === 1 || $flag === '1' || strtolower((string) $flag) === 'true') {
+                return true;
+            }
+            // Component-level: RFT Form View
+            $rftView = $labPerms['components']['RFT Form']['View'] ?? null;
+            if ($rftView === true || $rftView === 1 || $rftView === '1' || strtolower((string) $rftView) === 'true') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function fill(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to access this form instance.');
+        if ($submissionForm->is_customer_portal_form) {
+            abort(403, 'This form can only be filled from the customer portal.');
+        }
+
+        // Allow access if user has RFT Form permission or is admin
+        if (! $this->canAccessForms()) {
+            abort(403, 'You are not authorized to access this form instance.');
+        }
 
         // Check if form is still available
         if (!$submissionForm->isPublishedAndActive()) {
@@ -150,9 +261,10 @@ class FormInstanceController extends Controller
 
         // Load existing values
         $existingValues = $instance->values()->with('element')->get();
-        $use_lab_layout = 1;
+        $inline = request()->boolean('inline') || request()->header('Sec-Fetch-Dest') === 'iframe';
+        $use_lab_layout = $inline ? 0 : 1;
 
-        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues', 'use_lab_layout', 'allowedSampleTypeIds'));
+        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues', 'use_lab_layout', 'allowedSampleTypeIds', 'inline'));
 
         // return view('submission-forms.instances.fill', compact('submissionForm', 'instance', 'existingValues'));
     }
@@ -162,8 +274,14 @@ class FormInstanceController extends Controller
      */
     public function fillSample(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to access this form instance.');
+        if ($submissionForm->is_customer_portal_form) {
+            abort(403, 'This form can only be filled from the customer portal.');
+        }
+
+        // Allow access if user has RFT Form permission or is admin
+        if (! $this->canAccessForms()) {
+            abort(403, 'You are not authorized to access this form instance.');
+        }
 
         // Check if form is still available
         if (!$submissionForm->isPublishedAndActive()) {
@@ -190,7 +308,9 @@ class FormInstanceController extends Controller
         // Load existing values
         $existingValues = $instance->values()->with('element')->get();
 
-        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues', 'allowedSampleTypeIds'));
+        $inline = request()->boolean('inline') || request()->header('Sec-Fetch-Dest') === 'iframe';
+
+        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues', 'allowedSampleTypeIds', 'inline'));
     }
 
     /**
@@ -198,8 +318,16 @@ class FormInstanceController extends Controller
      */
     public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to update this form instance.');
+        if ($submissionForm->is_customer_portal_form) {
+            abort(403, 'This form can only be submitted from the customer portal.');
+        }
+
+        $user = auth()->user();
+
+        // Allow update if user has RFT Form permission or is admin
+        if (! $this->canAccessForms()) {
+            abort(403, 'You are not authorized to update this form instance.');
+        }
 
 
         // Check if instance can be updated
@@ -289,10 +417,7 @@ class FormInstanceController extends Controller
      */
     public function applyToBatches(int $instance, SubmissionFormBatchSyncService $syncService): \Illuminate\Http\RedirectResponse
     {
-        /** @var \App\User $user */
-        $user = Auth::user();
-
-        if (! $user->hasRole('Sample Reception') && ! $user->hasRole('admin')) {
+        if (! $this->canAccessForms()) {
             abort(403, 'You are not allowed to update linked batches from this form.');
         }
 
@@ -343,21 +468,9 @@ class FormInstanceController extends Controller
      */
     public function show(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to view this form instance.');
-
-        // Lab intake feature is optional in some deployments.
-        // Only eager-load intake relations when the model actually exposes them.
-        if (method_exists($instance, 'labIntakeCase')) {
-            $instance->load([
-                'labIntakeCase.attachments',
-                'labIntakeCase.bookingEvent',
-                'labIntakeCase.zone',
-                'labIntakeCase.directorate',
-                'labIntakeCase.acceptedBatch',
-                'labIntakeCase.confirmedByUser',
-                'labIntakeCase.decisionByUser',
-            ]);
+        // Allow view if user has RFT Form permission or is admin
+        if (! $this->canAccessForms()) {
+            abort(403, 'You are not authorized to view this form instance.');
         }
 
         // Load form with all relationships
@@ -430,8 +543,10 @@ class FormInstanceController extends Controller
      */
     public function print(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to print this form instance.');
+        // Allow print if user has RFT Form permission or is admin
+        if (! $this->canAccessForms()) {
+            abort(403, 'You are not authorized to print this form instance.');
+        }
 
         // Load form with all relationships
         $submissionForm->load([
@@ -472,8 +587,12 @@ class FormInstanceController extends Controller
      */
     public function edit(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
-        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to edit this form instance.');
+        $user = auth()->user();
+
+        // Allow edit if user has RFT Form permission or is admin
+        if (! $this->canAccessForms()) {
+            abort(403, 'You are not authorized to edit this form instance.');
+        }
 
         // Check if instance can be edited
         if (!$instance->isDraft()) {

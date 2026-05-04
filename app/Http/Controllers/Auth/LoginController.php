@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Services\Auth\LegacyPermissionSyncService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\MailController as Mailers;
 use App\Http\Controllers\Controller;
@@ -47,6 +48,7 @@ class LoginController extends Controller
 				Session::put('totp_required', true);
 				return;
 			}
+      app(LegacyPermissionSyncService::class)->syncUser($user);
 
 			$user->generateTwoFactorCode();
             $app_name = env('APP_NAME', 'FIVET LIMS');

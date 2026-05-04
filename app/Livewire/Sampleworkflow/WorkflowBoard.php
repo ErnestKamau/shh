@@ -14,8 +14,12 @@ use App\SampleType;
 use App\Models\System\SystemConfiguration;
 use App\User;
 use App\Models\SubmissionFormInstance;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Throwable;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -81,7 +85,7 @@ class WorkflowBoard extends Component
      */
     public bool $initialLoadComplete = false;
 
-    public ?int $selectedPortalAccessRequestId = null;
+    public ?string $selectedPortalAccessRequestId = null;
     public bool $notifyRejectedClient = true;
     public string $portalRejectionReason = '';
 
@@ -147,17 +151,47 @@ class WorkflowBoard extends Component
     protected function loadReferenceData(): void
     {
         $this->labsections = SampleAnalysisStage::where('active', 1)->orderBy('name')->get();
-        $this->zohoItems = InventorySubCategories::orderBy('name')->get();
+        $this->zohoItems = InventorySubCategories::orderBy('name', 'asc')->get();
 
-        $this->analysts = User::role('Laboratory Analyst')
-            ->where('active', 1)
-            ->where('is_support_staff', 0)
-            ->orderBy('name')
-            ->get();
+        $analystRoleNames = ['laboratory analyst', 'analyst'];
+        $driver = DB::connection()->getDriverName();
+        $userIdColumn = $driver === 'pgsql' ? DB::raw('id::text') : 'id';
 
-        $this->users = User::where('is_client', 0)
-            ->where('supplier_id', 0)
-            ->where('active', 1)
+        $analystUserIds = DB::table('spatie_model_has_roles as smr')
+            ->join('spatie_roles as sr', 'sr.id', '=', 'smr.role_id')
+            ->where('smr.model_type', User::class)
+            ->where('sr.guard_name', 'web')
+            ->where(function ($query) use ($analystRoleNames) {
+                foreach ($analystRoleNames as $roleName) {
+                    $query->orWhereRaw('LOWER(sr.name) = ?', [$roleName]);
+                }
+            })
+            ->pluck('smr.model_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->analysts = empty($analystUserIds)
+            ? collect()
+            : User::query()
+                ->where('active', 1)
+                ->where('is_support_staff', 0)
+                ->whereIn($userIdColumn, $analystUserIds)
+                ->orderBy('name')
+                ->get();
+
+        $usersQuery = User::query()
+            ->where('is_client', 0)
+            ->where('active', 1);
+
+        if ($driver === 'pgsql') {
+            $usersQuery->whereNull('supplier_id');
+        } else {
+            $usersQuery->where('supplier_id', 0);
+        }
+
+        $this->users = $usersQuery
             ->orderBy('name')
             ->get();
 
@@ -306,21 +340,84 @@ class WorkflowBoard extends Component
      */
     public function getPortalAccessRequestsProperty()
     {
-        return PortalAccessRequest::query()
-            ->latest()
-            ->paginate(10, ['*'], 'access_requests_page');
+        $perPage = 10;
+        $page = LengthAwarePaginator::resolveCurrentPage('access_requests_page');
+
+        try {
+            $response = Http::timeout(20)
+                ->acceptJson()
+                ->withHeaders(['X-Relay-Key' => $this->portalRelaySharedKey()])
+                ->get($this->portalAuthApiBaseUrl().'/api/v1/auth/access-requests', [
+                    'page' => $page,
+                    'per_page' => $perPage,
+                ]);
+
+            if ($response->failed()) {
+                return $this->emptyPortalAccessRequestsPaginator($perPage, $page);
+            }
+
+            $data = (array) $response->json();
+            $rows = collect((array) ($data['data'] ?? []))
+                ->map(function ($row) {
+                    $row = (array) $row;
+
+                    if (! empty($row['created_at'])) {
+                        $row['created_at'] = Carbon::parse((string) $row['created_at']);
+                    }
+
+                    if (! empty($row['reviewed_at'])) {
+                        $row['reviewed_at'] = Carbon::parse((string) $row['reviewed_at']);
+                    }
+
+                    return (object) $row;
+                });
+
+            $meta = (array) ($data['meta'] ?? []);
+            $total = (int) ($meta['total'] ?? $rows->count());
+
+            return new LengthAwarePaginator(
+                $rows,
+                $total,
+                $perPage,
+                $page,
+                [
+                    'path' => request()->url(),
+                    'pageName' => 'access_requests_page',
+                ]
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->emptyPortalAccessRequestsPaginator($perPage, $page);
+        }
     }
 
-    public function approvePortalAccessRequest(int $id): void
+    public function approvePortalAccessRequest(string $id): void
     {
-        $request = PortalAccessRequest::query()->findOrFail($id);
+        $requestData = $this->fetchPortalAccessRequest($id);
 
-        if ($request->status !== 'pending') {
+        if (! $requestData) {
+            session()->flash('error', 'Access request not found in portal API.');
+            return;
+        }
+
+        if (($requestData['status'] ?? '') !== 'pending') {
             session()->flash('error', 'This access request has already been reviewed.');
             return;
         }
 
         try {
+            $request = new PortalAccessRequest([
+                'full_name_or_organisation_enc' => (string) ($requestData['full_name_or_organisation'] ?? ''),
+                'address_enc' => (string) ($requestData['address'] ?? ''),
+                'zone' => (string) ($requestData['zone'] ?? ''),
+                'tin_number_enc' => (string) ($requestData['tin_number'] ?? ''),
+                'email_enc' => (string) ($requestData['email'] ?? ''),
+                'phone_number_enc' => (string) ($requestData['phone_number'] ?? ''),
+                'postal_code' => (string) ($requestData['postal_code'] ?? ''),
+                'status' => (string) ($requestData['status'] ?? 'pending'),
+            ]);
+
             $service = app(PortalAccessInvitationService::class);
             $invite = $service->createInvite($request, Auth::id());
 
@@ -334,11 +431,16 @@ class WorkflowBoard extends Component
                 (string) $invite['invitation_url'],
             );
 
-            $request->status = 'approved';
-            $request->reviewed_by = Auth::id();
-            $request->reviewed_at = now();
-            $request->review_notes = 'Invite link sent to client email.';
-            $request->save();
+            $marked = Http::timeout(20)
+                ->acceptJson()
+                ->withHeaders(['X-Relay-Key' => $this->portalRelaySharedKey()])
+                ->patch($this->portalAuthApiBaseUrl().'/api/v1/auth/access-requests/'.urlencode($id).'/approve', [
+                    'review_notes' => 'Invite link sent to client email.',
+                ]);
+
+            if ($marked->failed()) {
+                throw new \RuntimeException((string) ($marked->json('message') ?? 'Failed to mark access request as approved.'));
+            }
 
             session()->flash('message', 'Access request approved and invite link sent successfully.');
         } catch (Throwable $e) {
@@ -347,16 +449,21 @@ class WorkflowBoard extends Component
         }
     }
 
-    public function prepareRejectPortalAccessRequest(int $id): void
+    public function prepareRejectPortalAccessRequest(string $id): void
     {
-        $request = PortalAccessRequest::query()->findOrFail($id);
+        $request = $this->fetchPortalAccessRequest($id);
 
-        if ($request->status !== 'pending') {
+        if (! $request) {
+            session()->flash('error', 'Access request not found in portal API.');
+            return;
+        }
+
+        if (($request['status'] ?? '') !== 'pending') {
             session()->flash('error', 'This access request has already been reviewed.');
             return;
         }
 
-        $this->selectedPortalAccessRequestId = $request->id;
+        $this->selectedPortalAccessRequestId = (string) ($request['id'] ?? '');
         $this->notifyRejectedClient = true;
         $this->portalRejectionReason = '';
     }
@@ -368,15 +475,25 @@ class WorkflowBoard extends Component
             return;
         }
 
-        $request = PortalAccessRequest::query()->findOrFail($this->selectedPortalAccessRequestId);
+        $requestData = $this->fetchPortalAccessRequest($this->selectedPortalAccessRequestId);
 
-        if ($request->status !== 'pending') {
+        if (! $requestData) {
+            session()->flash('error', 'Access request not found in portal API.');
+            return;
+        }
+
+        if (($requestData['status'] ?? '') !== 'pending') {
             session()->flash('error', 'This access request has already been reviewed.');
             return;
         }
 
         try {
             if ($this->notifyRejectedClient) {
+                $request = new PortalAccessRequest([
+                    'full_name_or_organisation_enc' => (string) ($requestData['full_name_or_organisation'] ?? ''),
+                    'email_enc' => (string) ($requestData['email'] ?? ''),
+                ]);
+
                 app(PortalAccessInvitationService::class)->sendRejectionEmail(
                     (string) $request->email,
                     (string) $request->full_name_or_organisation,
@@ -384,11 +501,16 @@ class WorkflowBoard extends Component
                 );
             }
 
-            $request->status = 'rejected';
-            $request->reviewed_by = Auth::id();
-            $request->reviewed_at = now();
-            $request->review_notes = $this->portalRejectionReason ?: null;
-            $request->save();
+            $marked = Http::timeout(20)
+                ->acceptJson()
+                ->withHeaders(['X-Relay-Key' => $this->portalRelaySharedKey()])
+                ->patch($this->portalAuthApiBaseUrl().'/api/v1/auth/access-requests/'.urlencode($this->selectedPortalAccessRequestId).'/reject', [
+                    'review_notes' => $this->portalRejectionReason ?: null,
+                ]);
+
+            if ($marked->failed()) {
+                throw new \RuntimeException((string) ($marked->json('message') ?? 'Failed to mark access request as rejected.'));
+            }
 
             $this->selectedPortalAccessRequestId = null;
             $this->notifyRejectedClient = true;
@@ -401,9 +523,49 @@ class WorkflowBoard extends Component
         }
     }
 
-    public function rejectPortalAccessRequest(int $id): void
+    public function rejectPortalAccessRequest(string $id): void
     {
         $this->prepareRejectPortalAccessRequest($id);
+    }
+
+    protected function emptyPortalAccessRequestsPaginator(int $perPage, int $page): LengthAwarePaginator
+    {
+        return new LengthAwarePaginator(
+            collect(),
+            0,
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'pageName' => 'access_requests_page',
+            ]
+        );
+    }
+
+    protected function fetchPortalAccessRequest(string $id): ?array
+    {
+        $response = Http::timeout(20)
+            ->acceptJson()
+            ->withHeaders(['X-Relay-Key' => $this->portalRelaySharedKey()])
+            ->get($this->portalAuthApiBaseUrl().'/api/v1/auth/access-requests/'.urlencode($id));
+
+        if ($response->failed()) {
+            return null;
+        }
+
+        $data = (array) $response->json('data', []);
+
+        return $data === [] ? null : $data;
+    }
+
+    protected function portalAuthApiBaseUrl(): string
+    {
+        return rtrim((string) (config('services.portal_relay.auth_api_base_url') ?: config('app.url')), '/');
+    }
+
+    protected function portalRelaySharedKey(): string
+    {
+        return (string) config('services.portal_relay.shared_key');
     }
 
     protected function baseBatchQuery()
