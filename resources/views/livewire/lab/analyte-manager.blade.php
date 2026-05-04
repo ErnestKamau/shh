@@ -151,12 +151,12 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditModal({{ $analyte->id }})" 
+                                                    <button wire:click="showEditModal('{{ $analyte->id }}')" 
                                                             class="btn btn-sm btn-outline-primary mr-1" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="showDeleteModal({{ $analyte->id }})" 
+                                                    <button wire:click="showDeleteModal('{{ $analyte->id }}')" 
                                                             class="btn btn-sm btn-outline-danger" 
                                                             title="Delete">
                                                         <i class="mdi mdi-delete"></i>

@@ -3,11 +3,16 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Analyte extends Model implements Auditable
 {
+    use HasUuids;
 	use \OwenIt\Auditing\Auditable;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
     
     protected $fillable = [
         'code',
@@ -49,7 +54,10 @@ class Analyte extends Model implements Auditable
 	}
 
 	public function methods(){
-		$methods = AnalysisMethod::whereIn('id', explode(",", $this->method))->get();
+		if (empty($this->method)) return [];
+		$ids = array_filter(explode(",", $this->method));
+		if (empty($ids)) return [];
+		$methods = AnalysisMethod::whereIn('id', $ids)->get();
 		$response = array();
 
 		foreach($methods as $method){
@@ -60,7 +68,10 @@ class Analyte extends Model implements Auditable
 	}
 
 	public function equipments(){
-		$equipments = Models\Equipments\Equipment::whereIn('id', explode(",", $this->equipment_id))->get();
+		if (empty($this->equipment_id)) return [];
+		$ids = array_filter(explode(",", $this->equipment_id));
+		if (empty($ids)) return [];
+		$equipments = Models\Equipments\Equipment::whereIn('id', $ids)->get();
 		$response = array();
 
 		foreach($equipments as $equipment){
