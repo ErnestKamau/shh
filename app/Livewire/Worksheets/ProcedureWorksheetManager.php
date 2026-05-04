@@ -165,6 +165,7 @@ class ProcedureWorksheetManager extends Component
         // because mount() reconciles them to the current active configuration.)
         return CapturedResult::query()
             ->where('captured_results.sample_header_id', $this->batchId)
+            ->whereValidUuidAnalyteId()
             ->whereHas('procedureWorksheet', fn ($q) => $q->where('is_active', true))
             ->with('my_analyte')
             ->get()
@@ -924,12 +925,13 @@ class ProcedureWorksheetManager extends Component
             return collect();
         }
 
-        $activeAnalyteId = (int) $currentAnalyteIds->first();
+        $activeAnalyteId = (string) $currentAnalyteIds->first();
 
         // Get all other captured results in same batch that have a worksheet assigned,
         // grouping by worksheet + analyte combination
         $sources = CapturedResult::query()
             ->where('sample_header_id', $this->batchId)
+            ->whereValidUuidAnalyteId()
             ->whereNotNull('procedure_worksheet_id')
             ->where(function ($q) use ($activeAnalyteId) {
                 $q->where('analyte_id', '!=', $activeAnalyteId)
@@ -1236,7 +1238,12 @@ class ProcedureWorksheetManager extends Component
     protected function getMethodsDatasetOptionsForSelectedSamples(Collection $samples): Collection
     {
         // Derive methods via analytes, since analytes carry method IDs (possibly comma-separated).
-        $analyteIds = $samples->pluck('analyte_id')->filter()->unique()->values();
+        $analyteIds = $samples->pluck('analyte_id')
+            ->filter()
+            ->map(fn($id) => trim((string) $id))
+            ->filter(fn($id) => Str::isUuid($id))
+            ->unique()
+            ->values();
         if ($analyteIds->isEmpty()) {
             return collect();
         }
@@ -1284,6 +1291,7 @@ class ProcedureWorksheetManager extends Component
     {
         return CapturedResult::with('my_analyte')
             ->where('sample_header_id', $this->batchId)
+            ->whereValidUuidAnalyteId()
             ->get()
             ->map(function ($cr) {
                 $name = $cr->my_analyte ? $cr->my_analyte->name : '—';
@@ -1777,7 +1785,7 @@ class ProcedureWorksheetManager extends Component
     /**
      * Import mapped data from another Worksheet/Analyte combo across the same batch samples.
      */
-    public function importDataFromSource(int $sourceWorksheetId, int $fromAnalyteId): void
+    public function importDataFromSource($sourceWorksheetId, $fromAnalyteId): void
     {
         if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             $this->flashType = 'warning';
@@ -1798,22 +1806,22 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        $activeAnalyteId = (int) $currentAnalyteIds->first();
-        $sourceWorksheetId = (int) $sourceWorksheetId;
-        $fromAnalyteId = (int) $fromAnalyteId;
+        $activeAnalyteId = (string) $currentAnalyteIds->first();
+        $sourceWorksheetId = (string) $sourceWorksheetId;
+        $fromAnalyteId = (string) $fromAnalyteId;
 
-        if ($fromAnalyteId === $activeAnalyteId && $sourceWorksheetId === (int)$this->selectedWorksheetId) {
+        if ($fromAnalyteId === $activeAnalyteId && $sourceWorksheetId === (string) $this->selectedWorksheetId) {
             $this->flashType = 'info';
             $this->flashMessage = 'Selected parameter and worksheet is already active; nothing to import.';
             return;
         }
 
         $samples = $this->analysisSamples;
-        $selectedSampleIds = array_map('intval', $this->selectedSamples);
+        $selectedSampleIds = array_map('strval', $this->selectedSamples);
 
         $targetBySample = $samples
-            ->filter(fn($r) => $r->sample && (int) $r->analyte_id === $activeAnalyteId && in_array((int) $r->sample->id, $selectedSampleIds, true))
-            ->keyBy(fn($r) => (int) $r->sample->id);
+            ->filter(fn($r) => $r->sample && (string) $r->analyte_id === $activeAnalyteId && in_array((string) $r->sample->id, $selectedSampleIds, true))
+            ->keyBy(fn($r) => (string) $r->sample->id);
 
         if ($targetBySample->isEmpty()) {
             $this->flashType = 'warning';
@@ -1836,7 +1844,7 @@ class ProcedureWorksheetManager extends Component
 
         $sourceBySample = $sourceResults
             ->filter(fn($r) => $r->sample)
-            ->keyBy(fn($r) => (int) $r->sample->id);
+            ->keyBy(fn($r) => (string) $r->sample->id);
 
         $targetSteps = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)->get();
         if ($targetSteps->isEmpty()) {
@@ -1852,7 +1860,7 @@ class ProcedureWorksheetManager extends Component
         $importedStepIds = [];
 
         foreach ($selectedSampleIds as $sampleId) {
-            $sampleId = (int) $sampleId;
+            $sampleId = (string) $sampleId;
             // Fallback to first source sample if not exactly matched by sample ID
             $sourceCr = $sourceBySample->get($sampleId) ?? $sourceResults->first();
             $targetCr = $targetBySample->get($sampleId);
@@ -1866,7 +1874,7 @@ class ProcedureWorksheetManager extends Component
                 if (!$sourceStepInfo) continue;
 
                 $matchedTarget = $targetSteps->firstWhere('step', $sourceStepInfo->step);
-                if (!$matchedTarget && $this->selectedWorksheetId == $sourceWorksheetId) {
+                if (!$matchedTarget && (string) $this->selectedWorksheetId === $sourceWorksheetId) {
                     $matchedTarget = $targetSteps->firstWhere('id', $srcVal->procedure_worksheet_step_id);
                 }
 

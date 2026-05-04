@@ -6,6 +6,7 @@ use App\Models\System\SystemConfiguration;
 use App\Observers\CapturedObserver;
 use App\BatchAttachment;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use OwenIt\Auditing\Contracts\Auditable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 
@@ -64,6 +65,16 @@ class CapturedResult extends Model implements Auditable
 	public function analysis_type()
 	{
 		return $this->belongsTo('App\AnalysisType');
+	}
+
+	/**
+	 * Guard legacy mixed-ID data by restricting analyte_id to UUID-formatted values.
+	 */
+	public function scopeWhereValidUuidAnalyteId(Builder $query): Builder
+	{
+		return $query
+			->whereNotNull('analyte_id')
+			->whereRaw("analyte_id::text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'");
 	}
 
 	public function my_analyte()

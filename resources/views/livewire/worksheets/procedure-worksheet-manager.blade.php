@@ -243,7 +243,7 @@
                                         </li>
                                         @foreach($this->importableSources as $source)
                                         <li>
-                                            <a class="dropdown-item" href="#" wire:click.prevent="importDataFromSource({{ $source['worksheet_id'] }}, {{ $source['analyte_id'] }})">
+                                            <a class="dropdown-item" href="#" wire:click.prevent="importDataFromSource('{{ (string) $source['worksheet_id'] }}', '{{ (string) $source['analyte_id'] }}')">
                                                 {{ $source['worksheet_name'] }} - {{ $source['analyte_name'] }}
                                             </a>
                                         </li>

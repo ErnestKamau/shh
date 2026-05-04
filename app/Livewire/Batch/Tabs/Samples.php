@@ -241,6 +241,7 @@ class Samples extends Component
     {
         try {
             $rows = CapturedResult::where('sample_header_id', $this->batchId)
+                ->whereValidUuidAnalyteId()
                 ->where(function ($q) {
                     $q->whereNull('result')
                         ->orWhere('result', '=', '')

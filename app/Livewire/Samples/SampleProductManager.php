@@ -21,7 +21,7 @@ class SampleProductManager extends Component
     // Form fields
     public $name = '';
     public $active = true;
-    public $unit = 0; // Keeping unit logic, defaulting to 0 as per controller
+    public $unit = null;
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -70,14 +70,14 @@ class SampleProductManager extends Component
             $product->update([
                 'name' => $this->name,
                 'active' => $this->active ? 1 : 0,
-                'crm_company_unit_id' => $this->unit,
+                'crm_company_unit_id' => $this->unit ?: null,
             ]);
             session()->flash('success', 'Sample Product updated successfully.');
         } else {
             CompanyProduct::create([
                 'name' => $this->name,
                 'active' => $this->active ? 1 : 0,
-                'crm_company_unit_id' => $this->unit,
+                'crm_company_unit_id' => $this->unit ?: null,
             ]);
             session()->flash('success', 'Sample Product created successfully.');
         }
