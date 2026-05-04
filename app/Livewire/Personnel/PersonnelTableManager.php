@@ -29,10 +29,10 @@ class PersonnelTableManager extends Component
     public bool $embedded = false;
 
     public string $search = '';
-    public string $activeTab = 'active';
-    public string $departmentFilter = '';
-    public string $designationFilter = '';
-    public string $licenseFilter = '';
+    public string $activeTab = 'all';
+    public string $zoneFilter = '';
+    public string $directorateFilter = '';
+    public string $labFilter = '';
     public string $employmentDateFrom = '';
     public string $employmentDateTo = '';
     public int $perPage = 25;
@@ -511,17 +511,17 @@ class PersonnelTableManager extends Component
         $this->resetPage();
     }
 
-    public function updatingDepartmentFilter(): void
+    public function updatingZoneFilter(): void
     {
         $this->resetPage();
     }
 
-    public function updatingDesignationFilter(): void
+    public function updatingDirectorateFilter(): void
     {
         $this->resetPage();
     }
 
-    public function updatingLicenseFilter(): void
+    public function updatingLabFilter(): void
     {
         $this->resetPage();
     }
@@ -543,7 +543,7 @@ class PersonnelTableManager extends Component
 
     public function setActiveTab(string $tab): void
     {
-        $this->activeTab = in_array($tab, ['active', 'deactive'], true) ? $tab : 'active';
+        $this->activeTab = in_array($tab, ['all', 'active', 'deactive'], true) ? $tab : 'all';
         $this->resetPage();
     }
 
@@ -555,9 +555,9 @@ class PersonnelTableManager extends Component
     public function clearFilters(): void
     {
         $this->search = '';
-        $this->departmentFilter = '';
-        $this->designationFilter = '';
-        $this->licenseFilter = '';
+        $this->zoneFilter = '';
+        $this->directorateFilter = '';
+        $this->labFilter = '';
         $this->employmentDateFrom = '';
         $this->employmentDateTo = '';
         $this->resetPage();
@@ -615,7 +615,7 @@ class PersonnelTableManager extends Component
     private function buildPersonnelQuery()
     {
         $query = User::query()
-            ->join('inventory_departments as d', function ($join): void {
+            ->leftJoin('inventory_departments as d', function ($join): void {
                 $join->whereRaw('d.id::text = users.department_id');
             })
             ->leftJoin('module_pre_configs as de', function ($join): void {
@@ -630,12 +630,11 @@ class PersonnelTableManager extends Component
                 $join->whereRaw('p.id::text = users.position::text')
                     ->where('p.type', '=', 'Job Description');
             })
-            ->selectRaw('users.*, d.name as department_name, p.name as position, e.name as education, de.name as designation')
-            ->where('users.company_id', getUserCompany());
+            ->selectRaw('users.*, d.name as department_name, p.name as position, e.name as education, de.name as designation');
 
         if ($this->activeTab === 'active') {
             $query->where('users.active', 1);
-        } else {
+        } elseif ($this->activeTab === 'deactive') {
             $query->where('users.active', 0);
         }
 
@@ -653,16 +652,41 @@ class PersonnelTableManager extends Component
             });
         }
 
-        if ($this->departmentFilter !== '') {
-            $query->where('users.department_id', $this->departmentFilter);
+        if ($this->zoneFilter !== '') {
+            $zoneId = $this->zoneFilter;
+
+            $query->where(function ($builder) use ($zoneId): void {
+                $builder->where('users.zone_id', $zoneId);
+
+                if (Schema::hasTable('user_zone_relation')) {
+                    $builder->orWhereExists(function ($subQuery) use ($zoneId): void {
+                        $subQuery->select(DB::raw(1))
+                            ->from('user_zone_relation as uzr')
+                            ->whereColumn('uzr.user_id', 'users.id')
+                            ->where('uzr.zone_id', $zoneId);
+                    });
+                }
+            });
         }
 
-        if ($this->designationFilter !== '') {
-            $query->where('users.designation', $this->designationFilter);
+        if ($this->directorateFilter !== '' && Schema::hasTable('user_directorate_relation')) {
+            $directorateId = $this->directorateFilter;
+            $query->whereExists(function ($subQuery) use ($directorateId): void {
+                $subQuery->select(DB::raw(1))
+                    ->from('user_directorate_relation as udr')
+                    ->whereColumn('udr.user_id', 'users.id')
+                    ->where('udr.directorate_id', $directorateId);
+            });
         }
 
-        if ($this->licenseFilter !== '') {
-            $query->where('users.license_type', $this->licenseFilter);
+        if ($this->labFilter !== '' && Schema::hasTable('user_lab_relation')) {
+            $labId = $this->labFilter;
+            $query->whereExists(function ($subQuery) use ($labId): void {
+                $subQuery->select(DB::raw(1))
+                    ->from('user_lab_relation as ulr')
+                    ->whereColumn('ulr.user_id', 'users.id')
+                    ->where('ulr.lab_id', $labId);
+            });
         }
 
         if ($this->employmentDateFrom !== '') {

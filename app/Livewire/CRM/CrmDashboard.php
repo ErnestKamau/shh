@@ -17,7 +17,7 @@ class CrmDashboard extends BaseCrmComponent
     public function mount()
     {
         $this->initialize();
-        $this->checkPermission('crm.permission');
+        $this->checkPermission('crm.dashboard.view');
     }
 
     public function getTotalComplaintsProperty()

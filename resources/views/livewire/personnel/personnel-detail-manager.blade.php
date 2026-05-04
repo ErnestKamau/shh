@@ -234,9 +234,18 @@
                     <input type="hidden" name="position" value="{{ $selectedPositionId }}">
                     <input type="hidden" name="department" value="{{ $selectedDepartmentId }}">
                     <input type="hidden" name="user_license" value="{{ $selectedLicenseKey }}">
-                    <input type="hidden" name="zone_id" value="{{ $selectedZoneId }}">
-                    <input type="hidden" name="directorate_id" value="{{ $selectedDirectorateId }}">
-                    <input type="hidden" name="lab_id" value="{{ $selectedLabId }}">
+                    <input type="hidden" name="zone_id" value="{{ $selectedZoneIds[0] ?? '' }}">
+                    <input type="hidden" name="directorate_id" value="{{ $selectedDirectorateIds[0] ?? '' }}">
+                    <input type="hidden" name="lab_id" value="{{ $selectedLabIds[0] ?? '' }}">
+                    @foreach($selectedZoneIds as $zoneId)
+                        <input type="hidden" name="zone_ids[]" value="{{ $zoneId }}">
+                    @endforeach
+                    @foreach($selectedDirectorateIds as $directorateId)
+                        <input type="hidden" name="directorate_ids[]" value="{{ $directorateId }}">
+                    @endforeach
+                    @foreach($selectedLabIds as $labId)
+                        <input type="hidden" name="lab_ids[]" value="{{ $labId }}">
+                    @endforeach
 
                     <div class="detail-section mb-4">
                         <div class="detail-section-header mb-3">
@@ -321,7 +330,7 @@
                                         <input class="tag-input" wire:model.live="designationSearch" wire:keyup="searchDesignation" placeholder="{{ __('personnel.search_designation') }}">
                                     </div>
                                     @if($showDesignationDropdown)
-                                        <div class="tag-dropdown">@foreach($this->designations->filter(fn($d)=>$designationSearch===''||stripos($d->name,$designationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDesignation({{ $d->id }})">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->designations->filter(fn($d)=>$designationSearch===''||stripos($d->name,$designationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDesignation('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
                             </div>
@@ -336,7 +345,7 @@
                                         <input class="tag-input" wire:model.live="educationSearch" wire:keyup="searchEducation" placeholder="{{ __('personnel.search_education_level') }}">
                                     </div>
                                     @if($showEducationDropdown)
-                                        <div class="tag-dropdown">@foreach($this->educationLevels->filter(fn($d)=>$educationSearch===''||stripos($d->name,$educationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectEducation({{ $d->id }})">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->educationLevels->filter(fn($d)=>$educationSearch===''||stripos($d->name,$educationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectEducation('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
                             </div>
@@ -351,7 +360,7 @@
                                         <input class="tag-input" wire:model.live="positionSearch" wire:keyup="searchPosition" placeholder="{{ __('personnel.search_position') }}">
                                     </div>
                                     @if($showPositionDropdown)
-                                        <div class="tag-dropdown">@foreach($this->positions->filter(fn($d)=>$positionSearch===''||stripos($d->name,$positionSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectPosition({{ $d->id }})">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->positions->filter(fn($d)=>$positionSearch===''||stripos($d->name,$positionSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectPosition('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
                             </div>
@@ -366,14 +375,100 @@
                                         <input class="tag-input" wire:model.live="departmentSearch" wire:keyup="searchDepartment" placeholder="{{ __('personnel.search_department') }}">
                                     </div>
                                     @if($showDepartmentDropdown)
-                                        <div class="tag-dropdown">@foreach($this->departments->filter(fn($d)=>$departmentSearch===''||stripos($d->name,$departmentSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDepartment({{ $d->id }})">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->departments->filter(fn($d)=>$departmentSearch===''||stripos($d->name,$departmentSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDepartment('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="detail-section mb-4" wire:ignore>
+                    <div class="detail-section mb-4">
+                        <div class="detail-section-header mb-3">
+                            <h6 class="mb-1"><i class="mdi mdi-shield-lock-outline mr-1"></i> {{ __('personnel.section_access_assignment') }}</h6>
+                            <small class="text-muted">{{ __('personnel.section_access_assignment_hint') }}</small>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-4 col-md-6">
+                                <label>{{ __('personnel.user_license') }} *</label>
+                                <div class="tag-select-container" wire:click="$set('showLicenseDropdown', true)" wire:click.outside="$set('showLicenseDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($selectedLicenseKey)
+                                            <span class="tag-badge">{{ getUserLicenses()[$selectedLicenseKey] ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLicense"></i></span>
+                                        @endif
+                                        <input class="tag-input" wire:model.live="licenseSearch" wire:keyup="searchLicense" placeholder="{{ __('personnel.search_license') }}">
+                                    </div>
+                                    @if($showLicenseDropdown)
+                                        <div class="tag-dropdown">
+                                            @foreach(getUserLicenses() as $k=>$n)
+                                                @if($licenseSearch===''||stripos($n,$licenseSearch)!==false)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectLicense('{{ $k }}')">{{ $n }} {{ ($this->licenseCount[$k] ?? 0).'/'.mamboSawa($k.'s') }}</div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label>{{ __('personnel.zone') }}</label>
+                                <div class="tag-select-container" wire:click="$set('showZoneDropdown', true)" wire:click.outside="$set('showZoneDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @foreach($selectedZoneIds as $selectedZoneId)
+                                            @php $s = $this->zones->firstWhere('id', $selectedZoneId); @endphp
+                                            <span class="tag-badge">{{ ($s->key ?? '').(($s->value ?? '') ? ' - '.$s->value : '') }}<i class="mdi mdi-close-circle" wire:click.stop="clearZone('{{ $selectedZoneId }}')"></i></span>
+                                        @endforeach
+                                        <input class="tag-input" wire:model.live="zoneSearch" wire:keyup="searchZone" placeholder="{{ __('personnel.select_zone') }}">
+                                    </div>
+                                    @if($showZoneDropdown)
+                                        <div class="tag-dropdown">
+                                            @foreach($this->zones->filter(fn($z)=>$zoneSearch===''||stripos($z->key.' '.$z->value,$zoneSearch)!==false) as $zone)
+                                                <div class="tag-dropdown-item" wire:click.stop="selectZone('{{ $zone->id }}')">{{ $zone->key }}{{ $zone->value ? ' - '.$zone->value : '' }}</div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label>{{ __('personnel.directorate') }}</label>
+                                <div class="tag-select-container" wire:click="$set('showDirectorateDropdown', true)" wire:click.outside="$set('showDirectorateDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @foreach($selectedDirectorateIds as $selectedDirectorateId)
+                                            @php $s = $this->directorates->firstWhere('id', $selectedDirectorateId); @endphp
+                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDirectorate('{{ $selectedDirectorateId }}')"></i></span>
+                                        @endforeach
+                                        <input class="tag-input" wire:model.live="directorateSearch" wire:keyup="searchDirectorate" placeholder="{{ __('personnel.search_directorates') }}">
+                                    </div>
+                                    @if($showDirectorateDropdown)
+                                        <div class="tag-dropdown">
+                                            @foreach($this->directorates->filter(fn($d)=>$directorateSearch===''||stripos($d->name,$directorateSearch)!==false) as $directorate)
+                                                <div class="tag-dropdown-item" wire:click.stop="selectDirectorate('{{ $directorate->id }}')">{{ $directorate->name }}</div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label>{{ __('personnel.lab') }}</label>
+                                <div class="tag-select-container" wire:click="$set('showLabDropdown', true)" wire:click.outside="$set('showLabDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @foreach($selectedLabIds as $selectedLabId)
+                                            @php $s = $this->labs->firstWhere('id', $selectedLabId); @endphp
+                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab('{{ $selectedLabId }}')"></i></span>
+                                        @endforeach
+                                        <input class="tag-input" wire:model.live="labSearch" wire:keyup="searchLab" placeholder="{{ __('personnel.search_labs') }}">
+                                    </div>
+                                    @if($showLabDropdown)
+                                        <div class="tag-dropdown">
+                                            @foreach($this->labs->filter(fn($l)=>$labSearch===''||stripos($l->name,$labSearch)!==false) as $lab)
+                                                <div class="tag-dropdown-item" wire:click.stop="selectLab('{{ $lab->id }}')">{{ $lab->name }}</div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section mb-1" wire:ignore>
                         <div class="detail-section-header mb-3">
                             <h6 class="mb-1"><i class="mdi mdi-account-check-outline mr-1"></i> Professional Recognition</h6>
                             <small class="text-muted">Track gazette status and career timeline for automatic experience visibility.</small>
@@ -411,92 +506,6 @@
                                 <div class="form-group mb-0">
                                     <label>Years of Experience</label>
                                     <div id="experienceYearsPreview" class="form-control bg-light d-flex align-items-center">--</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="detail-section mb-1">
-                        <div class="detail-section-header mb-3">
-                            <h6 class="mb-1"><i class="mdi mdi-shield-lock-outline mr-1"></i> {{ __('personnel.section_access_assignment') }}</h6>
-                            <small class="text-muted">{{ __('personnel.section_access_assignment_hint') }}</small>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <label>{{ __('personnel.user_license') }} *</label>
-                                <div class="tag-select-container" wire:click="$set('showLicenseDropdown', true)" wire:click.outside="$set('showLicenseDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($selectedLicenseKey)
-                                            <span class="tag-badge">{{ getUserLicenses()[$selectedLicenseKey] ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLicense"></i></span>
-                                        @endif
-                                        <input class="tag-input" wire:model.live="licenseSearch" wire:keyup="searchLicense" placeholder="{{ __('personnel.search_license') }}">
-                                    </div>
-                                    @if($showLicenseDropdown)
-                                        <div class="tag-dropdown">
-                                            @foreach(getUserLicenses() as $k=>$n)
-                                                @if($licenseSearch===''||stripos($n,$licenseSearch)!==false)
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectLicense('{{ $k }}')">{{ $n }} {{ ($this->licenseCount[$k] ?? 0).'/'.mamboSawa($k.'s') }}</div>
-                                                @endif
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label>{{ __('personnel.zone') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showZoneDropdown', true)" wire:click.outside="$set('showZoneDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($selectedZoneId)
-                                            @php $s = $this->zones->firstWhere('id', $selectedZoneId); @endphp
-                                            <span class="tag-badge">{{ ($s->key ?? '').(($s->value ?? '') ? ' - '.$s->value : '') }}<i class="mdi mdi-close-circle" wire:click.stop="clearZone"></i></span>
-                                        @endif
-                                        <input class="tag-input" wire:model.live="zoneSearch" wire:keyup="searchZone" placeholder="{{ __('personnel.select_zone') }}">
-                                    </div>
-                                    @if($showZoneDropdown)
-                                        <div class="tag-dropdown">
-                                            @foreach($this->zones->filter(fn($z)=>$zoneSearch===''||stripos($z->key.' '.$z->value,$zoneSearch)!==false) as $zone)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectZone('{{ $zone->id }}')">{{ $zone->key }}{{ $zone->value ? ' - '.$zone->value : '' }}</div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label>{{ __('personnel.directorate') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showDirectorateDropdown', true)" wire:click.outside="$set('showDirectorateDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($selectedDirectorateId)
-                                            @php $s = $this->directorates->firstWhere('id', $selectedDirectorateId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDirectorate"></i></span>
-                                        @endif
-                                        <input class="tag-input" wire:model.live="directorateSearch" wire:keyup="searchDirectorate" placeholder="{{ __('personnel.search_directorates') }}">
-                                    </div>
-                                    @if($showDirectorateDropdown)
-                                        <div class="tag-dropdown">
-                                            @foreach($this->directorates->filter(fn($d)=>$directorateSearch===''||stripos($d->name,$directorateSearch)!==false) as $directorate)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectDirectorate('{{ $directorate->id }}')">{{ $directorate->name }}</div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label>{{ __('personnel.lab') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showLabDropdown', true)" wire:click.outside="$set('showLabDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($selectedLabId)
-                                            @php $s = $this->labs->firstWhere('id', $selectedLabId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab"></i></span>
-                                        @endif
-                                        <input class="tag-input" wire:model.live="labSearch" wire:keyup="searchLab" placeholder="{{ __('personnel.search_labs') }}">
-                                    </div>
-                                    @if($showLabDropdown)
-                                        <div class="tag-dropdown">
-                                            @foreach($this->labs->filter(fn($l)=>$labSearch===''||stripos($l->name,$labSearch)!==false) as $lab)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectLab('{{ $lab->id }}')">{{ $lab->name }}</div>
-                                            @endforeach
-                                        </div>
-                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -913,6 +922,13 @@
         .tag-select-container {
             position: relative;
             cursor: text;
+            width: 100%;
+            overflow: visible;
+            z-index: 1;
+        }
+
+        .tag-select-container.dropdown-open {
+            z-index: 1100;
         }
 
         .tag-select-input {
@@ -920,12 +936,14 @@
             flex-wrap: wrap;
             align-items: center;
             gap: 6px;
+            width: 100%;
             min-height: 42px;
             padding: 6px 12px;
             background: #fff;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             transition: all 0.3s ease;
+            overflow: hidden;
         }
 
         .tag-select-input:hover {
@@ -942,6 +960,7 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
+            max-width: 100%;
             padding: 4px 10px;
             background-color: #007bff;
             color: #fff;
@@ -949,6 +968,8 @@
             font-size: 0.875rem;
             font-weight: 500;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .tag-badge i {
@@ -956,6 +977,7 @@
             font-size: 1rem;
             opacity: 0.8;
             transition: opacity 0.2s;
+            flex-shrink: 0;
         }
 
         .tag-badge i:hover {
@@ -978,14 +1000,19 @@
             left: 0;
             right: 0;
             background: #fff;
-            border: 2px solid #007bff;
-            border-top: none;
-            border-radius: 0 0 8px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
             max-height: 250px;
             overflow-y: auto;
             z-index: 1050;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-top: -2px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+            margin-top: 6px;
+        }
+
+        .tag-select-container.tag-dropdown-up .tag-dropdown {
+            top: auto;
+            bottom: calc(100% + 6px);
+            margin-top: 0;
         }
 
         .tag-dropdown-item {
@@ -1495,6 +1522,62 @@
                 }
             }
         });
+
+        (function () {
+            function applyDropdownDirection() {
+                const containers = document.querySelectorAll('.tag-select-container');
+                if (!containers.length) {
+                    return;
+                }
+
+                containers.forEach(function (container) {
+                    const dropdown = container.querySelector('.tag-dropdown');
+                    if (!dropdown) {
+                        container.classList.remove('tag-dropdown-up');
+                        container.classList.remove('dropdown-open');
+                        return;
+                    }
+
+                    container.classList.add('dropdown-open');
+                    container.classList.remove('tag-dropdown-up');
+
+                    const input = container.querySelector('.tag-select-input');
+                    const anchorRect = (input || container).getBoundingClientRect();
+                    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+                    const spaceBelow = viewportHeight - anchorRect.bottom;
+                    const spaceAbove = anchorRect.top;
+                    const preferredHeight = Math.min(dropdown.scrollHeight, 250);
+
+                    if (spaceBelow < preferredHeight && spaceAbove > spaceBelow) {
+                        container.classList.add('tag-dropdown-up');
+                    }
+                });
+            }
+
+            function queueApplyDropdownDirection() {
+                requestAnimationFrame(applyDropdownDirection);
+            }
+
+            document.addEventListener('click', queueApplyDropdownDirection);
+            document.addEventListener('keyup', queueApplyDropdownDirection);
+            document.addEventListener('input', queueApplyDropdownDirection);
+            window.addEventListener('resize', queueApplyDropdownDirection);
+            window.addEventListener('scroll', queueApplyDropdownDirection, true);
+            document.addEventListener('DOMContentLoaded', queueApplyDropdownDirection);
+            document.addEventListener('livewire:load', queueApplyDropdownDirection);
+            document.addEventListener('livewire:navigated', queueApplyDropdownDirection);
+            document.addEventListener('livewire:update', queueApplyDropdownDirection);
+
+            document.addEventListener('livewire:initialized', function () {
+                if (window.Livewire && typeof Livewire.hook === 'function') {
+                    Livewire.hook('commit', ({ succeed }) => {
+                        succeed(() => {
+                            queueMicrotask(queueApplyDropdownDirection);
+                        });
+                    });
+                }
+            });
+        })();
 
         (function () {
             function bindCareerFields() {

@@ -23,7 +23,7 @@
         ?>
             <div class="card" style="padding: 10px;margin-bottom:20px">
                 <h5 class="card-title"><i class="mdi mdi-cog-box"></i> {{$configuration->configuration_type}}
-                @can('system.configurations.add')
+                @can('system.configuration.add')
                 <button class="btn btn-outline-primary btn-sm float-right" data-toggle="modal" data-target="#add-configuration-{{$configuration->id}}"><i class="mdi mdi-plus"></i> {{ __('system.add') }}</button>
                 @endcan
                 </h5>
@@ -44,7 +44,7 @@
                                 <td>{{$config->key}}</td>
                                 <td>{{$config->value}}</td>
                                 <td>
-                                    @can('system.configurations.edit')
+                                    @can('system.configuration.edit')
                                     <span class="btn btn-outline-primary btn-sm" data-toggle="modal" data-target="#edit-configuration-{{$config->id}}"><i class="mdi mdi-pencil"></i></span>
                                     <div class="modal fade" id="edit-configuration-{{$config->id}}" role="dialog">
                                         <div class="modal-dialog">
@@ -65,7 +65,7 @@
                                                     </div>
                                                     <div class="form-group hidden">
                                                         <label class="control-label">{{ __('system.config_id') }}</label>
-                                                        <input type="number" name="config_id" value="{{$config->id}}">
+                                                        <input type="hidden" name="config_id" value="{{$config->id}}">
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
@@ -76,7 +76,7 @@
                                         </div>
                                     </div>
                                     @endcan
-                                    @can('system.configurations.delete')
+                                    @can('system.configuration.delete')
                                     <span class="btn btn-outline-danger btn-sm" data-toggle="modal" data-target="#delete-configuration-{{$config->id}}"><i class="mdi mdi-delete-empty"></i></span>
                                     <div class="modal fade" id="delete-configuration-{{$config->id}}" role="dialog">
                                         <div class="modal-dialog">
@@ -93,7 +93,7 @@
                                                     </div>
                                                     <div class="form-group hidden">
                                                         <label class="control-label">{{ __('system.config_id') }}</label>
-                                                        <input type="number" name="config_id" value="{{$config->id}}" class="form-control" placeholder="{{ __('system.config_id') }}">
+                                                        <input type="hidden" name="config_id" value="{{$config->id}}" class="form-control" placeholder="{{ __('system.config_id') }}">
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">

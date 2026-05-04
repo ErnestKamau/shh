@@ -34,6 +34,11 @@
         <div class="card-header tab-card-header">
             <ul class="nav nav-tabs card-header-tabs" role="tablist">
                 <li class="nav-item">
+                    <button type="button" class="nav-link {{ $activeTab === 'all' ? 'active' : '' }}" wire:click="setActiveTab('all')">
+                        <i class="mdi mdi-account-group"></i> All Personnel
+                    </button>
+                </li>
+                <li class="nav-item">
                     <button type="button" class="nav-link {{ $activeTab === 'active' ? 'active' : '' }}" wire:click="setActiveTab('active')">
                         <i class="mdi mdi-account"></i> {{ __('personnel.active_personnel_tab') }}
                     </button>
@@ -76,29 +81,29 @@
             @if($showAdvancedFilters)
                 <div class="row mb-3">
                     <div class="col-md-3">
-                        <label class="small text-muted">{{ __('personnel.department') }}</label>
-                        <select class="form-control" wire:model.live="departmentFilter">
-                            <option value="">{{ __('personnel.all_departments') }}</option>
-                            @foreach($departments as $department)
-                                <option value="{{ $department['id'] }}">{{ $department['name'] }}</option>
+                        <label class="small text-muted">{{ __('personnel.zone') }}</label>
+                        <select class="form-control" wire:model.live="zoneFilter">
+                            <option value="">{{ __('personnel.zones') }}</option>
+                            @foreach($zones as $zone)
+                                <option value="{{ $zone['id'] }}">{{ $zone['key'] }}{{ $zone['value'] ? ' - '.$zone['value'] : '' }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="small text-muted">{{ __('personnel.designation') }}</label>
-                        <select class="form-control" wire:model.live="designationFilter">
-                            <option value="">{{ __('personnel.all_designations') }}</option>
-                            @foreach($designations as $designation)
-                                <option value="{{ $designation['id'] }}">{{ $designation['name'] }}</option>
+                        <label class="small text-muted">{{ __('personnel.directorate') }}</label>
+                        <select class="form-control" wire:model.live="directorateFilter">
+                            <option value="">{{ __('personnel.directorates') }}</option>
+                            @foreach($directorates as $directorate)
+                                <option value="{{ $directorate['id'] }}">{{ $directorate['name'] }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="small text-muted">{{ __('personnel.license') }}</label>
-                        <select class="form-control" wire:model.live="licenseFilter">
-                            <option value="">{{ __('personnel.all_licenses') }}</option>
-                            @foreach($licenses as $key => $name)
-                                <option value="{{ $key }}">{{ $name }}</option>
+                        <label class="small text-muted">{{ __('personnel.lab') }}</label>
+                        <select class="form-control" wire:model.live="labFilter">
+                            <option value="">{{ __('personnel.labs') }}</option>
+                            @foreach($labs as $lab)
+                                <option value="{{ $lab['id'] }}">{{ $lab['name'] }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -143,8 +148,8 @@
                                         </a>
 
                                         @if(auth()->user()->CheckDeactivatePersonnel())
-                                            <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click='openStateModal(@js($item->id))' title="{{ $activeTab === 'active' ? __('personnel.deactivate_personnel') : __('personnel.activate_personnel') }}">
-                                                <i class="mdi {{ $activeTab === 'active' ? 'mdi-account-lock' : 'mdi-lock-open-variant' }}"></i>
+                                            <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click='openStateModal(@js($item->id))' title="{{ (int) $item->active === 1 ? __('personnel.deactivate_personnel') : __('personnel.activate_personnel') }}">
+                                                <i class="mdi {{ (int) $item->active === 1 ? 'mdi-account-lock' : 'mdi-lock-open-variant' }}"></i>
                                             </button>
                                         @endif
 

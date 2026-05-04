@@ -50,15 +50,22 @@ class SystemConfigurationsController extends Controller
     }
 
     public function edit(Request $request,$id){
-        $configuration_type = SystemConfiguration::find($id);
-        if(isset($configuration_type->configuration_type_id) && $configuration_type->id = $request->config_id){
-            $configuration_type->value = $request->value;
-            $configuration_type->key = $request->key;
+        $configuration = SystemConfiguration::find($id);
 
-            $configuration_type->save();
-
-            return redirect()->back()->with('success','System configuration edited successfully!');
+        if (!isset($configuration->configuration_type_id)) {
+            return redirect()->back()->with('error', 'No configuration with specified ID!');
         }
+
+        // Optional defensive check when config_id is posted from the form.
+        if ($request->filled('config_id') && (string) $configuration->id !== (string) $request->config_id) {
+            return redirect()->back()->with('error', 'Configuration ID mismatch.');
+        }
+
+        $configuration->value = $request->value;
+        $configuration->key = $request->key;
+        $configuration->save();
+
+        return redirect()->back()->with('success','System configuration edited successfully!');
     }
 
     public function index(){

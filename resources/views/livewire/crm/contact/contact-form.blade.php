@@ -8,7 +8,7 @@
                 unitSelect.select2('destroy');
             }
             unitSelect.select2({
-                placeholder: 'Select Department',
+                placeholder: '{{ __('crm.select_department') }}',
                 allowClear: true,
                 width: '100%',
                 multiple: true,
@@ -25,7 +25,7 @@
                 customerSelect.select2('destroy');
             }
             customerSelect.select2({
-                placeholder: 'Select Customers',
+                placeholder: '{{ __('crm.select_customers') }}',
                 allowClear: true,
                 width: '100%',
                 multiple: true,
@@ -72,7 +72,7 @@
                     <div class="modal-header">
                         <h4 class="modal-title">
                             <i class="mdi mdi-{{ $contactId ? 'pencil' : 'plus' }}"></i>
-                            {{ $contactId ? 'Edit' : 'Add' }} Company Contact
+                            {{ $contactId ? __('crm.edit') : __('crm.add') }} {{ __('crm.company_contact') }}
                         </h4>
                         <button type="button" class="close" wire:click="close" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
@@ -84,27 +84,27 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label class="control-label">First Name <span
+                                        <label class="control-label">{{ __('crm.first_name') }} <span
                                                 class="text-danger">*</span></label>
                                         <input type="text"
                                             class="form-control @error('first_name') is-invalid @enderror"
-                                            wire:model="first_name" placeholder="First Name..." required />
+                                            wire:model="first_name" placeholder="{{ __('crm.first_name_placeholder') }}" required />
                                         @error('first_name') <span class="text-danger small">{{ $message }}</span>
                                         @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label class="control-label">Middle Name</label>
+                                        <label class="control-label">{{ __('crm.middle_name') }}</label>
                                         <input type="text" class="form-control" wire:model="second_name"
-                                            placeholder="Middle Name..." />
+                                            placeholder="{{ __('crm.middle_name_placeholder') }}" />
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label class="control-label">Last Name</label>
+                                        <label class="control-label">{{ __('crm.last_name') }}</label>
                                         <input type="text" class="form-control" wire:model="third_name"
-                                            placeholder="Last Name..." />
+                                            placeholder="{{ __('crm.last_name_placeholder') }}" />
                                     </div>
                                 </div>
                             </div>
@@ -113,15 +113,15 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label class="control-label">Occupation <span
+                                        <label class="control-label">{{ __('crm.occupation') }} <span
                                                 class="text-danger">*</span></label>
                                         <input type="text" class="form-control" wire:model="job_occupation"
-                                            placeholder="Occupation..." />
+                                            placeholder="{{ __('crm.occupation_placeholder') }}" />
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group" wire:ignore>
-                                        <label class="control-label">Department <span
+                                        <label class="control-label">{{ __('crm.department') }} <span
                                                 class="text-danger">*</span></label>
                                         <select id="unit_selector" class="form-control select2" multiple required>
                                             @foreach($units as $unit)
@@ -134,9 +134,9 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label class="control-label">Email <span class="text-danger">*</span></label>
+                                        <label class="control-label">{{ __('crm.email') }} <span class="text-danger">*</span></label>
                                         <input type="email" class="form-control @error('email') is-invalid @enderror"
-                                            wire:model="email" placeholder="Email Address..." required />
+                                            wire:model="email" placeholder="{{ __('crm.email_address_placeholder') }}" required />
                                         @error('email') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -146,25 +146,25 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label class="control-label">Telephone <span
+                                        <label class="control-label">{{ __('crm.telephone') }} <span
                                                 class="text-danger">*</span></label>
                                         <input type="text" class="form-control @error('telephone') is-invalid @enderror"
-                                            wire:model.blur="telephone" placeholder="Telephone..." />
+                                            wire:model.blur="telephone" placeholder="{{ __('crm.telephone_placeholder') }}" />
                                         @error('telephone') <span class="text-danger small">{{ $message }}</span>
                                         @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label class="control-label">Mobile</label>
+                                        <label class="control-label">{{ __('crm.mobile') }}</label>
                                         <input type="text" class="form-control @error('mobile') is-invalid @enderror"
-                                            wire:model="mobile" placeholder="Mobile..." />
+                                            wire:model="mobile" placeholder="{{ __('crm.mobile_placeholder') }}" />
                                         @error('mobile') <span class="text-danger small">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group" wire:ignore>
-                                        <label class="control-label">Other Customers Assigned</label>
+                                        <label class="control-label">{{ __('crm.other_customers_assigned') }}</label>
                                         <select id="other_customers_selector" class="form-control select2" multiple>
                                             @foreach($customers as $cust)
                                                 <option value="{{ $cust->id }}">{{ $cust->name }}</option>
@@ -182,38 +182,35 @@
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="receiveReport"
                                             wire:model="receive_report">
-                                        <label class="custom-control-label" for="receiveReport">Receives Report?</label>
+                                        <label class="custom-control-label" for="receiveReport">{{ __('crm.receives_report') }}</label>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="receivePriceList"
                                             wire:model="receive_price_list">
-                                        <label class="custom-control-label" for="receivePriceList">Receives
-                                            Pricelist?</label>
+                                        <label class="custom-control-label" for="receivePriceList">{{ __('crm.receives_price_list') }}</label>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="receiveInvoice"
                                             wire:model="receive_invoice">
-                                        <label class="custom-control-label" for="receiveInvoice">Receives
-                                            Invoice?</label>
+                                        <label class="custom-control-label" for="receiveInvoice">{{ __('crm.receives_invoice') }}</label>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="receiveFeedback"
                                             wire:model="receive_feedback">
-                                        <label class="custom-control-label" for="receiveFeedback">Opt-in for Feedback
-                                            Emails</label>
+                                        <label class="custom-control-label" for="receiveFeedback">{{ __('crm.opt_in_feedback_emails') }}</label>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="isActive"
                                             wire:model="active">
-                                        <label class="custom-control-label" for="isActive">Is Active?</label>
+                                        <label class="custom-control-label" for="isActive">{{ __('crm.is_active') }}</label>
                                     </div>
                                 </div>
                             </div>
@@ -223,8 +220,7 @@
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="createPassword"
                                             wire:model.live="can_login">
-                                        <label class="custom-control-label" for="createPassword">Create/Update User
-                                            Passwords</label>
+                                        <label class="custom-control-label" for="createPassword">{{ __('crm.create_update_user_passwords') }}</label>
                                     </div>
                                 </div>
                             </div>
@@ -233,20 +229,20 @@
                                 <div class="row bg-light p-3 rounded mx-1">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label class="control-label">Password</label>
+                                            <label class="control-label">{{ __('crm.password') }}</label>
                                             <input type="password"
                                                 class="form-control @error('password') is-invalid @enderror"
-                                                wire:model="password" placeholder="Password..." />
+                                                wire:model="password" placeholder="{{ __('crm.password_placeholder') }}" />
                                             @error('password') <span class="text-danger small">{{ $message }}</span>
                                             @enderror
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label class="control-label">Confirm Password</label>
+                                            <label class="control-label">{{ __('crm.confirm_password') }}</label>
                                             <input type="password"
                                                 class="form-control @error('confirm_password') is-invalid @enderror"
-                                                wire:model="confirm_password" placeholder="Confirm Password..." />
+                                                wire:model="confirm_password" placeholder="{{ __('crm.confirm_password_placeholder') }}" />
                                             @error('confirm_password') <span class="text-danger small">{{ $message }}</span>
                                             @enderror
                                         </div>
@@ -257,10 +253,10 @@
                         </div>
                         <div class="modal-footer bg-light">
                             <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
-                                <span wire:loading.remove wire:target="save"><i class="mdi mdi-content-save"></i> Save</span>
-                                <span wire:loading wire:target="save"><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                                <span wire:loading.remove wire:target="save"><i class="mdi mdi-content-save"></i> {{ __('crm.save') }}</span>
+                                <span wire:loading wire:target="save"><i class="mdi mdi-loading mdi-spin"></i> {{ __('crm.saving') }}...</span>
                             </button>
-                            <button type="button" class="btn btn-secondary" wire:click="close" wire:loading.attr="disabled">Close</button>
+                            <button type="button" class="btn btn-secondary" wire:click="close" wire:loading.attr="disabled">{{ __('crm.close') }}</button>
                         </div>
                     </form>
                 </div>

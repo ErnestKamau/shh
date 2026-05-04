@@ -11,9 +11,9 @@ use App\Models\SamplePointArea;
 use App\Models\CRM\SamplePoint;
 use App\Country;
 use App\ModulePreConfigs;
-use App\ZohoCustomers;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class CustomerManager extends Component
@@ -47,19 +47,16 @@ class CustomerManager extends Component
     // Supporting Data
     public $countries = [];
     public $accounts = [];
-    public $zohoCustomers = [];
 
     // Dropdown State
     public $countrySearch = '';
     public $accountSearch = '';
-    public $zohoCustomerSearch = '';
     public $showCountryDropdown = false;
     public $showAccountDropdown = false;
-    public $showZohoCustomerDropdown = false;
 
     // Search and Filter
     public $search = '';
-    public $countryFilter = '';
+    public $accountSettingsFilter = '';
     public $statusFilter = '';
     public $dateFrom = '';
     public $dateTo = '';
@@ -84,16 +81,28 @@ class CustomerManager extends Component
     public $customerToClone = null;
     public $cloneCustomerName = '';
 
-    protected $rules = [
-        'customerForm.name' => 'required|string|max:255',
-        'customerForm.postal_address' => 'required|string|max:500',
-        'customerForm.physical_address' => 'required|string|max:500',
-        'customerForm.email' => 'required|email|max:255',
-        'customerForm.telephone1' => 'required|string|max:50',
-        'customerForm.country_id' => 'required|exists:countries,id',
-        'customerForm.account_status' => 'required|exists:module_pre_configs,id',
-        'customerForm.zoho_customer_id' => 'nullable|exists:zoho_customers,id',
-    ];
+    protected function rules()
+    {
+        $allowedAccountIds = collect($this->accounts)
+            ->filter(function ($account) {
+                $key = is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '');
+                return in_array(strtoupper((string) $key), ['POSTPAID', 'PREPAID'], true);
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        return [
+            'customerForm.name' => 'required|string|max:255',
+            'customerForm.postal_address' => 'required|string|max:500',
+            'customerForm.physical_address' => 'required|string|max:500',
+            'customerForm.email' => 'required|email|max:255',
+            'customerForm.telephone1' => 'required|string|max:50',
+            'customerForm.country_id' => 'required|exists:countries,id',
+            'customerForm.account_status' => ['required', Rule::in($allowedAccountIds)],
+            'customerForm.zoho_customer_id' => 'nullable|exists:zoho_customers,id',
+        ];
+    }
 
     protected $messages = [
         'customerForm.name.required' => 'Customer name is required.',
@@ -108,8 +117,14 @@ class CustomerManager extends Component
 
     public function mount()
     {
-        // Don't load data on mount - load lazily when modal opens
-        // This improves initial page load performance
+        // Load account settings for table filters while keeping other form data lazy.
+        $this->accounts = Cache::remember('account_settings_list', 1800, function() {
+            $account_settings = getConfigTypeByName('Account Settings');
+            if (isset($account_settings->id)) {
+                return getconfigByID($account_settings->id);
+            }
+            return [];
+        });
     }
 
     public function loadInitialData()
@@ -131,15 +146,6 @@ class CustomerManager extends Component
         });
     }
     
-    public function loadZohoCustomers()
-    {
-        $this->zohoCustomers = Cache::remember('zoho_customers_active_list', 1800, function() {
-            return ZohoCustomers::where('status', 'Active')
-                ->orderBy('name')
-                ->get(['id', 'customer_no', 'name', 'currency_code']);
-        });
-    }
-
     public function getCustomersProperty()
     {
         $query = CRMCustomer::with(['country', 'currencyinfo'])
@@ -155,8 +161,8 @@ class CustomerManager extends Component
             });
         }
 
-        if ($this->countryFilter) {
-            $query->where('country_id', $this->countryFilter);
+        if ($this->accountSettingsFilter) {
+            $query->where('account_status', $this->accountSettingsFilter);
         }
 
         if ($this->statusFilter !== '') {
@@ -179,7 +185,7 @@ class CustomerManager extends Component
         $this->resetPage();
     }
 
-    public function updatedCountryFilter()
+    public function updatedAccountSettingsFilter()
     {
         $this->resetPage();
     }
@@ -192,7 +198,7 @@ class CustomerManager extends Component
     public function clearFilters()
     {
         $this->search = '';
-        $this->countryFilter = '';
+        $this->accountSettingsFilter = '';
         $this->statusFilter = '';
         $this->dateFrom = '';
         $this->dateTo = '';
@@ -282,8 +288,8 @@ class CustomerManager extends Component
                       ->orWhere('physical_address', 'like', '%' . $this->search . '%');
                 });
             })
-            ->when($this->countryFilter, function ($query) {
-                $query->where('country_id', $this->countryFilter);
+            ->when($this->accountSettingsFilter, function ($query) {
+                $query->where('account_status', $this->accountSettingsFilter);
             })
             ->when($this->statusFilter !== '', function ($query) {
                 $query->where('active', $this->statusFilter);
@@ -423,10 +429,29 @@ class CustomerManager extends Component
         try {
             DB::beginTransaction();
 
+            $allowedAccountIds = collect($this->accounts)
+                ->filter(function ($account) {
+                    $key = is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '');
+                    $normalizedKey = Str::upper(str_replace([' ', '_', '-'], '', (string) $key));
+                    return in_array($normalizedKey, ['POSTPAID', 'PREPAID'], true);
+                })
+                ->map(function ($account) {
+                    return (string) (is_object($account) ? ($account->id ?? '') : ($account['id'] ?? ''));
+                })
+                ->filter()
+                ->values();
+
             if ($this->editingCustomer) {
                 // Update existing customer
                 $customer = $this->editingCustomer;
             } else {
+                if (!$allowedAccountIds->contains((string) $this->customerForm['account_status'])) {
+                    $this->message = 'Account settings must be POSTPAID or PREPAID.';
+                    $this->messageType = 'error';
+                    DB::rollBack();
+                    return;
+                }
+
                 // Check for duplicate name
                 $existingCustomer = CRMCustomer::where('name', $this->customerForm['name'])->first();
                 if ($existingCustomer) {
@@ -553,7 +578,6 @@ class CustomerManager extends Component
         $this->showCountryDropdown = !$this->showCountryDropdown;
         if ($this->showCountryDropdown) {
             $this->showAccountDropdown = false;
-            $this->showZohoCustomerDropdown = false;
         }
     }
 
@@ -562,33 +586,7 @@ class CustomerManager extends Component
         $this->showAccountDropdown = !$this->showAccountDropdown;
         if ($this->showAccountDropdown) {
             $this->showCountryDropdown = false;
-            $this->showZohoCustomerDropdown = false;
         }
-    }
-
-    public function toggleZohoCustomerDropdown()
-    {
-        // Lazy load zoho customers when dropdown is first opened
-        if (empty($this->zohoCustomers)) {
-            $this->loadZohoCustomers();
-        }
-        
-        $this->showZohoCustomerDropdown = !$this->showZohoCustomerDropdown;
-        if ($this->showZohoCustomerDropdown) {
-            $this->showCountryDropdown = false;
-            $this->showAccountDropdown = false;
-        }
-    }
-
-    public function openZohoCustomerDropdown()
-    {
-        if (empty($this->zohoCustomers)) {
-            $this->loadZohoCustomers();
-        }
-
-        $this->showZohoCustomerDropdown = true;
-        $this->showCountryDropdown = false;
-        $this->showAccountDropdown = false;
     }
 
     public function selectCountry($countryId)
@@ -603,19 +601,6 @@ class CustomerManager extends Component
         $this->customerForm['account_status'] = $accountId;
         $this->showAccountDropdown = false;
         $this->accountSearch = '';
-    }
-
-    public function selectZohoCustomer($zohoCustomerId)
-    {
-        $this->customerForm['zoho_customer_id'] = $zohoCustomerId;
-        $this->showZohoCustomerDropdown = false;
-        $this->zohoCustomerSearch = '';
-    }
-
-    public function clearZohoCustomer()
-    {
-        $this->customerForm['zoho_customer_id'] = null;
-        $this->zohoCustomerSearch = '';
     }
 
     public function getFilteredCountriesProperty()
@@ -633,28 +618,20 @@ class CustomerManager extends Component
 
     public function getFilteredAccountsProperty()
     {
+        $accounts = collect($this->accounts)->filter(function($account) {
+            $key = is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '');
+            $normalizedKey = Str::upper(str_replace([' ', '_', '-'], '', (string) $key));
+            return in_array($normalizedKey, ['POSTPAID', 'PREPAID'], true);
+        });
+
         if (empty($this->accountSearch)) {
-            return collect($this->accounts);
+            return $accounts;
         }
-        
-        return collect($this->accounts)->filter(function($account) {
+
+        return $accounts->filter(function($account) {
             $key = is_object($account) ? $account->key : ($account['key'] ?? '');
             return stripos($key, $this->accountSearch) !== false;
         });
-    }
-
-    public function getFilteredZohoCustomersProperty()
-    {
-        $zohoCustomers = collect($this->zohoCustomers);
-        
-        if (empty($this->zohoCustomerSearch)) {
-            return $zohoCustomers->take(100);
-        }
-        
-        return $zohoCustomers->filter(function($zc) {
-            return stripos($zc->name ?? '', $this->zohoCustomerSearch) !== false ||
-                   stripos($zc->customer_no ?? '', $this->zohoCustomerSearch) !== false;
-        })->take(100);
     }
 
     public function getSelectedCountryNameProperty()
@@ -677,23 +654,12 @@ class CustomerManager extends Component
         return '';
     }
 
-    public function getSelectedZohoCustomerNameProperty()
-    {
-        if ($this->customerForm['zoho_customer_id']) {
-            $zc = collect($this->zohoCustomers)->firstWhere('id', $this->customerForm['zoho_customer_id']);
-            return $zc ? "{$zc->name} ({$zc->customer_no})" : '';
-        }
-        return '';
-    }
-
     public function resetDropdownStates()
     {
         $this->countrySearch = '';
         $this->accountSearch = '';
-        $this->zohoCustomerSearch = '';
         $this->showCountryDropdown = false;
         $this->showAccountDropdown = false;
-        $this->showZohoCustomerDropdown = false;
     }
 
     // Clone Methods

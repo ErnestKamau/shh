@@ -8,25 +8,25 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-map-marker-multiple text-primary"></i>
-                                {{ $customer->area_configurable_name ?: 'Areas' }} Management
+                                {{ $customer->area_configurable_name ?: __('crm.areas') }} {{ __('crm.management') }}
                             </h2>
-                            <p class="text-muted mb-0">Manage {{ strtolower($customer->area_configurable_name ?: 'areas') }} for: <strong>{{ $customer->name }}</strong></p>
+                            <p class="text-muted mb-0">{{ __('crm.manage_areas_for', ['areas' => strtolower($customer->area_configurable_name ?: __('crm.areas')), 'customer' => $customer->name]) }}</p>
                         </div>
                         <div class="float-right">
                             <button wire:click="showCreateAreaModalInitiator" class="btn btn-sm btn-primary" wire:loading.attr="disabled" wire:target="showCreateAreaModalInitiator" style="border-radius: 8px;">
                                 <span wire:loading.remove wire:target="showCreateAreaModalInitiator">
-                                    <i class="mdi mdi-plus"></i> Add {{ $customer->area_configurable_name ?: 'Area' }}
+                                    <i class="mdi mdi-plus"></i> {{ __('crm.add_area') }}
                                 </span>
                                 <span wire:loading wire:target="showCreateAreaModalInitiator">
-                                    <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                    <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.opening_form') }}
                                 </span>
                             </button>
                             <button wire:click="showCloneModalMethod" class="btn btn-sm btn-success ms-2" wire:loading.attr="disabled" wire:target="showCloneModalMethod" style="border-radius: 8px;">
                                 <span wire:loading.remove wire:target="showCloneModalMethod">
-                                    <i class="mdi mdi-content-copy"></i> Clone {{ $customer->area_configurable_name ?: 'Areas' }}
+                                    <i class="mdi mdi-content-copy"></i> {{ __('crm.clone_areas') }}
                                 </span>
                                 <span wire:loading wire:target="showCloneModalMethod">
-                                    <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                    <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.opening_form') }}
                                 </span>
                             </button>
 
@@ -51,24 +51,24 @@
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
                     <h6 class="mb-0 text-muted">
-                        <i class="mdi mdi-filter-variant"></i> Filter Options
+                        <i class="mdi mdi-filter-variant"></i> {{ __('crm.filter_options') }}
                     </h6>
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search by area name, code, or description...">
+                                <label class="form-label fw-bold">{{ __('crm.search') }}</label>
+                                <input type="text" wire:model.live="search" class="form-control" placeholder="{{ __('crm.search_area_placeholder') }}">
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Status</label>
+                                <label class="form-label fw-bold">{{ __('crm.status') }}</label>
                                 <select wire:model.live="statusFilter" class="form-select modern-select">
-                                    <option value="">All Status</option>
-                                    <option value="1">Active</option>
-                                    <option value="0">Inactive</option>
+                                    <option value="">{{ __('crm.all_status') }}</option>
+                                    <option value="1">{{ __('crm.active') }}</option>
+                                    <option value="0">{{ __('crm.inactive') }}</option>
                                 </select>
                             </div>
                         </div>
@@ -76,7 +76,7 @@
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">&nbsp;</label>
                                 <button wire:click="clearFilters" class="btn btn-outline-secondary w-100">
-                                    <i class="mdi mdi-refresh"></i> Clear
+                                    <i class="mdi mdi-refresh"></i> {{ __('crm.clear') }}
                                 </button>
                             </div>
                         </div>
@@ -96,11 +96,11 @@
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="d-flex align-items-center">
                                 <span class="text-muted">
-                                    Showing {{ $this->areas->firstItem() ?? 0 }} to {{ $this->areas->lastItem() ?? 0 }} of {{ $this->areas->total() }} entries
+                                    {{ __('crm.showing_to_of_results', ['from' => ($this->areas->firstItem() ?? 0), 'to' => ($this->areas->lastItem() ?? 0), 'total' => $this->areas->total()]) }}
                                 </span>
                             </div>
                             <div class="d-flex align-items-center">
-                                <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
+                                <label for="perPage" class="form-label mb-0 me-2 text-muted">{{ __('crm.show') }}:</label>
                                 <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
                                     @foreach($perPageOptions as $option)
                                         <option value="{{ $option }}">{{ $option }}</option>
@@ -113,42 +113,42 @@
                             <table class="table table-striped table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
-                                        <th>CRM Area</th>
-                                        <th>Sub Unit</th>
-                                        <th>Description</th>
-                                        <th>Sample Points</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
+                                        <th>{{ __('crm.crm_area') }}</th>
+                                        <th>{{ __('crm.sub_unit') }}</th>
+                                        <th>{{ __('crm.description') }}</th>
+                                        <th>{{ __('crm.sample_points') }}</th>
+                                        <th>{{ __('crm.status') }}</th>
+                                        <th>{{ __('crm.actions') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->areas as $area)
                                         <tr>
                                             <td>
-                                                <strong>{{ $area->crmArea->name ?? 'N/A' }}</strong>
+                                                <strong>{{ $area->crmArea->name ?? __('crm.not_available') }}</strong>
                                                 <br><small class="text-muted">{{ $area->crmArea->code ?? '' }}</small>
                                             </td>
                                             <td>
-                                                <span class="badge bg-info p-2" style="color: white;">{{ $area->subUnit->name ?? 'N/A' }} - {{ $area->companyUnit->name ?? '' }}</span>
+                                                <span class="badge bg-info p-2" style="color: white;">{{ $area->subUnit->name ?? __('crm.not_available') }} - {{ $area->companyUnit->name ?? '' }}</span>
                                             </td>
                                             <td>
-                                                {{ Str::limit($area->description, 50) ?: 'N/A' }}
+                                                {{ Str::limit($area->description, 50) ?: __('crm.not_available') }}
                                             </td>
                                             <td>
                                                 <span class="badge bg-secondary" style="color: white;">{{ $area->samplePoints()->count() }}</span>
                                             </td>
                                             <td>
                                                 @if($area->active)
-                                                    <span class="badge bg-success p-2" style="color: white;">Active</span>
+                                                    <span class="badge bg-success p-2" style="color: white;">{{ __('crm.active') }}</span>
                                                 @else
-                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">{{ __('crm.inactive') }}</span>
                                                 @endif
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditAreaModal({{ $area->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit"
+                                                            title="{{ __('crm.edit') }}"
                                                             style="border-radius: 8px;"
                                                             wire:loading.attr="disabled"
                                                             wire:target="showEditAreaModal({{ $area->id }})">
@@ -161,7 +161,7 @@
                                                     </button>
                                                     <button wire:click="showIndividualCloneModalInitiator({{ $area->id }})" 
                                                             class="btn btn-sm btn-outline-success mr-1" 
-                                                            title="Clone"
+                                                            title="{{ __('crm.clone') }}"
                                                             style="border-radius: 8px;"
                                                             wire:loading.attr="disabled"
                                                             wire:target="showIndividualCloneModalInitiator({{ $area->id }})">
@@ -174,7 +174,7 @@
                                                     </button>
                                                     <button wire:click="showDeleteConfirmation({{ $area->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
-                                                            title="Delete"
+                                                            title="{{ __('crm.delete') }}"
                                                             style="border-radius: 8px;"
                                                             wire:loading.attr="disabled"
                                                             wire:target="showDeleteConfirmation({{ $area->id }})">
@@ -199,8 +199,8 @@
                     @else
                         <div class="text-center py-4">
                             <i class="mdi mdi-map-marker-multiple text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No {{ strtolower($customer->area_configurable_name ?: 'areas') }} found</h5>
-                            <p class="text-muted">Start by adding your first {{ strtolower($customer->area_configurable_name ?: 'area') }}.</p>
+                            <h5 class="text-muted mt-3">{{ __('crm.no_areas_found', ['areas' => strtolower($customer->area_configurable_name ?: __('crm.areas'))]) }}</h5>
+                            <p class="text-muted">{{ __('crm.add_first_area_hint', ['area' => strtolower($customer->area_configurable_name ?: __('crm.area'))]) }}</p>
                         </div>
                     @endif
                 </div>
@@ -216,7 +216,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingArea ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingArea ? 'Edit' : 'Create' }} {{ $customer->area_configurable_name ?: 'Area' }}
+                            {{ $editingArea ? __('crm.edit') : __('crm.create') }} {{ $customer->area_configurable_name ?: __('crm.area') }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeAreaModal"></button>
                     </div>
@@ -226,7 +226,7 @@
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="form-group mb-3">
-                                        <label class="form-label"><i class="mdi mdi-map text-primary"></i> Customer Areas <span class="text-danger">*</span></label>
+                                        <label class="form-label"><i class="mdi mdi-map text-primary"></i> {{ __('crm.customer_areas') }} <span class="text-danger">*</span></label>
                                         <div class="searchable-dropdown-wrapper" wire:key="customer-areas-dropdown">
                                             <div class="single-select-container" wire:click="toggleCustomerAreasDropdown" style="cursor: pointer;">
                                                 <input 
@@ -271,7 +271,7 @@
                                                     @else
                                                         <div class="no-results">
                                                             <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No customer areas found</span>
+                                                            <span>{{ __('crm.no_customer_areas_found') }}</span>
                                                         </div>
                                                     @endif
                                                 </div>
@@ -286,7 +286,7 @@
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="form-group mb-3">
-                                        <label class="form-label"><i class="mdi mdi-office-building text-success"></i> Company Sub Unit <span class="text-danger">*</span></label>
+                                        <label class="form-label"><i class="mdi mdi-office-building text-success"></i> {{ __('crm.company_sub_unit') }} <span class="text-danger">*</span></label>
                                         <div class="searchable-dropdown-wrapper" wire:key="company-sub-unit-dropdown">
                                             <div class="single-select-container" wire:click="toggleCompanySubUnitDropdown" style="cursor: pointer;">
                                                 <input 
@@ -324,7 +324,7 @@
                                                     @else
                                                         <div class="no-results">
                                                             <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No sub units found</span>
+                                                            <span>{{ __('crm.no_sub_units_found') }}</span>
                                                         </div>
                                                     @endif
                                                 </div>
@@ -338,8 +338,8 @@
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Description</label>
-                                        <textarea wire:model="areaForm.description" class="form-control" rows="3" placeholder="Enter area description"></textarea>
+                                        <label class="form-label">{{ __('crm.description') }}</label>
+                                        <textarea wire:model="areaForm.description" class="form-control" rows="3" placeholder="{{ __('crm.enter_area_description') }}"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -348,7 +348,7 @@
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="form-group mb-3">
-                                        <label class="form-label"><i class="mdi mdi-map-marker text-success"></i> Sample Points</label>
+                                        <label class="form-label"><i class="mdi mdi-map-marker text-success"></i> {{ __('crm.sample_points') }}</label>
                                         <div class="searchable-dropdown-wrapper" wire:key="sample-points-dropdown">
                                             <div class="multi-select-container" wire:click="toggleSamplePointsDropdown" style="cursor: pointer;">
                                                 <input 
@@ -394,7 +394,7 @@
                                                     @else
                                                         <div class="no-results">
                                                             <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No sample points found</span>
+                                                            <span>{{ __('crm.no_sample_points_found') }}</span>
                                                         </div>
                                                     @endif
                                                 </div>
@@ -412,7 +412,7 @@
                                     <div class="form-group mb-3">
                                         <div class="form-check form-check-inline">
                                             <input type="checkbox" wire:model="areaForm.active" class="form-check-input" id="area_active">
-                                            <label class="form-check-label" for="area_active">Active</label>
+                                            <label class="form-check-label" for="area_active">{{ __('crm.active') }}</label>
                                         </div>
                                     </div>
                                 </div>
@@ -420,7 +420,7 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeAreaModal" wire:loading.attr="disabled" wire:target="saveArea">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="closeAreaModal" wire:loading.attr="disabled" wire:target="saveArea">{{ __('crm.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveArea" wire:loading.attr="disabled" wire:target="saveArea">
                             <span wire:loading.remove wire:target="saveArea">
                                 <i class="mdi mdi-content-save"></i> Save
@@ -453,9 +453,9 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold"><i class="mdi mdi-source-branch text-primary"></i> Clone From {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }} <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-bold"><i class="mdi mdi-source-branch text-primary"></i> {{ __('crm.clone_from_sub_unit', ['sub_unit' => $customer->sub_unit_configurable_name ?: __('crm.sub_unit')]) }} <span class="text-danger">*</span></label>
                                         <select wire:model.live="cloneFromSubUnitId" class="form-select modern-select">
-                                            <option value="">Select {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }} to clone from</option>
+                                            <option value="">{{ __('crm.select_sub_unit_clone_from', ['sub_unit' => strtolower($customer->sub_unit_configurable_name ?: __('crm.sub_unit'))]) }}</option>
                                             @foreach($companySubUnits as $subUnit)
                                                 <option value="{{ $subUnit->id }}">{{ $subUnit->name }} - {{ $subUnit->companyUnit->name ?? '' }}</option>
                                             @endforeach
@@ -465,9 +465,9 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold"><i class="mdi mdi-target text-success"></i> Clone To {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }} <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-bold"><i class="mdi mdi-target text-success"></i> {{ __('crm.clone_to_sub_unit', ['sub_unit' => $customer->sub_unit_configurable_name ?: __('crm.sub_unit')]) }} <span class="text-danger">*</span></label>
                                         <select wire:model.live="cloneToSubUnitId" class="form-select modern-select">
-                                            <option value="">Select {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }} to clone to</option>
+                                            <option value="">{{ __('crm.select_sub_unit_clone_to', ['sub_unit' => strtolower($customer->sub_unit_configurable_name ?: __('crm.sub_unit'))]) }}</option>
                                             @foreach($companySubUnits as $subUnit)
                                                 @if($subUnit->id != $cloneFromSubUnitId)
                                                     <option value="{{ $subUnit->id }}">{{ $subUnit->name }} - {{ $subUnit->companyUnit->name ?? '' }}</option>
@@ -523,7 +523,7 @@
                                     <div class="col-md-12">
                                         <div class="card bg-light">
                                             <div class="card-header">
-                                                <h6 class="mb-0"><i class="mdi mdi-tune text-warning"></i> Clone Options</h6>
+                                                <h6 class="mb-0"><i class="mdi mdi-tune text-warning"></i> {{ __('crm.clone_options') }}</h6>
                                             </div>
                                             <div class="card-body">
                                                 <div class="form-check">
@@ -534,8 +534,8 @@
                                                         id="includeSamplePoints">
                                                     <label class="form-check-label" for="includeSamplePoints">
                                                         <i class="mdi mdi-map-marker text-success"></i>
-                                                        <strong>Include Sample Points</strong>
-                                                        <small class="text-muted d-block">Clone all sample points from selected areas</small>
+                                                        <strong>{{ __('crm.include_sample_points') }}</strong>
+                                                        <small class="text-muted d-block">{{ __('crm.clone_sample_points_selected_areas') }}</small>
                                                     </label>
                                                 </div>
                                             </div>
@@ -567,10 +567,10 @@
                             wire:target="cloneAreas"
                             @if(count($selectedAreasToClone) == 0 || !$cloneFromSubUnitId || !$cloneToSubUnitId) disabled @endif>
                             <span wire:loading.remove wire:target="cloneAreas">
-                                <i class="mdi mdi-content-copy"></i> Clone Selected
+                                <i class="mdi mdi-content-copy"></i> {{ __('crm.clone_selected') }}
                             </span>
                             <span wire:loading wire:target="cloneAreas">
-                                <span class="spinner-border spinner-border-sm" role="status"></span> Cloning...
+                                <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.cloning') }}...
                             </span>
                         </button>
                     </div>
@@ -587,42 +587,42 @@
                     <div class="modal-header bg-danger text-white">
                         <h5 class="modal-title">
                             <i class="mdi mdi-alert"></i>
-                            Confirm Deletion
+                            {{ __('crm.confirm_deletion') }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteConfirmModal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-warning">
                             <i class="mdi mdi-alert-outline"></i>
-                            <strong>Warning!</strong> This action cannot be undone.
+                            <strong>{{ __('crm.warning') }}!</strong> {{ __('crm.action_cannot_be_undone') }}
                         </div>
                         
                         <p class="mb-3">
-                            You are about to delete the area: 
-                            <strong>{{ $areaToDelete->crmArea->name ?? 'N/A' }}</strong>
+                            {{ __('crm.delete_area_message') }} 
+                            <strong>{{ $areaToDelete->crmArea->name ?? __('crm.not_available') }}</strong>
                         </p>
                         
                         @if($samplePointsCount > 0)
                             <div class="alert alert-danger">
                                 <i class="mdi mdi-map-marker-alert"></i>
-                                <strong>This will also delete {{ $samplePointsCount }} sample point(s)</strong> associated with this area.
+                                <strong>{{ __('crm.also_delete_sample_points_count', ['count' => $samplePointsCount]) }}</strong> {{ __('crm.associated_with_this_area') }}.
                             </div>
                         @else
-                            <p class="text-muted">This area has no associated sample points.</p>
+                            <p class="text-muted">{{ __('crm.area_has_no_sample_points') }}</p>
                         @endif
                         
-                        <p class="mb-0">Are you sure you want to proceed?</p>
+                        <p class="mb-0">{{ __('crm.are_you_sure_proceed') }}</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeDeleteConfirmModal" wire:loading.attr="disabled" wire:target="confirmDeleteArea">
-                            <i class="mdi mdi-close"></i> Cancel
+                            <i class="mdi mdi-close"></i> {{ __('crm.cancel') }}
                         </button>
                         <button type="button" class="btn btn-danger" wire:click="confirmDeleteArea" wire:loading.attr="disabled" wire:target="confirmDeleteArea">
                             <span wire:loading.remove wire:target="confirmDeleteArea">
-                                <i class="mdi mdi-delete"></i> Yes, Delete
+                                <i class="mdi mdi-delete"></i> {{ __('crm.yes_delete') }}
                             </span>
                             <span wire:loading wire:target="confirmDeleteArea">
-                                <span class="spinner-border spinner-border-sm" role="status"></span> Deleting...
+                                <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.deleting') }}...
                             </span>
                         </button>
                     </div>
@@ -639,24 +639,24 @@
                     <div class="modal-header bg-success text-white">
                         <h5 class="modal-title">
                             <i class="mdi mdi-content-copy"></i>
-                            Clone {{ $customer->area_configurable_name ?: 'Area' }}
+                            {{ __('crm.clone') }} {{ $customer->area_configurable_name ?: __('crm.area') }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" wire:click="closeIndividualCloneModal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info">
                             <i class="mdi mdi-information-outline"></i>
-                            <strong>Cloning:</strong> {{ $areaToClone->crmArea->name ?? 'N/A' }} ({{ $areaToClone->crmArea->code ?? 'N/A' }})
-                            <br><small>From: {{ $areaToClone->subUnit->name ?? 'N/A' }} - {{ $areaToClone->companyUnit->name ?? 'N/A' }}</small>
+                            <strong>{{ __('crm.cloning') }}:</strong> {{ $areaToClone->crmArea->name ?? __('crm.not_available') }} ({{ $areaToClone->crmArea->code ?? __('crm.not_available') }})
+                            <br><small>{{ __('crm.from') }}: {{ $areaToClone->subUnit->name ?? __('crm.not_available') }} - {{ $areaToClone->companyUnit->name ?? __('crm.not_available') }}</small>
                         </div>
 
                         <form wire:submit.prevent="cloneIndividualArea">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">
-                                    <i class="mdi mdi-target text-success"></i> Clone To {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }} <span class="text-danger">*</span>
+                                    <i class="mdi mdi-target text-success"></i> {{ __('crm.clone_to_sub_unit', ['sub_unit' => $customer->sub_unit_configurable_name ?: __('crm.sub_unit')]) }} <span class="text-danger">*</span>
                                 </label>
                                 <select wire:model.live="cloneToSubUnitIdIndividual" class="form-select modern-select">
-                                    <option value="">Select {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }} to clone to</option>
+                                    <option value="">{{ __('crm.select_sub_unit_clone_to', ['sub_unit' => strtolower($customer->sub_unit_configurable_name ?: __('crm.sub_unit'))]) }}</option>
                                     @foreach($companySubUnits as $subUnit)
                                         @if($subUnit->id != $areaToClone->crm_company_sub_unit_id)
                                             <option value="{{ $subUnit->id }}">{{ $subUnit->name }} - {{ $subUnit->companyUnit->name ?? '' }}</option>
@@ -674,15 +674,15 @@
                                     id="includeSamplePointsIndividual">
                                 <label class="form-check-label" for="includeSamplePointsIndividual">
                                     <i class="mdi mdi-map-marker text-success"></i>
-                                    <strong>Include Sample Points</strong>
-                                    <small class="text-muted d-block">Clone all sample points from this area</small>
+                                    <strong>{{ __('crm.include_sample_points') }}</strong>
+                                    <small class="text-muted d-block">{{ __('crm.clone_sample_points_from_area') }}</small>
                                 </label>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeIndividualCloneModal" wire:loading.attr="disabled" wire:target="cloneIndividualArea">
-                            <i class="mdi mdi-close"></i> Cancel
+                            <i class="mdi mdi-close"></i> {{ __('crm.cancel') }}
                         </button>
                         <button 
                             type="button" 
@@ -692,10 +692,10 @@
                             wire:target="cloneIndividualArea"
                             @if(!$cloneToSubUnitIdIndividual) disabled @endif>
                             <span wire:loading.remove wire:target="cloneIndividualArea">
-                                <i class="mdi mdi-content-copy"></i> Clone Area
+                                <i class="mdi mdi-content-copy"></i> {{ __('crm.clone_area') }}
                             </span>
                             <span wire:loading wire:target="cloneIndividualArea">
-                                <span class="spinner-border spinner-border-sm" role="status"></span> Cloning...
+                                <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.cloning') }}...
                             </span>
                         </button>
                     </div>
@@ -712,35 +712,35 @@
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title">
                             <i class="mdi mdi-plus-circle"></i>
-                            Create New Area
+                            {{ __('crm.create_new_area') }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" wire:click="closeCreateAreaModal"></button>
                     </div>
                     <div class="modal-body">
                         <form wire:submit.prevent="createNewArea">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Area Name <span class="text-danger">*</span></label>
-                                <input type="text" wire:model="newAreaForm.name" class="form-control" placeholder="Enter area name">
+                                <label class="form-label fw-bold">{{ __('crm.area_name') }} <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="newAreaForm.name" class="form-control" placeholder="{{ __('crm.enter_area_name') }}">
                                 @error('newAreaForm.name') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Area Code <span class="text-danger">*</span></label>
-                                <input type="text" wire:model="newAreaForm.code" class="form-control" placeholder="Enter area code">
+                                <label class="form-label fw-bold">{{ __('crm.area_code') }} <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="newAreaForm.code" class="form-control" placeholder="{{ __('crm.enter_area_code') }}">
                                 @error('newAreaForm.code') <span class="text-danger">{{ $message }}</span> @enderror
-                                <small class="form-text text-muted">Must be unique</small>
+                                <small class="form-text text-muted">{{ __('crm.must_be_unique') }}</small>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeCreateAreaModal" wire:loading.attr="disabled" wire:target="createNewArea">
-                            <i class="mdi mdi-close"></i> Cancel
+                            <i class="mdi mdi-close"></i> {{ __('crm.cancel') }}
                         </button>
                         <button type="button" class="btn btn-primary" wire:click="createNewArea" wire:loading.attr="disabled" wire:target="createNewArea">
                             <span wire:loading.remove wire:target="createNewArea">
-                                <i class="mdi mdi-content-save"></i> Create Area
+                                <i class="mdi mdi-content-save"></i> {{ __('crm.create_area') }}
                             </span>
                             <span wire:loading wire:target="createNewArea">
-                                <span class="spinner-border spinner-border-sm" role="status"></span> Creating...
+                                <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.creating') }}...
                             </span>
                         </button>
                     </div>
@@ -757,35 +757,35 @@
                     <div class="modal-header bg-success text-white">
                         <h5 class="modal-title">
                             <i class="mdi mdi-plus-circle"></i>
-                            Create New Sample Point
+                            {{ __('crm.create_new_sample_point') }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" wire:click="closeCreateSamplePointModal"></button>
                     </div>
                     <div class="modal-body">
                         <form wire:submit.prevent="createNewSamplePoint">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Sample Point Name <span class="text-danger">*</span></label>
-                                <input type="text" wire:model="newSamplePointForm.name" class="form-control" placeholder="Enter sample point name">
+                                <label class="form-label fw-bold">{{ __('crm.sample_point_name') }} <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="newSamplePointForm.name" class="form-control" placeholder="{{ __('crm.enter_sample_point_name') }}">
                                 @error('newSamplePointForm.name') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Sample Point Code <span class="text-danger">*</span></label>
-                                <input type="text" wire:model="newSamplePointForm.code" class="form-control" placeholder="Enter sample point code">
+                                <label class="form-label fw-bold">{{ __('crm.sample_point_code') }} <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="newSamplePointForm.code" class="form-control" placeholder="{{ __('crm.enter_sample_point_code') }}">
                                 @error('newSamplePointForm.code') <span class="text-danger">{{ $message }}</span> @enderror
-                                <small class="form-text text-muted">Must be unique</small>
+                                <small class="form-text text-muted">{{ __('crm.must_be_unique') }}</small>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeCreateSamplePointModal" wire:loading.attr="disabled" wire:target="createNewSamplePoint">
-                            <i class="mdi mdi-close"></i> Cancel
+                            <i class="mdi mdi-close"></i> {{ __('crm.cancel') }}
                         </button>
                         <button type="button" class="btn btn-success" wire:click="createNewSamplePoint" wire:loading.attr="disabled" wire:target="createNewSamplePoint">
                             <span wire:loading.remove wire:target="createNewSamplePoint">
-                                <i class="mdi mdi-content-save"></i> Create Sample Point
+                                <i class="mdi mdi-content-save"></i> {{ __('crm.create_sample_point') }}
                             </span>
                             <span wire:loading wire:target="createNewSamplePoint">
-                                <span class="spinner-border spinner-border-sm" role="status"></span> Creating...
+                                <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.creating') }}...
                             </span>
                         </button>
                     </div>

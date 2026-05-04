@@ -278,27 +278,27 @@ Route::get('/livewire-test', function () {
 // Livewire CRM Management Routes
 Route::get('/crm/dashboard', [CRMAppController::class, 'dashboard'])
     ->name('crm.dashboard')
-    ->middleware('can:crm.components.customer-list.view');
+    ->middleware('can:crm.dashboard.view');
 
 Route::get('/livewire/customers', [CRMAppController::class, 'customers'])
     ->name('livewire.customers')
-    ->middleware('can:crm.components.customer-list.view');
+    ->middleware('can:crm.customers.view');
 
 Route::get('/livewire/customers/{customerId}/profile', [CRMAppController::class, 'customerProfile'])
     ->name('livewire.customer-profile')
-    ->middleware('can:crm.components.customer-list.view');
+    ->middleware('can:crm.customers.view');
 
 Route::get('/crm/sample-points', [CRMAppController::class, 'samplePoints'])
     ->name('crm.sample-points')
-    ->middleware('can:crm.components.customer-list.view');
+    ->middleware('can:crm.sample-points.view');
 
 Route::get('/crm/areas', [CRMAppController::class, 'areas'])
     ->name('crm.areas')
-    ->middleware('can:crm.components.customer-list.view');
+    ->middleware('can:crm.areas.view');
 
 Route::get('/crm/complaints-manager/{stage?}', [CRMAppController::class, 'complaintsManager'])
     ->name('crm.complaints-manager')
-    ->middleware('can:crm.components.complaints.view');
+    ->middleware('can:crm.complaints.view');
 
 // Livewire Billing Management Routes
 Route::get('/billing/invoicable-items', function () {
@@ -984,7 +984,7 @@ Route::post('/accept-order-items/{order_id}', 'InventoryOrderItemToInventoryItem
 //############################################ORDERS############################################################
 
 //############################################CUSTOMERS##########################################################
-Route::prefix('crm/v2')->middleware(['auth', 'can:crm.permission'])->name('crm.v2.')->group(function () {
+Route::prefix('crm/v2')->middleware(['auth', 'can:crm.customers.view'])->name('crm.v2.')->group(function () {
     Route::get('/', function () {
         return view('layouts.crm.v2-home');
     })->name('home');
@@ -1003,82 +1003,78 @@ Route::get('/crm/customer/{id}', function ($id) {
         'customerId' => $customerId,
         'customer' => $customer,
     ]);
-})->middleware(['auth', 'can:crm.components.customer-list.view'])->name('crm.customer.show');
+})->middleware(['auth', 'can:crm.customers.view'])->name('crm.customer.show');
 
 Route::get('/crm-dashboard', '\\' . \App\Livewire\CRM\CrmDashboard::class)
     ->name('crm-dashboard')
     ->middleware('auth')
-    ->middleware('can:crm.module.access');
+    ->middleware('can:crm.dashboard.view');
 
-Route::get('/crm-home', 'CRM\CRMCustomerController@index')->name('customers-list')->middleware('can:crm.permission');
-Route::post('/fetch-client-quotes', 'CRM\CRMCustomerController@fetch_client_quote')->name('fetch-client-qoutes')->middleware('can:crm.components.customer-list.view');
-Route::get('/crm-home-config', 'CRM\CRMCustomerController@checkConfig')->name('add-config-customer')->middleware('can:crm.permission');
-Route::post('/customers', 'CRM\CRMCustomerController@add')->name('add-customers')->middleware('can:crm.components.customer-list.add');
-Route::get('/customer/{id}', 'CRM\CRMCustomerController@show')->name('show-customer')->middleware('can:crm.components.customer-list.view');
-Route::post('/customer/{id}', 'CRM\CRMCustomerController@edit')->name('edit-customer')->middleware('can:crm.components.customer-list.edit');
-Route::post('/customer/{id}/label', 'CRM\CRMCustomerController@edit_label')->name('change-client-label-name')->middleware('can:crm.components.customer-list.edit');
-Route::post('/delete-customer', 'CRM\CRMCustomerController@delete_customer')->name('delete_customer')->middleware('can:crm.components.customer-list.delete');
+Route::get('/crm-home', [CRMAppController::class, 'customers'])->name('customers-list')->middleware('can:crm.customers.view');
+Route::post('/fetch-client-quotes', 'CRM\CRMCustomerController@fetch_client_quote')->name('fetch-client-qoutes')->middleware('can:crm.customers.view');
+Route::get('/crm-home-config', 'CRM\CRMCustomerController@checkConfig')->name('add-config-customer')->middleware('can:crm.customers.view');
+Route::post('/customers', 'CRM\CRMCustomerController@add')->name('add-customers')->middleware('can:crm.customers.add');
+Route::get('/customer/{id}', 'CRM\CRMCustomerController@show')->name('show-customer')->middleware('can:crm.customers.view');
+Route::post('/customer/{id}', 'CRM\CRMCustomerController@edit')->name('edit-customer')->middleware('can:crm.customers.edit');
+Route::post('/customer/{id}/label', 'CRM\CRMCustomerController@edit_label')->name('change-client-label-name')->middleware('can:crm.customers.edit');
+Route::post('/delete-customer', 'CRM\CRMCustomerController@delete_customer')->name('delete_customer')->middleware('can:crm.customers.delete');
 
-Route::post('/add/customer-certification/{id}', 'CRM\CustomerCertificationController@add')->name('add-customer-certification')->middleware('can:crm.components.certificates.add');
-Route::post('/edit/customer-certification/{id}', 'CRM\CustomerCertificationController@edit')->name('edit-customer-certification')->middleware('can:crm.components.certificates.edit');
-Route::post('/delete/customer-certification/{id}', 'CRM\CustomerCertificationController@delete')->name('delete-customer-certification')->middleware('can:crm.components.certificates.delete');
+Route::post('/add/customer-certification/{id}', 'CRM\CustomerCertificationController@add')->name('add-customer-certification')->middleware('can:crm.certifications.add');
+Route::post('/edit/customer-certification/{id}', 'CRM\CustomerCertificationController@edit')->name('edit-customer-certification')->middleware('can:crm.certifications.edit');
+Route::post('/delete/customer-certification/{id}', 'CRM\CustomerCertificationController@delete')->name('delete-customer-certification')->middleware('can:crm.certifications.delete');
 
-Route::get('/complaint-type/home', 'CRM\Complaint\ComplaintTypeController@index')->name('complaint-type-home')->middleware('can:crm.components.complaint type.view');
-Route::post('/edit/complaint-type/{id}', 'CRM\Complaint\ComplaintTypeController@edit')->name('edit-complaint-type')->middleware('can:crm.components.complaint type.edit');
-Route::post('/add/complaint-type', 'CRM\Complaint\ComplaintTypeController@add')->name('add-complaint-type')->middleware('can:crm.components.complaint type.add');
+Route::get('/complaint-type/home', 'CRM\Complaint\ComplaintTypeController@index')->name('complaint-type-home')->middleware('can:crm.complaint-types.view');
+Route::post('/edit/complaint-type/{id}', 'CRM\Complaint\ComplaintTypeController@edit')->name('edit-complaint-type')->middleware('can:crm.complaint-types.edit');
+Route::post('/add/complaint-type', 'CRM\Complaint\ComplaintTypeController@add')->name('add-complaint-type')->middleware('can:crm.complaint-types.add');
 
-// Old complaint workflow route - redirect to new Livewire route
-Route::get('/complaint/{stage}', function ($stage) {
-    return redirect()->route('crm.complaints-manager', ['stage' => $stage]);
-})->name('complaint-workflow')->middleware('can:crm.components.complaints.view');
-Route::post('/add/open-complaint', 'CRM\Complaint\ComplaintController@add')->name('add-complaint')->middleware('can:crm.components.open complaints.add');
-Route::post('/add-open-complaint/customer', 'CRM\Complaint\ComplaintController@customer_add')->name('customer-add-complaint')->middleware('can:crm.components.open complaints.add');
-Route::post('/edit-complaint/{id}', 'CRM\Complaint\ComplaintController@edit')->name('edit-complaint')->middleware('can:crm.components.complaints.edit');
-Route::get('/show-complaint/{id}', 'CRM\Complaint\ComplaintController@show')->name('show-complaint')->middleware('can:crm.components.complaints.view');
-Route::post('/add/complaint-notes/{id}', 'CRM\Complaint\ComplaintNotesController@add')->name('add-notes')->middleware('can:crm.components.complaints.edit');
-Route::post('/edit/complaint-notes/{id}', 'CRM\Complaint\ComplaintNotesController@edit')->name('edit-notes')->middleware('can:crm.components.complaints.edit');
-Route::post('/add/complaint-attachment/{id}', 'CRM\Complaint\ComplaintAttachmentController@add')->name('add-attachment')->middleware('can:crm.components.complaints.edit');
-Route::post('/edit/complaint-attachment/{id}', 'CRM\Complaint\ComplaintAttachmentController@edit')->name('edit-attachment')->middleware('can:crm.components.complaints.edit');
-Route::post('/approve-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@approve_next')->name('approve-complaint')->middleware('can:crm.components.complaints approval.edit');
-Route::post('/reverse-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@reverse_approval')->name('reverse-complaint')->middleware('can:crm.components.complaints approval.delete');
-Route::post('/reject-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@reject_complaint')->name('reject-complaint')->middleware('can:crm.components.complaints approval.delete');
-Route::post('/add/complaint-resolution/{id}', 'CRM\Complaint\ComplaintResolutionController@add')->name('add-resolution')->middleware('can:crm.components.complaints resolution.add');
-Route::post('/edit/complaint-resolution/{id}', 'CRM\Complaint\ComplaintResolutionController@edit')->name('edit-resolution')->middleware('can:crm.components.complaints resolution.edit');
-Route::get('/show/complaint/{id}', 'CRM\Complaint\ComplaintController@show_all')->name('complaint-show')->middleware('can:crm.components.complaints.view');
+Route::post('/add/open-complaint', 'CRM\Complaint\ComplaintController@add')->name('add-complaint')->middleware('can:crm.complaints.add');
+Route::post('/add-open-complaint/customer', 'CRM\Complaint\ComplaintController@customer_add')->name('customer-add-complaint')->middleware('can:crm.complaints.add');
+Route::post('/edit-complaint/{id}', 'CRM\Complaint\ComplaintController@edit')->name('edit-complaint')->middleware('can:crm.complaints.edit');
+Route::get('/show-complaint/{id}', 'CRM\Complaint\ComplaintController@show')->name('show-complaint')->middleware('can:crm.complaints.view');
+Route::post('/add/complaint-notes/{id}', 'CRM\Complaint\ComplaintNotesController@add')->name('add-notes')->middleware('can:crm.complaints.edit');
+Route::post('/edit/complaint-notes/{id}', 'CRM\Complaint\ComplaintNotesController@edit')->name('edit-notes')->middleware('can:crm.complaints.edit');
+Route::post('/add/complaint-attachment/{id}', 'CRM\Complaint\ComplaintAttachmentController@add')->name('add-attachment')->middleware('can:crm.complaints.edit');
+Route::post('/edit/complaint-attachment/{id}', 'CRM\Complaint\ComplaintAttachmentController@edit')->name('edit-attachment')->middleware('can:crm.complaints.edit');
+Route::post('/approve-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@approve_next')->name('approve-complaint')->middleware('can:crm.complaints-approval.edit');
+Route::post('/reverse-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@reverse_approval')->name('reverse-complaint')->middleware('can:crm.complaints-approval.delete');
+Route::post('/reject-complaint/{id}', 'CRM\Complaint\ComplaintWorkflowController@reject_complaint')->name('reject-complaint')->middleware('can:crm.complaints-approval.delete');
+Route::post('/add/complaint-resolution/{id}', 'CRM\Complaint\ComplaintResolutionController@add')->name('add-resolution')->middleware('can:crm.complaints-resolution.add');
+Route::post('/edit/complaint-resolution/{id}', 'CRM\Complaint\ComplaintResolutionController@edit')->name('edit-resolution')->middleware('can:crm.complaints-resolution.edit');
+Route::get('/show/complaint/{id}', 'CRM\Complaint\ComplaintController@show_all')->name('complaint-show')->middleware('can:crm.complaints.view');
 
-Route::get('/customer-feedback/home', 'CRM\CustomerFeedbackController@index')->name('feedback-home')->middleware('can:crm.components.feedbacks.view');
+Route::get('/customer-feedback/home', [CRMAppController::class, 'feedbacks'])->name('feedback-home')->middleware('can:crm.feedback.view');
 Route::get('/customer-feedback/configuration', '\\' . \App\Livewire\Crm\Feedback\EvaluationMetricManager::class)
     ->name('feedback-config')
     ->middleware('auth')
-    ->middleware('can:crm.components.feedbacks.view');
-Route::post('/add/customer-feedback', 'CRM\CustomerFeedbackController@add')->name('add-feedback')->middleware('can:crm.components.customer feedback.add');
-Route::post('/add-feedback/customer', 'CRM\CustomerFeedbackController@customer_add')->name('customer-add-feedback')->middleware('can:crm.components.customer feedback.add');
-Route::post('/edit/customer-feedback/{id}', 'CRM\CustomerFeedbackController@edit')->name('edit-feedback')->middleware('can:crm.components.feedbacks.edit');
+    ->middleware('can:crm.feedback.view');
+Route::post('/add/customer-feedback', 'CRM\CustomerFeedbackController@add')->name('add-feedback')->middleware('can:crm.feedback.add');
+Route::post('/add-feedback/customer', 'CRM\CustomerFeedbackController@customer_add')->name('customer-add-feedback')->middleware('can:crm.feedback.add');
+Route::post('/edit/customer-feedback/{id}', 'CRM\CustomerFeedbackController@edit')->name('edit-feedback')->middleware('can:crm.feedback.edit');
 
-Route::post('/request-resolution-approval/{id}', 'CRM\Complaint\ComplaintWorkflowController@request_resolution_approve')->name('request-resolution')->middleware('can:crm.components.resolution approval.add');
-Route::post('/reverse-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowController@reverse_resolution')->name('reverse-resolution')->middleware('can:crm.components.resolution approval.edit');
-Route::post('/reject-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowController@reject_resolution')->name('reject-resolution')->middleware('can:crm.components.resolution approval.delete');
-Route::post('/approve-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowController@approve_resolution')->name('approve-resolution')->middleware('can:crm.components.resolution approval.edit');
+Route::post('/request-resolution-approval/{id}', 'CRM\Complaint\ComplaintWorkflowController@request_resolution_approve')->name('request-resolution')->middleware('can:crm.resolution-approval.add');
+Route::post('/reverse-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowController@reverse_resolution')->name('reverse-resolution')->middleware('can:crm.resolution-approval.edit');
+Route::post('/reject-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowController@reject_resolution')->name('reject-resolution')->middleware('can:crm.resolution-approval.delete');
+Route::post('/approve-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowController@approve_resolution')->name('approve-resolution')->middleware('can:crm.resolution-approval.edit');
 
-Route::post('/company-units/{cust_id}', 'CRM\CRMCompanyUnitController@add')->name('add-company-units')->middleware('can:crm.components.company-units.add');
-Route::post('/company-unit/{id}/{cust_id}', 'CRM\CRMCompanyUnitController@edit')->name('edit-company-unit')->middleware('can:crm.components.company-units.edit');
+Route::post('/company-units/{cust_id}', 'CRM\CRMCompanyUnitController@add')->name('add-company-units')->middleware('can:crm.company-units.add');
+Route::post('/company-unit/{id}/{cust_id}', 'CRM\CRMCompanyUnitController@edit')->name('edit-company-unit')->middleware('can:crm.company-units.edit');
 
-Route::post('/sample-point', 'CRM\SamplePointController@add')->name('add-sample-point')->middleware('can:crm.components.sample-points.add');
-Route::post('/sample-point/{id}', 'CRM\SamplePointController@edit')->name('edit-sample-point')->middleware('can:crm.components.sample-points.edit');
+Route::post('/sample-point', 'CRM\SamplePointController@add')->name('add-sample-point')->middleware('can:crm.sample-points.add');
+Route::post('/sample-point/{id}', 'CRM\SamplePointController@edit')->name('edit-sample-point')->middleware('can:crm.sample-points.edit');
 
-Route::post('/customer-product', 'CRM\CompanyProductController@add')->name('add-customer-product')->middleware('can:crm.components.products.add');
-Route::post('/customer-product/edit/{id?}', 'CRM\CompanyProductController@edit')->name('edit-customer-product')->middleware('can:crm.components.products.edit');
+Route::post('/customer-product', 'CRM\CompanyProductController@add')->name('add-customer-product')->middleware('can:crm.products.add');
+Route::post('/customer-product/edit/{id?}', 'CRM\CompanyProductController@edit')->name('edit-customer-product')->middleware('can:crm.products.edit');
 
-Route::post('/company-contacts/{cust_id}', 'CRM\CustomerContactController@add')->name('add-company-contacts')->middleware('can:crm.components.contacts.add');
-Route::post('/company-contact/{id}/{cust_id}', 'CRM\CustomerContactController@edit')->name('edit-company-contact')->middleware('can:crm.components.contacts.edit');
-Route::post('/customer-contact/add', 'CRM\CustomerContactController@addAjax')->name('customer-contact-add-ajax')->middleware('can:crm.components.contacts.add');
-Route::get('/get/customer/ajax/{id}', 'CRM\CustomerContactController@getCustomerUnits')->name('getCustomerUnits')->middleware('can:crm.components.contacts.view');
+Route::post('/company-contacts/{cust_id}', 'CRM\CustomerContactController@add')->name('add-company-contacts')->middleware('can:crm.contacts.add');
+Route::post('/company-contact/{id}/{cust_id}', 'CRM\CustomerContactController@edit')->name('edit-company-contact')->middleware('can:crm.contacts.edit');
+Route::post('/customer-contact/add', 'CRM\CustomerContactController@addAjax')->name('customer-contact-add-ajax')->middleware('can:crm.contacts.add');
+Route::get('/get/customer/ajax/{id}', 'CRM\CustomerContactController@getCustomerUnits')->name('getCustomerUnits')->middleware('can:crm.contacts.view');
 
-Route::get('/fetch-customer-contacts/{id}', 'CRM\CustomerContactController@get_customer_client')->name('get_customer_client')->middleware('can:crm.components.contacts.view');
-Route::get('/validate-Crm-Customer/Name/{name}/Ajax', 'CRM\CRMCustomerController@validateCrmCustomerNameAjax')->name('validateCrmCustomerNameAjax')->middleware('can:crm.components.customer-list.view');
-Route::get('/crm-batch-reports', 'CRM\CRMCustomerController@batch_reports')->name('crm-batch-reports')->middleware('can:crm.components.results.view');
-Route::post('/crm-batch-report/data', 'CRM\CRMCustomerController@batch_report_data')->name('crm.batch-report.data')->middleware('can:crm.components.results.view');
-Route::post('/crm-batch-report/export', 'CRM\CRMCustomerController@batch_report_export')->name('crm.batch-report.export')->middleware('can:crm.components.results.view');
+Route::get('/fetch-customer-contacts/{id}', 'CRM\CustomerContactController@get_customer_client')->name('get_customer_client')->middleware('can:crm.contacts.view');
+Route::get('/validate-Crm-Customer/Name/{name}/Ajax', 'CRM\CRMCustomerController@validateCrmCustomerNameAjax')->name('validateCrmCustomerNameAjax')->middleware('can:crm.customers.view');
+Route::get('/crm-batch-reports', 'CRM\CRMCustomerController@batch_reports')->name('crm-batch-reports')->middleware('can:crm.results.view');
+Route::post('/crm-batch-report/data', 'CRM\CRMCustomerController@batch_report_data')->name('crm.batch-report.data')->middleware('can:crm.results.view');
+Route::post('/crm-batch-report/export', 'CRM\CRMCustomerController@batch_report_export')->name('crm.batch-report.export')->middleware('can:crm.results.view');
 //############################################SUPPLIER##########################################################
 
 //############################################## QUALIFICATIONS #############################################################
@@ -1094,7 +1090,7 @@ Route::post('/remove-analyte-from-captured-result', 'SampleWorkFlowController@re
 Route::post('/fetch/results-remark', 'SampleWorkFlowController@fetch_results_remark')->name('fetch_results_remark')->middleware('can:laboratory.components.all samples.view');
 Route::get('/get-available-methods', 'SampleWorkFlowController@getAvailableMethods')->name('get-available-methods')->middleware('can:laboratory.components.all samples.view');
 Route::post('/capture-results-save', 'SampleWorkFlowController@saveCaptureResults')->name('capture-results-save')->middleware('can:laboratory.components.all samples.edit');
-Route::get('/get-customer-contacts/{type}/{customer_id}', 'CRM\CustomerContactController@get_contacts')->name('get-customer-contacts')->middleware('can:crm.components.contacts.view');
+Route::get('/get-customer-contacts/{type}/{customer_id}', 'CRM\CustomerContactController@get_contacts')->name('get-customer-contacts')->middleware('can:crm.contacts.view');
 Route::get('/stock-transfer-json', 'StockTransferController@getJson')->name('stock-transfer-json');
 Route::get('/get-material-type-states', 'StockTransferController@getMaterialTypeStates')->name('get-material-type-states');
 Route::get('/get-store-slots-by-item/{item}', 'InventoryStoreController@store_slots_by_item')->name('get-store-slots-by-item');
@@ -1465,14 +1461,14 @@ Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remov
 //###################################PRICELISTS#######################################
 
 //######################################SYSTEMS ##################################################################
-Route::get('/system/configuration-type/home', 'System\SystemConfigurationTypeController@index')->name('configuration-type-home')->middleware('can:system.configuration-types.view');
-Route::post('/edit/system/configuration-type/{id}', 'System\SystemConfigurationTypeController@edit')->name('edit-configuration-type')->middleware('can:system.configuration-types.edit');
-Route::post('/add/system/configuration-type/', 'System\SystemConfigurationTypeController@add')->name('add-configuration-type')->middleware('can:system.configuration-types.add');
+Route::get('/system/configuration-type/home', 'System\SystemConfigurationTypeController@index')->name('configuration-type-home')->middleware('can:system.configuration_type.view');
+Route::post('/edit/system/configuration-type/{id}', 'System\SystemConfigurationTypeController@edit')->name('edit-configuration-type')->middleware('can:system.configuration_type.edit');
+Route::post('/add/system/configuration-type/', 'System\SystemConfigurationTypeController@add')->name('add-configuration-type')->middleware('can:system.configuration_type.add');
 
-Route::get('/system/configuration-home', 'System\SystemConfigurationsController@index')->name('configuration-system-home')->middleware('can:system.configurations.view');
-Route::post('/add/system/configuration/{id}', 'System\SystemConfigurationsController@add')->name('add-configuration')->middleware('can:system.configurations.add');
-Route::post('/edit/system/configuration/{id}', 'System\SystemConfigurationsController@edit')->name('edit-configuration')->middleware('can:system.configurations.edit');
-Route::post('/delete/system/configuration/{id}', 'System\SystemConfigurationsController@delete')->name('delete-configuration')->middleware('can:system.configurations.delete');
+Route::get('/system/configuration-home', 'System\SystemConfigurationsController@index')->name('configuration-system-home')->middleware('can:system.configuration.view');
+Route::post('/add/system/configuration/{id}', 'System\SystemConfigurationsController@add')->name('add-configuration')->middleware('can:system.configuration.add');
+Route::post('/edit/system/configuration/{id}', 'System\SystemConfigurationsController@edit')->name('edit-configuration')->middleware('can:system.configuration.edit');
+Route::post('/delete/system/configuration/{id}', 'System\SystemConfigurationsController@delete')->name('delete-configuration')->middleware('can:system.configuration.delete');
 //######################################SYSTEMS ##################################################################
 
 //##########################################CRM DASHBOARD#######################################
@@ -1646,7 +1642,7 @@ Route::post('change/Batch-Approval/Status', 'SampleWorkFlowController@changeBatc
 Route::get('/get/Show-Batch/COA/{batch_code}/{format}', 'SampleWorkFlowController@getShowBatchCOA')->name('getShowBatchCOA')->middleware('can:laboratory.components.lab-reports.view');
 
 Route::get('/sample-condition-index', 'SampleConditionController@index')->name('sample_condition_index')->middleware('can:laboratory.components.sample-types.view');
-Route::get('/sample-products/index', 'CRM\CompanyProductController@index')->name('sample-product-index')->middleware('can:crm.components.products.view');
+Route::get('/sample-products/index', 'CRM\CompanyProductController@index')->name('sample-product-index')->middleware('can:crm.products.view');
 
 Route::get('/sample-type-category/index', 'SampleTypeCategoryController@index')->name('sample-type-category-index')->middleware('can:laboratory.components.sample-types.view');
 Route::post('/sample-type-category/add', 'SampleTypeCategoryController@addCategory')->name('sample-type-category-add')->middleware('can:laboratory.components.sample-types.add');

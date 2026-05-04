@@ -650,6 +650,39 @@ function getComplaintWorkflow()
 		6 => "Cancelled Complaints"
 	);
 }
+
+function getComplaintWorkflowStageTranslationKey(string $stage): ?string
+{
+	$map = [
+		"All Complaints" => 'complaint_stage_all_complaints',
+		"Open Complaints" => 'complaint_stage_open_complaints',
+		"Complaints Approval" => 'complaint_stage_complaints_approval',
+		"Complaints Resolution" => 'complaint_stage_complaints_resolution',
+		"Resolution Approval" => 'complaint_stage_resolution_approval',
+		"Closed Complaints" => 'complaint_stage_closed_complaints',
+		"Cancelled Complaints" => 'complaint_stage_cancelled_complaints',
+		"Log & Intake" => 'complaint_stage_log_intake',
+		"Active Investigations" => 'complaint_stage_active_investigations',
+		"Pending Closure" => 'complaint_stage_pending_closure',
+		"Verification Review & CAPA" => 'complaint_stage_verification_review_capa',
+	];
+
+	return $map[$stage] ?? null;
+}
+
+function translateComplaintWorkflowStage(string $stage): string
+{
+	$key = getComplaintWorkflowStageTranslationKey($stage);
+	if ($key === null) {
+		return $stage;
+	}
+
+	$translationKey = 'crm.' . $key;
+	$translated = __($translationKey);
+
+	return $translated === $translationKey ? $stage : $translated;
+}
+
 function getComplaintsActionsApproval()
 {
 	return array(
@@ -978,7 +1011,17 @@ function getInvoiceDetails($id)
 
 function getBatchNotificationUser()
 {
-	return App\BatchNotification::where('position_id', auth()->user()->position)->where('active', 1)->orderBy('id', 'desc')->get();
+	$user = auth()->user();
+	$position = $user->position ?? null;
+
+	if (!is_string($position) || !\Illuminate\Support\Str::isUuid($position)) {
+		return collect();
+	}
+
+	return App\BatchNotification::where('position_id', $position)
+		->where('active', 1)
+		->orderBy('id', 'desc')
+		->get();
 }
 
 function getTotaltaxAmount($id)

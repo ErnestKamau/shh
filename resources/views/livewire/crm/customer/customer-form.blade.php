@@ -1,46 +1,4 @@
-<div x-data="{
-    initSelect2() {
-        // Initialize Country Select2
-        let countrySelect = $('#country-select');
-        countrySelect.select2({
-            placeholder: 'Select Country',
-            allowClear: true,
-            width: '100%',
-            dropdownParent: countrySelect.closest('.modal'),
-            closeOnSelect: true
-        }).on('change', function (e) {
-            var data = $(this).val();
-            $wire.set('country_id', data);
-        });
-
-        // Initial load for Country
-        let initialCountry = $wire.get('country_id');
-        if (initialCountry) {
-            countrySelect.val(initialCountry).trigger('change');
-        }
-
-        // Initialize Account Status Select2
-        let accountSelect = $('#account-status-select');
-        if (accountSelect.length) {
-            accountSelect.select2({
-                placeholder: 'Choose Account Settings',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: accountSelect.closest('.modal'),
-                closeOnSelect: true
-            }).on('change', function (e) {
-                var data = $(this).val();
-                $wire.set('account_status', data);
-            });
-
-            // Initial load for Account Status
-            let initialAccount = $wire.get('account_status');
-            if (initialAccount) {
-                accountSelect.val(initialAccount).trigger('change');
-            }
-        }
-    }
-}" x-init="initSelect2()">
+<div>
     <div class="modal fade show"
         style="display: flex; align-items: flex-start; overflow-y: auto; background-color: rgba(0,0,0,0.5); padding-top: 30px; padding-bottom: 30px;"
         wire:click.self="close" tabindex="-1" role="dialog" wire:ignore.self>
@@ -87,15 +45,20 @@
                                 </div>
                                 <div class="form-group">
                                     <label class="control-label">Country</label>
-                                    <div wire:ignore>
-                                        <select class="form-control no-select2" id="country-select">
-                                            <option value="">Select Country</option>
+                                    <select class="form-control" wire:model="country_id">
+                                        <option value="">-- Select Country --</option>
+                                        @if(is_array($countries))
                                             @foreach($countries as $country)
-                                                <option value="{{ $country->id }}" @if($country_id == $country->id) selected
-                                                @endif>{{ $country->name }}</option>
+                                                <option value="{{ $country->id ?? $country['id'] }}">
+                                                    {{ $country->name ?? $country['name'] }}
+                                                </option>
                                             @endforeach
-                                        </select>
-                                    </div>
+                                        @else
+                                            @foreach($countries as $country)
+                                                <option value="{{ $country->id }}">{{ $country->name }}</option>
+                                            @endforeach
+                                        @endif
+                                    </select>
                                     @error('country_id') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="row">
@@ -152,23 +115,18 @@
                                         wire:model="credit_days" />
                                     @error('credit_days') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
-                                @if(isset($account_settings->id))
-                                    <div class="form-group">
-                                        <label class="control-label">Account Setting <span
-                                                class="text-danger">*</span></label>
-                                        <div wire:ignore>
-                                            <select class="form-control custom-select no-select2" id="account-status-select"
-                                                required>
-                                                <option value="">Choose Account Settings</option>
-                                                @foreach($accounts as $account)
-                                                    <option value="{{ $account->id }}" @if($account_status == $account->id)
-                                                    selected @endif>{{ $account->key }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        @error('account_status') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                @endif
+                                <div class="form-group">
+                                    <label class="control-label">Account Settings <span class="text-danger">*</span></label>
+                                    <select class="form-control" wire:model="account_status" required>
+                                        <option value="">-- Select Account Settings --</option>
+                                        @forelse($accounts as $account)
+                                            <option value="{{ $account->id }}">{{ $account->key }}</option>
+                                        @empty
+                                            <option disabled>No account settings available</option>
+                                        @endforelse
+                                    </select>
+                                    @error('account_status') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
                             </div>
                         </div>
                     </div>

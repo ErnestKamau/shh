@@ -78,25 +78,25 @@
         <!-- HEADER -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="mb-1" style="font-weight: 700; color: #1e293b;">Welcome back 👋</h3>
-                <p class="text-muted mb-0">Overview of Customer Relationships, Feedback, and Complaints.</p>
+                <h3 class="mb-1" style="font-weight: 700; color: #1e293b;">{{ __('crm.welcome_back') }} 👋</h3>
+                <p class="text-muted mb-0">{{ __('crm.crm_overview_summary') }}</p>
             </div>
             <div class="d-flex align-items-center gap-3">
                 @if($openComplaints > 0)
                 <div class="bento-card px-3 py-2 mr-2 mb-0 d-flex align-items-center">
                     <span class="pulse-dot pulse-red mr-2" style="--box-color: 239, 68, 68;"></span>
-                    <span class="font-weight-bold text-danger text-sm" style="font-size: 0.85rem;">{{ $openComplaints }} Active Complaints</span>
+                    <span class="font-weight-bold text-danger text-sm" style="font-size: 0.85rem;">{{ __('crm.active_complaints_count', ['count' => $openComplaints]) }}</span>
                 </div>
                 @else
                 <div class="bento-card px-3 py-2 mr-2 mb-0 d-flex align-items-center">
                     <span class="pulse-dot pulse-green mr-2" style="--box-color: 16, 185, 129;"></span>
-                    <span class="font-weight-bold text-success text-sm" style="font-size: 0.85rem;">Zero Active Complaints</span>
+                    <span class="font-weight-bold text-success text-sm" style="font-size: 0.85rem;">{{ __('crm.zero_active_complaints') }}</span>
                 </div>
                 @endif
                 
                 <div class="bento-card px-3 py-2 mb-0 d-flex align-items-center">
                     <span class="pulse-dot pulse-orange mr-2" style="--box-color: 245, 158, 11;"></span>
-                    <span class="font-weight-bold text-warning text-sm" style="font-size: 0.85rem;">5 Expiring Certifications</span>
+                    <span class="font-weight-bold text-warning text-sm" style="font-size: 0.85rem;">{{ __('crm.expiring_certifications', ['count' => 5]) }}</span>
                 </div>
             </div>
         </div>
@@ -106,33 +106,33 @@
             <!-- Active Clients -->
             <div class="col-md-3">
                 <div class="bento-card pipeline-card h-100" onclick="window.location.href='@php echo route('livewire.customers'); @endphp'">
-                    <div class="stat-label text-primary"><i class="fas fa-building mr-1"></i> Total Clients</div>
+                    <div class="stat-label text-primary"><i class="fas fa-building mr-1"></i> {{ __('crm.total_clients') }}</div>
                     <div class="stat-value">{{ number_format($totalCustomers) }}</div>
-                    <div class="stat-subtext">Active Company Accounts</div>
+                    <div class="stat-subtext">{{ __('crm.active_company_accounts') }}</div>
                 </div>
             </div>
             <!-- Total Complaints -->
             <div class="col-md-3">
                 <div class="bento-card pipeline-card h-100" onclick="window.location.href='@php echo route('crm.complaints-manager'); @endphp'">
-                    <div class="stat-label text-danger"><i class="fas fa-exclamation-triangle mr-1"></i> Open Complaints</div>
+                    <div class="stat-label text-danger"><i class="fas fa-exclamation-triangle mr-1"></i> {{ __('crm.open_complaints') }}</div>
                     <div class="stat-value">{{ $openComplaints }}</div>
-                    <div class="stat-subtext">Issues Under Investigation</div>
+                    <div class="stat-subtext">{{ __('crm.issues_under_investigation') }}</div>
                 </div>
             </div>
             <!-- Feedback -->
             <div class="col-md-3">
                 <div class="bento-card pipeline-card h-100">
-                    <div class="stat-label text-warning"><i class="fas fa-comments mr-1"></i> Feedback Forms</div>
+                    <div class="stat-label text-warning"><i class="fas fa-comments mr-1"></i> {{ __('crm.feedback_forms') }}</div>
                     <div class="stat-value">{{ $feedbackCount }}</div>
-                    <div class="stat-subtext">Received this Month</div>
+                    <div class="stat-subtext">{{ __('crm.received_this_month') }}</div>
                 </div>
             </div>
             <!-- Sample Points -->
             <div class="col-md-3">
                 <div class="bento-card pipeline-card h-100" onclick="window.location.href='@php echo route('crm.sample-points'); @endphp'">
-                    <div class="stat-label text-success"><i class="fas fa-map-marker-alt mr-1"></i> Sample Points</div>
+                    <div class="stat-label text-success"><i class="fas fa-map-marker-alt mr-1"></i> {{ __('crm.sample_points') }}</div>
                     <div class="stat-value">{{ number_format($totalSamplePoints) }}</div>
-                    <div class="stat-subtext">Operational Collection Points</div>
+                    <div class="stat-subtext">{{ __('crm.operational_collection_points') }}</div>
                 </div>
             </div>
         </div>
@@ -143,12 +143,12 @@
             <div class="col-lg-8 mb-3 mb-lg-0">
                 <div class="bento-card h-100 mb-0">
                     <div class="section-header">
-                        <span><i class="fas fa-chart-line text-muted mr-2"></i> Complaints & Resolutions Over Time</span>
+                        <span><i class="fas fa-chart-line text-muted mr-2"></i> {{ __('crm.complaints_resolutions_timeline') }}</span>
                     </div>
                     <div class="section-body p-4 d-flex justify-content-center align-items-center text-muted" style="min-height: 250px; background-color: #fafbfc; border-radius: 8px;">
                         <div class="text-center">
                             <i class="fas fa-chart-bar fa-3x mb-3 text-secondary" style="opacity: 0.3;"></i>
-                            <p>Chart Data Visualization Will Render Here</p>
+                            <p>{{ __('crm.chart_placeholder') }}</p>
                         </div>
                     </div>
                 </div>
@@ -158,20 +158,20 @@
             <div class="col-lg-4">
                 <div class="bento-card h-100 mb-0">
                     <div class="section-header">
-                        <span><i class="fas fa-bolt text-warning mr-2"></i> Quick Actions</span>
+                        <span><i class="fas fa-bolt text-warning mr-2"></i> {{ __('crm.quick_actions') }}</span>
                     </div>
                     <div class="section-body">
                         <a href="{{ route('livewire.customers') }}" class="client-action-btn">
-                            <i class="fas fa-user-plus text-primary"></i> Add New Client Account
+                            <i class="fas fa-user-plus text-primary"></i> {{ __('crm.add_new_client_account') }}
                         </a>
                         <a href="{{ route('crm.complaints-manager') }}" class="client-action-btn">
-                            <i class="fas fa-exclamation-circle text-danger"></i> Log New Complaint
+                            <i class="fas fa-exclamation-circle text-danger"></i> {{ __('crm.log_new_complaint') }}
                         </a>
                         <a href="{{ route('crm.sample-points') }}" class="client-action-btn">
-                            <i class="fas fa-map-pin text-success"></i> Create Sample Point
+                            <i class="fas fa-map-pin text-success"></i> {{ __('crm.create_sample_point') }}
                         </a>
                         <a href="#" class="client-action-btn mb-0">
-                            <i class="fas fa-certificate text-warning"></i> View Certifications
+                            <i class="fas fa-certificate text-warning"></i> {{ __('crm.view_certifications') }}
                         </a>
                     </div>
                 </div>
@@ -183,13 +183,13 @@
             <div class="col-12">
                 <div class="bento-card mb-0">
                     <div class="d-flex justify-content-between align-items-center border-bottom px-4 pt-3 pb-0">
-                        <h5 class="font-weight-bold mb-0" style="color:#1e293b; font-size: 1.1rem;">CRM Workspace</h5>
+                        <h5 class="font-weight-bold mb-0" style="color:#1e293b; font-size: 1.1rem;">{{ __('crm.workspace') }}</h5>
                         <ul class="nav nav-tabs modern-tabs" id="crmActionGrid" role="tablist">
                             <li class="nav-item">
-                                <a class="nav-link active" id="tab-recent-complaints" data-toggle="tab" href="#pane-complaints" role="tab">⚠️ Latest Complaints</a>
+                                <a class="nav-link active" id="tab-recent-complaints" data-toggle="tab" href="#pane-complaints" role="tab">⚠️ {{ __('crm.latest_complaints') }}</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" id="tab-recent-feedback" data-toggle="tab" href="#pane-feedback" role="tab">💬 Recent Feedback</a>
+                                <a class="nav-link" id="tab-recent-feedback" data-toggle="tab" href="#pane-feedback" role="tab">💬 {{ __('crm.recent_feedback') }}</a>
                             </li>
                         </ul>
                     </div>
@@ -201,10 +201,10 @@
                                     <table class="table smart-table table-hover mb-0">
                                         <thead>
                                             <tr>
-                                                <th class="pl-4">Complaint ID</th>
-                                                <th>Received Date</th>
-                                                <th>Description / Status</th>
-                                                <th class="text-right pr-4">Action</th>
+                                                <th class="pl-4">{{ __('crm.complaint_id') }}</th>
+                                                <th>{{ __('crm.received_date') }}</th>
+                                                <th>{{ __('crm.description_status') }}</th>
+                                                <th class="text-right pr-4">{{ __('crm.action') }}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -212,12 +212,12 @@
                                             <tr>
                                                 <td class="pl-4 font-weight-bold text-danger">#CMP-{{ $complaintItem->id }}</td>
                                                 <td>{{ $complaintItem->created_at ? $complaintItem->created_at->format('M d, Y') : 'N/A' }}</td>
-                                                <td>Investigating client issue...</td> <!-- Can replace with actual field -->
-                                                <td class="text-right pr-4"><a href="{{ route('crm.complaints-manager') }}" class="btn btn-sm btn-outline-primary rounded px-3">Review</a></td>
+                                                <td>{{ __('crm.investigating_client_issue') }}</td>
+                                                <td class="text-right pr-4"><a href="{{ route('crm.complaints-manager') }}" class="btn btn-sm btn-outline-primary rounded px-3">{{ __('crm.review') }}</a></td>
                                             </tr>
                                             @empty
                                             <tr>
-                                                <td colspan="4" class="text-center py-4 text-muted">No active complaints! <i class="fas fa-glass-cheers text-success ml-1"></i></td>
+                                                <td colspan="4" class="text-center py-4 text-muted">{{ __('crm.no_active_complaints') }} <i class="fas fa-glass-cheers text-success ml-1"></i></td>
                                             </tr>
                                             @endforelse
                                         </tbody>
@@ -231,14 +231,14 @@
                                     <table class="table smart-table table-hover mb-0">
                                         <thead>
                                             <tr>
-                                                <th class="pl-4">Client</th>
-                                                <th>Satisfaction Score</th>
-                                                <th>Feedback Date</th>
-                                                <th class="text-right pr-4">Action</th>
+                                                <th class="pl-4">{{ __('crm.client') }}</th>
+                                                <th>{{ __('crm.satisfaction_score') }}</th>
+                                                <th>{{ __('crm.feedback_date') }}</th>
+                                                <th class="text-right pr-4">{{ __('crm.action') }}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr><td colspan="4" class="text-center py-4 text-muted">No new feedback reported today.</td></tr>
+                                            <tr><td colspan="4" class="text-center py-4 text-muted">{{ __('crm.no_new_feedback_today') }}</td></tr>
                                         </tbody>
                                     </table>
                                 </div>

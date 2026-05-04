@@ -16,7 +16,7 @@
         <x-bread-crumb :items="$items"></x-bread-crumb>
         <h2 class="p-4">
             <i class="mdi mdi-cogs"></i> {{ __('system.configuration_types') }}
-            @can('system.configuration-types.add')
+            @can('system.configuration_type.add')
             <button class="btn btn-outline-primary btn-sm float-right" data-toggle="modal" data-target="#add-configuration-type"><i class="mdi mdi-plus"></i> {{ __('system.add') }}</button>
             @endcan
         </h2>
@@ -76,7 +76,7 @@
                                             </div>
                                         </td>
                                         <td>
-                                            @can('system.configuration-types.edit')
+                                            @can('system.configuration_type.edit')
                                             <span class="btn btn-outline-primary btn-sm" data-target="#edit-configuration-{{$configuration->id}}" data-toggle="modal"><i class="mdi mdi-pencil"></i></span>
                                             <div class="modal fade" id="edit-configuration-{{$configuration->id}}" role="dialog">
                                                 <div class="modal-dialog">

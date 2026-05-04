@@ -8,16 +8,16 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-account-group text-primary"></i>
-                                Customer Management
+                                {{ __('crm.customer_management') }}
                             </h2>
-                            <p class="text-muted mb-0">Manage customers, company units, sample points, and contacts</p>
+                            <p class="text-muted mb-0">{{ __('crm.customer_management_subtitle') }}</p>
                         </div>
                         <button wire:click="showCreateCustomerModal" wire:loading.attr="disabled" class="btn btn-sm btn-primary">
                             <span wire:loading.remove wire:target="showCreateCustomerModal">
-                                <i class="mdi mdi-plus"></i> Add Customer
+                                <i class="mdi mdi-plus"></i> {{ __('crm.add_customer') }}
                             </span>
                             <span wire:loading wire:target="showCreateCustomerModal">
-                                <i class="mdi mdi-loading mdi-spin"></i> Loading...
+                                <i class="mdi mdi-loading mdi-spin"></i> {{ __('crm.loading') }}...
                             </span>
                         </button>
                     </div>
@@ -40,47 +40,49 @@
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
                     <h6 class="mb-0 text-muted">
-                        <i class="mdi mdi-filter-variant"></i> Filter Options
+                        <i class="mdi mdi-filter-variant"></i> {{ __('crm.filter_options') }}
                     </h6>
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search customers...">
+                                <label class="form-label fw-bold">{{ __('crm.search') }}</label>
+                                <input type="text" wire:model.live="search" class="form-control" placeholder="{{ __('crm.search_customers') }}">
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Country</label>
-                                <select wire:model.live="countryFilter" class="form-select modern-select">
-                                    <option value="">All Countries</option>
-                                    @foreach($countries as $country)
-                                        <option value="{{ $country->id }}">{{ $country->name }}</option>
+                                <label class="form-label fw-bold">{{ __('crm.account_settings') }}</label>
+                                <select wire:model.live="accountSettingsFilter" class="form-select modern-select">
+                                    <option value="">{{ __('crm.all_account_settings') }}</option>
+                                    @foreach($accounts as $account)
+                                        <option value="{{ is_object($account) ? ($account->id ?? '') : ($account['id'] ?? '') }}">
+                                            {{ is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '') }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Status</label>
+                                <label class="form-label fw-bold">{{ __('crm.status') }}</label>
                                 <select wire:model.live="statusFilter" class="form-select modern-select">
-                                    <option value="">All Status</option>
-                                    <option value="1">Active</option>
-                                    <option value="0">Inactive</option>
+                                    <option value="">{{ __('crm.all_status') }}</option>
+                                    <option value="1">{{ __('crm.active') }}</option>
+                                    <option value="0">{{ __('crm.inactive') }}</option>
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">From Date</label>
+                                <label class="form-label fw-bold">{{ __('crm.from_date') }}</label>
                                 <input type="date" wire:model.live="dateFrom" class="form-control">
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">To Date</label>
+                                <label class="form-label fw-bold">{{ __('crm.to_date') }}</label>
                                 <input type="date" wire:model.live="dateTo" class="form-control">
                             </div>
                         </div>
@@ -88,17 +90,17 @@
                     <div class="row">
                         <div class="col-md-6">
                             <button wire:click="clearFilters" class="btn btn-outline-secondary btn-sm">
-                                <i class="mdi mdi-refresh"></i> Clear Filters
+                                <i class="mdi mdi-refresh"></i> {{ __('crm.clear_filters') }}
                             </button>
                         </div>
                         <div class="col-md-6 text-end hidden">
                             <div class="btn-group">
                                 <button wire:click="exportCustomers" class="btn btn-success btn-sm">
-                                    <i class="mdi mdi-download"></i> Export CSV
+                                    <i class="mdi mdi-download"></i> {{ __('crm.export_csv') }}
                                 </button>
                                 <select wire:model="exportFormat" class="form-select form-select-sm" style="width: auto;">
-                                    <option value="csv">CSV</option>
-                                    <option value="excel">Excel</option>
+                                    <option value="csv">{{ __('crm.csv') }}</option>
+                                    <option value="excel">{{ __('crm.excel') }}</option>
                                 </select>
                             </div>
                         </div>
@@ -119,18 +121,18 @@
                             <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
                                 <span>
                                     <i class="mdi mdi-information"></i>
-                                    {{ count($selectedCustomers) }} customer(s) selected
+                                    {{ __('crm.customers_selected_count', ['count' => count($selectedCustomers)]) }}
                                 </span>
                                 <div class="btn-group">
                                     <button wire:click="bulkStatusUpdate(1)" class="btn btn-success btn-sm">
-                                        <i class="mdi mdi-check"></i> Activate
+                                        <i class="mdi mdi-check"></i> {{ __('crm.activate') }}
                                     </button>
                                     <button wire:click="bulkStatusUpdate(0)" class="btn btn-warning btn-sm">
-                                        <i class="mdi mdi-pause"></i> Deactivate
+                                        <i class="mdi mdi-pause"></i> {{ __('crm.deactivate') }}
                                     </button>
                                     <button wire:click="bulkDelete" class="btn btn-danger btn-sm" 
-                                            onclick="return confirm('Are you sure you want to delete selected customers?')">
-                                        <i class="mdi mdi-delete"></i> Delete
+                                            onclick="return confirm(@js(__('crm.delete_selected_customers_confirm')))">
+                                        <i class="mdi mdi-delete"></i> {{ __('crm.delete') }}
                                     </button>
                                 </div>
                             </div>
@@ -140,11 +142,11 @@
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="d-flex align-items-center">
                                 <span class="text-muted">
-                                    Showing {{ $this->customers->firstItem() ?? 0 }} to {{ $this->customers->lastItem() ?? 0 }} of {{ $this->customers->total() }} entries
+                                    {{ __('crm.showing_to_of_results', ['from' => ($this->customers->firstItem() ?? 0), 'to' => ($this->customers->lastItem() ?? 0), 'total' => $this->customers->total()]) }}
                                 </span>
                             </div>
                             <div class="d-flex align-items-center">
-                                <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
+                                <label for="perPage" class="form-label mb-0 me-2 text-muted">{{ __('crm.show') }}:</label>
                                 <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
                                     @foreach($perPageOptions as $option)
                                         <option value="{{ $option }}">{{ $option }}</option>
@@ -157,14 +159,14 @@
                             <table class="table table-striped table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                 <tr>  
-                                    <th>Code</th>
-                                    <th>Name</th>
-                                    <th>Dynamics Mapping</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
-                                    <th>Country</th>
-                                    <th>Status</th>
-                                        <th>Actions</th>
+                                    <th>{{ __('crm.code') }}</th>
+                                    <th>{{ __('crm.name') }}</th>
+                                    <th>{{ __('crm.dynamics_mapping') }}</th>
+                                    <th>{{ __('crm.email') }}</th>
+                                    <th>{{ __('crm.phone_1') }}</th>
+                                    <th>{{ __('crm.country') }}</th>
+                                    <th>{{ __('crm.status') }}</th>
+                                        <th>{{ __('crm.actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -172,7 +174,7 @@
                                         <tr>
                                            
                                         <td>
-                                            <a wire:click="viewCustomer({{ $customer->id }})" class="btn btn-sm fw-bold text-primary">{{ $customer->code }}</a>
+                                            <a href="{{ route('livewire.customer-profile', ['customerId' => $customer->id]) }}" class="btn btn-sm rm-act-btn rm-act-btn--view">{{ $customer->code }}</a>
                                         </td>
                                         <td>
                                             <div>
@@ -189,7 +191,7 @@
                                                     <div class="fw-bold">{{ $linkedZohoCustomers->first()->name }}</div>
                                                     <small class="text-muted">{{ $linkedZohoCustomers->first()->customer_no }}</small>
                                                     @if($linkedZohoCustomers->count() > 1)
-                                                        <span class="badge bg-info" style="font-size: 10px;">+{{ $linkedZohoCustomers->count() - 1 }} more</span>
+                                                        <span class="badge bg-info" style="font-size: 10px;">{{ __('crm.plus_more_count', ['count' => $linkedZohoCustomers->count() - 1]) }}</span>
                                                     @endif
                                                 </div>
                                             @else
@@ -198,35 +200,38 @@
                                         </td>
                                         <td>{{ $customer->email }}</td>
                                         <td>{{ $customer->telephone1 }}</td>
-                                        <td>{{ $customer->country->name ?? 'N/A' }}</td>
+                                        <td>{{ $customer->country->name ?? __('crm.not_available') }}</td>
                                         <td>
                                             @if($customer->active == 1)
-                                                    <span class="badge bg-success p-2" style="color: white;">Active</span>
+                                                    <span class="badge bg-success p-2" style="color: white;">{{ __('crm.active') }}</span>
                                             @else
-                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">{{ __('crm.inactive') }}</span>
                                             @endif
                                         </td>
-                                            <td>
-                                            <div class="btn-group" role="group">
-                                                <button wire:click="viewCustomer({{ $customer->id }})" 
-                                                            class="btn btn-sm btn-outline-primary mr-1" 
-                                                        title="View Profile">
-                                                    <i class="mdi mdi-eye"></i>
-                                                </button>
-                                                <button wire:click="showEditCustomerModal({{ $customer->id }})" 
-                                                            class="btn btn-sm btn-outline-warning mr-1" 
-                                                        title="Edit">
+                                            <td nowrap style="width: 150px;">
+                                            <div class="d-flex">
+                                                <a href="{{ route('livewire.customer-profile', ['customerId' => $customer->id]) }}"
+                                                   class="btn btn-sm rm-act-btn rm-act-btn--view"
+                                                   title="{{ __('crm.view_profile') }}">
+                                                    <i class="mdi mdi-eye-outline"></i>
+                                                </a>
+                                                <button wire:click="showEditCustomerModal(@js($customer->id))"
+                                                        type="button"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                                        title="{{ __('crm.edit') }}">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
-                                                <button wire:click="showCloneModal({{ $customer->id }})" 
-                                                            class="btn btn-sm btn-outline-info mr-1" 
-                                                        title="Clone Customer">
+                                                <button wire:click="showCloneModal(@js($customer->id))"
+                                                        type="button"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--clone"
+                                                        title="{{ __('crm.clone_customer') }}">
                                                     <i class="mdi mdi-content-copy"></i>
                                                 </button>
-                                                <button wire:click="deleteCustomer({{ $customer->id }})" 
-                                                            class="btn btn-sm btn-outline-danger mr-1" 
-                                                        title="Delete"
-                                                        onclick="return confirm('Are you sure you want to delete this customer?')">
+                                                <button wire:click="deleteCustomer(@js($customer->id))"
+                                                        type="button"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--delete"
+                                                        title="{{ __('crm.delete') }}"
+                                                        onclick="return confirm(@js(__('crm.delete_customer_confirm')))" >
                                                     <i class="mdi mdi-delete"></i>
                                                 </button>
                                             </div>
@@ -243,8 +248,8 @@
                     @else
                         <div class="text-center py-4">
                             <i class="mdi mdi-account-group text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No customers found</h5>
-                            <p class="text-muted">Start by adding your first customer.</p>
+                            <h5 class="text-muted mt-3">{{ __('crm.no_customers_found') }}</h5>
+                            <p class="text-muted">{{ __('crm.add_first_customer_hint') }}</p>
                         </div>
                     @endif
                 </div>
@@ -260,7 +265,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingCustomer ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingCustomer ? 'Edit' : 'Create' }} Customer
+                            {{ $editingCustomer ? __('crm.edit') : __('crm.create') }} {{ __('crm.customer') }}
                             <span wire:loading wire:target="showCreateCustomerModal,showEditCustomerModal">
                                 <span class="spinner-border spinner-border-sm ms-2" role="status"></span>
                             </span>
@@ -272,15 +277,15 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="customerForm.name" class="form-control" placeholder="Customer name...">
+                                        <label class="form-label fw-bold">{{ __('crm.name') }} <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model="customerForm.name" class="form-control" placeholder="{{ __('crm.customer_name_placeholder') }}">
                                         @error('customerForm.name') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
-                                        <input type="email" wire:model="customerForm.email" class="form-control" placeholder="Email address...">
+                                        <label class="form-label fw-bold">{{ __('crm.email') }} <span class="text-danger">*</span></label>
+                                        <input type="email" wire:model="customerForm.email" class="form-control" placeholder="{{ __('crm.email_address_placeholder') }}">
                                         @error('customerForm.email') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -289,15 +294,15 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Phone 1 <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="customerForm.telephone1" class="form-control" placeholder="Primary phone...">
+                                        <label class="form-label fw-bold">{{ __('crm.phone_1') }} <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model="customerForm.telephone1" class="form-control" placeholder="{{ __('crm.primary_phone_placeholder') }}">
                                         @error('customerForm.telephone1') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Phone 2</label>
-                                        <input type="text" wire:model="customerForm.telephone2" class="form-control" placeholder="Secondary phone...">
+                                        <label class="form-label fw-bold">{{ __('crm.phone_2') }}</label>
+                                        <input type="text" wire:model="customerForm.telephone2" class="form-control" placeholder="{{ __('crm.secondary_phone_placeholder') }}">
                                     </div>
                                 </div>
                             </div>
@@ -305,8 +310,8 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold"><i class="mdi mdi-earth text-primary"></i> Country <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container" wire:click="$set('showCountryDropdown', true); $set('showAccountDropdown', false); $set('showZohoCustomerDropdown', false)">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-earth text-primary"></i> {{ __('crm.country') }} <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="toggleCountryDropdown()">
                                             <div class="tag-select-input">
                                                 @if($this->selectedCountryName)
                                                     <span class="tag-badge">
@@ -319,14 +324,14 @@
                                                     wire:model.live.debounce.300ms="countrySearch"
                                                     class="tag-input"
                                                     placeholder="{{ $this->selectedCountryName ? '' : 'Search countries...' }}"
-                                                    wire:focus="$set('showCountryDropdown', true)"
+                                                    wire:focus="toggleCountryDropdown()"
                                                     autocomplete="off"
                                                 >
                                             </div>
                                             @if($showCountryDropdown && $this->filteredCountries->count() > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($this->filteredCountries as $country)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectCountry({{ $country->id }})">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectCountry('{{ $country->id }}')">
                                                             {{ $country->name }}
                                                         </div>
                                                     @endforeach
@@ -338,8 +343,8 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> Account Settings <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container" wire:click="$set('showAccountDropdown', true); $set('showCountryDropdown', false); $set('showZohoCustomerDropdown', false)">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> {{ __('crm.account_settings') }} <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="toggleAccountDropdown()">
                                             <div class="tag-select-input">
                                                 @if($this->selectedAccountName)
                                                     <span class="tag-badge">
@@ -352,14 +357,14 @@
                                                     wire:model.live.debounce.300ms="accountSearch"
                                                     class="tag-input"
                                                     placeholder="{{ $this->selectedAccountName ? '' : 'Search account settings...' }}"
-                                                    wire:focus="$set('showAccountDropdown', true)"
+                                                    wire:focus="toggleAccountDropdown()"
                                                     autocomplete="off"
                                                 >
                                             </div>
                                             @if($showAccountDropdown && $this->filteredAccounts->count() > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($this->filteredAccounts as $account)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccount({{ is_object($account) ? $account->id : ($account['id'] ?? 0) }})">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccount('{{ is_object($account) ? $account->id : ($account['id'] ?? 0) }}')">
                                                             {{ is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '') }}
                                                         </div>
                                                     @endforeach
@@ -374,28 +379,28 @@
                             
 
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Postal Address <span class="text-danger">*</span></label>
-                                <textarea wire:model="customerForm.postal_address" class="form-control" rows="3" placeholder="Postal address..."></textarea>
+                                <label class="form-label fw-bold">{{ __('crm.postal_address') }} <span class="text-danger">*</span></label>
+                                <textarea wire:model="customerForm.postal_address" class="form-control" rows="3" placeholder="{{ __('crm.postal_address_placeholder') }}"></textarea>
                                 @error('customerForm.postal_address') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
 
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Physical Address <span class="text-danger">*</span></label>
-                                <input type="text" wire:model="customerForm.physical_address" class="form-control" placeholder="Physical address...">
+                                <label class="form-label fw-bold">{{ __('crm.physical_address') }} <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="customerForm.physical_address" class="form-control" placeholder="{{ __('crm.physical_address_placeholder') }}">
                                 @error('customerForm.physical_address') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
 
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Website</label>
-                                        <input type="text" wire:model="customerForm.website" class="form-control" placeholder="Website URL...">
+                                        <label class="form-label fw-bold">{{ __('crm.website') }}</label>
+                                        <input type="text" wire:model="customerForm.website" class="form-control" placeholder="{{ __('crm.website_url_placeholder') }}">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Fax</label>
-                                        <input type="text" wire:model="customerForm.fax" class="form-control" placeholder="Fax number...">
+                                        <label class="form-label fw-bold">{{ __('crm.fax') }}</label>
+                                        <input type="text" wire:model="customerForm.fax" class="form-control" placeholder="{{ __('crm.fax_number_placeholder') }}">
                                     </div>
                                 </div>
                             </div>
@@ -403,65 +408,17 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">VAT Number</label>
-                                        <input type="text" wire:model="customerForm.vat_no" class="form-control" placeholder="VAT number...">
+                                        <label class="form-label fw-bold">{{ __('crm.vat_number') }}</label>
+                                        <input type="text" wire:model="customerForm.vat_no" class="form-control" placeholder="{{ __('crm.vat_number_placeholder') }}">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Credit Days</label>
-                                        <input type="number" wire:model="customerForm.credit_days" class="form-control" placeholder="Credit days...">
+                                        <label class="form-label fw-bold">{{ __('crm.credit_days') }}</label>
+                                        <input type="number" wire:model="customerForm.credit_days" class="form-control" placeholder="{{ __('crm.credit_days_placeholder') }}">
                                     </div>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label fw-bold"><i class="mdi mdi-link-variant text-success"></i> Dynamics Customer Mapping <small class="text-muted">(Optional)</small></label>
-                                        <div class="tag-select-container" wire:click="openZohoCustomerDropdown">
-                                            <div class="tag-select-input">
-                                                @if($this->selectedZohoCustomerName)
-                                                    <span class="tag-badge">
-                                                        {{ $this->selectedZohoCustomerName }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearZohoCustomer"></i>
-                                                    </span>
-                                                @endif
-                                                <input
-                                                    type="text"
-                                                    wire:model.live.debounce.300ms="zohoCustomerSearch"
-                                                    class="tag-input"
-                                                    placeholder="{{ $this->selectedZohoCustomerName ? '' : 'Search Dynamics customers...' }}"
-                                                    wire:focus="openZohoCustomerDropdown"
-                                                    autocomplete="off"
-                                                >
-                                            </div>
-                                            @if($showZohoCustomerDropdown)
-                                                <div class="tag-dropdown" wire:click.stop>
-                                                    <div wire:loading wire:target="toggleZohoCustomerDropdown" class="text-center py-3">
-                                                        <i class="mdi mdi-loading mdi-spin"></i> Loading Dynamics customers...
-                                                    </div>
-                                                    <div wire:loading.remove wire:target="toggleZohoCustomerDropdown">
-                                                        @if($this->filteredZohoCustomers->count() > 0)
-                                                            @foreach($this->filteredZohoCustomers as $zc)
-                                                                <div class="tag-dropdown-item" wire:click.stop="selectZohoCustomer({{ $zc->id }})">
-                                                                    {{ $zc->name }} ({{ $zc->customer_no }})
-                                                                </div>
-                                                            @endforeach
-                                                        @else
-                                                            <div class="tag-dropdown-item text-muted">No Dynamics customers found</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <small class="form-text text-muted">
-                                            <i class="mdi mdi-information-outline"></i> Link this customer to a Dynamics 365 customer for billing integration.
-                                        </small>
-                                        @error('customerForm.zoho_customer_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-check">
@@ -483,13 +440,13 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeCustomerModal" wire:loading.attr="disabled" wire:target="saveCustomer">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="closeCustomerModal" wire:loading.attr="disabled" wire:target="saveCustomer">{{ __('crm.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveCustomer" wire:loading.attr="disabled" wire:target="saveCustomer">
                             <span wire:loading.remove wire:target="saveCustomer">
-                                <i class="mdi mdi-content-save"></i> {{ $editingCustomer ? 'Update' : 'Create' }} Customer
+                                <i class="mdi mdi-content-save"></i> {{ $editingCustomer ? __('crm.update') : __('crm.create') }} {{ __('crm.customer') }}
                             </span>
                             <span wire:loading wire:target="saveCustomer">
-                                <i class="mdi mdi-loading mdi-spin"></i> Saving...
+                                <i class="mdi mdi-loading mdi-spin"></i> {{ __('crm.saving') }}...
                             </span>
                         </button>
                     </div>
@@ -506,7 +463,7 @@
                     <div class="modal-header bg-info text-white">
                         <h5 class="modal-title">
                             <i class="mdi mdi-content-copy"></i>
-                            Clone Customer
+                            {{ __('crm.clone_customer') }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" wire:click="closeCloneModal"></button>
                     </div>
@@ -514,7 +471,7 @@
                         <!-- Confirmation Message -->
                         <div class="alert alert-info mb-4">
                             <i class="mdi mdi-information"></i>
-                            <strong>Confirm Cloning:</strong> You are about to clone <strong>{{ $customerToClone->name }}</strong> and all its profile information. Please review the summary below and enter a new customer name.
+                            {{ __('crm.confirm_cloning_message', ['customer' => $customerToClone->name]) }}
                         </div>
 
                         <!-- Summary Card -->
@@ -522,7 +479,7 @@
                             <div class="card-header bg-light">
                                 <h6 class="mb-0">
                                     <i class="mdi mdi-chart-box text-primary"></i>
-                                    Profile Summary
+                                    {{ __('crm.profile_summary') }}
                                 </h6>
                             </div>
                             <div class="card-body">
@@ -531,7 +488,7 @@
                                         <div class="d-flex align-items-center">
                                             <i class="mdi mdi-office-building text-primary me-2" style="font-size: 24px;"></i>
                                             <div>
-                                                <div class="fw-bold text-muted" style="font-size: 12px;">Company Units</div>
+                                                <div class="fw-bold text-muted" style="font-size: 12px;">{{ __('crm.company_units') }}</div>
                                                 <div class="h4 mb-0 text-primary">{{ $this->cloneSummary['company_units'] }}</div>
                                             </div>
                                         </div>
@@ -540,7 +497,7 @@
                                         <div class="d-flex align-items-center">
                                             <i class="mdi mdi-domain text-success me-2" style="font-size: 24px;"></i>
                                             <div>
-                                                <div class="fw-bold text-muted" style="font-size: 12px;">Company Sub Units</div>
+                                                <div class="fw-bold text-muted" style="font-size: 12px;">{{ __('crm.company_sub_units') }}</div>
                                                 <div class="h4 mb-0 text-success">{{ $this->cloneSummary['company_sub_units'] }}</div>
                                             </div>
                                         </div>
@@ -549,7 +506,7 @@
                                         <div class="d-flex align-items-center">
                                             <i class="mdi mdi-map text-warning me-2" style="font-size: 24px;"></i>
                                             <div>
-                                                <div class="fw-bold text-muted" style="font-size: 12px;">Sample Areas</div>
+                                                <div class="fw-bold text-muted" style="font-size: 12px;">{{ __('crm.sample_areas') }}</div>
                                                 <div class="h4 mb-0 text-warning">{{ $this->cloneSummary['sample_areas'] }}</div>
                                             </div>
                                         </div>
@@ -558,7 +515,7 @@
                                         <div class="d-flex align-items-center">
                                             <i class="mdi mdi-map-marker text-danger me-2" style="font-size: 24px;"></i>
                                             <div>
-                                                <div class="fw-bold text-muted" style="font-size: 12px;">Sample Points</div>
+                                                <div class="fw-bold text-muted" style="font-size: 12px;">{{ __('crm.sample_points') }}</div>
                                                 <div class="h4 mb-0 text-danger">{{ $this->cloneSummary['sample_points'] }}</div>
                                             </div>
                                         </div>
@@ -570,33 +527,33 @@
                         <!-- New Customer Name Input -->
                         <div class="form-group mb-3">
                             <label class="form-label fw-bold">
-                                <i class="mdi mdi-account text-primary"></i> New Customer Name <span class="text-danger">*</span>
+                                <i class="mdi mdi-account text-primary"></i> {{ __('crm.new_customer_name') }} <span class="text-danger">*</span>
                             </label>
                             <input 
                                 type="text" 
                                 wire:model="cloneCustomerName" 
                                 class="form-control" 
-                                placeholder="Enter new customer name..."
+                                placeholder="{{ __('crm.new_customer_name_placeholder') }}"
                                 autofocus
                             >
                             @error('cloneCustomerName') 
                                 <span class="text-danger">{{ $message }}</span> 
                             @enderror
                             <small class="form-text text-muted mt-2 d-block">
-                                <i class="mdi mdi-information-outline"></i> A unique customer code will be automatically generated from this name.
+                                <i class="mdi mdi-information-outline"></i> {{ __('crm.unique_customer_code_hint') }}
                             </small>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeCloneModal" wire:loading.attr="disabled" wire:target="cloneCustomer">
-                            <i class="mdi mdi-close"></i> Close
+                            <i class="mdi mdi-close"></i> {{ __('crm.close') }}
                         </button>
                         <button type="button" class="btn btn-info" wire:click="cloneCustomer" wire:loading.attr="disabled" wire:target="cloneCustomer">
                             <span wire:loading.remove wire:target="cloneCustomer">
-                                <i class="mdi mdi-content-copy"></i> Yes, Clone
+                                <i class="mdi mdi-content-copy"></i> {{ __('crm.yes_clone') }}
                             </span>
                             <span wire:loading wire:target="cloneCustomer">
-                                <span class="spinner-border spinner-border-sm" role="status"></span> Cloning...
+                                <span class="spinner-border spinner-border-sm" role="status"></span> {{ __('crm.cloning') }}...
                             </span>
                         </button>
                     </div>
@@ -786,6 +743,61 @@
 
     .tag-dropdown-item:last-child {
         border-bottom: none;
+    }
+
+    .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-right: 3px;
+        font-size: 12px;
+    }
+
+    .rm-act-btn:last-child {
+        margin-right: 0;
+    }
+
+    .rm-act-btn--edit {
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    .rm-act-btn--edit:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    .rm-act-btn--view {
+        border: 1px solid #bbf7d0;
+        color: #15803d;
+        background: #f0fdf4;
+    }
+
+    .rm-act-btn--view:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+    }
+
+    .rm-act-btn--clone {
+        border: 1px solid #c7d2fe;
+        color: #4338ca;
+        background: #eef2ff;
+    }
+
+    .rm-act-btn--clone:hover {
+        background: #e0e7ff;
+        border-color: #a5b4fc;
+    }
+
+    .rm-act-btn--delete {
+        border: 1px solid #fecdd3;
+        color: #e11d48;
+        background: #fff5f7;
+    }
+
+    .rm-act-btn--delete:hover {
+        background: #ffe4e6;
+        border-color: #fda4af;
     }
     </style>
 

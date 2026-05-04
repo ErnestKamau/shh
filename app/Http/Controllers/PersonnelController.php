@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Storage;
 use Excel;
 use App\Imports\StandardsImport;
 use App\SampleAnalysisStage;
+use App\UserZoneRelation;
+use App\UserDirectorateRelation;
+use App\UserLabRelation;
 
 class PersonnelController extends Controller
 {
@@ -148,10 +151,46 @@ class PersonnelController extends Controller
 			'zone_id' => 'nullable|string|exists:zones,id',
 			'directorate_id' => 'nullable|string|exists:directorates,id',
 			'lab_id' => 'nullable|string|exists:labs,id',
+			'zone_ids' => 'nullable|array',
+			'zone_ids.*' => 'nullable|string|exists:zones,id',
+			'directorate_ids' => 'nullable|array',
+			'directorate_ids.*' => 'nullable|string|exists:directorates,id',
+			'lab_ids' => 'nullable|array',
+			'lab_ids.*' => 'nullable|string|exists:labs,id',
 			'analyst_is_gazzetted' => 'nullable|boolean',
 			'date_of_gazzette' => 'nullable|date',
 			'start_of_career' => 'nullable|date',
 		]);
+
+		$zoneIds = collect($request->input('zone_ids', []))
+			->filter(fn ($id) => !is_null($id) && (string) $id !== '')
+			->map(fn ($id): string => (string) $id)
+			->unique()
+			->values();
+
+		if ($zoneIds->isEmpty() && $request->filled('zone_id')) {
+			$zoneIds = collect([(string) $request->zone_id]);
+		}
+
+		$directorateIds = collect($request->input('directorate_ids', []))
+			->filter(fn ($id) => !is_null($id) && (string) $id !== '')
+			->map(fn ($id): string => (string) $id)
+			->unique()
+			->values();
+
+		if ($directorateIds->isEmpty() && $request->filled('directorate_id')) {
+			$directorateIds = collect([(string) $request->directorate_id]);
+		}
+
+		$labIds = collect($request->input('lab_ids', []))
+			->filter(fn ($id) => !is_null($id) && (string) $id !== '')
+			->map(fn ($id): string => (string) $id)
+			->unique()
+			->values();
+
+		if ($labIds->isEmpty() && $request->filled('lab_id')) {
+			$labIds = collect([(string) $request->lab_id]);
+		}
 		
 		$personnel = User::find($id) ?? new User();
 		$check_user = User::where('email',$request->email)->get();
@@ -217,7 +256,7 @@ class PersonnelController extends Controller
 
 		$personnel->license_type = $request->user_license;
 		if (Schema::hasColumn('users', 'zone_id')) {
-			$personnel->zone_id = $request->zone_id ? (string) $request->zone_id : null;
+			$personnel->zone_id = $zoneIds->first() ?: null;
 		}
 
 		if(!isset($personnel->id)){
@@ -280,35 +319,32 @@ class PersonnelController extends Controller
 		$personnel->save();
 
 		if (Schema::hasTable('user_zone_relation')) {
-			if ($request->filled('zone_id')) {
-				DB::table('user_zone_relation')->updateOrInsert(
-					['user_id' => $personnel->id, 'zone_id' => (string) $request->zone_id],
-					['updated_at' => now(), 'created_at' => now()]
-				);
-			} else {
-				DB::table('user_zone_relation')->where('user_id', $personnel->id)->delete();
+			DB::table('user_zone_relation')->where('user_id', $personnel->id)->delete();
+			foreach ($zoneIds as $zoneId) {
+				UserZoneRelation::query()->create([
+					'user_id' => $personnel->id,
+					'zone_id' => $zoneId,
+				]);
 			}
 		}
 
 		if (Schema::hasTable('user_directorate_relation')) {
-			if ($request->filled('directorate_id')) {
-				DB::table('user_directorate_relation')->updateOrInsert(
-					['user_id' => $personnel->id, 'directorate_id' => (string) $request->directorate_id],
-					['updated_at' => now(), 'created_at' => now()]
-				);
-			} else {
-				DB::table('user_directorate_relation')->where('user_id', $personnel->id)->delete();
+			DB::table('user_directorate_relation')->where('user_id', $personnel->id)->delete();
+			foreach ($directorateIds as $directorateId) {
+				UserDirectorateRelation::query()->create([
+					'user_id' => $personnel->id,
+					'directorate_id' => $directorateId,
+				]);
 			}
 		}
 
 		if (Schema::hasTable('user_lab_relation')) {
-			if ($request->filled('lab_id')) {
-				DB::table('user_lab_relation')->updateOrInsert(
-					['user_id' => $personnel->id, 'lab_id' => (string) $request->lab_id],
-					['updated_at' => now(), 'created_at' => now()]
-				);
-			} else {
-				DB::table('user_lab_relation')->where('user_id', $personnel->id)->delete();
+			DB::table('user_lab_relation')->where('user_id', $personnel->id)->delete();
+			foreach ($labIds as $labId) {
+				UserLabRelation::query()->create([
+					'user_id' => $personnel->id,
+					'lab_id' => $labId,
+				]);
 			}
 		}
 		// return response()->json($personnel);

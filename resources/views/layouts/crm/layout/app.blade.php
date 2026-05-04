@@ -2,7 +2,7 @@
 
 @section('module-name')
 <li class="nav-item">
-	<a class="nav-link module-name" href="{{ route('customers-list') }}"><i class="mdi mdi-account-group"></i>CRM</a>
+	<a class="nav-link module-name" href="{{ route('customers-list') }}"><i class="mdi mdi-account-group"></i>{{ __('crm.module_name') }}</a>
 </li>
 @endsection
 
@@ -49,7 +49,7 @@
 		<ul class="list-group sticky-top sticky-offset">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
-				<span class="text-lg text-bold">CRM</span>
+				<span class="text-lg text-bold">{{ __('crm.module_name') }}</span>
 			</div>
 			<!-- Separator with title -->
 			{{-- <li class="list-group-item bg-black sidebar-separator-title text-muted d-flex align-items-center menu-collapsed">
@@ -60,31 +60,31 @@
 			<a href="{{ route('crm-dashboard') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
-					<span class="menu-collapsed">Dashboard</span>
+					<span class="menu-collapsed">{{ __('crm.dashboard') }}</span>
 				</div>
 			</a>
 			<a href="/crm-home" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-multiple fa-fw mr-3"></span>
-					<span class="menu-collapsed">Customer Register</span>
+					<span class="menu-collapsed">{{ __('crm.customer_register') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('crm.sample-points') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-map-marker-radius fa-fw mr-3"></span>
-					<span class="menu-collapsed">Sample Points</span>
+					<span class="menu-collapsed">{{ __('crm.sample_points') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('crm.areas') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-vector-square fa-fw mr-3"></span>
-					<span class="menu-collapsed">Areas</span>
+					<span class="menu-collapsed">{{ __('crm.areas') }}</span>
 				</div>
 			</a>
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
-					<span class="menu-collapsed">Complaint Workflow</span>
+					<span class="menu-collapsed">{{ __('crm.complaint_workflow') }}</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
@@ -97,8 +97,8 @@
 				// }
 				?>
 				@foreach (getComplaintWorkflowStages() as $item)
-				<a href="{{route('complaint-workflow',['stage'=>$item])}}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}
+				<a href="{{route('crm.complaints-manager',['stage'=>$item])}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ translateComplaintWorkflowStage($item) }}
 						@if ($item == "All Complaints")
 						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getAllComplaints() }}</small>
 						@endif
@@ -112,30 +112,30 @@
 			<a href="{{ route('complaint-type-home') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-message-cog fa-fw mr-3"></span>
-					<span class="menu-collapsed">Complaint Type</span>
+					<span class="menu-collapsed">{{ __('crm.complaint_type') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('crm-batch-reports') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-chart fa-fw mr-3"></span>
-					<span class="menu-collapsed">Batch Reports</span>
+					<span class="menu-collapsed">{{ __('crm.batch_reports') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('feedback-home') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-account fa-fw mr-3"></span>
-					<span class="menu-collapsed">Customer Feedback</span>
+					<span class="menu-collapsed">{{ __('crm.customer_feedback') }}</span>
 				</div>
 			</a>
 			<a href="{{ route('feedback-config') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-cog-refresh-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">Feedback Configuration</span>
+					<span class="menu-collapsed">{{ __('crm.feedback_configuration') }}</span>
 				</div>
 			</a>
 
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
-				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
+				{{ __('crm.copyright') }} {{ date('Y') }} <span class="text-red">{{ __('crm.imara_lims') }}</span>
 			</div>
 			<!-- Submenu content -->
 		</ul>

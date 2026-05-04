@@ -51,7 +51,7 @@ class ComplaintWorkflowController extends Controller
 
         $chain_custody->save();
 
-        return redirect()->route('complaint-workflow',['stage'=>$current_workflow])->with('sucess','Complaint approved successfully');
+        return redirect()->route('crm.complaints-manager',['stage'=>$current_workflow])->with('sucess','Complaint approved successfully');
     }
     public function reverse_approval(Request $request,$id){
         $complaint = Complaint::find($id);
@@ -83,7 +83,7 @@ class ComplaintWorkflowController extends Controller
 
         $new_custody->save();
 
-        return redirect()->route('complaint-workflow',['stage'=>$current_workflow])->with('sucess','Complaint reversed successfully');
+        return redirect()->route('crm.complaints-manager',['stage'=>$current_workflow])->with('sucess','Complaint reversed successfully');
     }
     public function reject_complaint(Request $request,$id){
         $complaint = Complaint::find($id);
@@ -109,7 +109,7 @@ class ComplaintWorkflowController extends Controller
 
         $new_chain->save();
 
-        return redirect()->route('complaint-workflow',['stage'=>$current_workflow])->with('sucess','Complaint rejected successfully');
+        return redirect()->route('crm.complaints-manager',['stage'=>$current_workflow])->with('sucess','Complaint rejected successfully');
     }
    
     
@@ -141,7 +141,7 @@ class ComplaintWorkflowController extends Controller
 
             $new_custody->save();
 
-            return redirect()->route('complaint-workflow',['stage'=>$current_workflow])->with('sucess','Complaint resolution reversed successfully');
+            return redirect()->route('crm.complaints-manager',['stage'=>$current_workflow])->with('sucess','Complaint resolution reversed successfully');
         }else{
             return redirect()->back()->with('error','No resolution with specified ID!');
         }

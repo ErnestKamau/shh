@@ -8,13 +8,13 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-account-box-outline text-primary"></i>
-                                Contacts Management
+                                {{ __('crm.contacts') }} {{ __('crm.management') }}
                             </h2>
-                            <p class="text-muted mb-0">Manage contacts for: <strong>{{ $customer->name }}</strong></p>
+                            <p class="text-muted mb-0">{{ __('crm.manage_contacts_for', ['customer' => $customer->name]) }}</p>
                         </div>
                         <button wire:click="showCreateContactModal" class="btn btn-sm btn-primary" wire:loading.attr="disabled" wire:target="showCreateContactModal">
                             <span wire:loading.remove wire:target="showCreateContactModal">
-                                <i class="mdi mdi-plus"></i> Add Contact
+                                <i class="mdi mdi-plus"></i> {{ __('crm.add_contact') }}
                             </span>
                             <span wire:loading wire:target="showCreateContactModal">
                                 <i class="mdi mdi-loading mdi-spin"></i> Opening form...
@@ -44,13 +44,13 @@
                             <table class="table table-striped table-hover">
                                         <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Phone</th>
-                                        <th>Units</th>
-                                        <th>Can Login</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
+                                        <th>{{ __('crm.name') }}</th>
+                                        <th>{{ __('crm.email') }}</th>
+                                        <th>{{ __('crm.phone_1') }}</th>
+                                        <th>{{ __('crm.units') }}</th>
+                                        <th>{{ __('crm.can_login') }}</th>
+                                        <th>{{ __('crm.status') }}</th>
+                                        <th>{{ __('crm.actions') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -59,33 +59,33 @@
                                             <td>
                                                 <div>
                                                     <div class="fw-bold">{{ $contact->first_name }} {{ $contact->middle_name }} {{ $contact->last_name }}</div>
-                                                    <small class="text-muted">{{ $contact->job_occupation ?? 'N/A' }}</small>
+                                                    <small class="text-muted">{{ $contact->job_occupation ?? __('crm.not_available') }}</small>
                                                 </div>
                                             </td>
                                             <td>{{ $contact->email }}</td>
                                             <td>{{ $contact->telephone }}</td>
                                             <td>
-                                                <small class="text-muted">{{ $contact->unit_name ?? 'N/A' }}</small>
+                                                <small class="text-muted">{{ $contact->unit_name ?? __('crm.not_available') }}</small>
                                             </td>
                                             <td>
                                                 @if($contact->can_login == 1)
-                                                            <span class="badge bg-success p-2" style="color: white;">Yes</span>
+                                                            <span class="badge bg-success p-2" style="color: white;">{{ __('crm.yes') }}</span>
                                                 @else
-                                                    <span class="badge bg-secondary p-2" style="color: white;">No</span>
+                                                    <span class="badge bg-secondary p-2" style="color: white;">{{ __('crm.no') }}</span>
                                                 @endif
                                             </td>
                                             <td>
                                                 @if($contact->active == 1)
-                                                    <span class="badge bg-success p-2" style="color: white;">Active</span>
+                                                    <span class="badge bg-success p-2" style="color: white;">{{ __('crm.active') }}</span>
                                                 @else
-                                                    <span class="badge bg-danger p-2" style="color: white;">Deactivated</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">{{ __('crm.deactivated') }}</span>
                                                 @endif
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditContactModal({{ $contact->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit"
+                                                            title="{{ __('crm.edit') }}"
                                                             wire:loading.attr="disabled"
                                                             wire:target="showEditContactModal({{ $contact->id }})">
                                                         <span wire:loading.remove wire:target="showEditContactModal({{ $contact->id }})">
@@ -97,10 +97,10 @@
                                                     </button>
                                                     <button wire:click="deleteContact({{ $contact->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
-                                                            title="Delete"
+                                                            title="{{ __('crm.delete') }}"
                                                             wire:loading.attr="disabled"
                                                             wire:target="deleteContact({{ $contact->id }})"
-                                                            onclick="return confirm('Are you sure you want to delete this contact?')">
+                                                            onclick="return confirm(@js(__('crm.delete_contact_confirm')))">
                                                         <span wire:loading.remove wire:target="deleteContact({{ $contact->id }})">
                                                             <i class="mdi mdi-delete"></i>
                                                         </span>
@@ -118,8 +118,8 @@
                     @else
                         <div class="text-center py-4">
                             <i class="mdi mdi-account-box-outline text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No contacts found</h5>
-                            <p class="text-muted">Start by adding your first contact.</p>
+                            <h5 class="text-muted mt-3">{{ __('crm.no_contacts_found') }}</h5>
+                            <p class="text-muted">{{ __('crm.add_first_contact_hint') }}</p>
                         </div>
                     @endif
                 </div>
@@ -135,7 +135,7 @@
                 <div class="modal-header" style="border-bottom: 2px solid #e9ecef;">
                     <h5 class="modal-title">
                         <i class="mdi mdi-{{ $editingContact ? 'pencil' : 'plus' }} text-primary"></i>
-                        {{ $editingContact ? 'Edit' : 'Create' }} Contact
+                        {{ $editingContact ? __('crm.edit') : __('crm.create') }} {{ __('crm.contact') }}
                     </h5>
                     <button type="button" class="btn-close" wire:click="closeContactModal"></button>
                 </div>
@@ -145,7 +145,7 @@
                         <div class="form-section mb-4">
                             <div class="section-header mb-3">
                                 <h6 class="mb-0 text-muted">
-                                    <i class="mdi mdi-account-circle text-primary"></i> Personal Information
+                                    <i class="mdi mdi-account-circle text-primary"></i> {{ __('crm.personal_information') }}
                                 </h6>
                             </div>
                             <div class="section-body">
@@ -153,10 +153,10 @@
                                     <div class="col-md-4">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-account-star text-info"></i> Title <span class="text-danger">*</span>
+                                                <i class="mdi mdi-account-star text-info"></i> {{ __('crm.title') }} <span class="text-danger">*</span>
                                             </label>
                                             <select wire:model="contactForm.title_id" class="form-select modern-select">
-                                                <option value="">Select Title</option>
+                                                <option value="">{{ __('crm.select_title') }}</option>
                                                 @foreach($titles as $title)
                                                     <option value="{{ $title->id }}">{{ $title->name }}</option>
                                                 @endforeach
@@ -167,18 +167,18 @@
                                     <div class="col-md-4">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-account text-primary"></i> First Name <span class="text-danger">*</span>
+                                                <i class="mdi mdi-account text-primary"></i> {{ __('crm.first_name') }} <span class="text-danger">*</span>
                                             </label>
-                                            <input type="text" wire:model="contactForm.first_name" class="form-control" placeholder="First name...">
+                                            <input type="text" wire:model="contactForm.first_name" class="form-control" placeholder="{{ __('crm.first_name_placeholder') }}">
                                             @error('contactForm.first_name') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-account-outline text-primary"></i> Middle Name
+                                                <i class="mdi mdi-account-outline text-primary"></i> {{ __('crm.middle_name') }}
                                             </label>
-                                            <input type="text" wire:model="contactForm.middle_name" class="form-control" placeholder="Middle name...">
+                                            <input type="text" wire:model="contactForm.middle_name" class="form-control" placeholder="{{ __('crm.middle_name_placeholder') }}">
                                         </div>
                                     </div>
                                 </div>
@@ -187,17 +187,17 @@
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-account text-primary"></i> Last Name
+                                                <i class="mdi mdi-account text-primary"></i> {{ __('crm.last_name') }}
                                             </label>
-                                            <input type="text" wire:model="contactForm.last_name" class="form-control" placeholder="Last name...">
+                                            <input type="text" wire:model="contactForm.last_name" class="form-control" placeholder="{{ __('crm.last_name_placeholder') }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-briefcase text-warning"></i> Job Occupation
+                                                <i class="mdi mdi-briefcase text-warning"></i> {{ __('crm.job_occupation') }}
                                             </label>
-                                            <input type="text" wire:model="contactForm.job_occupation" class="form-control" placeholder="Job title...">
+                                            <input type="text" wire:model="contactForm.job_occupation" class="form-control" placeholder="{{ __('crm.job_title_placeholder') }}">
                                         </div>
                                     </div>
                                 </div>
@@ -211,14 +211,14 @@
                                             <input type="file" wire:model="signatureFile" accept="image/*" class="form-control">
                                             @if($contactForm['signature'])
                                                 <div class="mt-2">
-                                                    <small class="text-muted">Current signature:</small>
+                                                    <small class="text-muted">{{ __('crm.current_signature') }}:</small>
                                                     <div class="mt-1">
-                                                        <img src="{{ asset('storage/' . $contactForm['signature']) }}" alt="Signature" style="max-height: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 4px;">
+                                                        <img src="{{ asset('storage/' . $contactForm['signature']) }}" alt="{{ __('crm.signature') }}" style="max-height: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 4px;">
                                                     </div>
                                                 </div>
                                             @endif
                                             @error('signatureFile') <span class="text-danger">{{ $message }}</span> @enderror
-                                            <small class="form-text text-muted">Upload a signature image (JPG, PNG, etc.)</small>
+                                            <small class="form-text text-muted">{{ __('crm.signature_upload_hint') }}</small>
                                         </div>
                                     </div>
                                 </div>
@@ -229,7 +229,7 @@
                         <div class="form-section mb-4">
                             <div class="section-header mb-3">
                                 <h6 class="mb-0 text-muted">
-                                    <i class="mdi mdi-card-account-phone text-success"></i> Contact Information
+                                    <i class="mdi mdi-card-account-phone text-success"></i> {{ __('crm.contact_information') }}
                                 </h6>
                             </div>
                             <div class="section-body">
@@ -237,18 +237,18 @@
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-email text-info"></i> Email <span class="text-danger">*</span>
+                                                <i class="mdi mdi-email text-info"></i> {{ __('crm.email') }} <span class="text-danger">*</span>
                                             </label>
-                                            <input type="email" wire:model="contactForm.email" class="form-control" placeholder="Email address...">
+                                            <input type="email" wire:model="contactForm.email" class="form-control" placeholder="{{ __('crm.email_address_placeholder') }}">
                                             @error('contactForm.email') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-phone text-success"></i> Telephone <span class="text-danger">*</span>
+                                                <i class="mdi mdi-phone text-success"></i> {{ __('crm.telephone') }} <span class="text-danger">*</span>
                                             </label>
-                                            <input type="text" wire:model="contactForm.telephone" class="form-control" placeholder="Telephone...">
+                                            <input type="text" wire:model="contactForm.telephone" class="form-control" placeholder="{{ __('crm.telephone_placeholder') }}">
                                             @error('contactForm.telephone') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
@@ -258,15 +258,15 @@
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-cellphone text-success"></i> Mobile
+                                                <i class="mdi mdi-cellphone text-success"></i> {{ __('crm.mobile') }}
                                             </label>
-                                            <input type="text" wire:model="contactForm.mobile" class="form-control" placeholder="Mobile number...">
+                                            <input type="text" wire:model="contactForm.mobile" class="form-control" placeholder="{{ __('crm.mobile_number_placeholder') }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                <i class="mdi mdi-office-building text-primary"></i> Company Units <span class="text-danger">*</span>
+                                                <i class="mdi mdi-office-building text-primary"></i> {{ __('crm.company_units') }} <span class="text-danger">*</span>
                                             </label>
                                             <div x-data="{
                                                 open: false,
@@ -320,7 +320,7 @@
                                                         x-model="search"
                                                         @focus="open = true"
                                                         @click="open = true"
-                                                        placeholder="Search or select units..."
+                                                        placeholder="{{ __('crm.search_or_select_units') }}"
                                                         class="form-control searchable-input"
                                                     >
                                                     <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
@@ -347,7 +347,7 @@
                                                     <template x-if="filteredUnits.length === 0">
                                                         <div class="no-results">
                                                             <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No units found</span>
+                                                            <span>{{ __('crm.no_units_found_static') }}</span>
                                                         </div>
                                                     </template>
                                                 </div>
@@ -363,7 +363,7 @@
                         <div class="form-section mb-4">
                             <div class="section-header mb-4">
                                 <h6 class="mb-0 text-muted">
-                                    <i class="mdi mdi-cog text-info"></i> Preferences & Settings
+                                    <i class="mdi mdi-cog text-info"></i> {{ __('crm.preferences_settings') }}
                                 </h6>
                             </div>
                             <div class="section-body" style="padding-bottom: 20px;">
@@ -378,8 +378,8 @@
                                                     <i class="mdi mdi-file-document"></i>
                                                 </div>
                                                 <div class="preference-info">
-                                                    <span class="preference-title">Analysis Reports</span>
-                                                    <span class="preference-desc">Receive PDF analysis reports</span>
+                                                    <span class="preference-title">{{ __('crm.analysis_reports') }}</span>
+                                                    <span class="preference-desc">{{ __('crm.receive_pdf_analysis_reports') }}</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
                                                     <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_report" role="switch" @click.stop>
@@ -396,8 +396,8 @@
                                                     <i class="mdi mdi-calendar-clock"></i>
                                                 </div>
                                                 <div class="preference-info">
-                                                    <span class="preference-title">Analysis Schedule</span>
-                                                    <span class="preference-desc">Updates on analysis progression</span>
+                                                    <span class="preference-title">{{ __('crm.analysis_schedule') }}</span>
+                                                    <span class="preference-desc">{{ __('crm.analysis_progress_updates') }}</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
                                                     <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_receive_schedule_of_analysis" role="switch" @click.stop>
@@ -414,8 +414,8 @@
                                                     <i class="mdi mdi-currency-usd"></i>
                                                 </div>
                                                 <div class="preference-info">
-                                                    <span class="preference-title">Price Lists</span>
-                                                    <span class="preference-desc">Receive updated product prices</span>
+                                                    <span class="preference-title">{{ __('crm.price_lists') }}</span>
+                                                    <span class="preference-desc">{{ __('crm.receive_updated_product_prices') }}</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
                                                     <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_price_list" role="switch" @click.stop>
@@ -432,8 +432,8 @@
                                                     <i class="mdi mdi-receipt"></i>
                                                 </div>
                                                 <div class="preference-info">
-                                                    <span class="preference-title">Invoices</span>
-                                                    <span class="preference-desc">Billing and invoice notifications</span>
+                                                    <span class="preference-title">{{ __('crm.invoices') }}</span>
+                                                    <span class="preference-desc">{{ __('crm.billing_invoice_notifications') }}</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
                                                     <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_invoice" role="switch" @click.stop>
@@ -450,8 +450,8 @@
                                                     <i class="mdi mdi-bell-ring"></i>
                                                 </div>
                                                 <div class="preference-info">
-                                                    <span class="preference-title">Payment Alerts</span>
-                                                    <span class="preference-desc">Reminders for pending payments</span>
+                                                    <span class="preference-title">{{ __('crm.payment_alerts') }}</span>
+                                                    <span class="preference-desc">{{ __('crm.payment_reminders_pending') }}</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
                                                     <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_receive_payment_reminders" role="switch" @click.stop>
@@ -468,8 +468,8 @@
                                                     <i class="mdi mdi-login"></i>
                                                 </div>
                                                 <div class="preference-info">
-                                                    <span class="preference-title">Portal Access</span>
-                                                    <span class="preference-desc">Allow login to customer portal</span>
+                                                    <span class="preference-title">{{ __('crm.portal_access') }}</span>
+                                                    <span class="preference-desc">{{ __('crm.allow_customer_portal_login') }}</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
                                                     <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_login" role="switch" @click.stop>
@@ -486,8 +486,8 @@
                                                     <i class="mdi mdi-flask"></i>
                                                 </div>
                                                 <div class="preference-info">
-                                                    <span class="preference-title">Submit Samples</span>
-                                                    <span class="preference-desc">Permission to register samples</span>
+                                                    <span class="preference-title">{{ __('crm.submit_samples') }}</span>
+                                                    <span class="preference-desc">{{ __('crm.permission_register_samples') }}</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
                                                     <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_submit_sample" role="switch" @click.stop>
@@ -504,8 +504,8 @@
                                                     <i class="mdi mdi-check-circle"></i>
                                                 </div>
                                                 <div class="preference-info">
-                                                    <span class="preference-title">Active Status</span>
-                                                    <span class="preference-desc">Contact is currently active</span>
+                                                    <span class="preference-title">{{ __('crm.active_status') }}</span>
+                                                    <span class="preference-desc">{{ __('crm.contact_currently_active') }}</span>
                                                 </div>
                                                 <div class="form-check form-switch p-0 m-0">
                                                     <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.active" role="switch" @click.stop>
@@ -525,9 +525,9 @@
                             <div class="form-section mb-4">
                                 <div class="section-header mb-3">
                                     <h6 class="mb-0 text-muted">
-                                        <i class="mdi mdi-lock text-danger"></i> Password Configuration
+                                        <i class="mdi mdi-lock text-danger"></i> {{ __('crm.password_configuration') }}
                                         @if($hasExistingUser)
-                                            <small class="text-secondary ms-2">(Leave blank to keep current password)</small>
+                                            <small class="text-secondary ms-2">({{ __('crm.leave_blank_keep_password') }})</small>
                                         @endif
                                     </h6>
                                 </div>
@@ -536,20 +536,20 @@
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">
-                                                    <i class="mdi mdi-lock text-danger"></i> Password
+                                                    <i class="mdi mdi-lock text-danger"></i> {{ __('crm.password') }}
                                                     @if(!$hasExistingUser)<span class="text-danger">*</span>@endif
                                                 </label>
-                                                <input type="password" wire:model="contactForm.main_password" class="form-control" placeholder="{{ $hasExistingUser ? 'Leave blank to keep current...' : 'Password...' }}">
+                                                <input type="password" wire:model="contactForm.main_password" class="form-control" placeholder="{{ $hasExistingUser ? __('crm.leave_blank_keep_current_short') : __('crm.password_placeholder') }}">
                                                 @error('contactForm.main_password') <span class="text-danger">{{ $message }}</span> @enderror
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">
-                                                    <i class="mdi mdi-lock-check text-danger"></i> Confirm Password
+                                                    <i class="mdi mdi-lock-check text-danger"></i> {{ __('crm.confirm_password') }}
                                                     @if(!$hasExistingUser)<span class="text-danger">*</span>@endif
                                                 </label>
-                                                <input type="password" wire:model="contactForm.confirm_password" class="form-control" placeholder="{{ $hasExistingUser ? 'Leave blank to keep current...' : 'Confirm password...' }}">
+                                                <input type="password" wire:model="contactForm.confirm_password" class="form-control" placeholder="{{ $hasExistingUser ? __('crm.leave_blank_keep_current_short') : __('crm.confirm_password_placeholder') }}">
                                                 @error('contactForm.confirm_password') <span class="text-danger">{{ $message }}</span> @enderror
                                             </div>
                                         </div>
@@ -562,11 +562,11 @@
                 </div>
                 <div class="modal-footer" style="border-top: 2px solid #e9ecef;">
                     <button type="button" class="btn btn-secondary" wire:click="closeContactModal" wire:loading.attr="disabled" wire:target="saveContact">
-                        <i class="mdi mdi-close"></i> Cancel
+                        <i class="mdi mdi-close"></i> {{ __('crm.cancel') }}
                     </button>
                     <button type="button" class="btn btn-primary" wire:click="saveContact" wire:loading.attr="disabled" wire:target="saveContact">
                         <span wire:loading.remove wire:target="saveContact">
-                            <i class="mdi mdi-content-save"></i> {{ $editingContact ? 'Update' : 'Create' }} Contact
+                            <i class="mdi mdi-content-save"></i> {{ $editingContact ? __('crm.update') : __('crm.create') }} {{ __('crm.contact') }}
                         </span>
                         <span wire:loading wire:target="saveContact">
                             <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...

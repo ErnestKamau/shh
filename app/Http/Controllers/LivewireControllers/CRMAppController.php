@@ -26,7 +26,7 @@ class CRMAppController extends Controller
     {
         return view('livewire.layout.crm-app', [
             'componentType' => 'customers',
-            'pageTitle' => 'Customer Management'
+            'pageTitle' => __('crm.customer_management')
         ]);
     }
 
@@ -39,7 +39,7 @@ class CRMAppController extends Controller
         
         return view('livewire.layout.crm-app', [
             'componentType' => 'customer-profile',
-            'pageTitle' => 'Customer Profile - ' . $customer->name,
+            'pageTitle' => __('crm.customer_profile') . ' - ' . $customer->name,
             'customer' => $customer,
             'customerId' => $customerId
         ]);
@@ -52,7 +52,7 @@ class CRMAppController extends Controller
     {
         return view('livewire.layout.crm-app', [
             'componentType' => 'sample-points',
-            'pageTitle' => 'Sample Points Management'
+            'pageTitle' => __('crm.sample_points_management')
         ]);
     }
 
@@ -63,7 +63,7 @@ class CRMAppController extends Controller
     {
         return view('livewire.layout.crm-app', [
             'componentType' => 'areas',
-            'pageTitle' => 'Areas Management'
+            'pageTitle' => __('crm.areas_management')
         ]);
     }
     /**
@@ -71,9 +71,9 @@ class CRMAppController extends Controller
      */
     public function complaintsManager($stage = null)
     {
-        $pageTitle = 'Complaint Management';
+        $pageTitle = __('crm.complaint_management');
         if ($stage) {
-            $pageTitle = $stage . ' - Complaint Management';
+            $pageTitle = $stage . ' - ' . __('crm.complaint_management');
         }
         
         return view('livewire.layout.crm-app', [
@@ -84,13 +84,24 @@ class CRMAppController extends Controller
     }
 
     /**
+     * Display the customer feedback management page.
+     */
+    public function feedbacks()
+    {
+        return view('livewire.layout.crm-app', [
+            'componentType' => 'feedbacks',
+            'pageTitle' => __('crm.customer_feedback')
+        ]);
+    }
+
+    /**
      * Display the CRM dashboard page.
      */
     public function dashboard()
     {
         return view('livewire.layout.crm-app', [
             'componentType' => 'dashboard',
-            'pageTitle' => 'CRM Dashboard'
+            'pageTitle' => __('crm.crm_management')
         ]);
     }
 }
