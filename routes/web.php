@@ -687,6 +687,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     // Page layout metadata (slots + buttons) for selected target routes
     Route::get('/page-layout', 'SubmissionFormController@getPageLayout')->name('page-layout');
 
+    // Template form type quick-create for dropdown usage
+    Route::post('/template-form-types', 'SubmissionFormController@storeTemplateFormType')->name('template-form-types.store')->middleware('can:laboratory.components.rft form.add');
+
     // Dynamic Options for Custom Elements (must be before /{submissionForm} route)
     Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options')->middleware('can:submission-forms.access');
     Route::get('/user-signature', 'SubmissionFormController@getUserSignature')->name('user-signature')->middleware('can:submission-forms.access');

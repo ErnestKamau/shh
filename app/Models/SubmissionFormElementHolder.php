@@ -123,7 +123,7 @@ class SubmissionFormElementHolder extends Model implements Auditable
     /**
      * Get the next sort order for a new holder in the same section
      */
-    public static function getNextSortOrder(int $sectionId): int
+    public static function getNextSortOrder(string|int $sectionId): int
     {
         $maxSortOrder = static::where('submission_form_section_id', $sectionId)
                              ->max('sort_order');

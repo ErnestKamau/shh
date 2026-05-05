@@ -58,6 +58,32 @@
                 @csrf
                 @method('PUT')
 
+                {{-- Form Type selector --}}
+                <div class="form-group">
+                  <label class="required">Form Type</label>
+                  <div class="d-flex gap-3 mt-1">
+                    <div class="custom-control custom-radio custom-control-inline">
+                      <input type="radio" id="form_type_template" name="form_type" value="template" class="custom-control-input"
+                        {{ old('form_type', $submissionForm->form_type ?? 'template') === 'template' ? 'checked' : '' }}>
+                      <label class="custom-control-label" for="form_type_template">
+                        <strong>Template Form</strong>
+                        <small class="d-block text-muted">Standalone form assigned to customers and sample types.</small>
+                      </label>
+                    </div>
+                    <div class="custom-control custom-radio custom-control-inline ml-4">
+                      <input type="radio" id="form_type_attachment" name="form_type" value="attachment" class="custom-control-input"
+                        {{ old('form_type', $submissionForm->form_type ?? 'template') === 'attachment' ? 'checked' : '' }}>
+                      <label class="custom-control-label" for="form_type_attachment">
+                        <strong>Attachment Form</strong>
+                        <small class="d-block text-muted">Optional form linked to one or more template forms.</small>
+                      </label>
+                    </div>
+                  </div>
+                  @error('form_type')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                  @enderror
+                </div>
+
                 <div class="form-group">
                   <label for="name" class="required">Form Name</label>
                   <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name', $submissionForm->name) }}" required maxlength="255" placeholder="Enter a descriptive name for your form">
@@ -158,6 +184,74 @@
                     <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
                   <small class="form-text text-muted">Select a custom print template for this form. If not specified, the default template will be used.</small>
+                </div>
+
+                <div id="template_form_type_section" style="display:none;">
+                <div class="form-group">
+                  <label for="template_form_type_id" class="required">Template Form Type</label>
+                  <select class="form-control @error('template_form_type_id') is-invalid @enderror" id="template_form_type_id" name="template_form_type_id">
+                    <option value="">Select a template form type</option>
+                    @foreach($templateFormTypes as $templateFormType)
+                      <option value="{{ $templateFormType->id }}" {{ (string) old('template_form_type_id', $submissionForm->template_form_type_id) === (string) $templateFormType->id ? 'selected' : '' }}>
+                        {{ $templateFormType->name }}
+                      </option>
+                    @endforeach
+                    <option value="__add_new__">+ Add New Template Form Type</option>
+                  </select>
+                  @error('template_form_type_id')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">Select an existing type, or choose <strong>+ Add New Template Form Type</strong> to create one instantly.</small>
+                </div>
+                </div>
+
+                {{-- Linked Template Forms — only visible when form_type = attachment --}}
+                <div class="form-group" id="template_forms_section" style="display:none;">
+                  <label for="template_form_ids" class="required">Template Form Type</label>
+                  <select class="form-control select2 @error('template_form_ids') is-invalid @enderror" id="template_form_ids" name="template_form_ids[]" multiple>
+                    @php($selectedTemplateFormIds = old('template_form_ids', $submissionForm->relationLoaded('templateForms') ? $submissionForm->templateForms->pluck('id')->toArray() : []))
+                    @foreach($templateForms as $tf)
+                      <option value="{{ $tf->id }}" {{ in_array($tf->id, $selectedTemplateFormIds) ? 'selected' : '' }}>
+                        {{ $tf->name }}
+                      </option>
+                    @endforeach
+                  </select>
+                  @error('template_form_ids')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">Link this attachment form to one or more template forms.</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="customer_ids">Customers</label>
+                  <select class="form-control select2 @error('customer_ids') is-invalid @enderror" id="customer_ids" name="customer_ids[]" multiple>
+                    @php($selectedCustomers = old('customer_ids', $submissionForm->customers->pluck('id')->toArray()))
+                    @foreach($customers as $customer)
+                      <option value="{{ $customer->id }}" {{ in_array($customer->id, $selectedCustomers) ? 'selected' : '' }}>
+                        {{ $customer->name }}
+                      </option>
+                    @endforeach
+                  </select>
+                  @error('customer_ids')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">Restrict this form to specific customers. Leave empty to allow all customers.</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="sample_type_ids">Sample Types</label>
+                  <select class="form-control select2 @error('sample_type_ids') is-invalid @enderror" id="sample_type_ids" name="sample_type_ids[]" multiple>
+                    @php($selectedSampleTypes = old('sample_type_ids', $submissionForm->sampleTypes->pluck('id')->toArray()))
+                    @foreach($sampleTypes as $sampleType)
+                      <option value="{{ $sampleType->id }}" {{ in_array($sampleType->id, $selectedSampleTypes) ? 'selected' : '' }}>
+                        {{ $sampleType->name }}
+                      </option>
+                    @endforeach
+                  </select>
+                  @error('sample_type_ids')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">Restrict this form to specific sample types. Leave empty to apply to all sample types.</small>
                 </div>
 
                 <div class="form-group">
@@ -400,6 +494,8 @@
       </button>
     </div>
   @endif
+
+  <!-- (no additional modals) -->
 @endsection
 
 @section('script2')
@@ -428,6 +524,92 @@
   document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('naming_convention_format').dispatchEvent(new Event('change'));
   });
+
+  const createTemplateFormTypeUrl = '{{ route('submission-forms.template-form-types.store') }}';
+  const addNewTemplateTypeValue = '__add_new__';
+  let previousTemplateTypeValue = $('#template_form_type_id').val() || '';
+
+  function createTemplateFormTypeInline() {
+    const templateTypeName = window.prompt('Enter new Template Form Type name:');
+
+    if (templateTypeName === null) {
+      $('#template_form_type_id').val(previousTemplateTypeValue);
+      return;
+    }
+
+    const normalizedName = templateTypeName.trim().replace(/\s+/g, ' ');
+    if (!normalizedName) {
+      alert('Template Form Type name cannot be empty.');
+      $('#template_form_type_id').val(previousTemplateTypeValue);
+      return;
+    }
+
+    const $select = $('#template_form_type_id');
+    $select.prop('disabled', true);
+
+    $.ajax({
+      url: createTemplateFormTypeUrl,
+      method: 'POST',
+      dataType: 'json',
+      data: {
+        _token: '{{ csrf_token() }}',
+        name: normalizedName,
+      },
+    }).done(function(response) {
+      if (!response.success || !response.templateFormType) {
+        alert('Unable to save Template Form Type. Please try again.');
+        $select.val(previousTemplateTypeValue);
+        return;
+      }
+
+      const newType = response.templateFormType;
+      const optionSelector = 'option[value="' + newType.id + '"]';
+
+      if ($select.find(optionSelector).length === 0) {
+        const $addOption = $select.find('option[value="' + addNewTemplateTypeValue + '"]');
+        $('<option>', {
+          value: newType.id,
+          text: newType.name,
+        }).insertBefore($addOption);
+      }
+
+      previousTemplateTypeValue = String(newType.id);
+      $select.val(previousTemplateTypeValue);
+    }).fail(function(xhr) {
+      let errorMessage = 'Unable to save Template Form Type. Please try again.';
+
+      if (xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.name && xhr.responseJSON.errors.name[0]) {
+        errorMessage = xhr.responseJSON.errors.name[0];
+      } else if (xhr.responseJSON && xhr.responseJSON.message) {
+        errorMessage = xhr.responseJSON.message;
+      }
+
+      alert(errorMessage);
+      $select.val(previousTemplateTypeValue);
+    }).always(function() {
+      $select.prop('disabled', false);
+    });
+  }
+
+  $('#template_form_type_id').on('change', function() {
+    const selectedValue = $(this).val() || '';
+
+    if (selectedValue === addNewTemplateTypeValue) {
+      createTemplateFormTypeInline();
+      return;
+    }
+
+    previousTemplateTypeValue = selectedValue;
+  });
+
+  // ── Form Type toggle ──────────────────────────────────────────────────────────
+  function syncFormTypeUI() {
+    const isAttachment = $('input[name="form_type"]:checked').val() === 'attachment';
+    $('#template_forms_section').toggle(isAttachment);
+  }
+
+  $('input[name="form_type"]').on('change', syncFormTypeUI);
+  syncFormTypeUI(); // run on page load
 
   // ── Advanced Placement ────────────────────────────────────────────────────────
   const pageLayoutUrl = '{{ route('submission-forms.page-layout') }}';
@@ -489,6 +671,7 @@
       return;
     }
 
+    // Build query string
     const qs = routes.map(r => 'routes[]=' + encodeURIComponent(r)).join('&');
 
     $.get(pageLayoutUrl + '?' + qs, function(resp) {
@@ -503,13 +686,6 @@
       });
 
       $section.removeClass('d-none');
-
-      // Init select2 on newly added button pickers
-      $container.find('.select2-btn-picker').not('.select2-hidden-accessible').select2({
-        placeholder: 'Any button (global Page Forms dropdown)',
-        allowClear: true,
-        width: '100%',
-      });
     });
   }
 

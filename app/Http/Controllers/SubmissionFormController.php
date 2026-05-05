@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SubmissionForm;
+use App\Models\SubmissionFormTemplateType;
 use App\Models\SubmissionFormPermission;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use App\Services\PageLayoutRegistry;
 
@@ -74,8 +76,19 @@ class SubmissionFormController extends Controller
             ->orderBy('name')
             ->get();
         $availablePages = $this->getAvailablePlacementPages();
+        $templateFormTypes = SubmissionFormTemplateType::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+        $templateForms = SubmissionForm::query()
+            ->where('form_type', 'template')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
+        $sampleTypes = \App\SampleType::where('active', true)->orderBy('name')->get(['id', 'name']);
 
-        return view('submission-forms.create', compact('labSections', 'availablePages'));
+        return view('submission-forms.create', compact('labSections', 'availablePages', 'templateFormTypes', 'templateForms', 'customers', 'sampleTypes'));
     }
 
     /**
@@ -102,6 +115,11 @@ class SubmissionFormController extends Controller
             'version' => ['required', 'string', 'max:50'],
             'issue_date' => ['required', 'date'],
             'print_template_name' => ['nullable', 'string', 'max:255'],
+            'template_form_type_id' => [
+                'nullable',
+                'integer',
+                'exists:submission_form_template_types,id',
+            ],
             'target_pages' => ['nullable', 'array'],
             'target_pages.*' => ['string', Rule::in($availablePageNames)],
             'placement_mode' => ['required', Rule::in(['button_trigger', 'page_section'])],
@@ -109,12 +127,16 @@ class SubmissionFormController extends Controller
             'placement_slot' => ['nullable', 'array'],
             'trigger_button_ids' => ['nullable', 'array'],
             'sample_analysis_stage_ids' => ['nullable', 'array'],
-            'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id']
+            'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id'],
+            'form_type' => ['required', 'string', Rule::in(['template', 'attachment'])],
+            'template_form_ids' => ['nullable', 'array'],
+            'template_form_ids.*' => ['uuid', 'exists:submission_forms,id'],
         ]);
 
         $validated['target_pages'] = array_values($validated['target_pages'] ?? []);
         $validated['display_mode'] = $validated['display_mode'] ?? 'expanded';
         $validated['is_customer_portal_form'] = $request->boolean('is_customer_portal_form');
+        $validated['template_form_type_id'] = isset($validated['template_form_type_id']) ? (int) $validated['template_form_type_id'] : null;
         $validated['lims_destination_pages'] = $validated['is_customer_portal_form']
             ? array_values($validated['lims_destination_pages'] ?? ['sample-workflow'])
             : [];
@@ -127,6 +149,28 @@ class SubmissionFormController extends Controller
 
         if (isset($validated['sample_analysis_stage_ids'])) {
             $form->sampleAnalysisStages()->sync($validated['sample_analysis_stage_ids']);
+        }
+
+        if ($this->submissionFormCustomersPivotExists()) {
+            $form->customers()->sync($request->input('customer_ids', []));
+        } else {
+            Log::warning('Skipping submission form customer sync because pivot table is missing.', [
+                'table' => 'submission_form_customers',
+                'submission_form_id' => $form->id,
+            ]);
+        }
+
+        if ($this->submissionFormSampleTypesPivotExists()) {
+            $form->sampleTypes()->sync($request->input('sample_type_ids', []));
+        } else {
+            Log::warning('Skipping submission form sample type sync because pivot table is missing.', [
+                'table' => 'submission_form_sample_types',
+                'submission_form_id' => $form->id,
+            ]);
+        }
+
+        if ($validated['form_type'] === 'attachment' && Schema::hasTable('submission_form_template_links')) {
+            $form->templateForms()->sync($request->input('template_form_ids', []));
         }
 
         $this->bustSubmissionFormPageCache($validated['target_pages'] ?? []);
@@ -168,9 +212,46 @@ class SubmissionFormController extends Controller
             ->get();
 
         $availablePages = $this->getAvailablePlacementPages();
-        $submissionForm->load('sampleAnalysisStages');
+        $templateFormTypes = SubmissionFormTemplateType::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+        $templateForms = SubmissionForm::query()
+            ->where('form_type', 'template')
+            ->where('is_active', true)
+            ->where('id', '!=', $submissionForm->id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $customers = \App\Models\CRM\CRMCustomer::orderBy('name')->get(['id', 'name']);
+        $sampleTypes = \App\SampleType::where('active', true)->orderBy('name')->get(['id', 'name']);
+        $customersPivotExists = $this->submissionFormCustomersPivotExists();
+        $sampleTypesPivotExists = $this->submissionFormSampleTypesPivotExists();
 
-        return view('submission-forms.edit', compact('submissionForm', 'labSections', 'availablePages'));
+        $relationsToLoad = ['sampleAnalysisStages'];
+
+        if ($customersPivotExists) {
+            $relationsToLoad[] = 'customers';
+        }
+
+        if ($sampleTypesPivotExists) {
+            $relationsToLoad[] = 'sampleTypes';
+        }
+
+        if ($submissionForm->form_type === 'attachment' && Schema::hasTable('submission_form_template_links')) {
+            $relationsToLoad[] = 'templateForms';
+        }
+
+        $submissionForm->load($relationsToLoad);
+
+        if (! $customersPivotExists) {
+            $submissionForm->setRelation('customers', collect());
+        }
+
+        if (! $sampleTypesPivotExists) {
+            $submissionForm->setRelation('sampleTypes', collect());
+        }
+
+        return view('submission-forms.edit', compact('submissionForm', 'labSections', 'availablePages', 'templateFormTypes', 'templateForms', 'customers', 'sampleTypes'));
     }
 
     /**
@@ -203,6 +284,11 @@ class SubmissionFormController extends Controller
             'version' => ['required', 'string', 'max:50'],
             'issue_date' => ['required', 'date'],
             'print_template_name' => ['nullable', 'string', 'max:255'],
+            'template_form_type_id' => [
+                'nullable',
+                'integer',
+                'exists:submission_form_template_types,id',
+            ],
             'target_pages' => ['nullable', 'array'],
             'target_pages.*' => ['string', Rule::in($availablePageNames)],
             'placement_mode' => ['required', Rule::in(['button_trigger', 'page_section'])],
@@ -210,12 +296,16 @@ class SubmissionFormController extends Controller
             'placement_slot' => ['nullable', 'array'],
             'trigger_button_ids' => ['nullable', 'array'],
             'sample_analysis_stage_ids' => ['nullable', 'array'],
-            'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id']
+            'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id'],
+            'form_type' => ['required', 'string', Rule::in(['template', 'attachment'])],
+            'template_form_ids' => ['nullable', 'array'],
+            'template_form_ids.*' => ['uuid', 'exists:submission_forms,id'],
         ]);
 
         $validated['target_pages'] = array_values($validated['target_pages'] ?? []);
         $validated['display_mode'] = $validated['display_mode'] ?? 'expanded';
         $validated['is_customer_portal_form'] = $request->boolean('is_customer_portal_form');
+        $validated['template_form_type_id'] = isset($validated['template_form_type_id']) ? (int) $validated['template_form_type_id'] : null;
         $validated['lims_destination_pages'] = $validated['is_customer_portal_form']
             ? array_values($validated['lims_destination_pages'] ?? ['sample-workflow'])
             : [];
@@ -224,11 +314,31 @@ class SubmissionFormController extends Controller
 
         $this->bustSubmissionFormPageCache($validated['target_pages'] ?? []);
 
+        if ($this->submissionFormCustomersPivotExists()) {
+            $submissionForm->customers()->sync($request->input('customer_ids', []));
+        } else {
+            Log::warning('Skipping submission form customer sync because pivot table is missing.', [
+                'table' => 'submission_form_customers',
+                'submission_form_id' => $submissionForm->id,
+            ]);
+        }
+
+        if ($this->submissionFormSampleTypesPivotExists()) {
+            $submissionForm->sampleTypes()->sync($request->input('sample_type_ids', []));
+        } else {
+            Log::warning('Skipping submission form sample type sync because pivot table is missing.', [
+                'table' => 'submission_form_sample_types',
+                'submission_form_id' => $submissionForm->id,
+            ]);
+        }
+
+        if ($validated['form_type'] === 'attachment' && Schema::hasTable('submission_form_template_links')) {
+            $submissionForm->templateForms()->sync($request->input('template_form_ids', []));
+        }
+
         if (isset($validated['sample_analysis_stage_ids'])) {
             $submissionForm->sampleAnalysisStages()->sync($validated['sample_analysis_stage_ids']);
         } else {
-            // If the field is present in request but empty (unselected all), sync empty array
-            // If it's not present (e.g. API call that didn't include it), we might want to check for presence
             if ($request->has('sample_analysis_stage_ids')) {
                 $submissionForm->sampleAnalysisStages()->sync([]);
             }
@@ -295,6 +405,59 @@ class SubmissionFormController extends Controller
     }
 
     /**
+     * Store a new template form type and return it for immediate dropdown use.
+     */
+    public function storeTemplateFormType(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+        ]);
+
+        $normalizedName = trim((string) preg_replace('/\s+/', ' ', $validated['name']));
+
+        if ($normalizedName === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Template form type name is required.',
+            ], 422);
+        }
+
+        $existingTemplateType = SubmissionFormTemplateType::query()
+            ->where('name', $normalizedName)
+            ->first();
+
+        if ($existingTemplateType) {
+            if (! $existingTemplateType->is_active) {
+                $existingTemplateType->is_active = true;
+                $existingTemplateType->save();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Template form type already exists.',
+                'templateFormType' => [
+                    'id' => (int) $existingTemplateType->id,
+                    'name' => $existingTemplateType->name,
+                ],
+            ]);
+        }
+
+        $templateType = SubmissionFormTemplateType::create([
+            'name' => $normalizedName,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Template form type created successfully.',
+            'templateFormType' => [
+                'id' => (int) $templateType->id,
+                'name' => $templateType->name,
+            ],
+        ], 201);
+    }
+
+    /**
      * Bust the per-route submission form page cache.
      * Called after any change that affects which forms appear on a page.
      *
@@ -309,6 +472,16 @@ class SubmissionFormController extends Controller
         foreach ($routesToClear as $routeName) {
             \Illuminate\Support\Facades\Cache::forget('sf_page_forms_' . $routeName);
         }
+    }
+
+    private function submissionFormCustomersPivotExists(): bool
+    {
+        return Schema::hasTable('submission_form_customers');
+    }
+
+    private function submissionFormSampleTypesPivotExists(): bool
+    {
+        return Schema::hasTable('submission_form_sample_types');
     }
 
     /**
