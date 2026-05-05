@@ -158,6 +158,14 @@
                 </div>
 
                 <div class="form-group">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="is_customer_portal_form" name="is_customer_portal_form" value="1" {{ old('is_customer_portal_form') ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_customer_portal_form">Filled only from customer portal</label>
+                  </div>
+                  <small class="form-text text-muted">If checked, this form can only be submitted via customer portal and will route to LIMS destination page(s).</small>
+                </div>
+
+                <div class="form-group" id="target-pages-wrapper">
                   <label for="target_pages">Target Pages</label>
                   <select class="form-control select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
                     @php($selectedPages = old('target_pages', []))
@@ -172,14 +180,6 @@
                     <div class="invalid-feedback d-block">{{ $message }}</div>
                   @enderror
                   <small class="form-text text-muted">Select one or more system pages where this form should be used.</small>
-                </div>
-
-                <div class="form-group">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="is_customer_portal_form" name="is_customer_portal_form" value="1" {{ old('is_customer_portal_form') ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_customer_portal_form">Filled only from customer portal</label>
-                  </div>
-                  <small class="form-text text-muted">If checked, this form can only be submitted via customer portal and will route to LIMS destination page(s).</small>
                 </div>
 
                 <div class="form-group" id="lims-destination-wrapper" style="display:none;">
@@ -198,7 +198,7 @@
                   <small class="form-text text-muted">Default destination is Samples En-Route when no page is selected.</small>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="placement-mode-wrapper">
                   <label for="placement_mode" class="required">How Should The Form Appear?</label>
                   <select class="form-control @error('placement_mode') is-invalid @enderror" id="placement_mode" name="placement_mode" required>
                     <option value="button_trigger" {{ old('placement_mode', 'button_trigger') === 'button_trigger' ? 'selected' : '' }}>Open by button/action</option>
@@ -210,7 +210,7 @@
                   <small class="form-text text-muted">Choose whether users open this form from a page action or fill it directly inside a page section.</small>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="display-mode-wrapper">
                   <label for="display_mode" class="required">Display Mode</label>
                   <select class="form-control @error('display_mode') is-invalid @enderror" id="display_mode" name="display_mode" required>
                     <option value="expanded" {{ old('display_mode', 'expanded') === 'expanded' ? 'selected' : '' }}>Always visible</option>
@@ -365,18 +365,40 @@
     return $('#placement_mode').val();
   }
 
-  function toggleLimsDestinationVisibility() {
+  function toggleLimsFieldsVisibility() {
     const isPortal = $('#is_customer_portal_form').is(':checked');
+    const $targetPages = $('#target-pages-wrapper');
+    const $placementMode = $('#placement-mode-wrapper');
+    const $displayMode = $('#display-mode-wrapper');
+    const $advancedPlacement = $('#advanced-placement-section');
+
     if (isPortal) {
+      $targetPages.hide();
+      $placementMode.hide();
+      $displayMode.hide();
+      $advancedPlacement.addClass('d-none');
       $('#lims-destination-wrapper').show();
       return;
     }
 
+    $targetPages.show();
+    $placementMode.show();
+    $displayMode.show();
     $('#lims-destination-wrapper').hide();
     $('#lims_destination_pages').val(null).trigger('change');
+
+    if (getSelectedRoutes().length > 0) {
+      refreshAdvancedPlacement();
+    }
   }
 
   function refreshAdvancedPlacement() {
+    if ($('#is_customer_portal_form').is(':checked')) {
+      $('#advanced-placement-section').addClass('d-none');
+      $('#placement-pages-container').empty();
+      return;
+    }
+
     const routes = getSelectedRoutes();
     const mode   = getPlacementMode();
     const $section   = $('#advanced-placement-section');
@@ -488,8 +510,8 @@
       refreshAdvancedPlacement();
     }
 
-    toggleLimsDestinationVisibility();
-    $('#is_customer_portal_form').on('change', toggleLimsDestinationVisibility);
+    toggleLimsFieldsVisibility();
+    $('#is_customer_portal_form').on('change', toggleLimsFieldsVisibility);
   });
 </script>
 

@@ -90,9 +90,9 @@
 								<tr>
 									<td class="text-muted fw-semibold">
 										@if($req->batch)
-											<a href="{{ route('view-batch-details', ['batch' => $req->batch->id, 'client' => 0, 'portal' => 0, 'status' => 'Samples En-Route']) }}">#{{ $req->id }}</a>
+											<a href="{{ route('view-batch-details', ['batch' => $req->batch->id, 'client' => 0, 'portal' => 0, 'status' => 'Samples En-Route']) }}">{{ $req->formatted_number }}</a>
 										@else
-											<a href="{{ route('sample-submission-requests.show', ['request' => $req, 'details' => 1]) }}">#{{ $req->id }}</a>
+											<a href="{{ route('sample-submission-requests.show', ['request' => $req, 'details' => 1]) }}">{{ $req->formatted_number }}</a>
 										@endif
 									</td>
 									<td>
@@ -106,7 +106,7 @@
 									</td>
 									<td>
 										<div class="fw-semibold">{{ $req->customer?->name ?? 'N/A' }}</div>
-										<small class="text-muted">Customer ID: {{ $req->crm_customer_id ?? 'N/A' }}</small>
+										<small class="text-muted">{{ $req->customer?->code ?? $req->crm_customer_id ?? 'N/A' }}</small>
 									</td>
 									<td>
 										@if($req->contact)

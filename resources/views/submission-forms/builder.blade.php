@@ -550,7 +550,7 @@
 <script>
 // Form Builder JavaScript
 const FormBuilder = {
-    formId: {{ $submissionForm->id }},
+  formId: @json($submissionForm->id),
     csrfToken: '{{ csrf_token() }}',
     
     init() {

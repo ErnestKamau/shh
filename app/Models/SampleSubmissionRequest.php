@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
+use App\Casts\SafeEncrypted;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\SampleHeader;
@@ -65,12 +66,18 @@ class SampleSubmissionRequest extends Model
     protected $casts = [
         'date_of_seizure' => 'date',
         'submitted_by_date' => 'date',
+        'submitted_by_title' => SafeEncrypted::class,
         'received_by_date' => 'date',
         'submission_date' => 'date',
         'booking_date_reviewed_at' => 'datetime',
         'number_of_samples' => 'integer',
         'is_police_sample' => 'boolean',
     ];
+
+    public function getFormattedNumberAttribute(): string
+    {
+        return 'REQ-' . str_pad((string) $this->request_number, 4, '0', STR_PAD_LEFT);
+    }
 
     public function batch()
     {

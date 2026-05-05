@@ -213,7 +213,7 @@ class EventController extends Controller
         }
         // return response()->json($events);
 
-        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->where('is_support_staff', 0)->get();
+        $users = User::where('is_client', 0)->whereNull('supplier_id')->where('active', 1)->where('is_support_staff', 0)->get();
         // $up = Event::where('status', 'Upcoming')->count();
         // $c = Event::where('status', 'Complete')->count();
         // $dl = Event::where('status', 'Delayed')->count();

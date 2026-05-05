@@ -119,7 +119,7 @@ class LabSectionManager extends Component
     public function loadSupportingData()
     {
         $this->users = User::where('is_client', 0)
-            ->where('supplier_id', 0)
+            ->whereNull('supplier_id')
             ->where('active', 1)
             ->orderBy('name')
             ->get();
@@ -575,7 +575,7 @@ class LabSectionManager extends Component
         }
 
         return User::where('is_client', 0)
-            ->where('supplier_id', 0)
+            ->whereNull('supplier_id')
             ->where('active', 1)
             ->where('name', 'like', '%' . $this->sectionHeadSearch . '%')
             ->limit(10)
@@ -645,7 +645,7 @@ class LabSectionManager extends Component
         }
 
         return User::where('is_client', 0)
-            ->where('supplier_id', 0)
+            ->whereNull('supplier_id')
             ->where('active', 1)
             ->where('name', 'like', '%' . $this->verifierUserSearch . '%')
             ->limit(10)

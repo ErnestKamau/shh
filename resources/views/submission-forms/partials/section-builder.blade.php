@@ -83,19 +83,19 @@ if (!function_exists('getElementIcon')) {
             @endif
         </div>
         <div class="btn-group">
-            <button class="btn btn-sm btn-outline-primary" onclick="FormBuilder.showSectionModal({{ $section->id }})" title="Edit Section">
+            <button class="btn btn-sm btn-outline-primary" onclick='FormBuilder.showSectionModal(@json($section->id))' title="Edit Section">
                 <i class="mdi mdi-pencil"></i>
             </button>
-            <button class="btn btn-sm btn-outline-info" onclick="FormBuilder.cloneSection({{ $section->id }})" title="Clone Section">
+            <button class="btn btn-sm btn-outline-info" onclick='FormBuilder.cloneSection(@json($section->id))' title="Clone Section">
                 <i class="mdi mdi-content-copy"></i>
             </button>
-            <button class="btn btn-sm btn-outline-success" onclick="FormBuilder.showHolderModal({{ $section->id }})" title="Add Element Holder">
+            <button class="btn btn-sm btn-outline-success" onclick='FormBuilder.showHolderModal(@json($section->id))' title="Add Element Holder">
                 <i class="mdi mdi-plus"></i>
             </button>
             <button class="btn btn-sm btn-outline-secondary" data-toggle="collapse" data-target="#section-{{ $section->id }}" title="Toggle Section">
                 <i class="mdi mdi-chevron-down"></i>
             </button>
-            <button class="btn btn-sm btn-outline-danger" onclick="FormBuilder.deleteSection({{ $section->id }})" title="Delete Section">
+            <button class="btn btn-sm btn-outline-danger" onclick='FormBuilder.deleteSection(@json($section->id))' title="Delete Section">
                 <i class="mdi mdi-delete"></i>
             </button>
         </div>
@@ -119,19 +119,19 @@ if (!function_exists('getElementIcon')) {
                                 @endif
                             </div>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-primary" onclick="FormBuilder.showHolderModal({{ $section->id }}, {{ $holder->id }})" title="Edit Holder">
+                                <button class="btn btn-sm btn-outline-primary" onclick='FormBuilder.showHolderModal(@json($section->id), @json($holder->id))' title="Edit Holder">
                                     <i class="mdi mdi-pencil"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-info" onclick="FormBuilder.cloneElementHolder({{ $holder->id }})" title="Clone Holder">
+                                <button class="btn btn-sm btn-outline-info" onclick='FormBuilder.cloneElementHolder(@json($holder->id))' title="Clone Holder">
                                     <i class="mdi mdi-content-copy"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-success" onclick="FormBuilder.showElementModal({{ $holder->id }})" title="Add Element" {{ $holder->isAtCapacity() ? 'disabled' : '' }}>
+                                <button class="btn btn-sm btn-outline-success" onclick='FormBuilder.showElementModal(@json($holder->id))' title="Add Element" {{ $holder->isAtCapacity() ? 'disabled' : '' }}>
                                     <i class="mdi mdi-plus"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-secondary" data-toggle="collapse" data-target="#holder-{{ $holder->id }}" title="Toggle Holder">
                                     <i class="mdi mdi-chevron-down"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="FormBuilder.deleteHolder({{ $holder->id }})" title="Delete Holder">
+                                <button class="btn btn-sm btn-outline-danger" onclick='FormBuilder.deleteHolder(@json($holder->id))' title="Delete Holder">
                                     <i class="mdi mdi-delete"></i>
                                 </button>
                             </div>
@@ -177,13 +177,13 @@ if (!function_exists('getElementIcon')) {
                                                     </span>
                                                 @endif
                                                 <div class="btn-group">
-                                                    <button class="btn btn-sm btn-outline-primary" onclick="FormBuilder.showElementModal({{ $holder->id }}, {{ $element->id }})" title="Edit Element">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick='FormBuilder.showElementModal(@json($holder->id), @json($element->id))' title="Edit Element">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-info" onclick="FormBuilder.cloneElement({{ $element->id }})" title="Clone Element">
+                                                    <button class="btn btn-sm btn-outline-info" onclick='FormBuilder.cloneElement(@json($element->id))' title="Clone Element">
                                                         <i class="mdi mdi-content-copy"></i>
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-danger" onclick="FormBuilder.deleteElement({{ $element->id }})" title="Delete Element">
+                                                    <button class="btn btn-sm btn-outline-danger" onclick='FormBuilder.deleteElement(@json($element->id))' title="Delete Element">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>
@@ -193,7 +193,7 @@ if (!function_exists('getElementIcon')) {
                                         <div class="text-center py-3 text-muted">
                                             <i class="mdi mdi-plus-circle-outline" style="font-size: 2rem;"></i>
                                             <p class="mb-0 small">No elements added yet</p>
-                                            <button class="btn btn-sm btn-outline-primary mt-2" onclick="FormBuilder.showElementModal({{ $holder->id }})" {{ $holder->isAtCapacity() ? 'disabled' : '' }}>
+                                            <button class="btn btn-sm btn-outline-primary mt-2" onclick='FormBuilder.showElementModal(@json($holder->id))' {{ $holder->isAtCapacity() ? 'disabled' : '' }}>
                                                 <i class="mdi mdi-plus"></i> Add Element
                                             </button>
                                         </div>
@@ -206,7 +206,7 @@ if (!function_exists('getElementIcon')) {
                     <div class="text-center py-4 text-muted">
                         <i class="mdi mdi-plus-circle-outline" style="font-size: 2.5rem;"></i>
                         <p class="mb-0">No element holders added yet</p>
-                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="FormBuilder.showHolderModal({{ $section->id }})">
+                        <button class="btn btn-sm btn-outline-primary mt-2" onclick='FormBuilder.showHolderModal(@json($section->id))'>
                             <i class="mdi mdi-plus"></i> Add Element Holder
                         </button>
                     </div>

@@ -53,7 +53,7 @@ class HomeController extends Controller
 	}elseif($user->is_client == 1){
 
 		return redirect()->route('client-dashboard-home');
-	}elseif($user->supplier_id > 0){
+	}elseif($user->supplier_id !== null){
 		$user->is_online = 1;
 		$user->save();
 		return redirect()->route('supplier-dashboard-home');

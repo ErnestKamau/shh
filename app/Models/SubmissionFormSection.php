@@ -216,7 +216,7 @@ class SubmissionFormSection extends Model implements Auditable
     /**
      * Get the next sort order for a new section in the same form
      */
-    public static function getNextSortOrder(int $submissionFormId)
+    public static function getNextSortOrder(string|int $submissionFormId): int
     {
         $maxSortOrder = static::where('submission_form_id', $submissionFormId)
                              ->max('sort_order');

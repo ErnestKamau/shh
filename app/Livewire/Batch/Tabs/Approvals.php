@@ -45,7 +45,7 @@ class Approvals extends Component
 
         // Load potential approvers list (similar to Header component)
         $this->users = \App\User::where('is_client', 0)
-            ->where('supplier_id', 0)
+            ->whereNull('supplier_id')
             ->where('active', 1)
             ->orderBy('name')
             ->get();

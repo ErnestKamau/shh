@@ -519,7 +519,7 @@ class SubmissionFormElement extends Model implements Auditable
         $query = \App\User::query()
             ->where('active', 1)
             ->where('is_client', 0)
-            ->where('supplier_id', 0)
+            ->whereNull('supplier_id')
             ->orderBy('name');
 
         if (function_exists('getUserCompany') && auth()->check()) {
