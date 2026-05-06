@@ -243,7 +243,7 @@
                                                 </div>
                                             </div>
                                         @elseif($document->publish_scope === 'role' && $document->publish_targets)
-                                            @php $roles = \App\Role::whereIn('id', $document->publish_targets)->get(); @endphp
+                                            @php $roles = \App\Models\Auth\Role::whereIn('id', $document->publish_targets)->get(); @endphp
                                             <div class="mt-2">
                                                 <p class="mb-1 font-13 text-muted">Specific Roles ({{ $roles->count() }}):</p>
                                                 <div class="d-flex flex-wrap gap-1">
@@ -255,7 +255,7 @@
                                         @elseif($document->publish_scope === 'mixed' && $document->publish_targets)
                                             @php
                                                 $departments = \App\InventoryDepartment::whereIn('id', $document->publish_targets['departments'] ?? [])->get();
-                                                $roles = \App\Role::whereIn('id', $document->publish_targets['roles'] ?? [])->get();
+                                                $roles = \App\Models\Auth\Role::whereIn('id', $document->publish_targets['roles'] ?? [])->get();
                                             @endphp
                                             <div class="mt-2">
                                                 @if($departments->count() > 0)

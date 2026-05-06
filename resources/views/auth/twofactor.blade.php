@@ -82,6 +82,36 @@
 									<img src="/images/imara-sys.png" style="max-width: 120px"  />
 								</div>
 
+								@if (session('error'))
+									<div class="alert alert-danger">
+										{{ session('error') }}
+									</div>
+								@endif
+
+								@if (session('success'))
+									<div class="alert alert-success">
+										{{ session('success') }}
+									</div>
+								@endif
+
+								@if (!is_null($otpAttemptsRemaining ?? null))
+									<div class="alert alert-info">
+										OTP attempts remaining: <strong>{{ (int) $otpAttemptsRemaining }}</strong>
+										@if (!empty($otpRetryAfterSeconds))
+											<br>
+											Retry window: <span class="otp-retry-countdown" data-seconds="{{ (int) $otpRetryAfterSeconds }}"></span>
+										@endif
+									</div>
+								@endif
+
+								<div class="alert alert-secondary">
+									Resend attempts used: <strong>{{ (int) ($resendAttemptsUsed ?? 0) }}</strong>/5
+									@if (!empty($resendWaitSeconds))
+										<br>
+										Next resend in: <span id="resend-countdown" data-seconds="{{ (int) $resendWaitSeconds }}"></span>
+									@endif
+								</div>
+
 								<div class="form-group{{ $errors->has('verify') ? ' has-error' : '' }}">
 									<label for="verify_code" class="control-label w3-left w3-text-dark-grey"><strong>Verification Code</strong></label>
 									<input id="verify" type="text" placeholder="Type Your Verification Code..." class="form-control" name="verify_code" required>
@@ -100,7 +130,7 @@
 										Submit
 									</button>
 									<div class="w3-padding-top w3-right">
-										<a class="btn btn-link" href="{{ route('verify-resend') }}" class="w3-margin-top">
+										<a class="btn btn-link {{ !empty($resendWaitSeconds) ? 'disabled' : '' }}" id="resend-link" href="{{ route('verify-resend') }}" class="w3-margin-top" @if(!empty($resendWaitSeconds)) aria-disabled="true" @endif>
 											Resend Verification Code
 										</a>
 									</div>
@@ -123,6 +153,54 @@
 
 			$form.submit();
 		});
+
+		function formatCountdown(totalSeconds) {
+			totalSeconds = Math.max(0, parseInt(totalSeconds, 10) || 0);
+			var mins = Math.floor(totalSeconds / 60);
+			var secs = totalSeconds % 60;
+			return mins + 'm ' + (secs < 10 ? '0' + secs : secs) + 's';
+		}
+
+		$('.otp-retry-countdown').each(function(){
+			var $el = $(this);
+			var seconds = parseInt($el.data('seconds'), 10) || 0;
+			if (seconds <= 0) {
+				$el.text('0m 00s');
+				return;
+			}
+
+			$el.text(formatCountdown(seconds));
+			var intervalId = setInterval(function(){
+				seconds -= 1;
+				$el.text(formatCountdown(seconds));
+				if (seconds <= 0) {
+					clearInterval(intervalId);
+				}
+			}, 1000);
+		});
+
+		var $resendCountdown = $('#resend-countdown');
+		var $resendLink = $('#resend-link');
+		if ($resendCountdown.length) {
+			var resendSeconds = parseInt($resendCountdown.data('seconds'), 10) || 0;
+			if (resendSeconds > 0) {
+				$resendCountdown.text(formatCountdown(resendSeconds));
+				$resendLink.addClass('disabled').attr('aria-disabled', 'true').on('click', function(e){
+					e.preventDefault();
+				});
+
+				var resendInterval = setInterval(function(){
+					resendSeconds -= 1;
+					$resendCountdown.text(formatCountdown(resendSeconds));
+
+					if (resendSeconds <= 0) {
+						clearInterval(resendInterval);
+						$resendCountdown.text('0m 00s');
+						$resendLink.removeClass('disabled').removeAttr('aria-disabled').off('click');
+					}
+				}, 1000);
+			}
+		}
 	});
 </script>
 </html>

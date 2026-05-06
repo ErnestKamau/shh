@@ -94,6 +94,12 @@ class LabModulePermissionsSeeder extends Seeder
             'laboratory.components.status.view',
             'laboratory.components.verification-approvals.edit',
             'laboratory.components.verification-approvals.delete',
+            'laboratory.components.checklist-approvals.view',
+            'laboratory.components.checklist-approvals.add',
+            'laboratory.components.checklist-approvals.edit',
+            'laboratory.components.checklist-approvals.delete',
+            'laboratory.components.sample-approval-checklist.view',
+            'laboratory.components.sample-approval-checklist.edit',
         ];
 
         $permissions = [];

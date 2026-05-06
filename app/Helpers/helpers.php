@@ -620,7 +620,7 @@ function getModulePreconfig($type, $module, $sortBy='name', $sortOrder='asc')
 
 function getSampleWorflowStages()
 {
-	return array("All Samples", "Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Finished Sample");
+	return array("All Samples", "Samples Receiving", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Completed Sample");
 }
 function getComplaintWorkflowStages()
 {
@@ -1236,7 +1236,7 @@ function getComplaintsResolutions($id)
 
 function getRoles()
 {
-	return App\Role::orderBy('name')->where('company_id', getUserCompany())->get();
+	return App\Models\Auth\Role::orderBy('name')->where('company_id', getUserCompany())->get();
 }
 
 function getNotifiableUsers()

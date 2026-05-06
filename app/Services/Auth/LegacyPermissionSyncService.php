@@ -2,13 +2,21 @@
 
 namespace App\Services\Auth;
 
-use App\Role;
 use App\User;
-use App\UserRole;
 use App\Models\Auth\Permission;
 use App\Models\Auth\Role as SpatieRole;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * @deprecated SCHEDULED FOR REMOVAL. This service is deprecated and will be removed in a future release.
+ * The application has been migrated to use Spatie/laravel-permission exclusively.
+ * Users should be assigned roles via the Spatie role/permission system instead.
+ * This service is no longer called during the authentication flow as of the Spatie-only migration.
+ * For new role assignments, use the Spatie methods: $user->assignRole() and $user->givePermissionTo()
+ *
+ * NOTE: Legacy Role and UserRole model classes have been deleted as of May 2026.
+ * The legacy roles and user_roles database tables have been dropped.
+ */
 class LegacyPermissionSyncService
 {
     protected string $guardName = 'web';

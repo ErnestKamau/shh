@@ -19,13 +19,17 @@ class SyncLegacyPermissionsToSpatie extends Command
      *
      * @var string
      */
-    protected $description = 'Sync legacy roles, permissions, and user assignments into Spatie tables';
+    protected $description = '[DEPRECATED] Sync legacy roles, permissions, and user assignments into Spatie tables. This command is no longer part of the standard authentication flow and will be removed in a future release.';
 
     /**
      * Execute the console command.
      */
     public function handle(LegacyPermissionSyncService $syncService): int
     {
+        $this->warn('DEPRECATION WARNING: This command is deprecated and will be removed in a future release.');
+        $this->warn('The application has been migrated to use Spatie/laravel-permission exclusively.');
+        $this->line('');
+        
         if ((bool) $this->option('modules-only')) {
             $this->info('Syncing module permission catalog to Spatie...');
             $syncService->syncModulePermissions();

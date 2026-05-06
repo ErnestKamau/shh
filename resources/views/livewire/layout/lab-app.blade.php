@@ -1,4 +1,4 @@
-@extends('layouts.lab.layout.app', ['dataTable'=>true, 'select2'=>true])
+@extends('layouts.lab.layout.app')
 
 @section('title2')
 <title>{{ $pageTitle ?? 'Lab Management' }}</title>
@@ -16,12 +16,14 @@
         'icon' => null
     ];
 
-    // Add Sample Types
-    $breadcrumbItems[] = [
-        'link' => route('livewire.sample-types'),
-        'name' => 'Sample Types',
-        'icon' => null
-    ];
+    // Only include Sample Types breadcrumb for sample-related pages
+    if (isset($componentType) && in_array($componentType, ['sample-types', 'analytes', 'analysis-types', 'elements'])) {
+        $breadcrumbItems[] = [
+            'link' => route('livewire.sample-types'),
+            'name' => 'Sample Types',
+            'icon' => null
+        ];
+    }
 
     // Add Analytes if we're in analytes section
     if (isset($componentType) && $componentType === 'analytes') {
@@ -143,6 +145,13 @@
             'icon' => null
         ];
     }
+    if (isset($componentType) && $componentType === 'workflow-approvals') {
+        $breadcrumbItems[] = [
+            'link' => route('livewire.workflow-approvals'),
+            'name' => 'Checklist Approvals',
+            'icon' => null
+        ];
+    }
     if (isset($componentType) && $componentType === 'zones') {
         $breadcrumbItems[] = [
             'link' => route('module-pre-configs', ['config' => $config, 'module' => $module]),
@@ -172,6 +181,8 @@
     @livewire('ratings.rating-details-manager', ['ratingHeaderId' => $ratingHeaderId ?? null])
     @elseif($componentType === 'report-formats')
     @livewire('reports.report-format-manager')
+    @elseif($componentType === 'workflow-approvals')
+    @livewire('lab.approval-config-manager')
     @elseif($componentType === 'zones')
     @livewire('personnel.zones.configuration-manager', ['module' => $module])
     @elseif($componentType === 'standards')

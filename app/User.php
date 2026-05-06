@@ -50,6 +50,7 @@ class User extends Authenticatable implements Auditable
 	protected $fillable = [
 		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires',
 		'company_id', 'department_id', 'location_id', 'active',
+		'failed_login_attempts', 'login_locked_by_admin_reset',
 	];
 	protected $appends = ['labsectionname','labsectionids'];
 
@@ -85,6 +86,8 @@ class User extends Authenticatable implements Auditable
 		'client_id' => 'string',
 		'crm_contact_id' => 'string',
 		'crmcontact_id' => 'string',
+		'failed_login_attempts' => 'integer',
+		'login_locked_by_admin_reset' => 'boolean',
 		'location_id' => 'string',
 		'department_id' => 'string',
 		'position' => 'string',

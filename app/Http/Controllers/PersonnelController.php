@@ -102,6 +102,8 @@ class PersonnelController extends Controller
 
 			}else{
 				$user->password = bcrypt($request->password);
+				$user->failed_login_attempts = 0;
+				$user->login_locked_by_admin_reset = false;
 				$user->save();
 
 				$body = 'Hi '.$user->first_name.',<br><br>

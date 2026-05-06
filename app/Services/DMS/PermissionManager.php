@@ -4,7 +4,7 @@ namespace App\Services\DMS;
 
 use App\Models\DMS\DocumentPermission;
 use App\User;
-use App\Role;
+use Spatie\Permission\Models\Role;
 use Illuminate\Database\Eloquent\Model;
 
 class PermissionManager

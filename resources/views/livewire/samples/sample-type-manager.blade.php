@@ -12,7 +12,7 @@
                             </h2>
                             <p class="text-muted mb-0">Manage sample types, analysis types, and analysis elements</p>
                         </div>
-                        <button wire:click="showCreateSampleTypeModal" class="btn btn-primary">
+                        <button wire:click="showCreateSampleTypeModal" class="btn btn-outline-primary sampletype-action-btn">
                             <i class="mdi mdi-plus"></i> Add Sample Type
                         </button>
                     </div>
@@ -40,39 +40,10 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-12">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
                                 <input type="text" wire:model.live="search" class="form-control" placeholder="Search sample types...">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Category</label>
-                                <select wire:model.live="categoryFilter" class="form-select modern-select">
-                                    <option value="">All Categories</option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->id }}">{{ $category->sample_type_category }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Status</label>
-                                <select wire:model.live="statusFilter" class="form-select modern-select">
-                                    <option value="">All Status</option>
-                                    <option value="1" selected>Active</option>
-                                    <option value="0">Inactive</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">&nbsp;</label>
-                                <button wire:click="clearFilters" class="btn btn-outline-secondary w-100">
-                                    <i class="mdi mdi-refresh"></i> Clear
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -99,25 +70,49 @@
                 <div class="card-body">
                     @if($this->sampleTypes->count() > 0)
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table class="table table-hover sampletype-table">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
+                                        <th>Actions</th>
                                         <th>Code</th>
                                         <th>Name</th>
-                                        <th>Category</th>
-                                        <th>Report Format</th>
-                                        <th>Lab Sections</th>
                                         <th>Analysis Types</th>
                                         <th>Has Attachable Result</th>
+                                        <th>Exhibit Returned On Reception</th>
                                         <th>Status</th>
-                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->sampleTypes as $sampleType)
                                         <tr>
                                             <td>
-                                                <span class="">{{ $sampleType->code }}</span>
+                                                <div class="d-flex sampletype-actions-cell">
+                                                    <a href="{{ route('livewire.analysis-types', ['sampleTypeId' => $sampleType->id]) }}" 
+                                                       class="rm-act-btn rm-act-btn--view" 
+                                                       title="View Analysis Types">
+                                                        <i class="mdi mdi-eye"></i>
+                                                    </a>
+                                                    <button wire:click="showEditSampleTypeModal({{ $sampleType->id }})" 
+                                                            class="rm-act-btn rm-act-btn--edit" 
+                                                            title="Edit">
+                                                        <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button wire:click="cloneSampleType({{ $sampleType->id }})" 
+                                                            class="rm-act-btn rm-act-btn--clone" 
+                                                            title="Clone"
+                                                            onclick="return confirm('Are you sure you want to clone this sample type?')">
+                                                        <i class="mdi mdi-content-duplicate"></i>
+                                                    </button>
+                                                    <button wire:click="deleteSampleType({{ $sampleType->id }})" 
+                                                            class="rm-act-btn rm-act-btn--delete" 
+                                                            title="Delete"
+                                                            onclick="return confirm('Are you sure you want to delete this sample type? This will also delete all associated analysis types and elements.')">
+                                                        <i class="mdi mdi-delete"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="sampletype-code">{{ $sampleType->code }}</span>
                                             </td>
                                             <td>
                                                 <strong>{{ $sampleType->name }}</strong>
@@ -127,24 +122,6 @@
                                                 @if($sampleType->ratingHeader)
                                                     <br><small class="text-primary"><i class="mdi mdi-star"></i> {{ $sampleType->ratingHeader->name }}</small>
                                                 @endif
-                                            </td>
-                                            <td>
-                                                @php
-                                                    $category = $categories->firstWhere('id', $sampleType->sample_type_category);
-                                                @endphp
-                                                {{ $category ? $category->sample_type_category : 'N/A' }}
-                                            </td>
-                                            <td>
-                                                @if($sampleType->reportFormat)
-                                                    <span class="badge bg-primary p-2" style="color: white;">{{ $sampleType->reportFormat->report_name }}</span>
-                                                @else
-                                                    <span class="text-muted">No Format</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @foreach($sampleType->sampleAnalysisStages as $stage)
-                                                    <span class="badge bg-secondary mb-1" style="color: white;">{{ $stage->name }}</span>
-                                                @endforeach
                                             </td>
                                             <td>
                                                 <span class="badge bg-info" style="color: white;">{{ $sampleType->analysis_types->count() }}</span>
@@ -157,35 +134,16 @@
                                                 @endif
                                             </td>
                                             <td>
+                                                @if($sampleType->exhibit_returned_on_reception)
+                                                    <span class="badge bg-info p-2" style="color: white;">Yes</span>
+                                                @else
+                                                    <span class="text-muted">No</span>
+                                                @endif
+                                            </td>
+                                            <td>
                                                 <span class="badge p-2 bg-{{ $sampleType->active ? 'success' : 'danger' }}" style="color: white;">
                                                     {{ $sampleType->active ? 'Active' : 'Inactive' }}
                                                 </span>
-                                            </td>
-                                            <td>
-                                                <div class="d-flex">
-                                                    <a href="{{ route('livewire.analysis-types', ['sampleTypeId' => $sampleType->id]) }}" 
-                                                       class="btn btn-sm btn-outline-primary mr-1" 
-                                                       title="View Analysis Types">
-                                                        <i class="mdi mdi-eye"></i>
-                                                    </a>
-                                                    <button wire:click="showEditSampleTypeModal({{ $sampleType->id }})" 
-                                                            class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
-                                                    </button>
-                                                    <button wire:click="cloneSampleType({{ $sampleType->id }})" 
-                                                            class="btn btn-sm btn-outline-info mr-1" 
-                                                            title="Clone"
-                                                            onclick="return confirm('Are you sure you want to clone this sample type?')">
-                                                        <i class="mdi mdi-content-duplicate"></i>
-                                                    </button>
-                                                    <button wire:click="deleteSampleType({{ $sampleType->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
-                                                            title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this sample type? This will also delete all associated analysis types and elements.')">
-                                                        <i class="mdi mdi-delete"></i>
-                                                    </button>
-                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -268,229 +226,14 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-shape text-primary"></i> Category <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="tag-select-container" wire:click="$set('showCategoryDropdown', true)" wire:click.outside="$set('showCategoryDropdown', false)">
-                                            <div class="tag-select-input">
-                                                <!-- Display selected category -->
-                                                @if($this->selectedCategory)
-                                                    <span class="tag-badge">
-                                                        {{ $this->selectedCategory->sample_type_category }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('sampleTypeForm.category_id', null)"></i>
-                                                    </span>
-                                                @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="categorySearch" 
-                                                       class="tag-input" 
-                                                       placeholder="{{ $this->selectedCategory ? '' : 'Search categories...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            
-                                            <!-- Dropdown -->
-                                            @if($showCategoryDropdown)
-                                                <div class="tag-dropdown">
-                                                    <!-- Create New Category Option -->
-                                                    <div class="tag-dropdown-item tag-dropdown-create" wire:click.stop="showCreateCategoryModal">
-                                                        <i class="mdi mdi-plus-circle text-success"></i>
-                                                        <strong class="text-success">Create New Category</strong>
-                                                    </div>
-                                                    @if(count($this->filteredCategories) > 0)
-                                                        <div class="tag-dropdown-divider"></div>
-                                                        @foreach($this->filteredCategories as $category)
-                                                            <div class="tag-dropdown-item" wire:click.stop="selectCategory({{ $category->id }})">
-                                                                {{ $category->sample_type_category }}
-                                                            </div>
-                                                        @endforeach
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('sampleTypeForm.category_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-flask-outline text-info"></i> Lab Sections
-                                        </label>
-                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
-                                            <div class="tag-select-input">
-                                                @foreach($this->selectedLabSections as $section)
-                                                    <span class="tag-badge">
-                                                        {{ $section->name }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="toggleLabSection({{ $section->id }})"></i>
-                                                    </span>
-                                                @endforeach
-                                                
-                                                <input type="text" 
-                                                       wire:model.live="labSectionSearch" 
-                                                       class="tag-input" 
-                                                       placeholder="{{ count($this->selectedLabSections) > 0 ? '' : 'Search lab sections...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            
-                                            <!-- Dropdown -->
-                                            @if($showLabSectionDropdown)
-                                                <div class="tag-dropdown">
-                                                    @if(count($this->filteredLabSections) > 0)
-                                                        @foreach($this->filteredLabSections as $section)
-                                                            <div class="tag-dropdown-item" wire:click.stop="toggleLabSection({{ $section->id }})">
-                                                                <div class="d-flex justify-content-between align-items-center w-100">
-                                                                    <span>{{ $section->name }}</span>
-                                                                    @if(in_array($section->id, $sampleTypeForm['sample_analysis_stage_ids']))
-                                                                        <i class="mdi mdi-check text-success"></i>
-                                                                    @endif
-                                                                </div>
-                                                            </div>
-                                                        @endforeach
-                                                    @else
-                                                        <div class="p-3 text-center text-muted">No sections found</div>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <small class="form-text text-muted">Select lab sections required for this sample type</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-star text-warning"></i> Rating System
-                                        </label>
-                                        <div class="tag-select-container" wire:click="$set('showRatingHeaderDropdown', true)" wire:click.outside="$set('showRatingHeaderDropdown', false)">
-                                            <div class="tag-select-input">
-                                                <!-- Display selected rating header -->
-                                                @if($this->selectedRatingHeader)
-                                                    <span class="tag-badge">
-                                                        {{ $this->selectedRatingHeader->name }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('sampleTypeForm.rating_header_id', null)"></i>
-                                                    </span>
-                                                @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="ratingHeaderSearch" 
-                                                       class="tag-input" 
-                                                       placeholder="{{ $this->selectedRatingHeader ? '' : 'Search rating systems...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            
-                                            <!-- Dropdown -->
-                                            @if($showRatingHeaderDropdown && count($this->filteredRatingHeaders) > 0)
-                                                <div class="tag-dropdown">
-                                                    @foreach($this->filteredRatingHeaders as $ratingHeader)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectRatingHeader({{ $ratingHeader->id }})">
-                                                            {{ $ratingHeader->name }}
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('sampleTypeForm.rating_header_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">Optional: Select a rating system for this sample type</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-file-document text-info"></i> Report Format
-                                        </label>
-                                        <div class="tag-select-container" wire:click="$set('showReportFormatDropdown', true)" wire:click.outside="$set('showReportFormatDropdown', false)">
-                                            <div class="tag-select-input">
-                                                <!-- Display selected report format -->
-                                                @if($this->selectedReportFormat)
-                                                    <span class="tag-badge">
-                                                        {{ $this->selectedReportFormat->report_name }} ({{ $this->selectedReportFormat->report_code }})
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('sampleTypeForm.report_format_id', null)"></i>
-                                                    </span>
-                                                @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="reportFormatSearch" 
-                                                       class="tag-input" 
-                                                       placeholder="{{ $this->selectedReportFormat ? '' : 'Search report formats...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            
-                                            <!-- Dropdown -->
-                                            @if($showReportFormatDropdown && count($this->filteredReportFormats) > 0)
-                                                <div class="tag-dropdown">
-                                                    @foreach($this->filteredReportFormats as $reportFormat)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectReportFormat({{ $reportFormat->id }})">
-                                                            {{ $reportFormat->report_name }} ({{ $reportFormat->report_code }})
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('sampleTypeForm.report_format_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">Optional: Select a report format for this sample type</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-package-variant text-success"></i> Default Product
-                                        </label>
-                                        <div class="tag-select-container" wire:click="$set('showCompanyProductDropdown', true)" wire:click.outside="$set('showCompanyProductDropdown', false)">
-                                            <div class="tag-select-input">
-                                                <!-- Display selected company product -->
-                                                @if($this->selectedCompanyProduct)
-                                                    <span class="tag-badge">
-                                                        {{ $this->selectedCompanyProduct->name }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('sampleTypeForm.default_product_id', null)"></i>
-                                                    </span>
-                                                @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="companyProductSearch" 
-                                                       class="tag-input" 
-                                                       placeholder="{{ $this->selectedCompanyProduct ? '' : 'Search products...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            
-                                            <!-- Dropdown -->
-                                            @if($showCompanyProductDropdown)
-                                                <div class="tag-dropdown">
-                                                    <!-- Create New Product Option -->
-                                                    <div class="tag-dropdown-item tag-dropdown-create" wire:click.stop="showCreateProductModal">
-                                                        <i class="mdi mdi-plus-circle text-success"></i>
-                                                        <strong class="text-success">Create New Product</strong>
-                                                    </div>
-                                                    @if(count($this->filteredCompanyProducts) > 0)
-                                                        <div class="tag-dropdown-divider"></div>
-                                                        @foreach($this->filteredCompanyProducts as $companyProduct)
-                                                            <div class="tag-dropdown-item" wire:click.stop="selectCompanyProduct({{ $companyProduct->id }})">
-                                                                {{ $companyProduct->name }}
-                                                            </div>
-                                                        @endforeach
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('sampleTypeForm.default_product_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">Optional: Select a default product for this sample type</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-delete-clock text-warning"></i> Disposal Count (Days)
+                                            <i class="mdi mdi-delete-clock text-warning"></i> Retention Days
                                         </label>
                                         <input type="number" 
                                                wire:model="sampleTypeForm.disposal_count" 
                                                class="form-control" 
                                                placeholder="Enter number of days"
                                                min="0">
-                                        <small class="form-text text-muted">Number of days before sample disposal</small>
+                                        <small class="form-text text-muted">Number of days to retain the sample</small>
                                         @error('sampleTypeForm.disposal_count') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -505,7 +248,7 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="row">
-                                        <div class="col-md-6 mb-2">
+                                        <div class="col-md-4 mb-2">
                                             <div class="form-check form-switch">
                                                 <input type="checkbox" wire:model="sampleTypeForm.active" class="form-check-input" id="active" role="switch">
                                                 <label class="form-check-label" for="active">
@@ -513,11 +256,19 @@
                                                 </label>
                                             </div>
                                         </div>
-                                        <div class="col-md-6 mb-2">
+                                        <div class="col-md-4 mb-2">
                                             <div class="form-check form-switch">
                                                 <input type="checkbox" wire:model="sampleTypeForm.is_results_attachable" class="form-check-input" id="is_results_attachable" role="switch">
                                                 <label class="form-check-label" for="is_results_attachable">
                                                     <i class="mdi mdi-flask-empty-off-outline text-warning"></i> Results Attachable
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" wire:model="sampleTypeForm.exhibit_returned_on_reception" class="form-check-input" id="exhibit_returned_on_reception" role="switch">
+                                                <label class="form-check-label" for="exhibit_returned_on_reception">
+                                                    <i class="mdi mdi-package-variant-closed text-info"></i> Exhibit Returned On Reception
                                                 </label>
                                             </div>
                                         </div>
@@ -527,8 +278,8 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeSampleTypeModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveSampleType">
+                        <button type="button" class="btn btn-outline-secondary sampletype-action-btn" wire:click="closeSampleTypeModal">Cancel</button>
+                        <button type="button" class="btn btn-outline-primary sampletype-action-btn" wire:click="saveSampleType">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
                     </div>
@@ -625,8 +376,8 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeAnalysisTypeModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveAnalysisType">
+                        <button type="button" class="btn btn-outline-secondary sampletype-action-btn" wire:click="closeAnalysisTypeModal">Cancel</button>
+                        <button type="button" class="btn btn-outline-primary sampletype-action-btn" wire:click="saveAnalysisType">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
                     </div>
@@ -667,8 +418,8 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeCategoryModal">Cancel</button>
-                        <button type="button" class="btn btn-success" wire:click="saveCategory">
+                        <button type="button" class="btn btn-outline-secondary sampletype-action-btn" wire:click="closeCategoryModal">Cancel</button>
+                        <button type="button" class="btn btn-outline-success sampletype-action-btn" wire:click="saveCategory">
                             <i class="mdi mdi-content-save"></i> Create Category
                         </button>
                     </div>
@@ -709,8 +460,8 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeProductModal">Cancel</button>
-                        <button type="button" class="btn btn-success" wire:click="saveProduct">
+                        <button type="button" class="btn btn-outline-secondary sampletype-action-btn" wire:click="closeProductModal">Cancel</button>
+                        <button type="button" class="btn btn-outline-success sampletype-action-btn" wire:click="saveProduct">
                             <i class="mdi mdi-content-save"></i> Create Product
                         </button>
                     </div>
@@ -891,6 +642,144 @@
         height: 1px;
         background-color: #dee2e6;
         margin: 4px 0;
+    }
+
+    .sampletype-action-btn {
+        border-radius: 10px;
+        min-height: 42px;
+        font-weight: 600;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-right: 3px;
+        font-size: 12px;
+        border: 1px solid transparent;
+        background: #fff;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rm-act-btn:last-child {
+        margin-right: 0;
+    }
+
+    .rm-act-btn--view {
+        border-color: #bbf7d0;
+        color: #15803d;
+        background: #f0fdf4;
+    }
+
+    .rm-act-btn--view:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+        color: #166534;
+    }
+
+    .rm-act-btn--edit {
+        border-color: #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    .rm-act-btn--edit:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+        color: #1e40af;
+    }
+
+    .rm-act-btn--clone {
+        border-color: #c4b5fd;
+        color: #6d28d9;
+        background: #f5f3ff;
+    }
+
+    .rm-act-btn--clone:hover {
+        background: #ede9fe;
+        border-color: #a78bfa;
+        color: #5b21b6;
+    }
+
+    .rm-act-btn--delete {
+        border-color: #fecaca;
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .rm-act-btn--delete:hover {
+        background: #fecaca;
+        border-color: #fca5a5;
+        color: #7f1d1d;
+    }
+
+    .sampletype-table {
+        width: 100%;
+        min-width: 1120px;
+    }
+
+    .sampletype-table th,
+    .sampletype-table td {
+        vertical-align: middle;
+    }
+
+    .sampletype-table th {
+        white-space: normal;
+        line-height: 1.25;
+        font-size: 0.92rem;
+    }
+
+    .sampletype-table th:first-child,
+    .sampletype-table td:first-child {
+        min-width: 170px;
+    }
+
+    .sampletype-table th:nth-child(2),
+    .sampletype-table td:nth-child(2) {
+        min-width: 120px;
+        white-space: nowrap;
+    }
+
+    .sampletype-table th:nth-child(3),
+    .sampletype-table td:nth-child(3) {
+        min-width: 260px;
+    }
+
+    .sampletype-table th:nth-child(4),
+    .sampletype-table td:nth-child(4),
+    .sampletype-table th:nth-child(7),
+    .sampletype-table td:nth-child(7) {
+        min-width: 120px;
+        white-space: nowrap;
+    }
+
+    .sampletype-table th:nth-child(5),
+    .sampletype-table td:nth-child(5),
+    .sampletype-table th:nth-child(6),
+    .sampletype-table td:nth-child(6) {
+        min-width: 180px;
+    }
+
+    .sampletype-actions-cell {
+        gap: 0.45rem;
+        flex-wrap: nowrap;
+    }
+
+    .sampletype-code {
+        display: inline-block;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 991.98px) {
+        .sampletype-table {
+            min-width: 1120px;
+        }
     }
     </style>
     

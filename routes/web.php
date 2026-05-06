@@ -259,6 +259,11 @@ Route::get('/livewire/report-formats', [LabAppController::class, 'reportFormats'
     ->name('livewire.report-formats')
     ->middleware('can:laboratory.components.sample-types.view');
 
+// Livewire Workflow Approval Configuration
+Route::get('/livewire/workflow-approvals', [LabAppController::class, 'workflowApprovals'])
+    ->name('livewire.workflow-approvals')
+    ->middleware('can:laboratory.components.checklist-approvals.view');
+
 // Livewire Dedicated Report Format Builder
 Route::get('/livewire/report-formats/builder/{id}', [LabAppController::class, 'reportFormatBuilder'])
     ->name('livewire.report-formats.builder')
@@ -268,6 +273,10 @@ Route::get('/livewire/report-formats/builder/{id}', [LabAppController::class, 'r
 Route::get('/livewire/standard-manager', [LabAppController::class, 'standardManager'])
     ->name('livewire.standard-manager')
     ->middleware('can:laboratory.components.sample-types.view');
+
+Route::get('/livewire/labs', [LabAppController::class, 'labManager'])
+    ->name('livewire.labs')
+    ->middleware('can:laboratory.components.labs.view');
 
 // Livewire Test Page
 Route::get('/livewire-test', function () {
@@ -476,11 +485,11 @@ Route::post('/sample-submission-requests', 'SampleWorkFlowController@storeSample
 
 Route::post('/sample-submission-requests/{request}/booking-date/approve', 'SampleWorkFlowController@approveSampleSubmissionBookingDate')
     ->name('sample-submission-requests.booking-date.approve')
-    ->middleware('haspermission:Laboratory.components.All Samples.Edit');
+    ->middleware('can:laboratory.components.all samples.edit');
 
 Route::post('/sample-submission-requests/{request}/booking-date/reschedule', 'SampleWorkFlowController@rescheduleSampleSubmissionBookingDate')
     ->name('sample-submission-requests.booking-date.reschedule')
-    ->middleware('haspermission:Laboratory.components.All Samples.Edit');
+    ->middleware('can:laboratory.components.all samples.edit');
 
 Route::get('/sample-submission-requests/customer/{customer}/contacts', 'SampleWorkFlowController@getSubmissionRequestCustomerContacts')
     ->name('sample-submission-requests.customer-contacts')
@@ -488,6 +497,9 @@ Route::get('/sample-submission-requests/customer/{customer}/contacts', 'SampleWo
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('can:laboratory.components.status.view');
 Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow-stage')->middleware('can:laboratory.components.all samples.view');
 Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details')->middleware('can:laboratory.components.all samples.view');
+Route::get('/sample-workflow/batch/{sample}/approval-checklist', [\App\Http\Controllers\Lab\SampleApprovalChecklistController::class, 'show'])
+    ->name('sample-approval-checklist.show')
+    ->middleware('can:laboratory.components.sample-approval-checklist.view');
 Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')
     ->name('batch-worksheets')
     ->middleware('can:laboratory.components.all samples.view');
