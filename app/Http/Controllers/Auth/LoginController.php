@@ -73,6 +73,8 @@ class LoginController extends Controller
         if ((int) $user->failed_login_attempts >= $this->persistentLockThreshold) {
           $user->login_locked_by_admin_reset = true;
           $remainingAttempts = 0;
+        } elseif ((int) $user->failed_login_attempts === 2) {
+          session()->flash('login_attempts_warning', 'Warning: You have only 3 chances left. After 5 failed attempts your account will be locked.');
         }
 
         $user->save();

@@ -77,6 +77,11 @@
 					 <div class="row">
 						  <div class="flex-center position-ref w3-card-2">
 								<form class="w3-padding-large w3-white w3-card-8 w3-round w3-topbar w3-border-brown" method="POST" action="{{ route('login') }}">
+							@if(session('login_attempts_warning'))
+								<div class="alert alert-warning" style="background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:10px 14px;border-radius:4px;margin-bottom:12px;">
+									<strong>&#9888;</strong> {{ session('login_attempts_warning') }}
+								</div>
+							@endif
 									 {{ csrf_field() }}
 									<div class="w3-padding-large w3-center">
 										<img src="/images/imara-sys.png" style="max-width: 120px"  />
