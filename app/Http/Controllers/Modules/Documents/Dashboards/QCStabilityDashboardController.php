@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Cache;
  * QC Stability Board Dashboard Controller
  *
  * All data is read from the Postgres AI/Reporting database (pgsql_ai).
- * MySQL is never queried here — all QC data arrives via the Python ETL pipeline.
+ * Operational tables are not queried here — all QC data arrives via the Python ETL pipeline.
  *
  * Postgres views used:
  *   reporting.v_qc_stability_metrics  — per-analyte robust stats + UCL/LCL

@@ -3,7 +3,6 @@
 torch==2.5.0+cpu
 sqlalchemy>=2.0.30
 psycopg2-binary>=2.9.9
-pymysql>=1.1.1
 pandas>=2.2.0
 pydantic>=2.7.0
 pydantic-settings>=2.2.1

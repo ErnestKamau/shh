@@ -33,7 +33,9 @@ class SystemSetupSeeder extends Seeder
         Model::unguard();
 
         try {
-            DB::connection('pgsql')->transaction(function () {
+            $sourceConnection = config('imara_ai.source_connection', config('database.default'));
+
+            DB::connection('pgsql')->transaction(function () use ($sourceConnection) {
                 // ----------------------------------------------------------------
                 // STEP 1 — Roles & Permissions (Spatie)
                 // ----------------------------------------------------------------
@@ -100,14 +102,14 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info("  Created role '{$adminRole->name}' with " . count($permissions) . ' permissions.');
 
                 // ----------------------------------------------------------------
-                // STEP 2 — System Configuration Types (mysql → pgsql)
+                // STEP 2 — System Configuration Types
                 // ----------------------------------------------------------------
-                $this->command?->info('Step 2: Migrating system_configuration_types from mysql...');
+                $this->command?->info("Step 2: Loading system_configuration_types from {$sourceConnection}...");
 
                 /** @var array<string, string> $typeIdMap  old_id => new_id */
                 $typeIdMap = [];
 
-                $sourceTypes = DB::connection('mysql')
+                $sourceTypes = DB::connection($sourceConnection)
                     ->table('system_configuration_types')
                     ->get();
 
@@ -126,11 +128,11 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info('  Migrated ' . count($typeIdMap) . ' configuration type(s).');
 
                 // ----------------------------------------------------------------
-                // STEP 3 — System Configurations (mysql → pgsql)
+                // STEP 3 — System Configurations
                 // ----------------------------------------------------------------
-                $this->command?->info('Step 3: Migrating system_configurations from mysql...');
+                $this->command?->info("Step 3: Loading system_configurations from {$sourceConnection}...");
 
-                $sourceConfigs = DB::connection('mysql')
+                $sourceConfigs = DB::connection($sourceConnection)
                     ->table('system_configurations')
                     ->get();
 
@@ -167,11 +169,11 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info("  Migrated {$migratedCount} configuration(s), skipped {$skippedCount}.");
 
                 // ----------------------------------------------------------------
-                // STEP 4 — Migrate All ModulePreConfigs (mysql → pgsql)
+                // STEP 4 — Migrate All ModulePreConfigs
                 // ----------------------------------------------------------------
-                $this->command?->info('Step 4: Migrating module_pre_configs from mysql...');
+                $this->command?->info("Step 4: Loading module_pre_configs from {$sourceConnection}...");
 
-                $sourceMpc = DB::connection('mysql')
+                $sourceMpc = DB::connection($sourceConnection)
                     ->table('module_pre_configs')
                     ->get();
 
@@ -203,20 +205,20 @@ class SystemSetupSeeder extends Seeder
                 $kenyaRecord = \App\Country::where('name', 'like', '%Kenya%')->first();
 
                 if (! $kenyaRecord) {
-                    $mysqlKenya = DB::connection('mysql')
+                    $sourceKenya = DB::connection($sourceConnection)
                         ->table('countries')
                         ->where('name', 'like', '%Kenya%')
                         ->first();
 
-                    if ($mysqlKenya) {
+                    if ($sourceKenya) {
                         $kenyaRecord = \App\Country::firstOrCreate(
-                            ['name' => $mysqlKenya->name],
+                            ['name' => $sourceKenya->name],
                             [
-                                'iso_code_2'       => $mysqlKenya->iso_code_2 ?? 'KE',
-                                'iso_code_3'       => $mysqlKenya->iso_code_3 ?? 'KEN',
-                                'address_format'   => $mysqlKenya->address_format ?? '{firstname} {lastname}',
-                                'postcode_required' => $mysqlKenya->postcode_required ?? 0,
-                                'status'           => $mysqlKenya->status ?? 1,
+                                'iso_code_2'       => $sourceKenya->iso_code_2 ?? 'KE',
+                                'iso_code_3'       => $sourceKenya->iso_code_3 ?? 'KEN',
+                                'address_format'   => $sourceKenya->address_format ?? '{firstname} {lastname}',
+                                'postcode_required' => $sourceKenya->postcode_required ?? 0,
+                                'status'           => $sourceKenya->status ?? 1,
                             ]
                         );
                     } else {

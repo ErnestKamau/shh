@@ -92,18 +92,13 @@ class Builder extends Component
     public function loadTables()
     {
         try {
-            // Fallback for MySQL/MariaDB
-            $tables = DB::select('SHOW TABLES');
-            $this->dbTables = array_map(function($table) {
-                return array_values((array)$table)[0];
-            }, $tables);
+            $this->dbTables = collect(Schema::getTables())
+                ->map(fn ($table) => $table['name'] ?? $table['table_name'] ?? null)
+                ->filter()
+                ->values()
+                ->toArray();
         } catch (\Throwable $e) {
-            // If show tables fails, try schema (if dbal present)
-             try {
-                $this->dbTables = DB::connection()->getDoctrineSchemaManager()->listTableNames();
-             } catch (\Throwable $e2) {
-                 $this->dbTables = [];
-             }
+            $this->dbTables = [];
         }
         sort($this->dbTables);
     }

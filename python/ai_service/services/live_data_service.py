@@ -1,11 +1,9 @@
 import os
-import redis
 import logging
 import time
 import hashlib
 import json
 from typing import Dict, Any, List, Optional
-from datetime import datetime
 import pandas as pd
 from sqlalchemy import text
 from python.py_etl.core.database import db_manager
@@ -35,10 +33,6 @@ class LiveDataService:
         self.MAX_FAILURES = 5
         self.CIRCUIT_COOLDOWN_SECONDS = 60
         
-        # Redis Heartbeat
-        redis_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-        self._redis = redis.from_url(redis_url)
-
     def _load_manifest(self) -> Dict[str, Any]:
         try:
             with open(self.manifest_path, 'r') as f:
@@ -56,15 +50,6 @@ class LiveDataService:
         """
         Main entry point for executing an aggregate fact step safely.
         """
-        # 0. Check ETL Sync Status First
-        failed_tables = self._check_reporting_freshness()
-        etl_caveat = ""
-        if failed_tables:
-            etl_caveat = (
-                "\n\n(Note: Some data sources appear delayed. "
-                "These live counts are based on the latest available snapshot, not real-time.)"
-            )
-
         # 1. Circuit Breaker Check
         if self._circuit_open:
             if time.time() > self._circuit_reset_time:
@@ -91,11 +76,7 @@ class LiveDataService:
         cached_entry = self._cache.get(cache_key)
         if cached_entry and time.time() < cached_entry["expires_at"]:
             logger.info(f"LiveData cache HIT for {cache_key}")
-            cached_response = cached_entry["response"]
-            # Inject caveat if ETL failed since cache was written
-            if etl_caveat and etl_caveat not in cached_response["summary"]:
-                cached_response["summary"] += etl_caveat
-            return cached_response
+            return cached_entry["response"]
 
         logger.info(f"LiveData cache MISS for {cache_key}. Executing against PostgreSQL.")
         
@@ -103,6 +84,8 @@ class LiveDataService:
         start_time = time.time()
         try:
             sql = template["sql"]
+            self._assert_read_only_sql(sql)
+
             # Enforce Limit at application layer if the template forgot it to prevent OOM
             if "LIMIT" not in sql.upper():
                  sql += " LIMIT 50"
@@ -121,7 +104,6 @@ class LiveDataService:
             
             # 6. Format result
             formatted = self._format_result(df, template["output_format"], template["description"], intent)
-            formatted += etl_caveat
             scalar_value = self._extract_scalar_value(df, template["output_format"])
             
             response = {
@@ -157,32 +139,8 @@ class LiveDataService:
             return {
                 "error": str(e), 
                 "success": False,
-                "summary": "The reporting database is currently under heavy load or unavailable. Proceed with qualitative evidence, but state explicitly that exact real-time counts could not be retrieved."
+                "summary": "The operational database is currently under heavy load or unavailable. Proceed with qualitative evidence, but state explicitly that exact real-time counts could not be retrieved."
             }
-
-    def _check_reporting_freshness(self) -> list[str]:
-        """Check the status of reporting tables via background heartbeat."""
-        try:
-            raw_heartbeat = self._redis.get("imara:ai:etl_heartbeat")
-            if raw_heartbeat:
-                data = json.loads(raw_heartbeat)
-                # If the heartbeat is fresh (within 5 mins), return the stored failures
-                updated_at = datetime.fromisoformat(data.get("updated_at"))
-                if (datetime.now() - updated_at).total_seconds() < 300:
-                    return data.get("failed_tables", [])
-            
-            # Fallback/Bootstrap: Perform one-time sync check if Redis is empty or stale
-            from python.py_etl.services.etl_index_state_service import etl_index_state_service
-            tables_to_check = ["sample_headers", "sample_details"]
-            failed = []
-            for t in tables_to_check:
-                state = etl_index_state_service.get_state(t)
-                if not state or state.get("etl_status") != "success":
-                    failed.append(t)
-            return failed
-        except Exception as e:
-            logger.warning(f"Heartbeat lookup failed, falling back to permissive mode: {e}")
-            return []
 
     def _resolve_template(self, intent: str) -> Optional[Dict[str, Any]]:
         for domain_name, domain_templates in self.templates.items():
@@ -190,14 +148,34 @@ class LiveDataService:
                 return domain_templates[intent]
         return None
 
+    def _assert_read_only_sql(self, sql: str) -> None:
+        normalized = " ".join(sql.strip().split()).lower()
+        if not (normalized.startswith("select ") or normalized.startswith("with ")):
+            raise ValueError("Live data queries must be SELECT-only")
+
+        forbidden = (
+            " insert ",
+            " update ",
+            " delete ",
+            " truncate ",
+            " alter ",
+            " drop ",
+            " create ",
+            " merge ",
+            " grant ",
+            " revoke ",
+        )
+        padded = f" {normalized} "
+        if any(keyword in padded for keyword in forbidden):
+            raise ValueError("Live data query contains a forbidden write keyword")
+
     def _format_result(self, df: pd.DataFrame, output_format: str, description: str, intent: str = "") -> str:
         source_line = f"\n\n_Source: live operational database · Route: `{intent}`_" if intent else ""
 
         if df.empty:
             return (
                 f"No matching records were found for '{description}'.\n"
-                "This may indicate the data hasn't been synced yet, "
-                "or no records match the current filters."
+                "This may indicate no records match the current PostgreSQL filters."
                 f"{source_line}"
             )
 

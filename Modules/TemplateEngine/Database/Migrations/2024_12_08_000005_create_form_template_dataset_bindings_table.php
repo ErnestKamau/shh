@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('form_template_dataset_bindings', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('form_field_id');
+            $table->uuid('form_field_id');
             $table->string('table_name');
             $table->string('column_value'); // The column to store as value (e.g., id)
             $table->string('column_label'); // The column to show as label (e.g., name)

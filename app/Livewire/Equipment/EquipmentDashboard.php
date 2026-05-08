@@ -34,8 +34,8 @@ class EquipmentDashboard extends Component
     private function loadDashboardData(): void
     {
         $companyId = getUserCompany();
-        $calibrationDiffExpr = "DATEDIFF(DATE_ADD(COALESCE(lc.last_calibration_date, equipment.date_purchased), INTERVAL COALESCE(equipment.calibration_days, 0) DAY), CURDATE())";
-        $maintainanceDiffExpr = "DATEDIFF(DATE_ADD(COALESCE(lm.last_maintainance_date, equipment.date_purchased), INTERVAL COALESCE(equipment.maintainance_days, 0) DAY), CURDATE())";
+        $calibrationDiffExpr = "((COALESCE(lc.last_calibration_date, equipment.date_purchased) + (COALESCE(equipment.calibration_days, 0) * INTERVAL '1 day'))::date - CURRENT_DATE)";
+        $maintainanceDiffExpr = "((COALESCE(lm.last_maintainance_date, equipment.date_purchased) + (COALESCE(equipment.maintainance_days, 0) * INTERVAL '1 day'))::date - CURRENT_DATE)";
 
         $totalsRow = Equipment::query()
             ->where('company_id', $companyId)

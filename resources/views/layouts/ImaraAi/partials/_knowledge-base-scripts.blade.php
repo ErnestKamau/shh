@@ -477,11 +477,8 @@ async function reindexKnowledge(id) {
         if (response.status === 403) { alert('You do not have permission to re-index this document.'); return; }
         
         if (result.status === 'ok') {
-            if (result.run_id) {
-                pollSyncStatus(result.run_id, id);
-            } else {
-                fetchKnowledgeBase();
-            }
+            markReindexQueued(id);
+            setTimeout(fetchKnowledgeBase, 2000);
         } else {
             alert('Re-index failed: ' + result.message);
         }
@@ -522,48 +519,13 @@ async function batchReindex() {
     }
 }
 
-function pollSyncStatus(runId, itemId) {
+function markReindexQueued(itemId) {
     const statusPill = document.querySelector(`.status-pill[data-id="${itemId}"]`);
     if (statusPill) {
-        statusPill.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> INITIALIZING...';
+        statusPill.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> QUEUED...';
         statusPill.style.background = '#fef3c7';
         statusPill.style.color = '#92400e';
     }
-
-    const interval = setInterval(async () => {
-        try {
-            const response = await fetch(`${KB_URL}/sync-status/${runId}`);
-            if (!response.ok) throw new Error('Status check failed');
-            
-            const result = await response.json();
-            if (result.status === 'ok') {
-                const run = result.data;
-                
-                if (statusPill) {
-                    if (run.sync_status === 'completed') {
-                        statusPill.innerHTML = `<i class="mdi mdi-check-circle"></i> INDEXED (${run.rows_synced} CHUNKS)`;
-                        statusPill.style.background = '#dcfce7';
-                        statusPill.style.color = '#166534';
-                        clearInterval(interval);
-                        // Final refresh after a short delay
-                        setTimeout(fetchKnowledgeBase, 2000);
-                    } else if (run.sync_status === 'failed') {
-                        statusPill.innerHTML = `<i class="mdi mdi-alert-circle"></i> FAILED: ${run.error_message || 'UNKNOWN ERROR'}`;
-                        statusPill.style.background = '#fee2e2';
-                        statusPill.style.color = '#991b1b';
-                        statusPill.title = run.error_message;
-                        clearInterval(interval);
-                    } else {
-                        const stage = run.stage || 'PROCESSING';
-                        statusPill.innerHTML = `<i class="mdi mdi-loading mdi-spin"></i> ${stage.toUpperCase()}: ${run.rows_synced} CHUNKS...`;
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('Polling error:', err);
-            clearInterval(interval);
-        }
-    }, 2000);
 }
 
 async function deleteKnowledge(id) {

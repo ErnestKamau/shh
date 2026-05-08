@@ -453,7 +453,7 @@ class SystemAdminDashboardService
     {
         $driver = strtolower(trim($driver));
 
-        if (in_array($driver, ['pgsql', 'mysql', 'mariadb'], true)) {
+        if ($driver === 'pgsql') {
             return [
                 'supported' => true,
                 'formats' => ['sql', 'dump'],

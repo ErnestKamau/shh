@@ -17,7 +17,9 @@ class InventoryDashboardService
         try {
             $expiryThresholdDays = (int) $expiryThresholdDays;
             
-            $positionRows = DB::connection('mysql')->table('inventory_items as i')
+            $connection = DB::connection(config('imara_ai.source_connection', config('database.default')));
+
+            $positionRows = $connection->table('inventory_items as i')
                 ->join('inventory_sub_categories as sc', 'sc.id', '=', 'i.inventory_sub_category_id')
                 ->join('inventory_stores as s', 's.id', '=', 'i.inventory_store_id')
                 ->select([
@@ -29,8 +31,8 @@ class InventoryDashboardService
                     DB::raw('0 as pending_qty'),
                     'sc.minimum_level',
                     DB::raw('(SUM(i.stock_in - i.stock_out) < sc.minimum_level) as below_minimum'),
-                    DB::raw('SUM(CASE WHEN i.expiry < CURDATE() THEN (i.stock_in - i.stock_out) ELSE 0 END) as expired_qty'),
-                    DB::raw("SUM(CASE WHEN i.expiry BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL {$expiryThresholdDays} DAY) THEN (i.stock_in - i.stock_out) ELSE 0 END) as near_expiry_qty"),
+                    DB::raw('SUM(CASE WHEN i.expiry < CURRENT_DATE THEN (i.stock_in - i.stock_out) ELSE 0 END) as expired_qty'),
+                    DB::raw("SUM(CASE WHEN i.expiry BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '{$expiryThresholdDays} days') THEN (i.stock_in - i.stock_out) ELSE 0 END) as near_expiry_qty"),
                     DB::raw('MAX(i.updated_at) as refreshed_at')
                 ])
                 ->groupBy('sc.id', 's.id', 'sc.name', 'sc.code', 'sc.minimum_level')

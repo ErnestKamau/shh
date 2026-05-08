@@ -200,42 +200,15 @@ class QueryBuilderService
      */
     public function getAvailableTables(): array
     {
-        $tables = [];
-        $connection = DB::connection();
-        $databaseName = $connection->getDatabaseName();
-        
-        try {
-            $tableList = DB::select("SHOW TABLES");
-            $key = "Tables_in_{$databaseName}";
-            
-            foreach ($tableList as $table) {
-                $tableName = $table->$key ?? null;
-                if ($tableName && !Str::startsWith($tableName, 'migrations')) {
-                    $tables[] = [
-                        'name' => $tableName,
-                        'label' => Str::title(str_replace('_', ' ', $tableName))
-                    ];
-                }
-            }
-        } catch (\Exception $e) {
-            // Fallback: use Schema facade
-            $tables = collect(Schema::getAllTables())
-                ->map(function ($table) {
-                    $name = is_array($table) ? ($table['name'] ?? $table['table_name'] ?? null) : $table;
-                    if ($name && !Str::startsWith($name, 'migrations')) {
-                        return [
-                            'name' => $name,
-                            'label' => Str::title(str_replace('_', ' ', $name))
-                        ];
-                    }
-                    return null;
-                })
-                ->filter()
-                ->values()
-                ->toArray();
-        }
-
-        return $tables;
+        return collect(Schema::getTables())
+            ->map(fn ($table) => $table['name'] ?? $table['table_name'] ?? null)
+            ->filter(fn ($name) => $name && !Str::startsWith($name, 'migrations'))
+            ->map(fn ($name) => [
+                'name' => $name,
+                'label' => Str::title(str_replace('_', ' ', $name)),
+            ])
+            ->values()
+            ->toArray();
     }
 
     /**
@@ -262,4 +235,3 @@ class QueryBuilderService
         }
     }
 }
-

@@ -11,7 +11,7 @@ use Carbon\Carbon;
 
 class InventoryRiskDashboardController extends Controller
 {
-    protected $mysqlConnection = null; // Default MySQL ground truth
+    protected $sourceConnection = null; // Default connection is the operational PostgreSQL source
 
     public function __construct()
     {
@@ -42,7 +42,7 @@ class InventoryRiskDashboardController extends Controller
     private function getNearExpiryStock()
     {
         try {
-            $nearExpiry = DB::connection($this->mysqlConnection)
+            $nearExpiry = DB::connection($this->sourceConnection)
                 ->table('v_inventory_risk_detail')
                 ->where('days_until_expiry', '>', 0)
                 ->where('days_until_expiry', '<=', 30)
@@ -83,7 +83,7 @@ class InventoryRiskDashboardController extends Controller
     private function getDeadStock()
     {
         try {
-            $deadStock = DB::connection($this->mysqlConnection)
+            $deadStock = DB::connection($this->sourceConnection)
                 ->table('v_inventory_risk_detail')
                 ->where('days_since_last_movement', '>=', 90)
                 ->selectRaw('
@@ -120,7 +120,7 @@ class InventoryRiskDashboardController extends Controller
     private function getSlowMovingStock()
     {
         try {
-            $slowMoving = DB::connection($this->mysqlConnection)
+            $slowMoving = DB::connection($this->sourceConnection)
                 ->table('v_inventory_risk_detail')
                 ->whereBetween('days_since_last_movement', [30, 90])
                 ->selectRaw('
@@ -155,7 +155,7 @@ class InventoryRiskDashboardController extends Controller
     private function getStockoutRisk()
     {
         try {
-            $stockoutRisk = DB::connection($this->mysqlConnection)
+            $stockoutRisk = DB::connection($this->sourceConnection)
                 ->table('v_inventory_risk_detail')
                 ->whereRaw('quantity_in_stock < reorder_level')
                 ->selectRaw('
@@ -195,7 +195,7 @@ class InventoryRiskDashboardController extends Controller
     private function getReorderExceptions()
     {
         try {
-            $exceptions = DB::connection($this->mysqlConnection)
+            $exceptions = DB::connection($this->sourceConnection)
                 ->table('v_inventory_risk_detail')
                 ->selectRaw('
                     item_id,
@@ -236,7 +236,7 @@ class InventoryRiskDashboardController extends Controller
     private function getStockTakeVariance()
     {
         try {
-            $variance = DB::connection($this->mysqlConnection)
+            $variance = DB::connection($this->sourceConnection)
                 ->table('v_inventory_risk_detail')
                 ->selectRaw('
                     item_id,
@@ -281,7 +281,7 @@ class InventoryRiskDashboardController extends Controller
     private function getInventoryMetrics()
     {
         try {
-            $metrics = DB::connection($this->mysqlConnection)
+            $metrics = DB::connection($this->sourceConnection)
                 ->table('v_inventory_risk_detail')
                 ->selectRaw('
                     COUNT(DISTINCT item_id) as total_items,

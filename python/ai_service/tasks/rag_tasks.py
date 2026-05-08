@@ -12,8 +12,8 @@ from sqlalchemy import text
 
 from celery_config import app as celery_app
 from py_etl.core.database import db_manager
-from py_etl.services.etl_index_state_service import etl_index_state_service
-from ai_service.services.reporting_reader_service import reporting_reader_service
+from ai_service.services.ai_index_state_service import ai_index_state_service
+from ai_service.services.operational_reader_service import operational_reader_service
 from ai_service.services.retrieval_service import RetrievalService
 
 
@@ -34,26 +34,25 @@ class RagTask(Task):
 )
 def reindex_domain(self, table_key: str) -> Dict[str, Any]:
     """
-    Chunk and embed fresh rows from reporting.* for 'table_key'.
-    Only processes rows with source_id > last indexed watermark.
+    Chunk and embed fresh rows read directly from operational public tables.
     """
     try:
-        state = etl_index_state_service.get_state(table_key)
+        state = ai_index_state_service.get_state(table_key)
         
         # 1. Fetch fresh rows
         # Instead of max source_id, we use the timestamp of the last index run
         last_indexed_at = str(state.get("last_indexed_at") or '1970-01-01 00:00:00+00:00')
-        df = reporting_reader_service.fetch_fresh_rows(table_key, since_timestamp=last_indexed_at)
+        df = operational_reader_service.fetch_fresh_rows(table_key, since_timestamp=last_indexed_at)
         
         if df.empty:
             logger.info(f"No new rows to index for {table_key}")
             # we keep the previous watermarks, just touch the time
-            watermark = etl_index_state_service.get_last_watermark(table_key)
-            etl_index_state_service.upsert_index_success(table_key, watermark, 0, 0)
+            watermark = ai_index_state_service.get_last_watermark(table_key)
+            ai_index_state_service.upsert_index_success(table_key, watermark, 0, 0)
             return {"status": "success", "table_key": table_key, "chunks_produced": 0}
 
         # 2. Chunk rows
-        chunks = reporting_reader_service.chunk_rows(table_key, df)
+        chunks = operational_reader_service.chunk_rows(table_key, df)
         
         # 3. Clean up any existing stale chunks for these source_ids
         source_ids = df["source_id"].tolist()
@@ -64,7 +63,7 @@ def reindex_domain(self, table_key: str) -> Dict[str, Any]:
         
         # 5. Update watermark (still log max source_id for debugging, but indexing logic uses current time)
         new_watermark = int(df["source_id"].max())
-        etl_index_state_service.upsert_index_success(
+        ai_index_state_service.upsert_index_success(
             table_key, new_watermark, len(chunks), embeddings_count
         )
         
@@ -78,7 +77,7 @@ def reindex_domain(self, table_key: str) -> Dict[str, Any]:
         }
         
     except Exception as exc:
-        etl_index_state_service.upsert_index_failure(table_key, str(exc))
+        ai_index_state_service.upsert_index_failure(table_key, str(exc))
         raise self.retry(exc=exc, countdown=30)
 
 
@@ -129,7 +128,7 @@ def _upsert_chunks_to_pgvector(table_key: str, chunks: list[dict]) -> int:
                 embedding_json = "[" + ",".join(str(float(v)) for v in embedding) + "]"
                 
                 meta = {
-                    "source_table": f"reporting.{table_key}",
+                    "source_table": f"public.{table_key}",
                     "chunk_id": chunk["chunk_id"]
                 }
                 

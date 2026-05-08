@@ -13,6 +13,10 @@ class CreateTableQcApproversConfig extends Migration
      */
     public function up()
     {
+        if (Schema::hasTable('qc_approvers_config')) {
+            return;
+        }
+
         Schema::create('qc_approvers_config', function (Blueprint $table) {
             $table->id();
             $table->integer('personnel_id');

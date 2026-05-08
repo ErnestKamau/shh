@@ -11,7 +11,7 @@ use Carbon\Carbon;
 
 class EquipmentReliabilityDashboardController extends Controller
 {
-    protected $mysqlConnection = null; // Default MySQL ground truth
+    protected $sourceConnection = null; // Default connection is the operational PostgreSQL source
 
     public function __construct()
     {
@@ -41,7 +41,7 @@ class EquipmentReliabilityDashboardController extends Controller
     private function getOverduceCalibrationsMaintenances()
     {
         try {
-            $overdue = DB::connection($this->mysqlConnection)
+            $overdue = DB::connection($this->sourceConnection)
                 ->table('v_equipment_reliability')
                 ->where('is_overdue', 1)
                 ->selectRaw('
@@ -85,7 +85,7 @@ class EquipmentReliabilityDashboardController extends Controller
     private function getServiceMetrics()
     {
         try {
-            $metrics = DB::connection($this->mysqlConnection)
+            $metrics = DB::connection($this->sourceConnection)
                 ->table('v_equipment_reliability')
                 ->selectRaw('
                     COUNT(DISTINCT equipment_id) as total_equipment,
@@ -117,7 +117,7 @@ class EquipmentReliabilityDashboardController extends Controller
     private function getMaintenanceTrends()
     {
         try {
-            $trends = DB::connection($this->mysqlConnection)
+            $trends = DB::connection($this->sourceConnection)
                 ->table('v_equipment_reliability')
                 ->where('last_maintenance_date', '>=', Carbon::now()->subDays(30))
                 ->selectRaw('
@@ -148,7 +148,7 @@ class EquipmentReliabilityDashboardController extends Controller
     private function getVerificationTrends()
     {
         try {
-            $trends = DB::connection($this->mysqlConnection)
+            $trends = DB::connection($this->sourceConnection)
                 ->table('v_equipment_reliability')
                 ->selectRaw('
                     DATE(updated_at) as verification_date,
@@ -183,7 +183,7 @@ class EquipmentReliabilityDashboardController extends Controller
     private function getAssetsAtRisk()
     {
         try {
-            $atRisk = DB::connection($this->mysqlConnection)
+            $atRisk = DB::connection($this->sourceConnection)
                 ->select('
                     SELECT 
                         "7_days" as risk_period,
@@ -226,7 +226,7 @@ class EquipmentReliabilityDashboardController extends Controller
     private function getEquipmentReliability()
     {
         try {
-            $equipment = DB::connection($this->mysqlConnection)
+            $equipment = DB::connection($this->sourceConnection)
                 ->table('v_equipment_reliability')
                 ->selectRaw('
                     equipment_id,

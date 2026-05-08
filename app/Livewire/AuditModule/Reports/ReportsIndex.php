@@ -24,13 +24,13 @@ class ReportsIndex extends Component
         // Average NC closure time (days)
         $avgNCClosureTime = NonConformance::where('company_id', $companyId)
             ->whereNotNull('actual_closure_date')
-            ->selectRaw('AVG(DATEDIFF(actual_closure_date, date_identified)) as avg_days')
+            ->selectRaw('AVG((actual_closure_date::date - date_identified::date)) as avg_days')
             ->value('avg_days') ?? 0;
         
         // Average CAPA closure time (days)
         $avgCAPAClosureTime = CorrectiveAction::where('company_id', $companyId)
             ->whereNotNull('implementation_date')
-            ->selectRaw('AVG(DATEDIFF(implementation_date, created_at)) as avg_days')
+            ->selectRaw('AVG((implementation_date::date - created_at::date)) as avg_days')
             ->value('avg_days') ?? 0;
         
         // NC by origin distribution

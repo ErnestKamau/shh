@@ -14,7 +14,7 @@ class LabTatDashboardService
     public function getLabTatBoard(string $period = 'active'): array
     {
         try {
-            $connection = DB::connection('mysql');
+            $connection = DB::connection(config('imara_ai.source_connection', config('database.default')));
 
             // --- Original Batch-Level Data ---
             $stageSummary = $connection->table("v_lab_tat_stage_summary")
@@ -240,7 +240,7 @@ class LabTatDashboardService
                     'sas.code',
                     DB::raw('COUNT(sil.id) as total_batches'),
                     DB::raw('SUM(CASE WHEN sil.date_received IS NULL AND sil.expected_date < NOW() THEN 1 ELSE 0 END) as overdue_count'),
-                    DB::raw('AVG(DATEDIFF(COALESCE(sil.date_received, NOW()), sil.date_submitted)) as avg_tat')
+                    DB::raw('AVG((COALESCE(sil.date_received, NOW())::date - sil.date_submitted::date)) as avg_tat')
                 ])
                 ->groupBy('sas.id', 'sas.name', 'sas.code')
                 ->orderByDesc('total_batches')
@@ -344,7 +344,7 @@ class LabTatDashboardService
                     $avg = DB::table('sample_interlab_log')
                         ->where('to_lab_section_id', $section->id)
                         ->whereBetween('date_submitted', [$start, $end])
-                        ->avg(DB::raw('DATEDIFF(COALESCE(date_received, NOW()), date_submitted)'));
+                        ->avg(DB::raw('(COALESCE(date_received, NOW())::date - date_submitted::date)'));
                     
                     $val = round((float) $avg, 1);
                     if ($val > 0) $hasAnyData = true;

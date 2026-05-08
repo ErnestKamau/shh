@@ -377,7 +377,7 @@ class AdvancedStatistics extends Component
             while ($currentDate <= $endDate) {
                 $avg = NonConformance::whereDate('date_identified', $currentDate)
                     ->whereNotNull('actual_closure_date')
-                    ->selectRaw('AVG(DATEDIFF(actual_closure_date, date_identified)) as avg_days')
+                    ->selectRaw('AVG((actual_closure_date::date - date_identified::date)) as avg_days')
                     ->value('avg_days');
                     
                 $this->avgClosureTime[] = [
@@ -396,7 +396,7 @@ class AdvancedStatistics extends Component
                 
                 $avg = NonConformance::whereBetween('date_identified', [$rangeStart, $rangeEnd])
                     ->whereNotNull('actual_closure_date')
-                    ->selectRaw('AVG(DATEDIFF(actual_closure_date, date_identified)) as avg_days')
+                    ->selectRaw('AVG((actual_closure_date::date - date_identified::date)) as avg_days')
                     ->value('avg_days');
                     
                 $this->avgClosureTime[] = [
@@ -415,7 +415,7 @@ class AdvancedStatistics extends Component
                 
                 $avg = NonConformance::whereBetween('date_identified', [$rangeStart, $rangeEnd])
                     ->whereNotNull('actual_closure_date')
-                    ->selectRaw('AVG(DATEDIFF(actual_closure_date, date_identified)) as avg_days')
+                    ->selectRaw('AVG((actual_closure_date::date - date_identified::date)) as avg_days')
                     ->value('avg_days');
                     
                 $this->avgClosureTime[] = [

@@ -34,7 +34,6 @@ app = Celery(
     backend=_RESULT_URL,
     include=[
         "python.ai_service.tasks.ai_tasks",
-        "python.ai_service.tasks.etl_tasks",
         "python.ai_service.tasks.rag_tasks",
         "python.ai_service.tasks.monitoring_tasks",
     ],  # task modules to auto-discover
@@ -83,38 +82,5 @@ app.conf.beat_schedule = {
         "task":     "python.ai_service.tasks.ai_tasks.retrain_model",
         "schedule": crontab(hour=3, minute=0, day_of_week="sunday"),
         "kwargs":   {"model_type": "qc_anomaly"},
-    },
-
-    # ── ETL → RAG pipeline schedule ─────────────────────────────────
-    "etl_sample_headers": {
-        "task": "tasks.etl.sync_table",
-        "schedule": 60.0,
-        "kwargs": {"table_key": "sample_headers"},
-    },
-    "etl_sample_details": {
-        "task": "tasks.etl.sync_table",
-        "schedule": 60.0,
-        "kwargs": {"table_key": "sample_details"},
-    },
-    "etl_inventory_items": {
-        "task": "tasks.etl.sync_table",
-        "schedule": 300.0,
-        "kwargs": {"table_key": "inventory_items"},
-    },
-    "etl_equipment": {
-        "task": "tasks.etl.sync_table",
-        "schedule": 300.0,
-        "kwargs": {"table_key": "equipment"},
-    },
-    "etl_corrective_actions": {
-        "task": "tasks.etl.sync_table",
-        "schedule": 300.0,
-        "kwargs": {"table_key": "corrective_actions"},
-    },
-    # ── Heartbeats & Shared State ──────────────────────────────────
-    "update_etl_heartbeat": {
-        "task": "app.tasks.monitoring_tasks.update_etl_heartbeat",
-        "schedule": 60.0,
-        "kwargs": {},
     },
 }

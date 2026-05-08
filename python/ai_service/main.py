@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from python.ai_service.config.settings import settings
 from python.ai_service.middleware.request_id import RequestContextMiddleware
-from python.ai_service.routers import chat, health, etl_status, indexing
+from python.ai_service.routers import chat, health, indexing
 
 # Configure Logging
 logging.basicConfig(
@@ -38,7 +38,6 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(chat.router)
     app.include_router(indexing.router)
-    app.include_router(etl_status.router)
 
     return app
 

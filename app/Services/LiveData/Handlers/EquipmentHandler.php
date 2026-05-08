@@ -32,7 +32,7 @@ class EquipmentHandler implements LiveDataHandlerInterface
     {
         $rows = DB::table('equipment as e')
             ->leftJoin('equipment_usage as eu', 'e.id', '=', 'eu.equipment_id')
-            ->whereRaw('eu.end_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) OR eu.end_date IS NULL')
+            ->whereRaw("eu.end_date >= (CURRENT_DATE - INTERVAL '30 days') OR eu.end_date IS NULL")
             ->selectRaw('e.name, e.asset_code, COUNT(DISTINCT eu.id) as usage_count, MAX(eu.end_date) as last_used')
             ->groupBy('e.id', 'e.name', 'e.asset_code')
             ->orderByDesc('usage_count')
@@ -57,7 +57,7 @@ class EquipmentHandler implements LiveDataHandlerInterface
     private function equipmentMaintenanceSchedule(): array
     {
         $rows = DB::table('v_equipment_reliability')
-            ->whereRaw('next_maintenance_due BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)')
+            ->whereRaw("next_maintenance_due BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days')")
             ->where('maintenance_status', '!=', 'overdue')
             ->select('equipment_name', 'asset_code', 'next_maintenance_due', 'assigned_department')
             ->orderBy('next_maintenance_due')

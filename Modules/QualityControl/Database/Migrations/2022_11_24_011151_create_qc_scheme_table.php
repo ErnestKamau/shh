@@ -13,6 +13,10 @@ class CreateQcSchemeTable extends Migration
      */
     public function up()
     {
+        if (Schema::hasTable('qc_scheme')) {
+            return;
+        }
+
         Schema::create('qc_scheme', function (Blueprint $table) {
             $table->id();
             $table->string('name');
