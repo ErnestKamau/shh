@@ -1379,7 +1379,13 @@ class SampleWorkFlowController extends Controller
         } else {
             $qc_config_perc = '';
         }
-        $section_approvers_users = isset($batch->id) ? LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get() : [];
+        $section_approvers_users = [];
+        if (isset($batch->id)) {
+            $labSectionIds = array_filter(array_map('trim', explode(',', (string) $batch->lab_section_ids)));
+            if ($labSectionIds) {
+                $section_approvers_users = LabSectionApproverRelationShip::whereIn('lab_section_id', $labSectionIds)->get();
+            }
+        }
 
         $recieving_users = User::role('Sample Reception')
             ->where('is_support_staff', 0)
@@ -1397,7 +1403,7 @@ class SampleWorkFlowController extends Controller
 
         $account_settings = getConfigTypeByName('Account Settings');
         $atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
-        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
+        $users = User::where('is_client', 0)->whereNull('supplier_id')->where('active', 1)->get();
         $labsections = SampleAnalysisStage::where('active', 1)->where('is_system', 0)->get();
         $reportingUnits = getReportingUnits();
         $labStores = getStorageByType('lab_store');
@@ -4392,7 +4398,7 @@ class SampleWorkFlowController extends Controller
         $interlabs = $is_archived == 0 ? InterLabLogView::orderBy('id', 'DESC')->where('batch_status', '!=', 'Completed')->get() : InterLabLogView::orderBy('id', 'DESC')->get();
         $samples = $interlabs->pluck('sample_code')->toArray();
         $labs = Lab::where('active', 1)->get();
-        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
+        $users = User::where('is_client', 0)->whereNull('supplier_id')->where('active', 1)->get();
 
         return view('layouts.lab.interlab.index', compact('interlabs', 'samples', 'labs', 'users'));
     }
@@ -4973,7 +4979,7 @@ class SampleWorkFlowController extends Controller
         $methods = AnalysisMethod::where('active', 1)->get();
         $account_settings = getConfigTypeByName('Account Settings');
         $atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
-        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
+        $users = User::where('is_client', 0)->whereNull('supplier_id')->where('active', 1)->get();
         $labsections = SampleAnalysisStage::where('active', 1)->get();
         $reportingUnits = getReportingUnits();
         $conditions = SampleCondition::all();

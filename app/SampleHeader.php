@@ -10,6 +10,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 use App\InvoiceDetails;
 use App\BatchLabSectionApprover;
 use App\Models\CRM\CRMCompanyUnit;
+use App\Casts\SafeEncrypted;
 
 class SampleHeader extends Model implements Auditable
 {
@@ -18,35 +19,35 @@ class SampleHeader extends Model implements Auditable
     protected $keyType = 'string';
     public $incrementing = false;
     protected $casts = [
-        'crm_unit_name' => 'encrypted',
-        'reference_number' => 'encrypted',
-        'method_deviation_reason' => 'encrypted',
-        'document_number' => 'encrypted',
-        'description' => 'encrypted',
-        'importer_address' => 'encrypted',
-        'reason_for_submission' => 'encrypted',
-        'how_sample_was_obtained' => 'encrypted',
-        'sample_appearance_description' => 'encrypted',
-        'net_quantity_and_unit_of_quantity' => 'encrypted',
-        'use_of_goods' => 'encrypted',
-        'declared_amount' => 'encrypted',
-        'where_sample_was_obtained' => 'encrypted',
-        'radio_active_levels' => 'encrypted',
-        'ammendment_number' => 'encrypted',
-        'sampling_officer_name' => 'encrypted',
-        'receiving_officer_name' => 'encrypted',
-        'submit_by' => 'encrypted',
-        'batch_report_url' => 'encrypted',
-        'batch_instructions' => 'encrypted',
-        'condition_quality_sample' => 'encrypted',
-        'declaration_customer_signature' => 'encrypted',
-        'invoice_amount' => 'encrypted',
-        'cluster_amount' => 'encrypted',
-        'cluster_balance' => 'encrypted',
-        'cluster_amount_paid' => 'encrypted',
-        'case_id' => 'encrypted',
-        'batch_report_online_url' => 'encrypted',
-        'schedule_customer_email' => 'encrypted',
+        'crm_unit_name' => SafeEncrypted::class,
+        'reference_number' => SafeEncrypted::class,
+        'method_deviation_reason' => SafeEncrypted::class,
+        'document_number' => SafeEncrypted::class,
+        'description' => SafeEncrypted::class,
+        'importer_address' => SafeEncrypted::class,
+        'reason_for_submission' => SafeEncrypted::class,
+        'how_sample_was_obtained' => SafeEncrypted::class,
+        'sample_appearance_description' => SafeEncrypted::class,
+        'net_quantity_and_unit_of_quantity' => SafeEncrypted::class,
+        'use_of_goods' => SafeEncrypted::class,
+        'declared_amount' => SafeEncrypted::class,
+        'where_sample_was_obtained' => SafeEncrypted::class,
+        'radio_active_levels' => SafeEncrypted::class,
+        'ammendment_number' => SafeEncrypted::class,
+        'sampling_officer_name' => SafeEncrypted::class,
+        'receiving_officer_name' => SafeEncrypted::class,
+        'submit_by' => SafeEncrypted::class,
+        'batch_report_url' => SafeEncrypted::class,
+        'batch_instructions' => SafeEncrypted::class,
+        'condition_quality_sample' => SafeEncrypted::class,
+        'declaration_customer_signature' => SafeEncrypted::class,
+        'invoice_amount' => SafeEncrypted::class,
+        'cluster_amount' => SafeEncrypted::class,
+        'cluster_balance' => SafeEncrypted::class,
+        'cluster_amount_paid' => SafeEncrypted::class,
+        'case_id' => SafeEncrypted::class,
+        'batch_report_online_url' => SafeEncrypted::class,
+        'schedule_customer_email' => SafeEncrypted::class,
         'receiving_officer' => 'string',
         'sampling_officer' => 'string',
         'specialist_analyst_id' => 'string',
@@ -113,7 +114,7 @@ class SampleHeader extends Model implements Auditable
 	{
 		return SampleDetails::leftJoin('inventory_sub_categories as isc', function ($join) {
 			$parentType = "\App\SampleDetails";
-			$join->on('isc.parent_id', '=', 'sample_details.id');
+			$join->whereRaw('isc.parent_id::text = sample_details.id::text');
 			$join->where('isc.parent', '=', $parentType);
 		})->leftJoin('inventory_items as it', 'it.inventory_sub_category_id', '=', 'isc.id')
 		->leftJoin('sample_analysis_dates as sad',function($join){
@@ -122,7 +123,7 @@ class SampleHeader extends Model implements Auditable
 		})
 		->leftJoin('labs as lb','lb.id','=','sample_details.lab_id')
 			->selectRaw('analysis_type_id,sample_details.barcode,sample_details.third_standard_id as third_standard,sample_details.lab_sub_no,sample_details.ammendment_number,sample_details.main_standard,sample_details.secondary_standard,comments,company_product_id,gps,header_body,sample_details.id,main_body,notes_body,photo_url,sample_code,sample_condition_id,sample_details.sample_header_id,sample_point_id, isc.unit_type, it.inventory_store_slot_id as slot_id, it.inventory_store_id as store_id, SUM(it.stock_in) as stock_in, SUM(it.stock_out) as stock_out, isc.material_type_id,sample_details.lab_id,lb.name as lab_name,lb.code as lab_code,sample_details.disposal_date,sad.analysis_dates,sad.start_analysis_date')
-			->where('sample_details.sample_header_id', $this->id)->groupBy('isc.material_type_id', 'analysis_type_id','sample_details.lab_sub_no', 'sample_details.barcode', 'comments', 'company_product_id', 'gps', 'header_body', 'sample_details.id', 'main_body', 'photo_url', 'sample_code', 'sample_condition_id', 'sample_details.sample_header_id', 'sample_point_id', 'unit_type', 'inventory_store_slot_id', 'inventory_store_id', 'sample_details.ammendment_number', 'sample_details.main_standard', 'sample_details.secondary_standard')->orderBy('sample_details.id', 'asc')->get();
+			->where('sample_details.sample_header_id', $this->id)->groupBy('isc.material_type_id', 'analysis_type_id','sample_details.lab_sub_no', 'sample_details.barcode', 'sample_details.third_standard_id', 'comments', 'company_product_id', 'gps', 'header_body', 'sample_details.id', 'main_body', 'notes_body', 'photo_url', 'sample_code', 'sample_condition_id', 'sample_details.sample_header_id', 'sample_point_id', 'unit_type', 'inventory_store_slot_id', 'inventory_store_id', 'sample_details.ammendment_number', 'sample_details.main_standard', 'sample_details.secondary_standard', 'sample_details.lab_id', 'lb.name', 'lb.code', 'sample_details.disposal_date', 'sad.analysis_dates', 'sad.start_analysis_date')->orderBy('sample_details.id', 'asc')->get();
 	}
 
 	public function report_header_details()
@@ -424,7 +425,10 @@ class SampleHeader extends Model implements Auditable
 		return isset($contact->id) ? $contact->first_name.' '.$contact->middle_name.' '.$contact->last_name : '-';
 	}
 	public function getLabSectionsNames(){
-		$tracking_stages_arr = explode(',',$this->lab_section_ids ?? '');
+		$tracking_stages_arr = array_filter(array_map('trim', explode(',', $this->lab_section_ids ?? '')));
+		if (empty($tracking_stages_arr)) {
+			return '';
+		}
 		return implode(',',SampleAnalysisStage::whereIn('id',$tracking_stages_arr)->pluck('name')->toArray()); 
 	}
 	public function getUnitNameAttribute(){

@@ -267,7 +267,7 @@ class StockTakingController extends Controller
 		$myRequest = new Request;
 		$myRequest->category_id = $catid;
 		$myRequest->sub_category_id = $subid;
-		$myRequest->supplier_id = 0;
+		$myRequest->supplier_id = null;
 		$myRequest->price = floatval($SUBCAT->unit_price)*floatval($request->quantity);
 		$myRequest->po_number = $stockAdj;
 		$myRequest->quantity = $request->quantity;

@@ -132,7 +132,7 @@ if (!function_exists('getAuditorUsers')) {
     {
         // Default: return all active non-client employees
         return \App\User::where('is_client', 0)
-            ->where('supplier_id', 0)
+            ->whereNull('supplier_id')
             ->where('active', 1)
             ->where('is_support_staff', 0)
             ->orderBy('name')

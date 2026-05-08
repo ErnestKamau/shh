@@ -197,7 +197,7 @@ class AuditForm extends Component
             ->where('active', 1)
             ->where('is_client', 0)
             ->where('is_support_staff', 0)
-            ->where('supplier_id', 0)
+            ->whereNull('supplier_id')
             ->orderBy('name', 'asc')
             ->get();
 

@@ -185,11 +185,7 @@ class WorkflowBoard extends Component
             ->where('is_client', 0)
             ->where('active', 1);
 
-        if ($driver === 'pgsql') {
-            $usersQuery->whereNull('supplier_id');
-        } else {
-            $usersQuery->where('supplier_id', 0);
-        }
+        $usersQuery->whereNull('supplier_id');
 
         $this->users = $usersQuery
             ->orderBy('name')

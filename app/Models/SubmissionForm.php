@@ -34,6 +34,8 @@ class SubmissionForm extends Model implements Auditable
         'version',
         'issue_date',
         'print_template_name',
+        'template_form_type_id',
+        'form_type',
         'target_pages',
         'lims_destination_pages',
         'placement_mode',
@@ -48,6 +50,8 @@ class SubmissionForm extends Model implements Auditable
         'is_active' => 'boolean',
         'is_customer_portal_form' => 'boolean',
         'issue_date' => 'date',
+        'template_form_type_id' => 'integer',
+        'form_type' => 'string',
         'target_pages' => 'array',
         'lims_destination_pages' => 'array',
         'placement_slot' => 'array',
@@ -82,6 +86,70 @@ class SubmissionForm extends Model implements Auditable
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the template form type for this submission form.
+     */
+    public function templateFormType()
+    {
+        return $this->belongsTo(SubmissionFormTemplateType::class, 'template_form_type_id');
+    }
+
+    public function customers()
+    {
+        return $this->belongsToMany(
+            \App\Models\CRM\CRMCustomer::class,
+            'submission_form_customers',
+            'submission_form_id',
+            'crm_customer_id'
+        );
+    }
+
+    public function sampleTypes()
+    {
+        return $this->belongsToMany(
+            \App\SampleType::class,
+            'submission_form_sample_types',
+            'submission_form_id',
+            'sample_type_id'
+        );
+    }
+
+    /**
+     * (For attachment forms) The template forms this attachment form is linked to.
+     */
+    public function templateForms()
+    {
+        return $this->belongsToMany(
+            SubmissionForm::class,
+            'submission_form_template_links',
+            'attachment_form_id',
+            'template_form_id'
+        );
+    }
+
+    /**
+     * (For template forms) The attachment forms linked to this template form.
+     */
+    public function attachmentForms()
+    {
+        return $this->belongsToMany(
+            SubmissionForm::class,
+            'submission_form_template_links',
+            'template_form_id',
+            'attachment_form_id'
+        )->where('form_type', 'attachment');
+    }
+
+    public function isTemplate(): bool
+    {
+        return $this->form_type === 'template';
+    }
+
+    public function isAttachment(): bool
+    {
+        return $this->form_type === 'attachment';
     }
 
     /**

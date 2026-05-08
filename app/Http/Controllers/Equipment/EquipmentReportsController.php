@@ -28,7 +28,7 @@ class EquipmentReportsController extends Controller
         $asset_types = AssetType::where('is_active', 1)->get();
         $departments = InventoryDepartment::where('module', 'organizational')->get();
         $asset_locations = AssetLocation::where('is_active', 1)->get();
-        $employees = User::where('is_client', 0)->where('supplier_id', 0)->where('active',1)->where('is_support_staff',0)->get();
+        $employees = User::where('is_client', 0)->whereNull('supplier_id')->where('active',1)->where('is_support_staff',0)->get();
         $suppliers = Supplier::all();
 
         return view('layouts.equipment.reports.index', compact('equipments', 'asset_types', 'asset_locations', 'departments', 'employees', 'suppliers'));
