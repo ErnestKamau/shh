@@ -2337,7 +2337,7 @@ class MasLanguageDatabaseSeeder extends Seeder
         foreach ($translations as $group => $items) {
             foreach ($items as $key => $text) {
                 TranslationLanguageLine::updateOrCreate(
-                    ['group' => $group, 'key' => $key],
+                    ['group' => 'mas/' . $group, 'key' => $key],
                     ['text' => $text]
                 );
                 $count++;
