@@ -233,48 +233,6 @@ class MasController extends Controller
         return view('layouts.mas.risk', compact('stats'));
     }
 
-    /**
-     * AI Intelligence & Performance Insights (Consolidated Analytics + Governance)
-     */
-    public function ai(
-        PerformanceDashboardService $perfService,
-        LabTatDashboardService $tatService,
-        QcDashboardService $qcService,
-        InventoryDashboardService $inventoryService
-    ) {
-        // Governance & Drift Monitoring
-        $govData = $perfService->getMLModelMetrics();
-        $driftAlerts = $perfService->getFeatureDriftAlerts();
-        
-        // Performance KPIs & Intention Breakdown
-        $intents = $perfService->getIntentBreakdown();
-        
-        // LIMS AI Insights
-        $labTat = $tatService->getLabTatBoard();
-        $qcStability = $qcService->getQcStabilityBoard();
-        $inventoryRisk = $inventoryService->getInventoryRiskBoard();
-
-        $stats = [
-            'performance' => $govData['overview'] ?? [],
-            'models' => [
-                'models' => $govData['performance'] ?? [], // Live analytics
-                'registry' => $govData['models'] ?? []      // Static registry (versions/frameworks)
-            ],
-            'alerts' => array_merge($govData['alerts'] ?? [], array_map(fn($d) => [
-                'severity' => 'danger',
-                'type' => 'drift',
-                'message' => $d['alert'] ?? 'Feature drift detected'
-            ], $driftAlerts)),
-            'intents' => $intents,
-            'lims_insights' => [
-                'tat' => $labTat,
-                'qc' => $qcStability,
-                'inventory' => $inventoryRisk
-            ]
-        ];
-
-        return view('layouts.mas.ai', compact('stats'))->with('dataTable', true);
-    }
 
     /**
      * Equipment Maintenance & Reliability

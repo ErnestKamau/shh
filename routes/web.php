@@ -1930,7 +1930,7 @@ Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth', 'can:ai_analyti
     Route::get('/personnel', '\App\Livewire\Mas\Personnel')->name('mas.personnel');
     Route::get('/qc', '\App\Livewire\Mas\Qc')->name('mas.qc');
     Route::get('/audit', '\App\Livewire\Mas\Audit')->name('mas.audit');
-    Route::get('/ai', 'Mas\MasController@ai')->name('mas.ai');
+    Route::get('/ai-monitoring', '\App\Livewire\Mas\AiMonitoring')->name('mas.ai-monitoring');
     Route::get('/export/{module}', 'Mas\MasController@export')->name('mas.export');
     Route::post('/export/{module}/visuals', 'Mas\MasController@exportWithVisuals')->name('mas.export.visuals');
 });

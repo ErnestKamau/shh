@@ -340,13 +340,13 @@ class MasLanguageDatabaseSeeder extends Seeder
     ),
     'brand_footer' => 
     array (
-      'en' => 'KEBS | LIMS',
-      'sw' => 'KEBS | LIMS',
+      'en' => 'GCLA IMARA LIMS',
+      'sw' => 'GCLA IMARA LIMS',
     ),
     'brand_name' => 
     array (
-      'en' => 'KEBS',
-      'sw' => 'KEBS',
+      'en' => 'GCLA IMARA',
+      'sw' => 'GCLA IMARA',
     ),
     'client' => 
     array (

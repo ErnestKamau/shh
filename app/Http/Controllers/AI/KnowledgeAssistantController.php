@@ -205,7 +205,7 @@ class KnowledgeAssistantController extends Controller
         return response()->json(['status' => 'ok', 'conversations' => $conversations]);
     }
 
-    public function togglePin(Request $request, int $id): JsonResponse
+    public function togglePin(Request $request, string $id): JsonResponse
     {
         $conversation = AiConversation::where('id', $id)
             ->where('user_id', Auth::id())
@@ -233,7 +233,7 @@ class KnowledgeAssistantController extends Controller
         return response()->json(['status' => 'ok', 'conversation' => $conversation], 201);
     }
 
-    public function getMessages(Request $request, int $id): JsonResponse
+    public function getMessages(Request $request, string $id): JsonResponse
     {
         $conversation = AiConversation::where('id', $id)
             ->where('user_id', Auth::id())
@@ -268,7 +268,7 @@ class KnowledgeAssistantController extends Controller
         return response()->json(['status' => 'ok', 'messages' => $messages]);
     }
 
-    public function saveMessage(Request $request, int $id): JsonResponse
+    public function saveMessage(Request $request, string $id): JsonResponse
     {
         $conversation = AiConversation::where('id', $id)
             ->where('user_id', Auth::id())
@@ -299,7 +299,7 @@ class KnowledgeAssistantController extends Controller
         return response()->json(['status' => 'ok', 'message' => $message], 201);
     }
 
-    public function deleteConversation(Request $request, int $id): JsonResponse
+    public function deleteConversation(Request $request, string $id): JsonResponse
     {
         $conversation = AiConversation::where('id', $id)
             ->where('user_id', Auth::id())
@@ -310,7 +310,7 @@ class KnowledgeAssistantController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    public function renameConversation(Request $request, int $id): JsonResponse
+    public function renameConversation(Request $request, string $id): JsonResponse
     {
         $conversation = AiConversation::where('id', $id)
             ->where('user_id', Auth::id())
@@ -323,7 +323,7 @@ class KnowledgeAssistantController extends Controller
         return response()->json(['status' => 'ok', 'conversation' => $conversation]);
     }
 
-    public function saveFeedback(Request $request, int $convoId, int $messageId): JsonResponse
+    public function saveFeedback(Request $request, string $convoId, string $messageId): JsonResponse
     {
         // Ownership check via conversation
         AiConversation::where('id', $convoId)
@@ -352,7 +352,7 @@ class KnowledgeAssistantController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    public function uploadAttachment(Request $request, int $id): JsonResponse
+    public function uploadAttachment(Request $request, string $id): JsonResponse
     {
         $conversation = AiConversation::where('id', $id)
             ->where('user_id', Auth::id())
@@ -463,7 +463,7 @@ class KnowledgeAssistantController extends Controller
      * Regenerate a response from a specific conversation context.
      * POST /api/v1/conversations/{conversationId}/messages/{messageId}/regenerate
      */
-    public function regenerateResponse(Request $request, int $conversationId, int $messageId): JsonResponse
+    public function regenerateResponse(Request $request, string $conversationId, string $messageId): JsonResponse
     {
         try {
             // Verify conversation ownership
@@ -529,7 +529,7 @@ class KnowledgeAssistantController extends Controller
      * Rewrite a response for improved clarity, tone, or safety.
      * POST /api/v1/conversations/{conversationId}/messages/{messageId}/rewrite
      */
-    public function rewriteResponse(Request $request, int $conversationId, int $messageId): JsonResponse
+    public function rewriteResponse(Request $request, string $conversationId, string $messageId): JsonResponse
     {
         try {
             // Verify conversation ownership and find the message

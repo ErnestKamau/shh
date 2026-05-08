@@ -75,11 +75,12 @@
 				</div>
 			</a>
 
-			<!-- AI Intelligence -->
-			<a href="{{ route('mas.ai') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.ai') ? 'active' : '' }}">
+
+			<!-- AI Monitoring -->
+			<a href="{{ route('mas.ai-monitoring') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('mas.ai-monitoring') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-head-snowflake fa-fw mr-3" style="color: #6f42c1;"></span>
-					<span class="menu-collapsed">{{ __('mas/navigation.ai_analytics') }}</span>
+					<span class="mdi mdi-monitor-dashboard fa-fw mr-3 text-purple"></span>
+					<span class="menu-collapsed">AI Monitoring</span>
 				</div>
 			</a>
 
@@ -154,5 +155,15 @@
 @endsection
 
 @section('script')
+<link rel="stylesheet" href="/assets/js/libs/toastr/toastr.min.css">
+<script src="/assets/js/libs/toastr/toastr.min.js"></script>
+<script>
+    document.addEventListener('livewire:init', () => {
+        Livewire.on('notify', (data) => {
+            const payload = Array.isArray(data) ? data[0] : data;
+            toastr[payload.type](payload.message);
+        });
+    });
+</script>
 @yield('script2')
 @endsection
