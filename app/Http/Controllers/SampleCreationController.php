@@ -1694,7 +1694,7 @@ class SampleCreationController extends Controller
     }
 
     /**
-     * Get available areas and sample points (not yet mapped to customer) filtered by sample type
+     * Get available sample points for customer/unit (area-less model)
      */
     public function getAvailableAreasAndPoints($stagingId)
     {
@@ -1721,26 +1721,17 @@ class SampleCreationController extends Controller
                 return response()->json(['error' => 'Sample type or customer not found'], 400);
             }
 
-            // Get ALL areas linked to this sample type using Eloquent
-            $availableAreas = \App\Models\Area::whereHas('sampleTypes', function ($query) use ($sampleTypeId) {
-                $query->where('sample_types.id', $sampleTypeId);
-            })
-                ->select('id', 'name', 'code')
-                ->distinct()
-                ->get();
+            $pointsQuery = \App\Models\CRM\SamplePoint::query()
+                ->where('crm_customer_id', $customerId)
+                ->where('active', 1);
 
-            Log::info('Found areas for sample type', [
-                'sample_type_id' => $sampleTypeId,
-                'area_count' => $availableAreas->count()
-            ]);
+            if ($companyUnitId) {
+                $pointsQuery->where('crm_company_unit_id', $companyUnitId);
+            }
 
-            // Get ALL sample points for this sample type (not filtered by area)
-            // User can select any sample point regardless of area selection
-            $allSamplePoints = \App\Models\SamplePoint::whereHas('sampleTypes', function ($query) use ($sampleTypeId) {
-                $query->where('sample_types.id', $sampleTypeId);
-            })
-                ->select('id', 'name', 'code')
-                ->distinct()
+            $allSamplePoints = $pointsQuery
+                ->select('id', 'name', 'description')
+                ->orderBy('name')
                 ->get();
 
             Log::info('All sample points for sample type', [
@@ -1749,15 +1740,18 @@ class SampleCreationController extends Controller
                 'sample_points' => $allSamplePoints->toArray()
             ]);
 
-            // For compatibility with frontend, group all points under a single key
-            // Or return as flat array - the frontend needs to be updated accordingly
-            $samplePointsByArea = [];
-            foreach ($availableAreas as $area) {
-                // Return all sample points for each area (same list for all areas)
-                $samplePointsByArea[$area->id] = $allSamplePoints;
-            }
+            $availableAreas = collect([
+                [
+                    'id' => 'direct',
+                    'name' => 'Sample Points',
+                    'code' => 'SP',
+                ],
+            ]);
 
-            // Also add a special key for "all points" so frontend can show all regardless of area selection
+            // Keep legacy response shape for compatibility with frontend.
+            $samplePointsByArea = [];
+            $samplePointsByArea['direct'] = $allSamplePoints;
+
             $samplePointsByArea['all'] = $allSamplePoints;
 
             Log::info('Returning areas and points', [
@@ -1781,64 +1775,37 @@ class SampleCreationController extends Controller
     }
 
     /**
-     * Create customer sample point (area and point mapping)
+     * Attach or create customer sample point (customer + company unit only)
      */
     public function addCustomerSamplePoint(Request $request)
     {
         $validated = $request->validate([
             'customer_id' => 'required|exists:crm_customers,id',
-            'area_id' => 'required|exists:crm_areas,id',
-            'sample_point_id' => 'required|exists:crm_sample_points,id',
-            'crm_company_unit_id' => 'nullable|exists:crm_company_units,id',
-            'crm_company_sub_unit_id' => 'nullable|exists:crm_company_sub_units,id',
+            'sample_point_id' => 'nullable|exists:sample_points,id',
+            'name' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'crm_company_unit_id' => 'required|exists:crm_company_units,id',
         ]);
 
         DB::beginTransaction();
         try {
-            $samplePointArea = \App\Models\SamplePointArea::where('crm_customer_id', $validated['customer_id'])
-                ->where('crm_area_id', $validated['area_id'])
-                ->where('crm_company_sub_unit_id', $validated['crm_company_sub_unit_id'] ?? null)
-                ->first();
+            $crmSamplePoint = null;
 
-            if (!$samplePointArea) {
-                // Get area details for name
-                $area = \App\Models\Area::find($validated['area_id']);
-                $areaName = $area ? $area->name : 'Unknown Area';
-
-                // Create new SamplePointArea
-                $samplePointArea = \App\Models\SamplePointArea::create([
-                    'crm_customer_id' => $validated['customer_id'],
-                    'crm_area_id' => $validated['area_id'],
-                    'crm_company_unit_id' => $validated['crm_company_unit_id'] ?? null,
-                    'crm_company_sub_unit_id' => $validated['crm_company_sub_unit_id'] ?? null,
-                    'name' => $areaName,
-                    'code' => 'SPA-' . strtoupper(uniqid()),
-                    'description' => 'Auto-created from sample assignment',
-                    'active' => true
-                ]);
-
-                Log::info('Created new SamplePointArea', ['id' => $samplePointArea->id]);
+            if (!empty($validated['sample_point_id'])) {
+                $crmSamplePoint = \App\Models\CRM\SamplePoint::where('id', $validated['sample_point_id'])
+                    ->where('crm_customer_id', $validated['customer_id'])
+                    ->where('crm_company_unit_id', $validated['crm_company_unit_id'])
+                    ->first();
             }
 
-            // 2. Check if CRM\SamplePoint exists for this customer + sample_point + area
-            $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $validated['customer_id'])
-                ->where('crm_sample_point_id', $validated['sample_point_id'])
-                ->where('crm_area_id', $validated['area_id'])
-                ->first();
-
             if (!$crmSamplePoint) {
-                // Create new CRM\SamplePoint
                 $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
                     'crm_customer_id' => $validated['customer_id'],
-                    'crm_sample_point_id' => $validated['sample_point_id'],
-                    'crm_area_id' => $validated['area_id'],
-                    'sample_point_area_id' => $samplePointArea->id,
-                    'crm_company_unit_id' => $validated['crm_company_unit_id'] ?? null,
-                    'crm_company_sub_unit_id' => $validated['crm_company_sub_unit_id'] ?? null,
-                    'active' => true
+                    'crm_company_unit_id' => $validated['crm_company_unit_id'],
+                    'name' => $validated['name'] ?? 'Sample Point',
+                    'description' => $validated['description'] ?? null,
+                    'active' => true,
                 ]);
-
-                Log::info('Created new CRM\SamplePoint', ['id' => $crmSamplePoint->id]);
             }
 
             DB::commit();
@@ -1847,8 +1814,7 @@ class SampleCreationController extends Controller
                 'success' => true,
                 'message' => 'Sample point added to customer successfully',
                 'data' => [
-                    'sample_point_area_id' => $samplePointArea->id,
-                    'crm_sample_point_id' => $crmSamplePoint->id
+                    'sample_point_id' => $crmSamplePoint->id,
                 ]
             ]);
 

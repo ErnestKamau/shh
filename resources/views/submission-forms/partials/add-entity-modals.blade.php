@@ -319,71 +319,6 @@
     </div>
 </div>
 
-<!-- Add Company Sub Unit Modal -->
-<div class="modal fade" id="addCompanySubUnitModal" tabindex="-1" role="dialog" aria-labelledby="addCompanySubUnitModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addCompanySubUnitModalLabel">
-                    <i class="mdi mdi-plus"></i> Add New Company Sub Unit
-                </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form id="addCompanySubUnitForm">
-                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group mb-3">
-                                <label class="form-label">Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="companySubUnitName" name="name" placeholder="Enter sub unit name" required>
-                                <span class="text-danger" id="error-subunit-name"></span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group mb-3">
-                                <label class="form-label">Code <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="companySubUnitCode" name="code" placeholder="Enter sub unit code" required>
-                                <span class="text-danger" id="error-subunit-code"></span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="form-group mb-3">
-                                <label class="form-label"><i class="mdi mdi-sitemap text-primary"></i> Company Unit <span class="text-danger">*</span></label>
-                                <select class="form-control" id="companySubUnitParent" name="crm_company_unit_id" required>
-                                    <option value="">Select a company unit...</option>
-                                </select>
-                                <span class="text-danger" id="error-subunit-crm_company_unit_id"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="form-group mb-3">
-                                <div class="form-check form-check-inline">
-                                    <input type="checkbox" class="form-check-input" id="companySubUnitActive" name="active" checked>
-                                    <label class="form-check-label" for="companySubUnitActive">Active</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="submitCompanySubUnitBtn">
-                        <i class="mdi mdi-content-save"></i> Save
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Add Client Contact Modal -->
 <div class="modal fade" id="addClientContactModal" tabindex="-1" role="dialog" aria-labelledby="addClientContactModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
@@ -830,70 +765,11 @@ $(document).ready(function() {
         }
     });
     
-    // Auto-select client unit in Company Sub Unit modal based on main form selection
-    $('#addCompanySubUnitModal').on('show.bs.modal', function() {
-        // Get the currently selected customer and client unit from the main form
-        var $clientSelect = $('select[data-element-type="client_select"]');
-        var selectedCustomerId = $clientSelect.val();
-        var $clientUnitSelect = $('select[data-element-type="client_unit_select"]');
-        var selectedClientUnitId = $clientUnitSelect.val();
-        
-        console.log('Company Sub Unit modal opened');
-        console.log('Selected Customer ID:', selectedCustomerId);
-        console.log('Selected Client Unit ID:', selectedClientUnitId);
-        
-        // Load client units for the selected customer
-        if (!selectedCustomerId) {
-            $('#companySubUnitParent').empty().append('<option value="">Please select a customer first...</option>');
-            console.warn('No customer selected. Please select a customer first.');
-            return;
-        }
-        
-        $.get('/api/client-units', { crm_customer_id: selectedCustomerId }, function(data) {
-            var $parentSelect = $('#companySubUnitParent');
-            $parentSelect.empty().append('<option value="">Select a company unit...</option>');
-            
-            $.each(data, function(index, unit) {
-                $parentSelect.append('<option value="' + unit.id + '">' + unit.name + '</option>');
-            });
-            
-            console.log('Loaded ' + data.length + ' company units for customer ' + selectedCustomerId);
-            
-            // Pre-select the client unit in the modal AFTER options are loaded
-            if (selectedClientUnitId) {
-                // Use a small delay to ensure DOM is fully updated
-                setTimeout(function() {
-                    var optionExists = $parentSelect.find('option[value="' + selectedClientUnitId + '"]').length > 0;
-                    
-                    if (optionExists) {
-                        $parentSelect.val(selectedClientUnitId);
-                        console.log('Auto-selected client unit:', selectedClientUnitId);
-                    } else {
-                        console.warn('Selected client unit ID not found in loaded options:', selectedClientUnitId);
-                        // Fetch the unit and add it if it belongs to the selected customer
-                        $.get('/api/client-units/' + selectedClientUnitId, function(unit) {
-                            if (unit && unit.crm_customer_id == selectedCustomerId) {
-                                $parentSelect.append('<option value="' + unit.id + '">' + unit.name + '</option>');
-                                $parentSelect.val(unit.id);
-                                console.log('Added and auto-selected client unit:', unit.name);
-                            } else {
-                                console.warn('Client unit does not belong to selected customer');
-                            }
-                        }).fail(function() {
-                            console.warn('Could not load client unit details for ID:', selectedClientUnitId);
-                        });
-                    }
-                }, 50);
-            }
-        });
-    });
-
     // Remove existing event handlers to prevent duplicates
     $('#addSamplePointForm').off('submit');
     $('#addSampleConditionForm').off('submit');
     $('#addClientForm').off('submit');
     $('#addClientUnitForm').off('submit');
-    $('#addCompanySubUnitForm').off('submit');
     $('#addClientContactForm').off('submit');
 
     // Handle form submissions
@@ -1777,20 +1653,6 @@ $(document).ready(function() {
                             $('#samplePointUnit').append('<option value="' + response.id + '">' + response.name + '</option>');
                         }
                         
-                        // If Company Sub Unit modal is open, auto-select the new unit in its dropdown
-                        if ($('#addCompanySubUnitModal').hasClass('show')) {
-                            console.log('Company Sub Unit modal is open, auto-selecting new unit:', response.id);
-                            
-                            var $companyUnitSelect = $('#companySubUnitParent');
-                            
-                            // Add the new option (it belongs to the selected customer by design)
-                            $companyUnitSelect.append('<option value="' + response.id + '">' + response.name + '</option>');
-                            
-                            // Auto-select the newly created unit
-                            $companyUnitSelect.val(response.id);
-                            
-                            console.log('Auto-selected client unit in Company Sub Unit modal:', response.name);
-                        }
                     }
                 }, 500);
             },
@@ -1800,99 +1662,6 @@ $(document).ready(function() {
             complete: function() {
                 // Reset submission flag
                 $('#addClientUnitForm').data('submitting', false);
-            }
-        });
-    });
-
-    $('#addCompanySubUnitForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        // Prevent double submission
-        if ($(this).data('submitting')) {
-            return false;
-        }
-        $(this).data('submitting', true);
-        
-        // Build form data with proper checkbox handling
-        const formData = {
-            name: $('#companySubUnitName').val(),
-            code: $('#companySubUnitCode').val(),
-            crm_company_unit_id: $('#companySubUnitParent').val(),
-            active: $('#companySubUnitActive').is(':checked') ? 1 : 0
-        };
-        
-        console.log('Submitting company sub unit:', formData);
-        
-        // Show loading state
-        $('#submitCompanySubUnitBtn').html('<i class="mdi mdi-loading mdi-spin"></i> Saving...').prop('disabled', true);
-        
-        $.ajax({
-            url: '/api/company-sub-units',
-            method: 'POST',
-            data: formData,
-            success: function(response) {
-                console.log('Company sub unit created successfully:', response);
-                
-                // Show success notification first
-                showNotification('success', 'Company sub unit added successfully!');
-                
-                // Close modal and clean up
-                $('#addCompanySubUnitModal').modal('hide');
-                
-                // Force remove modal backdrop and restore page interactivity
-                setTimeout(function() {
-                    $('.modal-backdrop').remove();
-                    $('body').removeClass('modal-open');
-                    $('body').css('overflow', '');
-                    $('body').css('padding-right', '');
-                }, 300);
-                
-                // Reset form
-                $('#addCompanySubUnitForm')[0].reset();
-                
-                // Add new option to company sub unit select (non-blocking)
-                setTimeout(function() {
-                    var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                    var $select = $('select[data-element-type="company_sub_unit_select"]');
-                    
-                    if ($select.length > 0) {
-                        $select.append(newOption);
-                        
-                        // Set the value and trigger change events
-                        $select.val(response.id);
-                        $select.trigger('change');
-                        
-                        // Trigger Select2 events if Select2 is initialized
-                        if ($select.hasClass('select2-hidden-accessible')) {
-                            $select.trigger('select2:select');
-                }
-                
-                // Update form validation and progress
-                if (typeof FormFill !== 'undefined') {
-                    FormFill.updateProgress();
-                    FormFill.updateSubmitButtonState();
-                }
-                    }
-                }, 500);
-            },
-            error: function(xhr) {
-                console.error('Company sub unit submission error:', xhr);
-                console.error('Response:', xhr.responseJSON);
-                
-                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-                    // Display validation errors
-                    $.each(xhr.responseJSON.errors, function(field, messages) {
-                        $('#error-subunit-' + field).text(messages[0]);
-                    });
-                    showNotification('error', 'Please correct the errors in the form.');
-                } else {
-                    showNotification('error', 'Error adding company sub unit: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error'));
-                }
-            },
-            complete: function() {
-                // Reset submission flag and button
-                $('#addCompanySubUnitForm').data('submitting', false);
-                $('#submitCompanySubUnitBtn').html('<i class="mdi mdi-content-save"></i> Save').prop('disabled', false);
             }
         });
     });

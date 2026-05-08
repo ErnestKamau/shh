@@ -4,7 +4,7 @@
             <h5 class="mb-0"><i class="mdi mdi-translate text-primary"></i> {{ __('system.languages') }}</h5>
             <small class="text-muted">{{ __('system.manage_available_languages') }}</small>
         </div>
-        @if(auth()->user()->can('system.translations.language.add'))
+        @if(auth()->user()->can('system.translation.language.add'))
             <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm" wire:click="$dispatch('open-language-create')">
                 <i class="mdi mdi-plus"></i> {{ __('system.add_language') }}
             </button>
@@ -18,7 +18,7 @@
             </div>
         @endif
 
-        @if(auth()->user()->can('system.translations.language.add') || auth()->user()->can('system.translations.language.edit'))
+        @if(auth()->user()->can('system.translation.language.add') || auth()->user()->can('system.translation.language.edit'))
             @livewire('system.language-form')
         @endif
 
@@ -55,7 +55,7 @@
                             <td>{{ $language->name }}</td>
                             <td><span class="badge badge-light text-uppercase">{{ $language->code }}</span></td>
                             <td>
-                                @if(auth()->user()->can('system.translations.language.edit'))
+                                @if(auth()->user()->can('system.translation.language.edit'))
                                     <button type="button" class="btn btn-sm {{ $language->is_active ? 'btn-success' : 'btn-outline-secondary' }}" wire:click="toggleActive('{{ $language->id }}')">
                                         {{ $language->is_active ? __('system.active') : __('system.inactive') }}
                                     </button>
@@ -66,17 +66,17 @@
                             <td>
                                 @if($language->is_default)
                                     <span class="badge badge-primary">{{ __('system.default') }}</span>
-                                @elseif(auth()->user()->can('system.translations.language.edit'))
+                                @elseif(auth()->user()->can('system.translation.language.edit'))
                                     <button type="button" class="btn btn-sm btn-outline-primary" wire:click="setDefault('{{ $language->id }}')" title="Set Default"><i class="mdi mdi-star"></i></button>
                                 @else
                                     <span class="badge badge-light">-</span>
                                 @endif
                             </td>
                             <td class="text-right">
-                                @if(auth()->user()->can('system.translations.language.edit'))
+                                @if(auth()->user()->can('system.translation.language.edit'))
                                     <button type="button" class="btn btn-sm btn-outline-info" wire:click="$dispatch('open-language-edit', { id: '{{ $language->id }}' })" title="Edit"><i class="mdi mdi-pencil"></i></button>
                                 @endif
-                                @if(auth()->user()->can('system.translations.language.delete'))
+                                @if(auth()->user()->can('system.translation.language.delete'))
                                     <button type="button" class="btn btn-sm btn-outline-danger" wire:click="askDelete('{{ $language->id }}')" title="Delete"><i class="mdi mdi-trash-can"></i></button>
                                 @endif
                             </td>

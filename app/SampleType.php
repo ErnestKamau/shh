@@ -28,12 +28,14 @@ class SampleType extends Model implements Auditable
 		'report_template_id',
 		'report_format_id',
 		'default_product_id',
-		'disposal_count'
+    'disposal_count',
+    'exhibit_returned_on_reception'
 	];
 	
 	protected $casts = [
 		'active' => 'boolean',
 		'is_results_attachable' => 'boolean',
+    'exhibit_returned_on_reception' => 'boolean',
 	];
 
   public $with =['analysis_types', 'sample_condition'];

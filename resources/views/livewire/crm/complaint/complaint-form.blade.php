@@ -1,51 +1,4 @@
 <div x-data="{
-    initSelect2() {
-        // Safe Initialization function
-        const initSingleSelect2 = (selector, wireModel, placeholder) => {
-            let el = $(selector);
-            if (el.length) {
-                // Check if already initialized and destroy to prevent duplicates
-                if (el.hasClass('select2-hidden-accessible')) {
-                    el.select2('destroy');
-                }
-                
-                el.select2({
-                    placeholder: placeholder,
-                    allowClear: true,
-                    width: '100%',
-                    dropdownParent: el.closest('.modal'), // Ensure dropdown works in modal
-                    closeOnSelect: !el.prop('multiple') // Only close on select if not multiple
-                }).on('change', function (e) {
-                    var data = $(this).val();
-                    $wire.set(wireModel, data);
-                });
-
-                // Initial value check
-                let val = $wire.get(wireModel);
-                if (val) {
-                    el.val(val).trigger('change.select2');
-                }
-            }
-        };
-
-        const reinitAll = () => {
-            initSingleSelect2('#receivedFromSelect', 'organization_name', 'Select Customer');
-            initSingleSelect2('#contactNameSelect', 'contact_name', $wire.get('received_from_type') === 'Customer' ? 'Select Contact' : 'e.g. John Doe');
-            initSingleSelect2('#complaintTypeSelect', 'type', 'Select Type');
-            initSingleSelect2('#prioritySelect', 'priority', 'Select Priority');
-            initSingleSelect2('#deliveryModeSelect', 'mode_of_delivery', 'Select Mode(s)');
-            initSingleSelect2('#testItemSelect', 'test_item', 'Select Test Item');
-            initSingleSelect2('#reportSerialNoSelect', 'report_serial_no', 'Select Serial No');
-        };
-
-        // Initial run
-        reinitAll();
-
-        // Listen for Livewire updates to re-initialize
-        Livewire.hook('morph.updated', (node, content) => {
-            reinitAll();
-        });
-    },
     initTinyMCE() {
         if (typeof tinymce === 'undefined') return;
         
@@ -84,7 +37,7 @@
             }
         });
     }
-}" x-init="initSelect2(); initTinyMCE()">
+}" x-init="initTinyMCE()">
     <div class="modal-content">
         <div class="modal-header">
             <h4 class="modal-title">
@@ -114,17 +67,35 @@
                             </div>
                         </div>
 
-                        <div class="form-group" wire:ignore.self>
+                        <div class="form-group">
                             <label class="control-label">Organization Name <span class="text-danger">*</span></label>
                             @if($received_from_type === 'Customer')
-                                <div wire:ignore>
-                                    <select class="form-control" id="receivedFromSelect" required>
-                                        <option value="">Select Customer</option>
-                                        @foreach($customers as $customer)
-                                            <option value="{{ $customer->name }}" {{ ($organization_name ?? $received_from) == $customer->name ? 'selected' : '' }}>
-                                                {{ $customer->name }}</option>
-                                        @endforeach
-                                    </select>
+                                <div class="tag-select-container" wire:click.outside="$set('showOrganizationDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedOrganization)
+                                            <span class="selected-tag">
+                                                {{ $this->selectedOrganization->name }}
+                                                <i class="mdi mdi-close" wire:click.stop="clearOrganization"></i>
+                                            </span>
+                                        @endif
+                                        <input type="text" class="tag-input" placeholder="Select Customer"
+                                            wire:model.live.debounce.200ms="organizationSearch"
+                                            wire:focus="$set('showOrganizationDropdown', true)" />
+                                        @if($organization_name)
+                                            <i class="mdi mdi-close-circle clear-icon" wire:click="clearOrganization"></i>
+                                        @endif
+                                    </div>
+                                    @if($showOrganizationDropdown)
+                                        <div class="tag-dropdown">
+                                            @forelse($this->filteredOrganizationOptions as $customer)
+                                                <div class="tag-dropdown-item" wire:click="selectOrganization('{{ $customer->name }}')">
+                                                    {{ $customer->name }}
+                                                </div>
+                                            @empty
+                                                <div class="tag-dropdown-empty">No customer found</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
                                 </div>
                             @else
                                 <input type="text" class="form-control @error('organization_name') is-invalid @enderror" wire:model="organization_name" placeholder="Enter Organization Name..." required />
@@ -135,13 +106,32 @@
                         <div class="form-group">
                             <label class="control-label">Contact Name <span class="text-danger">*</span></label>
                             @if($received_from_type === 'Customer')
-                                <div wire:key="contact-select-wrapper-{{ $customerId }}-{{ count($contacts) }}">
-                                    <select class="form-control" id="contactNameSelect" required>
-                                        <option value="">Select Contact</option>
-                                        @foreach($contacts as $contact)
-                                            <option value="{{ $contact->id }}" {{ $contact_name == $contact->id ? 'selected' : '' }}>{{ $contact->first_name }} {{ $contact->middle_name }} {{ $contact->last_name }}</option>
-                                        @endforeach
-                                    </select>
+                                <div class="tag-select-container" wire:key="contact-select-wrapper-{{ $customerId }}-{{ count($contacts) }}" wire:click.outside="$set('showContactDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedContact)
+                                            <span class="selected-tag">
+                                                {{ trim(($this->selectedContact->first_name ?? '') . ' ' . ($this->selectedContact->middle_name ?? '') . ' ' . ($this->selectedContact->last_name ?? '')) }}
+                                                <i class="mdi mdi-close" wire:click.stop="clearContact"></i>
+                                            </span>
+                                        @endif
+                                        <input type="text" class="tag-input" placeholder="Select Contact"
+                                            wire:model.live.debounce.200ms="contactSearch"
+                                            wire:focus="$set('showContactDropdown', true)" />
+                                        @if($contact_name)
+                                            <i class="mdi mdi-close-circle clear-icon" wire:click="clearContact"></i>
+                                        @endif
+                                    </div>
+                                    @if($showContactDropdown)
+                                        <div class="tag-dropdown">
+                                            @forelse($this->filteredContactOptions as $contact)
+                                                <div class="tag-dropdown-item" wire:click="selectContact('{{ $contact->id }}')">
+                                                    {{ trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')) }}
+                                                </div>
+                                            @empty
+                                                <div class="tag-dropdown-empty">No contact found</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
                                 </div>
                             @else
                                 <input type="text" class="form-control @error('contact_name') is-invalid @enderror" wire:model="contact_name" placeholder="e.g. John Doe" required />
@@ -185,39 +175,99 @@
                             @error('date') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
 
-                        <div class="form-group" wire:ignore>
+                        <div class="form-group">
                             <label class="control-label">How Received <span class="text-danger">*</span></label>
-                            <select class="form-control" id="deliveryModeSelect" multiple required style="height: 100px;">
-                                <option value="Phone">Phone</option>
-                                <option value="E-mail">E-mail</option>
-                                <option value="Fax">Fax</option>
-                                <option value="Verbal/Meeting">Verbal / Meeting</option>
-                                <option value="Other">Other</option>
-                            </select> 
+                            <div class="tag-select-container" wire:click.outside="$set('showDeliveryModeDropdown', false)">
+                                <div class="tag-select-input">
+                                    @forelse($this->selectedDeliveryModes as $mode)
+                                        <span class="selected-tag">
+                                            {{ $mode }}
+                                            <i class="mdi mdi-close" wire:click.stop="removeDeliveryMode('{{ $mode }}')"></i>
+                                        </span>
+                                    @empty
+                                        <span class="text-muted small">No mode selected</span>
+                                    @endforelse
+                                    <input type="text" class="tag-input" placeholder="Select mode(s)"
+                                        wire:model.live.debounce.200ms="deliveryModeSearch"
+                                        wire:focus="$set('showDeliveryModeDropdown', true)" />
+                                    @if(!empty($mode_of_delivery))
+                                        <i class="mdi mdi-close-circle clear-icon" wire:click="clearDeliveryModes"></i>
+                                    @endif
+                                </div>
+                                @if($showDeliveryModeDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredDeliveryModeOptions as $mode)
+                                            <div class="tag-dropdown-item" wire:click="toggleDeliveryMode('{{ $mode }}')">
+                                                {{ $mode }}
+                                            </div>
+                                        @empty
+                                            <div class="tag-dropdown-empty">No delivery mode found</div>
+                                        @endforelse
+                                    </div>
+                                @endif
+                            </div>
                             @error('mode_of_delivery') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         
                         <div class="form-group mt-4">
                             <label class="control-label">Complaint Category <span class="text-danger">*</span></label>
-                            <div wire:ignore>
-                                <select class="form-control" id="complaintTypeSelect" required>
-                                    <option value="">Select Type</option>
-                                    @foreach($complaint_types as $complaint_type)
-                                        <option value="{{ $complaint_type->name }}" {{ $type == $complaint_type->name ? 'selected' : '' }}>{{ $complaint_type->name }}</option>
-                                    @endforeach
-                                </select>
+                            <div class="tag-select-container" wire:click.outside="$set('showTypeDropdown', false)">
+                                <div class="tag-select-input">
+                                    @if($this->selectedComplaintType)
+                                        <span class="selected-tag">
+                                            {{ $this->selectedComplaintType }}
+                                            <i class="mdi mdi-close" wire:click.stop="clearComplaintType"></i>
+                                        </span>
+                                    @endif
+                                    <input type="text" class="tag-input" placeholder="Select Type"
+                                        wire:model.live.debounce.200ms="typeSearch"
+                                        wire:focus="$set('showTypeDropdown', true)" />
+                                    @if($type)
+                                        <i class="mdi mdi-close-circle clear-icon" wire:click="clearComplaintType"></i>
+                                    @endif
+                                </div>
+                                @if($showTypeDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredComplaintTypeOptions as $typeOption)
+                                            <div class="tag-dropdown-item" wire:click="selectComplaintType('{{ $typeOption }}')">
+                                                {{ $typeOption }}
+                                            </div>
+                                        @empty
+                                            <div class="tag-dropdown-empty">No complaint type found</div>
+                                        @endforelse
+                                    </div>
+                                @endif
                             </div>
                             @error('type') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
                             <label class="control-label">Severity <span class="text-danger">*</span></label>
-                            <div wire:ignore>
-                                <select class="form-control" id="prioritySelect" required>
-                                    <option value="">Select Priority</option>
-                                    @foreach(['High', 'Medium', 'Low'] as $p)
-                                        <option value="{{ $p }}" {{ $priority == $p ? 'selected' : '' }}>{{ $p }}</option>
-                                    @endforeach
-                                </select>
+                            <div class="tag-select-container" wire:click.outside="$set('showPriorityDropdown', false)">
+                                <div class="tag-select-input">
+                                    @if($this->selectedPriority)
+                                        <span class="selected-tag">
+                                            {{ $this->selectedPriority }}
+                                            <i class="mdi mdi-close" wire:click.stop="clearPriority"></i>
+                                        </span>
+                                    @endif
+                                    <input type="text" class="tag-input" placeholder="Select Priority"
+                                        wire:model.live.debounce.200ms="prioritySearch"
+                                        wire:focus="$set('showPriorityDropdown', true)" />
+                                    @if($priority)
+                                        <i class="mdi mdi-close-circle clear-icon" wire:click="clearPriority"></i>
+                                    @endif
+                                </div>
+                                @if($showPriorityDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredPriorityOptions as $priorityOption)
+                                            <div class="tag-dropdown-item" wire:click="selectPriority('{{ $priorityOption }}')">
+                                                {{ $priorityOption }}
+                                            </div>
+                                        @empty
+                                            <div class="tag-dropdown-empty">No priority found</div>
+                                        @endforelse
+                                    </div>
+                                @endif
                             </div>
                             @error('priority') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
@@ -230,26 +280,64 @@
                         @if($received_from_type === 'Customer' && $is_lab_related)
                             <div class="form-group">
                                 <label class="control-label">Test Item</label>
-                                <div wire:key="test-item-select-wrapper-{{ $customerId }}-{{ count($samples) }}">
-                                    <select class="form-control" id="testItemSelect">
-                                        <option value="">Select Test Item</option>
-                                        @foreach($samples as $sample)
-                                            <option value="{{ $sample->id }}" {{ $test_item == $sample->id ? 'selected' : '' }}>{{ $sample->name }}</option>
-                                        @endforeach
-                                    </select>
+                                <div class="tag-select-container" wire:key="test-item-select-wrapper-{{ $customerId }}-{{ count($samples) }}" wire:click.outside="$set('showTestItemDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedTestItem)
+                                            <span class="selected-tag">
+                                                {{ $this->selectedTestItem->name }}
+                                                <i class="mdi mdi-close" wire:click.stop="clearTestItem"></i>
+                                            </span>
+                                        @endif
+                                        <input type="text" class="tag-input" placeholder="Select Test Item"
+                                            wire:model.live.debounce.200ms="testItemSearch"
+                                            wire:focus="$set('showTestItemDropdown', true)" />
+                                        @if($test_item)
+                                            <i class="mdi mdi-close-circle clear-icon" wire:click="clearTestItem"></i>
+                                        @endif
+                                    </div>
+                                    @if($showTestItemDropdown)
+                                        <div class="tag-dropdown">
+                                            @forelse($this->filteredTestItemOptions as $sample)
+                                                <div class="tag-dropdown-item" wire:click="selectTestItem('{{ $sample->id }}')">
+                                                    {{ $sample->name }}
+                                                </div>
+                                            @empty
+                                                <div class="tag-dropdown-empty">No test item found</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
                                 </div>
                                 @error('test_item') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
 
                             <div class="form-group">
                                 <label class="control-label">Report Serial No (Batch No)</label>
-                                <div wire:key="serial-no-select-wrapper-{{ $test_item }}-{{ count($serial_nos) }}">
-                                    <select class="form-control" id="reportSerialNoSelect">
-                                        <option value="">Select Serial No</option>
-                                        @foreach($serial_nos as $batch_code)
-                                            <option value="{{ $batch_code }}" {{ $report_serial_no == $batch_code ? 'selected' : '' }}>{{ $batch_code }}</option>
-                                        @endforeach
-                                    </select>
+                                <div class="tag-select-container" wire:key="serial-no-select-wrapper-{{ $test_item }}-{{ count($serial_nos) }}" wire:click.outside="$set('showSerialDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedSerial)
+                                            <span class="selected-tag">
+                                                {{ $this->selectedSerial }}
+                                                <i class="mdi mdi-close" wire:click.stop="clearSerial"></i>
+                                            </span>
+                                        @endif
+                                        <input type="text" class="tag-input" placeholder="Select Serial No"
+                                            wire:model.live.debounce.200ms="serialSearch"
+                                            wire:focus="$set('showSerialDropdown', true)" />
+                                        @if($report_serial_no)
+                                            <i class="mdi mdi-close-circle clear-icon" wire:click="clearSerial"></i>
+                                        @endif
+                                    </div>
+                                    @if($showSerialDropdown)
+                                        <div class="tag-dropdown">
+                                            @forelse($this->filteredSerialOptions as $serialOption)
+                                                <div class="tag-dropdown-item" wire:click="selectSerial('{{ $serialOption }}')">
+                                                    {{ $serialOption }}
+                                                </div>
+                                            @empty
+                                                <div class="tag-dropdown-empty">No serial number found</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
                                 </div>
                                 @error('report_serial_no') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>

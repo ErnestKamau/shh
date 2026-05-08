@@ -23,6 +23,9 @@ class CustomerReportsTab extends BaseCrmComponent
     public $amendmentSamples = [];
     public $amendmentReason;
     public $returnComment;
+    public $availableAmendmentSamples = [];
+    public $amendmentSearch = '';
+    public $showAmendmentDropdown = false;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -101,12 +104,75 @@ class CustomerReportsTab extends BaseCrmComponent
             ->select('sample_details.id', 'sample_details.sample_code')
             ->get();
 
+        $this->availableAmendmentSamples = $samples->map(function ($sample) {
+            return [
+                'id' => (int) $sample->id,
+                'sample_code' => (string) $sample->sample_code,
+            ];
+        })->values()->toArray();
 
+        $this->amendmentSamples = [];
+        $this->amendmentSearch = '';
+        $this->showAmendmentDropdown = false;
 
-        $this->dispatch('open-amendment-modal', 
-            batchId: $batchId, 
-            samples: $samples
-        );
+        $this->dispatch('open-amendment-modal', batchId: $batchId);
+    }
+
+    public function getFilteredAmendmentOptionsProperty()
+    {
+        $search = trim(strtolower($this->amendmentSearch));
+
+        return collect($this->availableAmendmentSamples)
+            ->when($search !== '', function ($samples) use ($search) {
+                return $samples->filter(function ($sample) use ($search) {
+                    return str_contains(strtolower($sample['sample_code'] ?? ''), $search);
+                });
+            })
+            ->take(80)
+            ->values()
+            ->all();
+    }
+
+    public function getSelectedAmendmentSampleBadgesProperty()
+    {
+        $selectedIds = collect($this->amendmentSamples)->map(fn($id) => (int) $id)->all();
+
+        return collect($this->availableAmendmentSamples)
+            ->filter(fn($sample) => in_array((int) $sample['id'], $selectedIds, true))
+            ->values()
+            ->all();
+    }
+
+    public function toggleAmendmentSample($sampleId)
+    {
+        $sampleId = (int) $sampleId;
+        $selected = collect($this->amendmentSamples)->map(fn($id) => (int) $id)->all();
+
+        if (in_array($sampleId, $selected, true)) {
+            $selected = array_values(array_filter($selected, fn($id) => $id !== $sampleId));
+        } else {
+            $selected[] = $sampleId;
+        }
+
+        $this->amendmentSamples = $selected;
+    }
+
+    public function clearAmendmentSample($sampleId)
+    {
+        $sampleId = (int) $sampleId;
+
+        $this->amendmentSamples = array_values(array_filter(
+            collect($this->amendmentSamples)->map(fn($id) => (int) $id)->all(),
+            fn($id) => $id !== $sampleId
+        ));
+    }
+
+    public function isAmendmentSampleSelected($sampleId)
+    {
+        $sampleId = (int) $sampleId;
+        $selected = collect($this->amendmentSamples)->map(fn($id) => (int) $id)->all();
+
+        return in_array($sampleId, $selected, true);
     }
 
     public function loadReturn($batchId)

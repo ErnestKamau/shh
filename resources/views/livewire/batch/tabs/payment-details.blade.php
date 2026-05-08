@@ -14,7 +14,7 @@
                 </button>
                 @if($batch->status == 'Samples In Lab' && ($batch->invoice_id == 0 || $batch->invoice_id == null))
                 <a href="{{ route('billing.sales-order.create', ['batches' => [$batch->batch_code]]) }}" class="btn btn-success btn-sm btn-action-sm text-nowrap">
-                    <i class="mdi mdi-check-decagram mr-1"></i> Generate Sales Order
+                    <i class="mdi mdi-check-decagram mr-1"></i> Generate Draft Invoice
                 </a>
                 @endif
                 <div class="d-flex align-items-center border-left pl-3 ml-1">
@@ -36,7 +36,7 @@
                     <div class="alert alert-light border d-flex justify-content-between align-items-center p-3" style="background-color: #f8fafc; border-radius: 12px; border-left: 4px solid #4CAF50 !important;">
                         <div>
                             <h6 class="mb-1 text-success">
-                                <i class="mdi mdi-receipt"></i> Sales Order Generated
+                                <i class="mdi mdi-receipt"></i> Draft Invoice Generated
                             </h6>
                             <p class="mb-0 text-muted">
                                 <strong>#{{ $batch->invoice->invoice_number }}</strong> | 
@@ -45,7 +45,7 @@
                             </p>
                         </div>
                         <a href="{{ route('invoice-sample-header', ['id' => $batch->invoice_id]) }}" class="btn btn-outline-success btn-sm">
-                            <i class="mdi mdi-eye"></i> View Sales Order
+                            <i class="mdi mdi-eye"></i> View Draft Invoice
                         </a>
                     </div>
                 </div>

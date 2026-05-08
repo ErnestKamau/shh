@@ -138,6 +138,20 @@ class Equipment extends Model implements Auditable
     return $this->hasMany('\App\Models\Equipments\MaintainanceCalibrationLog');
 	}
 
+	public function latestCalibration(){
+		return $this->hasOne('\App\Models\Equipments\MaintainanceCalibrationLog')
+			->where('type', 'calibration')
+			->orderBy('date', 'desc')
+			->select(['equipment_id', 'date as last_calibration_date']);
+	}
+
+	public function latestMaintenance(){
+		return $this->hasOne('\App\Models\Equipments\MaintainanceCalibrationLog')
+			->where('type', 'maintainance')
+			->orderBy('date', 'desc')
+			->select(['equipment_id', 'date as last_maintainance_date']);
+	}
+
 	public function usage_logs(){
 		return $this->hasMany('\App\Models\Equipments\EquipmentUsage');
 	}

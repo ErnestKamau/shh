@@ -100,13 +100,47 @@
 
     @if($viewMode === 'modal')
         <style>
-            .select2-container {
-                z-index: 100000 !important;
+            .tag-select-container { position: relative; }
+            .tag-select-input {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px;
+                min-height: 42px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                background: #fff;
+                padding: 6px 10px;
             }
-
-            .select2-dropdown {
-                z-index: 100000 !important;
+            .selected-tag {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px 8px;
+                border-radius: 999px;
+                background: #e8f1ff;
+                font-size: 12px;
+                color: #1f2937;
             }
+            .selected-tag i { cursor: pointer; font-size: 14px; }
+            .tag-input { border: none; outline: none; flex: 1 1 180px; min-width: 120px; }
+            .clear-icon { cursor: pointer; color: #9ca3af; font-size: 18px; }
+            .tag-dropdown {
+                position: absolute;
+                top: calc(100% + 4px);
+                left: 0;
+                right: 0;
+                max-height: 220px;
+                overflow-y: auto;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                background: #fff;
+                z-index: 1070;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            }
+            .tag-dropdown-item { padding: 8px 10px; cursor: pointer; }
+            .tag-dropdown-item:hover { background: #f3f4f6; }
+            .tag-dropdown-empty { padding: 8px 10px; color: #6b7280; font-size: 13px; }
         </style>
         <!-- Workflow Action Modal -->
         @teleport('body')
@@ -127,34 +161,6 @@
                                                                                         if (this.intervalId) clearInterval(this.intervalId);
                                                                                     },
 
-                                                                                    initClosureContactsSelect2() {
-                                                                                        const select = $('#closure_contacts_select');
-                                                                                        if (!select.length || typeof $.fn.select2 === 'undefined') return;
-                                                                                        // Destroy existing Select2 instance before re-initializing
-                                                                                        if (select.hasClass('select2-hidden-accessible')) {
-                                                                                            select.select2('destroy');
-                                                                                        }
-                                                                                        // Determine parent: use the modal if it's visible, otherwise body
-                                                                                        const modalEl = $('#workflowActionModal');
-                                                                                        select.select2({
-                                                                                            placeholder: 'Search and select contacts...',
-                                                                                            allowClear: true,
-                                                                                            width: '100%',
-                                                                                            dropdownParent: modalEl.length ? modalEl : $('body'),
-                                                                                            closeOnSelect: false,
-                                                                                            language: {
-                                                                                                noResults: function() {
-                                                                                                    return 'No matching contacts found';
-                                                                                                }
-                                                                                            }
-                                                                                        }).off('change.closure').on('change.closure', function () {
-                                                                                            const data = $(this).val();
-                                                                                            @this.set('selectedContactIds', data || []);
-                                                                                        });
-                                                                                        // Reset visual selection without triggering a Livewire re-render
-                                                                                        select.val(null).trigger('change.select2');
-                                                                                    },
-
                                                                                     init() {
                                                                                         // Read the Livewire component ID injected by PHP into the data attribute.
                                                                                         // This is reliable even after Bootstrap moves the modal to <body>.
@@ -169,8 +175,6 @@
                                                                                             this.resetState();
                                                                                             // Refresh component reference when modal is shown
                                                                                             this.findAndStoreComponent();
-                                                                                            // Wait for Livewire DOM update + Bootstrap modal animation before initializing Select2
-                                                                                            setTimeout(() => this.initClosureContactsSelect2(), 350);
                                                                                         });
 
                                                                                         Livewire.on('alert', (data) => {
@@ -183,10 +187,6 @@
                                                                                         Livewire.on('close-action-modal', () => {
                                                                                             if (this.workflowState === 'processing') {
                                                                                                 return;
-                                                                                            }
-                                                                                            const closureSelect = $('#closure_contacts_select');
-                                                                                            if (closureSelect.length && closureSelect.hasClass('select2-hidden-accessible')) {
-                                                                                                closureSelect.select2('destroy');
                                                                                             }
                                                                                             $('#workflowActionModal').modal('hide');
                                                                                         });
@@ -285,15 +285,11 @@
 
                                                                                         // Require at least one contact for Send Report & Close, and sync selection to Livewire
                                                                                         if ('{{ $modalAction }}' === 'sendReportAndClose') {
-                                                                                            const select = $('#closure_contacts_select');
-                                                                                            const val = select.val();
-                                                                                            if (!val || (Array.isArray(val) && val.length === 0)) {
+                                                                                            const selected = $wire.get('selectedContactIds') || [];
+                                                                                            if (!Array.isArray(selected) || selected.length === 0) {
                                                                                                 alert('Please select at least one contact to receive the report.');
                                                                                                 return;
                                                                                             }
-                                                                                            // Sync Select2 value to Livewire so performAction receives selectedContactIds
-                                                                                            const ids = Array.isArray(val) ? val : (val ? [val] : []);
-                                                                                            @this.set('selectedContactIds', ids);
                                                                                         }
 
                                                                                         // Set processing state first
@@ -433,26 +429,40 @@
                         @if($modalAction === 'sendReportAndClose' || $modalAction === 'closeComplaint')
                             @if(!empty($closureContacts))
                             <div class="form-group">
-                                <label for="closure_contacts_select">
+                                <label>
                                     Contacts to Receive Report: <span class="text-danger">*</span>
                                 </label>
-                                <div wire:ignore>
-                                    <select id="closure_contacts_select" class="form-control no-select2" multiple
-                                        style="width: 100%;">
-                                        @foreach($closureContacts ?? [] as $contact)
-                                            @php
-                                                $cId = is_array($contact) ? ($contact['id'] ?? '') : ($contact->id ?? '');
-                                                $cFirst = is_array($contact) ? ($contact['first_name'] ?? '') : ($contact->first_name ?? '');
-                                                $cMiddle = is_array($contact) ? ($contact['middle_name'] ?? '') : ($contact->middle_name ?? '');
-                                                $cLast = is_array($contact) ? ($contact['last_name'] ?? '') : ($contact->last_name ?? '');
-                                                $cEmail = is_array($contact) ? ($contact['email'] ?? '') : ($contact->email ?? '');
-                                            @endphp
-                                            <option value="{{ $cId }}">
-                                                {{ trim($cFirst . ' ' . $cMiddle . ' ' . $cLast) }}
-                                                ({{ $cEmail }})
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                <div class="tag-select-container" wire:click.outside="$set('showClosureContactDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @forelse($this->selectedClosureContacts as $contact)
+                                            <span class="selected-tag">
+                                                {{ trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')) }}
+                                                <i class="mdi mdi-close" wire:click.stop="removeClosureContact('{{ $contact->id }}')"></i>
+                                            </span>
+                                        @empty
+                                            <span class="text-muted small">No contact selected</span>
+                                        @endforelse
+                                        <input type="text" class="tag-input" placeholder="Search contacts..."
+                                            wire:model.live.debounce.200ms="closureContactSearch"
+                                            wire:focus="$set('showClosureContactDropdown', true)" />
+                                        @if(!empty($selectedContactIds))
+                                            <i class="mdi mdi-close-circle clear-icon" wire:click="clearClosureContacts"></i>
+                                        @endif
+                                    </div>
+                                    @if($showClosureContactDropdown)
+                                        <div class="tag-dropdown">
+                                            @forelse($this->filteredClosureContactOptions as $contact)
+                                                <div class="tag-dropdown-item" wire:click="toggleClosureContact('{{ $contact->id }}')">
+                                                    {{ trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')) }}
+                                                    @if(!empty($contact->email))
+                                                        ({{ $contact->email }})
+                                                    @endif
+                                                </div>
+                                            @empty
+                                                <div class="tag-dropdown-empty">No matching contacts found</div>
+                                            @endforelse
+                                        </div>
+                                    @endif
                                 </div>
                                 @if(empty($closureContacts))
                                     <small class="text-warning">

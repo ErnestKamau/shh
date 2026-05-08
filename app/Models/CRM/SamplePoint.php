@@ -38,16 +38,6 @@ class SamplePoint extends Model implements Auditable
             return (string) $name;
         }
 
-        $master = $this->crmSamplePoint;
-        if ($master !== null) {
-            if ($master->name !== null && $master->name !== '') {
-                return (string) $master->name;
-            }
-            if ($master->code !== null && $master->code !== '') {
-                return (string) $master->code;
-            }
-        }
-
         return 'Sample point #'.$this->id;
     }
 

@@ -27,6 +27,10 @@ class CustomerDetailsTab extends BaseCrmComponent
     public $account_status;
     public $accounts = [];
     public $account_settings = null;
+    public $countrySearch = '';
+    public $accountSearch = '';
+    public $showCountryDropdown = false;
+    public $showAccountDropdown = false;
 
     public function mount($customer)
     {
@@ -65,6 +69,70 @@ class CustomerDetailsTab extends BaseCrmComponent
     {
         $this->isEditing = false;
         $this->resetValidation();
+    }
+
+    public function getSelectedCountryProperty()
+    {
+        return collect($this->countries)->firstWhere('id', (int) $this->country_id);
+    }
+
+    public function getFilteredCountriesProperty()
+    {
+        $search = trim(strtolower($this->countrySearch));
+
+        return collect($this->countries)
+            ->when($search !== '', function ($countries) use ($search) {
+                return $countries->filter(function ($country) use ($search) {
+                    return str_contains(strtolower($country->name), $search);
+                });
+            })
+            ->take(50)
+            ->values();
+    }
+
+    public function getSelectedAccountProperty()
+    {
+        return collect($this->accounts)->firstWhere('id', (int) $this->account_status);
+    }
+
+    public function getFilteredAccountsProperty()
+    {
+        $search = trim(strtolower($this->accountSearch));
+
+        return collect($this->accounts)
+            ->when($search !== '', function ($accounts) use ($search) {
+                return $accounts->filter(function ($account) use ($search) {
+                    return str_contains(strtolower($account->key), $search);
+                });
+            })
+            ->take(50)
+            ->values();
+    }
+
+    public function selectCountry($countryId)
+    {
+        $this->country_id = (string) $countryId;
+        $this->countrySearch = '';
+        $this->showCountryDropdown = false;
+    }
+
+    public function clearCountry()
+    {
+        $this->country_id = '';
+        $this->countrySearch = '';
+    }
+
+    public function selectAccountStatus($accountId)
+    {
+        $this->account_status = (string) $accountId;
+        $this->accountSearch = '';
+        $this->showAccountDropdown = false;
+    }
+
+    public function clearAccountStatus()
+    {
+        $this->account_status = '';
+        $this->accountSearch = '';
     }
 
     protected function rules()

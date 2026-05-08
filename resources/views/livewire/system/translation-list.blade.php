@@ -4,7 +4,7 @@
             <h5 class="mb-0"><i class="mdi mdi-format-list-bulleted text-primary"></i> {{ __('system.translation_keys') }}</h5>
             <small class="text-muted">{{ __('system.manage_translation_keys') }}</small>
         </div>
-        @if(auth()->user()->can('system.translations.keys.add'))
+        @if(auth()->user()->can('system.translation.key.add'))
             <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm" wire:click="$dispatch('open-translation-create')">
                 <i class="mdi mdi-plus"></i> {{ __('system.add_translation') }}
             </button>
@@ -17,7 +17,7 @@
             </div>
         @endif
 
-        @if(auth()->user()->can('system.translations.keys.add') || auth()->user()->can('system.translations.keys.edit'))
+        @if(auth()->user()->can('system.translation.key.add') || auth()->user()->can('system.translation.key.edit'))
             @livewire('system.translation-form')
         @endif
 
@@ -106,12 +106,12 @@
                                     <button type="button" class="btn btn-sm btn-success" wire:click="saveInlineEdit">{{ __('system.save') }}</button>
                                     <button type="button" class="btn btn-sm btn-light" wire:click="cancelInlineEdit">{{ __('system.cancel') }}</button>
                                 @else
-                                    @if(auth()->user()->can('system.translations.keys.edit'))
+                                    @if(auth()->user()->can('system.translation.key.edit'))
                                         <button type="button" class="btn btn-sm btn-outline-primary" wire:click="startInlineEdit('{{ $line->id }}')" title="Inline Edit"><i class="mdi mdi-table-edit"></i></button>
                                         <button type="button" class="btn btn-sm btn-outline-info" wire:click="$dispatch('open-translation-edit', { id: '{{ $line->id }}' })" title="Edit"><i class="mdi mdi-pencil"></i></button>
                                     @endif
                                 @endif
-                                @if(auth()->user()->can('system.translations.keys.delete'))
+                                @if(auth()->user()->can('system.translation.key.delete'))
                                     <button type="button" class="btn btn-sm btn-outline-danger" wire:click="askDelete('{{ $line->id }}')" title="Delete"><i class="mdi mdi-trash-can"></i></button>
                                 @endif
                             </td>
@@ -123,7 +123,7 @@
                                     <i class="mdi mdi-translate-off text-light d-block mb-3" style="font-size: 4rem; opacity: 0.6;"></i>
                                     <h5 class="text-dark font-weight-bold">{{ __('system.no_translations_found') }}</h5>
                                     <p class="text-muted mb-4">{{ __('system.no_translations_criteria') }}</p>
-                                    @if(auth()->user()->can('system.translations.keys.add'))
+                                    @if(auth()->user()->can('system.translation.key.add'))
                                         <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" wire:click="$dispatch('open-translation-create')">
                                             <i class="mdi mdi-plus mr-1"></i> {{ __('system.add_your_first_translation') }}
                                         </button>

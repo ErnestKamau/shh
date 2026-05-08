@@ -5,24 +5,24 @@
         <div class="d-flex align-items-center">
             <h5 class="mb-0 mr-2 imara-section-title">
                 <i class="mdi mdi-format-list-bulleted"></i>
-                {{ trim($customer->unit_configurable_name) !== '' ? $customer->unit_configurable_name : 'Company Units' }}
+                {{ trim($customer->unit_configurable_name) !== '' ? $customer->unit_configurable_name : __('crm.company_units') }}
             </h5>
             <button type="button" wire:click="openLabelModal('unit_configurable_name')"
-                class="btn btn-sm btn-link text-info p-0" title="Edit label">
+                class="btn btn-sm btn-link text-info p-0" title="{{ __('crm.edit_label') }}">
                 <i class="mdi mdi-pencil"></i>
             </button>
         </div>
-        <x-imara.primary-btn subject="Company Unit" wire:click="openCreateModal" />
+        <x-imara.primary-btn subject="{{ __('crm.company_unit') }}" wire:click="openCreateModal" />
     </div>
 
     <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
         <x-slot:header>
             <tr>
-                <th style="min-width: 100px;">Actions</th>
+                <th style="min-width: 100px;">{{ __('crm.actions') }}</th>
                 <th>No</th>
-                <th nowrap>Name</th>
+                <th nowrap>{{ __('crm.name') }}</th>
 
-                <th nowrap>Active</th>
+                <th nowrap>{{ ucfirst(__('crm.active')) }}</th>
             </tr>
         </x-slot:header>
         <tbody>
@@ -30,14 +30,14 @@
                 <tr wire:key="unit-{{ $unit->id }}">
                     <td nowrap>
                         <x-crm.action-buttons>
-                            <button class="btn crm-btn crm-btn-edit btn-sm" title="Edit"
+                            <button class="btn crm-btn crm-btn-edit btn-sm" title="{{ __('crm.edit') }}"
                                 wire:click="editUnit({{ $unit->id }})">
                                 <i class="mdi mdi-pencil-outline"></i>
                             </button>
                             @if (!$this->isQplus)
-                                <button class="btn crm-btn crm-btn-delete btn-sm" title="Delete"
+                                <button class="btn crm-btn crm-btn-delete btn-sm" title="{{ __('crm.delete') }}"
                                     wire:click="deleteUnit({{ $unit->id }})"
-                                    wire:confirm="Are you sure you want to delete this company unit?">
+                                    wire:confirm="{{ __('crm.delete_company_unit_confirm') }}">
                                     <i class="mdi mdi-trash-can-outline"></i>
                                 </button>
                             @endif
@@ -48,9 +48,9 @@
 
                     <td>
                         @if($unit->active == '1')
-                            <span class="crm-badge crm-badge-success">Active</span>
+                            <span class="crm-badge crm-badge-success">{{ ucfirst(__('crm.active')) }}</span>
                         @else
-                            <span class="crm-badge crm-badge-danger">Inactive</span>
+                            <span class="crm-badge crm-badge-danger">{{ __('crm.inactive') }}</span>
                         @endif
                     </td>
                 </tr>
@@ -75,7 +75,7 @@
                 <div class="modal-content imara-form-modal">
                     <div class="modal-header">
                         <h5 class="modal-title"><i class="mdi mdi-pencil-outline"></i> {{ $editingUnitId ? 'Edit' : 'Add' }}
-                            Company Unit</h5>
+                            {{ __('crm.company_unit') }}</h5>
                         <button type="button" wire:click="$set('showCreateModal', false)" class="close" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
@@ -85,22 +85,22 @@
                             <div class="alert alert-danger">{{ $modalError }}</div>
                         @endif
 
-                        <x-imara.form-field label="Name" :required="true" :error="$errors->first('name')">
-                            <input type="text" wire:model="name" class="form-control" placeholder="Name..." required />
+                        <x-imara.form-field label="{{ __('crm.name') }}" :required="true" :error="$errors->first('name')">
+                            <input type="text" wire:model="name" class="form-control" placeholder="{{ __('crm.name') }}..." required />
                         </x-imara.form-field>
 
                         <div class="form-group">
-                            <x-imara.custom-checkbox wire:model="active" label="Is active?" />
+                            <x-imara.custom-checkbox wire:model="active" label="{{ __('crm.is_active') }}" />
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" wire:click="saveUnit" wire:loading.attr="disabled" class="btn btn-primary">
                             <span wire:loading.remove wire:target="saveUnit"><i class="mdi mdi-content-save"></i>
-                                Save</span>
-                            <span wire:loading wire:target="saveUnit">Saving...</span>
+                                {{ __('crm.save_changes') }}</span>
+                            <span wire:loading wire:target="saveUnit">{{ __('crm.saving') }}...</span>
                         </button>
                         <button type="button" wire:click="$set('showCreateModal', false)"
-                            class="btn btn-secondary">Close</button>
+                            class="btn btn-secondary">{{ __('crm.close') }}</button>
                     </div>
                 </div>
             </div>
@@ -113,25 +113,25 @@
             <div class="modal-dialog">
                 <div class="modal-content imara-form-modal">
                     <div class="modal-header">
-                        <h5 class="modal-title">Change Label Name</h5>
+                        <h5 class="modal-title">{{ __('crm.change_label_name') }}</h5>
                         <button type="button" wire:click="$set('showLabelModal', false)" class="close" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
                     <div class="modal-body">
-                        <x-imara.form-field label="Name" :required="true" :error="$errors->first('labelValue')">
-                            <input type="text" wire:model="labelValue" class="form-control" placeholder="Name..."
+                        <x-imara.form-field label="{{ __('crm.name') }}" :required="true" :error="$errors->first('labelValue')">
+                            <input type="text" wire:model="labelValue" class="form-control" placeholder="{{ __('crm.name') }}..."
                                 required />
                         </x-imara.form-field>
                     </div>
                     <div class="modal-footer">
                         <button type="button" wire:click="saveLabel" wire:loading.attr="disabled" class="btn btn-primary">
                             <span wire:loading.remove wire:target="saveLabel"><i class="mdi mdi-content-save"></i>
-                                Save</span>
-                            <span wire:loading wire:target="saveLabel">Saving...</span>
+                                {{ __('crm.save_changes') }}</span>
+                            <span wire:loading wire:target="saveLabel">{{ __('crm.saving') }}...</span>
                         </button>
                         <button type="button" wire:click="$set('showLabelModal', false)"
-                            class="btn btn-secondary">Close</button>
+                            class="btn btn-secondary">{{ __('crm.close') }}</button>
                     </div>
                 </div>
             </div>

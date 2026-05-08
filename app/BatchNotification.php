@@ -9,4 +9,9 @@ class BatchNotification extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'batch_notifications';
+
+	protected $casts = [
+		'position_id' => 'string',
+		'active' => 'boolean',
+	];
 }

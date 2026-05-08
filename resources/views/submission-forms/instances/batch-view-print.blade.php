@@ -392,7 +392,7 @@
                     @foreach($sortedElements as $element)
                       @php
                         // Skip client unit field if we're in Client Details section as it's included in the table
-                        $isClientUnitInClientDetails = in_array($element->element_type, ['client_unit_select', 'company_sub_unit_select']) &&
+                        $isClientUnitInClientDetails = in_array($element->element_type, ['client_unit_select']) &&
                           $sectionTitle === 'CLIENT DETAILS';
                       @endphp
 
@@ -424,7 +424,7 @@
                                     $clientUnitElements = $instance->values()
                                       ->with('element')
                                       ->whereHas('element', function ($query) {
-                                        $query->whereIn('element_type', ['client_unit_select', 'company_sub_unit_select']);
+                                        $query->whereIn('element_type', ['client_unit_select']);
                                       })
                                       ->get();
 

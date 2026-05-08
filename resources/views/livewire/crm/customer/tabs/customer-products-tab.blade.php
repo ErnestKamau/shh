@@ -17,54 +17,53 @@
                     </div>
                 @else
                     <small class="font-weight-bold text-dark" style="font-size:0.82rem;">
-                        {{ trim($customer->product_configurable_name) != '' ? $customer->product_configurable_name : 'Analytical Test Register' }}
+                        {{ trim($customer->product_configurable_name) != '' ? $customer->product_configurable_name : __('crm.analytical_test_register') }}
                         <button type="button" class="btn btn-transparent text-info p-0 ml-1"
                             style="font-size:0.7rem;vertical-align:middle;"
                             wire:click="editLabel('product_configurable_name')">
                             <i class="mdi mdi-pencil-outline"></i>
                         </button>
                     </small>
-                    <small class="text-muted d-block" style="font-size:0.67rem;">Contracted test parameters &amp; active
-                        analysis types</small>
+                    <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.contracted_test_parameters_subtitle') }}</small>
                 @endif
             </div>
         </div>
         <div class="d-flex justify-content-end align-items-center">
             <div class="crm-search-wrapper mr-2">
                 <i class="mdi mdi-magnify crm-search-icon"></i>
-                <input type="text" class="form-control" placeholder="Search products..."
+                <input type="text" class="form-control" placeholder="{{ __('crm.search_products') }}"
                     wire:model.live.debounce.300ms="search">
             </div>
             <!-- Show Entries -->
             <div class="d-flex align-items-center mb-2 mb-md-0 mr-3 flex-shrink-0">
-                <label class="mb-0 mr-2 crm-filter-label text-nowrap">Show</label>
+                <label class="mb-0 mr-2 crm-filter-label text-nowrap">{{ __('crm.show') }}</label>
                 <select wire:model.live="perPage" wire:key="per-page-select" class="custom-select custom-select-sm no-select2" style="width: 70px;">
                     <option value="10">10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
                 </select>
-                <label class="mb-0 ml-2 crm-filter-label text-nowrap">entries</label>
+                <label class="mb-0 ml-2 crm-filter-label text-nowrap">{{ __('crm.entries') }}</label>
             </div>
             <button class="btn btn-outline-success btn-sm mr-2 text-nowrap" wire:click="exportToExcel">
-                <i class="mdi mdi-file-excel"></i> Export to Excel
+                <i class="mdi mdi-file-excel"></i> {{ __('crm.export_to_excel') }}
             </button>
             <button class="btn btn-add btn-sm" wire:click="openProductForm">
-                <i class="mdi mdi-plus"></i> Add
+                <i class="mdi mdi-plus"></i> {{ __('crm.add') }}
             </button>
         </div>
     </div>
 
     <div wire:loading wire:target="search,perPage" class="crm-loading-indicator"><i
-            class="mdi mdi-loading mdi-spin"></i> Loading...</div>
+            class="mdi mdi-loading mdi-spin"></i> {{ __('crm.loading') }}...</div>
     <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
         <x-slot:header>
             <tr>
                 <th>No</th>
-                <th>Name</th>
-                <th>{{ trim($customer->unit_configurable_name) != "" ? $customer->unit_configurable_name : 'Unit' }}</th>
-                <th>Status</th>
-                <th style="min-width: 100px;">Actions</th>
+                <th>{{ __('crm.name') }}</th>
+                <th>{{ trim($customer->unit_configurable_name) != "" ? $customer->unit_configurable_name : __('crm.unit') }}</th>
+                <th>{{ __('crm.status') }}</th>
+                <th style="min-width: 100px;">{{ __('crm.actions') }}</th>
             </tr>
         </x-slot:header>
                     @forelse($products as $product)
@@ -74,9 +73,9 @@
                             <td>{{ $product->unit_name ?? ($product->unit->name ?? '-') }}</td>
                             <td>
                                 @if($product->active == '1')
-                                    <span class="crm-badge crm-badge-success">Active</span>
+                                    <span class="crm-badge crm-badge-success">{{ ucfirst(__('crm.active')) }}</span>
                                 @else
-                                    <span class="crm-badge crm-badge-danger">Inactive</span>
+                                    <span class="crm-badge crm-badge-danger">{{ __('crm.inactive') }}</span>
                                 @endif
                             </td>
                             <td nowrap>
@@ -93,7 +92,7 @@
                             <td colspan="5">
                                 <x-crm.empty-state
                                     icon="mdi-tag-text-outline"
-                                    message="No test parameters registered for this client."
+                                    :message="__('crm.no_test_parameters_for_client')"
                                 />
                             </td>
                         </tr>

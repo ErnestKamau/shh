@@ -5,44 +5,44 @@
                     <i class="mdi mdi-star-check-outline text-warning" style="font-size:1rem;"></i>
                 </span>
                 <div>
-                    <small class="font-weight-bold text-dark" style="font-size:0.82rem;">Client Satisfaction Signals</small>
-                    <small class="text-muted d-block" style="font-size:0.67rem;">Submitted feedback, satisfaction scores &amp; service quality signals</small>
+                    <small class="font-weight-bold text-dark" style="font-size:0.82rem;">{{ __('crm.client_satisfaction_signals') }}</small>
+                    <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.client_satisfaction_signals_subtitle') }}</small>
                 </div>
             </div>
             <div class="d-flex justify-content-end align-items-center">
                 <div class="crm-search-wrapper mr-2">
                     <i class="mdi mdi-magnify crm-search-icon"></i>
-                    <input type="text" class="form-control" placeholder="Search feedback..."
+                    <input type="text" class="form-control" placeholder="{{ __('crm.search_feedback') }}"
                         wire:model.live.debounce.300ms="search">
                 </div>
                 <!-- Show Entries -->
             <div class="d-flex align-items-center mb-2 mb-md-0 mr-3 flex-shrink-0">
-                <label class="mb-0 mr-2 crm-filter-label text-nowrap">Show</label>
+                <label class="mb-0 mr-2 crm-filter-label text-nowrap">{{ __('crm.show') }}</label>
                 <select wire:model.live="perPage" wire:key="per-page-select" class="custom-select custom-select-sm no-select2" style="width: 70px;">
                     <option value="10">10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
                 </select>
-                <label class="mb-0 ml-2 crm-filter-label text-nowrap">entries</label>
+                <label class="mb-0 ml-2 crm-filter-label text-nowrap">{{ __('crm.entries') }}</label>
             </div>
                 <button class="btn btn-outline-success btn-sm mr-2 text-nowrap" wire:click="exportToExcel">
-                    <i class="mdi mdi-file-excel"></i> Export to Excel
+                    <i class="mdi mdi-file-excel"></i> {{ __('crm.export_to_excel') }}
                 </button>
             </div>
         </div>
 
-    <div wire:loading wire:target="search,perPage" class="crm-loading-indicator"><i class="mdi mdi-loading mdi-spin"></i> Loading...</div>
+    <div wire:loading wire:target="search,perPage" class="crm-loading-indicator"><i class="mdi mdi-loading mdi-spin"></i> {{ __('crm.loading') }}...</div>
     <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
         <x-slot:header>
             <tr>
-                <th>Ref Code</th>
-                <th nowrap>Service Contact</th>
-                <th>Respondent Type</th>
-                <th nowrap>Logged By</th>
-                <th>Feedback Date</th>
-                <th>State</th>
-                <th>Actions</th>
+                <th>{{ __('crm.ref_code') }}</th>
+                <th nowrap>{{ __('crm.service_contact') }}</th>
+                <th>{{ __('crm.respondent_type') }}</th>
+                <th nowrap>{{ __('crm.logged_by') }}</th>
+                <th>{{ __('crm.feedback_date') }}</th>
+                <th>{{ __('crm.state') }}</th>
+                <th>{{ __('crm.actions') }}</th>
             </tr>
         </x-slot:header>
                 @forelse($feedbacks as $item)
@@ -75,7 +75,7 @@
                         </td>
                         <td>
                             @if($item->customer_id)
-                                Customer
+                                {{ __('crm.client') }}
                             @else
                                 {{ $item->user_type }}
                             @endif
@@ -94,11 +94,11 @@
                         </td>
                         <td class="text-small">
                             @if($item->status == \App\Models\CRM\CustomerFeedback::STATUS_SUBMITTED)
-                                <span class="crm-badge crm-badge-success">Submitted</span>
+                                <span class="crm-badge crm-badge-success">{{ __('crm.submitted') }}</span>
                             @elseif($item->status == \App\Models\CRM\CustomerFeedback::STATUS_PENDING)
-                                <span class="crm-badge crm-badge-warning">Pending</span>
+                                <span class="crm-badge crm-badge-warning">{{ __('crm.pending') }}</span>
                             @else
-                                <span class="crm-badge crm-badge-secondary">Unknown</span>
+                                <span class="crm-badge crm-badge-secondary">{{ __('crm.unknown') }}</span>
                             @endif
                         </td>
                         <td class="text-center" nowrap>
@@ -114,8 +114,8 @@
                         <td colspan="7">
                             <x-crm.empty-state
                                 icon="mdi-star-check-outline"
-                                message="No feedbacks found."
-                                help="Submitted feedback will appear here."
+                                :message="__('crm.no_feedbacks_found')"
+                                :help="__('crm.no_feedbacks_help')"
                             />
                         </td>
                     </tr>
@@ -134,7 +134,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title font-weight-bold text-primary">
-                        <i class="mdi mdi-clipboard-text-outline mr-1"></i> Feedback Details
+                        <i class="mdi mdi-clipboard-text-outline mr-1"></i> {{ __('crm.feedback_details') }}
                         <small class="text-muted d-block" style="font-size: 0.8rem;">
                             Ref: {{ $selectedFeedback ? 'FB' . str_pad($selectedFeedback->id, 5, '0', STR_PAD_LEFT) : '---' }}
                         </small>
@@ -149,12 +149,12 @@
                     @else
                         <div class="text-center p-5">
                             <i class="mdi mdi-loading mdi-spin display-4 text-primary"></i>
-                            <p class="mt-3 text-muted">Loading feedback details...</p>
+                            <p class="mt-3 text-muted">{{ __('crm.loading_feedback_details') }}...</p>
                         </div>
                     @endif
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('crm.close') }}</button>
                 </div>
             </div>
         </div>

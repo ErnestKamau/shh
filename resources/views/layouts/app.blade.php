@@ -1856,6 +1856,30 @@
             </div>
         </div>
     </nav>
+
+    {{-- Password expiry countdown banner --}}
+    @auth
+        @php
+            $__pwDays  = auth()->user()->passwordDaysRemaining();
+            $__pwClass = $__pwDays <= 10 ? 'danger'  : ($__pwDays <= 20 ? 'warning' : 'info');
+            $__pwIcon  = $__pwDays <= 10 ? 'fa-lock' : 'fa-key';
+            $__pwLabel = $__pwDays <= 10 ? 'URGENT'  : ($__pwDays <= 20 ? 'Warning' : 'Notice');
+        @endphp
+        @if($__pwDays <= 30)
+            <div class="alert alert-{{ $__pwClass }} alert-dismissible mb-0 py-2 px-3 rounded-0 border-0"
+                 role="alert"
+                 style="font-size:13px; position:relative; z-index:9;">
+                <i class="fas {{ $__pwIcon }} mr-1"></i>
+                <strong>{{ $__pwLabel }}:</strong>
+                Your password expires in <strong>{{ $__pwDays }} day{{ $__pwDays === 1 ? '' : 's' }}</strong>.
+                <a href="{{ route('password.force-change') }}" class="alert-link ml-2">Change it now &rarr;</a>
+                <button type="button" class="close py-1" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        @endif
+    @endauth
+
     @yield('content')
     <div class="modal fade" id="chat-system" role="dialog">
         <div class="modal-dialog modal-xl" style="height: 100vh;">

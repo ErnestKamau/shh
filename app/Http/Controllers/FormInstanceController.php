@@ -191,37 +191,6 @@ class FormInstanceController extends Controller
         if ($user->can('Laboratory.components.RFT Form.View') || $user->can('Laboratory.permission')) {
             return true;
         }
-        // Legacy role check: any role the user holds that grants Laboratory access
-        $userRoles = \Illuminate\Support\Facades\DB::table('user_roles')
-            ->join('roles', 'roles.id', '=', 'user_roles.role_id')
-            ->where('user_roles.user_id', $user->id)
-            ->get(['roles.name', 'roles.permissions']);
-
-        foreach ($userRoles as $role) {
-            $lower = strtolower($role->name ?? '');
-            if (in_array($lower, ['admin', 'super admin', 'super-admin', 'system admin', 'system-admin', 'sample reception'], true)) {
-                return true;
-            }
-            // Check legacy JSON permissions for Laboratory access
-            $perms = json_decode($role->permissions ?? '{}', true);
-            if (! is_array($perms)) {
-                continue;
-            }
-            $labPerms = $perms['Laboratory'] ?? null;
-            if (! is_array($labPerms)) {
-                continue;
-            }
-            // Module-level permission flag
-            $flag = $labPerms['permission'] ?? null;
-            if ($flag === true || $flag === 1 || $flag === '1' || strtolower((string) $flag) === 'true') {
-                return true;
-            }
-            // Component-level: RFT Form View
-            $rftView = $labPerms['components']['RFT Form']['View'] ?? null;
-            if ($rftView === true || $rftView === 1 || $rftView === '1' || strtolower((string) $rftView) === 'true') {
-                return true;
-            }
-        }
 
         return false;
     }

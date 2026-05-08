@@ -72,7 +72,7 @@
                                 <td style="padding:12px 14px; vertical-align:middle; color:#64748b;">{{ $item->description ?? '-' }}</td>
                                 <td style="padding:12px 14px; vertical-align:middle; text-align:center; color:#334155;">{{ $item->level }}</td>
                                 <td style="padding:12px 14px; vertical-align:middle; text-align:center;">{!! $item->active == 1 ? '<i class="mdi mdi-marker-check text-success" style="font-size:16px;"></i>' : '<i class="mdi mdi-close-circle text-danger" style="font-size:16px;"></i>' !!}</td>
-                                <td class="rm-actions-cell" style="padding:10px 14px; vertical-align:middle;" wire:click.stop>
+                                <td class="rm-actions-cell" style="padding:10px 14px; vertical-align:middle;" onclick="event.stopPropagation()">
                                     <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit"
                                         wire:click="openEditModal('{{ $item->id }}')" title="{{ __('personnel.edit') }}">
                                         <i class="mdi mdi-pencil-outline"></i>
@@ -141,7 +141,6 @@
                                                                 class="rm-module-tab-btn {{ $isFirstTab ? 'active' : '' }}"
                                                                 data-role-id="{{ $item->id }}"
                                                                 data-pane-id="{{ $modulePaneId }}"
-                                                                wire:click.stop
                                                                 style="width:100%; min-height:82px; padding:10px 8px;
                                                                     border:2px solid {{ $isFirstTab ? '#0284c7' : '#e2e8f0' }};
                                                                     background:#fff; border-radius:10px;

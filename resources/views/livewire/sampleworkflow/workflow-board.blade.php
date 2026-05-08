@@ -134,7 +134,7 @@
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
+											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process"
@@ -201,7 +201,7 @@
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
+											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
 									</li>
 								@endif
 								@if($status == 'Sample Approval')
@@ -1186,12 +1186,12 @@
 					<!-- Modal content-->
 					<div class="modal-content">
 						<div class="modal-header" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 250, 0.8) 100%); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.8); border-bottom: 1px solid rgba(0, 0, 0, 0.08);">
-							<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Sales Order</h4>
+							<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Draft Invoice</h4>
 							<button type="button" class="close" data-dismiss="modal">&times;</button>
 						</div>
 						<div class="modal-body">
 							<div class="alert alert-info">
-								<i class="mdi mdi-information"></i> You will be redirected to the Sales Order Wizard to complete the process.
+								<i class="mdi mdi-information"></i> You will be redirected to the Draft Invoice Wizard to complete the process.
 							</div>
 
 							<div class="form-group">
@@ -1205,7 +1205,7 @@
 									<li>Customer Dynamics mapping</li>
 									<li>Analysis type to invoicable item mapping</li>
 									<li>Adding additional fees and charges</li>
-									<li>Reviewing and generating the sales order</li>
+									<li>Reviewing and generating the draft invoice</li>
 								</ul>
 							</p>
 						</div>
@@ -1472,7 +1472,7 @@
 										</div>
 										<div class="proccesses create-order border-bottom p-2 d-flex">
 											<i class="mdi mdi-minus" style="font-size:25px"></i>
-											<span class="p-2">Creating sales order</span>
+											<span class="p-2">Creating draft invoice</span>
 										</div>
 										<div class="proccesses sending-order border-bottom p-2 d-flex">
 											<i class="mdi mdi-minus" style="font-size:25px"></i>
@@ -2260,7 +2260,7 @@
 						callback(data);
 					},
 					error: (data) => {
-						callback({'error':'Error creating the sales order'});
+						callback({'error':'Error creating the draft invoice'});
 					}
 				})
 			}
@@ -2413,7 +2413,7 @@
 			var sendSalesOrder = (invoice_id, callback) => {
 		
 				$.ajax({
-					url: `/send/Sales-Order/${invoice_id}`,
+					url: `/send/Draft-Invoice/${invoice_id}`,
 					type: 'GET',
 					success: (data) => {
 						console.log('here2')
@@ -2495,7 +2495,7 @@
 						<div class="alert alert-callout alert-primary d-flex">
 							<i class="fas fa-info-circle" style="font-size:25px"></i>
 							<span class="pl-2">
-								By approving this you will generate a Sales Order with the following Batches</b>?
+								By approving this you will generate a Draft Invoice with the following Batches</b>?
 							</span>
 						</div>
 					</div>
@@ -2505,8 +2505,8 @@
 						<img src="/images/load.gif" height="250px" width="auto" alt="">
 					</center>
 					<div class="a-detail">
-						<p><i class="mdi mdi-minus saving-invoice"></i> Saving sales order details.</p>
-						<p><i class="mdi mdi-minus send-sales"></i> Sending sales order details to Zoho.</p> <br>
+						<p><i class="mdi mdi-minus saving-invoice"></i> Saving draft invoice details.</p>
+						<p><i class="mdi mdi-minus send-sales"></i> Sending draft invoice details to Zoho.</p> <br>
 					</div>
 				</div>
 				
@@ -2529,7 +2529,7 @@
 				var body = $(`
 				<div class="invoice_body bordered p-2" style="box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;">
 					<h4 class="text-center bg-light p-2">
-						<b>Sales Order ${invoice.invoice_number} Preview</b>
+						<b>Draft Invoice ${invoice.invoice_number} Preview</b>
 					</h4>
 					<div class="header mt-5">
 						<b>CUSTOMER : </b> ${customer.name}
@@ -2556,14 +2556,14 @@
 					
 					<div class="alert alert-default bg-light p-3 mt-3 text-center">
 						<i class="mdi mdi-alert-decagram-outline"></i>
-						<span class="ml-2">Confirm you want to create above DRAFT sales order to zoho</span>
+						<span class="ml-2">Confirm you want to create above DRAFT draft invoice to zoho</span>
 					</div>
 					<div class="row">
 						<div class="col-md-6 p-2">
-							<span class="btn btn-outline-primary btn-block btn-sm" data-invoice="${invoice.id}" id="send_sales"><i class="mdi mdi-thumb-up-outline"> Yes, Send Sales Order</i></span> <br>
+							<span class="btn btn-outline-primary btn-block btn-sm" data-invoice="${invoice.id}" id="send_sales"><i class="mdi mdi-thumb-up-outline"> Yes, Send Draft Invoice</i></span> <br>
 						</div>
 						<div class="col-md-6 p-2">
-							<span class="btn btn-outline-danger btn-block btn-sm" data-invoice="${invoice.id}" id="cancel_sales"><i class="mdi mdi-thumb-down-outline"> Cancel Sales Order</i></span>
+							<span class="btn btn-outline-danger btn-block btn-sm" data-invoice="${invoice.id}" id="cancel_sales"><i class="mdi mdi-thumb-down-outline"> Cancel Draft Invoice</i></span>
 						</div>
 		
 						
@@ -2604,7 +2604,7 @@
 				});
 		
 				$(body).find('#cancel_sales').on('click', (e) => {
-					var errorBody = `Deleting created sales order in process!`;
+					var errorBody = `Deleting created draft invoice in process!`;
 					var invoice_id = $(body).find('#send_sales').data('invoice');
 					$('#generate-invoice-form').find('.loader').removeClass('hidden');
 					$('#generate-invoice-form').find('.invoice_body').addClass('hidden');
@@ -3300,7 +3300,7 @@
 				});
 			}
 		
-			// New Sales Order Wizard Integration
+			// New Draft Invoice Wizard Integration
 			$('.proceed-to-wizard-btn').on('click', function() {
 				// Collect selected batch codes
 				var selectedBatches = [];

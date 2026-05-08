@@ -4,6 +4,8 @@ namespace App\Livewire\AuditModule;
 
 use App\Models\AuditModule\AuditChecklist;
 use App\Models\AuditModule\AuditChecklistItem;
+use App\Models\AuditModule\WorkflowAction;
+use App\SampleType;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Str;
@@ -27,6 +29,12 @@ class ChecklistManager extends Component
     public $iso_standard = '';
     public $is_active = true;
     
+    // Workflow and Sample Type relationships
+    public $selected_workflow_actions = [];
+    public $selected_sample_types = [];
+    public $available_workflow_actions = [];
+    public $available_sample_types = [];
+    
     // Items management
     public $showItemsModal = false;
     public $selectedChecklistId = null;
@@ -48,12 +56,29 @@ class ChecklistManager extends Component
 
     public function mount()
     {
-        //
+        $this->loadAvailableData();
     }
 
     public function updatingSearch()
     {
         $this->resetPage();
+    }
+
+    public function loadAvailableData()
+    {
+        $this->available_workflow_actions = WorkflowAction::where('is_active', true)
+            ->where('company_id', getUserCompany() ?? 0)
+            ->orderBy('name')
+            ->get()
+            ->map(fn($action) => ['id' => $action->id, 'name' => $action->name])
+            ->toArray();
+
+        $this->available_sample_types = SampleType::where('active', true)
+            ->where('company_id', getUserCompany() ?? 0)
+            ->orderBy('name')
+            ->get()
+            ->map(fn($type) => ['id' => $type->id, 'name' => $type->name])
+            ->toArray();
     }
 
     public function openModal($id = null)
@@ -69,6 +94,8 @@ class ChecklistManager extends Component
             $this->audit_type_id = $checklist->audit_type_id ?? '';
             $this->iso_standard = $checklist->iso_standard ?? '';
             $this->is_active = $checklist->is_active;
+            $this->selected_workflow_actions = $checklist->workflowActions->pluck('id')->toArray();
+            $this->selected_sample_types = $checklist->sampleTypes->pluck('id')->toArray();
         } else {
             $this->resetForm();
         }
@@ -90,6 +117,8 @@ class ChecklistManager extends Component
         $this->audit_type_id = '';
         $this->iso_standard = '';
         $this->is_active = true;
+        $this->selected_workflow_actions = [];
+        $this->selected_sample_types = [];
         $this->isEdit = false;
         $this->editId = null;
     }
@@ -117,13 +146,18 @@ class ChecklistManager extends Component
         if ($this->isEdit) {
             $checklist = AuditChecklist::forCompany()->findOrFail($this->editId);
             $checklist->update($data);
-            session()->flash('message', 'Checklist updated successfully.');
+            $message = 'Checklist updated successfully.';
         } else {
             $data['created_by'] = auth()->id();
-            AuditChecklist::create($data);
-            session()->flash('message', 'Checklist created successfully.');
+            $checklist = AuditChecklist::create($data);
+            $message = 'Checklist created successfully.';
         }
 
+        // Sync relationships
+        $checklist->workflowActions()->sync($this->selected_workflow_actions);
+        $checklist->sampleTypes()->sync($this->selected_sample_types);
+
+        session()->flash('message', $message);
         $this->closeModal();
     }
 
@@ -323,7 +357,7 @@ class ChecklistManager extends Component
     public function render()
     {
         $query = AuditChecklist::forCompany()
-            ->with(['auditType', 'items'])
+            ->with(['auditType', 'items', 'workflowActions', 'sampleTypes'])
             ->orderBy('name');
 
         if ($this->search) {
@@ -340,6 +374,8 @@ class ChecklistManager extends Component
         return view('livewire.audit-module.checklist-manager', [
             'checklists' => $checklists,
             'auditTypes' => $auditTypes,
+            'workflowActions' => $this->available_workflow_actions,
+            'sampleTypes' => $this->available_sample_types,
         ]);
     }
 }

@@ -69,7 +69,9 @@
                         <button class="btn btn-outline-primary btn-sm rounded-pill px-3" type="button" wire:click="openAddRoleModal"><i class="mdi mdi-key-plus mr-1"></i> {{ __('personnel.add_role_group') }}</button>
                     </div>
                 @elseif($activeTab === 'details')
-                    <button class="btn btn-primary btn-sm detail-save-btn" type="submit" form="userDetailsForm"><i class="mdi mdi-content-save"></i> {{ __('personnel.save') }}</button>
+                    <div class="d-flex align-items-center" style="gap: 8px;">
+                        <span class="badge badge-light border">Step {{ $detailsStep }} of 3</span>
+                    </div>
                 @elseif($activeTab === 'certifications')
                     <button type="button" class="btn btn-outline-primary btn-sm rounded-pill cert-add-btn" wire:click="openCertificationModal">
                         <i class="mdi mdi-plus"></i> {{ __('personnel.add') }}
@@ -227,30 +229,69 @@
             @endif
 
             @if($activeTab === 'details')
-                <form id="userDetailsForm" autocomplete="off" action="{{ route('add-personnel', ['id'=>$this->user->id]) }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    <input type="hidden" name="designation" value="{{ $selectedDesignationId }}">
-                    <input type="hidden" name="educational_level" value="{{ $selectedEducationId }}">
-                    <input type="hidden" name="position" value="{{ $selectedPositionId }}">
-                    <input type="hidden" name="department" value="{{ $selectedDepartmentId }}">
-                    <input type="hidden" name="user_license" value="{{ $selectedLicenseKey }}">
-                    <input type="hidden" name="zone_id" value="{{ $selectedZoneId }}">
-                    <input type="hidden" name="directorate_id" value="{{ $selectedDirectorateId }}">
-                    <input type="hidden" name="lab_id" value="{{ $selectedLabId }}">
+                <form id="userDetailsForm" autocomplete="off" wire:submit.prevent="saveUserDetails">
+                    <div class="detail-stepper mb-4">
+                        <button type="button" class="detail-step {{ $detailsStep === 1 ? 'is-active' : ($detailsStep > 1 ? 'is-complete' : '') }}" wire:click="setDetailsStep(1)">
+                            <span class="detail-step-index">1</span>
+                            <span class="detail-step-copy">
+                                <strong>{{ __('personnel.section_personal_information') }}</strong>
+                                <small>{{ __('personnel.signature_attachment') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="detail-step {{ $detailsStep === 2 ? 'is-active' : ($detailsStep > 2 ? 'is-complete' : '') }}" wire:click="setDetailsStep(2)">
+                            <span class="detail-step-index">2</span>
+                            <span class="detail-step-copy">
+                                <strong>{{ __('personnel.section_employment_details') }}</strong>
+                                <small>{{ __('personnel.designation') }} / {{ __('personnel.department') }} / {{ __('personnel.lab') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="detail-step {{ $detailsStep === 3 ? 'is-active' : ($detailsStep > 3 ? 'is-complete' : '') }}" wire:click="setDetailsStep(3)">
+                            <span class="detail-step-index">3</span>
+                            <span class="detail-step-copy">
+                                <strong>Professional Recognition</strong>
+                                <small>Gazette and career timeline</small>
+                            </span>
+                        </button>
+                    </div>
 
+                    @if($detailsStep === 1)
+                    @if(
+                        $errors->has('detailsFirstName') ||
+                        $errors->has('detailsMiddleName') ||
+                        $errors->has('detailsLastName') ||
+                        $errors->has('detailsEmail') ||
+                        $errors->has('detailsPhone') ||
+                        $errors->has('detailsIdNumber') ||
+                        $errors->has('detailsDateOfBirth') ||
+                        $errors->has('detailsSignatureUpload') ||
+                        $errors->has('detailsSignatureData')
+                    )
+                        <div class="alert alert-danger detail-step-alert" role="alert">
+                            <div class="font-weight-semibold mb-1">Please resolve these items before continuing.</div>
+                            @error('detailsFirstName')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsMiddleName')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsLastName')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsEmail')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsPhone')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsIdNumber')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsDateOfBirth')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsSignatureUpload')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsSignatureData')<div class="small">{{ $message }}</div>@enderror
+                        </div>
+                    @endif
                     <div class="detail-section mb-4">
                         <div class="detail-section-header mb-3">
                             <h6 class="mb-1"><i class="mdi mdi-account-outline mr-1"></i> {{ __('personnel.section_personal_information') }}</h6>
                             <small class="text-muted">{{ __('personnel.section_personal_information_hint') }}</small>
                         </div>
                         <div class="row">
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.first_name') }} *</label><input name="first_name" class="form-control" value="{{ $this->user->first_name }}" required></div></div>
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.middle_name') }}</label><input name="middle_name" class="form-control" value="{{ $this->user->middle_name }}"></div></div>
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.last_name') }}</label><input name="last_name" class="form-control" value="{{ $this->user->last_name }}"></div></div>
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.email') }} *</label><input type="email" name="email" class="form-control" value="{{ $this->user->email }}" required></div></div>
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.phone') }}</label><input name="phone" class="form-control" value="{{ $this->user->phone }}"></div></div>
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.id_number_passport') }} *</label><input name="id_number" class="form-control" value="{{ $this->user->id_number }}" required></div></div>
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.date_of_birth') }}</label><input type="date" name="date_of_birth" class="form-control" value="{{ $this->user->date_of_birth }}"></div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.first_name') }} *</label><input wire:model.live="detailsFirstName" class="form-control" required>@error('detailsFirstName')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.middle_name') }}</label><input wire:model.live="detailsMiddleName" class="form-control">@error('detailsMiddleName')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.last_name') }}</label><input wire:model.live="detailsLastName" class="form-control">@error('detailsLastName')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.email') }} *</label><input type="email" wire:model.live="detailsEmail" class="form-control" required>@error('detailsEmail')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.phone') }}</label><input wire:model.live="detailsPhone" class="form-control">@error('detailsPhone')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.id_number_passport') }} *</label><input wire:model.live="detailsIdNumber" class="form-control" required>@error('detailsIdNumber')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.date_of_birth') }}</label><input type="date" wire:model.live="detailsDateOfBirth" class="form-control">@error('detailsDateOfBirth')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                         </div>
 
                         <div class="signature-section mt-2">
@@ -264,8 +305,9 @@
                                 <div class="col-md-6 mb-3">
                                     <div class="signature-card h-100">
                                         <label class="signature-label d-block">{{ __('personnel.upload_signature') }}</label>
-                                        <input type="file" name="signature" id="personnelSignatureUpload" class="form-control" accept="image/*">
+                                        <input type="file" id="personnelSignatureUpload" wire:model="detailsSignatureUpload" class="form-control" accept="image/*">
                                         <small class="text-muted d-block mt-2">{{ __('personnel.accepted_signature_formats') }}</small>
+                                        @error('detailsSignatureUpload')<small class="text-danger d-block mt-1">{{ $message }}</small>@enderror
                                         @if(!empty($this->user->electronic_sig))
                                             <div class="signature-preview mt-3">
                                                 <small class="text-muted d-block mb-1">{{ __('personnel.current_signature') }}</small>
@@ -281,7 +323,7 @@
                                             <canvas id="personnelSignatureCanvas" width="620" height="190"></canvas>
                                             <span class="signature-canvas-placeholder" id="personnelSignaturePlaceholder">{{ __('personnel.sign_here') }}</span>
                                         </div>
-                                        <input type="hidden" name="signature_data" id="personnelSignatureData" value="">
+                                        <input type="hidden" id="personnelSignatureData" wire:model.live="detailsSignatureData">
                                         <div class="d-flex justify-content-between align-items-center mt-2">
                                             <div class="d-flex align-items-center" style="gap: 8px;">
                                                 <small class="text-muted">{{ __('personnel.signature_draw_overrides_upload') }}</small>
@@ -302,14 +344,36 @@
                             </div>
                         </div>
                     </div>
+                    @endif
 
+                    @if($detailsStep === 2)
+                    @if(
+                        $errors->has('detailsEmploymentDate') ||
+                        $errors->has('selectedDesignationId') ||
+                        $errors->has('selectedEducationId') ||
+                        $errors->has('selectedPositionId') ||
+                        $errors->has('selectedDepartmentId') ||
+                        $errors->has('selectedLabIds') ||
+                        $errors->has('selectedLabIds.*')
+                    )
+                        <div class="alert alert-danger detail-step-alert" role="alert">
+                            <div class="font-weight-semibold mb-1">Please resolve these items before continuing.</div>
+                            @error('detailsEmploymentDate')<div class="small">{{ $message }}</div>@enderror
+                            @error('selectedDesignationId')<div class="small">{{ $message }}</div>@enderror
+                            @error('selectedEducationId')<div class="small">{{ $message }}</div>@enderror
+                            @error('selectedPositionId')<div class="small">{{ $message }}</div>@enderror
+                            @error('selectedDepartmentId')<div class="small">{{ $message }}</div>@enderror
+                            @error('selectedLabIds')<div class="small">{{ $message }}</div>@enderror
+                            @error('selectedLabIds.*')<div class="small">{{ $message }}</div>@enderror
+                        </div>
+                    @endif
                     <div class="detail-section mb-4">
                         <div class="detail-section-header mb-3">
                             <h6 class="mb-1"><i class="mdi mdi-briefcase-outline mr-1"></i> {{ __('personnel.section_employment_details') }}</h6>
                             <small class="text-muted">{{ __('personnel.section_employment_details_hint') }}</small>
                         </div>
                         <div class="row">
-                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.employment_date') }}</label><input type="date" name="employment_date" class="form-control" value="{{ $this->user->employment_date }}"></div></div>
+                            <div class="col-md-4"><div class="form-group"><label>{{ __('personnel.employment_date') }}</label><input type="date" wire:model.live="detailsEmploymentDate" class="form-control">@error('detailsEmploymentDate')<small class="text-danger">{{ $message }}</small>@enderror</div></div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.designation') }} *</label>
                                 <div class="tag-select-container" wire:click="$set('showDesignationDropdown', true)" wire:click.outside="$set('showDesignationDropdown', false)">
@@ -321,9 +385,10 @@
                                         <input class="tag-input" wire:model.live="designationSearch" wire:keyup="searchDesignation" placeholder="{{ __('personnel.search_designation') }}">
                                     </div>
                                     @if($showDesignationDropdown)
-                                        <div class="tag-dropdown">@foreach($this->designations->filter(fn($d)=>$designationSearch===''||stripos($d->name,$designationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDesignation({{ $d->id }})">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->designations->filter(fn($d)=>$designationSearch===''||stripos($d->name,$designationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDesignation('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
+                                @error('selectedDesignationId')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.education_level') }}</label>
@@ -336,9 +401,10 @@
                                         <input class="tag-input" wire:model.live="educationSearch" wire:keyup="searchEducation" placeholder="{{ __('personnel.search_education_level') }}">
                                     </div>
                                     @if($showEducationDropdown)
-                                        <div class="tag-dropdown">@foreach($this->educationLevels->filter(fn($d)=>$educationSearch===''||stripos($d->name,$educationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectEducation({{ $d->id }})">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->educationLevels->filter(fn($d)=>$educationSearch===''||stripos($d->name,$educationSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectEducation('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
+                                @error('selectedEducationId')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.position') }}</label>
@@ -351,9 +417,10 @@
                                         <input class="tag-input" wire:model.live="positionSearch" wire:keyup="searchPosition" placeholder="{{ __('personnel.search_position') }}">
                                     </div>
                                     @if($showPositionDropdown)
-                                        <div class="tag-dropdown">@foreach($this->positions->filter(fn($d)=>$positionSearch===''||stripos($d->name,$positionSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectPosition({{ $d->id }})">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->positions->filter(fn($d)=>$positionSearch===''||stripos($d->name,$positionSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectPosition('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
+                                @error('selectedPositionId')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                             <div class="col-md-4">
                                 <label>{{ __('personnel.department') }}</label>
@@ -366,14 +433,52 @@
                                         <input class="tag-input" wire:model.live="departmentSearch" wire:keyup="searchDepartment" placeholder="{{ __('personnel.search_department') }}">
                                     </div>
                                     @if($showDepartmentDropdown)
-                                        <div class="tag-dropdown">@foreach($this->departments->filter(fn($d)=>$departmentSearch===''||stripos($d->name,$departmentSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDepartment({{ $d->id }})">{{ $d->name }}</div>@endforeach</div>
+                                        <div class="tag-dropdown">@foreach($this->departments->filter(fn($d)=>$departmentSearch===''||stripos($d->name,$departmentSearch)!==false) as $d)<div class="tag-dropdown-item" wire:click.stop="selectDepartment('{{ $d->id }}')">{{ $d->name }}</div>@endforeach</div>
                                     @endif
                                 </div>
+                                @error('selectedDepartmentId')<small class="text-danger">{{ $message }}</small>@enderror
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <label>{{ __('personnel.lab') }}</label>
+                                <div class="tag-select-container" wire:click="$set('showLabDropdown', true)" wire:click.outside="$set('showLabDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @foreach($selectedLabIds as $selectedLabId)
+                                            @php $s = $this->labs->firstWhere('id', $selectedLabId); @endphp
+                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab('{{ $selectedLabId }}')"></i></span>
+                                        @endforeach
+                                        <input class="tag-input" wire:model.live="labSearch" wire:keyup="searchLab" placeholder="{{ __('personnel.search_labs') }}">
+                                    </div>
+                                    @if($showLabDropdown)
+                                        <div class="tag-dropdown">
+                                            @foreach($this->labs->filter(fn($l)=>$labSearch===''||stripos($l->name,$labSearch)!==false) as $lab)
+                                                <div class="tag-dropdown-item" wire:click.stop="selectLab('{{ $lab->id }}')">{{ $lab->name }}</div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                                @error('selectedLabIds')<small class="text-danger">{{ $message }}</small>@enderror
+                                @error('selectedLabIds.*')<small class="text-danger">{{ $message }}</small>@enderror
                             </div>
                         </div>
                     </div>
+                    @endif
 
-                    <div class="detail-section mb-4" wire:ignore>
+                    @if($detailsStep === 3)
+                    @if(
+                        $errors->has('detailsAnalystIsGazzetted') ||
+                        $errors->has('detailsDateOfGazzette') ||
+                        $errors->has('detailsGazzetteNo') ||
+                        $errors->has('detailsStartOfCareer')
+                    )
+                        <div class="alert alert-danger detail-step-alert" role="alert">
+                            <div class="font-weight-semibold mb-1">Please resolve these items before continuing.</div>
+                            @error('detailsAnalystIsGazzetted')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsDateOfGazzette')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsGazzetteNo')<div class="small">{{ $message }}</div>@enderror
+                            @error('detailsStartOfCareer')<div class="small">{{ $message }}</div>@enderror
+                        </div>
+                    @endif
+                    <div class="detail-section mb-1">
                         <div class="detail-section-header mb-3">
                             <h6 class="mb-1"><i class="mdi mdi-account-check-outline mr-1"></i> Professional Recognition</h6>
                             <small class="text-muted">Track gazette status and career timeline for automatic experience visibility.</small>
@@ -382,28 +487,35 @@
                             <div class="col-md-4">
                                 <div class="form-group mb-2">
                                     <label class="mb-2 d-block">Analyst Gazette Status</label>
-                                    <input type="hidden" name="analyst_is_gazzetted" value="0">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="analystIsGazzetted" name="analyst_is_gazzetted" value="1"
-                                            @if((int) ($this->user->analyst_is_gazzetted ?? 0) === 1) checked @endif>
+                                        <input class="form-check-input" type="checkbox" id="analystIsGazzetted" wire:model.live="detailsAnalystIsGazzetted">
                                         <label class="form-check-label" for="analystIsGazzetted">Analyst is gazzetted</label>
                                     </div>
+                                    @error('detailsAnalystIsGazzetted')<small class="text-danger d-block">{{ $message }}</small>@enderror
                                 </div>
                             </div>
 
                             <div class="col-md-4" id="dateOfGazzetteWrap">
                                 <div class="form-group">
                                     <label>Date of Gazzette</label>
-                                    <input type="date" name="date_of_gazzette" id="dateOfGazzetteInput" class="form-control"
-                                        value="{{ !empty($this->user->date_of_gazzette) ? \Carbon\Carbon::parse($this->user->date_of_gazzette)->format('Y-m-d') : '' }}">
+                                    <input type="date" id="dateOfGazzetteInput" class="form-control" wire:model.live="detailsDateOfGazzette">
+                                    @error('detailsDateOfGazzette')<small class="text-danger">{{ $message }}</small>@enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4" id="gazzetteNoWrap">
+                                <div class="form-group">
+                                    <label>Gazzette No</label>
+                                    <input type="text" id="gazzetteNoInput" class="form-control" wire:model.live="detailsGazzetteNo">
+                                    @error('detailsGazzetteNo')<small class="text-danger">{{ $message }}</small>@enderror
                                 </div>
                             </div>
 
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label>Start of Career</label>
-                                    <input type="date" name="start_of_career" id="startOfCareerInput" class="form-control"
-                                        value="{{ !empty($this->user->start_of_career) ? \Carbon\Carbon::parse($this->user->start_of_career)->format('Y-m-d') : '' }}">
+                                    <input type="date" id="startOfCareerInput" class="form-control" wire:model.live="detailsStartOfCareer">
+                                    @error('detailsStartOfCareer')<small class="text-danger">{{ $message }}</small>@enderror
                                 </div>
                             </div>
 
@@ -415,90 +527,21 @@
                             </div>
                         </div>
                     </div>
+                    @endif
 
-                    <div class="detail-section mb-1">
-                        <div class="detail-section-header mb-3">
-                            <h6 class="mb-1"><i class="mdi mdi-shield-lock-outline mr-1"></i> {{ __('personnel.section_access_assignment') }}</h6>
-                            <small class="text-muted">{{ __('personnel.section_access_assignment_hint') }}</small>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <label>{{ __('personnel.user_license') }} *</label>
-                                <div class="tag-select-container" wire:click="$set('showLicenseDropdown', true)" wire:click.outside="$set('showLicenseDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($selectedLicenseKey)
-                                            <span class="tag-badge">{{ getUserLicenses()[$selectedLicenseKey] ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLicense"></i></span>
-                                        @endif
-                                        <input class="tag-input" wire:model.live="licenseSearch" wire:keyup="searchLicense" placeholder="{{ __('personnel.search_license') }}">
-                                    </div>
-                                    @if($showLicenseDropdown)
-                                        <div class="tag-dropdown">
-                                            @foreach(getUserLicenses() as $k=>$n)
-                                                @if($licenseSearch===''||stripos($n,$licenseSearch)!==false)
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectLicense('{{ $k }}')">{{ $n }} {{ ($this->licenseCount[$k] ?? 0).'/'.mamboSawa($k.'s') }}</div>
-                                                @endif
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label>{{ __('personnel.zone') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showZoneDropdown', true)" wire:click.outside="$set('showZoneDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($selectedZoneId)
-                                            @php $s = $this->zones->firstWhere('id', $selectedZoneId); @endphp
-                                            <span class="tag-badge">{{ ($s->key ?? '').(($s->value ?? '') ? ' - '.$s->value : '') }}<i class="mdi mdi-close-circle" wire:click.stop="clearZone"></i></span>
-                                        @endif
-                                        <input class="tag-input" wire:model.live="zoneSearch" wire:keyup="searchZone" placeholder="{{ __('personnel.select_zone') }}">
-                                    </div>
-                                    @if($showZoneDropdown)
-                                        <div class="tag-dropdown">
-                                            @foreach($this->zones->filter(fn($z)=>$zoneSearch===''||stripos($z->key.' '.$z->value,$zoneSearch)!==false) as $zone)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectZone('{{ $zone->id }}')">{{ $zone->key }}{{ $zone->value ? ' - '.$zone->value : '' }}</div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label>{{ __('personnel.directorate') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showDirectorateDropdown', true)" wire:click.outside="$set('showDirectorateDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($selectedDirectorateId)
-                                            @php $s = $this->directorates->firstWhere('id', $selectedDirectorateId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearDirectorate"></i></span>
-                                        @endif
-                                        <input class="tag-input" wire:model.live="directorateSearch" wire:keyup="searchDirectorate" placeholder="{{ __('personnel.search_directorates') }}">
-                                    </div>
-                                    @if($showDirectorateDropdown)
-                                        <div class="tag-dropdown">
-                                            @foreach($this->directorates->filter(fn($d)=>$directorateSearch===''||stripos($d->name,$directorateSearch)!==false) as $directorate)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectDirectorate('{{ $directorate->id }}')">{{ $directorate->name }}</div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label>{{ __('personnel.lab') }}</label>
-                                <div class="tag-select-container" wire:click="$set('showLabDropdown', true)" wire:click.outside="$set('showLabDropdown', false)">
-                                    <div class="tag-select-input">
-                                        @if($selectedLabId)
-                                            @php $s = $this->labs->firstWhere('id', $selectedLabId); @endphp
-                                            <span class="tag-badge">{{ $s->name ?? '' }}<i class="mdi mdi-close-circle" wire:click.stop="clearLab"></i></span>
-                                        @endif
-                                        <input class="tag-input" wire:model.live="labSearch" wire:keyup="searchLab" placeholder="{{ __('personnel.search_labs') }}">
-                                    </div>
-                                    @if($showLabDropdown)
-                                        <div class="tag-dropdown">
-                                            @foreach($this->labs->filter(fn($l)=>$labSearch===''||stripos($l->name,$labSearch)!==false) as $lab)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectLab('{{ $lab->id }}')">{{ $lab->name }}</div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
+                    <div class="detail-step-footer mt-4">
+                        <div class="detail-step-footer-copy text-muted small">Step {{ $detailsStep }} of 3</div>
+                        <div class="d-flex align-items-center" style="gap: 8px;">
+                            <button type="button" class="btn btn-outline-secondary" wire:click="previousDetailsStep" @if($detailsStep === 1) disabled @endif>
+                                <i class="mdi mdi-arrow-left"></i> Previous
+                            </button>
+                            @if($detailsStep < 3)
+                                <button type="button" class="btn btn-primary" wire:click="nextDetailsStep">
+                                    Next <i class="mdi mdi-arrow-right"></i>
+                                </button>
+                            @else
+                                <button class="btn btn-primary detail-save-btn" type="submit"><i class="mdi mdi-content-save"></i> {{ __('personnel.save') }}</button>
+                            @endif
                         </div>
                     </div>
                 </form>
@@ -913,6 +956,13 @@
         .tag-select-container {
             position: relative;
             cursor: text;
+            width: 100%;
+            overflow: visible;
+            z-index: 1;
+        }
+
+        .tag-select-container.dropdown-open {
+            z-index: 1100;
         }
 
         .tag-select-input {
@@ -920,12 +970,14 @@
             flex-wrap: wrap;
             align-items: center;
             gap: 6px;
+            width: 100%;
             min-height: 42px;
             padding: 6px 12px;
             background: #fff;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             transition: all 0.3s ease;
+            overflow: hidden;
         }
 
         .tag-select-input:hover {
@@ -942,6 +994,7 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
+            max-width: 100%;
             padding: 4px 10px;
             background-color: #007bff;
             color: #fff;
@@ -949,6 +1002,8 @@
             font-size: 0.875rem;
             font-weight: 500;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .tag-badge i {
@@ -956,6 +1011,7 @@
             font-size: 1rem;
             opacity: 0.8;
             transition: opacity 0.2s;
+            flex-shrink: 0;
         }
 
         .tag-badge i:hover {
@@ -978,14 +1034,19 @@
             left: 0;
             right: 0;
             background: #fff;
-            border: 2px solid #007bff;
-            border-top: none;
-            border-radius: 0 0 8px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
             max-height: 250px;
             overflow-y: auto;
             z-index: 1050;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-top: -2px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+            margin-top: 6px;
+        }
+
+        .tag-select-container.tag-dropdown-up .tag-dropdown {
+            top: auto;
+            bottom: calc(100% + 6px);
+            margin-top: 0;
         }
 
         .tag-dropdown-item {
@@ -1019,6 +1080,103 @@
             padding-left: 14px;
             padding-right: 14px;
             box-shadow: 0 4px 10px rgba(13, 110, 253, 0.18);
+        }
+
+        .detail-stepper {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .detail-step {
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .detail-step:hover {
+            border-color: #93c5fd;
+            box-shadow: 0 10px 24px rgba(14, 165, 233, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .detail-step.is-active {
+            border-color: #0284c7;
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
+            box-shadow: 0 14px 28px rgba(2, 132, 199, 0.16);
+        }
+
+        .detail-step.is-complete {
+            border-color: #86efac;
+            background: linear-gradient(135deg, #ecfdf5 0%, #f8fffb 100%);
+        }
+
+        .detail-step-index {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #0f172a;
+            background: #e2e8f0;
+            flex: 0 0 34px;
+        }
+
+        .detail-step.is-active .detail-step-index {
+            background: #0284c7;
+            color: #ffffff;
+        }
+
+        .detail-step.is-complete .detail-step-index {
+            background: #16a34a;
+            color: #ffffff;
+        }
+
+        .detail-step-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .detail-step-copy strong {
+            font-size: 0.9rem;
+            color: #0f172a;
+        }
+
+        .detail-step-copy small {
+            color: #64748b;
+            font-size: 0.77rem;
+        }
+
+        .detail-step-footer {
+            border-top: 1px solid #e2e8f0;
+            background: #fbfdff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .detail-step-footer-copy {
+            font-weight: 600;
+        }
+
+        .detail-step-alert {
+            border-radius: 10px;
+            border: 1px solid #fecaca;
+            background: #fff7f7;
+            margin-bottom: 14px;
+            padding: 10px 12px;
         }
 
         .detail-section {
@@ -1263,8 +1421,27 @@
                 align-items: flex-start;
             }
 
+            .detail-stepper {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-step-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .detail-step-footer > div {
+                width: 100%;
+            }
+
             .detail-save-btn {
                 width: 100%;
+            }
+        }
+
+        @media (max-width: 991.98px) and (min-width: 768px) {
+            .detail-stepper {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
     </style>
@@ -1308,6 +1485,10 @@
                     hiddenInput.value = canvas.toDataURL('image/png');
                 } else {
                     hiddenInput.value = '';
+                }
+
+                if (typeof $wire !== 'undefined' && $wire && typeof $wire.set === 'function') {
+                    $wire.set('detailsSignatureData', hiddenInput.value);
                 }
 
                 setSignatureStatus(hasSignatureStroke);
@@ -1497,10 +1678,68 @@
         });
 
         (function () {
+            function applyDropdownDirection() {
+                const containers = document.querySelectorAll('.tag-select-container');
+                if (!containers.length) {
+                    return;
+                }
+
+                containers.forEach(function (container) {
+                    const dropdown = container.querySelector('.tag-dropdown');
+                    if (!dropdown) {
+                        container.classList.remove('tag-dropdown-up');
+                        container.classList.remove('dropdown-open');
+                        return;
+                    }
+
+                    container.classList.add('dropdown-open');
+                    container.classList.remove('tag-dropdown-up');
+
+                    const input = container.querySelector('.tag-select-input');
+                    const anchorRect = (input || container).getBoundingClientRect();
+                    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+                    const spaceBelow = viewportHeight - anchorRect.bottom;
+                    const spaceAbove = anchorRect.top;
+                    const preferredHeight = Math.min(dropdown.scrollHeight, 250);
+
+                    if (spaceBelow < preferredHeight && spaceAbove > spaceBelow) {
+                        container.classList.add('tag-dropdown-up');
+                    }
+                });
+            }
+
+            function queueApplyDropdownDirection() {
+                requestAnimationFrame(applyDropdownDirection);
+            }
+
+            document.addEventListener('click', queueApplyDropdownDirection);
+            document.addEventListener('keyup', queueApplyDropdownDirection);
+            document.addEventListener('input', queueApplyDropdownDirection);
+            window.addEventListener('resize', queueApplyDropdownDirection);
+            window.addEventListener('scroll', queueApplyDropdownDirection, true);
+            document.addEventListener('DOMContentLoaded', queueApplyDropdownDirection);
+            document.addEventListener('livewire:load', queueApplyDropdownDirection);
+            document.addEventListener('livewire:navigated', queueApplyDropdownDirection);
+            document.addEventListener('livewire:update', queueApplyDropdownDirection);
+
+            document.addEventListener('livewire:initialized', function () {
+                if (window.Livewire && typeof Livewire.hook === 'function') {
+                    Livewire.hook('commit', ({ succeed }) => {
+                        succeed(() => {
+                            queueMicrotask(queueApplyDropdownDirection);
+                        });
+                    });
+                }
+            });
+        })();
+
+        (function () {
             function bindCareerFields() {
                 const gazzettedCheckbox = document.getElementById('analystIsGazzetted');
                 const gazzetteWrap = document.getElementById('dateOfGazzetteWrap');
                 const gazzetteInput = document.getElementById('dateOfGazzetteInput');
+                const gazzetteNoWrap = document.getElementById('gazzetteNoWrap');
+                const gazzetteNoInput = document.getElementById('gazzetteNoInput');
                 const startCareerInput = document.getElementById('startOfCareerInput');
                 const experiencePreview = document.getElementById('experienceYearsPreview');
 
@@ -1509,15 +1748,20 @@
                 }
 
                 function renderGazzetteDateVisibility() {
-                    if (!gazzettedCheckbox || !gazzetteWrap) {
+                    if (!gazzettedCheckbox || !gazzetteWrap || !gazzetteNoWrap) {
                         return;
                     }
 
                     const isChecked = gazzettedCheckbox.checked;
                     gazzetteWrap.style.display = isChecked ? '' : 'none';
+                    gazzetteNoWrap.style.display = isChecked ? '' : 'none';
 
                     if (!isChecked && gazzetteInput) {
                         gazzetteInput.value = '';
+                    }
+
+                    if (!isChecked && gazzetteNoInput) {
+                        gazzetteNoInput.value = '';
                     }
                 }
 

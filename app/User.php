@@ -50,6 +50,7 @@ class User extends Authenticatable implements Auditable
 	protected $fillable = [
 		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires',
 		'company_id', 'department_id', 'location_id', 'active',
+		'failed_login_attempts', 'login_locked_by_admin_reset',
 	];
 	protected $appends = ['labsectionname','labsectionids'];
 
@@ -67,10 +68,14 @@ class User extends Authenticatable implements Auditable
 	 *
 	 * @var array
 	 */
+	const PASSWORD_EXPIRY_DAYS = 90;
+
 	protected $casts = [
 		'email_verified_at' => 'datetime',
+		'password_changed_at' => 'datetime',
 		'analyst_is_gazzetted' => 'boolean',
 		'date_of_gazzette' => 'date',
+		'gazzette_no' => 'string',
 		'start_of_career' => 'datetime',
 		'phone' => 'encrypted',
 		'gender' => 'encrypted',
@@ -85,11 +90,29 @@ class User extends Authenticatable implements Auditable
 		'client_id' => 'string',
 		'crm_contact_id' => 'string',
 		'crmcontact_id' => 'string',
+		'failed_login_attempts' => 'integer',
+		'login_locked_by_admin_reset' => 'boolean',
 		'location_id' => 'string',
 		'department_id' => 'string',
 		'position' => 'string',
 		'lab_section_id' => 'string',
 	];
+
+    /** Returns days remaining until password expires. Null means never changed (expired immediately). */
+    public function passwordDaysRemaining(): int
+    {
+        if ($this->password_changed_at === null) {
+            return 0;
+        }
+        $expiry = $this->password_changed_at->copy()->addDays(self::PASSWORD_EXPIRY_DAYS);
+        $remaining = (int) now()->diffInDays($expiry, false);
+        return max(0, $remaining);
+    }
+
+    public function isPasswordExpired(): bool
+    {
+        return $this->passwordDaysRemaining() === 0;
+    }
 
 	protected function getLabSectionNameAttribute(){
 		$ids = collect(explode(',', (string) $this->lab_section_id))

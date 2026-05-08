@@ -683,7 +683,7 @@ class SubmissionFormController extends Controller
         ]);
 
         // Validate element type
-        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select'];
+        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select'];
         if (!in_array($elementType, $validTypes)) {
             Log::warning('Invalid element type requested', ['element_type' => $elementType]);
             return response()->json(['error' => 'Invalid element type'], 400);
@@ -910,36 +910,6 @@ class SubmissionFormController extends Controller
                             'label' => $label
                         ];
                     }
-                }
-                break;
-
-            case 'company_sub_unit_select':
-                $subUnitQuery = \App\Models\CRM\CRMCompanySubUnit::where('active', 1);
-
-                if ($clientUnitId) {
-                    $subUnitQuery->where('crm_company_unit_id', $clientUnitId);
-                }
-                // Not yet implemented companies
-                // if (function_exists('getUserCompany')) {
-                //     $subUnitQuery->whereHas('companyUnit', function ($q) {
-                //         $q->where('company_id', getUserCompany());
-                //     });
-                // }
-
-                $subUnits = $subUnitQuery->orderBy('name')->get();
-
-                foreach ($subUnits as $subUnit) {
-                    $options[] = [
-                        'value' => $subUnit->id,
-                        'label' => $subUnit->name . ($subUnit->code ? ' (' . $subUnit->code . ')' : '')
-                    ];
-                }
-
-                if (empty($options)) {
-                    $options[] = [
-                        'value' => '',
-                        'label' => 'No company units available'
-                    ];
                 }
                 break;
 

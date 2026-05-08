@@ -69,10 +69,10 @@
                                     </td>
                                 @endif
                                 <td>
-                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--edit" wire:click="openEditModal({{ $item->id }})" title="{{ __('personnel.edit') }}">
+                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--edit" wire:click="openEditModal('{{ $item->id }}')" title="{{ __('personnel.edit') }}">
                                         <i class="mdi mdi-pencil"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--delete" wire:click="openDeleteModal({{ $item->id }})" title="{{ __('personnel.delete') }}">
+                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--delete" wire:click="openDeleteModal('{{ $item->id }}')" title="{{ __('personnel.delete') }}">
                                         <i class="mdi mdi-delete"></i>
                                     </button>
                                 </td>
@@ -124,7 +124,7 @@
                         <button type="button" class="close" wire:click="closeDeleteModal"><span>&times;</span></button>
                     </div>
                     <div class="modal-body">
-                        <div class="alert alert-danger mb-0">{{ __('personnel.confirm_delete_item', ['name' => $configName]) }}</div>
+                        <div class="alert alert-danger mb-0">{{ strip_tags(__('personnel.confirm_delete_item', ['name' => $configName])) }}</div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-danger" wire:click="deleteConfig"><i class="mdi mdi-delete"></i> {{ __('personnel.delete') }}</button>

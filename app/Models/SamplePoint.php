@@ -19,12 +19,15 @@ class SamplePoint extends Model implements Auditable
 
     use \OwenIt\Auditing\Auditable;
 
-    protected $table = 'crm_sample_points';
+    protected $table = 'sample_points';
     
     protected $fillable = [
-        'code',
+        'crm_customer_id',
+        'crm_company_unit_id',
         'name',
-        'created_by',
+        'description',
+        'gps',
+        'active',
     ];
 
     /**
@@ -35,12 +38,9 @@ class SamplePoint extends Model implements Auditable
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /**
-     * Get the area that this sample point belongs to
-     */
-    public function area()
+    public function unit(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Area::class, 'crm_area_id');
+        return $this->belongsTo(\App\Models\CRM\CRMCompanyUnit::class, 'crm_company_unit_id');
     }
 
     /**

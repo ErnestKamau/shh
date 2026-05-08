@@ -193,6 +193,8 @@
                     <th>Code</th>
                     <th>Audit Type</th>
                     <th>ISO Standard</th>
+                    <th>Workflows</th>
+                    <th>Sample Types</th>
                     <th>Items</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -210,6 +212,34 @@
                     <td><code style="background: #f8f9fa; padding: 4px 8px; border-radius: 4px; font-size: 0.875rem;">{{ $checklist->code }}</code></td>
                     <td style="color: #5f6368;">{{ $checklist->auditType?->name ?? 'N/A' }}</td>
                     <td style="color: #5f6368;">{{ $checklist->iso_standard ?? '-' }}</td>
+                    <td>
+                        @if($checklist->workflowActions->count() > 0)
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            @foreach($checklist->workflowActions->take(2) as $action)
+                            <span class="modern-badge" style="background: #f3e5f5; color: #7b1fa2; font-size: 11px;">{{ $action->name }}</span>
+                            @endforeach
+                            @if($checklist->workflowActions->count() > 2)
+                            <span class="modern-badge" style="background: #f3e5f5; color: #7b1fa2; font-size: 11px;">+{{ $checklist->workflowActions->count() - 2 }}</span>
+                            @endif
+                        </div>
+                        @else
+                        <span style="color: #9e9e9e; font-size: 13px;">None</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($checklist->sampleTypes->count() > 0)
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            @foreach($checklist->sampleTypes->take(2) as $type)
+                            <span class="modern-badge" style="background: #e0f2f1; color: #00695c; font-size: 11px;">{{ $type->name }}</span>
+                            @endforeach
+                            @if($checklist->sampleTypes->count() > 2)
+                            <span class="modern-badge" style="background: #e0f2f1; color: #00695c; font-size: 11px;">+{{ $checklist->sampleTypes->count() - 2 }}</span>
+                            @endif
+                        </div>
+                        @else
+                        <span style="color: #9e9e9e; font-size: 13px;">None</span>
+                        @endif
+                    </td>
                     <td>
                         <span class="modern-badge" style="background: #e3f2fd; color: #1976d2;">
                             {{ $checklist->items->count() }} items
@@ -297,6 +327,31 @@
                         <div class="form-group">
                             <label style="font-weight: 500; color: #5f6368; margin-bottom: 8px;">ISO Standard</label>
                             <input wire:model="iso_standard" type="text" class="form-control" placeholder="e.g., ISO 17025:2017" style="border-radius: 8px; border: 1px solid #dadce0;">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label style="font-weight: 500; color: #5f6368; margin-bottom: 8px;">Workflows</label>
+                                    <select wire:model="selected_workflow_actions" multiple class="form-control" style="border-radius: 8px; border: 1px solid #dadce0;">
+                                        @foreach($workflowActions as $action)
+                                        <option value="{{ $action['id'] }}">{{ $action['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small style="color: #5f6368;">Select applicable workflow actions for this checklist</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label style="font-weight: 500; color: #5f6368; margin-bottom: 8px;">Sample Types</label>
+                                    <select wire:model="selected_sample_types" multiple class="form-control" style="border-radius: 8px; border: 1px solid #dadce0;">
+                                        @foreach($sampleTypes as $type)
+                                        <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small style="color: #5f6368;">Select applicable sample types for this checklist</small>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group">

@@ -861,10 +861,6 @@ class SubmissionFormInstance extends Model implements Auditable
                     $unit = DB::table('crm_company_units')->where('id', $id)->first();
                     return $unit ? $unit->name : $id;
 
-                case 'company_sub_unit_select':
-                    $subUnit = DB::table('crm_company_sub_units')->where('id', $id)->first();
-                    return $subUnit ? $subUnit->name : $id;
-
                 case 'sample_type_select':
                     $sampleType = DB::table('sample_types')->where('id', $id)->first();
                     return $sampleType ? $sampleType->name : $id;

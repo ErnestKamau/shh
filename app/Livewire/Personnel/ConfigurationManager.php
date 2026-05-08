@@ -18,7 +18,7 @@ class ConfigurationManager extends Component
     public array $perPageOptions = [10, 25, 50, 100];
     public bool $showConfigModal = false;
     public bool $showDeleteModal = false;
-    public ?int $editingConfigId = null;
+    public ?string $editingConfigId = null;
     public string $configName = '';
     public string $configDescription = '';
     public string $message = '';
@@ -45,10 +45,9 @@ class ConfigurationManager extends Component
         $this->showConfigModal = true;
     }
 
-    public function openEditModal(int $configId): void
+    public function openEditModal(string $configId): void
     {
-        $item = ModulePreConfigs::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
+        $item = $this->buildScopedQuery()
             ->findOrFail($configId);
 
         $this->editingConfigId = $item->id;
@@ -89,10 +88,9 @@ class ConfigurationManager extends Component
         $this->messageType = 'success';
     }
 
-    public function openDeleteModal(int $configId): void
+    public function openDeleteModal(string $configId): void
     {
-        $item = ModulePreConfigs::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
+        $item = $this->buildScopedQuery()
             ->findOrFail($configId);
         $this->editingConfigId = $item->id;
         $this->configName = (string) $item->name;
@@ -106,10 +104,8 @@ class ConfigurationManager extends Component
 
     public function deleteConfig(): void
     {
-        $this->validate(['editingConfigId' => 'required|integer']);
-        $item = ModulePreConfigs::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
-            ->findOrFail((int) $this->editingConfigId);
+        $this->validate(['editingConfigId' => 'required|string']);
+        $item = $this->buildScopedQuery()->findOrFail($this->editingConfigId);
         $item->delete();
         $this->showDeleteModal = false;
         $this->message = 'Configuration deleted successfully.';
@@ -123,11 +119,7 @@ class ConfigurationManager extends Component
 
     public function getConfigItemsProperty()
     {
-        $query = ModulePreConfigs::query()
-            ->where('type', $this->config)
-            ->where('module', $this->module)
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
-            ->orderBy('name');
+        $query = $this->buildScopedQuery()->orderBy('name');
 
         if ($this->search !== '') {
             $searchText = '%' . $this->search . '%';
@@ -138,6 +130,33 @@ class ConfigurationManager extends Component
         }
 
         return $query->paginate($this->perPage);
+    }
+
+    private function buildScopedQuery()
+    {
+        $query = ModulePreConfigs::query()
+            ->where('type', $this->config)
+            ->where('module', $this->module);
+
+        $locationId = $this->currentLocationId();
+
+        if ($locationId !== null && $locationId !== '') {
+            $query->where(function ($builder) use ($locationId): void {
+                $builder->where('inventory_location_id', $locationId)
+                    ->orWhereNull('inventory_location_id');
+            });
+        }
+
+        return $query;
+    }
+
+    private function currentLocationId(): ?string
+    {
+        try {
+            return (string) (getCurrentUserLocation()->id ?? '');
+        } catch (\Throwable $exception) {
+            return null;
+        }
     }
 
     public function render()
