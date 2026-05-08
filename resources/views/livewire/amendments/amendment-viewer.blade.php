@@ -136,11 +136,11 @@
                                                 {{ $amendment->created_at->format('M d, Y') }}
                                             </td>
                                             <td>
-                                                <div class="btn-group" role="group">
+                                                <div class="d-flex">
                                                     <button wire:click="viewAmendment({{ $amendment->id }})" 
-                                                            class="btn btn-sm btn-outline-primary mr-1" 
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--view" 
                                                             title="View Details">
-                                                        <i class="mdi mdi-eye"></i>
+                                                        <i class="mdi mdi-eye-outline"></i>
                                                     </button>
                                                 </div>
                                             </td>

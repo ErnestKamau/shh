@@ -51,11 +51,6 @@ function getCurrentDate()
 	return \Carbon\Carbon::now();
 }
 
-function getUserLicenses()
-{
-	return array("shared_user" => "Shared", "named_user" => "Named");
-}
-
 function systemVariables($typ)
 {
 	$variables = array(

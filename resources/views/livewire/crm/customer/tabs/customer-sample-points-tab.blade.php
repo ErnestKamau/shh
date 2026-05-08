@@ -62,6 +62,7 @@
             <tr>
                 <th>No</th>
                 <th>{{ __('crm.name') }}</th>
+                <th>{{ __('crm.description') }}</th>
                 <th>{{ trim($customer->unit_configurable_name) != "" ? $customer->unit_configurable_name : __('crm.unit') }}</th>
                 <th>{{ __('crm.status') }}</th>
                 <th style="min-width: 100px;">{{ __('crm.actions') }}</th>
@@ -71,6 +72,7 @@
                         <tr>
                             <td>{{ $loop->iteration }}</td>
                             <td>{{ $point->name }}</td>
+                            <td>{{ $point->description ?: '-' }}</td>
                             <td>{{ $point->crm_unit_name ?? ($point->unit->name ?? '-') }}</td>
                             <td>
                                 @if($point->active == '1')
@@ -90,7 +92,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5">
+                            <td colspan="6">
                                 <x-crm.empty-state
                                     icon="mdi-map-marker-outline"
                                     :message="__('crm.no_sampling_locations_for_client')"

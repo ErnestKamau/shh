@@ -3,7 +3,6 @@
             init() {
                 Livewire.on('show-attachment-modal', () => {
                    $('#attachmentModal').modal('show');
-                   this.initSelect2();
                 });
                 Livewire.on('close-attachment-modal', () => {
                    $('#attachmentModal').modal('hide');
@@ -14,35 +13,6 @@
                 Livewire.on('close-delete-confirmation', () => {
                    $('#deleteConfirmationModal').modal('hide');
                 });
-                Livewire.on('attachment-types-updated', () => {
-                    this.refreshSelect2();
-                });
-            },
-            initSelect2() {
-                const wire = $wire;
-                const $select = $('#attachment-type-select');
-                if ($select.data('select2')) {
-                    $select.select2('destroy');
-                }
-                $select.select2({
-                    dropdownParent: $('#attachmentModal'),
-                    width: '100%',
-                    placeholder: '{{ __('crm.select_type') }}'
-                }).on('change', (e) => {
-                    if (wire && typeof wire.set === 'function') {
-                        wire.set('type', e.target.value);
-                    }
-                });
-
-                // Sync select to current server state (add or edit)
-                $select.val(@js($type) || '').trigger('change.select2');
-            },
-            refreshSelect2() {
-                const $select = $('#attachment-type-select');
-                if ($select.data('select2')) {
-                    $select.select2('destroy');
-                }
-                this.initSelect2();
             }
         }">
 
@@ -155,16 +125,36 @@
                             <input type="text" wire:model="title" class="form-control" required />
                             @error('title') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
-                        <div class="form-group" wire:ignore>
+                        <div class="form-group">
                             <label>{{ __('crm.type') }} <span class="text-danger">*</span>:</label>
-                            <select id="attachment-type-select"
-                                class="form-control custom-select-sm" required>
-                                <option value="">{{ __('crm.select_type') }}</option>
-                                @foreach($availableAttachmentTypes as $aType)
-                                    <option value="{{ $aType }}">{{ $aType }}</option>
-                                @endforeach
-                                <option value="Other">{{ __('crm.other') }}</option>
-                            </select>
+                            <div class="tag-select-container" wire:click.outside="$set('showTypeDropdown', false)">
+                                <div class="tag-select-input">
+                                    @if($this->selectedType)
+                                        <span class="selected-tag">
+                                            {{ $this->selectedType }}
+                                            <i class="mdi mdi-close" wire:click.stop="clearType"></i>
+                                        </span>
+                                    @endif
+                                    <input type="text" class="tag-input" placeholder="{{ __('crm.select_type') }}"
+                                        wire:model.live.debounce.200ms="typeSearch"
+                                        wire:focus="$set('showTypeDropdown', true)" />
+                                    @if($type)
+                                        <i class="mdi mdi-close-circle clear-icon" wire:click="clearType"></i>
+                                    @endif
+                                </div>
+
+                                @if($showTypeDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredTypeOptions as $option)
+                                            <div class="tag-dropdown-item" wire:click="selectType('{{ $option }}')">
+                                                {{ $option }}
+                                            </div>
+                                        @empty
+                                            <div class="tag-dropdown-empty">No type found</div>
+                                        @endforelse
+                                    </div>
+                                @endif
+                            </div>
                             @error('type') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
 
@@ -246,3 +236,46 @@
     </div>
     @endteleport
 </div>
+
+<style>
+    .tag-select-container { position: relative; }
+    .tag-select-input {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-height: 40px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 6px 10px;
+        background: #fff;
+    }
+    .selected-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: #e8f1ff;
+    }
+    .selected-tag i { cursor: pointer; font-size: 14px; }
+    .tag-input { border: none; outline: none; flex: 1 1 160px; min-width: 100px; }
+    .clear-icon { cursor: pointer; color: #9ca3af; font-size: 18px; }
+    .tag-dropdown {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #fff;
+        z-index: 1070;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+    .tag-dropdown-item { padding: 8px 10px; cursor: pointer; }
+    .tag-dropdown-item:hover { background: #f3f4f6; }
+    .tag-dropdown-empty { padding: 8px 10px; color: #6b7280; font-size: 13px; }
+</style>

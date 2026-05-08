@@ -28,6 +28,7 @@
 			$canDepartments = $user->can('personnel.department.view');
 			$canRoles = $user->can('personnel.role.view');
 			$canAuditTrail = $user->can('personnel.audit_trail.view');
+			$canPersonnelEdit = $user->can('personnel.personnel.edit');
 			$canPersonnelConfigurations = $user->can('personnel.configuration.view');
 			$canModulePreConfigsRoute = $user->can('personnel.module.access');
 		@endphp
@@ -87,6 +88,14 @@
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-search fa-fw mr-3"></span>
 					<span class="menu-collapsed">Audit Trail</span>
+				</div>
+			</a>
+			@endif
+			@if($canPersonnelEdit)
+			<a href="{{ route('locked-accounts') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-lock fa-fw mr-3"></span>
+					<span class="menu-collapsed">Locked Accounts</span>
 				</div>
 			</a>
 			@endif

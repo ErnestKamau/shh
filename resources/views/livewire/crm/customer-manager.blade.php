@@ -1,4 +1,20 @@
 <div class="container-fluid">
+    @php
+        $breadcrumbItems = [
+            [
+                'link' => route('crm.dashboard'),
+                'name' => __('crm.module_name'),
+                'icon' => null,
+            ],
+            [
+                'link' => route('customers-list'),
+                'name' => __('crm.client_registry'),
+                'icon' => null,
+            ],
+        ];
+    @endphp
+    <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
+
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -12,7 +28,7 @@
                             </h2>
                             <p class="text-muted mb-0">{{ __('crm.customer_management_subtitle') }}</p>
                         </div>
-                        <button wire:click="showCreateCustomerModal" wire:loading.attr="disabled" class="btn btn-sm btn-primary">
+                        <button wire:click="showCreateCustomerModal" wire:loading.attr="disabled" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                             <span wire:loading.remove wire:target="showCreateCustomerModal">
                                 <i class="mdi mdi-plus"></i> {{ __('crm.add_customer') }}
                             </span>

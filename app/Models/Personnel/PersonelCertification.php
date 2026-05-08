@@ -10,10 +10,20 @@ use OwenIt\Auditing\Contracts\Auditable;
 class PersonelCertification extends Model implements Auditable
 {
     use HasUuids;
+    use \OwenIt\Auditing\Auditable;
 
     protected $keyType = 'string';
     public $incrementing = false;
 
-	use \OwenIt\Auditing\Auditable;
-    //
+    protected $table = 'personnel_user_certifications';
+
+    protected $fillable = [
+        'user_id',
+        'title',
+        'certifying_body',
+        'valid_from',
+        'valid_to',
+        'attachment_path',
+        'created_by',
+    ];
 }

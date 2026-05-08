@@ -76,13 +76,16 @@ class CustomerSamplePointsTab extends BaseCrmComponent
 
     public function getSamplePointsProperty()
     {
-        return SamplePoint::whereHas('unit', function ($query) {
-            $query->where('crm_customer_id', $this->customer->id);
-        })
-        ->where(function($query) {
-            $query->where('name', 'like', '%'.$this->search.'%');
-        })
-        ->paginate($this->perPage);
+        return SamplePoint::query()
+            ->where('crm_customer_id', $this->customer->id)
+            ->whereHas('unit', function ($query) {
+                $query->where('crm_customer_id', $this->customer->id);
+            })
+            ->where(function ($query) {
+                $query->where('name', 'like', '%'.$this->search.'%')
+                    ->orWhere('description', 'like', '%'.$this->search.'%');
+            })
+            ->paginate($this->perPage);
     }
 
     public function openPointForm($pointId = null)

@@ -25,6 +25,8 @@ class ComplaintResolutionTab extends BaseCrmComponent
     public $resolved_by_user_id = '';
     public $users = [];
     public $activeTab = 'findings';
+    public $officerSearch = '';
+    public $showOfficerDropdown = false;
 
     public $selectedResolution;
 
@@ -35,6 +37,73 @@ class ComplaintResolutionTab extends BaseCrmComponent
         $this->complaint = Complaint::findOrFail($complaintId);
         $this->loadResolutions();
         $this->users = getAllUsers();
+        $this->resolved_by_user_id = [];
+    }
+
+    public function getSelectedOfficersProperty()
+    {
+        $selectedIds = collect($this->resolved_by_user_id)->map(fn($id) => (int) $id)->all();
+        if (empty($selectedIds)) {
+            return collect();
+        }
+
+        return collect($this->users)
+            ->filter(fn($user) => in_array((int) $user->id, $selectedIds, true))
+            ->values();
+    }
+
+    public function getFilteredOfficerOptionsProperty()
+    {
+        $search = strtolower(trim($this->officerSearch));
+        $selectedIds = collect($this->resolved_by_user_id)->map(fn($id) => (int) $id)->all();
+
+        return collect($this->users)
+            ->filter(function ($user) use ($search, $selectedIds) {
+                if (in_array((int) $user->id, $selectedIds, true)) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($user->name), $search);
+            })
+            ->values();
+    }
+
+    public function toggleOfficer($userId)
+    {
+        $userId = (string) $userId;
+
+        if (in_array($userId, $this->resolved_by_user_id, true)) {
+            $this->resolved_by_user_id = array_values(array_filter(
+                $this->resolved_by_user_id,
+                fn($id) => (string) $id !== $userId
+            ));
+        } else {
+            $this->resolved_by_user_id[] = $userId;
+            $this->resolved_by_user_id = array_values(array_unique(array_map('strval', $this->resolved_by_user_id)));
+        }
+
+        $this->officerSearch = '';
+        $this->showOfficerDropdown = true;
+    }
+
+    public function removeOfficer($userId)
+    {
+        $userId = (string) $userId;
+        $this->resolved_by_user_id = array_values(array_filter(
+            $this->resolved_by_user_id,
+            fn($id) => (string) $id !== $userId
+        ));
+    }
+
+    public function clearOfficers()
+    {
+        $this->resolved_by_user_id = [];
+        $this->officerSearch = '';
+        $this->showOfficerDropdown = false;
     }
 
     public function loadResolutions()
@@ -93,7 +162,9 @@ class ComplaintResolutionTab extends BaseCrmComponent
                 $this->corrective_action = $resolution->corrective_action_taken;
                 $this->preventive_action = $resolution->preventive_action;
                 $this->officer_responsible = $resolution->officer_responsible;
-                $this->resolved_by_user_id = $resolution->resolved_by_user_id;
+                $this->resolved_by_user_id = $resolution->resolved_by_user_id ? [(string) $resolution->resolved_by_user_id] : [];
+                $this->officerSearch = '';
+                $this->showOfficerDropdown = false;
                 
                 // Dispatch with data for editing
                 $this->dispatch('show-resolution-modal', [
@@ -103,7 +174,7 @@ class ComplaintResolutionTab extends BaseCrmComponent
                     'root_cause_analysis' => $this->root_cause_analysis,
                     'corrective_action' => $this->corrective_action,
                     'preventive_action' => $this->preventive_action,
-                    'officer' => $this->resolved_by_user_id, // Send ID for Select2
+                    'officer' => $this->resolved_by_user_id,
                 ]);
                 return;
             }
@@ -118,6 +189,8 @@ class ComplaintResolutionTab extends BaseCrmComponent
         $this->preventive_action = '';
         $this->officer_responsible = '';
         $this->resolved_by_user_id = [];
+        $this->officerSearch = '';
+        $this->showOfficerDropdown = false;
         $this->dispatch('show-resolution-modal', []);
     }
 
@@ -188,7 +261,7 @@ class ComplaintResolutionTab extends BaseCrmComponent
         $this->dispatch('close-resolution-modal');
         $this->dispatch('resolution-saved');
         
-        $this->reset(['editingResolutionId', 'action', 'findings', 'root_cause_analysis', 'corrective_action', 'preventive_action', 'officer_responsible', 'resolved_by_user_id']);
+        $this->reset(['editingResolutionId', 'action', 'findings', 'root_cause_analysis', 'corrective_action', 'preventive_action', 'officer_responsible', 'resolved_by_user_id', 'officerSearch', 'showOfficerDropdown']);
     }
 
     #[On('resolution-saved')]

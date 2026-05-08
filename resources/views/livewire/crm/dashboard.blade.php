@@ -127,14 +127,6 @@
                     <div class="stat-subtext">{{ __('crm.received_this_month') }}</div>
                 </div>
             </div>
-            <!-- Sample Points -->
-            <div class="col-md-3">
-                <div class="bento-card pipeline-card h-100" onclick="window.location.href='@php echo route('crm.sample-points'); @endphp'">
-                    <div class="stat-label text-success"><i class="fas fa-map-marker-alt mr-1"></i> {{ __('crm.sample_points') }}</div>
-                    <div class="stat-value">{{ number_format($totalSamplePoints) }}</div>
-                    <div class="stat-subtext">{{ __('crm.operational_collection_points') }}</div>
-                </div>
-            </div>
         </div>
 
         <!-- Analytics and Actions (Row 2) -->
@@ -166,9 +158,6 @@
                         </a>
                         <a href="{{ route('crm.complaints-manager') }}" class="client-action-btn">
                             <i class="fas fa-exclamation-circle text-danger"></i> {{ __('crm.log_new_complaint') }}
-                        </a>
-                        <a href="{{ route('crm.sample-points') }}" class="client-action-btn">
-                            <i class="fas fa-map-pin text-success"></i> {{ __('crm.create_sample_point') }}
                         </a>
                         <a href="#" class="client-action-btn mb-0">
                             <i class="fas fa-certificate text-warning"></i> {{ __('crm.view_certifications') }}

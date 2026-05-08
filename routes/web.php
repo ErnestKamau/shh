@@ -22,12 +22,19 @@ use App\Http\Controllers\LivewireControllers\CRMAppController;
 use App\Http\Controllers\LivewireControllers\EquipmentAppController;
 use App\Http\Controllers\System\PushSubscriptionController;
 use App\Http\Controllers\System\SystemDatabaseExportController;
+use App\Http\Controllers\Auth\ChangePasswordController;
 
 Route::get('/', function () {
     return redirect()->route('home');
 });
 
 Auth::routes();
+
+// Force-change password (90-day expiry policy)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/change-password', [ChangePasswordController::class, 'showForm'])->name('password.force-change');
+    Route::post('/change-password', [ChangePasswordController::class, 'update'])->name('password.force-change.update');
+});
 
 Route::middleware(['auth'])->group(function () {
     Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
@@ -296,14 +303,6 @@ Route::get('/livewire/customers', [CRMAppController::class, 'customers'])
 Route::get('/livewire/customers/{customerId}/profile', [CRMAppController::class, 'customerProfile'])
     ->name('livewire.customer-profile')
     ->middleware('can:crm.customers.view');
-
-Route::get('/crm/sample-points', [CRMAppController::class, 'samplePoints'])
-    ->name('crm.sample-points')
-    ->middleware('can:crm.sample-points.view');
-
-Route::get('/crm/areas', [CRMAppController::class, 'areas'])
-    ->name('crm.areas')
-    ->middleware('can:crm.areas.view');
 
 Route::get('/crm/complaints-manager/{stage?}', [CRMAppController::class, 'complaintsManager'])
     ->name('crm.complaints-manager')
@@ -1084,9 +1083,6 @@ Route::post('/approve-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowControll
 Route::post('/company-units/{cust_id}', 'CRM\CRMCompanyUnitController@add')->name('add-company-units')->middleware('can:crm.company-units.add');
 Route::post('/company-unit/{id}/{cust_id}', 'CRM\CRMCompanyUnitController@edit')->name('edit-company-unit')->middleware('can:crm.company-units.edit');
 
-Route::post('/sample-point', 'CRM\SamplePointController@add')->name('add-sample-point')->middleware('can:crm.sample-points.add');
-Route::post('/sample-point/{id}', 'CRM\SamplePointController@edit')->name('edit-sample-point')->middleware('can:crm.sample-points.edit');
-
 Route::post('/customer-product', 'CRM\CompanyProductController@add')->name('add-customer-product')->middleware('can:crm.products.add');
 Route::post('/customer-product/edit/{id?}', 'CRM\CompanyProductController@edit')->name('edit-customer-product')->middleware('can:crm.products.edit');
 
@@ -1413,6 +1409,9 @@ Route::post('/remove-personnel-role/{id}', 'UserRoleController@remove')->name('r
 
 Route::post('/personnel-state-change/{id}', 'PersonnelController@deactivate_personnel')->name('personnel-state')->middleware('can:personnel.personnel.edit');
 Route::post('/reset-personnel-password/{id}', 'PersonnelController@reset_personnel_password')->name('reset-personnel')->middleware('can:personnel.personnel.edit');
+
+Route::get('/locked-accounts', 'PersonnelController@lockedAccounts')->name('locked-accounts')->middleware('can:personnel.personnel.edit');
+Route::post('/unlock-account/{id}', 'PersonnelController@unlockAccount')->name('unlock-account')->middleware('can:personnel.personnel.edit');
 
 Route::get('/personel/certification-coniguration', 'Personel\CertificationController@index')->name('personnel-certification-home')->middleware('can:personnel.configurations.view');
 

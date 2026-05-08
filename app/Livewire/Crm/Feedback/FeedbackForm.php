@@ -19,6 +19,8 @@ class FeedbackForm extends BaseCrmComponent
     public $date = '';
     public $isActive = true;
     public $customers = [];
+    public $customerSearch = '';
+    public $showCustomerDropdown = false;
 
     public function mount($feedbackId = null, $customerId = null)
     {
@@ -54,6 +56,38 @@ class FeedbackForm extends BaseCrmComponent
             'date' => 'required|date',
             'status' => 'boolean',
         ];
+    }
+
+    public function getSelectedCustomerProperty()
+    {
+        return collect($this->customers)->firstWhere('name', $this->received_from);
+    }
+
+    public function getFilteredCustomersProperty()
+    {
+        $search = trim(strtolower($this->customerSearch));
+
+        return collect($this->customers)
+            ->when($search !== '', function ($customers) use ($search) {
+                return $customers->filter(function ($customer) use ($search) {
+                    return str_contains(strtolower($customer->name), $search);
+                });
+            })
+            ->take(80)
+            ->values();
+    }
+
+    public function selectReceivedFrom($customerName)
+    {
+        $this->received_from = (string) $customerName;
+        $this->customerSearch = '';
+        $this->showCustomerDropdown = false;
+    }
+
+    public function clearReceivedFrom()
+    {
+        $this->received_from = '';
+        $this->customerSearch = '';
     }
 
     public function save()

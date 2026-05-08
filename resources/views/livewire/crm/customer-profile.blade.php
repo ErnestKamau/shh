@@ -1,4 +1,25 @@
 <div class="container-fluid">
+    @php
+        $breadcrumbItems = [
+            [
+                'link' => route('crm.dashboard'),
+                'name' => __('crm.module_name'),
+                'icon' => null,
+            ],
+            [
+                'link' => route('customers-list'),
+                'name' => __('crm.client_registry'),
+                'icon' => null,
+            ],
+            [
+                'link' => '#',
+                'name' => $customer->name,
+                'icon' => null,
+            ],
+        ];
+    @endphp
+    <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
+
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -21,10 +42,10 @@
                                     <i class="mdi mdi-content-save"></i> {{ __('crm.save_changes') }}
                                 </button>
                             @else
-                                <button wire:click="openLabelModal" class="btn btn-sm btn-outline-info me-2" title="{{ __('crm.edit_tab_names') }}">
+                                <button wire:click="openLabelModal" class="btn btn-sm btn-outline-info pricelist-action-btn me-2" title="{{ __('crm.edit_tab_names') }}">
                                     <i class="mdi mdi-label-outline"></i> {{ __('crm.edit_tab_names') }}
                                 </button>
-                                <button wire:click="startEditing" class="btn btn-sm btn-primary">
+                                <button wire:click="startEditing" class="btn btn-sm btn-outline-primary pricelist-action-btn">
                                     <i class="mdi mdi-pencil"></i> {{ __('crm.edit_customer') }}
                                 </button>
                             @endif
@@ -43,13 +64,18 @@
         </div>
     @endif
 
+    @php
+        $unitLabel = trim($customer->unit_configurable_name ?? '') !== '' ? trim($customer->unit_configurable_name) : __('crm.company_units');
+        $samplePointLabel = trim($customer->sample_point_configurable_name ?? '') !== '' ? trim($customer->sample_point_configurable_name) : __('crm.sample_points');
+    @endphp
+
     <!-- Tabs Navigation -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 20px; overflow: hidden;">
                 <div class="card-body p-0">
                     <div class="modern-tabs">
-                        <ul class="nav nav-pills nav-fill" id="customerTabs" role="tablist">
+                        <ul class="nav nav-pills flex-nowrap" id="customerTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link modern-tab-link {{ $activeTab === 'details' ? 'active' : '' }}" 
                                         wire:click="setActiveTab('details')" 
@@ -63,23 +89,7 @@
                                         wire:click="setActiveTab('units')" 
                                         type="button">
                                     <i class="mdi mdi-sitemap me-2"></i>
-                                    <span class="fw-semibold">{{ trim($customer->unit_configurable_name ?? '') !== '' ? $customer->unit_configurable_name : __('crm.company_units') }}</span>
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link modern-tab-link {{ $activeTab === 'sub-units' ? 'active' : '' }}" 
-                                        wire:click="setActiveTab('sub-units')" 
-                                        type="button">
-                                    <i class="mdi mdi-file-tree me-2"></i>
-                                    <span class="fw-semibold">{{ trim($customer->sub_unit_configurable_name ?? '') !== '' ? $customer->sub_unit_configurable_name : __('crm.company_sub_units') }}</span>
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link modern-tab-link {{ $activeTab === 'areas' ? 'active' : '' }}" 
-                                        wire:click="setActiveTab('areas')" 
-                                        type="button">
-                                    <i class="mdi mdi-map-marker-multiple me-2"></i>
-                                    <span class="fw-semibold">{{ trim($customer->area_configurable_name ?? '') !== '' ? $customer->area_configurable_name : __('crm.areas') }}</span>
+                                    <span class="fw-semibold">{{ $unitLabel }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -87,7 +97,7 @@
                                         wire:click="setActiveTab('sample-points')" 
                                         type="button">
                                     <i class="mdi mdi-map-marker me-2"></i>
-                                    <span class="fw-semibold">{{ trim($customer->sample_point_configurable_name ?? '') !== '' ? $customer->sample_point_configurable_name : __('crm.sample_points') }}</span>
+                                    <span class="fw-semibold">{{ $samplePointLabel }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -430,16 +440,6 @@
                 @livewire(\App\Livewire\CRM\CompanyUnitsManager::class, ['customerId' => $customerId])
             @endif
 
-            <!-- Company Sub Units Tab -->
-            @if($activeTab === 'sub-units')
-                @livewire(\App\Livewire\CRM\CompanySubUnitsManager::class, ['customerId' => $customerId])
-            @endif
-
-            <!-- Areas Tab -->
-            @if($activeTab === 'areas')
-                @livewire(\App\Livewire\CRM\AreasManager::class, ['customerId' => $customerId])
-            @endif
-
             <!-- Sample Points Tab -->
             @if($activeTab === 'sample-points')
                 @livewire(\App\Livewire\Samples\SamplePointsManager::class, ['customerId' => $customerId])
@@ -470,6 +470,8 @@
             border-radius: 20px;
             padding: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
+            scrollbar-width: thin;
         }
 
     .modern-tab-link {
@@ -533,6 +535,14 @@
     .modern-tab-link.active i {
         transform: scale(1.1);
         filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    }
+
+    .pricelist-action-btn {
+        border-radius: 10px;
+        min-height: 42px;
+        font-weight: 600;
+        padding-left: 16px;
+        padding-right: 16px;
     }
 
     /* Responsive adjustments */
@@ -737,36 +747,6 @@
                                     {{ __('crm.current') }}: <strong>{{ trim($customer->unit_configurable_name ?? '') !== '' ? $customer->unit_configurable_name : __('crm.company_units') }}</strong>
                                 </small>
                                 @error('labelForm.unit_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div class="form-group mb-4">
-                                <label class="form-label fw-bold">
-                                    <i class="mdi mdi-file-tree text-info"></i> 
-                                    {{ __('crm.company_sub_units') }}
-                                </label>
-                                <input type="text" 
-                                       wire:model="labelForm.sub_unit_configurable_name" 
-                                       class="form-control" 
-                                       placeholder="{{ __('crm.company_sub_units') }}">
-                                <small class="text-muted">
-                                    {{ __('crm.current') }}: <strong>{{ trim($customer->sub_unit_configurable_name ?? '') !== '' ? $customer->sub_unit_configurable_name : __('crm.company_sub_units') }}</strong>
-                                </small>
-                                @error('labelForm.sub_unit_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div class="form-group mb-4">
-                                <label class="form-label fw-bold">
-                                    <i class="mdi mdi-map-marker-multiple text-warning"></i> 
-                                    {{ __('crm.areas') }}
-                                </label>
-                                <input type="text" 
-                                       wire:model="labelForm.area_configurable_name" 
-                                       class="form-control" 
-                                       placeholder="{{ __('crm.areas') }}">
-                                <small class="text-muted">
-                                    {{ __('crm.current') }}: <strong>{{ trim($customer->area_configurable_name ?? '') !== '' ? $customer->area_configurable_name : __('crm.areas') }}</strong>
-                                </small>
-                                @error('labelForm.area_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="form-group mb-4">

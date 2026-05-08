@@ -3,16 +3,25 @@
 namespace App\Livewire\Personnel;
 
 use App\Directorate;
+use App\Http\Controllers\PersonnelWorkHistoryController;
 use App\InventoryDepartment;
 use App\Lab;
 use App\ModulePreConfigs;
 use App\User;
+use App\UserDirectorateRelation;
+use App\UserLabRelation;
+use App\UserZoneRelation;
 use App\Zone;
+use App\Models\Personnel\PersonelCertification;
+use App\Models\SkillsMatrix\SkillMarixRole;
+use App\Models\SkillsMatrix\SkillsMatrixDetail;
+use App\Models\SkillsMatrix\SkillsMatrixRoleRequirment;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -29,7 +38,6 @@ class PersonnelDetailManager extends Component
     public string $educationSearch = '';
     public string $positionSearch = '';
     public string $departmentSearch = '';
-    public string $licenseSearch = '';
     public string $zoneSearch = '';
     public string $directorateSearch = '';
     public string $labSearch = '';
@@ -37,7 +45,6 @@ class PersonnelDetailManager extends Component
     public bool $showEducationDropdown = false;
     public bool $showPositionDropdown = false;
     public bool $showDepartmentDropdown = false;
-    public bool $showLicenseDropdown = false;
     public bool $showZoneDropdown = false;
     public bool $showDirectorateDropdown = false;
     public bool $showLabDropdown = false;
@@ -45,7 +52,6 @@ class PersonnelDetailManager extends Component
     public ?string $selectedEducationId = null;
     public ?string $selectedPositionId = null;
     public ?string $selectedDepartmentId = null;
-    public ?string $selectedLicenseKey = null;
     /** @var array<int, string> */
     public array $selectedZoneIds = [];
     /** @var array<int, string> */
@@ -88,6 +94,22 @@ class PersonnelDetailManager extends Component
     /** @var array<int, string> */
     public array $expandedRoleRows = [];
 
+    public int $detailsStep = 1;
+    public string $detailsFirstName = '';
+    public string $detailsMiddleName = '';
+    public string $detailsLastName = '';
+    public string $detailsEmail = '';
+    public string $detailsPhone = '';
+    public string $detailsIdNumber = '';
+    public ?string $detailsDateOfBirth = null;
+    public ?string $detailsEmploymentDate = null;
+    public bool $detailsAnalystIsGazzetted = false;
+    public ?string $detailsDateOfGazzette = null;
+    public string $detailsGazzetteNo = '';
+    public ?string $detailsStartOfCareer = null;
+    public $detailsSignatureUpload;
+    public string $detailsSignatureData = '';
+
     public function mount(string $userId): void
     {
         $this->userId = $userId;
@@ -97,7 +119,6 @@ class PersonnelDetailManager extends Component
         $this->selectedEducationId = $user->education_level ? (string) $user->education_level : null;
         $this->selectedPositionId = $user->position ? (string) $user->position : null;
         $this->selectedDepartmentId = $user->department_id ? (string) $user->department_id : null;
-        $this->selectedLicenseKey = $user->license_type ? (string) $user->license_type : null;
         $this->selectedZoneIds = [];
         $this->selectedDirectorateIds = [];
         $this->selectedLabIds = [];
@@ -106,34 +127,38 @@ class PersonnelDetailManager extends Component
             $this->selectedZoneIds[] = (string) $user->zone_id;
         }
 
-        if (Schema::hasTable('user_zone_relation')) {
-            $zoneRelations = DB::table('user_zone_relation')
-                ->where('user_id', $user->id)
-                ->pluck('zone_id')
-                ->map(fn ($id): string => (string) $id)
-                ->all();
-            $this->selectedZoneIds = array_merge($this->selectedZoneIds, $zoneRelations);
-        }
+        $zoneRelations = UserZoneRelation::where('user_id', $user->id)
+            ->pluck('zone_id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+        $this->selectedZoneIds = array_merge($this->selectedZoneIds, $zoneRelations);
 
-        if (Schema::hasTable('user_directorate_relation')) {
-            $this->selectedDirectorateIds = DB::table('user_directorate_relation')
-                ->where('user_id', $user->id)
-                ->pluck('directorate_id')
-                ->map(fn ($id): string => (string) $id)
-                ->all();
-        }
+        $this->selectedDirectorateIds = UserDirectorateRelation::where('user_id', $user->id)
+            ->pluck('directorate_id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
 
-        if (Schema::hasTable('user_lab_relation')) {
-            $this->selectedLabIds = DB::table('user_lab_relation')
-                ->where('user_id', $user->id)
-                ->pluck('lab_id')
-                ->map(fn ($id): string => (string) $id)
-                ->all();
-        }
+        $this->selectedLabIds = UserLabRelation::where('user_id', $user->id)
+            ->pluck('lab_id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
 
         $this->selectedZoneIds = array_values(array_unique(array_filter($this->selectedZoneIds, fn ($id): bool => (string) $id !== '')));
         $this->selectedDirectorateIds = array_values(array_unique(array_filter($this->selectedDirectorateIds, fn ($id): bool => (string) $id !== '')));
         $this->selectedLabIds = array_values(array_unique(array_filter($this->selectedLabIds, fn ($id): bool => (string) $id !== '')));
+
+        $this->detailsFirstName = (string) ($user->first_name ?? '');
+        $this->detailsMiddleName = (string) ($user->middle_name ?? '');
+        $this->detailsLastName = (string) ($user->last_name ?? '');
+        $this->detailsEmail = (string) ($user->email ?? '');
+        $this->detailsPhone = (string) ($user->phone ?? '');
+        $this->detailsIdNumber = (string) ($user->id_number ?? '');
+        $this->detailsDateOfBirth = !empty($user->date_of_birth) ? date('Y-m-d', strtotime((string) $user->date_of_birth)) : null;
+        $this->detailsEmploymentDate = !empty($user->employment_date) ? date('Y-m-d', strtotime((string) $user->employment_date)) : null;
+        $this->detailsAnalystIsGazzetted = (bool) ($user->analyst_is_gazzetted ?? false);
+        $this->detailsDateOfGazzette = !empty($user->date_of_gazzette) ? date('Y-m-d', strtotime((string) $user->date_of_gazzette)) : null;
+        $this->detailsGazzetteNo = (string) ($user->gazzette_no ?? '');
+        $this->detailsStartOfCareer = !empty($user->start_of_career) ? date('Y-m-d', strtotime((string) $user->start_of_career)) : null;
     }
 
     public function setActiveTab(string $tab): void
@@ -142,8 +167,36 @@ class PersonnelDetailManager extends Component
         $this->resetPage('rolesPage');
         $this->resetPage('workPage');
 
+        if ($this->activeTab === 'details') {
+            $this->detailsStep = 1;
+        }
+
         if ($this->activeTab !== 'roles') {
             $this->expandedRoleRows = [];
+        }
+    }
+
+    public function setDetailsStep(int $step): void
+    {
+        $this->detailsStep = max(1, min(3, $step));
+    }
+
+    public function nextDetailsStep(): void
+    {
+        $this->validateDetailsStep($this->detailsStep);
+        $this->detailsStep = min(3, $this->detailsStep + 1);
+    }
+
+    public function previousDetailsStep(): void
+    {
+        $this->detailsStep = max(1, $this->detailsStep - 1);
+    }
+
+    public function updatedDetailsAnalystIsGazzetted(bool $value): void
+    {
+        if (!$value) {
+            $this->detailsDateOfGazzette = null;
+            $this->detailsGazzetteNo = '';
         }
     }
 
@@ -200,7 +253,6 @@ class PersonnelDetailManager extends Component
         $this->showEducationDropdown = false;
         $this->showPositionDropdown = false;
         $this->showDepartmentDropdown = false;
-        $this->showLicenseDropdown = false;
         $this->showZoneDropdown = false;
         $this->showDirectorateDropdown = false;
         $this->showLabDropdown = false;
@@ -225,11 +277,6 @@ class PersonnelDetailManager extends Component
     public function searchDepartment(): void
     {
         $this->showDepartmentDropdown = true;
-    }
-
-    public function searchLicense(): void
-    {
-        $this->showLicenseDropdown = true;
     }
 
     public function searchZone(): void
@@ -275,13 +322,6 @@ class PersonnelDetailManager extends Component
         $this->departmentSearch = '';
     }
 
-    public function selectLicense(string $key): void
-    {
-        $this->selectedLicenseKey = $key;
-        $this->showLicenseDropdown = false;
-        $this->licenseSearch = '';
-    }
-
     public function clearDesignation(): void
     {
         $this->selectedDesignationId = null;
@@ -300,11 +340,6 @@ class PersonnelDetailManager extends Component
     public function clearDepartment(): void
     {
         $this->selectedDepartmentId = null;
-    }
-
-    public function clearLicense(): void
-    {
-        $this->selectedLicenseKey = null;
     }
 
     public function selectZone(string $id): void
@@ -436,6 +471,152 @@ class PersonnelDetailManager extends Component
         $this->selectedLabIds = array_values(array_filter($this->selectedLabIds, fn (string $labId): bool => $labId !== $id));
     }
 
+    public function saveUserDetails(): void
+    {
+        $this->validateDetailsStep(1);
+        $this->validateDetailsStep(2);
+        $this->validateDetailsStep(3);
+
+        $this->validate([
+            'detailsEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId, 'id')],
+            'detailsSignatureUpload' => 'nullable|image|max:3072',
+            'detailsSignatureData' => 'nullable|string',
+        ]);
+
+        $user = $this->user;
+        $originalDepartment = (string) ($user->department_id ?? '');
+        $originalPosition = (string) ($user->position ?? '');
+
+        $user->first_name = trim($this->detailsFirstName);
+        $user->middle_name = trim($this->detailsMiddleName);
+        $user->last_name = trim($this->detailsLastName);
+        $user->name = trim($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name);
+        $user->email = trim($this->detailsEmail);
+        $user->phone = trim($this->detailsPhone);
+        $user->id_number = trim($this->detailsIdNumber);
+        $user->date_of_birth = $this->detailsDateOfBirth ?: null;
+        $user->employment_date = $this->detailsEmploymentDate ?: null;
+        $user->designation = $this->selectedDesignationId ?: null;
+        $user->education_level = $this->selectedEducationId ?: null;
+        $user->position = $this->selectedPositionId ?: null;
+        $user->department_id = $this->selectedDepartmentId ?: null;
+        $user->analyst_is_gazzetted = $this->detailsAnalystIsGazzetted;
+        $user->date_of_gazzette = $this->detailsAnalystIsGazzetted ? ($this->detailsDateOfGazzette ?: null) : null;
+        $user->gazzette_no = $this->detailsAnalystIsGazzetted ? (trim($this->detailsGazzetteNo) !== '' ? trim($this->detailsGazzetteNo) : null) : null;
+        $user->start_of_career = $this->detailsStartOfCareer ?: null;
+
+        if ($this->detailsSignatureUpload) {
+            $filename = Str::uuid()->toString() . '_' . time() . '.' . $this->detailsSignatureUpload->getClientOriginalExtension();
+            $storedPath = $this->detailsSignatureUpload->storeAs('personnel-signature', $filename, 'public');
+            $user->electronic_sig = '/storage/' . $storedPath;
+        }
+
+        if ($this->detailsSignatureData !== '' && str_starts_with($this->detailsSignatureData, 'data:image/')) {
+            if (preg_match('/^data:image\/(\w+);base64,/', $this->detailsSignatureData, $matches)) {
+                $extension = strtolower($matches[1]);
+                if ($extension === 'jpeg') {
+                    $extension = 'jpg';
+                }
+
+                if (in_array($extension, ['png', 'jpg', 'gif', 'webp'], true)) {
+                    $imageData = substr($this->detailsSignatureData, strpos($this->detailsSignatureData, ',') + 1);
+                    $decoded = base64_decode($imageData, true);
+                    if ($decoded !== false) {
+                        $filename = Str::uuid()->toString() . '_' . time() . '.' . $extension;
+                        $storagePath = 'personnel-signature/' . $filename;
+                        Storage::disk('public')->put($storagePath, $decoded);
+                        $user->electronic_sig = '/storage/' . $storagePath;
+                    }
+                }
+            }
+        }
+
+        $selectedLabIds = array_values(array_unique(array_filter($this->selectedLabIds, fn ($id): bool => (string) $id !== '')));
+        $assignedLabs = collect($this->labs)->whereIn('id', $selectedLabIds);
+        $derivedZoneIds = $assignedLabs->pluck('zone_id')->filter(fn ($id): bool => (string) $id !== '')->unique()->values()->all();
+        $derivedDirectorateIds = $assignedLabs->pluck('directorate_id')->filter(fn ($id): bool => (string) $id !== '')->unique()->values()->all();
+
+        $user->zone_id = $derivedZoneIds[0] ?? null;
+        $user->save();
+
+        UserLabRelation::where('user_id', $user->id)->delete();
+        foreach ($selectedLabIds as $labId) {
+            UserLabRelation::create([
+                'user_id' => $user->id,
+                'lab_id' => (string) $labId,
+            ]);
+        }
+
+        UserZoneRelation::where('user_id', $user->id)->delete();
+        foreach ($derivedZoneIds as $zoneId) {
+            UserZoneRelation::create([
+                'user_id' => $user->id,
+                'zone_id' => (string) $zoneId,
+            ]);
+        }
+
+        UserDirectorateRelation::where('user_id', $user->id)->delete();
+        foreach ($derivedDirectorateIds as $directorateId) {
+            UserDirectorateRelation::create([
+                'user_id' => $user->id,
+                'directorate_id' => (string) $directorateId,
+            ]);
+        }
+
+        if ($originalDepartment !== (string) ($user->department_id ?? '') || $originalPosition !== (string) ($user->position ?? '')) {
+            (new PersonnelWorkHistoryController())->updateWorkHistory($user->id, $user->department_id, $user->position);
+        }
+
+        $this->detailsSignatureUpload = null;
+        $this->detailsSignatureData = '';
+        $this->message = 'User details saved.';
+        $this->messageType = 'success';
+    }
+
+    private function validateDetailsStep(int $step): void
+    {
+        if ($step === 1) {
+            $this->validate([
+                'detailsFirstName' => 'required|string|max:255',
+                'detailsMiddleName' => 'nullable|string|max:255',
+                'detailsLastName' => 'nullable|string|max:255',
+                'detailsEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId, 'id')],
+                'detailsPhone' => 'nullable|string|max:255',
+                'detailsIdNumber' => 'required|string|max:255',
+                'detailsDateOfBirth' => 'nullable|date',
+            ]);
+            return;
+        }
+
+        if ($step === 2) {
+            $this->validate([
+                'detailsEmploymentDate' => 'nullable|date',
+                'selectedDesignationId' => ['required', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Designation'))],
+                'selectedEducationId' => ['nullable', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Educational Levels'))],
+                'selectedPositionId' => ['required', 'string', Rule::exists('module_pre_configs', 'id')->where(fn ($q) => $q->where('type', 'Job Description'))],
+                'selectedDepartmentId' => 'required|string|exists:inventory_departments,id',
+            ]);
+            return;
+        }
+
+        if ($step === 3) {
+            $this->validate([
+                'selectedLabIds' => 'array',
+                'selectedLabIds.*' => 'string|exists:labs,id',
+                'detailsAnalystIsGazzetted' => 'boolean',
+                'detailsDateOfGazzette' => 'nullable|date',
+                'detailsGazzetteNo' => 'nullable|string|max:255',
+                'detailsStartOfCareer' => 'nullable|date',
+            ]);
+
+            if ($this->detailsAnalystIsGazzetted && !$this->detailsDateOfGazzette) {
+                $this->addError('detailsDateOfGazzette', 'The date of gazzette field is required when analyst is gazzetted.');
+            }
+
+            return;
+        }
+    }
+
     public function openAddRoleModal(): void
     {
         $this->selectedRoleIds = [];
@@ -528,8 +709,7 @@ class PersonnelDetailManager extends Component
         $this->resetCertificationForm();
 
         if ($certificationId) {
-            $item = DB::table('personnel_user_certifications')
-                ->where('id', $certificationId)
+            $item = PersonelCertification::where('id', $certificationId)
                 ->where('user_id', $this->userId)
                 ->first();
 
@@ -574,18 +754,16 @@ class PersonnelDetailManager extends Component
             $attachmentPath = $this->certificationAttachment->store('personnel/certifications', 'public');
         }
 
-        DB::table('personnel_user_certifications')->updateOrInsert(
+        PersonelCertification::updateOrCreate(
             ['id' => $certificationId],
             [
-                'user_id' => $this->userId,
-                'title' => trim($this->certificationTitle),
+                'user_id'        => $this->userId,
+                'title'          => trim($this->certificationTitle),
                 'certifying_body' => trim($this->certificationBody),
-                'valid_from' => $this->certificationValidFrom,
-                'valid_to' => $this->certificationValidTo,
+                'valid_from'     => $this->certificationValidFrom,
+                'valid_to'       => $this->certificationValidTo,
                 'attachment_path' => $attachmentPath,
-                'created_by' => auth()->id(),
-                'updated_at' => now(),
-                'created_at' => now(),
+                'created_by'     => auth()->id(),
             ]
         );
 
@@ -612,8 +790,7 @@ class PersonnelDetailManager extends Component
             'editingPersonnelCertificationId' => 'required|string',
         ]);
 
-        $item = DB::table('personnel_user_certifications')
-            ->where('id', $this->editingPersonnelCertificationId)
+        $item = PersonelCertification::where('id', $this->editingPersonnelCertificationId)
             ->where('user_id', $this->userId)
             ->first();
 
@@ -621,8 +798,7 @@ class PersonnelDetailManager extends Component
             Storage::disk('public')->delete((string) $item->attachment_path);
         }
 
-        DB::table('personnel_user_certifications')
-            ->where('id', $this->editingPersonnelCertificationId)
+        PersonelCertification::where('id', $this->editingPersonnelCertificationId)
             ->where('user_id', $this->userId)
             ->delete();
 
@@ -723,12 +899,12 @@ class PersonnelDetailManager extends Component
 
     public function getDesignationsProperty()
     {
-        return ModulePreConfigs::query()->where('type', 'Designation')->where('module', 'Personnel-Management')->orderBy('name')->get(['id', 'name']);
+        return ModulePreConfigs::query()->where('type', 'Designation')->orderBy('name')->get(['id', 'name']);
     }
 
     public function getEducationLevelsProperty()
     {
-        return ModulePreConfigs::query()->where('type', 'Educational Levels')->where('module', 'Personnel-Management')->orderBy('name')->get(['id', 'name']);
+        return ModulePreConfigs::query()->where('type', 'Educational Levels')->orderBy('name')->get(['id', 'name']);
     }
 
     public function getPositionsProperty()
@@ -873,17 +1049,10 @@ class PersonnelDetailManager extends Component
 
     public function getPersonnelCertificationsProperty(): Collection
     {
-        if (!Schema::hasTable('personnel_user_certifications')) {
-            return collect();
-        }
-
-        return collect(
-            DB::table('personnel_user_certifications')
-                ->where('user_id', $this->userId)
-                ->orderByDesc('valid_to')
-                ->orderByDesc('created_at')
-                ->get()
-        );
+        return PersonelCertification::where('user_id', $this->userId)
+            ->orderByDesc('valid_to')
+            ->orderByDesc('created_at')
+            ->get();
     }
 
     public function getPositionSkillsMatrixIdsProperty(): Collection
@@ -893,17 +1062,17 @@ class PersonnelDetailManager extends Component
             return collect();
         }
 
-        $ids = DB::table('skills_matrix_role')
+        $ids = SkillMarixRole::query()
             ->whereRaw('job_description_id::text = ?', [$positionId])
             ->pluck('skills_matrix_id');
 
         if ($ids->isEmpty()) {
-            $positionName = DB::table('module_pre_configs')
+            $positionName = ModulePreConfigs::query()
                 ->whereRaw('id::text = ?', [$positionId])
                 ->value('name');
 
             if (is_string($positionName) && $positionName !== '') {
-                $ids = DB::table('skills_matrix_role_requirments')
+                $ids = SkillsMatrixRoleRequirment::query()
                     ->whereRaw('LOWER(role_name) = ?', [strtolower($positionName)])
                     ->pluck('skills_matrix_id');
             }
@@ -918,10 +1087,6 @@ class PersonnelDetailManager extends Component
 
     public function getCapabilityRowsProperty(): Collection
     {
-        if (!Schema::hasTable('skills_matrix_detail') || !Schema::hasTable('skills_matrix_detail_role')) {
-            return collect();
-        }
-
         $matrixIds = $this->positionSkillsMatrixIds;
         if ($matrixIds->isEmpty()) {
             return collect();
@@ -929,7 +1094,8 @@ class PersonnelDetailManager extends Component
 
         $positionId = trim((string) ($this->user->position ?? ''));
 
-        $rows = DB::table('skills_matrix_detail as smd')
+        $rows = SkillsMatrixDetail::query()
+            ->from('skills_matrix_detail as smd')
             ->leftJoin('skillsmatrices as sm', DB::raw('sm.id::text'), '=', DB::raw('smd.skill_matrix_id::text'))
             ->leftJoin('skills_matrix_detail_role as smdr', function ($join) use ($positionId): void {
                 $join->on(DB::raw('smdr.matrix_detail_id::text'), '=', DB::raw('smd.id::text'));
@@ -966,18 +1132,6 @@ class PersonnelDetailManager extends Component
             ->where('inventory_location_id', getCurrentUserLocation()->id)
             ->orderBy('key')
             ->get(['id', 'key', 'value']);
-    }
-
-    public function getLicenseCountProperty(): array
-    {
-        $counts = [];
-
-        foreach (User::query()->where('company_id', getUserCompany())->get(['license_type']) as $user) {
-            $key = (string) $user->license_type;
-            $counts[$key] = ($counts[$key] ?? 0) + 1;
-        }
-
-        return $counts;
     }
 
     public function render()

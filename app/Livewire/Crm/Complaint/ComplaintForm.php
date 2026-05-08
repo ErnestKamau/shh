@@ -37,6 +37,20 @@ class ComplaintForm extends BaseCrmComponent
     public $contacts = [];
     public $samples = [];
     public $serial_nos = [];
+    public $organizationSearch = '';
+    public $showOrganizationDropdown = false;
+    public $contactSearch = '';
+    public $showContactDropdown = false;
+    public $deliveryModeSearch = '';
+    public $showDeliveryModeDropdown = false;
+    public $typeSearch = '';
+    public $showTypeDropdown = false;
+    public $prioritySearch = '';
+    public $showPriorityDropdown = false;
+    public $testItemSearch = '';
+    public $showTestItemDropdown = false;
+    public $serialSearch = '';
+    public $showSerialDropdown = false;
 
     public function mount($complaintId = null, $customerId = null)
     {
@@ -93,6 +107,336 @@ class ComplaintForm extends BaseCrmComponent
                 ->distinct()
                 ->get();
         }
+    }
+
+    public function getSelectedOrganizationProperty()
+    {
+        if (empty($this->organization_name)) {
+            return null;
+        }
+
+        return collect($this->customers)->first(function ($customer) {
+            return $customer->name === $this->organization_name;
+        });
+    }
+
+    public function getFilteredOrganizationOptionsProperty()
+    {
+        $search = strtolower(trim($this->organizationSearch));
+
+        return collect($this->customers)
+            ->filter(function ($customer) use ($search) {
+                if ($customer->name === $this->organization_name) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($customer->name), $search);
+            })
+            ->values();
+    }
+
+    public function selectOrganization($name)
+    {
+        $this->organization_name = $name;
+        $this->organizationSearch = '';
+        $this->showOrganizationDropdown = false;
+        $this->customerId = null;
+        $this->loadDynamicData();
+    }
+
+    public function clearOrganization()
+    {
+        $this->organization_name = '';
+        $this->organizationSearch = '';
+        $this->showOrganizationDropdown = false;
+        $this->customerId = null;
+        $this->contacts = [];
+        $this->samples = [];
+        $this->contact_name = '';
+        $this->title_position = '';
+    }
+
+    public function getSelectedContactProperty()
+    {
+        if (empty($this->contact_name) || !is_numeric($this->contact_name)) {
+            return null;
+        }
+
+        return collect($this->contacts)->first(function ($contact) {
+            return (string) $contact->id === (string) $this->contact_name;
+        });
+    }
+
+    public function getFilteredContactOptionsProperty()
+    {
+        $search = strtolower(trim($this->contactSearch));
+
+        return collect($this->contacts)
+            ->filter(function ($contact) use ($search) {
+                if ((string) $contact->id === (string) $this->contact_name) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                $name = strtolower(trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')));
+                return str_contains($name, $search);
+            })
+            ->values();
+    }
+
+    public function selectContact($id)
+    {
+        $this->contact_name = (string) $id;
+        $this->contactSearch = '';
+        $this->showContactDropdown = false;
+        $this->syncContactTitle($this->contact_name);
+    }
+
+    public function clearContact()
+    {
+        $this->contact_name = '';
+        $this->contactSearch = '';
+        $this->showContactDropdown = false;
+        $this->title_position = '';
+    }
+
+    public function getDeliveryModeOptionsProperty()
+    {
+        return ['Phone', 'E-mail', 'Fax', 'Verbal/Meeting', 'Other'];
+    }
+
+    public function getSelectedDeliveryModesProperty()
+    {
+        $selected = collect($this->mode_of_delivery)->map('strval')->all();
+        return collect($this->deliveryModeOptions)->filter(fn($mode) => in_array((string) $mode, $selected, true))->values();
+    }
+
+    public function getFilteredDeliveryModeOptionsProperty()
+    {
+        $search = strtolower(trim($this->deliveryModeSearch));
+        $selected = collect($this->mode_of_delivery)->map('strval')->all();
+
+        return collect($this->deliveryModeOptions)
+            ->filter(function ($mode) use ($search, $selected) {
+                if (in_array((string) $mode, $selected, true)) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($mode), $search);
+            })
+            ->values();
+    }
+
+    public function toggleDeliveryMode($mode)
+    {
+        $mode = (string) $mode;
+        $selected = collect($this->mode_of_delivery)->map('strval')->all();
+
+        if (in_array($mode, $selected, true)) {
+            $this->mode_of_delivery = array_values(array_filter($selected, fn($item) => $item !== $mode));
+        } else {
+            $selected[] = $mode;
+            $this->mode_of_delivery = array_values(array_unique($selected));
+        }
+
+        $this->deliveryModeSearch = '';
+        $this->showDeliveryModeDropdown = true;
+    }
+
+    public function removeDeliveryMode($mode)
+    {
+        $mode = (string) $mode;
+        $this->mode_of_delivery = array_values(array_filter(
+            collect($this->mode_of_delivery)->map('strval')->all(),
+            fn($item) => $item !== $mode
+        ));
+    }
+
+    public function clearDeliveryModes()
+    {
+        $this->mode_of_delivery = [];
+        $this->deliveryModeSearch = '';
+        $this->showDeliveryModeDropdown = false;
+    }
+
+    public function getSelectedComplaintTypeProperty()
+    {
+        return $this->type ?: null;
+    }
+
+    public function getFilteredComplaintTypeOptionsProperty()
+    {
+        $search = strtolower(trim($this->typeSearch));
+
+        return collect($this->complaint_types)
+            ->map(fn($item) => $item->name)
+            ->filter(function ($name) use ($search) {
+                if ($name === $this->type) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($name), $search);
+            })
+            ->values();
+    }
+
+    public function selectComplaintType($value)
+    {
+        $this->type = $value;
+        $this->typeSearch = '';
+        $this->showTypeDropdown = false;
+    }
+
+    public function clearComplaintType()
+    {
+        $this->type = '';
+        $this->typeSearch = '';
+        $this->showTypeDropdown = false;
+    }
+
+    public function getPriorityOptionsProperty()
+    {
+        return ['High', 'Medium', 'Low'];
+    }
+
+    public function getSelectedPriorityProperty()
+    {
+        return $this->priority ?: null;
+    }
+
+    public function getFilteredPriorityOptionsProperty()
+    {
+        $search = strtolower(trim($this->prioritySearch));
+
+        return collect($this->priorityOptions)
+            ->filter(function ($item) use ($search) {
+                if ($item === $this->priority) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($item), $search);
+            })
+            ->values();
+    }
+
+    public function selectPriority($value)
+    {
+        $this->priority = $value;
+        $this->prioritySearch = '';
+        $this->showPriorityDropdown = false;
+    }
+
+    public function clearPriority()
+    {
+        $this->priority = '';
+        $this->prioritySearch = '';
+        $this->showPriorityDropdown = false;
+    }
+
+    public function getSelectedTestItemProperty()
+    {
+        if (empty($this->test_item) || !is_numeric($this->test_item)) {
+            return null;
+        }
+
+        return collect($this->samples)->first(function ($sample) {
+            return (string) $sample->id === (string) $this->test_item;
+        });
+    }
+
+    public function getFilteredTestItemOptionsProperty()
+    {
+        $search = strtolower(trim($this->testItemSearch));
+
+        return collect($this->samples)
+            ->filter(function ($sample) use ($search) {
+                if ((string) $sample->id === (string) $this->test_item) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($sample->name), $search);
+            })
+            ->values();
+    }
+
+    public function selectTestItem($id)
+    {
+        $this->test_item = (string) $id;
+        $this->testItemSearch = '';
+        $this->showTestItemDropdown = false;
+        $this->updatedTestItem($this->test_item);
+    }
+
+    public function clearTestItem()
+    {
+        $this->test_item = '';
+        $this->testItemSearch = '';
+        $this->showTestItemDropdown = false;
+        $this->report_serial_no = '';
+        $this->serial_nos = [];
+    }
+
+    public function getSelectedSerialProperty()
+    {
+        return $this->report_serial_no ?: null;
+    }
+
+    public function getFilteredSerialOptionsProperty()
+    {
+        $search = strtolower(trim($this->serialSearch));
+        $options = collect($this->serial_nos)->values();
+
+        return $options
+            ->filter(function ($batchCode) use ($search) {
+                $batchCode = (string) $batchCode;
+                if ($batchCode === (string) $this->report_serial_no) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($batchCode), $search);
+            })
+            ->values();
+    }
+
+    public function selectSerial($value)
+    {
+        $this->report_serial_no = (string) $value;
+        $this->serialSearch = '';
+        $this->showSerialDropdown = false;
+    }
+
+    public function clearSerial()
+    {
+        $this->report_serial_no = '';
+        $this->serialSearch = '';
+        $this->showSerialDropdown = false;
     }
 
     public function updated($name, $value)
@@ -159,6 +503,12 @@ class ComplaintForm extends BaseCrmComponent
             $this->report_serial_no = '';
             $this->contacts = [];
             $this->samples = [];
+            $this->contactSearch = '';
+            $this->showContactDropdown = false;
+            $this->testItemSearch = '';
+            $this->showTestItemDropdown = false;
+            $this->serialSearch = '';
+            $this->showSerialDropdown = false;
         } else {
             $this->loadDynamicData();
         }
@@ -169,6 +519,10 @@ class ComplaintForm extends BaseCrmComponent
         if (!$value) {
             $this->test_item = '';
             $this->report_serial_no = '';
+            $this->testItemSearch = '';
+            $this->showTestItemDropdown = false;
+            $this->serialSearch = '';
+            $this->showSerialDropdown = false;
         }
     }
 
@@ -187,7 +541,7 @@ class ComplaintForm extends BaseCrmComponent
     #[On('add-complaint')]
     public function resetForm()
     {
-        $this->reset(['complaintId', 'description', 'priority', 'type', 'received_from', 'received_from_type', 'is_lab_related', 'mode_of_delivery', 'nature_of_complaint', 'test_item', 'report_serial_no', 'title_position', 'organization_name', 'contact_name', 'contacts', 'samples', 'serial_nos']);
+        $this->reset(['complaintId', 'description', 'priority', 'type', 'received_from', 'received_from_type', 'is_lab_related', 'mode_of_delivery', 'nature_of_complaint', 'test_item', 'report_serial_no', 'title_position', 'organization_name', 'contact_name', 'contacts', 'samples', 'serial_nos', 'organizationSearch', 'showOrganizationDropdown', 'contactSearch', 'showContactDropdown', 'deliveryModeSearch', 'showDeliveryModeDropdown', 'typeSearch', 'showTypeDropdown', 'prioritySearch', 'showPriorityDropdown', 'testItemSearch', 'showTestItemDropdown', 'serialSearch', 'showSerialDropdown']);
         $this->date = date('Y-m-d');
         $this->received_from_type = 'Customer';
         $this->mode_of_delivery = [];

@@ -102,17 +102,9 @@ class TwoFactor extends Controller
 		$company->license_expiry = $request->expiry;
 		$company->save();
 
-		$users = \App\User::where('company_id', $company->id)
-			->selectRaw('license_type, count(id) as total')->groupBy('license_type')->get();
-
-		$userArr = array();
-
-		foreach($users as $u){
-			if(!isset($userArr[$u->license_type])){
-				$userArr[$u->license_type] = 0;
-			}
-			$userArr[$u->license_type] = $u->total;
-		}
+		$userArr = [
+			'total_users' => \App\User::where('company_id', $company->id)->count(),
+		];
 
 		$response = array(
 			"status" => true,
@@ -120,32 +112,6 @@ class TwoFactor extends Controller
 		);
 
 		return json_encode($response);
-		// try{
-		// 	$verification_key = $request->verification_key;
-		// 	$company = \App\Company::where('client_number', $request->client_id)->first();
-		// 	$company->license_key = $verification_key;
-		// 	$company->license_expiry = $request->expiry;
-		// 	$company->save();
-
-		// 	$users = \App\User::where('company_id', $company->id)
-		// 		->selectRaw('license_type, count(id) as total')->groupBy('license_type')->get();
-
-		// 	$userArr = array();
-
-		// 	foreach($users as $u){
-		// 		if(!isset($userArr[$u->license_type])){
-		// 			$userArr[$u->license_type] = 0;
-		// 		}
-		// 		$userArr[$u->license_type] = $u->total;
-		// 	}
-
-		// 	return json_encode(array(
-		// 		"status" => true,
-		// 		"message" =>$userArr
-		// 	));
-		// }
-		// catch(Exception $exception){
-		// 	return json_encode(array(
 		// 		"status" => false,
 		// 		"message" =>$exception->errorMessage()
 		// 	));

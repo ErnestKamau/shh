@@ -12,7 +12,7 @@
                             </h2>
                             <p class="text-muted mb-0">{{ __('crm.manage_contacts_for', ['customer' => $customer->name]) }}</p>
                         </div>
-                        <button wire:click="showCreateContactModal" class="btn btn-sm btn-primary" wire:loading.attr="disabled" wire:target="showCreateContactModal">
+                        <button wire:click="showCreateContactModal" class="btn btn-sm btn-outline-primary pricelist-action-btn" wire:loading.attr="disabled" wire:target="showCreateContactModal">
                             <span wire:loading.remove wire:target="showCreateContactModal">
                                 <i class="mdi mdi-plus"></i> {{ __('crm.add_contact') }}
                             </span>
@@ -82,9 +82,9 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <div class="btn-group" role="group">
+                                                <div class="d-flex">
                                                     <button wire:click="showEditContactModal('{{ $contact->id }}')" 
-                                                            class="btn btn-sm btn-outline-warning mr-1" 
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--edit" 
                                                             title="{{ __('crm.edit') }}"
                                                             wire:loading.attr="disabled"
                                                             wire:target="showEditContactModal('{{ $contact->id }}')">
@@ -96,7 +96,7 @@
                                                         </span>
                                                     </button>
                                                     <button wire:click="deleteContact('{{ $contact->id }}')" 
-                                                            class="btn btn-sm btn-outline-danger mr-1" 
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--delete" 
                                                             title="{{ __('crm.delete') }}"
                                                             wire:loading.attr="disabled"
                                                             wire:target="deleteContact({{ $contact->id }})"
@@ -692,6 +692,47 @@
     .modern-select.is-invalid:focus {
         border-color: #dc3545;
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+
+    .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-right: 3px;
+        font-size: 12px;
+    }
+
+    .rm-act-btn:last-child {
+        margin-right: 0;
+    }
+
+    .rm-act-btn--edit {
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    .rm-act-btn--edit:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    .rm-act-btn--delete {
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    .rm-act-btn--delete:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+
+    .pricelist-action-btn {
+        border-radius: 10px;
+        min-height: 42px;
+        font-weight: 600;
+        padding-left: 16px;
+        padding-right: 16px;
     }
     
     /* Make modal body scrollable */

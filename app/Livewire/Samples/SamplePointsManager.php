@@ -3,67 +3,45 @@
 namespace App\Livewire\Samples;
 
 use Livewire\Component;
-use Livewire\WithPagination;
 use App\Models\CRM\SamplePoint;
 use App\Models\CRM\CRMCompanyUnit;
-use App\Models\CRM\CRMCompanySubUnit;
 use App\Models\CRM\CRMCustomer;
-use App\Models\SamplePoint as GlobalSamplePoint;
-use App\Models\Area;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Schema;
 
 class SamplePointsManager extends Component
 {
-    use WithPagination;
-
-    // Customer Data
     public $customerId;
     public $customer;
-    
-    // Sample Point Management
+
     public $editingSamplePoint = null;
     public $showSamplePointModal = false;
-    
-    // Sample Point Form
+
     public $samplePointForm = [
         'unit_id' => null,
-        'sub_unit_id' => null,
-        'area_id' => null,
-        'crm_area_id' => null,
-        'crm_sample_point_id' => null,
+        'name' => '',
+        'code' => '',
+        'description' => '',
         'active' => true
     ];
 
-    // Supporting Data
     public $units = [];
-    public $subUnits = [];
-    public $areas = [];
-    public $masterSamplePoints = [];
-    public $globalAreas = [];
-
-    // Search and Filter
+    public $unitSearch = '';
+    public $showUnitDropdown = false;
     public $search = '';
     public $statusFilter = '';
-
-    // UI State
-    public $loading = false;
     public $message = '';
     public $messageType = '';
-    public $perPage = 25;
-    public $perPageOptions = [25, 50, 75, 100];
 
     protected $rules = [
         'samplePointForm.unit_id' => 'required|exists:crm_company_units,id',
-        'samplePointForm.sub_unit_id' => 'nullable|exists:crm_company_sub_units,id',
-        'samplePointForm.area_id' => 'nullable|exists:sample_point_area,id',
-        'samplePointForm.crm_area_id' => 'nullable|exists:crm_areas,id',
-        'samplePointForm.crm_sample_point_id' => 'required|exists:crm_sample_points,id',
+        'samplePointForm.name' => 'required|string|max:255',
+        'samplePointForm.code' => 'nullable|string|max:50',
+        'samplePointForm.description' => 'nullable|string|max:1000',
     ];
 
     protected $messages = [
         'samplePointForm.unit_id.required' => 'Company unit selection is required.',
-        'samplePointForm.crm_sample_point_id.required' => 'Master sample point selection is required.',
+        'samplePointForm.name.required' => 'Sample point name is required.',
     ];
 
     public function mount($customerId)
@@ -82,9 +60,6 @@ class SamplePointsManager extends Component
     public function loadInitialData()
     {
         $this->loadUnits();
-        $this->loadSubUnits();
-        $this->loadAreas();
-        $this->loadMasterData();
     }
 
     public function loadUnits()
@@ -95,49 +70,44 @@ class SamplePointsManager extends Component
             ->get();
     }
 
-    public function loadSubUnits()
-    {
-        $this->subUnits = CRMCompanySubUnit::where('crm_customer_id', $this->customerId)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
-    }
-
-    public function loadAreas()
-    {
-        $this->areas = \App\Models\SamplePointArea::where('crm_customer_id', $this->customerId)
-            ->where('active', 1)
-            ->orderBy('description')
-            ->get();
-    }
-
-    public function loadMasterData()
-    {
-        $this->masterSamplePoints = GlobalSamplePoint::orderBy('name')->get();
-        $this->globalAreas = Area::orderBy('name')->get();
-    }
-
     public function getSamplePointsProperty()
     {
-        $query = SamplePoint::with(['crmSamplePoint', 'area.crmArea', 'area.subUnit', 'area.companyUnit', 'unit'])
-            ->whereHas('unit', function($q) {
-                $q->where('crm_customer_id', $this->customerId)
-                  ->where('active', 1);
-            })
-            ->when($this->search, function ($query) {
-                $query->whereHas('crmSamplePoint', function($sq) {
-                    $sq->where('name', 'like', '%' . $this->search . '%')
-                       ->orWhere('code', 'like', '%' . $this->search . '%');
+        $hasName = Schema::hasColumn('sample_points', 'name');
+        $hasCode = Schema::hasColumn('sample_points', 'code');
+        $hasDescription = Schema::hasColumn('sample_points', 'description');
+        $hasGps = Schema::hasColumn('sample_points', 'gps');
+
+        $query = SamplePoint::with('unit')
+            ->where('crm_customer_id', $this->customerId)
+            ->when($this->search, function ($query) use ($hasName, $hasCode, $hasDescription, $hasGps) {
+                $query->where(function ($subQuery) use ($hasName, $hasCode, $hasDescription, $hasGps) {
+                    if ($hasName) {
+                        $subQuery->orWhere('name', 'like', '%' . $this->search . '%');
+                    }
+                    if ($hasCode) {
+                        $subQuery->orWhere('code', 'like', '%' . $this->search . '%');
+                    }
+                    if ($hasDescription) {
+                        $subQuery->orWhere('description', 'like', '%' . $this->search . '%');
+                    }
+                    if ($hasGps) {
+                        $subQuery->orWhere('gps', 'like', '%' . $this->search . '%');
+                    }
                 });
             })
             ->when($this->statusFilter !== '', function ($query) {
                 $query->where('active', $this->statusFilter);
-            })
-            ->orderBy('sample_point_area_id')
-            ->get();
+            });
 
-        // Group by sample_point_area_id
-        return $query->groupBy('sample_point_area_id');
+        if ($hasName) {
+            $query->orderBy('name');
+        } elseif (Schema::hasColumn('sample_points', 'created_at')) {
+            $query->orderByDesc('created_at');
+        } else {
+            $query->orderByDesc('id');
+        }
+
+        return $query->get();
     }
 
     public function showCreateSamplePointModal()
@@ -145,6 +115,8 @@ class SamplePointsManager extends Component
         $this->loadInitialData();
         $this->resetSamplePointForm();
         $this->editingSamplePoint = null;
+        $this->unitSearch = '';
+        $this->showUnitDropdown = false;
         $this->showSamplePointModal = true;
     }
 
@@ -154,14 +126,15 @@ class SamplePointsManager extends Component
         
         $this->samplePointForm = [
             'unit_id' => $samplePoint->crm_company_unit_id,
-            'sub_unit_id' => $samplePoint->crm_company_sub_unit_id,
-            'area_id' => $samplePoint->sample_point_area_id,
-            'crm_area_id' => $samplePoint->crm_area_id,
-            'crm_sample_point_id' => $samplePoint->crm_sample_point_id,
+            'name' => $samplePoint->name ?? $samplePoint->display_name,
+            'code' => $samplePoint->code ?? '',
+            'description' => $samplePoint->description ?? ($samplePoint->gps ?? ''),
             'active' => $samplePoint->active == 1
         ];
         
         $this->editingSamplePoint = $samplePoint;
+        $this->unitSearch = '';
+        $this->showUnitDropdown = false;
         $this->showSamplePointModal = true;
     }
 
@@ -170,6 +143,65 @@ class SamplePointsManager extends Component
         $this->showSamplePointModal = false;
         $this->resetSamplePointForm();
         $this->editingSamplePoint = null;
+        $this->unitSearch = '';
+        $this->showUnitDropdown = false;
+    }
+
+    public function getSelectedUnitProperty()
+    {
+        $selectedId = (string) ($this->samplePointForm['unit_id'] ?? '');
+        if ($selectedId === '') {
+            return null;
+        }
+
+        $selected = collect($this->units)->first(function ($unit) use ($selectedId) {
+            return (string) $unit->id === $selectedId;
+        });
+
+        if ($selected) {
+            return $selected;
+        }
+
+        return CRMCompanyUnit::query()->find($selectedId);
+    }
+
+    public function getFilteredUnitsProperty()
+    {
+        $search = trim(strtolower($this->unitSearch));
+
+        return collect($this->units)
+            ->filter(function ($unit) use ($search) {
+                if ((string) $unit->id === (string) ($this->samplePointForm['unit_id'] ?? '')) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($unit->name), $search);
+            })
+            ->values();
+    }
+
+    public function selectUnit($unitId)
+    {
+        $selectedId = (string) $unitId;
+        $this->samplePointForm['unit_id'] = $selectedId;
+
+        $selected = collect($this->units)->first(function ($unit) use ($selectedId) {
+            return (string) $unit->id === $selectedId;
+        });
+
+        $this->unitSearch = $selected ? (string) $selected->name : '';
+        $this->showUnitDropdown = false;
+    }
+
+    public function clearUnit()
+    {
+        $this->samplePointForm['unit_id'] = null;
+        $this->unitSearch = '';
+        $this->showUnitDropdown = false;
     }
 
     public function saveSamplePoint()
@@ -177,17 +209,29 @@ class SamplePointsManager extends Component
         $this->validate();
 
         try {
-            DB::beginTransaction();
+            $data = [
+                'crm_company_unit_id' => $this->samplePointForm['unit_id'],
+                'crm_customer_id' => $this->customerId,
+                'active' => $this->samplePointForm['active'] ? 1 : 0,
+                'crm_company_sub_unit_id' => null,
+                'sample_point_area_id' => null,
+                'crm_area_id' => null,
+                'crm_sample_point_id' => null,
+            ];
 
-        $data = [
-            'crm_company_unit_id' => $this->samplePointForm['unit_id'],
-            'crm_company_sub_unit_id' => $this->samplePointForm['sub_unit_id'],
-            'sample_point_area_id' => $this->samplePointForm['area_id'],
-            'crm_area_id' => $this->samplePointForm['crm_area_id'],
-            'crm_sample_point_id' => $this->samplePointForm['crm_sample_point_id'],
-            'crm_customer_id' => $this->customerId,
-            'active' => $this->samplePointForm['active'] ? 1 : 0,
-        ];
+            // Legacy `sample_points` schema may not include these columns.
+            if (Schema::hasColumn('sample_points', 'name')) {
+                $data['name'] = $this->samplePointForm['name'];
+            }
+            if (Schema::hasColumn('sample_points', 'code')) {
+                $data['code'] = $this->samplePointForm['code'];
+            }
+            if (Schema::hasColumn('sample_points', 'description')) {
+                $data['description'] = $this->samplePointForm['description'];
+            }
+            if (Schema::hasColumn('sample_points', 'gps')) {
+                $data['gps'] = $this->samplePointForm['description'] ?: $this->samplePointForm['name'];
+            }
 
             if ($this->editingSamplePoint) {
                 $this->editingSamplePoint->update($data);
@@ -196,14 +240,11 @@ class SamplePointsManager extends Component
                 SamplePoint::create($data);
                 $this->message = 'Sample point created successfully!';
             }
-
-            DB::commit();
             
             $this->closeSamplePointModal();
             $this->messageType = 'success';
 
         } catch (\Exception $e) {
-            DB::rollBack();
             $this->message = 'Error: ' . $e->getMessage();
             $this->messageType = 'error';
         }
@@ -227,19 +268,19 @@ class SamplePointsManager extends Component
     {
         $this->search = '';
         $this->statusFilter = '';
-        $this->resetPage();
     }
 
     public function resetSamplePointForm()
     {
         $this->samplePointForm = [
             'unit_id' => null,
-            'sub_unit_id' => null,
-            'area_id' => null,
-            'crm_area_id' => null,
-            'crm_sample_point_id' => null,
+            'name' => '',
+            'code' => '',
+            'description' => '',
             'active' => true
         ];
+        $this->unitSearch = '';
+        $this->showUnitDropdown = false;
         $this->editingSamplePoint = null;
     }
 

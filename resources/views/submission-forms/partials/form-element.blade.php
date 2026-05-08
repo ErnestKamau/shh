@@ -585,27 +585,6 @@
             </select>
             @break
             
-        @case('company_sub_unit_select')
-            <div class="custom-element-wrapper position-relative">
-                <select class="form-control custom-element" 
-                        id="{{ $fieldId }}" 
-                        name="{{ $fieldName }}"
-                        data-element-type="company_sub_unit_select"
-                        data-depends-on="client_unit_select"
-                        data-saved-value="{{ $fieldValue }}"
-                        {{ $element->is_required ? 'required' : '' }}
-                        {{ $element->is_readonly ? 'disabled' : '' }}>
-                    @if(!$element->is_required)
-                        <option value="">{{ $element->placeholder ?: 'Select a company sub unit...' }}</option>
-                    @endif
-                    {{-- Options will be loaded dynamically based on selected client unit --}}
-                </select>
-                <button type="button" class="btn btn-sm btn-primary floating-add-btn" data-toggle="modal" data-target="#addCompanySubUnitModal" title="Add New Company Sub Unit">
-                    <i class="mdi mdi-plus"></i>
-                </button>
-            </div>
-            @break
-            
         @case('user_signature')
             @php
                 $dependsField = $element->options && isset($element->options['depends']) ? $element->options['depends'] : '';
@@ -653,7 +632,7 @@
 </div>
 
 {{-- Store element data for later initialization --}}
-@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select', 'user_signature', 'contact_signature']))
+@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'contact_signature']))
 @push('scripts')
 <script>
 // Store element data for initialization when jQuery is ready

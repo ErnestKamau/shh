@@ -66,6 +66,13 @@
             'icon' => null,
         ];
     }
+    if (isset($componentType) && $componentType === 'locked-accounts-manager') {
+        $breadcrumbItems[] = [
+            'link' => route('locked-accounts'),
+            'name' => 'Locked Accounts',
+            'icon' => null,
+        ];
+    }
     if (isset($componentType) && $componentType === 'personnel-configurations') {
         $breadcrumbItems[] = [
             'link' => route('module-pre-configs', ['config' => $config, 'module' => $module]),
@@ -132,6 +139,8 @@
         @livewire('personnel.role-manager')
     @elseif($componentType === 'audit-logs')
         @livewire('personnel.audit-log-manager')
+    @elseif($componentType === 'locked-accounts-manager')
+        @livewire('personnel.locked-accounts-manager')
     @elseif($componentType === 'personnel-configurations')
         @livewire('personnel.configuration-manager', ['config' => $config, 'module' => $module])
     @elseif($componentType === 'zones')

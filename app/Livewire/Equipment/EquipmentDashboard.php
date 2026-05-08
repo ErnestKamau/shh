@@ -34,55 +34,37 @@ class EquipmentDashboard extends Component
     private function loadDashboardData(): void
     {
         $companyId = getUserCompany();
-        $calibrationDiffExpr = "DATEDIFF(DATE_ADD(COALESCE(lc.last_calibration_date, equipment.date_purchased), INTERVAL COALESCE(equipment.calibration_days, 0) DAY), CURDATE())";
-        $maintainanceDiffExpr = "DATEDIFF(DATE_ADD(COALESCE(lm.last_maintainance_date, equipment.date_purchased), INTERVAL COALESCE(equipment.maintainance_days, 0) DAY), CURDATE())";
 
-        $totalsRow = Equipment::query()
+        // Load all equipment with relationships
+        $allEquipment = Equipment::query()
             ->where('company_id', $companyId)
-            ->selectRaw('
-                COUNT(*) as total_count,
-                SUM(CASE WHEN is_disposal = 0 THEN 1 ELSE 0 END) as active_count,
-                SUM(CASE WHEN is_disposal = 1 THEN 1 ELSE 0 END) as disposed_count
-            ')
-            ->first();
+            ->with(['latestCalibration', 'latestMaintenance'])
+            ->get();
 
-        $this->totalEquipmentCount = (int) ($totalsRow->total_count ?? 0);
-        $this->activeCount = (int) ($totalsRow->active_count ?? 0);
-        $this->disposedCount = (int) ($totalsRow->disposed_count ?? 0);
+        // Calculate totals using collections
+        $this->totalEquipmentCount = $allEquipment->count();
+        $this->activeCount = $allEquipment->where('is_disposal', false)->count();
+        $this->disposedCount = $allEquipment->where('is_disposal', true)->count();
 
-        $activeWithLatestLogs = $this->activeEquipmentWithLatestLogsQuery($companyId);
+        // Get active equipment for metric calculations
+        $activeEquipment = $allEquipment->where('is_disposal', false);
 
-        $metricsRow = (clone $activeWithLatestLogs)
-            ->selectRaw("
-                SUM(CASE WHEN {$calibrationDiffExpr} < 0 THEN 1 ELSE 0 END) as overdue_calibration_count,
-                SUM(CASE WHEN {$maintainanceDiffExpr} < 0 THEN 1 ELSE 0 END) as overdue_maintainance_count,
-                SUM(
-                    CASE
-                        WHEN {$calibrationDiffExpr} < 0
-                            OR (
-                                COALESCE(equipment.calibration_notification_in_days, 0) > 0
-                                AND {$calibrationDiffExpr} <= COALESCE(equipment.calibration_notification_in_days, 0)
-                            )
-                        THEN 1 ELSE 0
-                    END
-                ) as due_calibration_count,
-                SUM(
-                    CASE
-                        WHEN {$maintainanceDiffExpr} < 0
-                            OR (
-                                COALESCE(equipment.maintainance_notification_in_days, 0) > 0
-                                AND {$maintainanceDiffExpr} <= COALESCE(equipment.maintainance_notification_in_days, 0)
-                            )
-                        THEN 1 ELSE 0
-                    END
-                ) as due_maintainance_count
-            ")
-            ->first();
+        // Calculate status metrics using collections
+        $this->overdueCalibrationCount = $activeEquipment
+            ->filter(fn($e) => $this->getDaysUntilCalibration($e) < 0)
+            ->count();
 
-        $this->overdueCalibrationCount = (int) ($metricsRow->overdue_calibration_count ?? 0);
-        $this->overdueMaintainanceCount = (int) ($metricsRow->overdue_maintainance_count ?? 0);
-        $this->dueCalibrationCount = (int) ($metricsRow->due_calibration_count ?? 0);
-        $this->dueMaintainanceCount = (int) ($metricsRow->due_maintainance_count ?? 0);
+        $this->overdueMaintainanceCount = $activeEquipment
+            ->filter(fn($e) => $this->getDaysUntilMaintenance($e) < 0)
+            ->count();
+
+        $this->dueCalibrationCount = $activeEquipment
+            ->filter(fn($e) => $this->isDueForCalibration($e))
+            ->count();
+
+        $this->dueMaintainanceCount = $activeEquipment
+            ->filter(fn($e) => $this->isDueForMaintenance($e))
+            ->count();
 
         $healthyCount = max($this->activeCount - ($this->dueCalibrationCount + $this->dueMaintainanceCount), 0);
 
@@ -97,73 +79,80 @@ class EquipmentDashboard extends Component
             ['label' => 'Healthy', 'value' => $healthyCount, 'color' => '#20c997'],
         ];
 
-        $this->purchaseTrend = Equipment::query()
-            ->where('company_id', $companyId)
+        // Purchase trend grouped by month
+        $this->purchaseTrend = $allEquipment
             ->whereNotNull('date_purchased')
-            ->whereDate('date_purchased', '>=', Carbon::now()->subMonths(5)->startOfMonth())
-            ->selectRaw("DATE_FORMAT(date_purchased, '%b %Y') as month, COUNT(*) as count, DATE_FORMAT(date_purchased, '%Y-%m') as sort_key")
-            ->groupBy('month', 'sort_key')
-            ->orderBy('sort_key')
-            ->get()
-            ->map(fn ($row): array => [
-                'month' => (string) $row->month,
-                'count' => (int) $row->count,
+            ->where('date_purchased', '>=', Carbon::now()->subMonths(5)->startOfMonth())
+            ->groupBy(fn($equipment) => $equipment->date_purchased->format('Y-m'))
+            ->map(fn($group, $monthKey) => [
+                'month' => Carbon::createFromFormat('Y-m', $monthKey)->format('M Y'),
+                'count' => $group->count(),
             ])
+            ->values()
             ->toArray();
 
-        $criticalRows = (clone $activeWithLatestLogs)
-            ->selectRaw("
-                equipment.id,
-                equipment.name,
-                equipment.equipment_number,
-                {$calibrationDiffExpr} as calibration_days_left,
-                {$maintainanceDiffExpr} as maintainance_days_left
-            ")
-            ->where(function ($query) use ($calibrationDiffExpr, $maintainanceDiffExpr) {
-                $query->whereRaw("{$calibrationDiffExpr} < 1")
-                    ->orWhereRaw("{$maintainanceDiffExpr} < 1");
-            })
-            ->orderByRaw("LEAST({$calibrationDiffExpr}, {$maintainanceDiffExpr}) asc")
-            ->limit(8)
-            ->get();
+        // Critical equipment needing attention
+        $this->criticalEquipment = $activeEquipment
+            ->filter(fn($e) => 
+                $this->getDaysUntilCalibration($e) < 1 || 
+                $this->getDaysUntilMaintenance($e) < 1
+            )
+            ->sortBy(fn($e) => min(
+                $this->getDaysUntilCalibration($e),
+                $this->getDaysUntilMaintenance($e)
+            ))
+            ->take(8)
+            ->map(fn($e): array => [
+                'id' => (int) $e->id,
+                'name' => (string) $e->name,
+                'equipment_number' => (string) $e->equipment_number,
+                'calibration_days_left' => (int) $this->getDaysUntilCalibration($e),
+                'maintainance_days_left' => (int) $this->getDaysUntilMaintenance($e),
+            ])
+            ->values()
+            ->toArray();
+    }
 
-        $this->criticalEquipment = $criticalRows->map(function ($row): array {
-            return [
-                'id' => (int) $row->id,
-                'name' => (string) $row->name,
-                'equipment_number' => (string) $row->equipment_number,
-                'calibration_days_left' => (int) $row->calibration_days_left,
-                'maintainance_days_left' => (int) $row->maintainance_days_left,
-            ];
-        })->toArray();
+    private function getDaysUntilCalibration(Equipment $equipment): int
+    {
+        $lastDate = $equipment->latestCalibration?->last_calibration_date ?? $equipment->date_purchased;
+        if (!$lastDate) {
+            return PHP_INT_MAX;
+        }
+        
+        $dueDate = Carbon::parse($lastDate)->addDays($equipment->calibration_days ?? 0);
+        return (int) $dueDate->diffInDays(Carbon::now(), false);
+    }
+
+    private function getDaysUntilMaintenance(Equipment $equipment): int
+    {
+        $lastDate = $equipment->latestMaintenance?->last_maintainance_date ?? $equipment->date_purchased;
+        if (!$lastDate) {
+            return PHP_INT_MAX;
+        }
+        
+        $dueDate = Carbon::parse($lastDate)->addDays($equipment->maintainance_days ?? 0);
+        return (int) $dueDate->diffInDays(Carbon::now(), false);
+    }
+
+    private function isDueForCalibration(Equipment $equipment): bool
+    {
+        $daysLeft = $this->getDaysUntilCalibration($equipment);
+        $notificationDays = $equipment->calibration_notification_in_days ?? 0;
+        
+        return $daysLeft < 0 || ($notificationDays > 0 && $daysLeft <= $notificationDays);
+    }
+
+    private function isDueForMaintenance(Equipment $equipment): bool
+    {
+        $daysLeft = $this->getDaysUntilMaintenance($equipment);
+        $notificationDays = $equipment->maintainance_notification_in_days ?? 0;
+        
+        return $daysLeft < 0 || ($notificationDays > 0 && $daysLeft <= $notificationDays);
     }
 
     public function render()
     {
         return view('livewire.equipment.equipment-dashboard');
-    }
-
-    private function activeEquipmentWithLatestLogsQuery(int $companyId)
-    {
-        $latestCalibration = MaintainanceCalibrationLog::query()
-            ->selectRaw('equipment_id, MAX(date) as last_calibration_date')
-            ->where('type', 'calibration')
-            ->groupBy('equipment_id');
-
-        $latestMaintainance = MaintainanceCalibrationLog::query()
-            ->selectRaw('equipment_id, MAX(date) as last_maintainance_date')
-            ->where('type', 'maintainance')
-            ->groupBy('equipment_id');
-
-        return Equipment::query()
-            ->from('equipment')
-            ->where('equipment.company_id', $companyId)
-            ->where('equipment.is_disposal', 0)
-            ->leftJoinSub($latestCalibration, 'lc', function ($join) {
-                $join->on('lc.equipment_id', '=', 'equipment.id');
-            })
-            ->leftJoinSub($latestMaintainance, 'lm', function ($join) {
-                $join->on('lm.equipment_id', '=', 'equipment.id');
-            });
     }
 }

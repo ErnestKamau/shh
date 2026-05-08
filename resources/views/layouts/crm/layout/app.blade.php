@@ -69,18 +69,6 @@
 					<span class="menu-collapsed">{{ __('crm.customer_register') }}</span>
 				</div>
 			</a>
-			<a href="{{ route('crm.sample-points') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-map-marker-radius fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('crm.sample_points') }}</span>
-				</div>
-			</a>
-			<a href="{{ route('crm.areas') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-vector-square fa-fw mr-3"></span>
-					<span class="menu-collapsed">{{ __('crm.areas') }}</span>
-				</div>
-			</a>
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>

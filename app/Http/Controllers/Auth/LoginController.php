@@ -54,6 +54,8 @@ class LoginController extends Controller
       $user = $this->resolveUserByLogin((string) $request->input($this->username()));
 
       if ($user && (bool) $user->login_locked_by_admin_reset) {
+        session()->put('failed_login_attempts', (int) $user->failed_login_attempts);
+        session()->put('is_account_locked', true);
         throw ValidationException::withMessages([
           $this->username() => ['This account is locked. Please contact an administrator to reset it.'],
         ]);
@@ -74,14 +76,19 @@ class LoginController extends Controller
           $user->login_locked_by_admin_reset = true;
           $remainingAttempts = 0;
         } elseif ((int) $user->failed_login_attempts === 2) {
-          session()->flash('login_attempts_warning', 'Warning: You have only 3 chances left. After 5 failed attempts your account will be locked.');
+          session()->put('login_attempts_warning', 'Warning: You have only 3 chances left. After 5 failed attempts your account will be locked.');
         }
 
         $user->save();
+        // Pass failed attempts count to view for badge display
+        session()->put('failed_login_attempts', (int) $user->failed_login_attempts);
+        session()->put('is_account_locked', (bool) $user->login_locked_by_admin_reset);
       }
 
       if ($user && (bool) $user->login_locked_by_admin_reset) {
         $message = 'This account is locked after 5 unsuccessful login attempts. Please contact an administrator to reset it.';
+        session()->put('failed_login_attempts', (int) $user->failed_login_attempts);
+        session()->put('is_account_locked', true);
       } else {
         $message = $remainingAttempts > 0
           ? 'Invalid credentials. Remaining attempts: ' . $remainingAttempts . '.'
@@ -109,6 +116,10 @@ class LoginController extends Controller
     }
 
     public function authenticated(Request $request, $user){
+      session()->forget('failed_login_attempts');
+      session()->forget('is_account_locked');
+      session()->forget('login_attempts_warning');
+
   			if ((int) $user->failed_login_attempts > 0 || (bool) $user->login_locked_by_admin_reset) {
   				$user->failed_login_attempts = 0;
   				$user->login_locked_by_admin_reset = false;

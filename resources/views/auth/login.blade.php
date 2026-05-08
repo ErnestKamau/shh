@@ -76,60 +76,80 @@
 					
 					 <div class="row">
 						  <div class="flex-center position-ref w3-card-2">
-								<form class="w3-padding-large w3-white w3-card-8 w3-round w3-topbar w3-border-brown" method="POST" action="{{ route('login') }}">
-							@if(session('login_attempts_warning'))
-								<div class="alert alert-warning" style="background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:10px 14px;border-radius:4px;margin-bottom:12px;">
-									<strong>&#9888;</strong> {{ session('login_attempts_warning') }}
-								</div>
-							@endif
-									 {{ csrf_field() }}
-									<div class="w3-padding-large w3-center">
-										<img src="/images/imara-sys.png" style="max-width: 120px"  />
-									</div>
-									 <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
-										<label for="email" class="control-label w3-left w3-text-dark-grey"><strong>E-Mail Address</strong></label>
-										<input id="email" type="email" placeholder="{{ __('E-Mail Address') }}..." class="form-control" name="email" value="{{ old('email') }}" required autofocus>
+									<form class="w3-padding-large w3-white w3-card-8 w3-round w3-topbar w3-border-brown" method="POST" action="{{ route('login') }}" style="width: 380px; max-width: 100%; box-sizing: border-box;">
+										 {{ csrf_field() }}
+										<div class="w3-padding-large w3-center">
+											<img src="/images/imara-sys.png" style="max-width: 120px"  />
+										</div>
+										 <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
+											<label for="email" class="control-label w3-left w3-text-dark-grey"><strong>E-Mail Address</strong></label>
+											<input id="email" type="email" placeholder="{{ __('E-Mail Address') }}..." class="form-control" name="email" value="{{ old('email') }}" required autofocus>
 
-										@if ($errors->has('email'))
-											 <span class="help-block">
-												  <strong>{{ $errors->first('email') }}</strong>
-											 </span>
-										@endif
-										@if ($errors->has('active'))
-											 <span class="help-block">
-												  <strong>{{ $errors->active }}</strong>
-											 </span>
-										@endif
-									 </div>
-									 <div class="form-group{{ $errors->has('password') ? ' has-error' : '' }}">
-										<label for="password" class="control-label w3-left w3-text-dark-grey"><strong>Password</strong></label>
-										<input id="password" type="password" placeholder="{{ __('Password') }}..." class="form-control" name="password" required>
-										@if ($errors->has('password'))
-											 <span class="help-block">
-												  <strong>{{ $errors->first('password') }}</strong>
-											 </span>
-										@endif
-									 </div>
+											@if ($errors->has('email'))
+												 <span class="help-block">
+													  <strong>{{ $errors->first('email') }}</strong>
+												 </span>
+											@endif
+											@if ($errors->has('active'))
+												 <span class="help-block">
+													  <strong>{{ $errors->active }}</strong>
+												 </span>
+											@endif
+										 </div>
+										 <div class="form-group{{ $errors->has('password') ? ' has-error' : '' }}">
+											<label for="password" class="control-label w3-left w3-text-dark-grey"><strong>Password</strong></label>
+											<input id="password" type="password" placeholder="{{ __('Password') }}..." class="form-control" name="password" required>
+											@if ($errors->has('password'))
+												 <span class="help-block">
+													  <strong>{{ $errors->first('password') }}</strong>
+												 </span>
+											@endif
+										 </div>
 
-									 <div class="form-group">
-										<div class="checkbox">
+										@if(session('login_attempts_warning'))
+											<div class="alert alert-warning" style="background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:10px 14px;border-radius:4px;margin-bottom:12px;width:100%;box-sizing:border-box;overflow-wrap:break-word;">
+												<strong>&#9888;</strong> {{ session('login_attempts_warning') }}
+											</div>
+										@endif
+
+										@if(session('failed_login_attempts') && session('failed_login_attempts') >= 2)
+											<div style="text-align: center; margin-bottom: 15px;">
+												<span class="badge badge-danger" style="background-color: #dc3545; color: white; padding: 8px 12px; border-radius: 20px; font-size: 13px; display: inline-block;">
+													<i class="fas fa-exclamation-circle"></i> {{ 5 - session('failed_login_attempts') }} {{ 5 - session('failed_login_attempts') == 1 ? 'attempt' : 'attempts' }} remaining
+												</span>
+											</div>
+										@endif
+
+										@if(session('is_account_locked'))
+											<div style="background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 14px; border-radius: 6px; margin-bottom: 12px; width:100%; box-sizing:border-box; overflow-wrap:break-word;">
+												<div style="font-size: 18px; margin-bottom: 6px;">
+													<i class="fas fa-lock"></i>
+												</div>
+												<p style="margin: 0; font-size: 14px; line-height: 1.5;">
+													Your account has been locked after 5 unsuccessful login attempts. Please contact your administrator to unlock your account.
+												</p>
+											</div>
+										@endif
+
+										 <div class="form-group">
+											<div class="checkbox">
                       <label>
                       <input type="checkbox" name="remember" {{ old('remember') ? 'checked' : '' }}> Remember Me
                       </label>
-										</div>
-									 </div>
+											</div>
+										 </div>
 
-									 <div class="form-group">
-										<button type="submit" class="btn btn-primary">
+										 <div class="form-group">
+											<button type="submit" class="btn btn-primary">
                       Login
-										</button>
-										<div class="w3-padding-top w3-right">
-											<a class="btn btn-link" href="{{ route('password.request') }}" class="w3-margin-top">
-												 Forgot Your Password?
-											</a>
-										</div>
-									 </div>
-								</form>
+											</button>
+											<div class="w3-padding-top w3-right">
+												<a class="btn btn-link" href="{{ route('password.request') }}" class="w3-margin-top">
+													 Forgot Your Password?
+												</a>
+											</div>
+										 </div>
+									</form>
 						  </div>
 					 </div>
 				</div>

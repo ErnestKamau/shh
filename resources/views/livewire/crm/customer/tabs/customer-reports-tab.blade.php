@@ -1,58 +1,11 @@
 <div x-data="{
     ammendBatchId: '',
     returnBatchId: '',
-    initSelect2() {
-        // We will initialize specifically when the modal opens to ensure robustness
-    },
-    openAmmendment(batchId, samples) {
+    openAmmendment(batchId) {
         console.log('Opening Amendment Modal for Batch:', batchId);
-        console.log('Received Samples:', samples);
-        
+
         this.ammendBatchId = batchId;
-        
-        // Safety check for jQuery and Select2
-        if (typeof $ === 'undefined' || typeof $.fn.select2 === 'undefined') {
-            console.error('jQuery or Select2 is not loaded!');
-            return;
-        }
 
-        let selectElement = $('#ammend_samples');
-        selectElement.empty();
-        
-        if (Array.isArray(samples) && samples.length > 0) {
-            $.each(samples, function(i, sample) {
-                // Ensure sample has required properties
-                if (sample.sample_code && sample.id) {
-                    let option = new Option(`${sample.sample_code}`, sample.id, false, false);
-                    selectElement.append(option);
-                } else {
-                    console.warn('Skipping invalid sample:', sample);
-                }
-            });
-        } else {
-            console.warn('No samples found or invalid data format:', samples);
-        }
-        
-        if (selectElement.hasClass('select2-hidden-accessible')) {
-            selectElement.select2('destroy');
-        }
-
-        // Initialize Select2 with proper configuration
-        selectElement.select2({
-            width: '100%',
-            placeholder: 'Select Samples...',
-            allowClear: true,
-            closeOnSelect: true,
-            dropdownParent: $('#ammendment-detail') // Critical for modal z-index
-        }).on('change', function (e) {
-            var data = $(this).val();
-            // Debounce or safety check could go here if needed
-            @this.set('amendmentSamples', data);
-        });
-        
-        // Reset value and trigger change to ensure UI sync
-        selectElement.val(null).trigger('change');
-        
         $('#ammendment-detail').modal('show');
     },
     openReturn(batchId) {
@@ -64,9 +17,9 @@
         console.log('Closing Modal:', id);
         $(`#${id}`).modal('hide');
     }
-}" x-on:open-amendment-modal.window="openAmmendment($event.detail.batchId, $event.detail.samples)"
+}" x-on:open-amendment-modal.window="openAmmendment($event.detail.batchId)"
     x-on:open-return-modal.window="openReturn($event.detail.batchId)"
-    x-on:close-modal.window="closeModal($event.detail.id)" x-init="initSelect2()">
+    x-on:close-modal.window="closeModal($event.detail.id)">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center">
@@ -193,11 +146,44 @@
                         </button>
                     </div>
                     <div class="modal-body">
-                        <div class="form-group" wire:ignore>
+                        <div class="form-group">
                             <label>{{ __('crm.select_samples') }}</label>
-                            <select class="form-control select2" multiple id="ammend_samples" style="width: 100%;"
-                                data-placeholder="{{ __('crm.select_samples') }}...">
-                            </select>
+                            <div class="tag-select-container @error('amendmentSamples') is-invalid @enderror"
+                                wire:click="$set('showAmendmentDropdown', true)"
+                                wire:click.outside="$set('showAmendmentDropdown', false)">
+                                <div class="tag-select-input">
+                                    @foreach($this->selectedAmendmentSampleBadges as $selectedSample)
+                                        <span class="tag-badge">
+                                            {{ $selectedSample['sample_code'] }}
+                                            <i class="mdi mdi-close-circle" wire:click.stop="clearAmendmentSample({{ $selectedSample['id'] }})"></i>
+                                        </span>
+                                    @endforeach
+
+                                    <input type="text"
+                                        wire:model.live="amendmentSearch"
+                                        class="tag-input"
+                                        placeholder="{{ __('crm.select_samples') }}..."
+                                        autocomplete="off">
+                                </div>
+
+                                @if($showAmendmentDropdown)
+                                    <div class="tag-dropdown">
+                                        @if(count($this->filteredAmendmentOptions) > 0)
+                                            @foreach($this->filteredAmendmentOptions as $sample)
+                                                <div class="tag-dropdown-item d-flex justify-content-between align-items-center"
+                                                    wire:click.stop="toggleAmendmentSample({{ $sample['id'] }})">
+                                                    <span>{{ $sample['sample_code'] }}</span>
+                                                    @if($this->isAmendmentSampleSelected($sample['id']))
+                                                        <i class="mdi mdi-check text-success"></i>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            <div class="tag-dropdown-item text-muted">No samples found</div>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
                             @error('amendmentSamples') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
@@ -242,3 +228,71 @@
         </div>
     </template>
 </div>
+
+<style>
+    .tag-select-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .tag-select-input {
+        min-height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        padding: 4px 8px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        background-color: #fff;
+    }
+
+    .tag-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        min-width: 120px;
+        font-size: 0.9rem;
+    }
+
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0f2f5;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.85rem;
+    }
+
+    .tag-badge i {
+        cursor: pointer;
+    }
+
+    .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        max-height: 220px;
+        overflow-y: auto;
+        z-index: 1100;
+    }
+
+    .tag-dropdown-item {
+        padding: 8px 10px;
+        cursor: pointer;
+    }
+
+    .tag-dropdown-item:hover {
+        background: #f8f9fa;
+    }
+
+    .tag-select-container.is-invalid .tag-select-input {
+        border-color: #dc3545;
+    }
+</style>

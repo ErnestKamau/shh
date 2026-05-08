@@ -3,16 +3,10 @@
         <title>{{ __('crm.client_registry') }} | {{ __('crm.module_name') }}</title>
     @endsection
 
-    @php
-        $breadcrumbItems = [
-            ['link' => route('customers-list'), 'name' => __('crm.module_name'), 'icon' => null],
-            ['link' => route('customers-list'), 'name' => __('crm.client_registry'), 'icon' => null],
-        ];
-    @endphp
     <main>
         <div class="container-fluid">
             <x-crm.page-header
-                :breadcrumbItems="$breadcrumbItems"
+                :breadcrumbItems="$this->breadcrumbItems"
                 :title="__('crm.client_registry')"
                 :subtitle="__('crm.client_registry_subtitle')"
                 icon="mdi-account-group"
@@ -21,7 +15,7 @@
                     <button class="btn btn-outline-success btn-sm mr-2 crm-btn-export" wire:click="exportToExcel" wire:loading.attr="disabled">
                         <i class="mdi mdi-file-excel-box mr-1"></i> {{ __('crm.export_to_excel') }}
                     </button>
-                    <button class="btn btn-add btn-sm crm-btn-add" wire:click="openAddForm">
+                    <button class="btn btn-outline-primary btn-sm mr-2 crm-btn-add crm-btn-add-rounded" wire:click="openAddForm">
                         <i class="mdi mdi-plus"></i> {{ __('crm.add_client') }}
                     </button>
                 </x-slot:actions>
@@ -259,6 +253,20 @@
     </div>
     @endteleport
 </div>
+
+<style>
+    .crm-btn-add-rounded {
+        border-radius: 999px;
+        padding: 0.4rem 0.95rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .crm-btn-add-rounded:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+    }
+</style>
 
 @section('script2')
     <script>

@@ -9,8 +9,14 @@ use App\Lab;
 use App\ModulePreConfigs;
 use App\SampleAnalysisStage;
 use App\User;
+use App\UserDirectorateRelation;
+use App\UserLabRelation;
+use App\UserZoneRelation;
 use App\Zone;
+use App\Mail\PersonnelWelcomeMail;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -52,8 +58,6 @@ class PersonnelTableManager extends Component
     public array $departments = [];
     /** @var array<int, array{id:string,name:string}> */
     public array $designations = [];
-    /** @var array<string,string> */
-    public array $licenses = [];
     /** @var array<int, array{id:string,name:string}> */
     public array $positions = [];
     /** @var array<int, array{id:string,name:string}> */
@@ -69,8 +73,6 @@ class PersonnelTableManager extends Component
     public bool $labsTableAvailable = false;
     /** @var array<int, array{id:string,name:string}> */
     public array $stages = [];
-    /** @var array<string,int> */
-    public array $licenseCount = [];
     public int $addPersonnelStep = 1;
     public $signatureUpload = null;
     public string $signatureData = '';
@@ -90,13 +92,11 @@ class PersonnelTableManager extends Component
         'position' => '',
         'analyst_is_gazzetted' => false,
         'date_of_gazzette' => '',
+        'gazzette_no' => '',
         'start_of_career' => '',
         'department' => '',
-        'zone_id' => '',
-        'directorate_id' => '',
-        'lab_id' => '',
+        'lab_ids' => [],
         'lab_section_id' => [],
-        'user_license' => '',
         'active' => true,
     ];
 
@@ -106,14 +106,16 @@ class PersonnelTableManager extends Component
     public string $educationLevelSearch = '';
     public string $positionSearch = '';
     public string $departmentSearchInput = '';
-    public string $licenseSearch = '';
     public string $labSectionSearch = '';
     public bool $showDesignationDropdown = false;
     public bool $showEducationLevelDropdown = false;
     public bool $showPositionDropdown = false;
     public bool $showDepartmentDropdown = false;
-    public bool $showLicenseDropdown = false;
     public bool $showLabSectionDropdown = false;
+    public string $labSearch = '';
+    public bool $showLabDropdown = false;
+    /** @var array<int, array{id:string,name:string}> */
+    public array $filteredLabs = [];
     /** @var array<int, array{id:string,name:string}> */
     public array $filteredDesignations = [];
     /** @var array<int, array{id:string,name:string}> */
@@ -122,8 +124,6 @@ class PersonnelTableManager extends Component
     public array $filteredPositions = [];
     /** @var array<int, array{id:string,name:string}> */
     public array $filteredDepartments = [];
-    /** @var array<int, array{key:string,name:string,count:int,limit:int,disabled:bool}> */
-    public array $filteredLicenses = [];
     /** @var array<int, array{id:string,name:string}> */
     public array $filteredLabSections = [];
 
@@ -132,11 +132,21 @@ class PersonnelTableManager extends Component
     public function mount(bool $embedded = false): void
     {
         $this->embedded = $embedded;
-        $this->departments = InventoryDepartment::query()
+        $departmentRows = InventoryDepartment::query()
             ->where('company_id', getUserCompany())
             ->where('module', 'organizational')
             ->orderBy('name')
-            ->get(['id', 'name'])
+            ->get(['id', 'name']);
+
+        // Fallback: if module-scoped departments are empty, use company departments.
+        if ($departmentRows->isEmpty()) {
+            $departmentRows = InventoryDepartment::query()
+                ->where('company_id', getUserCompany())
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        }
+
+        $this->departments = $departmentRows
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
 
@@ -147,7 +157,6 @@ class PersonnelTableManager extends Component
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
 
-        $this->licenses = getUserLicenses();
         $this->positions = ModulePreConfigs::query()
             ->where('type', 'Job Description')
             ->orderBy('name')
@@ -202,7 +211,6 @@ class PersonnelTableManager extends Component
             ->get(['id', 'name'])
             ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
-        $this->licenseCount = $this->getUsersByLicense();
     }
 
     #[On('personnel-open-add-modal')]
@@ -227,26 +235,7 @@ class PersonnelTableManager extends Component
     {
         if ($key === 'analyst_is_gazzetted' && !$value) {
             $this->personnelForm['date_of_gazzette'] = '';
-        }
-
-        if ($key === 'zone_id') {
-            $selectedDirectorateId = (string) ($this->personnelForm['directorate_id'] ?? '');
-            if ($selectedDirectorateId !== '' && !$this->directorateBelongsToSelectedZone($selectedDirectorateId)) {
-                $this->personnelForm['directorate_id'] = '';
-                $this->personnelForm['lab_id'] = '';
-            }
-
-            $selectedLabId = (string) ($this->personnelForm['lab_id'] ?? '');
-            if ($selectedLabId !== '' && !$this->labMatchesSelections($selectedLabId)) {
-                $this->personnelForm['lab_id'] = '';
-            }
-        }
-
-        if ($key === 'directorate_id') {
-            $selectedLabId = (string) ($this->personnelForm['lab_id'] ?? '');
-            if ($selectedLabId !== '' && !$this->labMatchesSelections($selectedLabId)) {
-                $this->personnelForm['lab_id'] = '';
-            }
+            $this->personnelForm['gazzette_no'] = '';
         }
     }
 
@@ -294,46 +283,19 @@ class PersonnelTableManager extends Component
             ],
             'personnelForm.analyst_is_gazzetted' => 'boolean',
             'personnelForm.date_of_gazzette' => 'nullable|date',
+            'personnelForm.gazzette_no' => 'nullable|string|max:255',
             'personnelForm.start_of_career' => 'nullable|date',
             'personnelForm.department' => 'required|string|exists:inventory_departments,id',
-            'personnelForm.zone_id' => 'nullable|string',
-            'personnelForm.directorate_id' => 'nullable|string',
-            'personnelForm.lab_id' => 'nullable|string',
             'personnelForm.lab_section_id' => 'array',
-            'personnelForm.user_license' => 'required|string|max:255',
             'personnelForm.active' => 'boolean',
             'signatureUpload' => 'nullable|image|max:3072',
             'signatureData' => 'nullable|string',
         ];
 
-        if ($this->zonesTableAvailable) {
-            $validationRules['personnelForm.zone_id'] .= '|exists:zones,id';
-        }
-
-        if ($this->directoratesTableAvailable) {
-            $validationRules['personnelForm.directorate_id'] .= '|exists:directorates,id';
-        }
-
-        if ($this->labsTableAvailable) {
-            $validationRules['personnelForm.lab_id'] .= '|exists:labs,id';
-        }
-
         $this->validate($validationRules);
 
         if ($this->personnelForm['analyst_is_gazzetted'] && $this->personnelForm['date_of_gazzette'] === '') {
             $this->addError('personnelForm.date_of_gazzette', 'The date of gazzette field is required when analyst is gazzetted.');
-            return;
-        }
-
-        $selectedDirectorateId = (string) ($this->personnelForm['directorate_id'] ?? '');
-        if ($selectedDirectorateId !== '' && !$this->directorateBelongsToSelectedZone($selectedDirectorateId)) {
-            $this->addError('personnelForm.directorate_id', 'The selected directorate does not belong to the selected organization structure.');
-            return;
-        }
-
-        $selectedLabId = (string) ($this->personnelForm['lab_id'] ?? '');
-        if ($selectedLabId !== '' && !$this->labMatchesSelections($selectedLabId)) {
-            $this->addError('personnelForm.lab_id', 'The selected lab does not belong to the current organization selection.');
             return;
         }
 
@@ -356,15 +318,17 @@ class PersonnelTableManager extends Component
         $personnel->date_of_gazzette = $personnel->analyst_is_gazzetted && $this->personnelForm['date_of_gazzette'] !== ''
             ? (string) $this->personnelForm['date_of_gazzette']
             : null;
+        $personnel->gazzette_no = $personnel->analyst_is_gazzetted && trim((string) $this->personnelForm['gazzette_no']) !== ''
+            ? trim((string) $this->personnelForm['gazzette_no'])
+            : null;
         $personnel->start_of_career = $this->personnelForm['start_of_career'] !== '' ? (string) $this->personnelForm['start_of_career'] : null;
         $personnel->id_number = (string) $this->personnelForm['id_number'];
-        $personnel->zone_id = $this->zonesTableAvailable && $this->personnelForm['zone_id'] !== ''
-            ? (string) $this->personnelForm['zone_id']
-            : null;
+        $personnel->zone_id = null;
         $personnel->active = $this->personnelForm['active'] ? 1 : 0;
         $personnel->lab_section_id = implode(',', $this->personnelForm['lab_section_id'] ?? []);
-        $personnel->license_type = (string) $this->personnelForm['user_license'];
-        $personnel->password = bcrypt($personnel->first_name . config('app.name') . date('Y'));
+        $plainPassword = $personnel->first_name . config('app.name') . date('Y');
+        $personnel->password              = bcrypt($plainPassword);
+        $personnel->password_changed_at   = null; // force change on first login
 
         if ($this->signatureUpload) {
             $filename = Str::uuid()->toString() . '_' . time() . '.' . $this->signatureUpload->getClientOriginalExtension();
@@ -395,45 +359,52 @@ class PersonnelTableManager extends Component
 
         $personnel->save();
 
-        if (Schema::hasTable('user_zone_relation')) {
-            if ($this->personnelForm['zone_id'] !== '') {
-                DB::table('user_zone_relation')->updateOrInsert(
-                    ['user_id' => $personnel->id, 'zone_id' => (string) $this->personnelForm['zone_id']],
-                    ['updated_at' => now(), 'created_at' => now()]
-                );
-            } else {
-                DB::table('user_zone_relation')->where('user_id', $personnel->id)->delete();
-            }
+        // Sync labs; derive zone and directorate relationships from the assigned labs
+        $selectedLabIds = array_values(array_unique(array_filter((array) ($this->personnelForm['lab_ids'] ?? []))));
+
+        UserLabRelation::where('user_id', $personnel->id)->delete();
+        foreach ($selectedLabIds as $labId) {
+            UserLabRelation::create([
+                'user_id' => $personnel->id,
+                'lab_id'  => (string) $labId,
+            ]);
         }
 
-        if (Schema::hasTable('user_directorate_relation')) {
-            if ($this->personnelForm['directorate_id'] !== '') {
-                DB::table('user_directorate_relation')->updateOrInsert(
-                    ['user_id' => $personnel->id, 'directorate_id' => (string) $this->personnelForm['directorate_id']],
-                    ['updated_at' => now(), 'created_at' => now()]
-                );
-            } else {
-                DB::table('user_directorate_relation')->where('user_id', $personnel->id)->delete();
+        if (!empty($selectedLabIds) && $this->labsTableAvailable) {
+            $assignedLabs   = collect($this->labs)->whereIn('id', $selectedLabIds);
+            $derivedZoneIds = $assignedLabs->pluck('zone_id')->filter()->unique()->values()->all();
+            $derivedDirIds  = $assignedLabs->pluck('directorate_id')->filter()->unique()->values()->all();
+
+            UserZoneRelation::where('user_id', $personnel->id)->delete();
+            foreach ($derivedZoneIds as $zoneId) {
+                UserZoneRelation::create(['user_id' => $personnel->id, 'zone_id' => $zoneId]);
             }
+            UserDirectorateRelation::where('user_id', $personnel->id)->delete();
+            foreach ($derivedDirIds as $dirId) {
+                UserDirectorateRelation::create(['user_id' => $personnel->id, 'directorate_id' => $dirId]);
+            }
+        } else {
+            UserZoneRelation::where('user_id', $personnel->id)->delete();
+            UserDirectorateRelation::where('user_id', $personnel->id)->delete();
         }
 
-        if (Schema::hasTable('user_lab_relation')) {
-            if ($this->personnelForm['lab_id'] !== '') {
-                DB::table('user_lab_relation')->updateOrInsert(
-                    ['user_id' => $personnel->id, 'lab_id' => (string) $this->personnelForm['lab_id']],
-                    ['updated_at' => now(), 'created_at' => now()]
-                );
-            } else {
-                DB::table('user_lab_relation')->where('user_id', $personnel->id)->delete();
-            }
-        }
-
-        $this->licenseCount = $this->getUsersByLicense();
         $this->message = 'Personnel added successfully.';
         $this->messageType = 'success';
         $this->showAddPersonnelModal = false;
         $this->resetPersonnelForm();
         $this->resetPage();
+
+        try {
+            Mail::to($personnel->email)->send(
+                new PersonnelWelcomeMail(
+                    (string) $personnel->name,
+                    (string) $personnel->email,
+                    $plainPassword
+                )
+            );
+        } catch (\Throwable $e) {
+            Log::error('PersonnelWelcomeMail failed: ' . $e->getMessage());
+        }
     }
 
     public function openStateModal(string $personnelId): void
@@ -490,7 +461,8 @@ class PersonnelTableManager extends Component
         ]);
 
         $personnel = User::query()->findOrFail($this->selectedPersonnelId);
-        $personnel->password = bcrypt($this->newPassword);
+        $personnel->password             = bcrypt($this->newPassword);
+        $personnel->password_changed_at  = null; // force change on next login after admin reset
         $personnel->save();
 
         $this->showResetPasswordModal = false;
@@ -580,7 +552,6 @@ class PersonnelTableManager extends Component
                 'Lab Sections' => (string) ($item->labsectionname ?? ''),
                 'Email' => (string) ($item->email ?? ''),
                 'Employment Date' => (string) ($item->employment_date ?? ''),
-                'License Type' => (string) ($item->license_type ?? ''),
                 'Active' => (int) ($item->active ?? 0) === 1 ? 'Yes' : 'No',
             ];
         })->toArray();
@@ -595,7 +566,6 @@ class PersonnelTableManager extends Component
             'Lab Sections',
             'Email',
             'Employment Date',
-            'License Type',
             'Active',
         ];
 
@@ -705,34 +675,6 @@ class PersonnelTableManager extends Component
         return view('livewire.personnel.personnel-table-manager');
     }
 
-    /** @return array<int, array{id:string,name:string,zone_id:string}> */
-    public function getAvailableDirectoratesProperty(): array
-    {
-        $selectedZoneId = (string) ($this->personnelForm['zone_id'] ?? '');
-
-        return array_values(array_filter(
-            $this->directorates,
-            static fn (array $item): bool => $selectedZoneId === '' || (string) ($item['zone_id'] ?? '') === $selectedZoneId
-        ));
-    }
-
-    /** @return array<int, array{id:string,name:string,directorate_id:string,zone_id:string}> */
-    public function getAvailableLabsProperty(): array
-    {
-        $selectedZoneId = (string) ($this->personnelForm['zone_id'] ?? '');
-        $selectedDirectorateId = (string) ($this->personnelForm['directorate_id'] ?? '');
-
-        return array_values(array_filter(
-            $this->labs,
-            static function (array $item) use ($selectedZoneId, $selectedDirectorateId): bool {
-                $matchesZone = $selectedZoneId === '' || (string) ($item['zone_id'] ?? '') === $selectedZoneId;
-                $matchesDirectorate = $selectedDirectorateId === '' || (string) ($item['directorate_id'] ?? '') === $selectedDirectorateId;
-
-                return $matchesZone && $matchesDirectorate;
-            }
-        ));
-    }
-
     public function getExperienceYearsPreviewProperty(): string
     {
         $startOfCareer = (string) ($this->personnelForm['start_of_career'] ?? '');
@@ -781,9 +723,9 @@ class PersonnelTableManager extends Component
         ));
     }
 
-    public function selectDesignation(string $id): void
+    public function selectDesignation($id): void
     {
-        $this->personnelForm['designation'] = $id;
+        $this->personnelForm['designation'] = (string) $id;
         $this->designationSearch = '';
         $this->showDesignationDropdown = false;
     }
@@ -803,9 +745,9 @@ class PersonnelTableManager extends Component
         ));
     }
 
-    public function selectEducationLevel(string $id): void
+    public function selectEducationLevel($id): void
     {
-        $this->personnelForm['educational_level'] = $id;
+        $this->personnelForm['educational_level'] = (string) $id;
         $this->educationLevelSearch = '';
         $this->showEducationLevelDropdown = false;
     }
@@ -825,9 +767,9 @@ class PersonnelTableManager extends Component
         ));
     }
 
-    public function selectPosition(string $id): void
+    public function selectPosition($id): void
     {
-        $this->personnelForm['position'] = $id;
+        $this->personnelForm['position'] = (string) $id;
         $this->positionSearch = '';
         $this->showPositionDropdown = false;
     }
@@ -847,9 +789,9 @@ class PersonnelTableManager extends Component
         ));
     }
 
-    public function selectDepartmentInput(string $id): void
+    public function selectDepartmentInput($id): void
     {
-        $this->personnelForm['department'] = $id;
+        $this->personnelForm['department'] = (string) $id;
         $this->departmentSearchInput = '';
         $this->showDepartmentDropdown = false;
     }
@@ -859,39 +801,39 @@ class PersonnelTableManager extends Component
         $this->personnelForm['department'] = '';
     }
 
-    public function searchLicenses(): void
+    public function searchLabs(): void
     {
-        $this->showLicenseDropdown = true;
-        $search = trim($this->licenseSearch);
-        $licenseRows = [];
-        foreach ($this->licenses as $key => $name) {
-            $count = (int) ($this->licenseCount[$key] ?? 0);
-            $limit = (int) mamboSawa($key . 's');
-            $licenseRows[] = [
-                'key' => (string) $key,
-                'name' => (string) $name,
-                'count' => $count,
-                'limit' => $limit,
-                'disabled' => $count >= $limit,
-            ];
-        }
-
-        $this->filteredLicenses = array_values(array_filter(
-            $licenseRows,
+        $this->showLabDropdown = true;
+        $search = trim($this->labSearch);
+        $this->filteredLabs = array_values(array_filter(
+            $this->labs,
             fn (array $item): bool => $search === '' || stripos($item['name'], $search) !== false
         ));
     }
 
-    public function selectLicense(string $license): void
+    public function selectLab(string $labId): void
     {
-        $this->personnelForm['user_license'] = $license;
-        $this->licenseSearch = '';
-        $this->showLicenseDropdown = false;
+        $selected = $this->personnelForm['lab_ids'] ?? [];
+        if (in_array($labId, $selected, true)) {
+            return;
+        }
+        $selected[] = $labId;
+        $this->personnelForm['lab_ids'] = array_values(array_unique($selected));
     }
 
-    public function clearLicense(): void
+    public function removeLabSelection(string $labId): void
     {
-        $this->personnelForm['user_license'] = '';
+        $selected = $this->personnelForm['lab_ids'] ?? [];
+        $this->personnelForm['lab_ids'] = array_values(
+            array_filter($selected, fn (string $id): bool => $id !== $labId)
+        );
+    }
+
+    public function selectAllLabs(): void
+    {
+        $this->personnelForm['lab_ids'] = array_column($this->labs, 'id');
+        $this->labSearch = '';
+        $this->showLabDropdown = false;
     }
 
     public function searchLabSections(): void
@@ -928,8 +870,8 @@ class PersonnelTableManager extends Component
         $this->showEducationLevelDropdown = false;
         $this->showPositionDropdown = false;
         $this->showDepartmentDropdown = false;
-        $this->showLicenseDropdown = false;
         $this->showLabSectionDropdown = false;
+        $this->showLabDropdown = false;
     }
 
     private function resetPersonnelForm(): void
@@ -948,13 +890,11 @@ class PersonnelTableManager extends Component
             'position' => '',
             'analyst_is_gazzetted' => false,
             'date_of_gazzette' => '',
+            'gazzette_no' => '',
             'start_of_career' => '',
             'department' => '',
-            'zone_id' => '',
-            'directorate_id' => '',
-            'lab_id' => '',
+            'lab_ids' => [],
             'lab_section_id' => [],
-            'user_license' => '',
             'active' => true,
         ];
         $this->signatureUpload = null;
@@ -963,32 +903,15 @@ class PersonnelTableManager extends Component
         $this->resetAddModalSearches();
     }
 
-    /** @return array<string,int> */
-    private function getUsersByLicense(): array
-    {
-        $counts = [];
-        $users = User::query()->where('company_id', getUserCompany())->get(['license_type']);
-
-        foreach ($users as $user) {
-            $license = (string) $user->license_type;
-            if (!isset($counts[$license])) {
-                $counts[$license] = 0;
-            }
-            $counts[$license]++;
-        }
-
-        return $counts;
-    }
-
     private function primeAddModalDropdowns(): void
     {
         $this->filteredDesignations = $this->designations;
         $this->filteredEducationLevels = $this->educationLevels;
         $this->filteredPositions = $this->positions;
         $this->filteredDepartments = $this->departments;
-        $this->searchLicenses();
         $this->filteredLabSections = $this->stages;
-        $this->showLicenseDropdown = false;
+        $this->filteredLabs = $this->labs;
+        $this->showLabDropdown = false;
     }
 
     private function resetAddModalSearches(): void
@@ -997,8 +920,8 @@ class PersonnelTableManager extends Component
         $this->educationLevelSearch = '';
         $this->positionSearch = '';
         $this->departmentSearchInput = '';
-        $this->licenseSearch = '';
         $this->labSectionSearch = '';
+        $this->labSearch = '';
         $this->closeAddModalDropdowns();
     }
 
@@ -1031,45 +954,9 @@ class PersonnelTableManager extends Component
 
         if ($step === 4) {
             $this->validate([
-                'personnelForm.user_license' => 'required|string|max:255',
                 'signatureUpload' => 'nullable|image|max:3072',
             ]);
         }
-    }
-
-    private function directorateBelongsToSelectedZone(string $directorateId): bool
-    {
-        $selectedZoneId = (string) ($this->personnelForm['zone_id'] ?? '');
-        if ($selectedZoneId === '') {
-            return true;
-        }
-
-        foreach ($this->directorates as $directorate) {
-            if ((string) $directorate['id'] === $directorateId) {
-                return (string) ($directorate['zone_id'] ?? '') === $selectedZoneId;
-            }
-        }
-
-        return false;
-    }
-
-    private function labMatchesSelections(string $labId): bool
-    {
-        $selectedZoneId = (string) ($this->personnelForm['zone_id'] ?? '');
-        $selectedDirectorateId = (string) ($this->personnelForm['directorate_id'] ?? '');
-
-        foreach ($this->labs as $lab) {
-            if ((string) $lab['id'] !== $labId) {
-                continue;
-            }
-
-            $matchesZone = $selectedZoneId === '' || (string) ($lab['zone_id'] ?? '') === $selectedZoneId;
-            $matchesDirectorate = $selectedDirectorateId === '' || (string) ($lab['directorate_id'] ?? '') === $selectedDirectorateId;
-
-            return $matchesZone && $matchesDirectorate;
-        }
-
-        return false;
     }
 }
 

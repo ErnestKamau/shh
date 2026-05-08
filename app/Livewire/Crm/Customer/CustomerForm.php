@@ -29,6 +29,10 @@ class CustomerForm extends BaseCrmComponent
     public $countries = [];
     public $accounts = [];
     public $account_settings = null;
+    public $countrySearch = '';
+    public $showCountryDropdown = false;
+    public $accountSearch = '';
+    public $showAccountDropdown = false;
 
     public function mount($customer = null, $countries = [], $accounts = [], $account_settings = null)
     {
@@ -72,6 +76,82 @@ class CustomerForm extends BaseCrmComponent
             $this->account_status = $customer->account_status;
             $this->lpos_required = (bool) ($customer->lpos_required ?? 0);
         }
+    }
+
+    public function getSelectedCountryProperty()
+    {
+        return collect($this->countries)->firstWhere('id', (int) $this->country_id);
+    }
+
+    public function getFilteredCountriesProperty()
+    {
+        $search = trim(strtolower($this->countrySearch));
+
+        return collect($this->countries)
+            ->filter(function ($country) use ($search) {
+                if ((string) $country->id === (string) $this->country_id) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($country->name), $search);
+            })
+            ->values();
+    }
+
+    public function selectCountry($countryId)
+    {
+        $this->country_id = $countryId ? (string) $countryId : '';
+        $this->countrySearch = '';
+        $this->showCountryDropdown = false;
+    }
+
+    public function clearCountry()
+    {
+        $this->country_id = '';
+        $this->countrySearch = '';
+        $this->showCountryDropdown = false;
+    }
+
+    public function getSelectedAccountProperty()
+    {
+        return collect($this->accounts)->firstWhere('id', (int) $this->account_status);
+    }
+
+    public function getFilteredAccountsProperty()
+    {
+        $search = trim(strtolower($this->accountSearch));
+
+        return collect($this->accounts)
+            ->filter(function ($account) use ($search) {
+                if ((string) $account->id === (string) $this->account_status) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower((string) $account->key), $search);
+            })
+            ->values();
+    }
+
+    public function selectAccountStatus($accountId)
+    {
+        $this->account_status = $accountId ? (string) $accountId : '';
+        $this->accountSearch = '';
+        $this->showAccountDropdown = false;
+    }
+
+    public function clearAccountStatus()
+    {
+        $this->account_status = '';
+        $this->accountSearch = '';
+        $this->showAccountDropdown = false;
     }
 
     protected function rules()

@@ -1,57 +1,4 @@
-<div x-data="{
-    initSelect2() {
-        setTimeout(() => {
-            let accountSelect = $('#account-status-select');
-            if (accountSelect.length) {
-                if (accountSelect.hasClass('select2-hidden-accessible')) {
-                    accountSelect.select2('destroy');
-                }
-                accountSelect.select2({
-                    placeholder: 'Choose Account Settings',
-                    allowClear: true,
-                    width: '100%',
-                    closeOnSelect: true
-                }).on('change', function (e) {
-                    @this.set('account_status', $(this).val());
-                });
-                
-                let initialAccount = @this.get('account_status');
-                if (initialAccount) {
-                    accountSelect.val(initialAccount).trigger('change');
-                }
-            }
-
-            let countrySelect = $('#country-select-details');
-            if (countrySelect.length) {
-                if (countrySelect.hasClass('select2-hidden-accessible')) {
-                    countrySelect.select2('destroy');
-                }
-                countrySelect.select2({
-                    placeholder: @js(__('crm.select_country')),
-                    allowClear: true,
-                    width: '100%',
-                    closeOnSelect: true
-                }).on('change', function (e) {
-                    @this.set('country_id', $(this).val());
-                });
-                
-                let initialCountry = @this.get('country_id');
-                if (initialCountry) {
-                    countrySelect.val(initialCountry).trigger('change');
-                }
-            }
-        }, 100);
-    }
-}" x-init="$watch('$wire.isEditing', value => { if(value) { setTimeout(() => initSelect2(), 100); } })">
-    <style>
-        .select2-container {
-            z-index: 100000 !important;
-        }
-
-        .select2-dropdown {
-            z-index: 100000 !important;
-        }
-    </style>
+<div>
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center">
             <span class="mr-2 d-flex align-items-center justify-content-center rounded"
@@ -139,13 +86,37 @@
                     <div class="form-group row">
                         <label class="col-sm-4 col-form-label">{{ __('crm.country') }}:</label>
                         <div class="col-sm-8">
-                            <div wire:ignore>
-                            <select class="form-control" id="country-select-details">
-                                <option value="">{{ __('crm.select_country') }}</option>
-                                    @foreach($countries as $country)
-                                    <option value="{{ $country->id }}">{{ $country->name }}</option>
-                                    @endforeach
-                                </select>
+                            <div class="tag-select-container @error('country_id') is-invalid @enderror"
+                                wire:click="$set('showCountryDropdown', true)"
+                                wire:click.outside="$set('showCountryDropdown', false)">
+                                <div class="tag-select-input">
+                                    @if($this->selectedCountry)
+                                        <span class="tag-badge">
+                                            {{ $this->selectedCountry->name }}
+                                            <i class="mdi mdi-close-circle" wire:click.stop="clearCountry"></i>
+                                        </span>
+                                    @endif
+
+                                    <input type="text"
+                                        wire:model.live="countrySearch"
+                                        class="tag-input"
+                                        placeholder="{{ $this->selectedCountry ? '' : __('crm.select_country') }}"
+                                        autocomplete="off">
+                                </div>
+
+                                @if($showCountryDropdown)
+                                    <div class="tag-dropdown">
+                                        @if(count($this->filteredCountries) > 0)
+                                            @foreach($this->filteredCountries as $country)
+                                                <div class="tag-dropdown-item" wire:click.stop="selectCountry({{ $country->id }})">
+                                                    {{ $country->name }}
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            <div class="tag-dropdown-item text-muted">No countries found</div>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                             @error('country_id') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
@@ -181,13 +152,39 @@
                     @if(isset($account_settings->id))
                         <div class="form-group row">
                             <label class="col-sm-4 col-form-label">{{ __('crm.account_setting') }}:</label>
-                            <div class="col-sm-8" wire:ignore>
-                            <select class="form-control no-select2" id="account-status-select">
-                                <option value="">{{ __('crm.choose_account_settings') }}</option>
-                                    @foreach($accounts as $account)
-                                    <option value="{{ $account->id }}">{{ $account->key }}</option>
-                                    @endforeach
-                                </select>
+                            <div class="col-sm-8">
+                                <div class="tag-select-container @error('account_status') is-invalid @enderror"
+                                    wire:click="$set('showAccountDropdown', true)"
+                                    wire:click.outside="$set('showAccountDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedAccount)
+                                            <span class="tag-badge">
+                                                {{ $this->selectedAccount->key }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="clearAccountStatus"></i>
+                                            </span>
+                                        @endif
+
+                                        <input type="text"
+                                            wire:model.live="accountSearch"
+                                            class="tag-input"
+                                            placeholder="{{ $this->selectedAccount ? '' : __('crm.choose_account_settings') }}"
+                                            autocomplete="off">
+                                    </div>
+
+                                    @if($showAccountDropdown)
+                                        <div class="tag-dropdown">
+                                            @if(count($this->filteredAccounts) > 0)
+                                                @foreach($this->filteredAccounts as $account)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus({{ $account->id }})">
+                                                        {{ $account->key }}
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="tag-dropdown-item text-muted">No account settings found</div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
                             @error('account_status') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
@@ -346,3 +343,71 @@
         </div>
     @endif
 </div>
+
+<style>
+    .tag-select-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .tag-select-input {
+        min-height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        padding: 4px 8px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        background-color: #fff;
+    }
+
+    .tag-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        min-width: 120px;
+        font-size: 0.9rem;
+    }
+
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0f2f5;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.85rem;
+    }
+
+    .tag-badge i {
+        cursor: pointer;
+    }
+
+    .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        max-height: 220px;
+        overflow-y: auto;
+        z-index: 1100;
+    }
+
+    .tag-dropdown-item {
+        padding: 8px 10px;
+        cursor: pointer;
+    }
+
+    .tag-dropdown-item:hover {
+        background: #f8f9fa;
+    }
+
+    .tag-select-container.is-invalid .tag-select-input {
+        border-color: #dc3545;
+    }
+</style>

@@ -46,27 +46,6 @@ class CRMAppController extends Controller
     }
 
     /**
-     * Display the sample points management page.
-     */
-    public function samplePoints()
-    {
-        return view('livewire.layout.crm-app', [
-            'componentType' => 'sample-points',
-            'pageTitle' => __('crm.sample_points_management')
-        ]);
-    }
-
-    /**
-     * Display the areas management page.
-     */
-    public function areas()
-    {
-        return view('livewire.layout.crm-app', [
-            'componentType' => 'areas',
-            'pageTitle' => __('crm.areas_management')
-        ]);
-    }
-    /**
      * Display the complaints management page.
      */
     public function complaintsManager($stage = null)

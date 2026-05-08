@@ -7,7 +7,6 @@ use Livewire\WithPagination;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCompanySubUnit;
-use App\Models\SamplePointArea;
 use App\Models\CRM\SamplePoint;
 use App\Country;
 use App\ModulePreConfigs;
@@ -697,32 +696,17 @@ class CustomerManager extends Component
         $unitsCount = $units->count();
         
         $subUnitsCount = 0;
-        $areasCount = 0;
-        $samplePointsCount = 0;
+        $samplePointsCount = SamplePoint::where('crm_customer_id', $this->customerToClone->id)->count();
 
         foreach ($units as $unit) {
             $subUnits = $unit->subUnits;
             $subUnitsCount += $subUnits->count();
-            
-            foreach ($subUnits as $subUnit) {
-                $areas = SamplePointArea::where('crm_company_sub_unit_id', $subUnit->id)
-                    ->where('crm_customer_id', $this->customerToClone->id)
-                    ->get();
-                $areasCount += $areas->count();
-                
-                foreach ($areas as $area) {
-                    $points = SamplePoint::where('sample_point_area_id', $area->id)
-                        ->where('crm_customer_id', $this->customerToClone->id)
-                        ->get();
-                    $samplePointsCount += $points->count();
-                }
-            }
         }
 
         return [
             'company_units' => $unitsCount,
             'company_sub_units' => $subUnitsCount,
-            'sample_areas' => $areasCount,
+            'sample_areas' => 0,
             'sample_points' => $samplePointsCount,
         ];
     }
@@ -776,7 +760,6 @@ class CustomerManager extends Component
             // Mapping arrays to maintain relationships
             $unitMapping = []; // oldUnitId => newUnitId
             $subUnitMapping = []; // oldSubUnitId => newSubUnitId
-            $areaMapping = []; // oldAreaId => newAreaId
 
             // Clone company units
             $originalUnits = $this->customerToClone->units;
@@ -802,43 +785,28 @@ class CustomerManager extends Component
                     $newSubUnit->save();
                     
                     $subUnitMapping[$originalSubUnit->id] = $newSubUnit->id;
-
-                    // Clone sample point areas
-                    $originalAreas = SamplePointArea::where('crm_company_sub_unit_id', $originalSubUnit->id)
-                        ->where('crm_customer_id', $this->customerToClone->id)
-                        ->get();
-                    
-                    foreach ($originalAreas as $originalArea) {
-                        $newArea = new SamplePointArea();
-                        $newArea->description = $originalArea->description;
-                        $newArea->crm_customer_id = $newCustomer->id;
-                        $newArea->crm_company_sub_unit_id = $newSubUnit->id;
-                        $newArea->crm_area_id = $originalArea->crm_area_id;
-                        $newArea->crm_company_unit_id = $newUnit->id;
-                        $newArea->active = $originalArea->active;
-                        $newArea->save();
-                        
-                        $areaMapping[$originalArea->id] = $newArea->id;
-
-                        // Clone sample points
-                        $originalSamplePoints = SamplePoint::where('sample_point_area_id', $originalArea->id)
-                            ->where('crm_customer_id', $this->customerToClone->id)
-                            ->get();
-                        
-                        foreach ($originalSamplePoints as $originalPoint) {
-                            $newPoint = new SamplePoint();
-                            $newPoint->crm_company_unit_id = $newUnit->id;
-                            $newPoint->sample_point_area_id = $newArea->id;
-                            $newPoint->crm_area_id = $originalPoint->crm_area_id;
-                            $newPoint->crm_sample_point_id = $originalPoint->crm_sample_point_id;
-                            $newPoint->crm_company_sub_unit_id = $newSubUnit->id;
-                            $newPoint->crm_customer_id = $newCustomer->id;
-                            $newPoint->active = $originalPoint->active;
-                            $newPoint->gps = $originalPoint->gps ? $originalPoint->gps . ' (Cloned)' : '(Cloned)';
-                            $newPoint->save();
-                        }
-                    }
                 }
+
+                                    // Clone sample points directly under unit (area-less model).
+                                    $originalSamplePoints = SamplePoint::where('crm_company_unit_id', $originalUnit->id)
+                                        ->where('crm_customer_id', $this->customerToClone->id)
+                                        ->get();
+
+                                    foreach ($originalSamplePoints as $originalPoint) {
+                                        $newPoint = new SamplePoint();
+                                        $newPoint->crm_company_unit_id = $newUnit->id;
+                                        $newPoint->crm_customer_id = $newCustomer->id;
+                                        $newPoint->name = $originalPoint->name;
+                                        $newPoint->code = $originalPoint->code;
+                                        $newPoint->description = $originalPoint->description;
+                                        $newPoint->active = $originalPoint->active;
+                                        $newPoint->gps = $originalPoint->gps;
+                                        $newPoint->crm_company_sub_unit_id = null;
+                                        $newPoint->sample_point_area_id = null;
+                                        $newPoint->crm_area_id = null;
+                                        $newPoint->crm_sample_point_id = null;
+                                        $newPoint->save();
+                                    }
             }
 
             DB::commit();
@@ -847,7 +815,7 @@ class CustomerManager extends Component
             $summary = [
                 'company_units' => count($unitMapping),
                 'company_sub_units' => count($subUnitMapping),
-                'sample_areas' => count($areaMapping),
+                'sample_areas' => 0,
                 'sample_points' => SamplePoint::where('crm_customer_id', $newCustomer->id)->count(),
             ];
             

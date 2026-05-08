@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Crm\Contact;
 
+use App\Mail\ContactWelcomeMail;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\CRMCustomer;
 use Livewire\Attributes\On;
 use App\Livewire\Crm\BaseCrmComponent;
 use App\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class ContactForm extends BaseCrmComponent
 {
@@ -29,6 +31,10 @@ class ContactForm extends BaseCrmComponent
     public $other_customers = [];
     public $units = [];
     public $customers = [];
+    public $unitSearch = '';
+    public $otherCustomerSearch = '';
+    public $showUnitDropdown = false;
+    public $showOtherCustomersDropdown = false;
 
     public $password = '';
     public $confirm_password = '';
@@ -51,7 +57,7 @@ class ContactForm extends BaseCrmComponent
                 $this->second_name = $contact->middle_name;
                 $this->third_name = $contact->last_name;
                 $this->job_occupation = $contact->job_occupation;
-                $this->unit_name = explode(',', $contact->unit_name ?? '');
+                $this->unit_name = array_values(array_filter(explode(',', $contact->unit_name ?? ''), fn($id) => $id !== ''));
                 $this->email = $contact->email;
                 $this->telephone = $contact->telephone;
                 $this->mobile = $contact->mobile;
@@ -62,9 +68,119 @@ class ContactForm extends BaseCrmComponent
                 $this->receive_feedback = (bool) ($contact->receive_feedback ?? 0);
                 $this->active = (bool) ($contact->active ?? 0);
                 $this->can_login = (bool) ($contact->can_login ?? 0);
-                $this->other_customers = explode(',', $contact->other_customers ?? '');
+                $this->other_customers = array_values(array_filter(explode(',', $contact->other_customers ?? ''), fn($id) => $id !== ''));
             }
         }
+    }
+
+    public function getFilteredUnitsProperty()
+    {
+        $search = trim(strtolower($this->unitSearch));
+
+        return collect($this->units)
+            ->when($search !== '', function ($units) use ($search) {
+                return $units->filter(function ($unit) use ($search) {
+                    return str_contains(strtolower($unit->name), $search);
+                });
+            })
+            ->take(80)
+            ->values();
+    }
+
+    public function getFilteredCustomersProperty()
+    {
+        $search = trim(strtolower($this->otherCustomerSearch));
+
+        return collect($this->customers)
+            ->when($search !== '', function ($customers) use ($search) {
+                return $customers->filter(function ($customer) use ($search) {
+                    return str_contains(strtolower($customer->name), $search);
+                });
+            })
+            ->take(80)
+            ->values();
+    }
+
+    public function getSelectedUnitsProperty()
+    {
+        $selectedIds = collect($this->unit_name)->map(fn($id) => (int) $id)->all();
+
+        return collect($this->units)
+            ->filter(fn($unit) => in_array((int) $unit->id, $selectedIds, true))
+            ->values();
+    }
+
+    public function getSelectedOtherCustomersProperty()
+    {
+        $selectedIds = collect($this->other_customers)->map(fn($id) => (int) $id)->all();
+
+        return collect($this->customers)
+            ->filter(fn($customer) => in_array((int) $customer->id, $selectedIds, true))
+            ->values();
+    }
+
+    public function toggleUnitSelection($unitId)
+    {
+        $unitId = (int) $unitId;
+        $selected = collect($this->unit_name)->map(fn($id) => (int) $id)->all();
+
+        if (in_array($unitId, $selected, true)) {
+            $selected = array_values(array_filter($selected, fn($id) => $id !== $unitId));
+        } else {
+            $selected[] = $unitId;
+        }
+
+        $this->unit_name = $selected;
+    }
+
+    public function removeUnitSelection($unitId)
+    {
+        $unitId = (int) $unitId;
+
+        $this->unit_name = array_values(array_filter(
+            collect($this->unit_name)->map(fn($id) => (int) $id)->all(),
+            fn($id) => $id !== $unitId
+        ));
+    }
+
+    public function isUnitSelected($unitId)
+    {
+        $unitId = (int) $unitId;
+        $selected = collect($this->unit_name)->map(fn($id) => (int) $id)->all();
+
+        return in_array($unitId, $selected, true);
+    }
+
+    public function toggleOtherCustomerSelection($customerId)
+    {
+        $customerId = (int) $customerId;
+        $selected = collect($this->other_customers)->map(fn($id) => (int) $id)->all();
+
+        if (in_array($customerId, $selected, true)) {
+            $selected = array_values(array_filter($selected, fn($id) => $id !== $customerId));
+        } else {
+            $selected[] = $customerId;
+        }
+
+        $this->other_customers = $selected;
+    }
+
+    public function removeOtherCustomerSelection($customerId)
+    {
+        $customerId = (int) $customerId;
+
+        $this->other_customers = array_values(array_filter(
+            collect($this->other_customers)->map(fn($id) => (int) $id)->all(),
+            fn($id) => $id !== $customerId
+        ));
+    }
+
+    public function isOtherCustomerSelected($customerId)
+    {
+        $customerId = (int) $customerId;
+        $selected = collect($this->other_customers)->map(fn($id) => (int) $id)->all();
+
+        return in_array($customerId, $selected, true);
     }
 
     protected function rules()
@@ -192,23 +308,16 @@ class ContactForm extends BaseCrmComponent
             
             $user->save();
 
-            // Send notification after response so the save returns quickly (avoids 3–10s wait for SMTP)
-            if ($this->password) {
-                $ip_address_link = request()->root();
-                $companyDetails = getCompanyDetails();
-                $message = 'We would like to welcome you to ' . $companyDetails['name'] . '.Please find below your Login Credentials and Link to Imara Lims:';
-                $body = 'Hi ' . $user->name . ', <br><br>'
-                    . $message . '<br>
-                    App Link: <a href=' . $ip_address_link . '>' . $ip_address_link . '</a> ,<br>
-                    Email: ' . $user->email . ' ,<br>
-                    Password: ' . $this->password . ' , <br>
-    
-                    Regards, <br><br> ' . $companyDetails['name'] . ' ';
-                $subject = '[' . $companyDetails['name'] . '] User Credentials';
-
+            // Send welcome email only on new contact creation (not when editing credentials)
+            if ($this->password && !$this->contactId) {
+                $recipientName  = trim($user->name);
                 $recipientEmail = $user->email;
-                dispatch(function () use ($body, $recipientEmail, $subject) {
-                    notify_user($body, $recipientEmail, $subject);
+                $plainPassword  = $this->password;
+
+                dispatch(function () use ($recipientName, $recipientEmail, $plainPassword) {
+                    Mail::to($recipientEmail)->send(
+                        new ContactWelcomeMail($recipientName, $recipientEmail, $plainPassword)
+                    );
                 })->afterResponse();
             }
         }

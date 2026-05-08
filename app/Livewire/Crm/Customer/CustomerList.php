@@ -71,6 +71,22 @@ class CustomerList extends BaseCrmComponent
     public $sortField = 'name';
     public $sortDirection = 'asc';
 
+    public function getBreadcrumbItemsProperty(): array
+    {
+        return [
+            [
+                'link' => route('customers-list'),
+                'name' => __('crm.module_name'),
+                'icon' => null,
+            ],
+            [
+                'link' => route('customers-list'),
+                'name' => __('crm.client_registry'),
+                'icon' => null,
+            ],
+        ];
+    }
+
     public function sortBy($field)
     {
         if ($this->sortField === $field) {

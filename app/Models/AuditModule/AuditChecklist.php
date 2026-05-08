@@ -64,6 +64,18 @@ class AuditChecklist extends Model implements Auditable
             ->orderByPivot('order_index');
     }
 
+    public function workflowActions(): BelongsToMany
+    {
+        return $this->belongsToMany(WorkflowAction::class, 'audit_checklist_workflow_action', 'audit_checklist_id', 'workflow_action_id')
+            ->withTimestamps();
+    }
+
+    public function sampleTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\SampleType::class, 'audit_checklist_sample_type', 'audit_checklist_id', 'sample_type_id')
+            ->withTimestamps();
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

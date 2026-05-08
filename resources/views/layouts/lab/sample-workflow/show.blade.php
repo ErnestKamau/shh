@@ -2884,7 +2884,7 @@
 <div id="add-company-sample-point" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('add-sample-point') }}" enctype="multipart/form-data">
+		<form class="modal-content" method="POST" action="{{ url('/sample-point') }}" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sample Point' }}</h4>

@@ -24,6 +24,8 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
     public $customType = '';
     public $editingAttachmentId = null;
     public $attachmentIdToDelete = null;
+    public $typeSearch = '';
+    public $showTypeDropdown = false;
     
     public $attachmentTypes = [
         'Closure Report',
@@ -54,6 +56,54 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
         $this->dispatch('attachment-types-updated');
     }
 
+    public function getSelectedTypeProperty()
+    {
+        if (empty($this->type)) {
+            return null;
+        }
+
+        return $this->type;
+    }
+
+    public function getFilteredTypeOptionsProperty()
+    {
+        $search = strtolower(trim($this->typeSearch));
+        $options = array_values(array_unique(array_merge($this->availableAttachmentTypes, ['Other'])));
+
+        return collect($options)
+            ->filter(function ($option) use ($search) {
+                if ($option === $this->type) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($option), $search);
+            })
+            ->values();
+    }
+
+    public function selectType($value)
+    {
+        $this->type = $value;
+        $this->typeSearch = '';
+        $this->showTypeDropdown = false;
+
+        if ($value !== 'Other') {
+            $this->customType = '';
+        }
+    }
+
+    public function clearType()
+    {
+        $this->type = '';
+        $this->customType = '';
+        $this->typeSearch = '';
+        $this->showTypeDropdown = false;
+    }
+
     public function getAttachmentsProperty()
     {
         return Complaintattachment::where('complaint_id', $this->complaintId)
@@ -70,7 +120,7 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
 
     public function openAttachmentModal()
     {
-        $this->reset(['title', 'type', 'customType', 'description', 'attachmentFile', 'isPublic', 'editingAttachmentId']);
+        $this->reset(['title', 'type', 'customType', 'description', 'attachmentFile', 'isPublic', 'editingAttachmentId', 'typeSearch', 'showTypeDropdown']);
         $this->dispatch('show-attachment-modal');
     }
 
@@ -94,6 +144,8 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
             
             $this->description = $attachment->description;
             $this->isPublic = (bool)$attachment->is_public;
+            $this->typeSearch = '';
+            $this->showTypeDropdown = false;
             
             $this->dispatch('show-attachment-modal');
         }
@@ -126,7 +178,7 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
 
         $attachment->save();
 
-        $this->reset(['title', 'type', 'customType', 'description', 'attachmentFile', 'isPublic', 'editingAttachmentId']);
+        $this->reset(['title', 'type', 'customType', 'description', 'attachmentFile', 'isPublic', 'editingAttachmentId', 'typeSearch', 'showTypeDropdown']);
         $this->loadAvailableAttachmentTypes();
         
         $this->showSuccess('Attachment added successfully');
@@ -168,7 +220,7 @@ class ComplaintAttachmentsTab extends BaseCrmComponent
 
         $attachment->save();
 
-        $this->reset(['title', 'type', 'customType', 'description', 'attachmentFile', 'isPublic', 'editingAttachmentId']);
+        $this->reset(['title', 'type', 'customType', 'description', 'attachmentFile', 'isPublic', 'editingAttachmentId', 'typeSearch', 'showTypeDropdown']);
         $this->loadAvailableAttachmentTypes();
 
         $this->showSuccess('Attachment updated successfully');

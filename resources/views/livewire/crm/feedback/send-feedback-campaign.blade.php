@@ -1,38 +1,4 @@
-<div x-data="{
-    initializeSelect2() {
-        let select = $('#campaignCustomerSelect');
-        
-        if (select.length) {
-            // Destroy existing instance if present
-            if (select.hasClass('select2-hidden-accessible')) {
-                select.select2('destroy');
-            }
-            
-            // Initialize with configuration matching contact-form.blade.php
-            select.select2({
-                placeholder: 'Select Customers',
-                allowClear: true,
-                width: '100%',
-                multiple: true,
-                closeOnSelect: true
-            }).on('select2:select', function (e) {
-                var self = $(this);
-                setTimeout(function() {
-                    self.select2('close');
-                }, 50);
-            }).on('change', function (e) {
-                var data = $(this).val();
-                $wire.set('selectedCustomers', data);
-            });
-            
-            // Load initial values from Livewire state
-            let initialCustomers = $wire.get('selectedCustomers');
-            if (initialCustomers && initialCustomers.length > 0) {
-                select.val(initialCustomers).trigger('change');
-            }
-        }
-    }
-}">
+<div>
 
     @teleport('body')
     <div class="modal fade" id="sendCampaignModal" tabindex="-1" role="dialog" wire:ignore.self>
@@ -102,13 +68,39 @@
                             </div>
                         @endif
 
-                        <div class="form-group" wire:ignore x-init="initializeSelect2()">
+                        <div class="form-group">
                             <label class="font-weight-bold">Select Customers (Multi-Select)</label>
-                            <select id="campaignCustomerSelect" class="form-control select2" multiple>
-                                @foreach($customers as $customer)
-                                    <option value="{{ $customer->id }}">{{ $customer->name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="tag-select-container" wire:click.outside="$set('showCustomerDropdown', false)">
+                                <div class="tag-select-input">
+                                    <div class="selected-tags">
+                                        @forelse($this->selectedCustomersList as $customer)
+                                            <span class="selected-tag">
+                                                {{ $customer->name }}
+                                                <i class="mdi mdi-close" wire:click.stop="removeCustomer('{{ $customer->id }}')"></i>
+                                            </span>
+                                        @empty
+                                            <span class="text-muted small">No customer selected</span>
+                                        @endforelse
+                                    </div>
+                                    <input type="text" class="tag-input" placeholder="Search customers..."
+                                        wire:model.live.debounce.200ms="customerSearch"
+                                        wire:focus="$set('showCustomerDropdown', true)" />
+                                    @if(!empty($selectedCustomers))
+                                        <i class="mdi mdi-close-circle clear-icon" wire:click="clearCustomers"></i>
+                                    @endif
+                                </div>
+                                @if($showCustomerDropdown)
+                                    <div class="tag-dropdown">
+                                        @forelse($this->filteredCustomerOptions as $customer)
+                                            <div class="tag-dropdown-item" wire:click="toggleCustomer('{{ $customer->id }}')">
+                                                {{ $customer->name }}
+                                            </div>
+                                        @empty
+                                            <div class="tag-dropdown-empty">No customers found</div>
+                                        @endforelse
+                                    </div>
+                                @endif
+                            </div>
                         </div>
 
                         <!-- Recipients Preview -->
@@ -173,52 +165,54 @@
                 $('#sendCampaignModal').modal('hide');
             });
 
-            Livewire.on('campaign-modal-closed', (event) => {
+            Livewire.on('campaign-modal-closed', () => {
                 $('#sendCampaignModal').modal('hide');
-                let detail = Array.isArray(event) ? event[0] : (event.detail || event);
-                
-                if (detail && detail.cleanup) {
-                    // Clean up Select2 instance when modal closes
-                    let select = $('#campaignCustomerSelect');
-                    if (select.hasClass('select2-hidden-accessible')) {
-                        select.select2('destroy');
-                    }
-                }
             });
         });
-
-        function initializeSelect2() {
-            let select = $('#campaignCustomerSelect');
-
-            if (select.length) {
-                // Destroy existing instance if present
-                if (select.hasClass('select2-hidden-accessible')) {
-                    select.select2('destroy');
-                }
-
-                // Initialize with configuration matching contact-form.blade.php
-                select.select2({
-                    placeholder: 'Select Customers',
-                    allowClear: true,
-                    width: '100%',
-                    multiple: true,
-                    closeOnSelect: true
-                }).on('select2:select', function (e) {
-                    var self = $(this);
-                    setTimeout(function () {
-                        self.select2('close');
-                    }, 50);
-                }).on('change', function (e) {
-                    var data = $(this).val();
-                    $wire.set('selectedCustomers', data);
-                });
-
-                // Load initial values from Livewire state
-                let initialCustomers = $wire.get('selectedCustomers');
-                if (initialCustomers && initialCustomers.length > 0) {
-                    select.val(initialCustomers).trigger('change');
-                }
-            }
-        }
     </script>
+
+    <style>
+        .tag-select-container { position: relative; }
+        .tag-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            min-height: 42px;
+            padding: 6px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+        }
+        .selected-tags { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+        .selected-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #e8f1ff;
+            color: #1f2937;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 12px;
+        }
+        .selected-tag i { cursor: pointer; font-size: 14px; }
+        .tag-input { border: none; outline: none; flex: 1 1 180px; min-width: 120px; }
+        .clear-icon { cursor: pointer; color: #9ca3af; font-size: 18px; }
+        .tag-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+            z-index: 1070;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+        .tag-dropdown-item { padding: 8px 10px; cursor: pointer; }
+        .tag-dropdown-item:hover { background: #f3f4f6; }
+        .tag-dropdown-empty { padding: 8px 10px; color: #6b7280; font-size: 13px; }
+    </style>
 </div>

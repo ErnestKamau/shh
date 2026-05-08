@@ -45,20 +45,38 @@
                                 </div>
                                 <div class="form-group">
                                     <label class="control-label">Country</label>
-                                    <select class="form-control" wire:model="country_id">
-                                        <option value="">-- Select Country --</option>
-                                        @if(is_array($countries))
-                                            @foreach($countries as $country)
-                                                <option value="{{ $country->id ?? $country['id'] }}">
-                                                    {{ $country->name ?? $country['name'] }}
-                                                </option>
-                                            @endforeach
-                                        @else
-                                            @foreach($countries as $country)
-                                                <option value="{{ $country->id }}">{{ $country->name }}</option>
-                                            @endforeach
+                                    <div class="tag-select-container @error('country_id') is-invalid @enderror"
+                                        wire:click="$set('showCountryDropdown', true)"
+                                        wire:click.outside="$set('showCountryDropdown', false)">
+                                        <div class="tag-select-input">
+                                            @if($this->selectedCountry)
+                                                <span class="tag-badge">
+                                                    {{ $this->selectedCountry->name }}
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearCountry"></i>
+                                                </span>
+                                            @endif
+
+                                            <input type="text"
+                                                wire:model.live.debounce.200ms="countrySearch"
+                                                class="tag-input"
+                                                placeholder="{{ $this->selectedCountry ? '' : 'Search countries...' }}"
+                                                autocomplete="off">
+                                        </div>
+
+                                        @if($showCountryDropdown)
+                                            <div class="tag-dropdown">
+                                                @if(count($this->filteredCountries) > 0)
+                                                    @foreach($this->filteredCountries as $country)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectCountry('{{ $country->id }}')">
+                                                            {{ $country->name }}
+                                                        </div>
+                                                    @endforeach
+                                                @else
+                                                    <div class="tag-dropdown-item text-muted">No countries found</div>
+                                                @endif
+                                            </div>
                                         @endif
-                                    </select>
+                                    </div>
                                     @error('country_id') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="row">
@@ -117,14 +135,38 @@
                                 </div>
                                 <div class="form-group">
                                     <label class="control-label">Account Settings <span class="text-danger">*</span></label>
-                                    <select class="form-control" wire:model="account_status" required>
-                                        <option value="">-- Select Account Settings --</option>
-                                        @forelse($accounts as $account)
-                                            <option value="{{ $account->id }}">{{ $account->key }}</option>
-                                        @empty
-                                            <option disabled>No account settings available</option>
-                                        @endforelse
-                                    </select>
+                                    <div class="tag-select-container @error('account_status') is-invalid @enderror"
+                                        wire:click="$set('showAccountDropdown', true)"
+                                        wire:click.outside="$set('showAccountDropdown', false)">
+                                        <div class="tag-select-input">
+                                            @if($this->selectedAccount)
+                                                <span class="tag-badge">
+                                                    {{ $this->selectedAccount->key }}
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearAccountStatus"></i>
+                                                </span>
+                                            @endif
+
+                                            <input type="text"
+                                                wire:model.live.debounce.200ms="accountSearch"
+                                                class="tag-input"
+                                                placeholder="{{ $this->selectedAccount ? '' : 'Search account settings...' }}"
+                                                autocomplete="off">
+                                        </div>
+
+                                        @if($showAccountDropdown)
+                                            <div class="tag-dropdown">
+                                                @if(count($this->filteredAccounts) > 0)
+                                                    @foreach($this->filteredAccounts as $account)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ $account->id }}')">
+                                                            {{ $account->key }}
+                                                        </div>
+                                                    @endforeach
+                                                @else
+                                                    <div class="tag-dropdown-item text-muted">No account settings found</div>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
                                     @error('account_status') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
@@ -142,3 +184,71 @@
     </div>
 
 </div>
+
+<style>
+    .tag-select-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .tag-select-input {
+        min-height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        padding: 4px 8px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        background-color: #fff;
+    }
+
+    .tag-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        min-width: 120px;
+        font-size: 0.9rem;
+    }
+
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0f2f5;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.85rem;
+    }
+
+    .tag-badge i {
+        cursor: pointer;
+    }
+
+    .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        max-height: 220px;
+        overflow-y: auto;
+        z-index: 1100;
+    }
+
+    .tag-dropdown-item {
+        padding: 8px 10px;
+        cursor: pointer;
+    }
+
+    .tag-dropdown-item:hover {
+        background: #f8f9fa;
+    }
+
+    .tag-select-container.is-invalid .tag-select-input {
+        border-color: #dc3545;
+    }
+</style>

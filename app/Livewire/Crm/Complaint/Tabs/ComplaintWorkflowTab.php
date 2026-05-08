@@ -27,6 +27,8 @@ class ComplaintWorkflowTab extends BaseCrmComponent
     public $confirmButtonText = 'Submit';
     public $confirmButtonColor = 'btn-primary';
     public $selectedContactIds = [];
+    public $closureContactSearch = '';
+    public $showClosureContactDropdown = false;
 
 
     public function mount($complaintId, $viewMode = 'tab')
@@ -70,6 +72,8 @@ class ComplaintWorkflowTab extends BaseCrmComponent
 
         $this->comment = ''; // Clear previous comment
         $this->selectedContactIds = [];
+        $this->closureContactSearch = '';
+        $this->showClosureContactDropdown = false;
         $this->car_required = 0; // Default to NO
 
         // Pre-fill car_required if we already have a resolution record
@@ -142,6 +146,75 @@ class ComplaintWorkflowTab extends BaseCrmComponent
         }
 
         $this->dispatch('show-action-modal');
+    }
+
+    public function getSelectedClosureContactsProperty()
+    {
+        $selectedIds = collect($this->selectedContactIds)->map(fn($id) => (int) $id)->all();
+        if (empty($selectedIds)) {
+            return collect();
+        }
+
+        return $this->getClosureContacts()
+            ->filter(fn($contact) => in_array((int) $contact->id, $selectedIds, true))
+            ->values();
+    }
+
+    public function getFilteredClosureContactOptionsProperty()
+    {
+        $search = strtolower(trim($this->closureContactSearch));
+        $selectedIds = collect($this->selectedContactIds)->map(fn($id) => (int) $id)->all();
+
+        return $this->getClosureContacts()
+            ->filter(function ($contact) use ($search, $selectedIds) {
+                if (in_array((int) $contact->id, $selectedIds, true)) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                $name = strtolower(trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')));
+                $email = strtolower((string) ($contact->email ?? ''));
+
+                return str_contains($name, $search) || str_contains($email, $search);
+            })
+            ->values();
+    }
+
+    public function toggleClosureContact($contactId)
+    {
+        $contactId = (string) $contactId;
+
+        if (in_array($contactId, $this->selectedContactIds, true)) {
+            $this->selectedContactIds = array_values(array_filter(
+                $this->selectedContactIds,
+                fn($id) => (string) $id !== $contactId
+            ));
+        } else {
+            $this->selectedContactIds[] = $contactId;
+            $this->selectedContactIds = array_values(array_unique(array_map('strval', $this->selectedContactIds)));
+        }
+
+        $this->closureContactSearch = '';
+        $this->showClosureContactDropdown = true;
+    }
+
+    public function removeClosureContact($contactId)
+    {
+        $contactId = (string) $contactId;
+        $this->selectedContactIds = array_values(array_filter(
+            $this->selectedContactIds,
+            fn($id) => (string) $id !== $contactId
+        ));
+    }
+
+    public function clearClosureContacts()
+    {
+        $this->selectedContactIds = [];
+        $this->closureContactSearch = '';
+        $this->showClosureContactDropdown = false;
     }
 
     public function performAction($comment = null)

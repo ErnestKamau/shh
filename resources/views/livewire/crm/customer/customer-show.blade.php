@@ -43,12 +43,6 @@
                     <div class="crm-content-tabs pt-2">
                         <ul class="crm-tab-nav" id="Elements-tabs" role="tablist">
                             <li class="crm-tab-item">
-                                <a class="crm-tab-link {{ $activeTab == 'company-sections' ? 'active' : '' }}"
-                                    wire:click="switchTab('company-sections')" href="#Company-Sections" role="tab">
-                                    <i class="mdi mdi-folder-outline"></i> {{ __('crm.company_section') }}
-                                </a>
-                            </li>
-                            <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'company-units' ? 'active' : '' }}"
                                     wire:click="switchTab('company-units')" href="#Company-Units" role="tab">
                                     <i class="mdi mdi-sitemap"></i>

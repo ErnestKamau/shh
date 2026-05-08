@@ -1,67 +1,78 @@
 
-<div x-data="{
-    initSelect2() {
-        setTimeout(() => {
-            // Initialize Department/Unit Select2
-            let unitSelect = $('#unit_selector');
-            if (unitSelect.hasClass('select2-hidden-accessible')) {
-                unitSelect.select2('destroy');
-            }
-            unitSelect.select2({
-                placeholder: '{{ __('crm.select_department') }}',
-                allowClear: true,
-                width: '100%',
-                multiple: true,
-                dropdownParent: unitSelect.closest('.modal'),
-                closeOnSelect: true
-            }).on('change', function (e) {
-                var data = $(this).val();
-                $wire.set('unit_name', data);
-            });
-
-            // Initialize Other Customers Select2
-            let customerSelect = $('#other_customers_selector');
-            if (customerSelect.hasClass('select2-hidden-accessible')) {
-                customerSelect.select2('destroy');
-            }
-            customerSelect.select2({
-                placeholder: '{{ __('crm.select_customers') }}',
-                allowClear: true,
-                width: '100%',
-                multiple: true,
-                dropdownParent: customerSelect.closest('.modal'),
-                closeOnSelect: true
-            }).on('change', function (e) {
-                var data = $(this).val();
-                $wire.set('other_customers', data);
-            });
-
-            // Initial load for Units
-            let initialUnits = $wire.get('unit_name');
-            if (initialUnits) {
-                unitSelect.val(initialUnits).trigger('change');
-            }
-
-            // Initial load for Other Customers
-            let initialCustomers = $wire.get('other_customers');
-            if (initialCustomers) {
-                customerSelect.val(initialCustomers).trigger('change');
-            }
-        }, 100);
-    }
-}" x-init="initSelect2()">
+<div>
     <style>
-        .select2-container .select2-selection--multiple {
-            min-height: 38px;
-            border: 1px solid #ced4da;
-        }
-
         .form-section-title {
             font-size: 1rem;
             font-weight: 600;
             margin-bottom: 1rem;
             border-bottom: 1px solid #eee;
             padding-bottom: 0.5rem;
+        }
+
+        .tag-select-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .tag-select-input {
+            min-height: 38px;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            background-color: #fff;
+        }
+
+        .tag-input {
+            border: none;
+            outline: none;
+            flex: 1;
+            min-width: 120px;
+            font-size: 0.9rem;
+        }
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0f2f5;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 0.85rem;
+        }
+
+        .tag-badge i {
+            cursor: pointer;
+        }
+
+        .tag-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 1100;
+        }
+
+        .tag-dropdown-item {
+            padding: 8px 10px;
+            cursor: pointer;
+        }
+
+        .tag-dropdown-item:hover {
+            background: #f8f9fa;
+        }
+
+        .tag-select-container.is-invalid .tag-select-input {
+            border-color: #dc3545;
         }
     </style>
     <template x-teleport="body">
@@ -120,14 +131,45 @@
                                     </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <div class="form-group" wire:ignore>
+                                    <div class="form-group">
                                         <label class="control-label">{{ __('crm.department') }} <span
                                                 class="text-danger">*</span></label>
-                                        <select id="unit_selector" class="form-control select2" multiple required>
-                                            @foreach($units as $unit)
-                                                <option value="{{ $unit->id }}">{{ $unit->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="tag-select-container @error('unit_name') is-invalid @enderror"
+                                            wire:click="$set('showUnitDropdown', true)"
+                                            wire:click.outside="$set('showUnitDropdown', false)">
+                                            <div class="tag-select-input">
+                                                @foreach($this->selectedUnits as $unit)
+                                                    <span class="tag-badge">
+                                                        {{ $unit->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="removeUnitSelection({{ $unit->id }})"></i>
+                                                    </span>
+                                                @endforeach
+
+                                                <input type="text"
+                                                    wire:model.live="unitSearch"
+                                                    class="tag-input"
+                                                    placeholder="{{ __('crm.select_department') }}"
+                                                    autocomplete="off">
+                                            </div>
+
+                                            @if($showUnitDropdown)
+                                                <div class="tag-dropdown">
+                                                    @if(count($this->filteredUnits) > 0)
+                                                        @foreach($this->filteredUnits as $unit)
+                                                            <div class="tag-dropdown-item d-flex justify-content-between align-items-center"
+                                                                wire:click.stop="toggleUnitSelection({{ $unit->id }})">
+                                                                <span>{{ $unit->name }}</span>
+                                                                @if($this->isUnitSelected($unit->id))
+                                                                    <i class="mdi mdi-check text-success"></i>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="tag-dropdown-item text-muted">No departments found</div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
                                         @error('unit_name') <span class="text-danger small">{{ $message }}</span>
                                         @enderror
                                     </div>
@@ -163,13 +205,44 @@
                                     </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <div class="form-group" wire:ignore>
+                                    <div class="form-group">
                                         <label class="control-label">{{ __('crm.other_customers_assigned') }}</label>
-                                        <select id="other_customers_selector" class="form-control select2" multiple>
-                                            @foreach($customers as $cust)
-                                                <option value="{{ $cust->id }}">{{ $cust->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="tag-select-container"
+                                            wire:click="$set('showOtherCustomersDropdown', true)"
+                                            wire:click.outside="$set('showOtherCustomersDropdown', false)">
+                                            <div class="tag-select-input">
+                                                @foreach($this->selectedOtherCustomers as $cust)
+                                                    <span class="tag-badge">
+                                                        {{ $cust->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="removeOtherCustomerSelection({{ $cust->id }})"></i>
+                                                    </span>
+                                                @endforeach
+
+                                                <input type="text"
+                                                    wire:model.live="otherCustomerSearch"
+                                                    class="tag-input"
+                                                    placeholder="{{ __('crm.select_customers') }}"
+                                                    autocomplete="off">
+                                            </div>
+
+                                            @if($showOtherCustomersDropdown)
+                                                <div class="tag-dropdown">
+                                                    @if(count($this->filteredCustomers) > 0)
+                                                        @foreach($this->filteredCustomers as $cust)
+                                                            <div class="tag-dropdown-item d-flex justify-content-between align-items-center"
+                                                                wire:click.stop="toggleOtherCustomerSelection({{ $cust->id }})">
+                                                                <span>{{ $cust->name }}</span>
+                                                                @if($this->isOtherCustomerSelected($cust->id))
+                                                                    <i class="mdi mdi-check text-success"></i>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="tag-dropdown-item text-muted">No customers found</div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </div>

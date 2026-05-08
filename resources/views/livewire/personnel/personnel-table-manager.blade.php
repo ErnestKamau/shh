@@ -133,7 +133,6 @@
                             <th>{{ __('personnel.lab_sections') }}</th>
                             <th>{{ __('personnel.email') }}</th>
                             <th>{{ __('personnel.employment_date') }}</th>
-                            <th>{{ __('personnel.license_type') }}</th>
                             <th>{{ __('personnel.active') }}</th>
                         </tr>
                     </thead>
@@ -159,7 +158,12 @@
                                     </div>
                                 </td>
                                 <td>{{ $item->designation }}</td>
-                                <td>{{ $item->first_name }}</td>
+                                <td>
+                                    {{ $item->first_name }}
+                                    @if($item->analyst_is_gazzetted)
+                                        <span style="display:inline-flex;align-items:center;padding:1px 5px;font-size:0.65rem;font-weight:700;letter-spacing:0.4px;border-radius:4px;background:#faf5ff;color:#7c3aed;border:1px solid #ddd6fe;margin-left:3px;vertical-align:middle;line-height:1.4;">GZ</span>
+                                    @endif
+                                </td>
                                 <td>{{ $item->middle_name }}</td>
                                 <td>{{ $item->last_name }}</td>
                                 <td>{{ $item->department_name }}</td>
@@ -167,12 +171,11 @@
                                 <td>{{ $item->labsectionname }}</td>
                                 <td>{{ $item->email }}</td>
                                 <td>{{ $item->employment_date }}</td>
-                                <td>{{ $item->license_type }}</td>
                                 <td class="text-small">{!! $item->active == 1 ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="text-center text-muted">{{ __('personnel.no_personnel_found') }}</td>
+                                <td colspan="12" class="text-center text-muted">{{ __('personnel.no_personnel_found') }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -190,8 +193,8 @@
     @endif
 
     @if($showAddPersonnelModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
-            <div class="modal-dialog modal-xl modal-dialog-scrollable ptm-modern-modal-shell">
+        <div class="modal fade show d-block ptm-add-personnel-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog modal-xl ptm-modern-modal-shell">
                 <div class="modal-content">
                     <div class="modal-header ptm-modern-modal-header">
                         <h4 class="modal-title"><i class="mdi mdi-account-plus-outline"></i> {{ __('personnel.add_personnel_title') }}</h4>
@@ -315,8 +318,8 @@
                                             <div class="col-md-4">
                                                 <div class="form-group">
                                                     <label class="control-label">{{ __('personnel.add_modal_designation') }} <span class="text-danger">*</span></label>
-                                                    <div class="tag-select-container" wire:click="$set('showDesignationDropdown', true)">
-                                                        <div class="tag-select-input">
+                                                    <div class="tag-select-container" wire:click.outside="$set('showDesignationDropdown', false)">
+                                                        <div class="tag-select-input" wire:click="$set('showDesignationDropdown', true)">
                                                             @if($personnelForm['designation'] !== '')
                                                                 @php($selectedDesignation = collect($designations)->firstWhere('id', $personnelForm['designation']))
                                                                 <span class="tag-badge">
@@ -329,7 +332,7 @@
                                                         @if($showDesignationDropdown && count($filteredDesignations) > 0)
                                                             <div class="tag-dropdown">
                                                                 @foreach($filteredDesignations as $item)
-                                                                    <div class="tag-dropdown-item" wire:click.stop='selectDesignation(@js($item["id"]))'>
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectDesignation(@js($item['id']))">
                                                                         {{ $item['name'] }}
                                                                     </div>
                                                                 @endforeach
@@ -341,8 +344,8 @@
                                             <div class="col-md-4">
                                                 <div class="form-group">
                                                     <label class="control-label">{{ __('personnel.education_level') }}</label>
-                                                    <div class="tag-select-container" wire:click="$set('showEducationLevelDropdown', true)">
-                                                        <div class="tag-select-input">
+                                                    <div class="tag-select-container" wire:click.outside="$set('showEducationLevelDropdown', false)">
+                                                        <div class="tag-select-input" wire:click="$set('showEducationLevelDropdown', true)">
                                                             @if($personnelForm['educational_level'] !== '')
                                                                 @php($selectedEducation = collect($educationLevels)->firstWhere('id', $personnelForm['educational_level']))
                                                                 <span class="tag-badge">
@@ -355,7 +358,7 @@
                                                         @if($showEducationLevelDropdown && count($filteredEducationLevels) > 0)
                                                             <div class="tag-dropdown">
                                                                 @foreach($filteredEducationLevels as $item)
-                                                                    <div class="tag-dropdown-item" wire:click.stop='selectEducationLevel(@js($item["id"]))'>
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectEducationLevel(@js($item['id']))">
                                                                         {{ $item['name'] }}
                                                                     </div>
                                                                 @endforeach
@@ -367,8 +370,8 @@
                                             <div class="col-md-4">
                                                 <div class="form-group">
                                                     <label class="control-label">{{ __('personnel.position') }} <span class="text-danger">*</span></label>
-                                                    <div class="tag-select-container" wire:click="$set('showPositionDropdown', true)">
-                                                        <div class="tag-select-input">
+                                                    <div class="tag-select-container" wire:click.outside="$set('showPositionDropdown', false)">
+                                                        <div class="tag-select-input" wire:click="$set('showPositionDropdown', true)">
                                                             @if($personnelForm['position'] !== '')
                                                                 @php($selectedPosition = collect($positions)->firstWhere('id', $personnelForm['position']))
                                                                 <span class="tag-badge">
@@ -381,7 +384,7 @@
                                                         @if($showPositionDropdown && count($filteredPositions) > 0)
                                                             <div class="tag-dropdown">
                                                                 @foreach($filteredPositions as $item)
-                                                                    <div class="tag-dropdown-item" wire:click.stop='selectPosition(@js($item["id"]))'>
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectPosition(@js($item['id']))">
                                                                         {{ $item['name'] }}
                                                                     </div>
                                                                 @endforeach
@@ -393,8 +396,8 @@
                                             <div class="col-md-4">
                                                 <div class="form-group mb-0">
                                                     <label class="control-label">{{ __('personnel.department') }} <span class="text-danger">*</span></label>
-                                                    <div class="tag-select-container" wire:click="$set('showDepartmentDropdown', true)">
-                                                        <div class="tag-select-input">
+                                                    <div class="tag-select-container" wire:click.outside="$set('showDepartmentDropdown', false)">
+                                                        <div class="tag-select-input" wire:click="$set('showDepartmentDropdown', true)">
                                                             @if($personnelForm['department'] !== '')
                                                                 @php($selectedDepartment = collect($departments)->firstWhere('id', $personnelForm['department']))
                                                                 <span class="tag-badge">
@@ -407,7 +410,7 @@
                                                         @if($showDepartmentDropdown && count($filteredDepartments) > 0)
                                                             <div class="tag-dropdown">
                                                                 @foreach($filteredDepartments as $item)
-                                                                    <div class="tag-dropdown-item" wire:click.stop='selectDepartmentInput(@js($item["id"]))'>
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectDepartmentInput(@js($item['id']))">
                                                                         {{ $item['name'] }}
                                                                     </div>
                                                                 @endforeach
@@ -446,6 +449,12 @@
                                             </div>
                                             <div class="col-md-4">
                                                 <div class="form-group">
+                                                    <label class="control-label">Gazzette No</label>
+                                                    <input type="text" class="form-control" wire:model.live="personnelForm.gazzette_no" @if(!$personnelForm['analyst_is_gazzetted']) disabled @endif />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
                                                     <label class="control-label">Start of Career</label>
                                                     <input type="date" class="form-control" wire:model.live="personnelForm.start_of_career" />
                                                 </div>
@@ -469,64 +478,34 @@
                                         </div>
                                         <div class="ptm-section-intro">Assign platform access, organization structure, and operational placement before saving the profile.</div>
                                         <div class="row">
-                                            <div class="col-md-4">
+                                            <div class="col-md-8">
                                                 <div class="form-group">
-                                                    <label class="control-label">{{ __('personnel.user_license') }} <span class="text-danger">*</span></label>
-                                                    <div class="tag-select-container" wire:click="$set('showLicenseDropdown', true)">
-                                                        <div class="tag-select-input">
-                                                            @if($personnelForm['user_license'] !== '')
-                                                                @php($selectedLicenseName = $licenses[$personnelForm['user_license']] ?? '')
+                                                    <label class="control-label">{{ __('personnel.lab') }}</label>
+                                                    <div class="tag-select-container" wire:click.outside="$set('showLabDropdown', false)">
+                                                        <div class="tag-select-input" wire:click="$set('showLabDropdown', true)">
+                                                            @foreach(($personnelForm['lab_ids'] ?? []) as $__labId)
+                                                                @php($__labName = collect($labs)->firstWhere('id', $__labId)['name'] ?? $__labId)
                                                                 <span class="tag-badge">
-                                                                    {{ $selectedLicenseName }}
-                                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearLicense"></i>
+                                                                    {{ $__labName }}
+                                                                    <i class="mdi mdi-close-circle" wire:click.stop="removeLabSelection(@js($__labId))"></i>
                                                                 </span>
-                                                            @endif
-                                                            <input type="text" wire:model.live="licenseSearch" wire:keyup="searchLicenses" class="tag-input" placeholder="{{ $personnelForm['user_license'] !== '' ? '' : __('personnel.search_license') }}" autocomplete="off">
+                                                            @endforeach
+                                                            <input type="text" wire:model.live="labSearch" wire:keyup="searchLabs" class="tag-input" placeholder="{{ empty($personnelForm['lab_ids'] ?? []) ? __('personnel.search_labs') : '' }}" autocomplete="off">
                                                         </div>
-                                                        @if($showLicenseDropdown && count($filteredLicenses) > 0)
+                                                        @if($showLabDropdown)
                                                             <div class="tag-dropdown">
-                                                                @foreach($filteredLicenses as $license)
-                                                                    <div class="tag-dropdown-item d-flex justify-content-between align-items-center {{ $license['disabled'] ? 'text-muted' : '' }}" @if(!$license['disabled']) wire:click.stop="selectLicense('{{ $license['key'] }}')" @endif>
-                                                                        <span>{{ $license['name'] }}</span>
-                                                                        <small>{{ $license['count'] }}/{{ $license['limit'] }}</small>
+                                                                <div class="tag-dropdown-item font-weight-bold text-primary" wire:click.stop="selectAllLabs">
+                                                                    <i class="mdi mdi-check-all mr-1"></i> All Labs
+                                                                </div>
+                                                                @foreach($filteredLabs as $item)
+                                                                    <div class="tag-dropdown-item {{ in_array($item['id'], $personnelForm['lab_ids'] ?? []) ? 'tag-dropdown-item-selected' : '' }}"
+                                                                         wire:click.stop="selectLab(@js($item['id']))">
+                                                                        {{ $item['name'] }}
                                                                     </div>
                                                                 @endforeach
                                                             </div>
                                                         @endif
                                                     </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label class="control-label">{{ __('personnel.zone') }}</label>
-                                                    <select class="form-control" wire:model.live="personnelForm.zone_id">
-                                                        <option value="">{{ __('personnel.select_zone') }}</option>
-                                                        @foreach($zones as $zone)
-                                                            <option value="{{ $zone['id'] }}">{{ $zone['key'] }}{{ $zone['value'] ? ' - '.$zone['value'] : '' }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label class="control-label">{{ __('personnel.directorate') }}</label>
-                                                    <select class="form-control" wire:model.live="personnelForm.directorate_id">
-                                                        <option value="">{{ __('personnel.search_directorates') }}</option>
-                                                        @foreach($this->availableDirectorates as $directorate)
-                                                            <option value="{{ $directorate['id'] }}">{{ $directorate['name'] }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label class="control-label">{{ __('personnel.lab') }}</label>
-                                                    <select class="form-control" wire:model.live="personnelForm.lab_id">
-                                                        <option value="">{{ __('personnel.search_labs') }}</option>
-                                                        @foreach($this->availableLabs as $lab)
-                                                            <option value="{{ $lab['id'] }}">{{ $lab['name'] }}</option>
-                                                        @endforeach
-                                                    </select>
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
@@ -669,7 +648,7 @@
         .ptm-modern-modal-shell .modal-content {
             border-radius: 14px;
             border: 1px solid #dbe3ef;
-            overflow: hidden;
+            overflow: visible;
             box-shadow: 0 20px 48px rgba(2, 6, 23, 0.24);
         }
 
@@ -686,6 +665,15 @@
 
         .ptm-modern-modal-body {
             background: #fbfdff;
+            overflow: visible;
+        }
+
+        .ptm-add-personnel-modal {
+            overscroll-behavior: contain;
+        }
+
+        body.ptm-modal-open {
+            overflow: hidden !important;
         }
 
         .ptm-modal-intro {
@@ -1111,11 +1099,27 @@
 
     @script
     <script>
-        document.addEventListener('click', function (event) {
-            if (!event.target.closest('.tag-select-container')) {
-                $wire.closeAddModalDropdowns();
+        // Dropdown closing is handled per-container via wire:click.outside
+
+        (function () {
+            function syncAddPersonnelModalBodyLock() {
+                const modalOpen = !!document.querySelector('.ptm-add-personnel-modal');
+                document.body.classList.toggle('ptm-modal-open', modalOpen);
             }
-        });
+
+            document.addEventListener('DOMContentLoaded', syncAddPersonnelModalBodyLock);
+            document.addEventListener('livewire:load', syncAddPersonnelModalBodyLock);
+            document.addEventListener('livewire:navigated', syncAddPersonnelModalBodyLock);
+            document.addEventListener('livewire:update', syncAddPersonnelModalBodyLock);
+
+            if (window.Livewire && typeof Livewire.hook === 'function') {
+                Livewire.hook('commit', ({ succeed }) => {
+                    succeed(() => {
+                        queueMicrotask(syncAddPersonnelModalBodyLock);
+                    });
+                });
+            }
+        })();
 
         (function () {
             if (window.__addPersonnelSignaturePadInit) {
