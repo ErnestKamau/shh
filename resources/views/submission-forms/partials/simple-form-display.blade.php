@@ -1,37 +1,23 @@
-{{-- Simple Form Display - Shows only labels and saved values --}}
-<div class="simple-form-display" data-form-instance-id="{{ $instance->id }}">
-    <div class="form-header mb-4">
-        <h4 class="text-primary">
-            <i class="mdi mdi-file-document"></i> {{ $instance->submissionForm->name }}
-        </h4>
-        <p class="text-muted">{{ $instance->submissionForm->description }}</p>
-        
-        <div class="form-meta">
-            <span class="badge badge-secondary">{{ ucfirst($instance->status) }}</span>
-            @if($instance->priority)
-                <span class="badge badge-info ml-2">{{ ucfirst($instance->priority) }}</span>
-            @endif
-            <small class="text-muted ml-3">
-                Submitted by {{ $instance->submittedBy->name ?? 'Unknown' }} on {{ $instance->created_at->format('M d, Y H:i') }}
-            </small>
-        </div>
-    </div>
+{{-- Clinical Form Display - Imara LIMS Design System --}}
+<div class="clinical-form-display" data-form-instance-id="{{ $instance->id }}" style="background: transparent;">
 
     {{-- Process each section --}}
     @foreach($formData['sections'] as $section)
-        <div class="section-container mb-4" data-section-id="{{ $section['id'] }}">
-            <div class="section-header">
-                <h5 class="text-secondary border-bottom pb-2">
-                    <i class="mdi mdi-form-select"></i> 
+        {{-- Clinical Section Card --}}
+        <div class="clinical-section-card" data-section-id="{{ $section['id'] }}">
+            {{-- Section Title (Sticky) --}}
+            <div class="clinical-section-header">
+                <h3 class="clinical-section-title">
+                    <i class="mdi mdi-folder-outline mr-2" style="color: #0059bb;"></i>
                     {{ $section['title'] }}
-                </h5>
+                </h3>
                 @if($section['description'])
-                    <p class="text-muted small mb-0">{{ $section['description'] }}</p>
+                    <p class="clinical-section-description">{{ $section['description'] }}</p>
                 @endif
             </div>
 
-            {{-- Process element holders --}}
-            @foreach($section['element_holders'] as $holder)
+            {{-- Section Content --}}
+            <div class="clinical-section-content">
                 @if($holder['holder_type'] === 'rows')
                     {{-- Rows Section --}}
                     <div class="rows-section-display">

@@ -374,19 +374,52 @@ class SubmissionFormController extends Controller
 
                 return true;
             })
-            ->map(function ($route) {
+            ->flatMap(function ($route) {
                 $name = (string) $route->getName();
                 $uri = '/' . ltrim((string) $route->uri(), '/');
 
-                return [
+                $pages = [[
                     'value' => $name,
                     'label' => $name . ' (' . $uri . ')',
                     'name' => $name,
                     'uri' => $uri,
-                ];
+                ]];
+
+                if (in_array($name, ['sample-workflow', 'sample-workflow-stage'], true)) {
+                    foreach ($this->getSampleWorkflowStatusesForPlacement() as $status) {
+                        $value = $name . '@status=' . $status;
+                        $pages[] = [
+                            'value' => $value,
+                            'label' => $name . ' [' . $status . '] (' . rtrim($uri, '/') . '/' . rawurlencode($status) . ')',
+                            'name' => $value,
+                            'uri' => rtrim($uri, '/') . '/' . rawurlencode($status),
+                        ];
+                    }
+                }
+
+                return $pages;
             })
             ->unique('value')
             ->sortBy('name')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Get sample workflow status labels for context-aware page placement.
+     *
+     * @return array<int, string>
+     */
+    private function getSampleWorkflowStatusesForPlacement(): array
+    {
+        if (!function_exists('getSampleWorflowStages')) {
+            return [];
+        }
+
+        return collect((array) getSampleWorflowStages())
+            ->filter(fn($stage) => is_string($stage) && trim($stage) !== '' && trim($stage) !== 'All Samples')
+            ->map(fn($stage) => trim($stage))
+            ->unique()
             ->values()
             ->all();
     }
@@ -466,12 +499,22 @@ class SubmissionFormController extends Controller
     private function bustSubmissionFormPageCache(array $targetPages): void
     {
         $routesToClear = empty($targetPages)
-            ? array_keys(PageLayoutRegistry::getManifest())
+            ? $this->getAvailablePlacementPageNames()
             : $targetPages;
 
         foreach ($routesToClear as $routeName) {
-            \Illuminate\Support\Facades\Cache::forget('sf_page_forms_' . $routeName);
+            \Illuminate\Support\Facades\Cache::forget($this->getSubmissionFormPageCacheKey($routeName));
+
+            if (is_string($routeName) && str_contains($routeName, '@status=')) {
+                $baseRouteName = explode('@status=', $routeName, 2)[0];
+                \Illuminate\Support\Facades\Cache::forget($this->getSubmissionFormPageCacheKey($baseRouteName));
+            }
         }
+    }
+
+    private function getSubmissionFormPageCacheKey(string $routeName): string
+    {
+        return 'sf_page_forms_' . md5($routeName);
     }
 
     private function submissionFormCustomersPivotExists(): bool

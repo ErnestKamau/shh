@@ -190,6 +190,9 @@ class SampleCreationService
                 // For file fields, we might want to store the file path or handle differently
                 return $instanceValue->file_path;
 
+            case 'camera_photo':
+                return $instanceValue->file_path;
+
             default:
                 return $instanceValue->value;
         }

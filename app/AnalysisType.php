@@ -3,11 +3,17 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class AnalysisType extends Model implements Auditable
 {
+  use HasUuids;
   use \OwenIt\Auditing\Auditable;
+
+  protected $keyType = 'string';
+  public $incrementing = false;
+
   protected $fillable = [
     'name',
     'code',

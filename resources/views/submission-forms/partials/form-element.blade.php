@@ -2,8 +2,9 @@
     $fieldName = isset($isArrayField) && $isArrayField ? $element->name . '[' . $rowIndex . ']' : $element->name;
     $fieldId = isset($isArrayField) && $isArrayField ? $element->name . '_' . $rowIndex : $element->name;
     
-    // Get existing value
+    // Get existing values
     $existingValue = null;
+    $existingValues_all = null;
     if (isset($existingValues) && $existingValues) {
         if (isset($isArrayField) && $isArrayField && isset($rowIndex)) {
             // For array fields, find value by element ID and array index
@@ -11,12 +12,16 @@
                                           ->where('array_index', $rowIndex)
                                           ->first();
         } else {
-            // For regular fields, find value by element ID
+            // For regular fields, find value(s) by element ID
             $existingValue = $existingValues->where('submission_form_element_id', $element->id)->first();
+            // Also get all values for this element (for checkboxes with multiple selections)
+            $existingValues_all = $existingValues->where('submission_form_element_id', $element->id);
         }
     }
     
     $fieldValue = $existingValue ? $existingValue->value : $element->default_value;
+    // For multiple checkboxes, collect all saved values
+    $allSavedValues = $existingValues_all ? $existingValues_all->pluck('value')->toArray() : [];
 @endphp
 
 <div class="form-group">
@@ -91,14 +96,17 @@
             @break
             
         @case('plain_text')
-            <div class="plain-text-element" 
-                 id="{{ $fieldId }}" 
-                 style="min-width: 145px !important; padding: 8px 12px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; white-space: pre-wrap;">
-                {{ $fieldValue ?: $element->default_value ?: $element->placeholder ?: 'Plain text content' }}
-            </div>
+            @php
+                $plainTextValue = trim((string) ($fieldValue ?: $element->default_value ?: ''));
+            @endphp
+            @if($plainTextValue !== '')
+                <div class="plain-text-element" id="{{ $fieldId }}">
+                    {!! nl2br(e($plainTextValue)) !!}
+                </div>
+            @endif
             <input type="hidden" 
                    name="{{ $fieldName }}" 
-                   value="{{ $fieldValue ?: $element->default_value ?: '' }}">
+                   value="{{ $plainTextValue }}">
             @break
             
         @case('select')
@@ -112,7 +120,7 @@
                 @endif
                 @foreach($element->options as $option)
                     <option value="{{ $option['value'] ?? $option }}" 
-                            {{ ($element->default_value == ($option['value'] ?? $option)) ? 'selected' : '' }}>
+                            {{ ($fieldValue == ($option['value'] ?? $option)) ? 'selected' : '' }}>
                         {{ $option['label'] ?? $option }}
                     </option>
                 @endforeach
@@ -128,7 +136,7 @@
                                id="{{ $element->name }}_{{ $index }}" 
                                name="{{ $fieldName }}"
                                value="{{ $option['value'] ?? $option }}"
-                               {{ ($element->default_value == ($option['value'] ?? $option)) ? 'checked' : '' }}
+                               {{ ($fieldValue == ($option['value'] ?? $option)) ? 'checked' : '' }}
                                {{ $element->is_required ? 'required' : '' }}
                                {{ $element->is_readonly ? 'disabled' : '' }}>
                         <label class="form-check-label" for="{{ $element->name }}_{{ $index }}">
@@ -150,6 +158,7 @@
                                    id="{{ $element->name }}_{{ $index }}" 
                                    name="{{ $element->name }}[]"
                                    value="{{ $option['value'] ?? $option }}"
+                                   {{ in_array(($option['value'] ?? $option), $allSavedValues) ? 'checked' : '' }}
                                    {{ $element->is_readonly ? 'disabled' : '' }}>
                             <label class="form-check-label" for="{{ $element->name }}_{{ $index }}">
                                 {{ $option['label'] ?? $option }}
@@ -165,7 +174,7 @@
                            id="{{ $fieldId }}" 
                            name="{{ $fieldName }}"
                            value="1"
-                           {{ $element->default_value ? 'checked' : '' }}
+                           {{ $fieldValue ? 'checked' : '' }}
                            {{ $element->is_readonly ? 'disabled' : '' }}>
                     <label class="form-check-label" for="{{ $element->name }}">
                         {{ $element->options[0]['label'] ?? 'Yes' }}
@@ -184,6 +193,20 @@
             @if($element->help_text)
                 <small class="form-text text-muted">{{ $element->help_text }}</small>
             @endif
+            @break
+
+        @case('camera_photo')
+            <input type="file"
+                   class="form-control"
+                   id="{{ $fieldId }}"
+                   name="{{ $fieldName }}"
+                   accept="image/*"
+                   capture="environment"
+                   {{ $element->is_required ? 'required' : '' }}
+                   {{ $element->is_readonly ? 'disabled' : '' }}>
+            <small class="form-text text-muted">
+                {{ $element->help_text ?: 'Take a photo with your camera or choose one from gallery.' }}
+            </small>
             @break
             
         @case('signature')
@@ -711,20 +734,23 @@ window.customElementsToInit.push({
 /* Floating Add Button Styles */
 .custom-element-wrapper {
     position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    width: 100%;
 }
 
 .floating-add-btn {
-    position: absolute;
-    top: 2px;
-    right: 2px;
+    position: static;
     width: 32px;
-    height: 32px;
+    min-width: 32px;
+    height: 38px;
     border-radius: 50%;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    flex-shrink: 0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
     border: none;
@@ -742,7 +768,14 @@ window.customElementsToInit.push({
 
 /* Ensure select doesn't overlap with button */
 .custom-element-wrapper .form-control {
-    padding-right: 40px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-right: 0.75rem;
+}
+
+.custom-element-wrapper .select2-container {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 </style>
 @endpush

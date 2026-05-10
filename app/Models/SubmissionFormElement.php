@@ -75,7 +75,7 @@ class SubmissionFormElement extends Model implements Auditable
     {
         return in_array($this->element_type, [
             'text', 'number', 'email', 'date', 'datetime', 
-            'textarea', 'select', 'radio', 'checkbox', 'file', 'signature',
+            'textarea', 'select', 'radio', 'checkbox', 'file', 'camera_photo', 'signature',
             'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select',
             'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select',
             'depended_field',
@@ -131,6 +131,10 @@ class SubmissionFormElement extends Model implements Auditable
                 break;
             case 'file':
                 $rules[] = 'file';
+                break;
+            case 'camera_photo':
+                $rules[] = 'image';
+                $rules[] = 'mimes:jpg,jpeg,png,webp';
                 break;
         }
 

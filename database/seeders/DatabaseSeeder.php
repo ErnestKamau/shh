@@ -9,6 +9,7 @@ use Database\Seeders\Setup\Languages\PersonnelLanguageSeeder;
 use Database\Seeders\Setup\Languages\SystemTranslationsSeeder;
 use Database\Seeders\Setup\SystemConfigPermissionsSeeder;
 use Database\Seeders\Setup\SystemSetupSeeder;
+use Database\Seeders\Setup\WorkflowResponsibilityConfigSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -20,6 +21,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             SystemSetupSeeder::class,
+            WorkflowResponsibilityConfigSeeder::class,
             PersonnelPermissionsSeeder::class,
             SystemConfigPermissionsSeeder::class,
             SystemTranslationsSeeder::class,

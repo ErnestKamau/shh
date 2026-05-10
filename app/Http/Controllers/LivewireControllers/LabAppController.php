@@ -7,6 +7,7 @@ use App\SampleType;
 use App\AnalysisType;
 use App\Models\RemedyHeader;
 use App\Models\RatingHeader;
+use Illuminate\Support\Str;
 
 /**
  * LabAppController
@@ -73,7 +74,12 @@ class LabAppController extends Controller
      */
     public function analysisTypes($sampleTypeId)
     {
-        $sampleType = SampleType::findOrFail($sampleTypeId);
+        $sampleTypeQuery = SampleType::query();
+        if (Str::isUuid((string) $sampleTypeId)) {
+            $sampleType = $sampleTypeQuery->findOrFail($sampleTypeId);
+        } else {
+            $sampleType = $sampleTypeQuery->whereRaw('id::text = ?', [(string) $sampleTypeId])->firstOrFail();
+        }
 
         return view('livewire.layout.lab-app', [
             'componentType' => 'analysis-types',
@@ -87,7 +93,12 @@ class LabAppController extends Controller
      */
     public function elements($analysisTypeId)
     {
-        $analysisType = AnalysisType::with('sample_type')->findOrFail($analysisTypeId);
+        $analysisTypeQuery = AnalysisType::with('sample_type');
+        if (Str::isUuid((string) $analysisTypeId)) {
+            $analysisType = $analysisTypeQuery->findOrFail($analysisTypeId);
+        } else {
+            $analysisType = $analysisTypeQuery->whereRaw('id::text = ?', [(string) $analysisTypeId])->firstOrFail();
+        }
 
         return view('livewire.layout.lab-app', [
             'componentType' => 'elements',

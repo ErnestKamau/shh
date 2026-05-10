@@ -14,9 +14,11 @@ use App\SampleType;
 use App\Models\System\SystemConfiguration;
 use App\User;
 use App\Models\SubmissionFormInstance;
+use App\Models\SampleSubmissionRequest;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -33,6 +35,11 @@ class WorkflowBoard extends Component
      * Current workflow status tab.
      */
     public string $status = '';
+
+    /**
+     * Sub-tab for status pages that split Requests vs Received.
+     */
+    public string $workflowSubTab = 'requests';
 
     /**
      * Initial filters passed from the controller (query string).
@@ -88,6 +95,7 @@ class WorkflowBoard extends Component
     public ?string $selectedPortalAccessRequestId = null;
     public bool $notifyRejectedClient = true;
     public string $portalRejectionReason = '';
+    public ?int $submissionFormAttachmentTypeId = null;
 
     /**
      * Shared datasets required by the legacy modals/forms.
@@ -109,11 +117,15 @@ class WorkflowBoard extends Component
         $this->status = $status ?: ($workflowStages[0] ?? 'Samples Reception');
         $this->initialFilters = $initialFilters;
 
+        $requestedTab = strtolower((string) ($this->initialFilters['tab'] ?? request()->query('tab', 'requests')));
+        $this->workflowSubTab = in_array($requestedTab, ['requests', 'received'], true) ? $requestedTab : 'requests';
+
         $this->allFilter = $this->defaultAllSamplesFilter();
         $this->finishedFilter = $this->defaultFinishedSamplesFilter();
 
         $this->hydrateFiltersFromRequest();
         $this->loadReferenceData();
+        $this->submissionFormAttachmentTypeId = $this->resolveSubmissionFormAttachmentTypeId();
         
         // Mark initial load as complete after a short delay
         $this->dispatch('initial-load-complete');
@@ -289,10 +301,40 @@ class WorkflowBoard extends Component
      */
     public function getSubmissionFormsProperty()
     {
-        $query = SubmissionFormInstance::with(['submissionForm', 'submittedBy', 'batches'])
+        $query = SubmissionFormInstance::with([
+                'submissionForm.sampleTypes',
+                'submittedBy',
+                'batches',
+                'crmCustomer',
+            'values.element',
+            ])
+            ->select('submission_form_instances.*')
+            ->whereIn('status', ['submitted', 'in_review', 'approved', 'rejected'])
+            ->whereHas('submissionForm', function ($formQuery) {
+                $formQuery->where('form_type', 'template');
+            })
+            ->selectSub(function ($subQuery) {
+                $subQuery->from('submission_form_instances as attachment_instances')
+                    ->selectRaw('count(*)')
+                    ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id::text');
+            }, 'attachment_count')
             ->latest();
 
-        if ($this->status === 'Samples Reception' && $this->submissionFormsStatus) {
+        if ($this->status === 'Samples En-Route' && $this->workflowSubTab === 'requests') {
+            $query->where('status', 'submitted');
+            $query->whereDoesntHave('batches');
+        }
+
+        if ($this->status === 'Samples Request Review') {
+            if ($this->workflowSubTab === 'requests') {
+                $query->where('status', 'in_review');
+                $query->whereDoesntHave('batches');
+            } else {
+                $query->whereIn('status', ['approved', 'rejected']);
+            }
+        }
+
+        if ($this->submissionFormsStatus) {
             $query->where('status', $this->submissionFormsStatus);
         }
 
@@ -317,10 +359,15 @@ class WorkflowBoard extends Component
     /**
      * Delete a submission form instance.
      */
-    public function deleteSubmissionForm(int $id): void
+    public function deleteSubmissionForm(string $id): void
     {
+        if (!Str::isUuid($id)) {
+            session()->flash('error', 'Invalid submission form identifier.');
+            return;
+        }
+
         $instance = SubmissionFormInstance::findOrFail($id);
-        
+
         // Only allow deleting drafts
         if ($instance->status !== 'draft') {
             session()->flash('error', 'Only draft submissions can be deleted.');
@@ -571,8 +618,25 @@ class WorkflowBoard extends Component
             'client',
             'sample_type',
             'invoice',
+            'submissionFormInstance.submissionForm',
+            'batch_attachments',
             'sampleSubmissionRequest.requestedAnalyses',
+            'sampleSubmissionRequest.supportingDocumentTemplates',
+            'sampleSubmissionRequest.supportingDocumentInstances.template',
         ])->where('isactive', 1);
+    }
+
+    protected function resolveSubmissionFormAttachmentTypeId(): ?int
+    {
+        $id = SystemConfiguration::query()->where('key', 'attachment_type')
+            ->where('value', 'Submission Form')
+            ->value('id');
+
+        if ($id === null) {
+            $id = SystemConfiguration::query()->where('key', 'attachment_type')->value('id');
+        }
+
+        return $id !== null ? (int) $id : null;
     }
 
     protected function getAllSampleBatches()
@@ -662,6 +726,29 @@ class WorkflowBoard extends Component
         if ($this->status === 'Schedule of Analysis') {
             $query->where('status', 'Samples In Lab')
                 ->where('schedule_sent', '<', 1);
+        } elseif ($this->status === 'Samples En-Route') {
+            if ($this->workflowSubTab === 'received') {
+                $query->where(function ($inner) {
+                    $inner->where('status', 'Samples Reception')
+                        ->orWhere('prelim_batch_status', 'Samples Reception');
+                });
+            } else {
+                $query->where(function ($inner) {
+                    $inner->where('status', 'Samples En-Route')
+                        ->orWhere('prelim_batch_status', 'Samples En-Route');
+                });
+            }
+        } elseif ($this->status === 'Samples Request Review') {
+            $query->where(function ($inner) {
+                $inner->where('status', 'Samples Request Review')
+                    ->orWhere('prelim_batch_status', 'Samples Request Review');
+            });
+
+            if ($this->workflowSubTab === 'received') {
+                $query->whereNotNull('in_lab_date');
+            } else {
+                $query->whereNull('in_lab_date');
+            }
         } else {
             $query->where(function ($inner) {
                 $inner->where('status', $this->status)
@@ -728,6 +815,107 @@ class WorkflowBoard extends Component
         $this->submissionFormsSearch = '';
         $this->submissionFormsStatus = '';
         $this->submissionFormsPriority = '';
+    }
+
+    public function setWorkflowSubTab(string $tab): void
+    {
+        $tab = strtolower(trim($tab));
+        $this->workflowSubTab = in_array($tab, ['requests', 'received'], true) ? $tab : 'requests';
+        $this->resetPage('batches_page');
+        $this->resetPage('portal_submissions_page');
+    }
+
+    /**
+     * Summary metrics for Samples Reception dashboard widgets.
+     */
+    public function getSamplesReceptionStatsProperty(): array
+    {
+        if (!in_array($this->status, ['Samples Reception', 'Samples En-Route'], true)) {
+            return [
+                'customers_requested' => 0,
+                'portal_submitted' => 0,
+                'sent_to_request_review' => 0,
+                'waiting_for_delivery' => 0,
+            ];
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Builder $portalRequestQuery */
+        $portalRequestQuery = SampleSubmissionRequest::query();
+        $portalRequestQuery->whereNull('sample_header_id');
+        $portalRequestQuery->whereIn('status', [
+            'submitted',
+            'booking_date_approved',
+            'booking_date_rescheduled',
+            'in_review',
+        ]);
+
+        /** @var \Illuminate\Database\Eloquent\Builder $portalFormQuery */
+        $portalFormQuery = SubmissionFormInstance::query();
+        $portalFormQuery->whereNotNull('crm_customer_id');
+        $portalFormQuery->whereHas('submissionForm', function ($formQuery) {
+            $formQuery->where('form_type', 'template');
+        });
+        $portalFormQuery->whereDoesntHave('batches');
+
+        return [
+            'customers_requested' => (clone $portalRequestQuery)
+                ->whereNotNull('crm_customer_id')
+                ->distinct('crm_customer_id')
+                ->count('crm_customer_id'),
+            'portal_submitted' => (clone $portalFormQuery)
+                ->where('status', 'submitted')
+                ->count(),
+            'sent_to_request_review' => (clone $portalFormQuery)
+                ->where('status', 'in_review')
+                ->count(),
+            'waiting_for_delivery' => (clone $portalRequestQuery)
+                ->whereNotNull('submitted_by_date')
+                ->whereDate('submitted_by_date', '>=', Carbon::today())
+                ->count(),
+        ];
+    }
+
+    /**
+     * Computed list of portal submission requests for the Sample Receiving Requests tab.
+     * Shows SampleSubmissionRequest records that have been submitted but not yet assigned to a batch.
+     */
+    public function getPortalSubmissionsProperty()
+    {
+        if ($this->status !== 'Samples En-Route' || $this->workflowSubTab !== 'requests') {
+            return null;
+        }
+
+        $query = SampleSubmissionRequest::with([
+                'customer',
+                'supportingDocumentTemplates',
+                'supportingDocumentInstances.template',
+            'supportingDocumentInstances.values.element',
+            ])
+            ->where(function ($q) {
+                $q->whereIn('status', [
+                    'submitted',
+                    'booking_date_approved',
+                    'booking_date_rescheduled',
+                ])->orWhereHas('supportingDocumentInstances', function ($docQuery) {
+                    $docQuery->whereIn('status', ['submitted', 'in_review', 'approved']);
+                });
+            })
+            ->whereNull('sample_header_id')
+            ->orderByDesc('submitted_by_date');
+
+        if (!empty($this->search)) {
+            $search = '%' . $this->search . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('unique_identification', 'like', $search)
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $search));
+            });
+        }
+
+        if ($this->customerFilter) {
+            $query->where('crm_customer_id', $this->customerFilter);
+        }
+
+        return $query->paginate($this->batchesPerPage, ['*'], 'portal_submissions_page');
     }
     
     /**
@@ -819,6 +1007,9 @@ class WorkflowBoard extends Component
             'clients' => $this->clients,
             'sampletypes' => $this->sampletypes,
             'customers' => $this->customers,
+            'submissionFormAttachmentTypeId' => $this->submissionFormAttachmentTypeId,
+            'portalSubmissions' => $this->portalSubmissions,
+            'samplesReceptionStats' => $this->samplesReceptionStats,
         ]);
     }
 }

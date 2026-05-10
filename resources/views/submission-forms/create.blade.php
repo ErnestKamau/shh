@@ -289,7 +289,7 @@
                   @error('lims_destination_pages.*')
                     <div class="invalid-feedback d-block">{{ $message }}</div>
                   @enderror
-                  <small class="form-text text-muted">Default destination is Samples En-Route when no page is selected.</small>
+                  <small class="form-text text-muted">Default destination is Sample Receiving when no page is selected.</small>
                 </div>
 
                 <div class="form-group" id="placement-mode-wrapper">

@@ -201,13 +201,13 @@
         </select>
         <div class="field-display-value">{{ $displayValue }}</div>
 
-    @elseif($element->element_type === 'file')
+    @elseif(in_array($element->element_type, ['file', 'camera_photo'], true))
         @if($existingValue && $existingValue->file_path)
             <div class="file-display">
                 <a href="{{ Storage::url($existingValue->file_path) }}" 
                    target="_blank" 
                    class="btn btn-sm btn-outline-primary">
-                    <i class="mdi mdi-download"></i> Download File
+                    <i class="mdi mdi-eye"></i> View {{ $element->element_type === 'camera_photo' ? 'Photo' : 'File' }}
                 </a>
                 <small class="text-muted d-block mt-1">
                     {{ basename($existingValue->file_path) }}
@@ -215,7 +215,7 @@
             </div>
         @else
             <div class="file-display">
-                <span class="text-muted">No file uploaded</span>
+                <span class="text-muted">No {{ $element->element_type === 'camera_photo' ? 'photo' : 'file' }} uploaded</span>
             </div>
         @endif
 

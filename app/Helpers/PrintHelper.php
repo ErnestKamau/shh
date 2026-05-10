@@ -31,6 +31,7 @@ class PrintHelper
         // Handle different element types
         switch ($element->element_type) {
             case 'file':
+            case 'camera_photo':
                 return '<span class="file-value">' . basename($value) . '</span>';
             
             case 'checkbox':

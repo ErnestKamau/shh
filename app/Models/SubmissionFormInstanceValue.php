@@ -68,6 +68,8 @@ class SubmissionFormInstanceValue extends Model implements Auditable
             
             case 'file':
                 return $this->file_path;
+            case 'camera_photo':
+                return $this->file_path;
             
             case 'checkbox':
                 return $this->value === '1' || $this->value === 'true' || $this->value === true ? 'Yes' : 'No';
@@ -109,7 +111,7 @@ class SubmissionFormInstanceValue extends Model implements Auditable
         }
         
         // Handle file uploads
-        if ($this->element && $this->element->element_type === 'file' && $this->file_path) {
+        if ($this->element && in_array($this->element->element_type, ['file', 'camera_photo'], true) && $this->file_path) {
             return basename($this->file_path);
         }
         
@@ -123,7 +125,7 @@ class SubmissionFormInstanceValue extends Model implements Auditable
     {
         return $this->value === null || 
                $this->value === '' || 
-               ($this->element && $this->element->element_type === 'file' && empty($this->file_path));
+               ($this->element && in_array($this->element->element_type, ['file', 'camera_photo'], true) && empty($this->file_path));
     }
 
     /**

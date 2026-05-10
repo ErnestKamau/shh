@@ -40,7 +40,7 @@
         </h2>
         <div class="alert alert-info mt-2 mb-0">
           <i class="mdi mdi-information-outline"></i>
-          <strong>Form Instance:</strong> {{ $instance->form_number }} - {{ $instance->title }}
+          <strong>Form Instance:</strong> {{ $instance->getDocumentControlNumber() ?? 'Draft' }} - {{ $instance->title }}
           <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-2">
             {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
           </span>
@@ -66,7 +66,7 @@
                   @endif
                 </div>
                 <div class="text-right">
-                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number }}</strong></small>
+                  <small class="text-muted">Form Number: <strong>{{ $instance->getDocumentControlNumber() ?? 'Pending' }}</strong></small>
                 </div>
               </div>
             </div>
@@ -88,7 +88,10 @@
                   </div>
                   @foreach($submissionForm->sections as $section)
                     @if($section->isRowsSection())
-                      @include('submission-forms.partials.rows-section', ['section' => $section])
+                      @include('submission-forms.partials.rows-section', [
+                        'section' => $section,
+                        'existingValues' => $existingValues
+                      ])
                     @else
                                             <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
                                                 <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
@@ -107,7 +110,7 @@
                               <div class="row">
                                 @foreach($holder->elements as $element)
                                   <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3" data-element-name="{{ $element->name }}">
-                                    @include('submission-forms.partials.form-element', ['element' => $element])
+                                    @include('submission-forms.partials.form-element', ['element' => $element, 'existingValues' => $existingValues])
                                   </div>
                                 @endforeach
                               </div>

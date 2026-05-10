@@ -77,7 +77,10 @@
                   
                   @foreach($submissionForm->sections as $section)
                     @if($section->isRowsSection())
-                      @include('submission-forms.partials.rows-section', ['section' => $section])
+                      @include('submission-forms.partials.rows-section', [
+                        'section' => $section,
+                        'existingValues' => $existingValues
+                      ])
                     @else
                                             <div class="form-section mb-4 {{ $section->getAlignmentClass() }}">
                                                 <div class="section-header mb-3 {{ $section->getAlignmentClass() }}">
@@ -96,7 +99,7 @@
                               <div class="row">
                                 @foreach($holder->elements as $element)
                                   <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3">
-                                    @include('submission-forms.partials.form-element', ['element' => $element])
+                                    @include('submission-forms.partials.form-element', ['element' => $element, 'existingValues' => $existingValues])
                                   </div>
                                 @endforeach
                               </div>

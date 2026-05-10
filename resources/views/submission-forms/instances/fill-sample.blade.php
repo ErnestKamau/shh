@@ -69,7 +69,7 @@
         <div class="alert alert-info mb-0 p-2 p-md-3">
           <i class="mdi mdi-information-outline"></i>
           <strong>Form Instance:</strong> 
-          <span class="d-block d-sm-inline">{{ $instance->form_number ?? 'New Submission' }} - {{ $instance->title }}</span>
+          <span class="d-block d-sm-inline">{{ $instance->getDocumentControlNumber() ?? 'New Submission' }} - {{ $instance->title }}</span>
           <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-0 ml-sm-2 mt-1 mt-sm-0">
             {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
           </span>
@@ -91,7 +91,7 @@
                   @endif
                 </div>
                 <div class="text-right">
-                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number ?? 'Pending' }}</strong></small>
+                  <small class="text-muted">Form Number: <strong>{{ $instance->getDocumentControlNumber() ?? 'Pending' }}</strong></small>
                 </div>
               </div>
             </div>
@@ -114,7 +114,8 @@
                   @foreach($submissionForm->sections as $section)
                     @if($section->isRowsSection())
                       @include('submission-forms.partials.rows-section', [
-                        'section' => $section, 
+                        'section' => $section,
+                        'existingValues' => $existingValues,
                         'allowedSampleTypeIds' => $allowedSampleTypeIds ?? null
                       ])
                     @else
@@ -135,7 +136,7 @@
                               <div class="row">
                                 @foreach($holder->elements as $element)
                                   <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3" data-element-name="{{ $element->name }}">
-                                    @include('submission-forms.partials.form-element', ['element' => $element])
+                                    @include('submission-forms.partials.form-element', ['element' => $element, 'existingValues' => $existingValues])
                                   </div>
                                 @endforeach
                               </div>
@@ -350,6 +351,65 @@
         vertical-align: middle !important;
     }
 
+    .rows-section .table {
+        table-layout: auto;
+        width: max-content;
+        min-width: 100%;
+    }
+
+    .rows-section .table th,
+    .rows-section .table td {
+        min-width: 120px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .rows-section .table th {
+        vertical-align: top !important;
+        line-height: 1.35;
+        font-weight: 600;
+    }
+
+    .rows-section .table th:last-child,
+    .rows-section .table td:last-child {
+        min-width: 120px;
+        width: 120px;
+        white-space: nowrap;
+    }
+
+    .rows-section .table td .form-group {
+        margin-bottom: 0 !important;
+    }
+
+    .rows-section .table td .form-control,
+    .rows-section .table td .custom-element,
+    .rows-section .table td .select2-container,
+    .rows-section .table td .select2-selection--single,
+    .rows-section .table td .select2-selection--multiple {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .rows-section .table td .custom-element-wrapper .form-control {
+        padding-right: 0.75rem;
+    }
+
+    .rows-section .table td .floating-add-btn {
+        position: static;
+        margin-top: 0.5rem;
+        width: 28px;
+        height: 28px;
+    }
+
+    .plain-text-element {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        min-width: 0;
+        white-space: pre-wrap;
+    }
+
     td {
         vertical-align: middle !important;
     }
@@ -378,13 +438,13 @@
     /* Custom Element Styling */
     .custom-element {
         margin-bottom: 1rem;
-        min-width: 145px;
+        min-width: 0;
         max-width: 100%;
     }
 
     .custom-element .form-control {
         border-radius: 0.375rem;
-        min-width: 145px;
+        min-width: 0;
         max-width: 100%;
     }
 
@@ -395,19 +455,19 @@
 
     /* Form Control Styling */
     .form-control {
-        min-width: 145px;
+        min-width: 0;
         max-width: 100%;
     }
 
     select.custom-element {
-        min-width: 145px;
+        min-width: 0;
         max-width: 100%;
     }
 
     /* Select2 Styling */
     .select2-container {
         width: 100% !important;
-        min-width: 145px;
+        min-width: 0;
         max-width: 100%;
     }
 
@@ -415,14 +475,14 @@
         height: 38px;
         border: 1px solid #ced4da;
         border-radius: 0.375rem;
-        min-width: 145px;
+        min-width: 0;
         max-width: 100%;
     }
 
     .select2-container--default .select2-selection--single .select2-selection__rendered {
         line-height: 36px;
         padding-left: 12px;
-        min-width: 145px;
+        min-width: 0;
         max-width: 100%;
     }
 
@@ -431,7 +491,7 @@
     }
 
     .select2-dropdown {
-        min-width: 145px;
+        min-width: 0;
         max-width: 100%;
     }
 

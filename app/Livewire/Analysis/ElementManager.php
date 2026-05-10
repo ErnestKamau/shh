@@ -151,7 +151,6 @@ class ElementManager extends Component
 
     protected $messages = [
         'elementForm.analyte_id.required' => 'Analyte selection is required.',
-        'elementForm.reporting_unit.required' => 'Reporting unit is required.',
     ];
 
     public function mount($analysisTypeId = null)
@@ -238,7 +237,7 @@ class ElementManager extends Component
         
         // Then populate with element data
         $this->elementForm = [
-            'analyte_id' => (int) $element->analyte_id,
+            'analyte_id' => $element->analyte_id,
             'method' => $element->method,
             'equipment_id' => $element->equipment_id,
             'operator_id' => $element->operator_id,
@@ -511,11 +510,16 @@ class ElementManager extends Component
             ->get();
     }
 
-    public function selectAnalyte($id, $name)
+    public function selectAnalyte($id)
     {
+        $analyte = collect($this->analytes)->firstWhere('id', $id);
+        if (!$analyte) {
+            return;
+        }
+
         $this->elementForm['analyte_id'] = $id;
-        $this->selectedAnalyteName = $name;
-        $this->analyteSearch = $name;
+        $this->selectedAnalyteName = $analyte->name;
+        $this->analyteSearch = $analyte->name;
         $this->showAnalyteDropdown = false;
         $this->loadMethodSequencesForAnalyte();
     }
@@ -539,11 +543,16 @@ class ElementManager extends Component
             ->get();
     }
 
-    public function selectMethod($id, $name)
+    public function selectMethod($id)
     {
+        $method = collect($this->methods)->firstWhere('id', $id);
+        if (!$method) {
+            return;
+        }
+
         $this->elementForm['method'] = $id;
-        $this->selectedMethodName = $name;
-        $this->methodSearch = $name;
+        $this->selectedMethodName = $method->name;
+        $this->methodSearch = $method->name;
         $this->showMethodDropdown = false;
     }
 
@@ -565,11 +574,16 @@ class ElementManager extends Component
             ->get();
     }
 
-    public function selectEquipment($id, $name)
+    public function selectEquipment($id)
     {
+        $equipment = collect($this->equipment)->firstWhere('id', $id);
+        if (!$equipment) {
+            return;
+        }
+
         $this->elementForm['equipment_id'] = $id;
-        $this->selectedEquipmentName = $name;
-        $this->equipmentSearch = $name;
+        $this->selectedEquipmentName = $equipment->name;
+        $this->equipmentSearch = $equipment->name;
         $this->showEquipmentDropdown = false;
     }
 
@@ -591,11 +605,16 @@ class ElementManager extends Component
             ->get();
     }
 
-    public function selectOperator($id, $name)
+    public function selectOperator($id)
     {
+        $operator = collect($this->operators)->firstWhere('id', $id);
+        if (!$operator) {
+            return;
+        }
+
         $this->elementForm['operator_id'] = $id;
-        $this->selectedOperatorName = $name;
-        $this->operatorSearch = $name;
+        $this->selectedOperatorName = $operator->name;
+        $this->operatorSearch = $operator->name;
         $this->showOperatorDropdown = false;
     }
 
@@ -616,11 +635,16 @@ class ElementManager extends Component
             ->get();
     }
 
-    public function selectRemedyHeader($id, $name)
+    public function selectRemedyHeader($id)
     {
+        $remedyHeader = collect($this->remedyHeaders)->firstWhere('id', $id);
+        if (!$remedyHeader) {
+            return;
+        }
+
         $this->elementForm['remedy_header_id'] = $id;
-        $this->selectedRemedyHeaderName = $name;
-        $this->remedyHeaderSearch = $name;
+        $this->selectedRemedyHeaderName = $remedyHeader->name;
+        $this->remedyHeaderSearch = $remedyHeader->name;
         $this->showRemedyHeaderDropdown = false;
     }
 
@@ -642,11 +666,16 @@ class ElementManager extends Component
             ->get();
     }
 
-    public function selectFormular($id, $name)
+    public function selectFormular($id)
     {
+        $formular = collect($this->formulars)->firstWhere('id', $id);
+        if (!$formular) {
+            return;
+        }
+
         $this->elementForm['formular_id'] = $id;
-        $this->selectedFormularName = $name;
-        $this->formularSearch = $name;
+        $this->selectedFormularName = $formular->name;
+        $this->formularSearch = $formular->name;
         $this->showFormularDropdown = false;
     }
 
@@ -669,11 +698,16 @@ class ElementManager extends Component
             ->get();
     }
 
-    public function selectMethodSequence($id, $name)
+    public function selectMethodSequence($id)
     {
+        $methodSequence = collect($this->methodSequences)->firstWhere('id', $id);
+        if (!$methodSequence) {
+            return;
+        }
+
         $this->elementForm['method_sequence_id'] = $id;
-        $this->selectedMethodSequenceName = $name;
-        $this->methodSequenceSearch = $name;
+        $this->selectedMethodSequenceName = $methodSequence->name;
+        $this->methodSequenceSearch = $methodSequence->name;
         $this->showMethodSequenceDropdown = false;
     }
 

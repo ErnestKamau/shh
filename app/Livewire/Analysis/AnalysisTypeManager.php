@@ -13,6 +13,7 @@ use App\Models\Equipments\Equipment;
 use App\User;
 use App\InvoicableItem;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AnalysisTypeManager extends Component
@@ -106,7 +107,8 @@ class AnalysisTypeManager extends Component
     protected $rules = [
         'analysisTypeForm.name' => 'required|string|max:255',
         'analysisTypeForm.code' => 'required|string|max:255',
-        'analysisTypeForm.lab_id' => 'required|exists:labs,id',
+        'analysisTypeForm.lab_section_id' => 'nullable|exists:sample_analysis_stages,id',
+        'analysisTypeForm.lab_id' => 'nullable|exists:labs,id',
         'elementForm.analyte_id' => 'required|exists:analytes,id',
         'elementForm.method' => 'nullable|exists:analysis_methods,id',
         'elementForm.equipment_id' => 'nullable|exists:equipment,id',
@@ -116,7 +118,6 @@ class AnalysisTypeManager extends Component
     protected $messages = [
         'analysisTypeForm.name.required' => 'Analysis type name is required.',
         'analysisTypeForm.code.required' => 'Analysis type code is required.',
-        'analysisTypeForm.lab_id.required' => 'Lab selection is required.',
         'elementForm.analyte_id.required' => 'Analyte selection is required.',
     ];
 
@@ -139,10 +140,13 @@ class AnalysisTypeManager extends Component
 
     public function getAnalysisTypesProperty()
     {
-        $query = AnalysisType::with(['analysis_elements' => function($q) {
-            $q->with(['analyte', 'mmethod', 'ltmethod', 'equipment', 'operator'])
-              ->orderBy('level', 'asc');
-        }, 'lab', 'procedureWorksheet']);
+        $query = AnalysisType::with(['lab', 'procedureWorksheet'])
+            ->select('analysis_types.*')
+            ->selectSub(function ($subQuery) {
+                $subQuery->from('analysis_elements')
+                    ->selectRaw('COUNT(*)')
+                    ->whereRaw('analysis_elements.analysis_type_id::text = analysis_types.id::text');
+            }, 'analysis_elements_count');
 
         // Filter by sample type if provided
         if ($this->sampleTypeId) {
@@ -207,7 +211,10 @@ class AnalysisTypeManager extends Component
         $analysisType = AnalysisType::findOrFail($id);
         
         // Get the mapped invoicable item if exists
-        $invoicableItemId = $analysisType->invoicableItems()->first()?->id;
+        $invoicableItemId = null;
+        if (Str::isUuid((string) $analysisType->id)) {
+            $invoicableItemId = $analysisType->invoicableItems()->first()?->id;
+        }
         
         $this->analysisTypeForm = [
             'name' => $analysisType->name,
@@ -233,7 +240,8 @@ class AnalysisTypeManager extends Component
         $this->validate([
             'analysisTypeForm.name' => 'required|string|max:255',
             'analysisTypeForm.code' => 'required|string|max:255',
-            'analysisTypeForm.lab_id' => 'required|exists:labs,id',
+            'analysisTypeForm.lab_section_id' => 'nullable|exists:sample_analysis_stages,id',
+            'analysisTypeForm.lab_id' => 'nullable|exists:labs,id',
         ]);
 
         try {
@@ -258,7 +266,7 @@ class AnalysisTypeManager extends Component
                 
                 // Cascade update to elements if "Has No Result Captured" and worksheet is set
                 if (($this->analysisTypeForm['has_no_result'] ?? false) && !empty($this->analysisTypeForm['procedure_worksheet_id'])) {
-                    $analysisType->analysis_elements()->update([
+                    AnalysisElements::whereRaw('analysis_type_id::text = ?', [(string) $analysisType->id])->update([
                         'procedure_worksheet_id' => $this->analysisTypeForm['procedure_worksheet_id']
                     ]);
                 }
@@ -309,7 +317,7 @@ class AnalysisTypeManager extends Component
             DB::beginTransaction();
 
             $analysisType = AnalysisType::findOrFail($id);
-            $analysisType->analysis_elements()->delete();
+            AnalysisElements::whereRaw('analysis_type_id::text = ?', [(string) $analysisType->id])->delete();
             $analysisType->delete();
 
             DB::commit();
@@ -370,6 +378,12 @@ class AnalysisTypeManager extends Component
      */
     protected function updateInvoicableItemMapping($analysisType)
     {
+        // Legacy environments may still have integer analysis type IDs while the pivot uses UUIDs.
+        // Skip pivot sync to avoid PostgreSQL UUID cast errors until IDs are normalized.
+        if (!Str::isUuid((string) $analysisType->id)) {
+            return;
+        }
+
         // Sync the invoicable item - this will remove old mappings and add the new one
         if ($this->analysisTypeForm['invoicable_item_id']) {
             $analysisType->invoicableItems()->sync([$this->analysisTypeForm['invoicable_item_id']]);
@@ -428,7 +442,7 @@ class AnalysisTypeManager extends Component
     public function loadElements()
     {
         if ($this->selectedAnalysisType) {
-            $this->elements = AnalysisElements::where('analysis_type_id', $this->selectedAnalysisType)
+            $this->elements = AnalysisElements::whereRaw('analysis_type_id::text = ?', [(string) $this->selectedAnalysisType])
                 ->with(['analyte', 'mmethod', 'ltmethod', 'equipment', 'operator'])
                 ->orderBy('level', 'asc')
                 ->get();
@@ -633,6 +647,12 @@ class AnalysisTypeManager extends Component
             $this->labSectionSearch = '';
             $this->showLabSectionDropdown = false;
         }
+    }
+
+    public function clearLabSectionSelection(): void
+    {
+        $this->analysisTypeForm['lab_section_id'] = null;
+        $this->analysisTypeForm['lab_id'] = null;
     }
 
     public function updatedLabSectionSearch(): void

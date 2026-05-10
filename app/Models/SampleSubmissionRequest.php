@@ -145,4 +145,13 @@ class SampleSubmissionRequest extends Model
         return $this->hasMany(SupportingDocumentInstance::class, 'sample_submission_request_id')
             ->orderByDesc('id');
     }
+
+    /**
+     * Workflow-specific approval/rejection forms linked to this request.
+     */
+    public function workflowForms(): HasMany
+    {
+        return $this->hasMany(RequestWorkflowForm::class, 'sample_submission_request_id', 'id')
+            ->latest('submitted_at');
+    }
 }

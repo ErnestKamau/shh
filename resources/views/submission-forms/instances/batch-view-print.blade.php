@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Submission Form - {{ $instance->form_number }}</title>
+  <title>Submission Form - {{ $instance->getDocumentControlNumber() }}</title>
 
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
@@ -330,7 +330,7 @@
           <div class="col-4 text-center">
             <img src="{{ $company->logo }}" alt="{{ $company->name }} Logo" class="company-logo">
             <p class="mt-3" style="font-size:18px"><b><u>{{ $instance->submissionForm->name }}</u></b></p>
-            <p class="mt-2 mb-0"><b class="text-danger">Lab Number:</b> {{ $instance->form_number }}</p>
+            <p class="mt-2 mb-0"><b class="text-danger">Lab Number:</b> {{ $instance->getDocumentControlNumber() ?? 'N/A' }}</p>
           </div>
 
           <!-- Right: Form Details -->
