@@ -17,6 +17,81 @@
         $upcomingBookings = $this->labBookingsUpcoming;
         $openCount = $this->openComplaints;
         $npsAccent = $nps >= 70 ? 'success' : ($nps < 30 ? 'danger' : 'warning');
+
+        $paymentRatioLabels = ['Prepaid', 'Post Paid'];
+        $paymentRatioValues = [0, 0];
+        $topSampleLabels = ['No data'];
+        $topSampleValues = [0];
+        $topRevenueLabels = ['No data'];
+        $topRevenueValues = [0];
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('crm_customers')) {
+                $paymentRatio = \Illuminate\Support\Facades\DB::table('crm_customers')
+                    ->selectRaw('SUM(CASE WHEN COALESCE(credit_days, 0) > 0 THEN 1 ELSE 0 END) as post_paid_count')
+                    ->selectRaw('SUM(CASE WHEN COALESCE(credit_days, 0) <= 0 THEN 1 ELSE 0 END) as pre_paid_count')
+                    ->first();
+
+                if ($paymentRatio) {
+                    $paymentRatioValues = [
+                        (int) ($paymentRatio->pre_paid_count ?? 0),
+                        (int) ($paymentRatio->post_paid_count ?? 0),
+                    ];
+                }
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('sample_headers') && \Illuminate\Support\Facades\Schema::hasTable('crm_customers')) {
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('sample_details')) {
+                    $topSampleCustomers = \Illuminate\Support\Facades\DB::table('sample_headers as sh')
+                        ->join('crm_customers as cc', 'cc.id', '=', 'sh.crm_customer_id')
+                        ->leftJoin('sample_details as sd', 'sd.sample_header_id', '=', 'sh.id')
+                        ->selectRaw('cc.name as name, COUNT(sd.id) as sample_count')
+                        ->groupBy('cc.id', 'cc.name')
+                        ->orderByDesc('sample_count')
+                        ->limit(5)
+                        ->get();
+
+                    if ($topSampleCustomers->isNotEmpty()) {
+                        $topSampleLabels = $topSampleCustomers
+                            ->pluck('name')
+                            ->map(fn($name) => \Illuminate\Support\Str::limit((string) $name, 22))
+                            ->values()
+                            ->all();
+                        $topSampleValues = $topSampleCustomers
+                            ->pluck('sample_count')
+                            ->map(fn($count) => (int) $count)
+                            ->values()
+                            ->all();
+                    }
+                }
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('invoice_details') && \Illuminate\Support\Facades\Schema::hasTable('crm_customers')) {
+                $topRevenueCustomers = \Illuminate\Support\Facades\DB::table('invoice_details as idt')
+                    ->join('crm_customers as cc', 'cc.id', '=', 'idt.crm_customer_id')
+                    ->selectRaw('cc.name as name, COALESCE(SUM(idt.total), 0) as generated_amount')
+                    ->groupBy('cc.id', 'cc.name')
+                    ->orderByDesc('generated_amount')
+                    ->limit(5)
+                    ->get();
+
+                if ($topRevenueCustomers->isNotEmpty()) {
+                    $topRevenueLabels = $topRevenueCustomers
+                        ->pluck('name')
+                        ->map(fn($name) => \Illuminate\Support\Str::limit((string) $name, 22))
+                        ->values()
+                        ->all();
+                    $topRevenueValues = $topRevenueCustomers
+                        ->pluck('generated_amount')
+                        ->map(fn($amount) => (float) $amount)
+                        ->values()
+                        ->all();
+                }
+            }
+        } catch (\Throwable $e) {
+            // Keep dashboard rendering with default datasets if analytics query fails.
+        }
     @endphp
     <div class="container-fluid">
         <x-crm.page-header
@@ -27,7 +102,7 @@
         />
 
         {{-- SECTION 1: 4 KPI Cards --}}
-        <div class="px-4 mb-4">
+        <div class="px-3 mb-4">
             <div class="row" style="row-gap:16px;">
 
                 <div class="col-6 col-md-3">
@@ -87,8 +162,66 @@
             </div>
         </div>
 
-    {{-- ── SECTION 2: Action Queue ──────────────────────────────── --}}
-    <div class="px-4 mb-5">
+    {{-- ── SECTION 2: Commercial Snapshot ─────────────────────────── --}}
+    <div class="px-3 mb-5">
+        <div class="row" style="row-gap:24px;">
+
+            <div class="col-xl-4">
+                <div class="crm-card crm-card-insight h-100">
+                    <div class="crm-dash-card-header">
+                        <div class="crm-dash-card-header-icon" style="background:rgba(22, 163, 74, 0.12);">
+                            <i class="mdi mdi-chart-pie" style="color:#16a34a;"></i>
+                        </div>
+                        <div>
+                            <div class="crm-dash-section-title" style="font-size:0.9rem;">Payment Model Mix</div>
+                            <div class="crm-dash-section-subtitle" style="font-size:0.75rem;">Prepaid vs Post Paid ratio</div>
+                        </div>
+                    </div>
+                    <div class="crm-card-body">
+                        <canvas id="chart-payment-ratio" style="height:240px;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4">
+                <div class="crm-card crm-card-insight h-100">
+                    <div class="crm-dash-card-header">
+                        <div class="crm-dash-card-header-icon" style="background:rgba(37, 99, 235, 0.12);">
+                            <i class="mdi mdi-filter-variant" style="color:#2563eb;"></i>
+                        </div>
+                        <div>
+                            <div class="crm-dash-section-title" style="font-size:0.9rem;">Top 5 Customers by Samples</div>
+                            <div class="crm-dash-section-subtitle" style="font-size:0.75rem;">Horizontal bar view of submitted sample volume</div>
+                        </div>
+                    </div>
+                    <div class="crm-card-body">
+                        <canvas id="chart-top-samples-funnel" style="height:240px;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4">
+                <div class="crm-card crm-card-insight h-100">
+                    <div class="crm-dash-card-header">
+                        <div class="crm-dash-card-header-icon" style="background:rgba(217, 119, 6, 0.12);">
+                            <i class="mdi mdi-cash-multiple" style="color:#d97706;"></i>
+                        </div>
+                        <div>
+                            <div class="crm-dash-section-title" style="font-size:0.9rem;">Top 5 Customers by Revenue</div>
+                            <div class="crm-dash-section-subtitle" style="font-size:0.75rem;">Horizontal bar view of amount generated</div>
+                        </div>
+                    </div>
+                    <div class="crm-card-body">
+                        <canvas id="chart-top-revenue-funnel" style="height:240px;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    {{-- ── SECTION 3: Action Queue ──────────────────────────────── --}}
+    <div class="px-3 mb-5">
         <div class="crm-dash-section-header">
             <div class="crm-dash-section-icon" style="background: var(--crm-warning-light);">
                 <i class="mdi mdi-clock-alert-outline text-warning"></i>
@@ -145,8 +278,8 @@
         </div>
     </div>
 
-    {{-- ── SECTION 3: 2 Charts ─────────────────────────────────── --}}
-    <div class="px-4 mb-5">
+    {{-- ── SECTION 4: 2 Charts ─────────────────────────────────── --}}
+    <div class="px-3 mb-5">
         <div class="row" style="row-gap:24px;">
 
             {{-- Chart 1: Feedback Sentiment --}}
@@ -188,8 +321,8 @@
         </div>
     </div>
 
-    {{-- ── SECTION 4: Recent Operations Feed ────────────────────── --}}
-    <div class="px-4 mb-5">
+    {{-- ── SECTION 5: Recent Operations Feed ────────────────────── --}}
+    <div class="px-3 mb-5">
 
         <div class="crm-dash-section-header">
             <div class="crm-dash-section-icon" style="background:#f1f5f9;">
@@ -279,6 +412,137 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             if (typeof Chart === 'undefined') return;
+
+            var paymentRatioLabels = @json($paymentRatioLabels);
+            var paymentRatioValues = @json($paymentRatioValues);
+            var topSampleLabels = @json($topSampleLabels);
+            var topSampleValues = @json($topSampleValues);
+            var topRevenueLabels = @json($topRevenueLabels);
+            var topRevenueValues = @json($topRevenueValues);
+
+            var paymentChartCtx = document.getElementById('chart-payment-ratio');
+            if (paymentChartCtx) {
+                var paymentPalette = {
+                    'Prepaid': { bg: 'rgba(37,99,235,.75)', border: '#2563eb' },
+                    'Post Paid': { bg: 'rgba(217,119,6,.75)', border: '#d97706' },
+                };
+
+                var paymentSeries = paymentRatioLabels
+                    .map(function(label, idx) {
+                        return {
+                            label: label,
+                            value: Number(paymentRatioValues[idx] || 0),
+                            color: paymentPalette[label] || { bg: 'rgba(100,116,139,.75)', border: '#64748b' },
+                        };
+                    })
+                    .filter(function(item) {
+                        return item.value > 0;
+                    });
+
+                if (paymentSeries.length === 0) {
+                    paymentSeries = [{
+                        label: 'No Data',
+                        value: 1,
+                        color: { bg: 'rgba(148,163,184,.35)', border: '#94a3b8' },
+                    }];
+                }
+
+                new Chart(paymentChartCtx.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: paymentSeries.map(function(item) { return item.label; }),
+                        datasets: [{
+                            data: paymentSeries.map(function(item) { return item.value; }),
+                            backgroundColor: paymentSeries.map(function(item) { return item.color.bg; }),
+                            borderColor: paymentSeries.map(function(item) { return item.color.border; }),
+                            borderWidth: 1.5,
+                        }]
+                    },
+                    options: {
+                        legend: { position: 'bottom', labels: { fontSize: 10, boxWidth: 10 } },
+                    }
+                });
+            }
+
+            function renderHorizontalBarChart(canvas, labels, values, backgroundColor, borderColor, isCurrency) {
+                var cleanedLabels = labels || [];
+                var cleanedValues = (values || []).map(function(v) { return Number(v || 0); });
+
+                if (!cleanedLabels.length) {
+                    cleanedLabels = ['No data'];
+                    cleanedValues = [0];
+                }
+
+                new Chart(canvas.getContext('2d'), {
+                    type: 'horizontalBar',
+                    data: {
+                        labels: cleanedLabels,
+                        datasets: [{
+                            data: cleanedValues,
+                            backgroundColor: backgroundColor,
+                            borderColor: borderColor,
+                            borderWidth: 1,
+                        }]
+                    },
+                    options: {
+                        legend: { display: false },
+                        scales: {
+                            xAxes: [{
+                                ticks: {
+                                    beginAtZero: true,
+                                    precision: isCurrency ? 2 : 0,
+                                    fontSize: 10,
+                                    callback: function(value) {
+                                        return isCurrency ? Number(value).toLocaleString() : value;
+                                    }
+                                },
+                                gridLines: { color: 'rgba(0,0,0,.04)' }
+                            }],
+                            yAxes: [{
+                                ticks: {
+                                    fontSize: 10,
+                                    autoSkip: false,
+                                },
+                                gridLines: { display: false }
+                            }]
+                        },
+                        tooltips: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    var value = Number(tooltipItem.xLabel || 0);
+                                    return isCurrency
+                                        ? value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                        : value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            var samplesFunnelCtx = document.getElementById('chart-top-samples-funnel');
+            if (samplesFunnelCtx) {
+                renderHorizontalBarChart(
+                    samplesFunnelCtx,
+                    topSampleLabels,
+                    topSampleValues,
+                    'rgba(37, 99, 235, 0.72)',
+                    '#2563eb',
+                    false
+                );
+            }
+
+            var revenueFunnelCtx = document.getElementById('chart-top-revenue-funnel');
+            if (revenueFunnelCtx) {
+                renderHorizontalBarChart(
+                    revenueFunnelCtx,
+                    topRevenueLabels,
+                    topRevenueValues,
+                    'rgba(217, 119, 6, 0.72)',
+                    '#d97706',
+                    true
+                );
+            }
 
             // ── Chart 1: Feedback Sentiment by Service (Stacked Bar) ──────────
             var sentimentRaw = @json($this->feedbackSentimentByService);

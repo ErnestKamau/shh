@@ -3,7 +3,7 @@
         <div class="card">
             <div class="card-header bg-warning text-dark">
                 <h5 class="mb-0">
-                    <i class="mdi mdi-alert-outline"></i> Equipment Decommissioning
+                    <i class="mdi mdi-alert-outline"></i> {{ __('equipment.equipment_decommissioning') }}
                 </h5>
             </div>
             <div class="card-body">
@@ -18,21 +18,21 @@
                 <!-- Equipment Information -->
                 <div class="card mb-4">
                     <div class="card-header bg-light">
-                        <h6 class="mb-0">Equipment Information</h6>
+                        <h6 class="mb-0">{{ __('equipment.equipment_information') }}</h6>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-4">
-                                <p class="mb-1"><strong>Name:</strong> {{ $disposal->equipment->name }}</p>
-                                <p class="mb-1"><strong>Equipment Number:</strong> {{ $disposal->equipment->equipment_number }}</p>
+                                <p class="mb-1"><strong>{{ __('equipment.name') }}:</strong> {{ $disposal->equipment->name }}</p>
+                                <p class="mb-1"><strong>{{ __('equipment.equipment_number') }}:</strong> {{ $disposal->equipment->equipment_number }}</p>
                             </div>
                             <div class="col-md-4">
-                                <p class="mb-1"><strong>Status:</strong> {{ $disposal->equipment->status }}</p>
-                                <p class="mb-1"><strong>Current Location:</strong> {{ $disposal->equipment->assigned_department ?? '-' }}</p>
+                                <p class="mb-1"><strong>{{ __('equipment.status') }}:</strong> {{ $disposal->equipment->status }}</p>
+                                <p class="mb-1"><strong>{{ __('equipment.current_location') }}:</strong> {{ $disposal->equipment->assigned_department ?? '-' }}</p>
                             </div>
                             <div class="col-md-4">
-                                <p class="mb-1"><strong>Decommissioning Date:</strong> {{ $disposal->decommissioning_date ? $disposal->decommissioning_date->format('Y-m-d') : 'Not started' }}</p>
-                                <p class="mb-1"><strong>Decommissioned By:</strong> {{ $disposal->decommissioned_by ? \App\User::find($disposal->decommissioned_by)->name : '-' }}</p>
+                                <p class="mb-1"><strong>{{ __('equipment.decommissioning_date') }}:</strong> {{ $disposal->decommissioning_date ? $disposal->decommissioning_date->format('Y-m-d') : __('equipment.not_started') }}</p>
+                                <p class="mb-1"><strong>{{ __('equipment.decommissioned_by') }}:</strong> {{ $disposal->decommissioned_by ? \App\User::find($disposal->decommissioned_by)->name : '-' }}</p>
                             </div>
                         </div>
                     </div>
@@ -41,14 +41,14 @@
                 <!-- Start Decommissioning Button -->
                 @if(empty($checklist))
                     <div class="alert alert-info">
-                        <strong>Action Required:</strong> Decommissioning has not been started yet. Click the button below to initiate the decommissioning process.
+                        <strong>{{ __('equipment.action_required') }}:</strong> {{ __('equipment.decommissioning_not_started_message') }}
                     </div>
                     <button wire:click="startDecommissioning" class="btn btn-warning" wire:loading.attr="disabled">
                         <span wire:loading.remove wire:target="startDecommissioning">
-                            <i class="mdi mdi-play"></i> Start Decommissioning
+                            <i class="mdi mdi-play"></i> {{ __('equipment.start_decommissioning') }}
                         </span>
                         <span wire:loading wire:target="startDecommissioning">
-                            <i class="mdi mdi-loading mdi-spin"></i> Starting...
+                            <i class="mdi mdi-loading mdi-spin"></i> {{ __('equipment.starting') }}
                         </span>
                     </button>
                 @else
@@ -73,22 +73,22 @@
                                                 <label class="form-check-label" for="checklist_{{ $key }}">
                                                     {{ $item['label'] }}
                                                     @if($item['required'])
-                                                        <span class="badge badge-danger ms-2">Required</span>
+                                                        <span class="badge badge-danger ms-2">{{ __('equipment.required') }}</span>
                                                     @endif
                                                 </label>
                                             </div>
                                             @if($item['completed'])
                                                 <span class="badge badge-success">
-                                                    <i class="mdi mdi-check"></i> Completed
+                                                    <i class="mdi mdi-check"></i> {{ __('equipment.completed') }}
                                                     @if(isset($item['completed_by']))
-                                                        by {{ $item['completed_by'] }}
+                                                        {{ __('equipment.by') }} {{ $item['completed_by'] }}
                                                     @endif
                                                 </span>
                                             @endif
                                         </div>
                                         @if(isset($item['completed_at']))
                                             <small class="text-muted d-block mt-1">
-                                                Completed at: {{ \Carbon\Carbon::parse($item['completed_at'])->format('Y-m-d H:i:s') }}
+                                                {{ __('equipment.completed_at') }}: {{ \Carbon\Carbon::parse($item['completed_at'])->format('Y-m-d H:i:s') }}
                                             </small>
                                         @endif
                                     </div>
@@ -101,32 +101,32 @@
                     <div class="card mb-4">
                         <div class="card-header bg-light">
                             <h6 class="mb-0">
-                                <i class="mdi mdi-tag"></i> Equipment Labeling
+                                <i class="mdi mdi-tag"></i> {{ __('equipment.equipment_labeling') }}
                             </h6>
                         </div>
                         <div class="card-body">
-                            <p><strong>Required Label:</strong> "OUT OF SERVICE - FOR DISPOSAL"</p>
+                            <p><strong>{{ __('equipment.required_label') }}:</strong> "{{ __('equipment.out_of_service_for_disposal') }}"</p>
                             
                             @if($disposal->equipment_labeled && $disposal->label_photo_path)
                                 <div class="alert alert-success">
-                                    <i class="mdi mdi-check-circle"></i> Equipment has been labeled
+                                    <i class="mdi mdi-check-circle"></i> {{ __('equipment.equipment_has_been_labeled') }}
                                 </div>
                                 <div>
-                                    <strong>Label Photo:</strong><br>
+                                    <strong>{{ __('equipment.label_photo') }}:</strong><br>
                                     <img src="{{ $disposal->label_photo_path }}" alt="Equipment Label" style="max-width: 300px; border-radius: 8px; margin-top: 10px;">
                                 </div>
                             @else
                                 <div class="form-group mt-3">
-                                    <label class="form-label fw-bold">Upload Label Photo <span class="text-danger">*</span></label>
+                                    <label class="form-label fw-bold">{{ __('equipment.upload_label_photo') }} <span class="text-danger">*</span></label>
                                     <input type="file" wire:model="labelPhoto" class="form-control" accept="image/*">
                                     @error('labelPhoto') <span class="text-danger d-block">{{ $message }}</span> @enderror
-                                    <small class="text-muted">Upload a photo showing the "OUT OF SERVICE - FOR DISPOSAL" label on the equipment</small>
+                                    <small class="text-muted">{{ __('equipment.upload_label_photo_instruction') }}</small>
                                 </div>
                                 <button wire:click="uploadLabelPhoto" class="btn btn-primary mt-2" 
                                         wire:loading.attr="disabled" 
                                         {{ !$labelPhoto ? 'disabled' : '' }}>
                                     <span wire:loading.remove wire:target="uploadLabelPhoto">
-                                        <i class="mdi mdi-upload"></i> Upload Photo
+                                        <i class="mdi mdi-upload"></i> {{ __('equipment.upload_photo') }}
                                     </span>
                                     <span wire:loading wire:target="uploadLabelPhoto">
                                         <i class="mdi mdi-loading mdi-spin"></i> Uploading...
@@ -140,15 +140,15 @@
                     <div class="card mb-4">
                         <div class="card-header bg-light">
                             <h6 class="mb-0">
-                                <i class="mdi mdi-calendar-remove"></i> Schedule Removal
+                                <i class="mdi mdi-calendar-remove"></i> {{ __('equipment.schedule_removal') }}
                             </h6>
                         </div>
                         <div class="card-body">
-                            <p>Remove equipment from future calibration and maintenance schedules</p>
+                            <p>{{ __('equipment.remove_from_future_schedules') }}</p>
                             
                             @if($disposal->removed_from_calibration_schedule && $disposal->removed_from_maintenance_schedule)
                                 <div class="alert alert-success">
-                                    <i class="mdi mdi-check-circle"></i> Equipment removed from all schedules
+                                    <i class="mdi mdi-check-circle"></i> {{ __('equipment.equipment_removed_from_all_schedules') }}
                                 </div>
                             @else
                                 <button wire:click="removeFromSchedules" class="btn btn-warning" wire:loading.attr="disabled">
@@ -156,7 +156,7 @@
                                         <i class="mdi mdi-calendar-remove"></i> Remove from Schedules
                                     </span>
                                     <span wire:loading wire:target="removeFromSchedules">
-                                        <i class="mdi mdi-loading mdi-spin"></i> Removing...
+                                        <i class="mdi mdi-loading mdi-spin"></i> {{ __('equipment.removing') }}
                                     </span>
                                 </button>
                             @endif
@@ -167,11 +167,11 @@
                     <div class="card mb-4 border-success">
                         <div class="card-header bg-success text-white">
                             <h6 class="mb-0">
-                                <i class="mdi mdi-check-all"></i> Complete Decommissioning
+                                <i class="mdi mdi-check-all"></i> {{ __('equipment.complete_decommissioning') }}
                             </h6>
                         </div>
                         <div class="card-body">
-                            <p>Once all required checklist items are completed, click below to finalize decommissioning.</p>
+                            <p>{{ __('equipment.complete_decommissioning_description') }}</p>
                             
                             @php
                                 $allRequiredComplete = true;
@@ -185,7 +185,7 @@
 
                             @if(!$allRequiredComplete)
                                 <div class="alert alert-warning">
-                                    <i class="mdi mdi-alert"></i> All required checklist items must be completed before finalizing.
+                                    <i class="mdi mdi-alert"></i> {{ __('equipment.all_required_checklist_items_must_be_completed') }}
                                 </div>
                             @endif
 
@@ -207,7 +207,7 @@
         </div>
     @else
         <div class="alert alert-danger">
-            Disposal request not found.
+            {{ __('equipment.disposal_request_not_found') }}
         </div>
     @endif
 </div>

@@ -56,7 +56,7 @@
                 <div class="col-12">
                     <div class="alert alert-info">
                         <i class="mdi mdi-information"></i>
-                        <strong>Action Required:</strong> You have a pending approval for this disposal request.
+                        <strong>{{ __('equipment.action_required') }}:</strong> You have a pending approval for this disposal request.
                         <button wire:click="openApprovalModal" class="btn btn-primary btn-sm ms-3">
                             <i class="mdi mdi-check-circle"></i> Review & Approve
                         </button>
@@ -129,57 +129,57 @@
                         @if($activeTab === 'details')
                             <div class="row">
                                 <div class="col-md-6">
-                                    <h5 class="mb-4">Equipment Information</h5>
+                                    <h5 class="mb-4">{{ __('equipment.equipment_information') }}</h5>
                                     <table class="table table-borderless">
                                         <tr>
                                             <th width="40%">Equipment Name:</th>
                                             <td>{{ $disposal->equipment->name }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Equipment Number:</th>
+                                            <th>{{ __('equipment.equipment_number') }}:</th>
                                             <td>{{ $disposal->equipment->equipment_number }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Serial Number:</th>
+                                            <th>{{ __('equipment.serial_number') }}:</th>
                                             <td>{{ $disposal->equipment->serial_number ?? '-' }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Make:</th>
+                                            <th>{{ __('equipment.make') }}:</th>
                                             <td>{{ $disposal->equipment->make }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Model:</th>
+                                            <th>{{ __('equipment.model') }}:</th>
                                             <td>{{ $disposal->equipment->model }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Department:</th>
+                                            <th>{{ __('equipment.department') }}:</th>
                                             <td>{{ $disposal->equipment->assigned_department ?? '-' }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Condition:</th>
+                                            <th>{{ __('equipment.condition') }}:</th>
                                             <td>{{ $disposal->equipment->condition ?? '-' }}</td>
                                         </tr>
                                     </table>
                                 </div>
                                 <div class="col-md-6">
-                                    <h5 class="mb-4">Disposal Information</h5>
+                                    <h5 class="mb-4">{{ __('equipment.disposal_information') }}</h5>
                                     <table class="table table-borderless">
                                         <tr>
-                                            <th width="40%">Requested By:</th>
+                                            <th width="40%">{{ __('equipment.requested_by') }}:</th>
                                             <td>{{ $disposal->requester->name }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Requested Date:</th>
+                                            <th>{{ __('equipment.requested_date') }}:</th>
                                             <td>{{ $disposal->created_at->format('Y-m-d H:i:s') }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Proposed Method:</th>
+                                            <th>{{ __('equipment.proposed_method') }}:</th>
                                             <td>
                                                 <span class="badge badge-info">{{ ucfirst($disposal->proposed_method ?? '-') }}</span>
                                             </td>
                                         </tr>
                                         <tr>
-                                            <th>Risk Level:</th>
+                                            <th>{{ __('equipment.risk_level') }}:</th>
                                             <td>
                                                 @php
                                                     $riskColors = [
@@ -194,11 +194,11 @@
                                             </td>
                                         </tr>
                                         <tr>
-                                            <th>Regulatory Category:</th>
+                                            <th>{{ __('equipment.regulatory_category') }}:</th>
                                             <td>{{ $disposal->regulatory_category ?? '-' }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Status:</th>
+                                            <th>{{ __('equipment.status') }}:</th>
                                             <td>
                                                 <span class="badge badge-{{ $statusColor }}">{{ ucfirst($disposal->status) }}</span>
                                             </td>
@@ -209,7 +209,7 @@
 
                             <div class="row mt-4">
                                 <div class="col-12">
-                                    <h5 class="mb-3">Justification</h5>
+                                    <h5 class="mb-3">{{ __('equipment.justification') }}</h5>
                                     <div class="card bg-light">
                                         <div class="card-body">
                                             <p style="white-space: pre-wrap;">{{ $disposal->justification }}</p>
@@ -220,7 +220,7 @@
 
                             <div class="row mt-4">
                                 <div class="col-12">
-                                    <h5 class="mb-3">Evidence Files</h5>
+                                    <h5 class="mb-3">{{ __('equipment.evidence_files') }}</h5>
                                     @if($disposal->files->count() > 0)
                                         <div class="row">
                                             @foreach($disposal->files as $file)
@@ -234,7 +234,7 @@
                                                             @endif
                                                             <p class="mt-2 mb-0"><small>{{ Str::limit($file->file_name, 20) }}</small></p>
                                                             <a href="{{ $file->file_path }}" target="_blank" class="btn btn-sm btn-primary mt-2">
-                                                                <i class="mdi mdi-download"></i> View
+                                                                <i class="mdi mdi-download"></i> {{ __('equipment.view') }}
                                                             </a>
                                                         </div>
                                                     </div>
@@ -242,7 +242,7 @@
                                             @endforeach
                                         </div>
                                     @else
-                                        <p class="text-muted">No evidence files uploaded.</p>
+                                        <p class="text-muted">{{ __('equipment.no_evidence_files_uploaded') }}</p>
                                     @endif
                                 </div>
                             </div>
@@ -250,18 +250,18 @@
 
                         <!-- Approvals Tab -->
                         @if($activeTab === 'approvals')
-                            <h5 class="mb-4">Approval Workflow</h5>
+                            <h5 class="mb-4">{{ __('equipment.approval_workflow') }}</h5>
                             @if($disposal->approvals->count() > 0)
                                 <div class="table-responsive">
                                     <table class="table table-striped">
                                         <thead>
                                             <tr>
-                                                <th>Step</th>
-                                                <th>Approver</th>
+                                                <th>{{ __('equipment.step') }}</th>
+                                                <th>{{ __('equipment.approver') }}</th>
                                                 <th>Role</th>
-                                                <th>Decision</th>
-                                                <th>Date</th>
-                                                <th>Remarks</th>
+                                                <th>{{ __('equipment.decision') }}</th>
+                                                <th>{{ __('equipment.date') }}</th>
+                                                <th>{{ __('equipment.remarks') }}</th>
                                                 <th>Signature</th>
                                             </tr>
                                         </thead>
@@ -275,9 +275,9 @@
                                                     <td>-</td>
                                                     <td>
                                                         @if($approval->decision === 'approve')
-                                                            <span class="badge badge-success">Approved</span>
+                                                            <span class="badge badge-success">{{ __('equipment.approved') }}</span>
                                                         @elseif($approval->decision === 'reject')
-                                                            <span class="badge badge-danger">Rejected</span>
+                                                            <span class="badge badge-danger">{{ __('equipment.rejected') }}</span>
                                                         @else
                                                             <span class="badge badge-warning">Pending</span>
                                                         @endif
@@ -338,10 +338,10 @@
                                             <tr>
                                                 <th>Date & Time</th>
                                                 <th>Action</th>
-                                                <th>User</th>
-                                                <th>IP Address</th>
-                                                <th>Description</th>
-                                                <th>Changes</th>
+                                                <th>{{ __('equipment.user') }}</th>
+                                                <th>{{ __('equipment.ip_address') }}</th>
+                                                <th>{{ __('equipment.description') }}</th>
+                                                <th>{{ __('equipment.changes') }}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -368,11 +368,11 @@
                                                                         </div>
                                                                         <div class="modal-body">
                                                                             @if($log->old_values)
-                                                                                <h6>Before:</h6>
+                                                                                <h6>{{ __('equipment.before') }}:</h6>
                                                                                 <pre class="bg-light p-3">{{ json_encode($log->old_values, JSON_PRETTY_PRINT) }}</pre>
                                                                             @endif
                                                                             @if($log->new_values)
-                                                                                <h6>After:</h6>
+                                                                                <h6>{{ __('equipment.after') }}:</h6>
                                                                                 <pre class="bg-light p-3">{{ json_encode($log->new_values, JSON_PRETTY_PRINT) }}</pre>
                                                                             @endif
                                                                         </div>
@@ -396,30 +396,30 @@
                         <!-- Execution Tab -->
                         @if($activeTab === 'execution')
                             @if($disposal->status === 'executed' || $disposal->status === 'closed')
-                                <h5 class="mb-4">Disposal Execution Details</h5>
+                                <h5 class="mb-4">{{ __('equipment.disposal_execution_details') }}</h5>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <table class="table table-borderless">
                                             <tr>
-                                                <th width="40%">Final Disposal Method:</th>
+                                                <th width="40%">{{ __('equipment.final_disposal_method') }}:</th>
                                                 <td>{{ $disposal->final_disposal_method ?? '-' }}</td>
                                             </tr>
                                             <tr>
-                                                <th>Disposal Date:</th>
+                                                <th>{{ __('equipment.disposal_date') }}:</th>
                                                 <td>{{ $disposal->disposal_date ? $disposal->disposal_date->format('Y-m-d') : '-' }}</td>
                                             </tr>
                                             <tr>
-                                                <th>Executed By:</th>
+                                                <th>{{ __('equipment.executed_by') }}:</th>
                                                 <td>{{ $disposal->executor->name ?? '-' }}</td>
                                             </tr>
                                             <tr>
-                                                <th>Witness:</th>
+                                                <th>{{ __('equipment.witness') }}:</th>
                                                 <td>{{ $disposal->witness->name ?? '-' }}</td>
                                             </tr>
                                         </table>
                                     </div>
                                     <div class="col-md-6">
-                                        <h6>Compliance Checklist</h6>
+                                        <h6>{{ __('equipment.compliance_checklist') }}</h6>
                                         @if($disposal->compliance_checklist_json)
                                             <ul class="list-group">
                                                 @foreach($disposal->compliance_checklist_json as $item => $checked)
@@ -439,7 +439,7 @@
 
                                 <div class="row mt-4">
                                     <div class="col-12">
-                                        <h6>Execution Photos & Documents</h6>
+                                        <h6>{{ __('equipment.execution_photos_documents') }}</h6>
                                         @php
                                             $executionFiles = $disposal->files->where('file_type', 'photo')->where('description', 'execution');
                                         @endphp
@@ -464,11 +464,11 @@
 
                         <!-- PDF Report Tab -->
                         @if($activeTab === 'report')
-                            <h5 class="mb-4">Disposal Report</h5>
+                            <h5 class="mb-4">{{ __('equipment.disposal_report') }}</h5>
                             @if($disposal->pdf_report_path)
                                 <div class="text-center">
                                     <i class="mdi mdi-file-pdf-box" style="font-size: 5rem; color: #dc3545;"></i>
-                                    <p class="mt-3">Disposal Report Generated</p>
+                                    <p class="mt-3">{{ __('equipment.disposal_report_generated') }}</p>
                                     <div class="mt-4">
                                         <a href="{{ route('equipment-disposal-download-report', ['disposalId' => $disposal->id]) }}" 
                                            class="btn btn-primary me-2">
@@ -521,12 +521,12 @@
                                                 Final Disposal Method <span class="text-danger">*</span>
                                             </label>
                                             <select wire:model="executionForm.final_disposal_method" class="form-select" required>
-                                                <option value="">Select Method</option>
-                                                <option value="scrap">Scrap</option>
-                                                <option value="donation">Donation</option>
-                                                <option value="auction">Auction</option>
-                                                <option value="recycling">Recycling</option>
-                                                <option value="destruction">Destruction</option>
+                                                <option value="">{{ __('equipment.select_method') }}</option>
+                                                <option value="scrap">{{ __('equipment.scrap') }}</option>
+                                                <option value="donation">{{ __('equipment.donation') }}</option>
+                                                <option value="auction">{{ __('equipment.auction') }}</option>
+                                                <option value="recycling">{{ __('equipment.recycling') }}</option>
+                                                <option value="destruction">{{ __('equipment.destruction') }}</option>
                                             </select>
                                             @error('executionForm.final_disposal_method') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                         </div>
@@ -627,7 +627,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" wire:click="closeExecutionModal">
-                                <i class="mdi mdi-close"></i> Cancel
+                                <i class="mdi mdi-close"></i> {{ __('equipment.cancel') }}
                             </button>
                             <button type="button" wire:click="executeDisposal" class="btn btn-success" wire:loading.attr="disabled">
                                 <span wire:loading.remove wire:target="executeDisposal">

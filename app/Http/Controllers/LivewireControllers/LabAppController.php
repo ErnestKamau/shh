@@ -176,4 +176,31 @@ class LabAppController extends Controller
     {
         return view('livewire.lab.lab-manager-page');
     }
+
+    /**
+     * Display the Monitoring module dashboard.
+     */
+    public function monitoring()
+    {
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'monitoring',
+            'pageTitle' => 'Monitoring',
+        ]);
+    }
+
+    /**
+     * Display the create monitoring template page.
+     */
+    public function createMonitoringTemplate()
+    {
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'template-create',
+            'pageTitle' => 'Create Monitoring Template',
+            'breadcrumbItems' => [
+                ['label' => 'Home', 'url' => route('home')],
+                ['label' => 'Monitoring', 'url' => route('livewire.monitoring')],
+                ['label' => 'Create Template', 'current' => true],
+            ],
+        ]);
+    }
 }

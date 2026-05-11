@@ -4,7 +4,9 @@ namespace App\Livewire\Lab;
 
 use App\Directorate;
 use App\Lab;
+use App\LabSection;
 use App\Zone;
+use App\Models\Equipments\Equipment;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -43,6 +45,7 @@ class LabManager extends Component
 
     // Modal States
     public $showLabModal = false;
+    public $showLabSectionModal = false;
     public $showDeleteModal = false;
 
     // Delete Confirmation
@@ -60,6 +63,15 @@ class LabManager extends Component
     public $perPage = 10;
     public $perPageOptions = [10, 25, 50, 100];
 
+    // Expandable rows and nested section forms
+    public array $expandedLabs = [];
+    public array $labSectionForms = [];
+    public ?string $activeLabSectionLabId = null;
+    public string $labSectionEquipmentSearch = '';
+    public bool $showLabSectionEquipmentDropdown = false;
+    public string $labSectionExpectedValueTypeSearch = '';
+    public bool $showLabSectionExpectedValueTypeDropdown = false;
+
     public function mount(): void
     {
         // Initialize with defaults
@@ -67,7 +79,13 @@ class LabManager extends Component
 
     public function getLabsProperty()
     {
-        $query = Lab::query()->with(['zone', 'directorate']);
+        $query = Lab::query()->with([
+            'zone',
+            'directorate',
+            'labSections' => function ($q): void {
+                $q->with('equipment')->orderBy('name');
+            },
+        ]);
 
         // Apply search filter
         if (!empty($this->search)) {
@@ -87,6 +105,294 @@ class LabManager extends Component
         }
 
         return $query->orderBy('name')->paginate($this->perPage);
+    }
+
+    public function getAvailableEquipmentsProperty()
+    {
+        return Equipment::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->select(['id', 'name', 'equipment_number', 'lab_id'])
+            ->get();
+    }
+
+    public function toggleLabRow(string $labId): void
+    {
+        if (in_array($labId, $this->expandedLabs, true)) {
+            $this->expandedLabs = array_values(array_filter(
+                $this->expandedLabs,
+                fn ($id) => $id !== $labId
+            ));
+
+            return;
+        }
+
+        $this->expandedLabs[] = $labId;
+        $this->initializeLabSectionForm($labId);
+    }
+
+    public function initializeLabSectionForm(string $labId): void
+    {
+        $this->labSectionForms[$labId] = [
+            'name' => '',
+            'code' => '',
+            'description' => '',
+            'does_environmental_analysis' => false,
+            'equipment_id' => '',
+            'expected_value_type' => '',
+            'expected_value' => null,
+            'expected_min' => null,
+            'expected_max' => null,
+            'optimum_level' => '',
+            'result_nature' => '',
+            'reporting_unit' => '',
+            'active' => true,
+        ];
+    }
+
+    public function resetLabSectionForm(string $labId): void
+    {
+        $this->initializeLabSectionForm($labId);
+        if ($this->activeLabSectionLabId === $labId) {
+            $this->labSectionEquipmentSearch = '';
+            $this->showLabSectionEquipmentDropdown = false;
+            $this->labSectionExpectedValueTypeSearch = '';
+            $this->showLabSectionExpectedValueTypeDropdown = false;
+        }
+
+        $this->resetValidation();
+    }
+
+    public function showCreateLabSectionModal(string $labId): void
+    {
+        if (!in_array($labId, $this->expandedLabs, true)) {
+            $this->expandedLabs[] = $labId;
+        }
+
+        if (!isset($this->labSectionForms[$labId])) {
+            $this->initializeLabSectionForm($labId);
+        }
+
+        $this->activeLabSectionLabId = $labId;
+        $this->labSectionEquipmentSearch = '';
+        $this->showLabSectionEquipmentDropdown = false;
+        $this->labSectionExpectedValueTypeSearch = '';
+        $this->showLabSectionExpectedValueTypeDropdown = false;
+        $this->resetValidation();
+        $this->showLabSectionModal = true;
+    }
+
+    public function closeLabSectionModal(): void
+    {
+        $this->showLabSectionModal = false;
+        $this->activeLabSectionLabId = null;
+        $this->labSectionEquipmentSearch = '';
+        $this->showLabSectionEquipmentDropdown = false;
+        $this->labSectionExpectedValueTypeSearch = '';
+        $this->showLabSectionExpectedValueTypeDropdown = false;
+        $this->resetValidation();
+    }
+
+    public function getFilteredLabSectionEquipmentsProperty()
+    {
+        $search = trim($this->labSectionEquipmentSearch);
+
+        return collect($this->availableEquipments)
+            ->filter(function ($equipment) use ($search): bool {
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower((string) $equipment->name), strtolower($search))
+                    || str_contains(strtolower((string) ($equipment->equipment_number ?? '')), strtolower($search));
+            })
+            ->values()
+            ->take(25);
+    }
+
+    public function getSelectedLabSectionEquipmentProperty(): ?Equipment
+    {
+        $labId = $this->activeLabSectionLabId;
+
+        if (!$labId) {
+            return null;
+        }
+
+        $equipmentId = data_get($this->labSectionForms, $labId . '.equipment_id');
+
+        if (!$equipmentId) {
+            return null;
+        }
+
+        return $this->availableEquipments->firstWhere('id', $equipmentId);
+    }
+
+    public function selectLabSectionEquipment(string $equipmentId): void
+    {
+        if (!$this->activeLabSectionLabId) {
+            return;
+        }
+
+        data_set($this->labSectionForms, $this->activeLabSectionLabId . '.equipment_id', $equipmentId);
+        $this->labSectionEquipmentSearch = '';
+        $this->showLabSectionEquipmentDropdown = false;
+    }
+
+    public function clearLabSectionEquipment(): void
+    {
+        if (!$this->activeLabSectionLabId) {
+            return;
+        }
+
+        data_set($this->labSectionForms, $this->activeLabSectionLabId . '.equipment_id', '');
+        $this->labSectionEquipmentSearch = '';
+        $this->showLabSectionEquipmentDropdown = false;
+    }
+
+    public function getExpectedValueTypeOptionsProperty()
+    {
+        return collect([
+            ['id' => 'constant', 'label' => 'Constant Value'],
+            ['id' => 'range', 'label' => 'Range'],
+        ]);
+    }
+
+    public function getFilteredLabSectionExpectedValueTypesProperty()
+    {
+        $search = strtolower(trim($this->labSectionExpectedValueTypeSearch));
+
+        return $this->expectedValueTypeOptions
+            ->filter(function (array $option) use ($search): bool {
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($option['label']), $search);
+            })
+            ->values();
+    }
+
+    public function getSelectedLabSectionExpectedValueTypeProperty(): ?array
+    {
+        $labId = $this->activeLabSectionLabId;
+
+        if (!$labId) {
+            return null;
+        }
+
+        $selectedType = data_get($this->labSectionForms, $labId . '.expected_value_type');
+
+        if (!$selectedType) {
+            return null;
+        }
+
+        return $this->expectedValueTypeOptions->firstWhere('id', $selectedType);
+    }
+
+    public function selectLabSectionExpectedValueType(string $type): void
+    {
+        if (!$this->activeLabSectionLabId) {
+            return;
+        }
+
+        data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_value_type', $type);
+
+        if ($type === 'constant') {
+            data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_min', null);
+            data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_max', null);
+        }
+
+        if ($type === 'range') {
+            data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_value', null);
+        }
+
+        $this->labSectionExpectedValueTypeSearch = '';
+        $this->showLabSectionExpectedValueTypeDropdown = false;
+    }
+
+    public function clearLabSectionExpectedValueType(): void
+    {
+        if (!$this->activeLabSectionLabId) {
+            return;
+        }
+
+        data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_value_type', '');
+        data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_value', null);
+        data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_min', null);
+        data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_max', null);
+        $this->labSectionExpectedValueTypeSearch = '';
+        $this->showLabSectionExpectedValueTypeDropdown = false;
+    }
+
+    public function saveLabSection(string $labId): void
+    {
+        if (!isset($this->labSectionForms[$labId])) {
+            $this->initializeLabSectionForm($labId);
+        }
+
+        $form = $this->labSectionForms[$labId];
+        $analysisOn = (bool) ($form['does_environmental_analysis'] ?? false);
+        $valueType = $form['expected_value_type'] ?? null;
+
+        $rules = [
+            "labSectionForms.$labId.name" => 'required|string|max:255',
+            "labSectionForms.$labId.code" => "required|string|max:100|unique:lab_sections,code,NULL,id,lab_id,$labId",
+            "labSectionForms.$labId.description" => 'nullable|string|max:2000',
+            "labSectionForms.$labId.does_environmental_analysis" => 'boolean',
+            "labSectionForms.$labId.active" => 'boolean',
+        ];
+
+        if ($analysisOn) {
+            $rules["labSectionForms.$labId.equipment_id"] = 'required|exists:equipment,id';
+            $rules["labSectionForms.$labId.expected_value_type"] = 'required|in:constant,range';
+            $rules["labSectionForms.$labId.optimum_level"] = 'required|string|max:255';
+            $rules["labSectionForms.$labId.result_nature"] = 'required|string|max:1000';
+            $rules["labSectionForms.$labId.reporting_unit"] = 'required|string|max:120';
+
+            if ($valueType === 'constant') {
+                $rules["labSectionForms.$labId.expected_value"] = 'required|numeric';
+            }
+
+            if ($valueType === 'range') {
+                $rules["labSectionForms.$labId.expected_min"] = 'required|numeric';
+                $rules["labSectionForms.$labId.expected_max"] = 'required|numeric|gte:labSectionForms.' . $labId . '.expected_min';
+            }
+        }
+
+        $this->validate($rules);
+
+        try {
+            DB::beginTransaction();
+
+            LabSection::create([
+                'lab_id' => $labId,
+                'name' => trim((string) $form['name']),
+                'code' => trim((string) $form['code']),
+                'description' => $form['description'] !== '' ? $form['description'] : null,
+                'does_environmental_analysis' => $analysisOn,
+                'equipment_id' => $analysisOn && $form['equipment_id'] !== '' ? $form['equipment_id'] : null,
+                'expected_value_type' => $analysisOn ? $valueType : null,
+                'expected_value' => $analysisOn && $valueType === 'constant' ? $form['expected_value'] : null,
+                'expected_min' => $analysisOn && $valueType === 'range' ? $form['expected_min'] : null,
+                'expected_max' => $analysisOn && $valueType === 'range' ? $form['expected_max'] : null,
+                'optimum_level' => $analysisOn ? $form['optimum_level'] : null,
+                'result_nature' => $analysisOn ? $form['result_nature'] : null,
+                'reporting_unit' => $analysisOn ? $form['reporting_unit'] : null,
+                'active' => (bool) ($form['active'] ?? true),
+                'company_id' => getUserCompany(),
+            ]);
+
+            DB::commit();
+
+            $this->message = 'Lab section created successfully!';
+            $this->messageType = 'success';
+            $this->resetLabSectionForm($labId);
+            $this->closeLabSectionModal();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error creating lab section: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
     }
 
     public function showCreateLabModal(): void

@@ -15,6 +15,7 @@ class Equipment extends Model implements Auditable
 
     protected $keyType = 'string';
     public $incrementing = false;
+    protected $table = 'equipment';
 
 	use \OwenIt\Auditing\Auditable;
 
@@ -37,6 +38,8 @@ class Equipment extends Model implements Auditable
 		'maintainance_notification_in_days',
 		'calibration_days',
 		'calibration_notification_in_days',
+		'preventive_maintainance_period',
+		'preventive_maintainance_notification_days',
 		'asset_type_id',
 		'asset_location_id',
 		'active',
@@ -55,7 +58,8 @@ class Equipment extends Model implements Auditable
 		'daily_log_expected_max',
 		'daily_log_reporting_unit',
 		'daily_log_frequency',
-		'daily_log_time_interval',
+		'daily_log_monitored_by_another_equipment',
+		'daily_log_monitored_equipment_id',
 	];
 
 	protected $casts = [
@@ -64,6 +68,7 @@ class Equipment extends Model implements Auditable
 		'daily_log_expected_min' => 'float',
 		'daily_log_expected_max' => 'float',
 		'daily_log_frequency' => 'integer',
+		'daily_log_monitored_by_another_equipment' => 'boolean',
 	];
 
   public function calibration_date(){

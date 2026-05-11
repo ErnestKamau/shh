@@ -34,21 +34,9 @@
                             <p class="text-muted mb-0">{{ $customer->code }} | {{ $customer->email }}</p>
                         </div>
                         <div>
-                            @if($editingCustomer)
-                                <button wire:click="cancelEditing" class="btn btn-outline-secondary me-2">
-                                    <i class="mdi mdi-close"></i> {{ __('crm.cancel') }}
-                                </button>
-                                <button wire:click="saveCustomer" class="btn btn-primary">
-                                    <i class="mdi mdi-content-save"></i> {{ __('crm.save_changes') }}
-                                </button>
-                            @else
-                                <button wire:click="openLabelModal" class="btn btn-sm btn-outline-info pricelist-action-btn me-2" title="{{ __('crm.edit_tab_names') }}">
-                                    <i class="mdi mdi-label-outline"></i> {{ __('crm.edit_tab_names') }}
-                                </button>
-                                <button wire:click="startEditing" class="btn btn-sm btn-outline-primary pricelist-action-btn">
-                                    <i class="mdi mdi-pencil"></i> {{ __('crm.edit_customer') }}
-                                </button>
-                            @endif
+                            <button wire:click="openLabelModal" class="btn btn-sm btn-outline-info pricelist-action-btn" title="{{ __('crm.edit_tab_names') }}">
+                                <i class="mdi mdi-label-outline"></i> {{ __('crm.edit_tab_names') }}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -137,10 +125,33 @@
             <!-- Details Tab -->
             @if($activeTab === 'details')
                 <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                    <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
-                        <h6 class="mb-0 text-muted">
-                            <i class="mdi mdi-information-outline"></i> {{ __('crm.customer_details') }}
-                        </h6>
+                    <div class="card-header bg-white border-0" style="border-radius: 15px 15px 0 0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <span class="mr-2 d-flex align-items-center justify-content-center rounded"
+                                    style="width:28px;height:28px;background:#eef2ff;">
+                                    <i class="mdi mdi-information-outline text-primary" style="font-size:1rem;"></i>
+                                </span>
+                                <div>
+                                    <small class="font-weight-bold text-dark" style="font-size:0.82rem;">{{ __('crm.client_account_profile') }}</small>
+                                    <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.client_account_profile_subtitle') }}</small>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                @if($editingCustomer)
+                                    <button wire:click="cancelEditing" class="btn btn-outline-secondary btn-sm mr-2">
+                                        <i class="mdi mdi-close"></i> {{ __('crm.cancel') }}
+                                    </button>
+                                    <button wire:click="saveCustomer" class="btn btn-primary btn-sm">
+                                        <i class="mdi mdi-content-save"></i> {{ __('crm.save_changes') }}
+                                    </button>
+                                @else
+                                    <button wire:click="startEditing" class="btn btn-sm btn-outline-primary pricelist-action-btn">
+                                        <i class="mdi mdi-pencil"></i> {{ __('crm.edit_customer') }}
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body p-4">
                         @if($editingCustomer)
@@ -182,24 +193,76 @@
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">{{ __('crm.country') }} <span class="text-danger">*</span></label>
-                                            <select wire:model="customerForm.country_id" class="form-select">
-                                                <option value="">{{ __('crm.select_country') }}</option>
-                                                @foreach($countries as $country)
-                                                    <option value="{{ $country->id }}">{{ $country->name }}</option>
-                                                @endforeach
-                                            </select>
+                                            <div class="tag-select-container @error('customerForm.country_id') is-invalid @enderror"
+                                                wire:click="$set('showCountryDropdown', true)"
+                                                wire:click.outside="$set('showCountryDropdown', false)">
+                                                <div class="tag-select-input">
+                                                    @if($this->selectedCountry)
+                                                        <span class="tag-badge">
+                                                            {{ data_get($this->selectedCountry, 'name') }}
+                                                            <i class="mdi mdi-close-circle" wire:click.stop="clearCountry"></i>
+                                                        </span>
+                                                    @endif
+
+                                                    <input type="text"
+                                                        wire:model.live="countrySearch"
+                                                        class="tag-input"
+                                                        placeholder="{{ $this->selectedCountry ? '' : __('crm.select_country') }}"
+                                                        autocomplete="off">
+                                                </div>
+
+                                                @if($showCountryDropdown)
+                                                    <div class="tag-dropdown">
+                                                        @if(count($this->filteredCountries) > 0)
+                                                            @foreach($this->filteredCountries as $country)
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectCountry({{ data_get($country, 'id') }})">
+                                                                    {{ data_get($country, 'name') }}
+                                                                </div>
+                                                            @endforeach
+                                                        @else
+                                                            <div class="tag-dropdown-item text-muted">No countries found</div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
                                             @error('customerForm.country_id') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">{{ __('crm.account_settings') }} <span class="text-danger">*</span></label>
-                                            <select wire:model="customerForm.account_status" class="form-select">
-                                                <option value="">{{ __('crm.select_account_settings') }}</option>
-                                                @foreach($accounts as $account)
-                                                    <option value="{{ $account->id }}">{{ $account->key }}</option>
-                                                @endforeach
-                                            </select>
+                                            <div class="tag-select-container @error('customerForm.account_status') is-invalid @enderror"
+                                                wire:click="$set('showAccountDropdown', true)"
+                                                wire:click.outside="$set('showAccountDropdown', false)">
+                                                <div class="tag-select-input">
+                                                    @if($this->selectedAccount)
+                                                        <span class="tag-badge">
+                                                            {{ data_get($this->selectedAccount, 'key') }}
+                                                            <i class="mdi mdi-close-circle" wire:click.stop="clearAccountStatus"></i>
+                                                        </span>
+                                                    @endif
+
+                                                    <input type="text"
+                                                        wire:model.live="accountSearch"
+                                                        class="tag-input"
+                                                        placeholder="{{ $this->selectedAccount ? '' : __('crm.select_account_settings') }}"
+                                                        autocomplete="off">
+                                                </div>
+
+                                                @if($showAccountDropdown)
+                                                    <div class="tag-dropdown">
+                                                        @if(count($this->filteredAccounts) > 0)
+                                                            @foreach($this->filteredAccounts as $account)
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus({{ data_get($account, 'id') }})">
+                                                                    {{ data_get($account, 'key') }}
+                                                                </div>
+                                                            @endforeach
+                                                        @else
+                                                            <div class="tag-dropdown-item text-muted">No account settings found</div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
                                             @error('customerForm.account_status') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
@@ -711,6 +774,105 @@
         .info-value {
             font-size: 14px;
         }
+    }
+
+    /* Tag Select Dropdown Styling */
+    .tag-select-container {
+        position: relative;
+        cursor: text;
+    }
+
+    .tag-select-input {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 6px 12px;
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .tag-select-input:hover {
+        border-color: #007bff;
+    }
+
+    .tag-select-input:focus-within {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+
+    .tag-select-container.is-invalid .tag-select-input {
+        border-color: #dc3545;
+    }
+
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 16px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+
+    .tag-badge i:hover {
+        opacity: 1;
+    }
+
+    .tag-input {
+        flex: 1;
+        min-width: 120px;
+        border: none;
+        outline: none;
+        padding: 4px;
+        font-size: 0.9rem;
+        background: transparent;
+    }
+
+    .tag-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 2px solid #007bff;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1050;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: -2px;
+    }
+
+    .tag-dropdown-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem;
+    }
+
+    .tag-dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .tag-dropdown-item:last-child {
+        border-bottom: none;
     }
     </style>
 

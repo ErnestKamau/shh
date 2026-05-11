@@ -26,7 +26,7 @@
                                         <h4 class="kpi-card-value">{{ $totalEquipmentCount }}</h4>
                                         <div class="kpi-card-icon"><i class="mdi mdi-tools" style="color: #0d6efd;"></i></div>
                                     </div>
-                                    <div class="kpi-card-row"><p class="kpi-card-label">Total Equipment</p></div>
+                                    <div class="kpi-card-row"><p class="kpi-card-label">{{ __('equipment.total_equipment') }}</p></div>
                                 </div>
                             </div>
                         </a>
@@ -39,7 +39,7 @@
                                         <h4 class="kpi-card-value">{{ $activeCount }}</h4>
                                         <div class="kpi-card-icon"><i class="mdi mdi-check-circle" style="color: #28a745;"></i></div>
                                     </div>
-                                    <div class="kpi-card-row"><p class="kpi-card-label">Active</p></div>
+                                    <div class="kpi-card-row"><p class="kpi-card-label">{{ __('equipment.active') }}</p></div>
                                 </div>
                             </div>
                         </a>
@@ -52,7 +52,7 @@
                                         <h4 class="kpi-card-value">{{ $dueCalibrationCount }}</h4>
                                         <div class="kpi-card-icon"><i class="mdi mdi-calendar-alert" style="color: #ffc107;"></i></div>
                                     </div>
-                                    <div class="kpi-card-row"><p class="kpi-card-label">Calibration Attention</p></div>
+                                    <div class="kpi-card-row"><p class="kpi-card-label">{{ __('equipment.calibration_attention') }}</p></div>
                                 </div>
                             </div>
                         </a>
@@ -65,7 +65,7 @@
                                         <h4 class="kpi-card-value">{{ $dueMaintainanceCount }}</h4>
                                         <div class="kpi-card-icon"><i class="mdi mdi-wrench-clock" style="color: #fd7e14;"></i></div>
                                     </div>
-                                    <div class="kpi-card-row"><p class="kpi-card-label">Maintainance Attention</p></div>
+                                    <div class="kpi-card-row"><p class="kpi-card-label">{{ __('equipment.maintenance_attention') }}</p></div>
                                 </div>
                             </div>
                         </a>
@@ -81,7 +81,7 @@
                                         <h4 class="kpi-card-value">{{ $disposedCount }}</h4>
                                         <div class="kpi-card-icon"><i class="mdi mdi-delete" style="color: #6c757d;"></i></div>
                                     </div>
-                                    <div class="kpi-card-row"><p class="kpi-card-label">Disposed</p></div>
+                                    <div class="kpi-card-row"><p class="kpi-card-label">{{ __('equipment.disposed') }}</p></div>
                                 </div>
                             </div>
                         </a>
@@ -94,7 +94,7 @@
                                         <h4 class="kpi-card-value">{{ $overdueCalibrationCount }}</h4>
                                         <div class="kpi-card-icon"><i class="mdi mdi-alert-circle" style="color: #dc3545;"></i></div>
                                     </div>
-                                    <div class="kpi-card-row"><p class="kpi-card-label">Calibration Overdue</p></div>
+                                    <div class="kpi-card-row"><p class="kpi-card-label">{{ __('equipment.calibration_overdue') }}</p></div>
                                 </div>
                             </div>
                         </a>
@@ -107,14 +107,14 @@
                                         <h4 class="kpi-card-value">{{ $overdueMaintainanceCount }}</h4>
                                         <div class="kpi-card-icon"><i class="mdi mdi-alert-decagram" style="color: #e83e8c;"></i></div>
                                     </div>
-                                    <div class="kpi-card-row"><p class="kpi-card-label">Maintainance Overdue</p></div>
+                                    <div class="kpi-card-row"><p class="kpi-card-label">{{ __('equipment.maintenance_overdue') }}</p></div>
                                 </div>
                             </div>
                         </a>
                     </div>
                     <div class="col-md-3 d-flex align-items-stretch">
                         <a href="{{ route('equipment-home') }}" class="btn btn-outline-primary btn-block d-flex align-items-center justify-content-center">
-                            <i class="mdi mdi-format-list-bulleted mr-1"></i> Open Equipment List
+                            <i class="mdi mdi-format-list-bulleted mr-1"></i> {{ __('equipment.open_equipment_list') }}
                         </a>
                     </div>
                 </div>
@@ -122,26 +122,26 @@
                 <div class="row mb-4">
                     <div class="col-12">
                         <div class="quick-actions-horizontal" style="background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);">
-                            <h5 class="mb-3"><i class="mdi mdi-lightning-bolt"></i> Quick Actions</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-lightning-bolt"></i> {{ __('equipment.quick_actions') }}</h5>
                             <div class="row">
                                 <div class="col-md-3">
                                     <button type="button" wire:click="$dispatchTo('equipment.equipment-manager', 'equipment-open-create-modal')" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
-                                        <i class="mdi mdi-plus"></i> Add Equipment
+                                        <i class="mdi mdi-plus"></i> {{ __('equipment.add_equipment') }}
                                     </button>
                                 </div>
                                 <div class="col-md-3">
                                     <button type="button" wire:click="$dispatchTo('equipment.equipment-manager', 'equipment-open-bulk-upload-modal')" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
-                                        <i class="mdi mdi-file-upload"></i> Import Equipment
+                                        <i class="mdi mdi-file-upload"></i> {{ __('equipment.import_equipment') }}
                                     </button>
                                 </div>
                                 <div class="col-md-3">
                                     <a href="{{ route('equipment-report-generate') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
-                                        <i class="mdi mdi-chart-box"></i> Reports
+                                        <i class="mdi mdi-chart-box"></i> {{ __('equipment.reports') }}
                                     </a>
                                 </div>
                                 <div class="col-md-3">
                                     <a href="{{ route('equipment.asset-types.index') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
-                                        <i class="mdi mdi-layers"></i> Asset Types
+                                        <i class="mdi mdi-layers"></i> {{ __('equipment.asset_types') }}
                                     </a>
                                 </div>
                             </div>
@@ -152,7 +152,7 @@
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="chart-container" style="background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);">
-                            <h5 class="mb-3"><i class="mdi mdi-chart-pie"></i> Equipment Status Distribution</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-chart-pie"></i> {{ __('equipment.status_distribution') }}</h5>
                             <div style="height: 300px; position: relative;">
                                 <canvas id="equipmentStatusDistributionChart"></canvas>
                             </div>
@@ -160,7 +160,7 @@
                     </div>
                     <div class="col-md-6">
                         <div class="chart-container" style="background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);">
-                            <h5 class="mb-3"><i class="mdi mdi-chart-bar"></i> Maintainance & Calibration Health</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-chart-bar"></i> {{ __('equipment.maintenance_calibration_health') }}</h5>
                             <div style="height: 300px; position: relative;">
                                 <canvas id="equipmentHealthChart"></canvas>
                             </div>
@@ -171,7 +171,7 @@
                 <div class="row mb-4">
                     <div class="col-md-8">
                         <div class="chart-container" style="background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);">
-                            <h5 class="mb-3"><i class="mdi mdi-chart-line"></i> Purchase Trend (Last 6 Months)</h5>
+                            <h5 class="mb-3"><i class="mdi mdi-chart-line"></i> {{ __('equipment.purchase_trend_last_6_months') }}</h5>
                             <div style="height: 300px; position: relative;">
                                 <canvas id="equipmentPurchaseTrendChart"></canvas>
                             </div>
@@ -180,7 +180,7 @@
                     <div class="col-md-4">
                         <div class="card h-100">
                             <div class="card-header bg-white">
-                                <h6 class="mb-0"><i class="mdi mdi-alert"></i> Critical Equipment</h6>
+                                <h6 class="mb-0"><i class="mdi mdi-alert"></i> {{ __('equipment.critical_equipment') }}</h6>
                             </div>
                             <div class="card-body" style="max-height: 320px; overflow-y: auto;">
                                 @forelse ($criticalEquipment as $item)
@@ -190,7 +190,7 @@
                                         <div class="small">Calib: {{ $item['calibration_days_left'] }}d | Maint: {{ $item['maintainance_days_left'] }}d</div>
                                     </div>
                                 @empty
-                                    <p class="text-muted mb-0">No critical equipment right now.</p>
+                                    <p class="text-muted mb-0">{{ __('equipment.no_critical_equipment_right_now') }}</p>
                                 @endforelse
                             </div>
                         </div>

@@ -8,7 +8,7 @@
 ])
 @if($href)
     <a href="{{ $href }}" class="text-decoration-none d-block h-100">
-        <div class="crm-stat-card crm-stat-card-{{ $accent }}" {{ $attributes }}>
+        <div class="crm-stat-card crm-stat-card-{{ $accent }} h-100" {{ $attributes }}>
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center flex-grow-1 min-w-0">
                     @if(isset($icon))

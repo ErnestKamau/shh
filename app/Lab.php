@@ -5,6 +5,7 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Lab extends Model implements Auditable
@@ -70,5 +71,10 @@ class Lab extends Model implements Auditable
 
   public function analysis_types(){
     return $this->hasMany('App\AnalysisType');
+  }
+
+  public function labSections(): HasMany
+  {
+    return $this->hasMany(LabSection::class);
   }
 }

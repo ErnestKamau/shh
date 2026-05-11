@@ -43,6 +43,14 @@ class EquipmentDetail extends Component
     public $showOperatorModal = false;
     public $showAttachmentModal = false;
     public $showNotificationModal = false;
+    public $showStatusDropdown = false;
+    public $showReportingUnitDropdown = false;
+    public $showDailyLogFrequencyDropdown = false;
+    public $showDailyLogValueTypeDropdown = false;
+    public $showDailyLogNatureDropdown = false;
+    public $showNotificationTypeDropdown = false;
+    public $showNotificationFrequencyDropdown = false;
+    public $showNonConformancePerPageDropdown = false;
 
     // Editing States
     public $editingLog = null;
@@ -69,6 +77,8 @@ class EquipmentDetail extends Component
         'date' => '',
         'description' => '',
         'reference_number' => '',
+        'correction_factor' => '',
+        'uncertainty_of_measure' => '',
         'maintainance_type' => 'in_house',
         'employee_id' => null,
         'supplier_id' => null,
@@ -147,8 +157,15 @@ class EquipmentDetail extends Component
     public $selectedEmployeeName = '';
     public $selectedSupplierName = '';
     public $selectedDepartmentName = '';
+    public $selectedStatusName = '';
     public $selectedAssetTypeName = '';
     public $selectedAssetLocationName = '';
+    public $selectedReportingUnitName = '';
+    public $selectedDailyLogFrequencyLabel = '';
+    public $selectedDailyLogValueTypeLabel = '';
+    public $selectedDailyLogNatureLabel = '';
+    public $selectedNotificationTypeLabel = '';
+    public $selectedNotificationFrequencyLabel = '';
 
     public $filteredEmployees = [];
     public $filteredSuppliers = [];
@@ -214,6 +231,7 @@ class EquipmentDetail extends Component
     {
         $this->nonConformancePerPage = max(10, (int) $value);
         $this->nonConformancePage = 1;
+        $this->showNonConformancePerPageDropdown = false;
     }
 
     public function previousNonConformancePage(): void
@@ -276,6 +294,16 @@ class EquipmentDetail extends Component
             $this->departmentSearch = $this->selectedDepartmentName;
         }
 
+        if (!empty($this->equipmentForm['status'])) {
+            $this->selectedStatusName = (string) $this->equipmentForm['status'];
+        }
+
+        if (!empty($this->equipmentForm['daily_log_reporting_unit'])) {
+            $this->selectedReportingUnitName = (string) $this->equipmentForm['daily_log_reporting_unit'];
+        }
+
+        $this->syncDailyLogTagLabels();
+
         if ($this->equipment->asset_type_id) {
             $assetType = AssetType::find($this->equipment->asset_type_id);
             $this->selectedAssetTypeName = $assetType ? ($assetType->asset_code . ' (' . $assetType->descripton . ')') : '';
@@ -290,6 +318,26 @@ class EquipmentDetail extends Component
 
         $this->photo = null;
         $this->showEditModal = true;
+    }
+
+    public function updatedEmployeeSearch(): void
+    {
+        if ($this->employeeSearch === '') {
+            $this->filteredEmployees = [];
+            return;
+        }
+
+        $this->searchEmployees();
+    }
+
+    public function updatedSupplierSearch(): void
+    {
+        if ($this->supplierSearch === '') {
+            $this->filteredSuppliers = [];
+            return;
+        }
+
+        $this->searchSuppliers();
     }
 
     public function saveEquipment(): void
@@ -453,6 +501,7 @@ class EquipmentDetail extends Component
                 'reference_number' => $this->maintenanceForm['reference_number'],
                 'notes' => $this->maintenanceForm['notes'],
                 'overseen_by' => auth()->id(),
+                'edit_by' => auth()->id(),
             ];
 
             if ($this->maintenanceForm['maintainance_type'] === 'external') {
@@ -470,7 +519,6 @@ class EquipmentDetail extends Component
             }
 
             if ($this->editingLog) {
-                $data['edit_by'] = auth()->id();
                 $this->editingLog->update($data);
                 $this->message = 'Maintenance log updated successfully!';
             } else {
@@ -517,6 +565,8 @@ class EquipmentDetail extends Component
             'date' => $log->date,
             'description' => $log->description ?? '',
             'reference_number' => $log->reference_number ?? '',
+            'correction_factor' => $log->correction_factor ?? '',
+            'uncertainty_of_measure' => $log->uncertainty_of_measure ?? '',
             'maintainance_type' => $log->maintainance_type ?? 'in-house',
             'employee_id' => $log->employee_id,
             'supplier_id' => $log->supplier_id,
@@ -532,6 +582,8 @@ class EquipmentDetail extends Component
             'calibrationForm.date' => 'required|date',
             'calibrationForm.description' => 'required|string',
             'calibrationForm.reference_number' => 'required|string',
+            'calibrationForm.correction_factor' => 'required|numeric',
+            'calibrationForm.uncertainty_of_measure' => 'required|numeric',
             'calibrationForm.notes' => 'required|string',
             'certificate' => 'nullable|file|max:10240',
         ]);
@@ -543,8 +595,11 @@ class EquipmentDetail extends Component
                 'date' => $this->calibrationForm['date'],
                 'description' => $this->calibrationForm['description'],
                 'reference_number' => $this->calibrationForm['reference_number'],
+                'correction_factor' => $this->calibrationForm['correction_factor'],
+                'uncertainty_of_measure' => $this->calibrationForm['uncertainty_of_measure'],
                 'notes' => $this->calibrationForm['notes'],
                 'overseen_by' => auth()->id(),
+                'edit_by' => auth()->id(),
             ];
 
             if ($this->calibrationForm['maintainance_type'] === 'external') {
@@ -562,7 +617,6 @@ class EquipmentDetail extends Component
             }
 
             if ($this->editingLog) {
-                $data['edit_by'] = auth()->id();
                 $this->editingLog->update($data);
                 $this->message = 'Calibration log updated successfully!';
             } else {
@@ -925,6 +979,11 @@ class EquipmentDetail extends Component
         ];
         $this->certificate = null;
         $this->editingLog = null;
+        $this->showEmployeeDropdown = false;
+        $this->selectedEmployeeName = '';
+        $this->employeeSearch = '';
+        $this->selectedSupplierName = '';
+        $this->supplierSearch = '';
     }
 
     public function resetCalibrationForm(): void
@@ -933,6 +992,8 @@ class EquipmentDetail extends Component
             'date' => '',
             'description' => '',
             'reference_number' => '',
+            'correction_factor' => '',
+            'uncertainty_of_measure' => '',
             'maintainance_type' => 'in_house',
             'employee_id' => null,
             'supplier_id' => null,
@@ -940,6 +1001,11 @@ class EquipmentDetail extends Component
         ];
         $this->certificate = null;
         $this->editingLog = null;
+        $this->showEmployeeDropdown = false;
+        $this->selectedEmployeeName = '';
+        $this->employeeSearch = '';
+        $this->selectedSupplierName = '';
+        $this->supplierSearch = '';
     }
 
     public function resetVerificationForm(): void
@@ -955,6 +1021,11 @@ class EquipmentDetail extends Component
             'supplier_id' => null,
         ];
         $this->editingLog = null;
+        $this->showEmployeeDropdown = false;
+        $this->selectedEmployeeName = '';
+        $this->employeeSearch = '';
+        $this->selectedSupplierName = '';
+        $this->supplierSearch = '';
     }
 
     public function resetAttachmentForm(): void
@@ -975,6 +1046,10 @@ class EquipmentDetail extends Component
             'notification_type' => 'calibration',
         ];
         $this->editingNotification = null;
+        $this->selectedNotificationTypeLabel = '';
+        $this->selectedNotificationFrequencyLabel = '';
+        $this->showNotificationTypeDropdown = false;
+        $this->showNotificationFrequencyDropdown = false;
     }
 
     public function dismissMessage(): void
@@ -1021,6 +1096,127 @@ class EquipmentDetail extends Component
         $this->selectedSupplierName = $name;
         $this->supplierSearch = $name;
         $this->showSupplierDropdown = false;
+    }
+
+    public function searchDepartments(): void
+    {
+        $this->showDepartmentDropdown = true;
+        $search = $this->departmentSearch;
+        $this->filteredDepartments = InventoryDepartment::where('module', 'organizational')
+            ->where('name', 'like', '%' . $search . '%')
+            ->limit(10)
+            ->get();
+    }
+
+    public function updatedDepartmentSearch(): void
+    {
+        if ($this->departmentSearch === '') {
+            $this->filteredDepartments = [];
+            return;
+        }
+
+        $this->searchDepartments();
+    }
+
+    public function selectDepartment($id, $name): void
+    {
+        $this->equipmentForm['assigned_department'] = $id;
+        $this->selectedDepartmentName = $name;
+        $this->departmentSearch = $name;
+        $this->showDepartmentDropdown = false;
+    }
+
+    public function selectStatus(string $value): void
+    {
+        $this->equipmentForm['status'] = $value;
+        $this->selectedStatusName = $value;
+        $this->showStatusDropdown = false;
+    }
+
+    public function selectReportingUnit(string $value): void
+    {
+        $this->equipmentForm['daily_log_reporting_unit'] = $value;
+        $this->selectedReportingUnitName = $value;
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function selectDailyLogFrequency(int $value, string $label): void
+    {
+        $this->equipmentForm['daily_log_frequency'] = $value;
+        $this->selectedDailyLogFrequencyLabel = $label;
+        $this->showDailyLogFrequencyDropdown = false;
+        $this->updatedEquipmentFormDailyLogFrequency();
+    }
+
+    public function selectDailyLogValueType(string $value, string $label): void
+    {
+        $this->equipmentForm['daily_log_value_type'] = $value;
+        $this->selectedDailyLogValueTypeLabel = $label;
+        $this->showDailyLogValueTypeDropdown = false;
+        $this->updatedEquipmentFormDailyLogValueType();
+    }
+
+    public function selectDailyLogNature(string $value, string $label): void
+    {
+        $this->equipmentForm['daily_log_nature'] = $value;
+        $this->selectedDailyLogNatureLabel = $label;
+        $this->showDailyLogNatureDropdown = false;
+        $this->updatedEquipmentFormDailyLogNature();
+    }
+
+    public function selectNotificationType(string $value, string $label): void
+    {
+        $this->notificationForm['notification_type'] = $value;
+        $this->selectedNotificationTypeLabel = $label;
+        $this->showNotificationTypeDropdown = false;
+    }
+
+    public function selectNotificationFrequency(string $value, string $label): void
+    {
+        $this->notificationForm['frequency'] = $value;
+        $this->selectedNotificationFrequencyLabel = $label;
+        $this->showNotificationFrequencyDropdown = false;
+    }
+
+    public function toggleOperatorSelection(int|string $employeeId): void
+    {
+        $operatorIds = $this->operatorForm['operators'] ?? [];
+
+        if (in_array($employeeId, $operatorIds)) {
+            $this->operatorForm['operators'] = array_values(array_filter(
+                $operatorIds,
+                fn ($id) => (string) $id !== (string) $employeeId
+            ));
+            return;
+        }
+
+        $this->operatorForm['operators'][] = $employeeId;
+    }
+
+    protected function syncDailyLogTagLabels(): void
+    {
+        $frequencyLabels = [
+            1 => __('equipment.once_a_day'),
+            2 => __('equipment.twice_a_day'),
+            3 => __('equipment.three_times_a_day'),
+            4 => __('equipment.four_times_a_day'),
+            5 => __('equipment.five_times_a_day'),
+            6 => __('equipment.six_times_a_day'),
+        ];
+
+        $valueTypeLabels = [
+            'constant' => __('equipment.constant'),
+            'range' => __('equipment.range'),
+        ];
+
+        $natureLabels = [
+            'qualitative' => __('equipment.qualitative'),
+            'quantitative' => __('equipment.quantitative'),
+        ];
+
+        $this->selectedDailyLogFrequencyLabel = $frequencyLabels[(int) ($this->equipmentForm['daily_log_frequency'] ?? 1)] ?? __('equipment.once_a_day');
+        $this->selectedDailyLogValueTypeLabel = $valueTypeLabels[$this->equipmentForm['daily_log_value_type'] ?? ''] ?? '';
+        $this->selectedDailyLogNatureLabel = $natureLabels[$this->equipmentForm['daily_log_nature'] ?? ''] ?? '';
     }
 
     public function render()

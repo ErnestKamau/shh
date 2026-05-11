@@ -32,6 +32,183 @@
             width: 100% !important;
         }
 
+        .tag-select-container {
+            position: relative;
+            cursor: text;
+        }
+
+        .tag-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            min-height: 42px;
+            padding: 6px 12px;
+            background: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+
+        .tag-select-input:hover {
+            border-color: #007bff;
+        }
+
+        .tag-select-input:focus-within {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
+        .tag-select-container.is-invalid .tag-select-input {
+            border-color: #dc3545;
+        }
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 16px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .tag-badge-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        .tag-badge i {
+            cursor: pointer;
+            font-size: 1rem;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+            flex-shrink: 0;
+        }
+
+        .tag-badge i:hover {
+            opacity: 1;
+        }
+
+        .tag-input {
+            flex: 1;
+            min-width: 120px;
+            border: none;
+            outline: none;
+            padding: 4px;
+            font-size: 0.9rem;
+            background: transparent;
+        }
+
+        .tag-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #007bff;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 2000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: -1px;
+        }
+
+        .tag-dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+        }
+
+        .tag-dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .tag-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .customer-tab-filters {
+            align-items: flex-end;
+            row-gap: 12px;
+        }
+
+        .customer-tab-filters .form-control,
+        .customer-tab-filters .form-select {
+            min-height: 44px;
+            height: 44px;
+            font-size: 1rem;
+            line-height: 1.25;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .customer-tab-filters select.form-control,
+        .customer-tab-filters select.form-select {
+            padding-right: 2rem;
+            background-position: right 0.75rem center;
+        }
+
+        .customer-tab-filters .btn {
+            min-height: 44px;
+            line-height: 1.2;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .equipment-table tbody tr,
+        .equipment-table tbody td {
+            background-color: #fff;
+        }
+
+        .equipment-table.table-striped tbody tr:nth-of-type(odd),
+        .equipment-table.table-hover tbody tr:hover {
+            background-color: #fff;
+        }
+
+        .equipment-actions-cell {
+            white-space: nowrap;
+        }
+
+        .equipment-actions-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .equipment-action-btn {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
+        .equipment-action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .equipment-action-btn i {
+            font-size: 0.95rem;
+            line-height: 1;
+        }
+
         button.dt-button,
         div.dt-button,
         a.dt-button {

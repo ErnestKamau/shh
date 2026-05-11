@@ -223,6 +223,15 @@ Route::get('/livewire/sample-types', [LabAppController::class, 'sampleTypes'])
     ->name('livewire.sample-types')
     ->middleware('can:laboratory.components.sample-types.view');
 
+// Livewire Monitoring Management
+Route::get('/livewire/monitoring', [LabAppController::class, 'monitoring'])
+    ->name('livewire.monitoring')
+    ->middleware('can:laboratory.components.labs.view');
+
+Route::get('/livewire/monitoring/template/create', [LabAppController::class, 'createMonitoringTemplate'])
+    ->name('monitoring.template.create')
+    ->middleware('can:laboratory.components.labs.view');
+
 // Remedies Management Routes
 Route::get('/remedies', [LabAppController::class, 'remedies'])
     ->name('remedies.index')

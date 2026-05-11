@@ -6,10 +6,10 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <h2 class="mb-0">
                             <i class="mdi mdi-sitemap text-primary"></i>
-                            {{ $workflowId ? 'Edit Workflow' : 'Create Workflow' }}
+                            {{ $workflowId ? __('equipment.edit_workflow') : __('equipment.create_workflow') }}
                         </h2>
                         <a href="{{ route('equipment.disposal.workflow.index') }}" class="btn btn-outline-secondary">
-                            <i class="mdi mdi-arrow-left"></i> Back to List
+                            <i class="mdi mdi-arrow-left"></i> {{ __('equipment.back_to_list') }}
                         </a>
                     </div>
                 </div>
@@ -17,41 +17,41 @@
                     <form wire:submit.prevent="save">
                         
                         <!-- Basic Info -->
-                        <h5 class="text-primary mb-3">Basic Information</h5>
+                        <h5 class="text-primary mb-3">{{ __('equipment.basic_information') }}</h5>
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold required">Workflow Name</label>
-                                    <input type="text" wire:model="workflow_name" class="form-control @error('workflow_name') is-invalid @enderror" placeholder="e.g. IT Equipment Disposal">
+                                    <label class="form-label fw-bold required">{{ __('equipment.workflow_name') }}</label>
+                                    <input type="text" wire:model="workflow_name" class="form-control @error('workflow_name') is-invalid @enderror" placeholder="{{ __('equipment.workflow_name_example') }}">
                                     @error('workflow_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold">Active Status</label>
+                                    <label class="form-label fw-bold">{{ __('equipment.active_status') }}</label>
                                     <div class="form-check form-switch mt-2">
                                         <input class="form-check-input" type="checkbox" wire:model="is_active" id="isActiveSwitch">
-                                        <label class="form-check-label" for="isActiveSwitch">Enable this workflow</label>
+                                        <label class="form-check-label" for="isActiveSwitch">{{ __('equipment.enable_workflow') }}</label>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold">Description</label>
-                                    <textarea wire:model="description" class="form-control" rows="2" placeholder="Describe the purpose of this workflow..."></textarea>
+                                    <label class="form-label fw-bold">{{ __('equipment.description') }}</label>
+                                    <textarea wire:model="description" class="form-control" rows="2" placeholder="{{ __('equipment.workflow_purpose_placeholder') }}"></textarea>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Criteria -->
-                        <h5 class="text-primary mb-3">Application Criteria</h5>
-                        <p class="text-muted small">Define when this workflow should be used. Leave empty to apply to all.</p>
+                        <h5 class="text-primary mb-3">{{ __('equipment.application_criteria') }}</h5>
+                        <p class="text-muted small">{{ __('equipment.create_new_workflow_hint') }}</p>
                         <div class="row mb-4 bg-light p-3 rounded mx-0">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold">Equipment Type</label>
+                                    <label class="form-label fw-bold">{{ __('equipment.equipment_type') }}</label>
                                     <select wire:model="equipment_type_id" class="form-select">
-                                        <option value="">Any Type</option>
+                                        <option value="">{{ __('equipment.all_types') }}</option>
                                         @foreach($assetTypes as $type)
                                             <option value="{{ $type->id }}">{{ $type->name }}</option>
                                         @endforeach
@@ -60,9 +60,9 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold">Location</label>
+                                    <label class="form-label fw-bold">{{ __('equipment.location') }}</label>
                                     <select wire:model="location_id" class="form-select">
-                                        <option value="">Any Location</option>
+                                        <option value="">{{ __('equipment.all_locations') }}</option>
                                         @foreach($locations as $location)
                                             <option value="{{ $location->id }}">{{ $location->name }}</option>
                                         @endforeach
@@ -73,9 +73,9 @@
 
                         <!-- Steps -->
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="text-primary mb-0">Approval Steps</h5>
+                            <h5 class="text-primary mb-0">{{ __('equipment.steps') }}</h5>
                             <button type="button" wire:click="addStep" class="btn btn-sm btn-success">
-                                <i class="mdi mdi-plus"></i> Add Step
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.add_step') }}
                             </button>
                         </div>
 
@@ -86,7 +86,7 @@
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <h6 class="card-title fw-bold mb-0">
                                                 <span class="badge bg-primary rounded-circle me-2">{{ $index + 1 }}</span>
-                                                Step {{ $index + 1 }}
+                                                {{ __('equipment.step') }} {{ $index + 1 }}
                                             </h6>
                                             <div class="btn-group">
                                                 <button type="button" wire:click="moveStepUp({{ $index }})" class="btn btn-sm btn-outline-secondary" @if($index === 0) disabled @endif>
@@ -104,25 +104,25 @@
                                         <div class="row">
                                             <div class="col-md-4">
                                                 <div class="form-group mb-2">
-                                                    <label class="form-label small fw-bold required">Step Name</label>
-                                                    <input type="text" wire:model="steps.{{ $index }}.step_name" class="form-control form-control-sm" placeholder="e.g. Manager Approval">
+                                                    <label class="form-label small fw-bold required">{{ __('equipment.step_name') }}</label>
+                                                    <input type="text" wire:model="steps.{{ $index }}.step_name" class="form-control form-control-sm" placeholder="{{ __('equipment.step_name_example') }}">
                                                     @error('steps.'.$index.'.step_name') <span class="text-danger small">{{ $message }}</span> @enderror
                                                 </div>
                                             </div>
                                             <div class="col-md-3">
                                                 <div class="form-group mb-2">
-                                                    <label class="form-label small fw-bold required">Assignee Type</label>
+                                                    <label class="form-label small fw-bold required">{{ __('equipment.assignee_type') }}</label>
                                                     <select wire:model.live="steps.{{ $index }}.assignee_type" class="form-select form-select-sm">
-                                                        <option value="App\User">Specific User</option>
-                                                        <option value="Spatie\Permission\Models\Role">Role</option>
+                                                        <option value="App\User">{{ __('equipment.specific_user') }}</option>
+                                                        <option value="Spatie\Permission\Models\Role">{{ __('equipment.role') }}</option>
                                                     </select>
                                                 </div>
                                             </div>
                                             <div class="col-md-3">
                                                 <div class="form-group mb-2">
-                                                    <label class="form-label small fw-bold required">Assignee</label>
+                                                    <label class="form-label small fw-bold required">{{ __('equipment.assignee') }}</label>
                                                     <select wire:model="steps.{{ $index }}.assignee_id" class="form-select form-select-sm">
-                                                        <option value="">Select...</option>
+                                                        <option value="">{{ __('equipment.select_option') }}</option>
                                                         @if($step['assignee_type'] === 'App\User')
                                                             @foreach($users as $user)
                                                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
@@ -138,10 +138,10 @@
                                             </div>
                                             <div class="col-md-2">
                                                 <div class="form-group mb-2">
-                                                    <label class="form-label small fw-bold">Required?</label>
+                                                    <label class="form-label small fw-bold">{{ __('equipment.required') }}?</label>
                                                     <div class="form-check mt-1">
                                                         <input type="checkbox" wire:model="steps.{{ $index }}.is_required" class="form-check-input" checked>
-                                                        <label class="form-check-label small">Yes</label>
+                                                        <label class="form-check-label small">{{ __('equipment.yes') }}</label>
                                                     </div>
                                                 </div>
                                             </div>
@@ -152,16 +152,16 @@
 
                             @if(count($steps) === 0)
                                 <div class="alert alert-warning text-center">
-                                    No approval steps configured. Please add at least one step.
+                                    {{ __('equipment.create_new_workflow_hint') }}
                                 </div>
                             @endif
                         </div>
 
                         <div class="row mt-4">
                             <div class="col-12 text-end">
-                                <a href="{{ route('equipment.disposal.workflow.index') }}" class="btn btn-secondary me-2">Cancel</a>
+                                <a href="{{ route('equipment.disposal.workflow.index') }}" class="btn btn-secondary me-2">{{ __('equipment.cancel') }}</a>
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="mdi mdi-content-save"></i> Save Workflow
+                                    <i class="mdi mdi-content-save"></i> {{ __('equipment.save_workflow') }}
                                 </button>
                             </div>
                         </div>

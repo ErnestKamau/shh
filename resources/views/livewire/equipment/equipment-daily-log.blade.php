@@ -43,7 +43,7 @@
 
     <div class="d-flex align-items-center justify-content-between px-4 pt-4 pb-3">
         <h4 class="mb-0 font-weight-bold" style="color:#212529; letter-spacing:-0.01em;">
-            <i class="mdi mdi-notebook-outline text-primary mr-2"></i>Equipment Daily Log
+            <i class="mdi mdi-notebook-outline text-primary mr-2"></i>{{ __('equipment.equipment_daily_log') }}
         </h4>
         <span class="badge badge-pill" style="background:#e9ecef; color:#495057; font-size:0.78rem; font-weight:600; padding:6px 12px;">
             {{ count($dailyUsageRows) }} Session{{ count($dailyUsageRows) === 1 ? '' : 's' }}
@@ -55,7 +55,7 @@
             <div class="d-flex align-items-center justify-content-between" style="gap: 12px;">
                 <div class="d-flex align-items-center" style="gap: 10px;">
                     <i class="mdi mdi-calendar-clock" style="font-size:1.1rem; color:#6c757d;"></i>
-                    <span style="font-size:0.82rem; font-weight:600; color:#495057;">Usage Date:</span>
+                    <span style="font-size:0.82rem; font-weight:600; color:#495057;">{{ __('equipment.date') }}:</span>
                     <input
                         type="date"
                         wire:model.live="logDate"
@@ -68,7 +68,7 @@
         </div>
 
         <div class="dl-card p-3">
-            <h6 class="mb-3"><i class="mdi mdi-table-large mr-1"></i>Daily Equipment Usage</h6>
+            <h6 class="mb-3"><i class="mdi mdi-table-large mr-1"></i>{{ __('equipment.daily_equipment_usage') }}</h6>
 
             @if(empty($dailyUsageRows))
                 <div class="dl-empty">
@@ -80,13 +80,13 @@
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Equipment Name</th>
-                                <th>Equipment No.</th>
-                                <th>Time On</th>
-                                <th>Time Off</th>
-                                <th>Duration</th>
-                                <th>Analyst</th>
-                                <th>Status</th>
+                                <th>{{ __('equipment.name') }}</th>
+                                <th>{{ __('equipment.equipment_number') }}</th>
+                                <th>{{ __('equipment.time_on') }}</th>
+                                <th>{{ __('equipment.time_off') }}</th>
+                                <th>{{ __('equipment.duration') }}</th>
+                                <th>{{ __('equipment.analyst') }}</th>
+                                <th>{{ __('equipment.status') }}</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -102,18 +102,18 @@
                                     <td>{{ $row['analyst'] }}</td>
                                     <td>
                                         @if($row['status'] === 'Completed')
-                                            <span class="dl-status-pill dl-status-completed">Completed</span>
+                                            <span class="dl-status-pill dl-status-completed">{{ __('equipment.completed') }}</span>
                                         @elseif($row['status'] === 'In Progress')
-                                            <span class="dl-status-pill dl-status-progress">In Progress</span>
+                                            <span class="dl-status-pill dl-status-progress">{{ __('equipment.in_progress') }}</span>
                                         @else
-                                            <span class="dl-status-pill badge-light">Not Started</span>
+                                            <span class="dl-status-pill badge-light">{{ __('equipment.not_started') }}</span>
                                         @endif
                                     </td>
                                     <td class="text-right">
                                         <button type="button"
                                             wire:click="selectEquipment({{ $row['equipment_id'] }})"
                                             class="btn btn-sm btn-outline-primary">
-                                            View Usage
+                                            {{ __('equipment.view') }} {{ __('equipment.daily_equipment_usage') }}
                                         </button>
                                     </td>
                                 </tr>
@@ -135,17 +135,17 @@
                         <small class="text-muted">Track equipment run duration across selected dates</small>
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="clearSelectedEquipment">
-                        Close
+                        {{ __('equipment.close') }}
                     </button>
                 </div>
 
                 <div class="row mt-3">
                     <div class="col-md-3">
-                        <label class="small text-muted mb-1">From</label>
+                        <label class="small text-muted mb-1">{{ __('equipment.from') }}</label>
                         <input type="date" class="form-control form-control-sm" wire:model.live="historyFromDate">
                     </div>
                     <div class="col-md-3">
-                        <label class="small text-muted mb-1">To</label>
+                        <label class="small text-muted mb-1">{{ __('equipment.to') }}</label>
                         <input type="date" class="form-control form-control-sm" wire:model.live="historyToDate">
                     </div>
                 </div>
@@ -167,12 +167,12 @@
                     <table class="table table-sm table-bordered table-hover mb-0">
                         <thead class="thead-light">
                             <tr>
-                                <th>Date</th>
-                                <th>Time On</th>
-                                <th>Time Off</th>
-                                <th>Duration</th>
-                                <th>Analyst</th>
-                                <th>Status</th>
+                                <th>{{ __('equipment.date') }}</th>
+                                <th>{{ __('equipment.time_on') }}</th>
+                                <th>{{ __('equipment.time_off') }}</th>
+                                <th>{{ __('equipment.duration') }}</th>
+                                <th>{{ __('equipment.analyst') }}</th>
+                                <th>{{ __('equipment.status') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -187,7 +187,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted">No usage records found in selected range.</td>
+                                    <td colspan="6" class="text-center text-muted">{{ __('equipment.no_usage_records_found_in_selected_range') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>

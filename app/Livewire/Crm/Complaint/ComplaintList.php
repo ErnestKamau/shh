@@ -85,9 +85,15 @@ class ComplaintList extends BaseCrmComponent
 
     public function addComplaint()
     {
+        $this->checkPermission(CrmConstants::PERMISSION_COMPLAINT_ADD);
         $this->showForm = true;
         $this->dispatch('add-complaint');
         $this->dispatch('show-complaint-modal');
+    }
+
+    public function getCanAddComplaintProperty(): bool
+    {
+        return $this->hasPermission(CrmConstants::PERMISSION_COMPLAINT_ADD);
     }
 
     public function editComplaint($id)

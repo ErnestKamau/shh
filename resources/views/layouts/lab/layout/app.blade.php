@@ -87,6 +87,7 @@
 			$canQc = $user->can('laboratory.components.qc sample.view');
 			$canAnalytes = $user->can('laboratory.components.analytes.view');
 			$canLabs = $user->can('laboratory.components.labs.view');
+			$canMonitoring = $user->can('laboratory.components.labs.view');
 			$canSampleTrackingStages = $user->can('laboratory.components.sample-tracking-stages.view');
 			$canSampleTypes = $user->can('laboratory.components.sample-types.view');
 			$canChecklistApprovals = $user->can('laboratory.components.checklist-approvals.view');
@@ -277,6 +278,14 @@
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Labs</span>
+				</div>
+			</a>
+			@endif
+			@if($canMonitoring)
+			<a href="{{ route('livewire.monitoring') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-monitor-dashboard fa-fw mr-3"></span>
+					<span class="menu-collapsed">Monitoring</span>
 				</div>
 			</a>
 			@endif
