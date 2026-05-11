@@ -9,7 +9,7 @@ from loguru import logger
 from sqlalchemy import create_engine, text, event
 from sqlalchemy.pool import NullPool
 
-from py_etl.config.config import settings
+from python.py_pipeline.config.config import settings
 
 
 class DatabaseManager:
@@ -50,7 +50,6 @@ class DatabaseManager:
 
     # ── Context managers ──────────────────────────────────────────────────
 
-    @contextmanager
     @contextmanager
     def postgres_connection(self) -> Generator:
         """Yield a raw PostgreSQL DBAPI connection (auto-closed on exit)."""

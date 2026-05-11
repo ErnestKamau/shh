@@ -6,7 +6,7 @@ import json
 from typing import Dict, Any, List, Optional
 import pandas as pd
 from sqlalchemy import text
-from python.py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 

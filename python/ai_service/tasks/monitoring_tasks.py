@@ -6,7 +6,7 @@ from loguru import logger
 from typing import Dict, Any, List, Optional
 
 from config.celery_config import celery_app
-from python.py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 
 @celery_app.task(name="app.tasks.monitoring_tasks.check_health")

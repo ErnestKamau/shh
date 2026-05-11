@@ -10,8 +10,8 @@ import pandas as pd
 from loguru import logger
 from sqlalchemy import text
 
-from py_etl.core.database import DatabaseManager
-from py_etl.config.config import settings
+from python.py_pipeline.core.database import DatabaseManager
+from python.py_pipeline.config.config import settings
 
 
 class AIFeatureLoader:

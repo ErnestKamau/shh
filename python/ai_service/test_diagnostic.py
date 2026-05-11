@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from ai_service.services.ollama_service import OllamaService
-from ai_service.services.retrieval_service import RetrievalService
-from ai_service.services.live_data_service import LiveDataService
-from ai_service.services.visualization_service import visualization_service
-from ai_service.core.simple_assistant import SimpleAssistant
-from ai_service.core.intermediate_assistant import IntermediateAssistant
+from python.ai_service.services.ollama_service import OllamaService
+from python.ai_service.services.retrieval_service import RetrievalService
+from python.ai_service.services.live_data_service import LiveDataService
+from python.ai_service.services.visualization_service import visualization_service
+from python.ai_service.core.simple_assistant import SimpleAssistant
+from python.ai_service.core.intermediate_assistant import IntermediateAssistant
 
 logging.basicConfig(level=logging.INFO)
 

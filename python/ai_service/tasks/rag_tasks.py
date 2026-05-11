@@ -11,10 +11,10 @@ from loguru import logger
 from sqlalchemy import text
 
 from celery_config import app as celery_app
-from py_etl.core.database import db_manager
-from ai_service.services.ai_index_state_service import ai_index_state_service
-from ai_service.services.operational_reader_service import operational_reader_service
-from ai_service.services.retrieval_service import RetrievalService
+from python.py_pipeline.core.database import db_manager
+from python.ai_service.services.ai_index_state_service import ai_index_state_service
+from python.ai_service.services.operational_reader_service import operational_reader_service
+from python.ai_service.services.retrieval_service import RetrievalService
 
 
 class RagTask(Task):

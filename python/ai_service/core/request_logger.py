@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import text
-from python.py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 from sqlalchemy import text
 
-from py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 
 # Valid model types that the system understands

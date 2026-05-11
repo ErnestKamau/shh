@@ -43,13 +43,13 @@ ollama serve
 
 ---
 
-## 4. Analytical PostgreSQL (fivet_imara_ai database)
+## 4. Analytical PostgreSQL (gcla database)
 
 The primary host for the `reporting` schema and `pgvector` embeddings.
 
 - **Host:** `127.0.0.1` (or your Postgres host)
 - **Port:** `5432` (Standard production port)
-- **Database:** `fivet_imara_ai`
+- **Database:** `gcla`
 - **Schemas required:**
     - `reporting`: Contains 30+ tables for sample, ticket, inventory, and equipment analytics.
     - `ai`: Contains vector storage for RAG.
@@ -62,7 +62,7 @@ The primary host for the `reporting` schema and `pgvector` embeddings.
 The "engine" of the system, handling asynchronous tasks and periodic synchronization.
 
 ### The Worker (Celery)
-Processes RAG indexing, document ingestion, and ETL synchronization jobs.
+Processes RAG indexing, document ingestion, and Sync Pipeline jobs.
 
 ```bash
 bash scripts/run_worker.sh
@@ -107,8 +107,8 @@ Ensure these are in your `.env`:
 | Variable | Recommended Value |
 |---|---|
 | `AI_SERVICE_URL` | `http://127.0.0.1:8081` |
-| `AI_ETL_CHUNK_SIZE` | Defined in `table_config.yaml` (default 500) |
+| `AI_SYNC_CHUNK_SIZE` | Defined in `table_config.yaml` (default 500) |
 | `OLLAMA_HOST` | `http://localhost:11434` |
-| `CELERY_QUEUES` | `rag,ingestion,etl` |
-| `AI_DB_DATABASE` | `imara_ai` (PostgreSQL) |
-| `DB_DATABASE` | `fivet` (MySQL Source) |
+| `CELERY_QUEUES` | `rag,ingestion,sync` |
+| `AI_DB_DATABASE` | `gcla` (Centralized PostgreSQL) |
+| `DB_DATABASE` | `gcla` (Unified Source) |

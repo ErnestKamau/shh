@@ -9,7 +9,7 @@ from __future__ import annotations
 import pandas as pd
 from sqlalchemy import text
 
-from py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 
 class OperationalReaderService:

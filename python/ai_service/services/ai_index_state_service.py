@@ -12,7 +12,7 @@ from typing import Any, Optional
 from loguru import logger
 from sqlalchemy import text
 
-from py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 _TABLE = "ai.ai_index_state"
 

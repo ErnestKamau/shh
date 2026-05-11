@@ -12,9 +12,25 @@ class AiDrawer extends Component
 
     protected $listeners = ['toggleAiDrawer' => 'toggle', 'openAiDrawer' => 'open'];
 
-    public function mount($context = 'general')
+    public function mount($context = null)
     {
-        $this->context = $context;
+        if ($context) {
+            $this->context = $context;
+        } else {
+            // Auto-detect based on route name
+            $routeName = optional(request()->route())->getName() ?? '';
+            if (str_contains($routeName, 'lab')) {
+                $this->context = 'lab';
+            } elseif (str_contains($routeName, 'inventory')) {
+                $this->context = 'inventory';
+            } elseif (str_contains($routeName, 'crm')) {
+                $this->context = 'crm';
+            } elseif (str_contains($routeName, 'audit')) {
+                $this->context = 'audit';
+            } else {
+                $this->context = 'general';
+            }
+        }
         $this->isOpen = false;
     }
 
