@@ -11,7 +11,7 @@ class PortalAccessInvitationService
     /**
      * @return array{invitation_url:string,expires_at:string,token:string}
      */
-    public function createInvite(PortalAccessRequest $accessRequest, ?int $reviewedByUserId = null): array
+    public function createInvite(PortalAccessRequest $accessRequest, string|int|null $reviewedByUserId = null): array
     {
         $baseUrl = rtrim((string) config('services.portal_relay.auth_api_base_url'), '/');
         $sharedKey = (string) config('services.portal_relay.shared_key');
@@ -24,20 +24,25 @@ class PortalAccessInvitationService
             abort(500, 'Portal relay shared key is not configured.');
         }
 
+        $payload = [
+            'full_name_or_organisation' => (string) ($accessRequest->full_name_or_organisation ?? ''),
+            'address' => (string) ($accessRequest->address ?? ''),
+            'zone' => (string) ($accessRequest->zone ?? ''),
+            'tin_number' => (string) ($accessRequest->tin_number ?? ''),
+            'email' => (string) ($accessRequest->email ?? ''),
+            'phone_number' => (string) ($accessRequest->phone_number ?? ''),
+            'postal_code' => (string) ($accessRequest->postal_code ?? ''),
+            'source_request_id' => (string) $accessRequest->id,
+        ];
+
+        if (is_int($reviewedByUserId) || (is_string($reviewedByUserId) && ctype_digit($reviewedByUserId))) {
+            $payload['reviewed_by_user_id'] = (int) $reviewedByUserId;
+        }
+
         $response = Http::timeout(20)
             ->acceptJson()
             ->withHeaders(['X-Relay-Key' => $sharedKey])
-            ->post($baseUrl.'/api/v1/auth/access-invites', [
-                'full_name_or_organisation' => (string) ($accessRequest->full_name_or_organisation ?? ''),
-                'address' => (string) ($accessRequest->address ?? ''),
-                'zone' => (string) ($accessRequest->zone ?? ''),
-                'tin_number' => (string) ($accessRequest->tin_number ?? ''),
-                'email' => (string) ($accessRequest->email ?? ''),
-                'phone_number' => (string) ($accessRequest->phone_number ?? ''),
-                'postal_code' => (string) ($accessRequest->postal_code ?? ''),
-                'source_request_id' => (string) $accessRequest->id,
-                'reviewed_by_user_id' => $reviewedByUserId,
-            ]);
+            ->post($baseUrl.'/api/v1/auth/access-invites', $payload);
 
         if ($response->failed()) {
             $message = (string) ($response->json('message') ?? 'Failed to create portal invite.');

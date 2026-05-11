@@ -194,12 +194,12 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditElementModal({{ $element->id }})" 
+                                                    <button wire:click="showEditElementModal('{{ $element->id }}')" 
                                                             class="btn btn-sm mr-2 btn-outline-warning" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteElement({{ $element->id }})" 
+                                                    <button wire:click="deleteElement('{{ $element->id }}')" 
                                                             class="btn btn-sm btn-outline-danger" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this element?')">
@@ -286,7 +286,7 @@
                                             @if($showAnalyteDropdown && count($filteredAnalytes) > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($filteredAnalytes as $analyte)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectAnalyte({{ $analyte->id }}, '{{ $analyte->name }}')">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAnalyte('{{ $analyte->id }}')">
                                                             {{ $analyte->name }} ({{ $analyte->code }})
                                                         </div>
                                                     @endforeach
@@ -324,7 +324,7 @@
                                             @if($showMethodDropdown && count($filteredMethods) > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($filteredMethods as $method)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectMethod({{ $method->id }}, '{{ $method->name }}')">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectMethod('{{ $method->id }}')">
                                                             {{ $method->name }}
                                                         </div>
                                                     @endforeach
@@ -364,7 +364,7 @@
                                             @if($showEquipmentDropdown && count($filteredEquipment) > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($filteredEquipment as $equipment)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectEquipment({{ $equipment->id }}, '{{ $equipment->name }}')">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectEquipment('{{ $equipment->id }}')">
                                                             {{ $equipment->name }}
                                                         </div>
                                                     @endforeach
@@ -402,7 +402,7 @@
                                             @if($showOperatorDropdown && count($filteredOperators) > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($filteredOperators as $operator)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectOperator({{ $operator->id }}, '{{ $operator->name }}')">
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectOperator('{{ $operator->id }}')">
                                                             {{ $operator->name }}
                                                         </div>
                                                     @endforeach
@@ -417,7 +417,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-scale-balance text-primary"></i> Reporting Unit <span class="text-danger">*</span>
+                                            <i class="mdi mdi-scale-balance text-primary"></i> Reporting Unit
                                         </label>
                                         <div class="tag-select-container" wire:click="$set('showReportingUnitDropdown', true)">
                                             <div class="tag-select-input">
@@ -560,7 +560,7 @@
                                                         @if($showRemedyHeaderDropdown && count($filteredRemedyHeaders) > 0)
                                                             <div class="tag-dropdown">
                                                                 @foreach($filteredRemedyHeaders as $remedyHeader)
-                                                                    <div class="tag-dropdown-item" wire:click.stop="selectRemedyHeader({{ $remedyHeader->id }}, '{{ $remedyHeader->name }}')">
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectRemedyHeader('{{ $remedyHeader->id }}')">
                                                                         {{ $remedyHeader->name }}
                                                                     </div>
                                                                 @endforeach
@@ -628,7 +628,7 @@
                                                         @if($showFormularDropdown && count($filteredFormulars) > 0)
                                                             <div class="tag-dropdown">
                                                                 @foreach($filteredFormulars as $formular)
-                                                                    <div class="tag-dropdown-item" wire:click.stop="selectFormular({{ $formular->id }}, '{{ $formular->name }}')">
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectFormular('{{ $formular->id }}')">
                                                                         {{ $formular->name }}
                                                                     </div>
                                                                 @endforeach
@@ -706,7 +706,7 @@
                                                                             $versionInfo = ' (v' . $latestVer->version_number . ' - Latest)';
                                                                         }
                                                                     @endphp
-                                                                    <div class="tag-dropdown-item" wire:click.stop="selectMethodSequence({{ $methodSequence->id }}, '{{ $methodSequence->name }}')">
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectMethodSequence('{{ $methodSequence->id }}')">
                                                                         {{ $methodSequence->name }}{{ $versionInfo }}
                                                                     </div>
                                                                 @endforeach

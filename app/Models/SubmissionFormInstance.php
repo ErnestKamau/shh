@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 use App\User;
+use App\Models\CRM\CRMCustomer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class SubmissionFormInstance extends Model implements Auditable
@@ -29,6 +31,11 @@ class SubmissionFormInstance extends Model implements Auditable
         'sequence_number',
         'title',
         'submitted_by',
+        'portal_account_id',
+        'crm_customer_id',
+        'target_record_type',
+        'target_record_id',
+        'portal_request_id',
         'status',
         'priority',
         'due_date',
@@ -85,11 +92,109 @@ class SubmissionFormInstance extends Model implements Auditable
     }
 
     /**
+     * Get the CRM customer who submitted this instance (populated for portal submissions).
+     */
+    public function crmCustomer(): BelongsTo
+    {
+        return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
+    }
+
+    /**
      * Get all batches (sample headers) linked to this form instance
      */
     public function batches(): HasMany
     {
         return $this->hasMany(\App\SampleHeader::class, 'submission_form_instance_id');
+    }
+
+    /**
+     * Get attachment instances linked to this template instance via portal_request_id.
+     * Attachment instances store the template instance UUID in their portal_request_id column.
+     */
+    public function attachmentInstances(): HasMany
+    {
+        return $this->hasMany(static::class, 'portal_request_id', 'id');
+    }
+
+    /**
+     * Workflow-specific approval/rejection forms linked to this instance.
+     */
+    public function workflowForms(): HasMany
+    {
+        return $this->hasMany(RequestWorkflowForm::class, 'submission_form_instance_id', 'id')
+            ->latest('submitted_at');
+    }
+
+    /**
+     * Get sample types associated with this instance's form (from the form-level pivot).
+     * This is more reliable than reading from form values for portal submissions.
+     */
+    public function getFormSampleTypeNames(): array
+    {
+        if ($this->relationLoaded('submissionForm') && $this->submissionForm) {
+            if ($this->submissionForm->relationLoaded('sampleTypes')) {
+                return $this->submissionForm->sampleTypes->pluck('name')->filter()->values()->all();
+            }
+        }
+        return [];
+    }
+
+    /**
+     * Resolve sample type names from submitted values first, then fall back to form-level pivot mapping.
+     */
+    public function getResolvedSampleTypeNames(): array
+    {
+        $source = $this->relationLoaded('values')
+            ? $this->values
+            : $this->values()->with('element')->get();
+
+        $sampleTypeIds = $source
+            ->filter(function ($value) {
+                $element = $value->element;
+                if (!$element) {
+                    return false;
+                }
+
+                if (($element->element_type ?? null) === 'sample_type_select') {
+                    return true;
+                }
+
+                return ($element->mapping_field ?? null) === 'sample_type_id';
+            })
+            ->flatMap(function ($value) {
+                return $this->extractValueTokens((string) $value->value);
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($sampleTypeIds->isNotEmpty()) {
+            $candidateIds = $sampleTypeIds
+                ->map(static fn ($id) => trim((string) $id))
+                ->filter(static fn ($id) => $id !== '')
+                ->unique()
+                ->values();
+
+            if ($candidateIds->isEmpty()) {
+                return $this->getFormSampleTypeNames();
+            }
+
+            $query = DB::table('sample_types');
+            if (DB::connection()->getDriverName() === 'pgsql') {
+                $query->whereIn(DB::raw('id::text'), $candidateIds->all());
+            } else {
+                $query->whereIn('id', $candidateIds->all());
+            }
+
+            return $query
+                ->pluck('name')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        return $this->getFormSampleTypeNames();
     }
 
     /**
@@ -99,6 +204,31 @@ class SubmissionFormInstance extends Model implements Auditable
     {
         $result = \App\Services\FormNumberGenerator::generate($this->submissionForm);
         return $result['format'];
+    }
+
+    /**
+     * Get the Document Control Number (human-readable form number)
+     * Returns the stored form_number if it's a valid document control number,
+     * or generates one if needed
+     */
+    public function getDocumentControlNumber(): ?string
+    {
+        // If form_number exists and looks like a document control number (contains /), return it
+        if ($this->form_number && strpos($this->form_number, '/') !== false) {
+            return $this->form_number;
+        }
+
+        // If form is draft, no document control number yet
+        if ($this->isDraft()) {
+            return null;
+        }
+
+        // For submitted forms without a proper form_number, generate it
+        if ($this->isSubmitted() && $this->submissionForm) {
+            return $this->generateFormNumber();
+        }
+
+        return null;
     }
 
     /**
@@ -620,9 +750,13 @@ class SubmissionFormInstance extends Model implements Auditable
     public function getTestsCountAttribute(): int
     {
         $count = 0;
-        
+
         // Eager load batches and their samples to avoid N+1 if not already loaded
         $batches = $this->batches()->with('samples')->get();
+
+        if ($batches->isEmpty()) {
+            return $this->getRequestedTestsCountAttribute();
+        }
 
         foreach ($batches as $batch) {
             foreach ($batch->samples as $sample) {
@@ -635,6 +769,79 @@ class SubmissionFormInstance extends Model implements Auditable
         }
 
         return $count;
+    }
+
+    /**
+     * Get requested tests count from submitted form values (used before a batch is created).
+     */
+    public function getRequestedTestsCountAttribute(): int
+    {
+        $source = $this->relationLoaded('values')
+            ? $this->values
+            : $this->values()->with('element')->get();
+
+        $total = 0;
+
+        foreach ($source as $value) {
+            $element = $value->element;
+            if (!$element) {
+                continue;
+            }
+
+            $elementType = (string) ($element->element_type ?? '');
+            $mappingField = (string) ($element->mapping_field ?? '');
+            $elementName = Str::lower(trim((string) $element->name . ' ' . (string) $element->label));
+
+            $isTestsElement = $elementType === 'analysis_elements_select'
+                || in_array($mappingField, ['analysis_element_id', 'analyte_id'], true)
+                || Str::contains($elementName, ['test required', 'tests required', 'parameter']);
+
+            if (!$isTestsElement) {
+                continue;
+            }
+
+            $tokens = $this->extractValueTokens((string) $value->value);
+            $total += count($tokens);
+        }
+
+        return $total;
+    }
+
+    /**
+     * Normalize stored value payloads to a token list.
+     * Supports comma-separated strings and JSON arrays/objects.
+     */
+    private function extractValueTokens(string $rawValue): array
+    {
+        $rawValue = trim($rawValue);
+        if ($rawValue === '') {
+            return [];
+        }
+
+        $tokens = [];
+        $decoded = json_decode($rawValue, true);
+
+        if (is_array($decoded)) {
+            foreach ($decoded as $item) {
+                if (is_string($item)) {
+                    $tokens = array_merge($tokens, array_map('trim', explode(',', $item)));
+                    continue;
+                }
+
+                if (is_array($item)) {
+                    foreach (['value', 'id', 'uuid'] as $key) {
+                        if (!empty($item[$key]) && is_string($item[$key])) {
+                            $tokens = array_merge($tokens, array_map('trim', explode(',', $item[$key])));
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            $tokens = array_map('trim', explode(',', $rawValue));
+        }
+
+        return array_values(array_filter($tokens, static fn ($token) => $token !== ''));
     }
 
     /**
@@ -827,6 +1034,41 @@ class SubmissionFormInstance extends Model implements Auditable
         }
 
         $elementType = $element->element_type;
+        $elementContext = Str::lower(trim((string) ($element->name ?? '') . ' ' . (string) ($element->label ?? '')));
+        $tokens = $this->extractValueTokens((string) $value);
+
+        if ($elementType === 'depended_field' && !empty($tokens)) {
+            $resolved = collect($tokens)
+                ->map(function ($token) use ($element) {
+                    return $this->resolveDependedFieldToken($element, (string) $token);
+                })
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($resolved)) {
+                return implode(', ', $resolved);
+            }
+        }
+
+        $isParameterLikeField = $elementType === 'analysis_elements_select'
+            || Str::contains($elementContext, ['parameter', 'analyte', 'test required', 'tests required']);
+
+        if ($isParameterLikeField && !empty($tokens)) {
+            $resolved = collect($tokens)
+                ->map(function ($token) {
+                    return $this->resolveParameterToken((string) $token);
+                })
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($resolved)) {
+                return implode(', ', $resolved);
+            }
+        }
 
         // Handle comma-separated values (for multi-select fields)
         if (strpos($value, ',') !== false) {
@@ -900,8 +1142,10 @@ class SubmissionFormInstance extends Model implements Auditable
                     return $id;
 
                 case 'analysis_elements_select':
-                    $element = DB::table('analytes')->where('id', $id)->first();
-                    return $element ? $element->name : $id;
+                    return $this->resolveParameterToken((string) $id);
+
+                case 'depended_field':
+                    return (string) $id;
 
                 case 'user_select':
                     $user = DB::table('users')->where('id', $id)->first();
@@ -917,6 +1161,7 @@ class SubmissionFormInstance extends Model implements Auditable
                 case 'date':
                 case 'datetime':
                 case 'file':
+                case 'camera_photo':
                 default:
                     return $id;
             }
@@ -924,6 +1169,122 @@ class SubmissionFormInstance extends Model implements Auditable
             // If there's any error resolving the value, return the original value
             return $id;
         }
+    }
+
+    /**
+     * Resolve portal/public uploaded file paths into a reachable URL.
+     */
+    public function resolveUploadedMediaUrl(?string $candidate): ?string
+    {
+        $candidate = trim((string) $candidate);
+        if ($candidate === '' || $candidate === 'N/A') {
+            return null;
+        }
+
+        if (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://')) {
+            $parsedPath = (string) (parse_url($candidate, PHP_URL_PATH) ?: '');
+            if ($parsedPath !== '') {
+                $normalizedFromUrl = $this->normalizeUploadedMediaPath($parsedPath);
+                if (str_starts_with($normalizedFromUrl, 'portal/')) {
+                    return route('portal-media.proxy', ['path' => $normalizedFromUrl]);
+                }
+            }
+
+            return $candidate;
+        }
+
+        $normalized = $this->normalizeUploadedMediaPath($candidate);
+
+        $portalApiBase = rtrim((string) config('services.portal_relay.auth_api_base_url'), '/');
+
+        if (str_starts_with($normalized, 'portal/')) {
+            return route('portal-media.proxy', ['path' => $normalized]);
+        }
+
+        $localUrl = asset('storage/' . $normalized);
+        $localPath = public_path('storage/' . $normalized);
+
+        if (is_file($localPath)) {
+            return $localUrl;
+        }
+
+        if ($portalApiBase !== '') {
+            return $portalApiBase . '/storage/' . $normalized;
+        }
+
+        return $localUrl;
+    }
+
+    private function normalizeUploadedMediaPath(string $path): string
+    {
+        $normalized = ltrim(trim($path), '/');
+
+        if (str_starts_with($normalized, 'public/')) {
+            $normalized = substr($normalized, 7);
+        }
+
+        if (str_starts_with($normalized, 'storage/')) {
+            $normalized = substr($normalized, 8);
+        }
+
+        return ltrim($normalized, '/');
+    }
+
+    private function resolveParameterToken(string $id): string
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return $id;
+        }
+
+        $analyte = DB::table('analytes')->where('id', $id)->first();
+        if ($analyte && !empty($analyte->name)) {
+            return (string) $analyte->name;
+        }
+
+        $analysisElement = DB::table('analysis_elements')
+            ->leftJoin('analytes', 'analytes.id', '=', 'analysis_elements.analyte_id')
+            ->where('analysis_elements.id', $id)
+            ->select('analysis_elements.method as analysis_element_name', 'analytes.name as analyte_name')
+            ->first();
+
+        if ($analysisElement) {
+            return (string) ($analysisElement->analyte_name ?: $analysisElement->analysis_element_name ?: $id);
+        }
+
+        return $id;
+    }
+
+    private function resolveDependedFieldToken($element, string $id): string
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return $id;
+        }
+
+        $sourceTable = (string) ($element->source_table ?? '');
+        $sourceField = (string) ($element->source_field ?? '');
+
+        if ($sourceTable === '' || $sourceField === '') {
+            return $id;
+        }
+
+        if (!DB::getSchemaBuilder()->hasTable($sourceTable)
+            || !DB::getSchemaBuilder()->hasColumn($sourceTable, 'id')
+            || !DB::getSchemaBuilder()->hasColumn($sourceTable, $sourceField)) {
+            return $id;
+        }
+
+        $query = DB::table($sourceTable);
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            $query->whereRaw('id::text = ?', [$id]);
+        } else {
+            $query->where('id', $id);
+        }
+
+        $record = $query->first([$sourceField]);
+
+        return $record ? (string) data_get($record, $sourceField, $id) : $id;
     }
 
     /**

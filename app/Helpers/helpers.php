@@ -617,6 +617,16 @@ function getSampleWorflowStages()
 {
 	return array("All Samples", "Samples Receiving", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Completed Sample");
 }
+
+function getSampleWorkflowStageLabel($stage)
+{
+	$labels = [
+		'Samples En-Route' => 'Sample Receiving',
+		'Samples Reception' => 'Sample Receiving (Received)',
+	];
+
+	return $labels[$stage] ?? $stage;
+}
 function getComplaintWorkflowStages()
 {
 	return array("All Complaints", "Open Complaints", "Complaints Approval", "Complaints Resolution", "Resolution Approval", "Closed Complaints", "Cancelled Complaints");

@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app', [ 'datePicker' => true, 'select2' => true])
 
 @section('title2')
-<title>{{ $status }} | Sample WorkFlow</title>
+<title>{{ getSampleWorkflowStageLabel($status) }} | Sample WorkFlow</title>
 @endsection
 
 @section('content2')
@@ -34,7 +34,7 @@ $items = [
 	],
 	[
 		'link' => route('sample-workflow', ['status' => $status]),
-		'name' => $status,
+		'name' => getSampleWorkflowStageLabel($status),
 		'icon' => null,
 	],
 ];

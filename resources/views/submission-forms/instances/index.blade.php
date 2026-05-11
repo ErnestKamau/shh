@@ -130,7 +130,7 @@
                                     @foreach($instances as $instance)
                                         <tr>
                                             <td>
-                                                <strong>{{ $instance->form_number ?? 'Draft' }}</strong>
+                                                <strong>{{ $instance->getDocumentControlNumber() ?? 'Draft' }}</strong>
                                             </td>
                                             <td>
                                                 <a href="{{ route('submission-forms.show', $instance->submissionForm) }}" 

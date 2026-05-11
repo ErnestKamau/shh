@@ -117,12 +117,12 @@
                                                        title="View Elements">
                                                         <i class="mdi mdi-eye"></i>
                                                     </a>
-                                                    <button wire:click="showEditAnalysisTypeModal({{ $analysisType->id }})" 
+                                                    <button wire:click="showEditAnalysisTypeModal('{{ $analysisType->id }}')" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteAnalysisType({{ $analysisType->id }})" 
+                                                    <button wire:click="deleteAnalysisType('{{ $analysisType->id }}')" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this analysis type? This will also delete all associated elements.')">
@@ -151,7 +151,7 @@
                                                 {{ $analysisType->labsectionname ?? 'N/A' }}
                                             </td>
                                             <td>
-                                                <span class="badge bg-info p-2" style="color: white;">{{ $analysisType->analysis_elements->count() }}</span>
+                                                <span class="badge bg-info p-2" style="color: white;">{{ $analysisType->analysis_elements_count ?? 0 }}</span>
                                             </td>
                                             <td>
                                                 <span class="badge bg-primary p-2" style="color: white;">{{ $analysisType->level }}</span>
@@ -259,14 +259,14 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label class="form-label"><i class="mdi mdi-layers text-primary"></i> Lab Section <span class="text-danger">*</span></label>
+                                        <label class="form-label"><i class="mdi mdi-layers text-primary"></i> Lab Section</label>
                                         <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
                                             <div class="tag-select-input">
                                                 <!-- Display selected lab section or allow searching -->
                                                 @if($this->selectedLabSection)
                                                     <span class="tag-badge">
                                                         {{ $this->selectedLabSection->name }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.lab_section_id', null)"></i>
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearLabSectionSelection"></i>
                                                     </span>
                                                 @endif
                                                 

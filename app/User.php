@@ -48,7 +48,7 @@ class User extends Authenticatable implements Auditable
 	 * @var array
 	 */
 	protected $fillable = [
-		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires',
+		'name', 'email', 'password', 'zone_id', 'verify_code', 'verify_code_expires',
 		'company_id', 'department_id', 'location_id', 'active',
 		'failed_login_attempts', 'login_locked_by_admin_reset',
 	];
@@ -82,9 +82,9 @@ class User extends Authenticatable implements Auditable
 		'designation' => 'encrypted',
 		'date_of_birth' => 'encrypted',
 		'id_number' => 'encrypted',
-		'first_name' => 'encrypted',
-		'middle_name' => 'encrypted',
-		'last_name' => 'encrypted',
+		# 'first_name' => 'encrypted',
+		# 'middle_name' => 'encrypted',
+		# 'last_name' => 'encrypted',
 		'two_factor_secret' => 'encrypted',
 		'two_factor_recovery_codes' => 'encrypted',
 		'client_id' => 'string',

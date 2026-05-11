@@ -147,6 +147,56 @@ class FormInstanceController extends Controller
             ], 401);
         }
 
+        $userId = auth()->id();
+        $finalizedStatuses = ['submitted', 'approved', 'rejected', 'completed', 'cancelled', 'void'];
+        $buildLaunchResponse = static function (SubmissionFormInstance $instance, bool $reused) use ($submissionForm) {
+            return response()->json([
+                'success' => true,
+                'instance_id' => $instance->id,
+                'reused' => $reused,
+                'fill_url' => route('submission-forms.instances.fill-sample', [
+                    'submissionForm' => $submissionForm,
+                    'instance' => $instance,
+                ]),
+            ]);
+        };
+
+        $reuseExisting = $request->boolean('reuse_existing', true);
+        if ($reuseExisting) {
+            $requestedInstanceId = trim((string) $request->input('existing_instance_id', ''));
+            $submissionFormId = (string) $submissionForm->id;
+
+            if ($requestedInstanceId !== '' && Str::isUuid($requestedInstanceId) && Str::isUuid($submissionFormId)) {
+                $requestedInstance = SubmissionFormInstance::query()
+                    ->where('id', $requestedInstanceId)
+                    ->where('submission_form_id', $submissionFormId)
+                    ->where('submitted_by', $userId)
+                    ->where(function ($query) use ($finalizedStatuses) {
+                        $query->whereNull('status')
+                              ->orWhereNotIn('status', $finalizedStatuses);
+                    })
+                    ->first();
+
+                if ($requestedInstance) {
+                    return $buildLaunchResponse($requestedInstance, true);
+                }
+            }
+
+            $existingActiveInstance = SubmissionFormInstance::query()
+                ->where('submission_form_id', $submissionForm->id)
+                ->where('submitted_by', $userId)
+                ->where(function ($query) use ($finalizedStatuses) {
+                    $query->whereNull('status')
+                          ->orWhereNotIn('status', $finalizedStatuses);
+                })
+                ->latest('updated_at')
+                ->first();
+
+            if ($existingActiveInstance) {
+                return $buildLaunchResponse($existingActiveInstance, true);
+            }
+        }
+
         $title = trim((string) $request->input('title', ''));
         if ($title === '') {
             $title = $submissionForm->name . ' - ' . now()->format('Y-m-d H:i');
@@ -157,7 +207,7 @@ class FormInstanceController extends Controller
             'form_number' => null,
             'sequence_number' => null,
             'title' => $title,
-            'submitted_by' => auth()->id(),
+            'submitted_by' => $userId,
             'status' => 'draft',
             'priority' => 'normal',
             'due_date' => null,
@@ -165,14 +215,7 @@ class FormInstanceController extends Controller
 
         $instance->logAction('created', auth()->user());
 
-        return response()->json([
-            'success' => true,
-            'instance_id' => $instance->id,
-            'fill_url' => route('submission-forms.instances.fill-sample', [
-                'submissionForm' => $submissionForm,
-                'instance' => $instance,
-            ]),
-        ]);
+        return $buildLaunchResponse($instance, false);
     }
 
     /**
@@ -746,6 +789,10 @@ class FormInstanceController extends Controller
                 case 'file':
                     $elementRules[] = 'file';
                     break;
+                case 'camera_photo':
+                    $elementRules[] = 'image';
+                    $elementRules[] = 'mimes:jpg,jpeg,png,webp';
+                    break;
                 case 'sample_point_select':
                 case 'analysis_elements_select':
                     // Multiple select fields should be arrays when submitted
@@ -823,7 +870,7 @@ class FormInstanceController extends Controller
         }
 
         // Handle file uploads
-        if ($element->element_type === 'file' && $request->hasFile($element->name)) {
+        if (in_array($element->element_type, ['file', 'camera_photo'], true) && $request->hasFile($element->name)) {
             $file = $request->file($element->name);
             $filename = time() . '_' . Str::slug($element->name) . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('submission-forms/' . $instance->id, $filename, 'public');
@@ -1678,7 +1725,7 @@ class FormInstanceController extends Controller
 
     private function abortIfInstanceFormMismatch(SubmissionForm $submissionForm, SubmissionFormInstance $instance): void
     {
-        if ((int) $instance->submission_form_id !== (int) $submissionForm->id) {
+        if ((string) $instance->submission_form_id !== (string) $submissionForm->id) {
             abort(404);
         }
     }

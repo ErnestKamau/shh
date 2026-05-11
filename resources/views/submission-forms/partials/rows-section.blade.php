@@ -31,10 +31,9 @@
           $actualRowCount = count($rowIndices);
         }
       @endphp
-      Template Elements: {{ $templateHolder->elements->count() }} | Actual Rows: {{ $actualRowCount }}
       {{-- Add Row Button --}}
       <div class="mb-3">
-        <button type="button" class="btn btn-success btn-sm" id="add-row-{{ $section->id }}">
+        <button type="button" class="btn btn-success btn-sm" id="add-row-{{ $section->id }}" data-sf-add-row="{{ $section->id }}">
           <i class="mdi mdi-plus"></i> Add Row
         </button>
       </div>
@@ -55,7 +54,7 @@
               <th width="120">Actions</th>
             </tr>
           </thead>
-          <tbody id="rows-tbody-{{ $section->id }}">
+          <tbody id="rows-tbody-{{ $section->id }}" data-next-row-index="0">
             {{-- Rows will be dynamically added here --}}
           </tbody>
         </table>
@@ -63,12 +62,13 @@
 
       {{-- Hidden template row for cloning --}}
       <template id="row-template-{{ $section->id }}">
-        <tr class="row-item" data-row-index="">
+        <tr class="row-item" data-row-index="" data-section-id="{{ $section->id }}">
           @foreach($templateHolder->elements as $element)
             <td>
               <div class="form-group mb-0">
                         @include('submission-forms.partials.form-element', [
                             'element' => $element,
+                            'existingValues' => $existingValues,
                             'isArrayField' => true,
                             'rowIndex' => 'ROW_INDEX_PLACEHOLDER',
                             'hideLabel' => true,
@@ -91,6 +91,9 @@
       </template>
     </div>
   @else
+    <div class="alert alert-info">
+      <i class="mdi mdi-information-outline"></i>
+      No row template elements are configured for this section.
     </div>
   @endif
 
@@ -135,6 +138,12 @@ $(document).ready(function() {
   const addRowBtn = document.getElementById('add-row-' + sectionId);
   const tbody = document.getElementById('rows-tbody-' + sectionId);
   const template = document.getElementById('row-template-' + sectionId);
+
+  if (!addRowBtn || !tbody || !template) {
+    console.warn('Rows section setup skipped due to missing DOM references for section ' + sectionId);
+    return;
+  }
+
   let rowIndex = 0;
 
   // Add new row
@@ -223,7 +232,7 @@ $(document).ready(function() {
     
     // Initialize Select2 on all select elements in the new row
     $rowElement.find('select').not('.hidden').each(function(i, e) {
-      if (!$(e).hasClass('no-select2')) {
+      if (!$(e).hasClass('no-select2') && $.fn && $.fn.select2) {
         $(e).select2({
           placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
         });
@@ -661,7 +670,7 @@ $(document).ready(function() {
        const $select = $(this);
        const clonedValue = $select.data('cloned-value');
        
-       if (!$select.hasClass('no-select2')) {
+       if (!$select.hasClass('no-select2') && $.fn && $.fn.select2) {
         $select.select2({
           placeholder: $select.attr('placeholder') || $select.data('placeholder') || 'Select...',
           width: '100%'
@@ -771,6 +780,7 @@ $(document).ready(function() {
           }
       });
       rowIndex = maxIndex + 1;
+        $(tbody).attr('data-next-row-index', rowIndex);
       console.log('Updated rowIndex based on existing data to:', rowIndex);
   }
   
@@ -919,11 +929,11 @@ $(document).ready(function() {
                   const $select = $(e);
                   
                   // Destroy existing Select2 if present
-                  if ($select.hasClass('select2-hidden-accessible')) {
+                  if ($select.hasClass('select2-hidden-accessible') && $.fn && $.fn.select2) {
                     $select.select2('destroy');
                   }
                   
-                  if (!$select.hasClass('no-select2')) {
+                  if (!$select.hasClass('no-select2') && $.fn && $.fn.select2) {
                     // Get the saved value before initializing Select2
                     const currentValue = $select.val();
                     
@@ -959,4 +969,111 @@ $(document).ready(function() {
   }
 });
 })(); // End initRowsSection wrapper
+</script>
+<script>
+(function bindRowsFallbackHandlers() {
+  if (window.__sfRowsFallbackHandlersBound === true) {
+    return;
+  }
+  window.__sfRowsFallbackHandlersBound = true;
+
+  document.addEventListener('click', function (event) {
+    var addBtn = event.target.closest('[data-sf-add-row]');
+    if (addBtn) {
+      event.preventDefault();
+      var sectionId = addBtn.getAttribute('data-sf-add-row');
+      var template = document.getElementById('row-template-' + sectionId);
+      var tbody = document.getElementById('rows-tbody-' + sectionId);
+      if (!template || !tbody) {
+        return;
+      }
+
+      var nextIndex = parseInt(tbody.getAttribute('data-next-row-index') || '0', 10);
+      if (!Number.isInteger(nextIndex) || nextIndex < 0) {
+        nextIndex = tbody.querySelectorAll('tr[data-row-index]').length;
+      }
+
+      var fragment = template.content.cloneNode(true);
+      var row = fragment.querySelector('tr');
+      if (!row) {
+        return;
+      }
+
+      row.setAttribute('data-row-index', String(nextIndex));
+
+      row.querySelectorAll('input, select, textarea').forEach(function (field) {
+        var name = field.getAttribute('name');
+        if (name) {
+          field.setAttribute('name', name.replace(/ROW_INDEX_PLACEHOLDER/g, String(nextIndex)));
+        }
+
+        var id = field.getAttribute('id');
+        if (id) {
+          field.setAttribute('id', id.replace(/ROW_INDEX_PLACEHOLDER/g, String(nextIndex)));
+        }
+
+        field.removeAttribute('disabled');
+        field.removeAttribute('readonly');
+
+        if (field.tagName === 'SELECT') {
+          field.value = '';
+        } else if (field.type === 'checkbox' || field.type === 'radio') {
+          field.checked = false;
+        } else {
+          field.value = '';
+        }
+      });
+
+      row.querySelectorAll('label').forEach(function (label) {
+        var target = label.getAttribute('for');
+        if (target) {
+          label.setAttribute('for', target.replace(/ROW_INDEX_PLACEHOLDER/g, String(nextIndex)));
+        }
+      });
+
+      tbody.appendChild(fragment);
+      tbody.setAttribute('data-next-row-index', String(nextIndex + 1));
+
+      if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+        window.jQuery(tbody).find('tr:last select').not('.hidden').each(function () {
+          var $select = window.jQuery(this);
+          if (!$select.hasClass('no-select2')) {
+            $select.select2({
+              placeholder: $select.attr('placeholder') || $select.data('placeholder') || 'Select...',
+              width: '100%'
+            });
+          }
+        });
+      }
+
+      if (typeof window.initializeAllCustomElements === 'function') {
+        window.initializeAllCustomElements();
+      }
+
+      var fillForm = document.getElementById('fill-form');
+      if (fillForm) {
+        fillForm.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return;
+    }
+
+    var deleteBtn = event.target.closest('.delete-row');
+    if (!deleteBtn) {
+      return;
+    }
+
+    var rowToDelete = deleteBtn.closest('tr');
+    if (!rowToDelete) {
+      return;
+    }
+
+    event.preventDefault();
+    rowToDelete.remove();
+
+    var formEl = document.getElementById('fill-form');
+    if (formEl) {
+      formEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }, true);
+})();
 </script>

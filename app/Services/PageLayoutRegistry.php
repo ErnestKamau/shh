@@ -56,6 +56,23 @@ class PageLayoutRegistry
                 ['trigger_id' => 'workflow-add-sample',     'label' => 'Add Sample button'],
                 ['trigger_id' => 'workflow-verify',         'label' => 'Verify button'],
                 ['trigger_id' => 'workflow-approve',        'label' => 'Approve button'],
+                ['trigger_id' => 'workflow-action-interlab-transfer',      'label' => 'Actions: Initiate Inter Lab Transfer(s)'],
+                ['trigger_id' => 'workflow-action-cancel-batch',           'label' => 'Actions: Cancel Batch'],
+                ['trigger_id' => 'workflow-action-move-to-lab',            'label' => 'Actions: Move to Lab'],
+                ['trigger_id' => 'workflow-action-print-labels',           'label' => 'Actions: Print Labels'],
+                ['trigger_id' => 'workflow-action-request-review',         'label' => 'Actions: Request Review'],
+                ['trigger_id' => 'workflow-action-generate-sales-order',   'label' => 'Actions: Generate Sales Order'],
+                ['trigger_id' => 'workflow-action-approve-for-analysis',   'label' => 'Actions: Approve For Analysis'],
+                ['trigger_id' => 'workflow-action-payment-reminder',       'label' => 'Actions: Payment Reminder'],
+                ['trigger_id' => 'workflow-action-generate-customer-focus','label' => 'Actions: Generate Customer Focus'],
+                ['trigger_id' => 'workflow-action-send-schedule-analysis', 'label' => 'Actions: Send Schedule of Analysis'],
+                ['trigger_id' => 'workflow-action-clone-batches',          'label' => 'Actions: Clone Batch(es)'],
+                ['trigger_id' => 'workflow-action-email-reports',          'label' => 'Actions: Email Report(s)'],
+                ['trigger_id' => 'workflow-action-generate-draft-invoice', 'label' => 'Actions: Generate Draft Invoice'],
+                ['trigger_id' => 'workflow-action-approve-request',        'label' => 'Actions: Approve Request'],
+                ['trigger_id' => 'workflow-action-reject-request',         'label' => 'Actions: Reject Request'],
+                ['trigger_id' => 'workflow-action-mark-complete',          'label' => 'Actions: Mark Complete'],
+                ['trigger_id' => 'workflow-action-return-to-approval',     'label' => 'Actions: Return to Approval'],
             ],
         ],
 
@@ -123,7 +140,9 @@ class PageLayoutRegistry
      */
     public static function getSlotsForRoute(string $routeName): array
     {
-        return static::$manifest[$routeName]['slots'] ?? [
+        $manifestKey = static::normalizeRouteKey($routeName);
+
+        return static::$manifest[$manifestKey]['slots'] ?? [
             ['id' => 'before_page_content', 'label' => 'Before main content (top of page)'],
             ['id' => 'after_page_content',  'label' => 'After main content (bottom of page)'],
         ];
@@ -136,7 +155,9 @@ class PageLayoutRegistry
      */
     public static function getButtonsForRoute(string $routeName): array
     {
-        return static::$manifest[$routeName]['buttons'] ?? [];
+        $manifestKey = static::normalizeRouteKey($routeName);
+
+        return static::$manifest[$manifestKey]['buttons'] ?? [];
     }
 
     /**
@@ -163,8 +184,12 @@ class PageLayoutRegistry
     {
         $result = [];
         foreach ($routeNames as $route) {
+            $manifestKey = static::normalizeRouteKey($route);
+            $contextLabel = static::extractRouteContextLabel($route);
+            $baseLabel = static::$manifest[$manifestKey]['label'] ?? $manifestKey;
+
             $result[$route] = [
-                'label'   => static::$manifest[$route]['label'] ?? $route,
+                'label'   => $contextLabel !== '' ? ($baseLabel . ' [' . $contextLabel . ']') : $baseLabel,
                 'slots'   => static::getSlotsForRoute($route),
                 'buttons' => static::getButtonsForRoute($route),
             ];
@@ -178,5 +203,27 @@ class PageLayoutRegistry
     public static function getManifest(): array
     {
         return static::$manifest;
+    }
+
+    private static function normalizeRouteKey(string $routeName): string
+    {
+        if (strpos($routeName, '@status=') !== false) {
+            $routeName = explode('@status=', $routeName, 2)[0];
+        }
+
+        if ($routeName === 'sample-workflow-stage') {
+            return 'sample-workflow';
+        }
+
+        return $routeName;
+    }
+
+    private static function extractRouteContextLabel(string $routeName): string
+    {
+        if (strpos($routeName, '@status=') === false) {
+            return '';
+        }
+
+        return trim((string) explode('@status=', $routeName, 2)[1]);
     }
 }
