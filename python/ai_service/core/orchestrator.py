@@ -123,6 +123,11 @@ class AIOrchestrator:
         start = time.time()
         mode = kwargs.get("mode")
         module_context = kwargs.get("module_context")
+        
+        # Context Promotion: If mode is general but module_context exists, use module_context
+        if (not mode or mode == "general") and module_context:
+            mode = module_context
+
         m = message.lower().strip()
 
         logger.info(
@@ -168,6 +173,11 @@ class AIOrchestrator:
         start = time.time()
         mode = kwargs.get("mode")
         module_context = kwargs.get("module_context")
+        
+        # Context Promotion: If mode is general but module_context exists, use module_context
+        if (not mode or mode == "general") and module_context:
+            mode = module_context
+
         m = message.lower().strip()
 
         logger.info(
