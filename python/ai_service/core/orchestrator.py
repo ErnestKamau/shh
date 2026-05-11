@@ -188,6 +188,7 @@ class AIOrchestrator:
         # ── Fast-paths ────────────────────────────────────────────────────────
         fast = self._fast_path(m, messages, mode, trace_id, start)
         if fast:
+            self._log(trace_id, message, fast, company_id, kwargs)
             yield {"kind": "token", "token": fast["answer"]}
             yield {"kind": "done", "meta": fast["meta"]}
             return

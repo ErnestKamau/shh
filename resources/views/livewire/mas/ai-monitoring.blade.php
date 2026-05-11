@@ -185,5 +185,77 @@
             </div>
         </div>
         @endif
+        
+        <!-- Latest Activity Table -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-purple"><i class="mdi mdi-history mr-1"></i> Latest AI Activity</h6>
+                        <span class="badge badge-light text-muted">{{ count($recentLogs) }} total entries</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-items-center mb-0">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Time</th>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Query</th>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Mode/Worker</th>
+                                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Latency</th>
+                                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Confidence</th>
+                                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($recentLogs as $log)
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex px-2 py-1">
+                                                <div class="d-flex flex-column justify-content-center">
+                                                    <h6 class="mb-0 text-xs">{{ \Carbon\Carbon::parse($log['created_at'])->format('H:i:s') }}</h6>
+                                                    <p class="text-xxs text-muted mb-0">{{ \Carbon\Carbon::parse($log['created_at'])->format('M d') }}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <p class="text-xs font-weight-bold mb-0" title="{{ $log['query'] }}">{{ Str::limit($log['query'], 60) }}</p>
+                                            <span class="text-xxs text-muted">ID: {{ substr($log['trace_id'], 0, 8) }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-sm bg-light text-dark">{{ $log['mode'] }}</span>
+                                            @if($log['route_name'])
+                                                <span class="text-xxs text-muted ml-1">[{{ $log['route_name'] }}]</span>
+                                            @endif
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="text-secondary text-xs font-weight-bold">{{ $log['latency_ms'] }}ms</span>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="text-xs font-weight-bold {{ $log['confidence'] > 0.8 ? 'text-success' : 'text-warning' }}">{{ round($log['confidence'] * 100) }}%</span>
+                                        </td>
+                                        <td class="align-middle text-center text-sm">
+                                            @if($log['success'])
+                                                <span class="badge badge-sm bg-success text-white">OK</span>
+                                            @else
+                                                <span class="badge badge-sm bg-danger text-white">FAIL</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            <i class="mdi mdi-information-outline text-muted mdi-24px d-block mb-2"></i>
+                                            <p class="text-muted mb-0">No recent activity detected. Try asking a question in the AI Drawer!</p>
+                                        </td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
