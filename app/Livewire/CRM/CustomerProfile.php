@@ -29,8 +29,6 @@ class CustomerProfile extends Component
     public $showLabelModal = false;
     public $labelForm = [
         'unit_configurable_name' => '',
-        'sub_unit_configurable_name' => '',
-        'area_configurable_name' => '',
         'sample_point_configurable_name' => '',
         'product_configurable_name' => ''
     ];
@@ -154,14 +152,6 @@ class CustomerProfile extends Component
                 // Load units data when needed
                 break;
                 
-            case 'sub-units':
-                // Load sub units data when needed
-                break;
-                
-            case 'areas':
-                // Load areas data when needed
-                break;
-                
             case 'sample-points':
                 // Load sample points data when needed
                 break;
@@ -194,6 +184,10 @@ class CustomerProfile extends Component
 
     public function setActiveTab($tab)
     {
+        if (in_array($tab, ['sub-units', 'areas'], true)) {
+            $tab = 'units';
+        }
+
         $this->activeTab = $tab;
         $this->loadTabData($tab);
     }
@@ -270,8 +264,6 @@ class CustomerProfile extends Component
     {
         $this->labelForm = [
             'unit_configurable_name' => $this->customer->unit_configurable_name ?? '',
-            'sub_unit_configurable_name' => $this->customer->sub_unit_configurable_name ?? '',
-            'area_configurable_name' => $this->customer->area_configurable_name ?? '',
             'sample_point_configurable_name' => $this->customer->sample_point_configurable_name ?? '',
             'product_configurable_name' => $this->customer->product_configurable_name ?? ''
         ];
@@ -287,8 +279,6 @@ class CustomerProfile extends Component
     {
         $this->validate([
             'labelForm.unit_configurable_name' => 'nullable|string|max:100',
-            'labelForm.sub_unit_configurable_name' => 'nullable|string|max:100',
-            'labelForm.area_configurable_name' => 'nullable|string|max:100',
             'labelForm.sample_point_configurable_name' => 'nullable|string|max:100',
             'labelForm.product_configurable_name' => 'nullable|string|max:100',
         ]);
@@ -297,8 +287,6 @@ class CustomerProfile extends Component
             DB::beginTransaction();
 
             $this->customer->unit_configurable_name = $this->labelForm['unit_configurable_name'];
-            $this->customer->sub_unit_configurable_name = $this->labelForm['sub_unit_configurable_name'];
-            $this->customer->area_configurable_name = $this->labelForm['area_configurable_name'];
             $this->customer->sample_point_configurable_name = $this->labelForm['sample_point_configurable_name'];
             $this->customer->product_configurable_name = $this->labelForm['product_configurable_name'];
             $this->customer->save();

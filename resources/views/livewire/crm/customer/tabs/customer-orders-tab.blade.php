@@ -6,30 +6,29 @@
                 <i class="mdi mdi-clipboard-list-outline" style="font-size:1rem;color:#0d9488;"></i>
             </span>
             <div>
-                <small class="font-weight-bold text-dark" style="font-size:0.82rem;">Service Order Ledger</small>
-                <small class="text-muted d-block" style="font-size:0.67rem;">Sample collection batches, reference
-                    numbers &amp; processing status</small>
+                <small class="font-weight-bold text-dark" style="font-size:0.82rem;">{{ __('crm.service_order_ledger') }}</small>
+                <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.service_order_ledger_subtitle') }}</small>
             </div>
         </div>
         <div class="d-flex justify-content-end align-items-center">
             <div class="crm-search-wrapper mr-2">
                 <i class="mdi mdi-magnify crm-search-icon"></i>
-                <input type="text" class="form-control" placeholder="Search orders..."
+                <input type="text" class="form-control" placeholder="{{ __('crm.search_orders') }}"
                     wire:model.live.debounce.300ms="search">
             </div>
             <!-- Show Entries -->
             <div class="d-flex align-items-center mb-2 mb-md-0 mr-3 flex-shrink-0">
-                <label class="mb-0 mr-2 crm-filter-label text-nowrap">Show</label>
+                <label class="mb-0 mr-2 crm-filter-label text-nowrap">{{ __('crm.show') }}</label>
                 <select wire:model.live="perPage" wire:key="per-page-select" class="custom-select custom-select-sm no-select2" style="width: 70px;">
                     <option value="10">10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
                 </select>
-                <label class="mb-0 ml-2 crm-filter-label text-nowrap">entries</label>
+                <label class="mb-0 ml-2 crm-filter-label text-nowrap">{{ __('crm.entries') }}</label>
             </div>
             <button class="btn btn-outline-success btn-sm mr-2 text-nowrap" wire:click="exportToExcel">
-                <i class="mdi mdi-file-excel"></i> Export to Excel
+                <i class="mdi mdi-file-excel"></i> {{ __('crm.export_to_excel') }}
             </button>
             {{-- <a class="btn btn-primary btn-sm"
                 href="{{ route('view-batch-details', ['batch'=>time(), 'client'=>$customer->id]) }}">
@@ -40,25 +39,26 @@
 
     <div wire:loading wire:target="search,perPage" class="crm-loading-indicator"><i
             class="mdi mdi-loading mdi-spin"></i>
-        Loading...</div>
+        {{ __('crm.loading') }}...</div>
     <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
         <x-slot:header>
             <tr>
-                <th style="min-width: 100px;">Actions</th>
+                <th style="min-width: 100px;">{{ __('crm.actions') }}</th>
                 <th>No</th>
-                <th nowrap>Batch ID</th>
-                <th nowrap>Collection Date</th>
-                <th>Ref. No.</th>
-                <th nowrap>Doc. No.</th>
-                <th nowrap>Analysis Type</th>
-                <th>Samples</th>
-                <th>Stage</th>
+                <th nowrap>{{ __('crm.batch_id') }}</th>
+                <th nowrap>{{ __('crm.collection_date') }}</th>
+                <th>{{ __('crm.reference_no') }}</th>
+                <th nowrap>{{ __('crm.doc_no') }}</th>
+                <th nowrap>{{ __('crm.analysis_type') }}</th>
+                <th>{{ __('crm.samples') }}</th>
+                <th>{{ __('crm.stage') }}</th>
             </tr>
         </x-slot:header>
                     @forelse($orders as $order)
                         <tr>
                             <td>
                                 <x-crm.action-buttons>
+                                    <a class="btn crm-btn crm-btn-view btn-sm" title="{{ __('crm.view') }}"
                                         href="{{ route('view-batch-details', ['batch' => $order->id, 'client' => $customer->id, 'portal' => $customer->id, 'status' => $order->status]) }}">
                                         <i class="mdi mdi-eye-outline"></i>
                                     </a>
@@ -84,7 +84,7 @@
                             <td colspan="9">
                                 <x-crm.empty-state
                                     icon="mdi-clipboard-list-outline"
-                                    message="No service orders logged for this client."
+                                    :message="__('crm.no_service_orders_for_client')"
                                 />
                             </td>
                         </tr>

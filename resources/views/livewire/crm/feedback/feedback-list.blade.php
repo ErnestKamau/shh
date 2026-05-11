@@ -2,23 +2,23 @@
     <main>
         @php
             $breadcrumbItems = [
-                ['link' => route('customers-list'), 'name' => 'CRM', 'icon' => null],
-                ['link' => route('feedback-home'), 'name' => 'Customer Feedback', 'icon' => null]
+                ['link' => route('customers-list'), 'name' => __('crm.module_name'), 'icon' => null],
+                ['link' => route('feedback-home'), 'name' => __('crm.customer_feedback'), 'icon' => null]
             ];
         @endphp
         <div class="container-fluid">
             <x-crm.page-header
                 :breadcrumbItems="$breadcrumbItems"
-                title="Customer Feedback"
-                subtitle="View and manage customer feedback submissions"
+                :title="__('crm.customer_feedback')"
+                :subtitle="__('crm.feedback_subtitle')"
                 icon="mdi-file-account"
             >
                 <x-slot:actions>
                     <button type="button" class="btn btn-outline-success btn-sm mr-2 crm-btn-export" wire:click.prevent="exportToExcel">
-                        <i class="fa fa-file-excel mr-1"></i> Export to Excel
+                        <i class="fa fa-file-excel mr-1"></i> {{ __('crm.export_to_excel') }}
                     </button>
                     <button type="button" class="btn btn-add btn-sm crm-btn-add" wire:click.prevent="openSendCampaignModal">
-                        <i class="mdi mdi-plus"></i> Send Feedback
+                        <i class="mdi mdi-plus"></i> {{ __('crm.send_feedback') }}
                     </button>
                 </x-slot:actions>
             </x-crm.page-header>

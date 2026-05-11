@@ -142,8 +142,7 @@ class ReportGenerator {
 
 			// $output = $this->compileReports();
 
-				// $jdbc_dir = app_path('JasperReports/jdbc/sqljdbc_8.2');
-				$jdbc_dir = base_path('lib/JasperReports/phpjasper/geekcom/phpjasper/bin/jasperstarter/jdbc/mysql-connector-java-8.0.18');
+				$jdbc_dir = env('JDBC_DIR', base_path('lib/JasperReports/phpjasper/geekcom/phpjasper/bin/jasperstarter/jdbc/postgresql'));
 
 				if($this->db_connection) {
 					$options = [
@@ -153,13 +152,13 @@ class ReportGenerator {
 						'db_connection' => [
 							'driver' => 'generic',
 							'host' => env('DB_HOSTNAME', '127.0.0.1'),
-							'port' => env('DB_PORT', '3306'),
-							'jdbc_driver' => env('JDBC_DRIVER', 'com.mysql.cj.jdbc.Driver'),
-							'jdbc_url' => env('JDBC_URL', 'jdbc:mysql://localhost/imara_lims'),
+							'port' => env('DB_PORT', '5432'),
+							'jdbc_driver' => env('JDBC_DRIVER', 'org.postgresql.Driver'),
+							'jdbc_url' => env('JDBC_URL', 'jdbc:postgresql://' . env('DB_HOST', '127.0.0.1') . ':' . env('DB_PORT', '5432') . '/' . env('DB_DATABASE', 'gcla')),
 							'jdbc_dir' => $jdbc_dir,
-							'database' => env('DB_DATABASE', 'imara_lims'),
+							'database' => env('DB_DATABASE', 'gcla'),
 							'username' => env('DB_USERNAME', 'root'),
-							'password' => env('DB_PASSWORD', 'root@2019')
+							'password' => env('DB_PASSWORD', '')
 						]
 					];
 				} else {

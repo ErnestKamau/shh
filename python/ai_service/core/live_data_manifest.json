@@ -1,320 +1,297 @@
 {
   "samples": {
     "sample_count_total": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers WHERE isactive = true",
-      "description": "Total samples (batches) logged in system",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true",
+      "description": "Total active sample batches logged in the operational database",
       "output_format": "count",
       "ttl_seconds": 10
     },
     "individual_sample_count": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_details sd INNER JOIN reporting.sample_headers sh ON sh.source_id = sd.sample_header_id WHERE sh.isactive = true",
-      "description": "Total individual sample items/aliquots processed",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_details sd INNER JOIN public.sample_headers sh ON sh.id = sd.sample_header_id WHERE sh.isactive = true",
+      "description": "Total active individual sample items",
       "output_format": "count",
       "ttl_seconds": 10
     },
     "sample_count_pending_review": {
-      "sql": "SELECT status, COUNT(*) as cnt FROM reporting.sample_headers WHERE status IN ('Samples Request Review', 'Sample Verification', 'Sample Approval') AND isactive = true GROUP BY status",
-      "description": "Batch counts awaiting laboratory review, verification, or final approval sign-off",
+      "sql": "SELECT status, COUNT(*) as cnt FROM public.sample_headers WHERE isactive = true AND status IN ('Samples Request Review', 'Sample Verification', 'Sample Approval') GROUP BY status ORDER BY cnt DESC",
+      "description": "Sample batches awaiting review, verification, or approval",
       "output_format": "table",
       "ttl_seconds": 10
     },
     "sample_count_in_lab": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_details sd INNER JOIN reporting.sample_headers sh ON sh.source_id = sd.sample_header_id INNER JOIN reporting.sample_analysis_stages sas ON sas.source_id = CAST(NULLIF(sh.sample_tracking_stage, '') AS BIGINT) WHERE sas.sample_workflow = 'Samples In Lab' AND sh.isactive = true",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_details sd INNER JOIN public.sample_headers sh ON sh.id = sd.sample_header_id INNER JOIN public.sample_analysis_stages sas ON sas.level = sh.sample_tracking_stage WHERE sh.isactive = true AND sas.sample_workflow = 'Samples In Lab'",
       "description": "Individual sample items currently in the lab",
       "output_format": "count",
       "ttl_seconds": 10
     },
     "batch_count_in_lab": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers sh INNER JOIN reporting.sample_analysis_stages sas ON sas.source_id = CAST(NULLIF(sh.sample_tracking_stage, '') AS BIGINT) WHERE sas.sample_workflow = 'Samples In Lab' AND sh.isactive = true",
-      "description": "Sample batches (headers) currently in the lab",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers sh INNER JOIN public.sample_analysis_stages sas ON sas.level = sh.sample_tracking_stage WHERE sh.isactive = true AND sas.sample_workflow = 'Samples In Lab'",
+      "description": "Sample batches currently in the lab",
       "output_format": "count",
       "ttl_seconds": 10
     },
     "samples_by_status": {
-      "sql": "SELECT sh.status, COUNT(sd.source_id) as cnt FROM reporting.sample_details sd INNER JOIN reporting.sample_headers sh ON sh.source_id = sd.sample_header_id WHERE sh.isactive = true GROUP BY sh.status ORDER BY cnt DESC",
-      "description": "Distribution of samples across workflow stages",
+      "sql": "SELECT sh.status, COUNT(sd.id) as cnt FROM public.sample_details sd INNER JOIN public.sample_headers sh ON sh.id = sd.sample_header_id WHERE sh.isactive = true GROUP BY sh.status ORDER BY cnt DESC",
+      "description": "Distribution of individual samples by batch status",
       "output_format": "table",
-      "visualize": {
-        "type": "bar",
-        "labels": "status",
-        "values": "cnt",
-        "title": "Samples by Status"
-      },
+      "visualize": {"type": "bar", "labels": "status", "values": "cnt", "title": "Samples by Status"},
       "ttl_seconds": 15
     },
     "batch_count_total": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers WHERE isactive = true",
-      "description": "Total batches logged in system",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true",
+      "description": "Total active sample batches",
       "output_format": "count",
       "ttl_seconds": 10
     },
     "sample_count_today": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers WHERE isactive = true AND source_created_at::timestamptz::date = CURRENT_DATE",
-      "description": "Batches received today",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true AND created_at::date = CURRENT_DATE",
+      "description": "Sample batches received today",
       "output_format": "count",
       "ttl_seconds": 10
     },
     "sample_count_this_week": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers WHERE isactive = true AND source_created_at::timestamptz >= DATE_TRUNC('week', CURRENT_DATE)",
-      "description": "Batches received this week",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true AND created_at >= DATE_TRUNC('week', CURRENT_DATE)",
+      "description": "Sample batches received this week",
       "output_format": "count",
       "ttl_seconds": 30
     },
     "sample_count_this_month": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers WHERE isactive = true AND source_created_at::timestamptz >= DATE_TRUNC('month', CURRENT_DATE)",
-      "description": "Batches received this month",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true AND created_at >= DATE_TRUNC('month', CURRENT_DATE)",
+      "description": "Sample batches received this month",
       "output_format": "count",
       "ttl_seconds": 60
     },
     "samples_rejected": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers WHERE isactive = true AND LOWER(COALESCE(status, '')) IN ('rejected', 'cancelled', 'sample rejected')",
-      "description": "Rejected or cancelled samples",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true AND LOWER(COALESCE(status, '')) IN ('rejected', 'cancelled', 'sample rejected')",
+      "description": "Rejected or cancelled sample batches",
       "output_format": "count",
       "ttl_seconds": 30
     },
     "latest_received_batches": {
-      "sql": "SELECT batch_code, status, source_created_at::timestamptz::date as received_date FROM reporting.sample_headers WHERE isactive = true ORDER BY source_created_at DESC LIMIT 10",
-      "description": "Last 10 received batches",
+      "sql": "SELECT batch_code, status, created_at::date as received_date FROM public.sample_headers WHERE isactive = true ORDER BY created_at DESC LIMIT 10",
+      "description": "Latest received sample batches",
       "output_format": "table",
       "ttl_seconds": 10
     },
     "daily_ingestion_trend": {
-      "sql": "SELECT source_created_at::timestamptz::date as day, COUNT(*) as batches FROM reporting.sample_headers WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '14 days') AND isactive = true GROUP BY day ORDER BY day DESC",
-      "description": "Batch registration volume per day for the last 2 weeks",
+      "sql": "SELECT created_at::date as day, COUNT(*) as batches FROM public.sample_headers WHERE created_at >= (NOW() - INTERVAL '14 days') AND isactive = true GROUP BY day ORDER BY day DESC",
+      "description": "Batch registration volume per day for the last 14 days",
       "output_format": "table",
-      "visualize": {
-        "type": "bar",
-        "labels": "day",
-        "values": "batches",
-        "title": "Registration Volume (14d)"
-      },
+      "visualize": {"type": "bar", "labels": "day", "values": "batches", "title": "Registration Volume"},
       "ttl_seconds": 60
     },
     "sample_type_distribution": {
-      "sql": "SELECT st.name as sample_type, COUNT(tc.source_id) as count FROM reporting.tat_captured tc JOIN reporting.sample_types st ON tc.sample_type_id = st.source_id JOIN reporting.sample_headers sh ON sh.source_id = tc.sample_header_id WHERE sh.isactive = true GROUP BY st.name ORDER BY count DESC",
-      "description": "Sample volume breakdown by specimen/matrix type",
+      "sql": "SELECT sample_type_id::text as sample_type, COUNT(*) as count FROM public.sample_headers WHERE isactive = true GROUP BY sample_type_id ORDER BY count DESC",
+      "description": "Sample volume by sample type id",
       "output_format": "table",
-      "visualize": {
-        "type": "pie",
-        "labels": "sample_type",
-        "values": "count",
-        "title": "Sample Type Distribution"
-      },
+      "visualize": {"type": "pie", "labels": "sample_type", "values": "count", "title": "Sample Type Distribution"},
       "ttl_seconds": 120
     }
   },
   "inventory": {
     "inventory_low_stock": {
-      "sql": "SELECT c.name as category, sc.name as subcategory, ii.payload->>'batch_code' as batch_code, ii.stock_in, sc.minimum_level FROM reporting.inventory_items ii INNER JOIN reporting.inventory_sub_categories sc ON ii.inventory_sub_category_id = sc.source_id INNER JOIN reporting.inventory_categories c ON sc.inventory_category_id = c.source_id WHERE ii.stock_in < sc.minimum_level ORDER BY (sc.minimum_level - ii.stock_in) DESC LIMIT 10",
-      "description": "Items below minimum reorder level (shortage analysis)",
+      "sql": "SELECT batch_code, status, stock_in, stock_out, (stock_in - stock_out) as balance FROM public.inventory_items WHERE (stock_in - stock_out) <= 0 ORDER BY updated_at DESC LIMIT 10",
+      "description": "Inventory items with zero or negative calculated balance",
       "output_format": "table",
       "ttl_seconds": 60
     },
     "inventory_order_status": {
-      "sql": "SELECT io.order_number, s.name as supplier, io.status as fulfillment_status, io.source_created_at FROM reporting.inventory_orders io LEFT JOIN reporting.suppliers s ON io.supplier_id = s.source_id WHERE io.status IN ('not_fulfilled', 'partially_fulfilled') ORDER BY io.source_created_at DESC LIMIT 10",
-      "description": "Pending purchase orders awaiting delivery",
+      "sql": "SELECT po_number, status as fulfillment_status, supplier_id::text as supplier, created_at FROM public.inventory_items WHERE po_number IS NOT NULL ORDER BY created_at DESC LIMIT 10",
+      "description": "Recent inventory purchase order references",
       "output_format": "table",
       "ttl_seconds": 60
     },
     "supplier_order_performance": {
-      "sql": "SELECT s.name as supplier, COUNT(io.source_id) as total_orders, SUM(CASE WHEN io.status = 'fulfilled' THEN 1 ELSE 0 END) as fulfilled, ROUND(100.0 * SUM(CASE WHEN io.status = 'fulfilled' THEN 1 ELSE 0 END) / NULLIF(COUNT(io.source_id), 0), 1) as fulfillment_pct FROM reporting.suppliers s JOIN reporting.inventory_orders io ON s.source_id = io.supplier_id WHERE io.source_created_at >= (NOW() - INTERVAL '90 days') GROUP BY s.name ORDER BY fulfillment_pct ASC LIMIT 10",
-      "description": "Supplier order fulfillment rate for the last quarter",
+      "sql": "SELECT supplier_id::text as supplier, COUNT(*) as total_items, SUM(CASE WHEN status = 'in_inventory' THEN 1 ELSE 0 END) as in_inventory FROM public.inventory_items WHERE supplier_id IS NOT NULL AND created_at >= (NOW() - INTERVAL '90 days') GROUP BY supplier_id ORDER BY total_items DESC LIMIT 10",
+      "description": "Inventory receipts grouped by supplier id",
       "output_format": "table",
-      "ttl_seconds": 600
+      "ttl_seconds": 120
     },
     "inventory_stock_by_category": {
-      "sql": "SELECT c.name as category, COUNT(ii.source_id) as item_count, SUM(ii.stock_in) as total_stock, SUM(CASE WHEN ii.stock_in < sc.minimum_level THEN 1 ELSE 0 END) as below_minimum FROM reporting.inventory_categories c JOIN reporting.inventory_sub_categories sc ON sc.inventory_category_id = c.source_id JOIN reporting.inventory_items ii ON ii.inventory_sub_category_id = sc.source_id GROUP BY c.name ORDER BY below_minimum DESC",
-      "description": "Inventory health summary grouped by category",
+      "sql": "SELECT inventory_category_id::text as category, COUNT(*) as item_count, SUM(stock_in - stock_out) as balance FROM public.inventory_items GROUP BY inventory_category_id ORDER BY balance ASC LIMIT 20",
+      "description": "Inventory balance by category id",
       "output_format": "table",
       "ttl_seconds": 120
     },
     "inventory_expiring_soon": {
-      "sql": "SELECT sc.name as item, c.name as category, ii.payload->>'expiry_date' as expiry_date, ii.stock_in as quantity FROM reporting.inventory_items ii INNER JOIN reporting.inventory_sub_categories sc ON ii.inventory_sub_category_id = sc.source_id INNER JOIN reporting.inventory_categories c ON sc.inventory_category_id = c.source_id WHERE ii.payload->>'expiry_date' IS NOT NULL AND (ii.payload->>'expiry_date')::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' ORDER BY (ii.payload->>'expiry_date')::date ASC LIMIT 15",
-      "description": "Inventory items expiring within the next 30 days",
+      "sql": "SELECT batch_code, expiry, (stock_in - stock_out) as balance FROM public.inventory_items WHERE expiry BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' ORDER BY expiry ASC LIMIT 15",
+      "description": "Inventory batches expiring in the next 30 days",
       "output_format": "table",
-      "ttl_seconds": 300
+      "ttl_seconds": 120
     }
   },
   "equipment": {
     "equipment_utilization": {
-      "sql": "SELECT e.name as name, COUNT(eu.source_id) as usage_count, MAX(eu.event_date) as last_used FROM reporting.equipment_assets e LEFT JOIN reporting.equipment_logs eu ON e.source_id = eu.equipment_id WHERE eu.event_date >= (NOW() - INTERVAL '30 days')::text GROUP BY e.source_id, e.name ORDER BY usage_count DESC LIMIT 10",
-      "description": "Instrument usage statistics for the last 30 days",
+      "sql": "SELECT name, equipment_number, status, active FROM public.equipment ORDER BY updated_at DESC LIMIT 10",
+      "description": "Recent equipment records from the operational database",
       "output_format": "table",
-      "ttl_seconds": 30
+      "ttl_seconds": 120
     },
     "equipment_maintenance_schedule": {
-      "sql": "SELECT name, CAST(maintenance_due_date AS DATE) as next_maintenance_due, assigned_department FROM reporting.equipment_due_status WHERE (CAST(maintenance_due_date AS DATE)) BETWEEN NOW() AND NOW() + INTERVAL '30 days' AND maintenance_status != 'overdue' ORDER BY maintenance_due_date LIMIT 10",
-      "description": "Upcoming maintenance requirements",
+      "sql": "SELECT name, equipment_number, (date_purchased + (maintainance_days || ' days')::interval)::date as next_maintenance_due, assigned_department FROM public.equipment WHERE active = true ORDER BY next_maintenance_due ASC LIMIT 10",
+      "description": "Upcoming equipment maintenance dates calculated from purchase date and maintenance interval",
       "output_format": "table",
-      "ttl_seconds": 15
+      "ttl_seconds": 120
     },
     "equipment_downtime_summary": {
-      "sql": "SELECT name, source_id FROM reporting.equipment_due_status WHERE maintenance_status = 'overdue' ORDER BY maintenance_due_date ASC LIMIT 5",
-      "description": "Non-operational or high-risk equipment alert",
+      "sql": "SELECT name, equipment_number, status, condition FROM public.equipment WHERE active = false OR LOWER(COALESCE(status, '')) IN ('down', 'inactive', 'broken', 'out of service') ORDER BY updated_at DESC LIMIT 10",
+      "description": "Equipment records that appear inactive or unavailable",
       "output_format": "table",
-      "ttl_seconds": 10
+      "ttl_seconds": 120
     },
     "equipment_count_active": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.equipment_assets WHERE active = true",
-      "description": "Total active instruments in the system",
+      "sql": "SELECT COUNT(*) as n FROM public.equipment WHERE active = true",
+      "description": "Active equipment count",
       "output_format": "count",
       "ttl_seconds": 60
+    },
+    "equipment_maintenance_health": {
+      "sql": "SELECT status, COUNT(*) as cnt FROM public.equipment GROUP BY status ORDER BY cnt DESC",
+      "description": "Equipment status distribution",
+      "output_format": "table",
+      "ttl_seconds": 120
+    },
+    "equipment_verification_status": {
+      "sql": "SELECT name, equipment_number, verificaction_days, verification_notification_in_days, updated_at::date as last_updated FROM public.equipment WHERE active = true ORDER BY updated_at ASC LIMIT 15",
+      "description": "Equipment verification configuration and last update date",
+      "output_format": "table",
+      "ttl_seconds": 120
     }
   },
   "quality": {
     "qc_pass_rate": {
-      "sql": "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completions FROM reporting.sample_headers WHERE isactive = true AND approval_date_at IS NOT NULL",
-      "description": "Overall batch completion percentage",
-      "output_format": "percentage",
-      "ttl_seconds": 30
+      "sql": "SELECT COUNT(*) as total, SUM(CASE WHEN LOWER(COALESCE(status_code, '')) IN ('pass', 'passed', 'approved') THEN 1 ELSE 0 END) as passing FROM public.qc_results",
+      "description": "QC result totals and passing count",
+      "output_format": "table",
+      "ttl_seconds": 120
     },
     "qc_drifting_analytes": {
-      "sql": "SELECT analyte_name, robust_cv_pct, pass_rate_pct FROM reporting.v_qc_stability_metrics WHERE robust_cv_pct > 15 ORDER BY robust_cv_pct DESC",
-      "description": "Analytes showing warning or critical instability",
+      "sql": "SELECT analyte_id::text as analyte, robust_cv_percentage FROM public.qc_processed_result WHERE robust_cv_percentage > 15 ORDER BY robust_cv_percentage DESC LIMIT 10",
+      "description": "QC analytes with robust CV above warning threshold",
       "output_format": "table",
-      "ttl_seconds": 60
+      "ttl_seconds": 300
     },
     "capa_pending": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.corrective_actions WHERE LOWER(COALESCE(status, '')) NOT IN ('closed', 'completed', 'cancelled')",
-      "description": "Open corrective and preventive actions",
+      "sql": "SELECT COUNT(*) as n FROM public.corrective_actions WHERE deleted_at IS NULL AND LOWER(COALESCE(status_name, '')) NOT IN ('closed', 'completed', 'cancelled')",
+      "description": "Open corrective actions",
       "output_format": "count",
-      "ttl_seconds": 10
+      "ttl_seconds": 120
     },
     "samples_pending_qc": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.sample_headers sh INNER JOIN reporting.sample_analysis_stages sas ON sas.source_id = CAST(NULLIF(sh.sample_tracking_stage, '') AS BIGINT) WHERE sas.sample_workflow = 'Quality Control' AND sh.isactive = true AND LOWER(COALESCE(sh.status, '')) NOT IN ('completed', 'approved')",
-      "description": "Samples currently awaiting QC review",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true AND is_qc_batch = true AND LOWER(COALESCE(status, '')) NOT IN ('completed', 'approved')",
+      "description": "QC sample batches not completed or approved",
       "output_format": "count",
-      "ttl_seconds": 10
+      "ttl_seconds": 60
     },
     "complaints_trend": {
-      "sql": "SELECT DATE_TRUNC('month', source_created_at::timestamptz)::date as month, COUNT(*) as complaints FROM reporting.complaints WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '6 months') GROUP BY month ORDER BY month DESC",
-      "description": "Monthly complaint volume trend for the last 6 months",
+      "sql": "SELECT DATE_TRUNC('month', created_at)::date as month, COUNT(*) as complaints FROM public.complaints WHERE created_at >= (NOW() - INTERVAL '6 months') GROUP BY month ORDER BY month DESC",
+      "description": "Complaint volume by month",
       "output_format": "table",
-      "ttl_seconds": 600
+      "ttl_seconds": 300
     },
     "audit_findings_open": {
-      "sql": "SELECT COALESCE(category, 'Uncategorized') as category, COUNT(*) as open_count FROM reporting.audit_findings WHERE LOWER(COALESCE(status, '')) NOT IN ('closed', 'resolved') GROUP BY category ORDER BY open_count DESC",
-      "description": "Open audit findings grouped by category",
+      "sql": "SELECT 'audit_findings' as category, 0 as open_count",
+      "description": "Open audit findings placeholder until direct operational audit table mapping is confirmed",
       "output_format": "table",
       "ttl_seconds": 300
     }
   },
   "tat": {
     "tat_overall_average": {
-      "sql": "SELECT ROUND(AVG(tat_overdue_days * 24.0), 1) as avg_tat_hours FROM reporting.tat_captured WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '30 days') AND is_complete = true",
-      "description": "Mean laboratory turnaround time in hours for the last 30 days",
+      "sql": "SELECT ROUND(AVG(tat_overdue_days * 24.0), 1) as avg_tat_hours FROM public.tat_captured WHERE created_at >= (NOW() - INTERVAL '30 days') AND is_complete = true",
+      "description": "Average overdue TAT hours for completed records in the last 30 days",
       "output_format": "count",
-      "ttl_seconds": 60
+      "ttl_seconds": 300
     },
     "tat_overdue_batches": {
-      "sql": "SELECT COUNT(DISTINCT sample_header_id) as overdue_batches FROM reporting.tat_captured WHERE tat_overdue_days > 0 AND is_complete = false AND source_created_at::timestamptz >= (NOW() - INTERVAL '30 days')",
-      "description": "Batches currently exceeding their TAT deadline",
+      "sql": "SELECT COUNT(DISTINCT sample_header_id) as overdue_batches FROM public.tat_captured WHERE tat_overdue_days > 0 AND is_complete = false AND created_at >= (NOW() - INTERVAL '30 days')",
+      "description": "Batches with overdue unfinished TAT records in the last 30 days",
       "output_format": "count",
-      "ttl_seconds": 30
-    },
-    "tat_by_analyte": {
-      "sql": "SELECT a.name as analyte, ROUND(AVG(tc.tat_overdue_days * 24.0), 1) as avg_hours, COUNT(*) as test_count FROM reporting.tat_captured tc JOIN reporting.analytes a ON tc.analyte_id = a.source_id WHERE tc.source_created_at::timestamptz >= (NOW() - INTERVAL '30 days') GROUP BY a.name ORDER BY avg_hours DESC LIMIT 10",
-      "description": "Average TAT in hours per analyte — bottleneck analysis",
-      "output_format": "table",
-      "visualize": {
-        "type": "bar",
-        "labels": "analyte",
-        "values": "avg_hours",
-        "title": "Avg TAT (Hours) - Bottlenecks"
-      },
       "ttl_seconds": 120
     },
+    "tat_by_analyte": {
+      "sql": "SELECT analyte_id::text as analyte, ROUND(AVG(tat_overdue_days * 24.0), 1) as avg_hours, COUNT(*) as test_count FROM public.tat_captured WHERE created_at >= (NOW() - INTERVAL '30 days') GROUP BY analyte_id ORDER BY avg_hours DESC LIMIT 10",
+      "description": "Average TAT overdue hours by analyte id",
+      "output_format": "table",
+      "ttl_seconds": 300
+    },
     "tat_sla_compliance": {
-      "sql": "SELECT ROUND(100.0 * SUM(CASE WHEN tat_overdue_days <= 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 1) as sla_pct FROM reporting.tat_captured WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '30 days') AND is_complete = true",
-      "description": "Percentage of batches completed within SLA target (last 30 days)",
+      "sql": "SELECT ROUND(100.0 * SUM(CASE WHEN tat_overdue_days <= 0 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 1) as sla_pct FROM public.tat_captured WHERE created_at >= (NOW() - INTERVAL '30 days') AND is_complete = true",
+      "description": "Completed TAT records within SLA over the last 30 days",
       "output_format": "percentage",
-      "ttl_seconds": 60
+      "ttl_seconds": 300
     }
   },
   "support": {
-    "sla_compliance": {
-      "sql": "SELECT COUNT(*) as total, SUM(CASE WHEN resolution_sla_status = 'Achieved' THEN 1 ELSE 0 END) as compliant FROM reporting.complaints WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '90 days')",
-      "description": "Support ticket SLA compliance rate for the last quarter",
-      "output_format": "percentage",
-      "ttl_seconds": 300
+    "complaint_count_open": {
+      "sql": "SELECT COUNT(*) as n FROM public.complaints WHERE is_closed = false",
+      "description": "Open complaints",
+      "output_format": "count",
+      "ttl_seconds": 60
     },
     "ticket_backlog_priority": {
-      "sql": "SELECT priority, COUNT(*) as cnt FROM reporting.complaints WHERE is_closed = false GROUP BY priority ORDER BY cnt DESC",
-      "description": "Open support tickets categorized by business priority",
+      "sql": "SELECT priority, COUNT(*) as cnt FROM public.complaints WHERE is_closed = false GROUP BY priority ORDER BY cnt DESC",
+      "description": "Open complaints by priority",
       "output_format": "table",
-      "ttl_seconds": 60
+      "ttl_seconds": 120
     },
     "ticket_resolution_time": {
-      "sql": "SELECT priority, ROUND(AVG(EXTRACT(EPOCH FROM (resolved_time::timestamptz - source_created_at::timestamptz)) / 3600), 1) as avg_resolution_hours FROM reporting.complaints WHERE resolved_time IS NOT NULL AND source_created_at::timestamptz >= (NOW() - INTERVAL '90 days') GROUP BY priority ORDER BY avg_resolution_hours DESC",
-      "description": "Average resolution time in hours per priority (last quarter)",
-      "output_format": "table",
-      "ttl_seconds": 600
-    },
-    "tickets_by_department": {
-      "sql": "SELECT current_department, COUNT(*) as total, SUM(CASE WHEN is_closed = false THEN 1 ELSE 0 END) as open_count FROM reporting.complaints WHERE source_created_at::timestamptz >= (NOW() - INTERVAL '90 days') GROUP BY current_department ORDER BY open_count DESC LIMIT 10",
-      "description": "Ticket distribution and backlog by department",
+      "sql": "SELECT priority, ROUND(AVG(EXTRACT(EPOCH FROM (resolved_time - created_at)) / 3600), 1) as avg_resolution_hours FROM public.complaints WHERE resolved_time IS NOT NULL AND created_at >= (NOW() - INTERVAL '90 days') GROUP BY priority ORDER BY avg_resolution_hours DESC",
+      "description": "Average complaint resolution hours by priority",
       "output_format": "table",
       "ttl_seconds": 300
     },
-    "complaint_count_open": {
-      "sql": "SELECT COUNT(*) as n FROM reporting.complaints WHERE is_closed = false",
-      "description": "Currently open complaints/tickets",
-      "output_format": "count",
-      "ttl_seconds": 30
-    }
-  },
-  "reliability": {
-    "equipment_maintenance_health": {
-      "sql": "SELECT maintenance_status, COUNT(*) as cnt FROM reporting.equipment_due_status GROUP BY maintenance_status",
-      "description": "Inventory of instrument maintenance states (Overdue, Pending, Healthy)",
+    "tickets_by_department": {
+      "sql": "SELECT current_department, COUNT(*) as total, SUM(CASE WHEN is_closed = false THEN 1 ELSE 0 END) as open_count FROM public.complaints WHERE created_at >= (NOW() - INTERVAL '90 days') GROUP BY current_department ORDER BY open_count DESC LIMIT 10",
+      "description": "Complaint workload by current department",
       "output_format": "table",
-      "ttl_seconds": 60
+      "ttl_seconds": 300
     },
-    "equipment_verification_status": {
-      "sql": "SELECT e.name, vl.event_type, vl.source_created_at::timestamptz::date as last_event FROM reporting.equipment_assets e LEFT JOIN reporting.equipment_logs vl ON e.source_id = vl.equipment_id WHERE vl.source_id IN (SELECT MAX(source_id) FROM reporting.equipment_logs GROUP BY equipment_id) ORDER BY last_event ASC LIMIT 15",
-      "description": "Latest verification status per instrument",
-      "output_format": "table",
+    "sla_compliance": {
+      "sql": "SELECT ROUND(100.0 * SUM(CASE WHEN resolution_sla_status = 'Achieved' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 1) as sla_pct FROM public.complaints WHERE created_at >= (NOW() - INTERVAL '90 days')",
+      "description": "Complaint resolution SLA compliance",
+      "output_format": "percentage",
       "ttl_seconds": 300
     }
   },
   "personnel": {
     "analyst_verifications": {
-      "sql": "SELECT u.name, COUNT(sh.source_id) as batches_verified FROM reporting.users u JOIN reporting.sample_headers sh ON u.source_id = sh.verify_user_id WHERE sh.source_created_at::timestamptz >= (NOW() - INTERVAL '30 days') AND u.active = true GROUP BY u.name ORDER BY batches_verified DESC LIMIT 15",
-      "description": "Batches verified per analyst in the last 30 days",
+      "sql": "SELECT u.name, COUNT(sh.id) as batches_verified FROM public.users u JOIN public.sample_headers sh ON u.id = sh.verify_user_id WHERE sh.created_at >= (NOW() - INTERVAL '30 days') AND u.active = 1 GROUP BY u.name ORDER BY batches_verified DESC LIMIT 15",
+      "description": "Batches verified by analyst in the last 30 days",
       "output_format": "table",
       "ttl_seconds": 300
     },
     "analyst_approvals": {
-      "sql": "SELECT u.name, COUNT(sh.source_id) as batches_approved FROM reporting.users u JOIN reporting.sample_headers sh ON u.source_id = sh.approve_user_id WHERE sh.source_created_at::timestamptz >= (NOW() - INTERVAL '30 days') AND u.active = true GROUP BY u.name ORDER BY batches_approved DESC LIMIT 15",
-      "description": "Batches approved per analyst in the last 30 days",
+      "sql": "SELECT u.name, COUNT(sh.id) as batches_approved FROM public.users u JOIN public.sample_headers sh ON u.id = sh.approve_user_id WHERE sh.created_at >= (NOW() - INTERVAL '30 days') AND u.active = 1 GROUP BY u.name ORDER BY batches_approved DESC LIMIT 15",
+      "description": "Batches approved by analyst in the last 30 days",
       "output_format": "table",
       "ttl_seconds": 300
     },
     "analyst_workload_today": {
-      "sql": "SELECT u.name as analyst, COUNT(sh.source_id) as batches_touched FROM reporting.users u JOIN reporting.sample_headers sh ON u.source_id IN (sh.verify_user_id, sh.approve_user_id) WHERE sh.source_updated_at::timestamptz::date = CURRENT_DATE AND u.active = true GROUP BY u.name ORDER BY batches_touched DESC LIMIT 15",
-      "description": "Analyst activity (verifications + approvals) for today",
+      "sql": "SELECT u.name as analyst, COUNT(sh.id) as batches_touched FROM public.users u JOIN public.sample_headers sh ON u.id IN (sh.verify_user_id, sh.approve_user_id) WHERE sh.updated_at::date = CURRENT_DATE AND u.active = 1 GROUP BY u.name ORDER BY batches_touched DESC LIMIT 15",
+      "description": "Analyst sample activity today",
       "output_format": "table",
-      "ttl_seconds": 60
+      "ttl_seconds": 120
     }
   },
   "crm": {
     "top_clients_by_volume": {
-      "sql": "SELECT c.name as client, COUNT(sh.source_id) as sample_batches FROM reporting.clients c JOIN reporting.sample_headers sh ON c.source_id = sh.crm_customer_id WHERE sh.source_created_at::timestamptz >= (NOW() - INTERVAL '90 days') AND sh.isactive = true GROUP BY c.name ORDER BY sample_batches DESC LIMIT 10",
-      "description": "Top 10 customers by submission volume in the last quarter",
+      "sql": "SELECT c.name as client, COUNT(sh.id) as sample_batches FROM public.crm_customers c JOIN public.sample_headers sh ON c.id = sh.crm_customer_id WHERE sh.created_at >= (NOW() - INTERVAL '90 days') AND sh.isactive = true GROUP BY c.name ORDER BY sample_batches DESC LIMIT 10",
+      "description": "Top customers by sample batch volume in the last 90 days",
       "output_format": "table",
-      "ttl_seconds": 600
+      "ttl_seconds": 300
     },
     "inactive_clients": {
-      "sql": "SELECT c.name, MAX(sh.source_created_at::timestamptz)::date as last_submission FROM reporting.clients c LEFT JOIN reporting.sample_headers sh ON c.source_id = sh.crm_customer_id GROUP BY c.name HAVING MAX(sh.source_created_at::timestamptz) < (NOW() - INTERVAL '60 days') OR MAX(sh.source_created_at) IS NULL ORDER BY last_submission ASC NULLS FIRST",
-      "description": "Clients with no submissions in the last 60 days (churn risk)",
+      "sql": "SELECT c.name, MAX(sh.created_at)::date as last_submission FROM public.crm_customers c LEFT JOIN public.sample_headers sh ON c.id = sh.crm_customer_id GROUP BY c.name HAVING MAX(sh.created_at) < (NOW() - INTERVAL '60 days') OR MAX(sh.created_at) IS NULL ORDER BY last_submission ASC NULLS FIRST LIMIT 25",
+      "description": "Customers with no sample submissions in the last 60 days",
       "output_format": "table",
-      "ttl_seconds": 1800
+      "ttl_seconds": 300
     },
     "client_submission_today": {
-      "sql": "SELECT c.name as client, COUNT(sh.source_id) as batches_today FROM reporting.clients c JOIN reporting.sample_headers sh ON c.source_id = sh.crm_customer_id WHERE sh.source_created_at::timestamptz::date = CURRENT_DATE AND sh.isactive = true GROUP BY c.name ORDER BY batches_today DESC LIMIT 15",
-      "description": "Client submissions received today",
+      "sql": "SELECT c.name as client, COUNT(sh.id) as batches_today FROM public.crm_customers c JOIN public.sample_headers sh ON c.id = sh.crm_customer_id WHERE sh.created_at::date = CURRENT_DATE AND sh.isactive = true GROUP BY c.name ORDER BY batches_today DESC LIMIT 15",
+      "description": "Customer sample submissions today",
       "output_format": "table",
-      "ttl_seconds": 30
+      "ttl_seconds": 120
     }
   }
 }

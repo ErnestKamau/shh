@@ -22,12 +22,6 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
 			<i class="mdi mdi-format-list-bulleted-type"></i>Personnel
-			<small class="label badge-pill bg-white my-small-text pt-1 pl-4 pr-4 pb-1 mr-1">
-				<i class="mdi mdi-account-group text-info"></i> Shared <span class="badge badge-info badge-pill">{{ isset($license_count['shared_user']) ? $license_count['shared_user'] . '/' . mamboSawa('shared_users') : '0/' . mamboSawa('shared_users') }}</span>
-			</small>
-			<small class="label badge-pill bg-white my-small-text pt-1 pl-4 pr-4 pb-1">
-				<i class="mdi mdi-account text-success"></i> Named <span class="badge badge-success badge-pill">{{ isset($license_count['named_user']) ? $license_count['named_user'] . '/' . mamboSawa('named_users') : '0/' . mamboSawa('named_users') }}</span>
-			</small>
       <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-personnel"><i class="mdi mdi-plus"></i> Add</button>
     </h2>
 	<br>
@@ -138,7 +132,6 @@
 							<td>{{  $item->labsectionname }}</td>
 							<td>{{ $item->email }}</td>
 							<td>{{ $item->employment_date }}</td>
-							<td>{{ $item->license_type }}</td>
 							<td class="text-small">{!! $item->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
 							
 						  </tr>
@@ -363,15 +356,6 @@
 							<div class="form-group">
 								<label class="control-label">Signature</label>
 								<input type="file" name="signature" class="form-control">
-							</div>
-							<div class="form-group">
-								<label class="control-label">User License <span class="text-danger">*</span></label>
-								<select name="user_license" class="form-control" placeholder="User License..." required>
-									<option></option>
-									@foreach (getUserLicenses() as $i=>$n)
-										<option value="{{ $i }}" {{ isset($license_count[$i]) && intval($license_count[$i]) == intval(mamboSawa($i.'s')) ? 'disabled' : '' }}>{{ $n }} {{ isset($license_count[$i]) ? $license_count[$i]."/".mamboSawa($i.'s') : '0/'.mamboSawa($i.'s') }}</option>
-									@endforeach
-								</select>
 							</div>
                             <div class="form-group">
                                 <label class="control-label">Zone</label>

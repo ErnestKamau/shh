@@ -30,7 +30,7 @@ class LabGeneralDashboardService
                 ->get();
                 
             foreach ($details as $detail) {
-                $point = DB::table('crm_sample_points')->find($detail->sample_point_id);
+                $point = DB::table('sample_points')->find($detail->sample_point_id);
                 $gps = null;
                 
                 if ($point && $point->gps) {
@@ -38,7 +38,7 @@ class LabGeneralDashboardService
                 } else {
                     $unit = DB::table('crm_company_units')->where('name', $sample->crm_unit_name)->first();
                     if ($unit) {
-                        $unitPoint = DB::table('crm_sample_points')->where('crm_company_unit_id', $unit->id)->first();
+                        $unitPoint = DB::table('sample_points')->where('crm_company_unit_id', $unit->id)->first();
                         if ($unitPoint && $unitPoint->gps) {
                             $gps = $unitPoint->gps;
                         }

@@ -16,9 +16,13 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 use Excel;
 use App\Imports\StandardsImport;
 use App\SampleAnalysisStage;
+use App\UserZoneRelation;
+use App\UserDirectorateRelation;
+use App\UserLabRelation;
 
 class PersonnelController extends Controller
 {
@@ -34,44 +38,24 @@ class PersonnelController extends Controller
 
   public function index()
   {
-		$license_count = $this->users_by_license();
 		$stages = SampleAnalysisStage::where('active', 1)->get();
 
 		return view('livewire.layout.personnel-app', [
 			'componentType' => 'personnel-dashboard',
 			'pageTitle' => 'Personnel Dashboard',
-			'license_count' => $license_count,
 			'stages' => $stages,
 		]);
 	}
 
 	public function personnel_list()
 	{
-		$license_count = $this->users_by_license();
 		$stages = SampleAnalysisStage::where('active', 1)->get();
 
 		return view('livewire.layout.personnel-app', [
 			'componentType' => 'personnel-list',
 			'pageTitle' => 'Personnel List',
-			'license_count' => $license_count,
 			'stages' => $stages,
 		]);
-	}
-
-	public function users_by_license(){
-		$users = User::where('company_id', getUserCompany())->get();
-
-		$license_count = array();
-
-		foreach($users as $u){
-			if(!isset($license_count[$u->license_type])){
-				$license_count[$u->license_type] = 0;
-			}
-
-			$license_count[$u->license_type]++;
-		}
-
-		return $license_count;
 	}
 
   public function show_personnel($id)
@@ -91,21 +75,22 @@ class PersonnelController extends Controller
 			'pageTitle' => 'Organizational Departments',
 		]);
 	}
+
 	public function reset_personnel_password(Request $request, $id){
 		$user = getUserById($id);
 		if ($request->has('password','con_password')){
 			if ($request->password != $request->con_password){
 				return redirect()->back()->with('error' , 'Password did not match.');
-
 			}else{
 				$user->password = bcrypt($request->password);
+				$user->password_changed_at = null; // force change on next login
+				$user->failed_login_attempts = 0;
+				$user->login_locked_by_admin_reset = false;
 				$user->save();
-
 				$body = 'Hi '.$user->first_name.',<br><br>
 						Your password has been reset successfully.Your new password is:
 						<br><br>'.$request->password ;
 				$mailData = array(
-					'contacts'=> array($user->email),
 					'body'=>$body,
 					'subject'=> '[Imara-Lims Password Reset - '.$user->first_name.']',
 
@@ -148,10 +133,47 @@ class PersonnelController extends Controller
 			'zone_id' => 'nullable|string|exists:zones,id',
 			'directorate_id' => 'nullable|string|exists:directorates,id',
 			'lab_id' => 'nullable|string|exists:labs,id',
+			'zone_ids' => 'nullable|array',
+			'zone_ids.*' => 'nullable|string|exists:zones,id',
+			'directorate_ids' => 'nullable|array',
+			'directorate_ids.*' => 'nullable|string|exists:directorates,id',
+			'lab_ids' => 'nullable|array',
+			'lab_ids.*' => 'nullable|string|exists:labs,id',
 			'analyst_is_gazzetted' => 'nullable|boolean',
 			'date_of_gazzette' => 'nullable|date',
+			'gazzette_no' => 'nullable|string|max:255',
 			'start_of_career' => 'nullable|date',
 		]);
+
+		$zoneIds = collect($request->input('zone_ids', []))
+			->filter(fn ($id) => !is_null($id) && (string) $id !== '')
+			->map(fn ($id): string => (string) $id)
+			->unique()
+			->values();
+
+		if ($zoneIds->isEmpty() && $request->filled('zone_id')) {
+			$zoneIds = collect([(string) $request->zone_id]);
+		}
+
+		$directorateIds = collect($request->input('directorate_ids', []))
+			->filter(fn ($id) => !is_null($id) && (string) $id !== '')
+			->map(fn ($id): string => (string) $id)
+			->unique()
+			->values();
+
+		if ($directorateIds->isEmpty() && $request->filled('directorate_id')) {
+			$directorateIds = collect([(string) $request->directorate_id]);
+		}
+
+		$labIds = collect($request->input('lab_ids', []))
+			->filter(fn ($id) => !is_null($id) && (string) $id !== '')
+			->map(fn ($id): string => (string) $id)
+			->unique()
+			->values();
+
+		if ($labIds->isEmpty() && $request->filled('lab_id')) {
+			$labIds = collect([(string) $request->lab_id]);
+		}
 		
 		$personnel = User::find($id) ?? new User();
 		$check_user = User::where('email',$request->email)->get();
@@ -159,8 +181,6 @@ class PersonnelController extends Controller
 		if(!isset($personnel->email) && $check_user->count() > 0){
 			return redirect()->back()->with('error','There is a user with the specified email!');
 		}
-
-		$license_count = $this->users_by_license();
 
 		if(isset($personnel->department_id) && $personnel->department_id != $request->department){
 			$personnelWorkHistoryChanged = true;
@@ -174,23 +194,6 @@ class PersonnelController extends Controller
 			$personnelWorkHistoryChanged = true;
 		}
 
-		// if(!isset($personnel->id)){
-		// 	$personnelWorkHistoryChanged = true;
-		// 	if($license_count[$request->user_license] >= mamboSawa($request->user_license.'s')){
-		// 		return redirect()->back()->with('success',
-		// 			'No '.($request->user_license == 'shared_user' ? 'Shared' : 'Named').' User licenses available.');
-		// 	}
-		// }
-		// else{
-		// 	if($personnel->license_type != $request->user_license){
-		// 		if($license_count[$request->user_license] >= mamboSawa($request->user_license.'s')){
-		// 			return redirect()->back()->with('success',
-		// 				'No '.($request->user_license == 'shared_user' ? 'Shared' : 'Named').' User licenses available.');
-		// 		}
-		// 	}
-		// }
-
-
 		$personnel->first_name = $request->first_name;
 		$personnel->middle_name = $request->middle_name;
 		$personnel->last_name = $request->last_name;
@@ -199,25 +202,24 @@ class PersonnelController extends Controller
 		$personnel->phone = $request->phone;
 		$personnel->company_id = getUserCompany();
 		$personnel->location_id = getCurrentUserLocation()->id;
-		$personnel->department_id = $request->department;
-		$personnel->designation = $request->designation;
-		$personnel->position = $request->position;
-		$personnel->education_level = $request->educational_level;
-		$personnel->employment_date = $request->employment_date;
-		$personnel->analyst_is_gazzetted = $request->boolean('analyst_is_gazzetted');
-		$personnel->date_of_gazzette = $personnel->analyst_is_gazzetted ? ($request->date_of_gazzette ?: null) : null;
-		$personnel->start_of_career = $request->start_of_career ?: null;
-		$personnel->date_of_birth = $request->date_of_birth;
-		$personnel->id_number = $request->id_number;
 		$personnel->nssf = $request->nssf;
 		$personnel->nhif = $request->nhif;
 		$personnel->kra_pin = $request->kra_pin;
 		$personnel->active = $request->active ?? 0;
 		$personnel->lab_section_id = implode(',',$request->lab_section_id ?? []) ?? '';
+		$personnel->analyst_is_gazzetted = (bool) $request->boolean('analyst_is_gazzetted');
+		$personnel->date_of_gazzette = $personnel->analyst_is_gazzetted && $request->filled('date_of_gazzette')
+			? $request->date_of_gazzette
+			: null;
+		$personnel->gazzette_no = $personnel->analyst_is_gazzetted && $request->filled('gazzette_no')
+			? trim((string) $request->gazzette_no)
+			: null;
+		$personnel->start_of_career = $request->filled('start_of_career')
+			? $request->start_of_career
+			: null;
 
-		$personnel->license_type = $request->user_license;
 		if (Schema::hasColumn('users', 'zone_id')) {
-			$personnel->zone_id = $request->zone_id ? (string) $request->zone_id : null;
+			$personnel->zone_id = $zoneIds->first() ?: null;
 		}
 
 		if(!isset($personnel->id)){
@@ -226,11 +228,13 @@ class PersonnelController extends Controller
 
 				if($request->has('main_password') && trim($request->main_password) != ""){
 					$personnel->password = bcrypt($request->main_password);
+					$personnel->password_changed_at = null; // force change on first login
 				}
 			}else{
 
 				$gnrt_pass = $request->first_name.env('APP_NAME').date('Y');
 				$personnel->password = bcrypt($gnrt_pass);
+				$personnel->password_changed_at = null; // force change on first login
 				// return response()->json($gnrt_pass,200);
 			}
 		}
@@ -279,36 +283,56 @@ class PersonnelController extends Controller
 
 		$personnel->save();
 
+		// Labs first, then derive zones/directorates from the assigned labs
+		if (Schema::hasTable('user_lab_relation')) {
+			DB::table('user_lab_relation')->where('user_id', $personnel->id)->delete();
+			foreach ($labIds as $labId) {
+				UserLabRelation::query()->create([
+					'user_id' => $personnel->id,
+					'lab_id' => $labId,
+				]);
+			}
+		}
+
+		// Derive zone and directorate relations from the assigned labs instead of using direct request inputs
+		if (!$labIds->isEmpty()) {
+			$derivedZones = DB::table('labs')
+				->whereIn('id', $labIds->toArray())
+				->whereNotNull('zone_id')
+				->where('zone_id', '!=', '')
+				->pluck('zone_id')
+				->unique()
+				->values();
+
+			$derivedDirectorates = DB::table('labs')
+				->whereIn('id', $labIds->toArray())
+				->whereNotNull('directorate_id')
+				->where('directorate_id', '!=', '')
+				->pluck('directorate_id')
+				->unique()
+				->values();
+		} else {
+			$derivedZones        = collect();
+			$derivedDirectorates = collect();
+		}
+
 		if (Schema::hasTable('user_zone_relation')) {
-			if ($request->filled('zone_id')) {
-				DB::table('user_zone_relation')->updateOrInsert(
-					['user_id' => $personnel->id, 'zone_id' => (string) $request->zone_id],
-					['updated_at' => now(), 'created_at' => now()]
-				);
-			} else {
-				DB::table('user_zone_relation')->where('user_id', $personnel->id)->delete();
+			DB::table('user_zone_relation')->where('user_id', $personnel->id)->delete();
+			foreach ($derivedZones as $zoneId) {
+				UserZoneRelation::query()->create([
+					'user_id' => $personnel->id,
+					'zone_id' => $zoneId,
+				]);
 			}
 		}
 
 		if (Schema::hasTable('user_directorate_relation')) {
-			if ($request->filled('directorate_id')) {
-				DB::table('user_directorate_relation')->updateOrInsert(
-					['user_id' => $personnel->id, 'directorate_id' => (string) $request->directorate_id],
-					['updated_at' => now(), 'created_at' => now()]
-				);
-			} else {
-				DB::table('user_directorate_relation')->where('user_id', $personnel->id)->delete();
-			}
-		}
-
-		if (Schema::hasTable('user_lab_relation')) {
-			if ($request->filled('lab_id')) {
-				DB::table('user_lab_relation')->updateOrInsert(
-					['user_id' => $personnel->id, 'lab_id' => (string) $request->lab_id],
-					['updated_at' => now(), 'created_at' => now()]
-				);
-			} else {
-				DB::table('user_lab_relation')->where('user_id', $personnel->id)->delete();
+			DB::table('user_directorate_relation')->where('user_id', $personnel->id)->delete();
+			foreach ($derivedDirectorates as $directorateId) {
+				UserDirectorateRelation::query()->create([
+					'user_id' => $personnel->id,
+					'directorate_id' => $directorateId,
+				]);
 			}
 		}
 		// return response()->json($personnel);
@@ -358,9 +382,8 @@ class PersonnelController extends Controller
 
 	public function user_profile(){
 		$user = Auth::user();
-		$license_count = $this->users_by_license();
 		$stages = SampleAnalysisStage::where('active',1)->get();
-		return view('layouts.personnel.users.user_profile', compact('user','license_count','stages'));
+		return view('layouts.personnel.users.user_profile', compact('user','stages'));
 	}
 
 	public function get_personnel_via_ajax($id=false){
@@ -371,6 +394,45 @@ class PersonnelController extends Controller
 		$personnel = User::selectRaw('id, name as text')->where('company_id', $id)->get();
 
 		return json_encode($personnel);
+	}
+
+	/**
+	 * Display locked accounts management page
+	 */
+	public function lockedAccounts()
+	{
+		$this->authorize('personnel.personnel.edit');
+
+		return view('livewire.layout.personnel-app', [
+			'componentType' => 'locked-accounts-manager',
+			'pageTitle' => 'Locked Accounts Management',
+		]);
+	}
+
+	/**
+	 * Unlock a locked user account
+	 */
+	public function unlockAccount(Request $request, $id)
+	{
+		$this->authorize('personnel.personnel.edit');
+
+		try {
+			$user = User::findOrFail($id);
+
+			$user->login_locked_by_admin_reset = false;
+			$user->failed_login_attempts = 0;
+			$user->save();
+
+			return response()->json([
+				'success' => true,
+				'message' => "Account unlocked for {$user->name}",
+			]);
+		} catch (\Exception $e) {
+			return response()->json([
+				'success' => false,
+				'message' => 'Error unlocking account: ' . $e->getMessage(),
+			], 500);
+		}
 	}
 
 }

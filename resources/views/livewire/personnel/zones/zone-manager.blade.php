@@ -8,15 +8,15 @@
 
     <div class="card tab-card">
         <div class="card-header tab-card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="mdi mdi-map-marker-radius"></i> {{ __('personnel.zones') }}</h5>
+            <h5 class="mb-0"><i class="mdi mdi-map-marker-radius"></i> Zones</h5>
             <button type="button" class="btn btn-outline-primary btn-sm" wire:click="openCreateModal">
-                <i class="mdi mdi-plus"></i> {{ __('personnel.add_zone') }}
+                <i class="mdi mdi-plus"></i> Add Zone
             </button>
         </div>
         <div class="card-body">
             <div class="row mb-3">
                 <div class="col-md-8">
-                    <input type="text" class="form-control" wire:model.live.debounce.300ms="search" placeholder="{{ __('personnel.search_zones') }}">
+                    <input type="text" class="form-control" wire:model.live.debounce.300ms="search" placeholder="Search zones...">
                 </div>
                 <div class="col-md-4">
                     <select class="form-control" wire:model.live="perPage">
@@ -32,8 +32,8 @@
                     <thead class="bg-light p-2">
                         <tr>
                             <th>{{ __('personnel.no') }}</th>
-                            <th>{{ __('personnel.zone_key') }}</th>
-                            <th>{{ __('personnel.zone_value') }}</th>
+                            <th>Zone Key</th>
+                            <th>Zone Name</th>
                             <th>Is HQ Zone</th>
                             <th>{{ __('personnel.description') }}</th>
                             <th style="width: 150px;">{{ __('personnel.actions') }}</th>
@@ -61,7 +61,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="text-center text-muted">{{ __('personnel.no_zones_found') }}</td></tr>
+                            <tr><td colspan="6" class="text-center text-muted">No zones found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -74,17 +74,17 @@
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title"><i class="mdi mdi-{{ $editingZoneId ? 'pencil' : 'plus' }}"></i> {{ $editingZoneId ? __('personnel.edit_zone') : __('personnel.add_zone') }}</h4>
+                        <h4 class="modal-title"><i class="mdi mdi-{{ $editingZoneId ? 'pencil' : 'plus' }}"></i> {{ $editingZoneId ? 'Edit Zone' : 'Add Zone' }}</h4>
                         <button type="button" class="close" wire:click="closeZoneModal"><span>&times;</span></button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label class="control-label">{{ __('personnel.zone_key') }}</label>
-                            <input type="text" class="form-control" wire:model="zoneKey" placeholder="{{ __('personnel.zone_key') }}...">
+                            <label class="control-label">Zone Key</label>
+                            <input type="text" class="form-control" wire:model="zoneKey" placeholder="Zone Key...">
                         </div>
                         <div class="form-group">
-                            <label class="control-label">{{ __('personnel.zone_value') }}</label>
-                            <input type="text" class="form-control" wire:model="zoneValue" placeholder="{{ __('personnel.zone_value') }}...">
+                            <label class="control-label">Zone Name</label>
+                            <input type="text" class="form-control" wire:model="zoneValue" placeholder="Zone Name...">
                         </div>
                         <div class="form-group mb-0">
                             <label class="control-label">{{ __('personnel.description') }}</label>

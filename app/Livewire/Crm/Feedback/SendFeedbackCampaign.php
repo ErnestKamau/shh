@@ -18,6 +18,8 @@ class SendFeedbackCampaign extends BaseCrmComponent
 {
 
     public $selectedCustomers = []; // Array of customer IDs
+    public $customerSearch = '';
+    public $showCustomerDropdown = false;
     public $customers = [];
     public $recipients = []; // Array of contact objects
     public $selectedRecipients = []; // Array of checked contact IDs
@@ -51,10 +53,79 @@ class SendFeedbackCampaign extends BaseCrmComponent
     #[On('open-send-campaign-modal')]
     public function openModal()
     {
-        $this->reset(['selectedCustomers', 'recipients', 'selectedRecipients', 'sending', 'batchFeedbackIds', 'completed', 'progressStats', 'feedbackProgress']);
+        $this->reset(['selectedCustomers', 'customerSearch', 'showCustomerDropdown', 'recipients', 'selectedRecipients', 'sending', 'batchFeedbackIds', 'completed', 'progressStats', 'feedbackProgress']);
         
         // Small delay to ensure modal DOM is ready before dispatching event
         $this->dispatch('show-campaign-modal');
+    }
+
+    public function getSelectedCustomersListProperty()
+    {
+        $selectedIds = collect($this->selectedCustomers)->map(fn($id) => (int) $id)->all();
+        if (empty($selectedIds)) {
+            return collect();
+        }
+
+        return collect($this->customers)->filter(function ($customer) use ($selectedIds) {
+            return in_array((int) $customer->id, $selectedIds, true);
+        })->values();
+    }
+
+    public function getFilteredCustomerOptionsProperty()
+    {
+        $search = strtolower(trim($this->customerSearch));
+        $selectedIds = collect($this->selectedCustomers)->map(fn($id) => (int) $id)->all();
+
+        return collect($this->customers)
+            ->filter(function ($customer) use ($search, $selectedIds) {
+                if (in_array((int) $customer->id, $selectedIds, true)) {
+                    return false;
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower($customer->name), $search);
+            })
+            ->values();
+    }
+
+    public function toggleCustomer($customerId)
+    {
+        $customerId = (string) $customerId;
+
+        if (in_array($customerId, $this->selectedCustomers, true)) {
+            $this->selectedCustomers = array_values(array_filter(
+                $this->selectedCustomers,
+                fn($id) => (string) $id !== $customerId
+            ));
+        } else {
+            $this->selectedCustomers[] = $customerId;
+            $this->selectedCustomers = array_values(array_unique(array_map('strval', $this->selectedCustomers)));
+        }
+
+        $this->customerSearch = '';
+        $this->showCustomerDropdown = true;
+        $this->updateRecipients();
+    }
+
+    public function removeCustomer($customerId)
+    {
+        $customerId = (string) $customerId;
+        $this->selectedCustomers = array_values(array_filter(
+            $this->selectedCustomers,
+            fn($id) => (string) $id !== $customerId
+        ));
+        $this->updateRecipients();
+    }
+
+    public function clearCustomers()
+    {
+        $this->selectedCustomers = [];
+        $this->customerSearch = '';
+        $this->showCustomerDropdown = false;
+        $this->updateRecipients();
     }
 
     // ... (keep existing methods) ...

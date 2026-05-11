@@ -430,15 +430,6 @@
 									</div>
 								</div>
 								<div class="col-sm-4">
-									<div class="form-group">
-										<label class="control-label">User License</label>
-										<select name="user_license" class="form-control" placeholder="User License..." required>
-											<option></option>
-											@foreach (getUserLicenses() as $i=>$n)
-											<option value="{{ $i }}" {{ $i == $user->license_type ? 'selected' :'' }} {{ intval($license_count[$i]) == intval(mamboSawa($i.'s')) ? 'disabled' : '' }}>{{ $n }} {{ $license_count[$i]."/".mamboSawa($i.'s') }}</option>
-											@endforeach
-										</select>
-									</div>
 								</div>
 								<div class="col-sm-4">
 									<div class="form-group">

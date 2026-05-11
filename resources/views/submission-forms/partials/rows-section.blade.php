@@ -270,11 +270,6 @@ $(document).ready(function() {
         console.warn('=== ADD NEW ROW: NO SAMPLE POINTS ELEMENT FOUND ===');
       }
 
-      const $newRowCompanySubUnits = $rowElement.find('[data-element-type="company_sub_unit_select"]');
-      if ($newRowCompanySubUnits.length > 0) {
-        const companySubUnitElementId = $newRowCompanySubUnits.attr('id');
-        loadDynamicOptions($newRowCompanySubUnits, companySubUnitElementId, 'company_sub_unit_select', null, null, null, previousClientUnitId);
-      }
     } else {
       console.warn('=== ADD NEW ROW: NO PREVIOUS CLIENT UNIT ID FOUND ===');
     }
@@ -324,9 +319,6 @@ $(document).ready(function() {
       } else if (elementType === 'sample_point_select') {
         // This depends on client_unit_select
         setupDependentElement($this, elementId, elementType, 'client_unit_select');
-      } else if (elementType === 'company_sub_unit_select') {
-        // This depends on client_unit_select but should also load when none selected
-        setupDependentElement($this, elementId, elementType, 'client_unit_select');
       } else if (elementType === 'analysis_type_select') {
         // This depends on sample_type_select
         setupDependentElement($this, elementId, elementType, 'sample_type_select');
@@ -354,8 +346,6 @@ $(document).ready(function() {
           loadDynamicOptions($this, elementId, elementType, currentParentValue);
         } else if (elementType === 'sample_point_select') {
           loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
-        } else if (elementType === 'company_sub_unit_select') {
-          loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
         } else if (elementType === 'analysis_type_select') {
           loadDynamicOptions($this, elementId, elementType, null, currentParentValue);
         } else if (elementType === 'analysis_elements_select') {
@@ -365,9 +355,6 @@ $(document).ready(function() {
         } else {
           loadDynamicOptions($this, elementId, elementType, currentParentValue);
         }
-      } else if (elementType === 'company_sub_unit_select') {
-        // Load all company sub units when no parent is selected
-        loadDynamicOptions($this, elementId, elementType, null, null, null, null);
       }
       
       // Set up change handler for same-row dependency
@@ -380,9 +367,7 @@ $(document).ready(function() {
             loadDynamicOptions($this, elementId, elementType, parentId);
         } else if (elementType === 'sample_point_select') {
           loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
-        } else if (elementType === 'company_sub_unit_select') {
-            loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
-          } else if (elementType === 'analysis_type_select') {
+        } else if (elementType === 'analysis_type_select') {
             loadDynamicOptions($this, elementId, elementType, null, parentId);
           } else if (elementType === 'analysis_elements_select') {
             loadDynamicOptions($this, elementId, elementType, null, null, null, null, parentId);
@@ -392,13 +377,7 @@ $(document).ready(function() {
             loadDynamicOptions($this, elementId, elementType, parentId);
           }
         } else {
-          if (elementType === 'company_sub_unit_select') {
-            // Reload all options when parent cleared
-            loadDynamicOptions($this, elementId, elementType, null, null, null, null);
-          } else {
-            // Clear dependent element and all its children
-            clearDependentElementAndChildren($this);
-          }
+          clearDependentElementAndChildren($this);
         }
       });
     } else {
@@ -414,8 +393,6 @@ $(document).ready(function() {
               loadDynamicOptions($this, elementId, elementType, parentId);
             } else if (elementType === 'sample_point_select') {
               loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
-            } else if (elementType === 'company_sub_unit_select') {
-              loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
             } else if (elementType === 'analysis_type_select') {
               loadDynamicOptions($this, elementId, elementType, null, parentId);
             } else if (elementType === 'analysis_elements_select') {
@@ -426,12 +403,7 @@ $(document).ready(function() {
               loadDynamicOptions($this, elementId, elementType, parentId);
             }
           } else {
-            if (elementType === 'company_sub_unit_select') {
-              loadDynamicOptions($this, elementId, elementType, null, null, null, null);
-            } else {
-              // Clear dependent element and all its children
-              clearDependentElementAndChildren($this);
-            }
+            clearDependentElementAndChildren($this);
           }
         };
 
@@ -487,7 +459,7 @@ $(document).ready(function() {
     if (elementType === 'client_select') {
       dependentTypes = ['client_unit_select', 'client_contact_select', 'client_submission_officers_select'];
     } else if (elementType === 'client_unit_select') {
-      dependentTypes = ['sample_point_select', 'company_sub_unit_select'];
+      dependentTypes = ['sample_point_select'];
     } else if (elementType === 'sample_type_select') {
       dependentTypes = ['analysis_type_select'];
     } else if (elementType === 'analysis_type_select') {

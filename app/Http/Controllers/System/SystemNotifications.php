@@ -6,6 +6,7 @@ use App\BatchNotification;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class SystemNotifications extends Controller
 {
@@ -14,6 +15,10 @@ class SystemNotifications extends Controller
         $this->middleware('auth');
     }
     public function batchNotification($batch,$position,$message,$status){
+
+        if (!is_string($position) || !Str::isUuid($position)) {
+            return false;
+        }
         
         
         $notifications = BatchNotification::where('batch_id',$batch->id)->get();

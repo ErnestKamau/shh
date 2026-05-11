@@ -1,58 +1,11 @@
 <div x-data="{
     ammendBatchId: '',
     returnBatchId: '',
-    initSelect2() {
-        // We will initialize specifically when the modal opens to ensure robustness
-    },
-    openAmmendment(batchId, samples) {
+    openAmmendment(batchId) {
         console.log('Opening Amendment Modal for Batch:', batchId);
-        console.log('Received Samples:', samples);
-        
+
         this.ammendBatchId = batchId;
-        
-        // Safety check for jQuery and Select2
-        if (typeof $ === 'undefined' || typeof $.fn.select2 === 'undefined') {
-            console.error('jQuery or Select2 is not loaded!');
-            return;
-        }
 
-        let selectElement = $('#ammend_samples');
-        selectElement.empty();
-        
-        if (Array.isArray(samples) && samples.length > 0) {
-            $.each(samples, function(i, sample) {
-                // Ensure sample has required properties
-                if (sample.sample_code && sample.id) {
-                    let option = new Option(`${sample.sample_code}`, sample.id, false, false);
-                    selectElement.append(option);
-                } else {
-                    console.warn('Skipping invalid sample:', sample);
-                }
-            });
-        } else {
-            console.warn('No samples found or invalid data format:', samples);
-        }
-        
-        if (selectElement.hasClass('select2-hidden-accessible')) {
-            selectElement.select2('destroy');
-        }
-
-        // Initialize Select2 with proper configuration
-        selectElement.select2({
-            width: '100%',
-            placeholder: 'Select Samples...',
-            allowClear: true,
-            closeOnSelect: true,
-            dropdownParent: $('#ammendment-detail') // Critical for modal z-index
-        }).on('change', function (e) {
-            var data = $(this).val();
-            // Debounce or safety check could go here if needed
-            @this.set('amendmentSamples', data);
-        });
-        
-        // Reset value and trigger change to ensure UI sync
-        selectElement.val(null).trigger('change');
-        
         $('#ammendment-detail').modal('show');
     },
     openReturn(batchId) {
@@ -64,9 +17,9 @@
         console.log('Closing Modal:', id);
         $(`#${id}`).modal('hide');
     }
-}" x-on:open-amendment-modal.window="openAmmendment($event.detail.batchId, $event.detail.samples)"
+}" x-on:open-amendment-modal.window="openAmmendment($event.detail.batchId)"
     x-on:open-return-modal.window="openReturn($event.detail.batchId)"
-    x-on:close-modal.window="closeModal($event.detail.id)" x-init="initSelect2()">
+    x-on:close-modal.window="closeModal($event.detail.id)">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center">
@@ -75,20 +28,18 @@
                 <i class="mdi mdi-test-tube" style="font-size:1rem;color:#7c3aed;"></i>
             </span>
             <div>
-                <small class="font-weight-bold text-dark" style="font-size:0.82rem;">Laboratory Results
-                    Archive</small>
-                <small class="text-muted d-block" style="font-size:0.67rem;">Completed test reports, amendments
-                    &amp; return-to-verification records</small>
+                <small class="font-weight-bold text-dark" style="font-size:0.82rem;">{{ __('crm.laboratory_results_archive') }}</small>
+                <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.laboratory_results_archive_subtitle') }}</small>
             </div>
         </div>
         <div class="d-flex justify-content-end align-items-center">
             <div class="crm-search-wrapper mr-2">
                 <i class="mdi mdi-magnify crm-search-icon"></i>
-                <input type="text" class="form-control" placeholder="Search reports..."
+                <input type="text" class="form-control" placeholder="{{ __('crm.search_reports') }}"
                     wire:model.live.debounce.300ms="search">
             </div>
             <button class="btn btn-outline-success btn-sm mr-2 text-nowrap" wire:click="exportToExcel">
-                <i class="mdi mdi-file-excel"></i> Export to Excel
+                <i class="mdi mdi-file-excel"></i> {{ __('crm.export_to_excel') }}
             </button>
         </div>
     </div>
@@ -96,17 +47,17 @@
     <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
         <x-slot:header>
             <tr>
-                <th class="text-center" style="width: 100px;">Actions</th>
+                <th class="text-center" style="width: 100px;">{{ __('crm.actions') }}</th>
                 <th class="text-center" style="width: 50px;">No</th>
-                <th>Code</th>
-                <th>Client Unit</th>
-                <th>Ref. No.</th>
-                <th>Sample Analysis</th>
-                <th>Reason</th>
-                <th class="text-center">Lab Date</th>
-                <th class="text-center">Collected Date</th>
-                <th>Description</th>
-                <th class="text-center">Report</th>
+                <th>{{ __('crm.code') }}</th>
+                <th>{{ __('crm.client_unit') }}</th>
+                <th>{{ __('crm.reference_no') }}</th>
+                <th>{{ __('crm.sample_analysis') }}</th>
+                <th>{{ __('crm.reason') }}</th>
+                <th class="text-center">{{ __('crm.lab_date') }}</th>
+                <th class="text-center">{{ __('crm.collected_date') }}</th>
+                <th>{{ __('crm.description') }}</th>
+                <th class="text-center">{{ __('crm.report') }}</th>
             </tr>
         </x-slot:header>
         <tbody>
@@ -117,7 +68,7 @@
                             <x-crm.action-buttons class="justify-content-center">
                                 <button type="button" class="btn crm-btn crm-btn-edit btn-sm"
                                     wire:click.prevent="loadAmendment({{ $report->batch_id }})" wire:loading.attr="disabled"
-                                    title="Amendment">
+                                    title="{{ __('crm.amendments') }}">
                                     <span wire:loading.remove wire:target="loadAmendment({{ $report->batch_id }})">
                                         <i class="mdi mdi-file-document-edit-outline"></i>
                                     </span>
@@ -127,7 +78,7 @@
                                 </button>
                                 <button type="button" class="btn crm-btn crm-btn-view btn-sm"
                                     wire:click.prevent="loadReturn({{ $report->batch_id }})" wire:loading.attr="disabled"
-                                    title="Return">
+                                    title="{{ __('crm.return') }}">
                                     <span wire:loading.remove wire:target="loadReturn({{ $report->batch_id }})">
                                         <i class="mdi mdi-undo-variant"></i>
                                     </span>
@@ -136,7 +87,7 @@
                                     </span>
                                 </button>
                                 <a href="{{ route('view-batch-details', ['batch' => $report->batch_id, 'client' => $customer->id, 'portal' => $customer->id, 'status' => $report->status]) }}"
-                                    class="btn crm-btn crm-btn-view btn-sm" title="View Details">
+                                    class="btn crm-btn crm-btn-view btn-sm" title="{{ __('crm.view_details') }}">
                                     <i class="mdi mdi-eye-outline"></i>
                                 </a>
                             </x-crm.action-buttons>
@@ -162,7 +113,7 @@
                                 <i class="mdi mdi-download"></i> PDF
                             </a>
                         @else
-                            <span class="crm-badge crm-badge-neutral p-2" title="No Report URL">
+                            <span class="crm-badge crm-badge-neutral p-2" title="{{ __('crm.no_report_url') }}">
                                 <i class="mdi mdi-file-hidden"></i> N/A
                             </span>
                         @endif
@@ -171,7 +122,7 @@
             @empty
                 <tr>
                     <td colspan="11">
-                        <x-crm.empty-state icon="mdi-alert" message="No reports found." />
+                        <x-crm.empty-state icon="mdi-alert" :message="__('crm.no_reports_found')" />
                     </td>
                 </tr>
             @endforelse
@@ -189,28 +140,61 @@
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Raise Amendment</h5>
+                        <h5 class="modal-title">{{ __('crm.raise_amendment') }}</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
                     <div class="modal-body">
-                        <div class="form-group" wire:ignore>
-                            <label>Select Sample(s)</label>
-                            <select class="form-control select2" multiple id="ammend_samples" style="width: 100%;"
-                                data-placeholder="Select Samples...">
-                            </select>
+                        <div class="form-group">
+                            <label>{{ __('crm.select_samples') }}</label>
+                            <div class="tag-select-container @error('amendmentSamples') is-invalid @enderror"
+                                wire:click="$set('showAmendmentDropdown', true)"
+                                wire:click.outside="$set('showAmendmentDropdown', false)">
+                                <div class="tag-select-input">
+                                    @foreach($this->selectedAmendmentSampleBadges as $selectedSample)
+                                        <span class="tag-badge">
+                                            {{ $selectedSample['sample_code'] }}
+                                            <i class="mdi mdi-close-circle" wire:click.stop="clearAmendmentSample({{ $selectedSample['id'] }})"></i>
+                                        </span>
+                                    @endforeach
+
+                                    <input type="text"
+                                        wire:model.live="amendmentSearch"
+                                        class="tag-input"
+                                        placeholder="{{ __('crm.select_samples') }}..."
+                                        autocomplete="off">
+                                </div>
+
+                                @if($showAmendmentDropdown)
+                                    <div class="tag-dropdown">
+                                        @if(count($this->filteredAmendmentOptions) > 0)
+                                            @foreach($this->filteredAmendmentOptions as $sample)
+                                                <div class="tag-dropdown-item d-flex justify-content-between align-items-center"
+                                                    wire:click.stop="toggleAmendmentSample({{ $sample['id'] }})">
+                                                    <span>{{ $sample['sample_code'] }}</span>
+                                                    @if($this->isAmendmentSampleSelected($sample['id']))
+                                                        <i class="mdi mdi-check text-success"></i>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            <div class="tag-dropdown-item text-muted">No samples found</div>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
                             @error('amendmentSamples') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group">
-                            <label>Reason</label>
+                            <label>{{ __('crm.reason') }}</label>
                             <textarea class="form-control" wire:model="amendmentReason"></textarea>
                             @error('amendmentReason') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" wire:click="saveAmendment">Save</button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveAmendment">{{ __('crm.save_changes') }}</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('crm.close') }}</button>
                     </div>
                 </div>
             </div>
@@ -223,24 +207,92 @@
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Return To Verification</h5>
+                        <h5 class="modal-title">{{ __('crm.return_to_verification') }}</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label>Reason</label>
+                            <label>{{ __('crm.reason') }}</label>
                             <textarea class="form-control" wire:model="returnComment"></textarea>
                             @error('returnComment') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" wire:click="saveReturnVerification">Save</button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveReturnVerification">{{ __('crm.save_changes') }}</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('crm.close') }}</button>
                     </div>
                 </div>
             </div>
         </div>
     </template>
 </div>
+
+<style>
+    .tag-select-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .tag-select-input {
+        min-height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        padding: 4px 8px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        background-color: #fff;
+    }
+
+    .tag-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        min-width: 120px;
+        font-size: 0.9rem;
+    }
+
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0f2f5;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.85rem;
+    }
+
+    .tag-badge i {
+        cursor: pointer;
+    }
+
+    .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        max-height: 220px;
+        overflow-y: auto;
+        z-index: 1100;
+    }
+
+    .tag-dropdown-item {
+        padding: 8px 10px;
+        cursor: pointer;
+    }
+
+    .tag-dropdown-item:hover {
+        background: #f8f9fa;
+    }
+
+    .tag-select-container.is-invalid .tag-select-input {
+        border-color: #dc3545;
+    }
+</style>

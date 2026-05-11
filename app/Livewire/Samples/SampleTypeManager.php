@@ -16,6 +16,7 @@ use App\AnalysisMethod;
 use App\Models\Equipments\Equipment;
 use App\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class SampleTypeManager extends Component
@@ -45,6 +46,7 @@ class SampleTypeManager extends Component
         'disposal_count' => 0,
         'active' => true,
         'is_results_attachable' => false,
+        'exhibit_returned_on_reception' => false,
         'sample_analysis_stage_ids' => []
     ];
 
@@ -102,8 +104,6 @@ class SampleTypeManager extends Component
 
     // Search and Filter
     public $search = '';
-    public $categoryFilter = '';
-    public $statusFilter = '1'; // Default to active only
 
     // Searchable dropdown properties
     public $categorySearch = '';
@@ -142,7 +142,7 @@ class SampleTypeManager extends Component
         'sampleTypeForm.name' => 'required|string|max:255',
         'sampleTypeForm.code' => 'required|string|max:255|unique:sample_types,code',
         'sampleTypeForm.description' => 'nullable|string|max:255',
-        'sampleTypeForm.category_id' => 'required|exists:sample_type_categories,id',
+        'sampleTypeForm.category_id' => 'nullable|exists:sample_type_categories,id',
         'sampleTypeForm.disposal_count' => 'nullable|integer|min:0',
         'analysisTypeForm.name' => 'required|string|max:255',
         'analysisTypeForm.code' => 'required|string|max:255',
@@ -198,37 +198,11 @@ class SampleTypeManager extends Component
             });
         }
 
-        if ($this->categoryFilter) {
-            $query->where('sample_type_category', $this->categoryFilter);
-        }
-
-        if ($this->statusFilter !== '') {
-            $query->where('active', $this->statusFilter);
-        }
-
         return $query->orderBy('name', 'asc')->paginate($this->perPage);
     }
 
     public function updatedSearch()
     {
-        $this->resetPage();
-    }
-
-    public function updatedCategoryFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function updatedStatusFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function clearFilters()
-    {
-        $this->search = '';
-        $this->categoryFilter = '';
-        $this->statusFilter = '1'; // Reset to active only
         $this->resetPage();
     }
 
@@ -241,12 +215,16 @@ class SampleTypeManager extends Component
     public function showCreateSampleTypeModal()
     {
         $this->resetSampleTypeForm();
+        if (empty($this->sampleTypeForm['category_id'])) {
+            $this->sampleTypeForm['category_id'] = SampleTypeCategory::query()->orderBy('id')->value('id');
+        }
         $this->showSampleTypeModal = true;
     }
 
     public function showEditSampleTypeModal($id)
     {
         $sampleType = SampleType::findOrFail($id);
+        $supportsExhibitReturnedOnReception = $this->supportsExhibitReturnedOnReception();
         $this->sampleTypeForm = [
             'name' => $sampleType->name,
             'code' => $sampleType->code,
@@ -258,6 +236,7 @@ class SampleTypeManager extends Component
             'disposal_count' => $sampleType->disposal_count,
             'active' => (bool)$sampleType->active,
             'is_results_attachable' => (bool)$sampleType->is_results_attachable,
+            'exhibit_returned_on_reception' => $supportsExhibitReturnedOnReception ? (bool) $sampleType->exhibit_returned_on_reception : false,
             'sample_analysis_stage_ids' => $sampleType->sampleAnalysisStages->pluck('id')->toArray(),
         ];
         $this->editingSampleType = $id;
@@ -275,19 +254,22 @@ class SampleTypeManager extends Component
                 Rule::unique('sample_types', 'code')->ignore($this->editingSampleType)
             ],
             'sampleTypeForm.description' => 'nullable|string|max:255',
-            'sampleTypeForm.category_id' => 'required|exists:sample_type_categories,id',
+            'sampleTypeForm.category_id' => 'nullable|exists:sample_type_categories,id',
         ]);
 
         try {
             DB::beginTransaction();
 
+            $categoryId = $this->sampleTypeForm['category_id']
+                ?: $this->ensureSampleTypeCategoryId();
+
             if ($this->editingSampleType) {
                 $sampleType = SampleType::findOrFail($this->editingSampleType);
-                $sampleType->update([
+                $payload = [
                     'name' => $this->sampleTypeForm['name'],
                     'code' => $this->sampleTypeForm['code'],
                     'description' => $this->sampleTypeForm['description'],
-                    'sample_type_category' => $this->sampleTypeForm['category_id'],
+                    'sample_type_category' => $categoryId,
                     'rating_header_id' => $this->sampleTypeForm['rating_header_id'],
                     'report_format_id' => $this->sampleTypeForm['report_format_id'],
                     'default_product_id' => $this->sampleTypeForm['default_product_id'],
@@ -295,7 +277,13 @@ class SampleTypeManager extends Component
                     'active' => $this->sampleTypeForm['active'],
                     'is_results_attachable' => $this->sampleTypeForm['is_results_attachable'],
                     'company_id' => getUserCompany(),
-                ]);
+                ];
+
+                if ($this->supportsExhibitReturnedOnReception()) {
+                    $payload['exhibit_returned_on_reception'] = (bool) ($this->sampleTypeForm['exhibit_returned_on_reception'] ?? false);
+                }
+
+                $sampleType->update($payload);
 
                 // Sync with analysis types
                 $sampleType->analysis_types()->update(['has_no_result' => $this->sampleTypeForm['is_results_attachable']]);
@@ -303,11 +291,11 @@ class SampleTypeManager extends Component
                 $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
                 $this->message = 'Sample type updated successfully!';
             } else {
-                $sampleType = SampleType::create([
+                $payload = [
                     'name' => $this->sampleTypeForm['name'],
                     'code' => $this->sampleTypeForm['code'],
                     'description' => $this->sampleTypeForm['description'],
-                    'sample_type_category' => $this->sampleTypeForm['category_id'],
+                    'sample_type_category' => $categoryId,
                     'rating_header_id' => $this->sampleTypeForm['rating_header_id'],
                     'report_format_id' => $this->sampleTypeForm['report_format_id'],
                     'default_product_id' => $this->sampleTypeForm['default_product_id'],
@@ -315,7 +303,13 @@ class SampleTypeManager extends Component
                     'active' => $this->sampleTypeForm['active'],
                     'is_results_attachable' => $this->sampleTypeForm['is_results_attachable'],
                     'company_id' => getUserCompany(),
-                ]);
+                ];
+
+                if ($this->supportsExhibitReturnedOnReception()) {
+                    $payload['exhibit_returned_on_reception'] = (bool) ($this->sampleTypeForm['exhibit_returned_on_reception'] ?? false);
+                }
+
+                $sampleType = SampleType::create($payload);
                 $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
                 $this->message = 'Sample type created successfully!';
             }
@@ -329,6 +323,52 @@ class SampleTypeManager extends Component
             $this->message = 'Error: ' . $e->getMessage();
             $this->messageType = 'error';
         }
+    }
+
+    private function ensureSampleTypeCategoryId(): int
+    {
+        $existingCategoryId = SampleTypeCategory::query()->orderBy('id')->value('id');
+
+        if ($existingCategoryId) {
+            return (int) $existingCategoryId;
+        }
+
+        // Some databases in this project do not auto-generate sample_type_categories.id.
+        // Create a default category with an explicit ID when table is empty.
+        DB::statement('LOCK TABLE sample_type_categories IN EXCLUSIVE MODE');
+
+        $existingGeneral = SampleTypeCategory::query()
+            ->where('sample_type_category', 'General')
+            ->orderBy('id')
+            ->first();
+
+        if ($existingGeneral) {
+            $this->categories = SampleTypeCategory::all();
+            return (int) $existingGeneral->id;
+        }
+
+        $nextId = ((int) SampleTypeCategory::query()->max('id')) + 1;
+
+        $defaultCategory = new SampleTypeCategory();
+        $defaultCategory->id = $nextId;
+        $defaultCategory->sample_type_category = 'General';
+        $defaultCategory->active = true;
+        $defaultCategory->save();
+
+        $this->categories = SampleTypeCategory::all();
+
+        return (int) $defaultCategory->id;
+    }
+
+    private function supportsExhibitReturnedOnReception(): bool
+    {
+        static $hasColumn = null;
+
+        if ($hasColumn === null) {
+            $hasColumn = Schema::hasColumn('sample_types', 'exhibit_returned_on_reception');
+        }
+
+        return $hasColumn;
     }
 
     public function deleteSampleType($id)
@@ -419,6 +459,7 @@ class SampleTypeManager extends Component
             'disposal_count' => 0,
             'active' => true,
             'is_results_attachable' => false,
+            'exhibit_returned_on_reception' => false,
             'sample_analysis_stage_ids' => []
         ];
         $this->editingSampleType = null;

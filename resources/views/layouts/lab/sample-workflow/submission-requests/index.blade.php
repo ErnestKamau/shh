@@ -69,6 +69,14 @@
 				</div>
 
 				<div class="workflow-board-panel-body p-0">
+					<ul class="nav nav-tabs mb-3" id="submission-requests-tab" role="tablist">
+						<li class="nav-item">
+							<a class="nav-link{{ $tab === 'requests' ? ' active' : '' }}" href="{{ route('sample-submission-requests.index', array_merge(request()->except('page'), ['tab' => 'requests'])) }}">Requests</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link{{ $tab === 'received' ? ' active' : '' }}" href="{{ route('sample-submission-requests.index', array_merge(request()->except('page'), ['tab' => 'received'])) }}">Received</a>
+						</li>
+					</ul>
 					<div class="table-responsive">
 						<table class="table table-hover mb-0 workflow-table">
 							<thead>

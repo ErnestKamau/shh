@@ -64,12 +64,20 @@ class ZoneConfigurationManager extends Component
     public function mount(string $module): void
     {
         $this->module = $module;
-        $this->selectedZoneId = Zone::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
-            ->orderBy('key')
+        $this->selectedDirectorateId = Directorate::query()
+            ->whereHas('zone', fn ($query) => $query->where('inventory_location_id', getCurrentUserLocation()->id))
+            ->orderBy('name')
             ->value('id');
 
-        $this->syncSelectedDirectorate();
+        $this->syncSelectedZoneFromDirectorate();
+        if (!$this->selectedZoneId) {
+            $this->selectedZoneId = Zone::query()
+                ->where('inventory_location_id', getCurrentUserLocation()->id)
+                ->orderBy('key')
+                ->value('id');
+
+            $this->syncSelectedDirectorate();
+        }
     }
 
     public function getUsersProperty(): Collection
@@ -89,6 +97,16 @@ class ZoneConfigurationManager extends Component
             ->where('inventory_location_id', getCurrentUserLocation()->id)
             ->orderBy('key');
 
+        if ($this->selectedDirectorateId) {
+            $zoneId = Directorate::query()
+                ->where('id', $this->selectedDirectorateId)
+                ->value('zone_id');
+
+            if ($zoneId) {
+                $query->where('id', $zoneId);
+            }
+        }
+
         if ($this->zoneSearch !== '') {
             $query->where(function ($builder): void {
                 $builder->where('key', 'like', '%' . $this->zoneSearch . '%')
@@ -102,13 +120,9 @@ class ZoneConfigurationManager extends Component
 
     public function getDirectoratesProperty(): Collection
     {
-        if (!$this->selectedZoneId) {
-            return collect();
-        }
-
         $query = Directorate::query()
-            ->with(['sectionHeadUser', 'head'])
-            ->where('zone_id', $this->selectedZoneId)
+            ->with(['sectionHeadUser', 'head', 'zone'])
+            ->whereHas('zone', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', getCurrentUserLocation()->id))
             ->withCount('labs')
             ->orderBy('name');
 
@@ -124,17 +138,17 @@ class ZoneConfigurationManager extends Component
 
     public function getLabsProperty(): Collection
     {
-        if (!$this->selectedZoneId) {
+        if (!$this->selectedDirectorateId) {
             return collect();
         }
 
         $query = Lab::query()
             ->with(['sectionHeadUser', 'manager', 'directorate'])
-            ->where('zone_id', $this->selectedZoneId)
+            ->where('directorate_id', $this->selectedDirectorateId)
             ->orderBy('name');
 
-        if ($this->selectedDirectorateId) {
-            $query->where('directorate_id', $this->selectedDirectorateId);
+        if ($this->selectedZoneId) {
+            $query->where('zone_id', $this->selectedZoneId);
         }
 
         if ($this->labSearch !== '') {
@@ -156,6 +170,7 @@ class ZoneConfigurationManager extends Component
     public function selectDirectorate(string $directorateId): void
     {
         $this->selectedDirectorateId = $directorateId;
+        $this->syncSelectedZoneFromDirectorate();
     }
 
     public function openZoneModal(): void
@@ -550,7 +565,6 @@ class ZoneConfigurationManager extends Component
 
             Directorate::query()
                 ->where('id', $directorateId)
-                ->where('zone_id', $this->selectedZoneId)
                 ->delete();
 
             if ($this->selectedDirectorateId === $directorateId) {
@@ -632,6 +646,20 @@ class ZoneConfigurationManager extends Component
             ->where('zone_id', $this->selectedZoneId)
             ->orderBy('name')
             ->value('id');
+    }
+
+    private function syncSelectedZoneFromDirectorate(): void
+    {
+        if (!$this->selectedDirectorateId) {
+            $this->selectedZoneId = null;
+            return;
+        }
+
+        $zoneId = Directorate::query()
+            ->where('id', $this->selectedDirectorateId)
+            ->value('zone_id');
+
+        $this->selectedZoneId = $zoneId ? (string) $zoneId : null;
     }
 
     public function render()

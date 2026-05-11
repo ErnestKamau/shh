@@ -1,22 +1,22 @@
 <div>
     @php
         $breadcrumbItems = [
-            ['link' => route('customers-list'), 'name' => 'CRM', 'icon' => null],
-            ['link' => route('feedback-home'), 'name' => 'Customer Feedback', 'icon' => null],
-            ['link' => '#', 'name' => 'Configuration', 'icon' => null]
+            ['link' => route('customers-list'), 'name' => __('crm.module_name'), 'icon' => null],
+            ['link' => route('feedback-home'), 'name' => __('crm.customer_feedback'), 'icon' => null],
+            ['link' => '#', 'name' => __('crm.configuration'), 'icon' => null]
         ];
     @endphp
     <main>
         <div class="container-fluid">
             <x-crm.page-header
                 :breadcrumbItems="$breadcrumbItems"
-                title="Feedback Configuration"
-                subtitle="Configure the categories and scales displayed on the service feedback form"
+                :title="__('crm.feedback_configuration')"
+                :subtitle="__('crm.feedback_configuration_subtitle')"
                 icon="mdi-cog-refresh-outline"
             >
                 <x-slot:actions>
                     <button type="button" class="btn btn-add btn-sm crm-btn-add" wire:click="create">
-                        <i class="mdi mdi-plus"></i> Add New Metric
+                        <i class="mdi mdi-plus"></i> {{ __('crm.add_new_metric') }}
                     </button>
                 </x-slot:actions>
             </x-crm.page-header>
@@ -25,11 +25,11 @@
                 <x-crm.data-table class="rounded-0 border-0 crm-loading-overlay" wire:loading.class="opacity-50">
                     <x-slot:header>
                                 <tr>
-                                    <th class="px-4">Metric Name</th>
-                                    <th class="text-center">Scale (Max)</th>
-                                    <th class="text-center">Order</th>
-                                    <th class="text-center">Status</th>
-                                    <th class="text-right px-4">Actions</th>
+                                    <th class="px-4">{{ __('crm.metric_name') }}</th>
+                                    <th class="text-center">{{ __('crm.scale_max') }}</th>
+                                    <th class="text-center">{{ __('crm.order') }}</th>
+                                    <th class="text-center">{{ __('crm.status') }}</th>
+                                    <th class="text-right px-4">{{ __('crm.actions') }}</th>
                                 </tr>
                     </x-slot:header>
                                 @forelse($metrics as $metric)
@@ -47,20 +47,20 @@
                                         <td class="text-center">
                                             @if($metric->is_active)
                                                 <span class="crm-badge crm-badge-success cursor-pointer"
-                                                    wire:click="toggleStatus({{ $metric->id }})">Active</span>
+                                                    wire:click="toggleStatus({{ $metric->id }})">{{ ucfirst(__('crm.active')) }}</span>
                                             @else
                                                 <span class="crm-badge crm-badge-danger cursor-pointer"
-                                                    wire:click="toggleStatus({{ $metric->id }})">Inactive</span>
+                                                    wire:click="toggleStatus({{ $metric->id }})">{{ __('crm.inactive') }}</span>
                                             @endif
                                         </td>
                                         <td class="text-right px-4">
                                             <x-crm.action-buttons>
-                                                <button type="button" class="btn crm-btn crm-btn-edit btn-sm" wire:click="edit({{ $metric->id }})" title="Edit">
+                                                <button type="button" class="btn crm-btn crm-btn-edit btn-sm" wire:click="edit({{ $metric->id }})" title="{{ __('crm.edit') }}">
                                                     <i class="mdi mdi-pencil-outline"></i>
                                                 </button>
                                                 <button type="button" class="btn crm-btn crm-btn-delete btn-sm ml-1" 
                                                     wire:confirm="Are you sure you want to delete this metric? This action cannot be undone." 
-                                                    wire:click="deleteMetric({{ $metric->id }})" title="Delete">
+                                                    wire:click="deleteMetric({{ $metric->id }})" title="{{ __('crm.delete') }}">
                                                     <i class="mdi mdi-trash-can-outline"></i>
                                                 </button>
                                             </x-crm.action-buttons>
@@ -94,7 +94,7 @@
                 <form wire:submit.prevent="save">
                     <div class="modal-header border-bottom-0 pt-4 px-4">
                         <h5 class="modal-title font-weight-bold">
-                            {{ $editingMetricId ? 'Edit Metric' : 'Add New Metric' }}
+                            {{ $editingMetricId ? __('crm.edit') . ' ' . __('crm.metric_name') : __('crm.add_new_metric') }}
                         </h5>
                         <button type="button" class="close" wire:click="$set('showModal', false)">
                             <span>&times;</span>
@@ -102,7 +102,7 @@
                     </div>
                     <div class="modal-body px-4 pb-4">
                         <div class="form-group mb-3">
-                            <label class="small font-weight-bold text-muted text-uppercase mb-1">Metric Name</label>
+                            <label class="small font-weight-bold text-muted text-uppercase mb-1">{{ __('crm.metric_name') }}</label>
                             <input type="text" wire:model="name" class="form-control rounded-sm border-light bg-light"
                                 placeholder="e.g. Communication, Lab Processes">
                             @error('name') <span class="text-danger small">{{ $message }}</span> @enderror

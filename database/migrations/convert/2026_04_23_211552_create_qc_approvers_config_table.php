@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('qc_approvers_config')) {
+            return;
+        }
+
         Schema::create('qc_approvers_config', function (Blueprint $table) {
             $table->uuid('id');
             $table->integer('personnel_id');

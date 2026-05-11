@@ -50,10 +50,10 @@ class LabTatDashboardController extends Controller
                     ->where('isactive', 1)
                     ->selectRaw("
                         COUNT(id) as total,
-                        COUNT(CASE WHEN DATEDIFF(NOW(), created_at) <= 3 THEN 1 END) as bucket_0_3d,
-                        COUNT(CASE WHEN DATEDIFF(NOW(), created_at) > 3 AND DATEDIFF(NOW(), created_at) <= 7 THEN 1 END) as bucket_4_7d,
-                        COUNT(CASE WHEN DATEDIFF(NOW(), created_at) > 7 AND DATEDIFF(NOW(), created_at) <= 14 THEN 1 END) as bucket_8_14d,
-                        COUNT(CASE WHEN DATEDIFF(NOW(), created_at) > 14 THEN 1 END) as bucket_15plus_d
+                        COUNT(CASE WHEN (CURRENT_DATE - created_at::date) <= 3 THEN 1 END) as bucket_0_3d,
+                        COUNT(CASE WHEN (CURRENT_DATE - created_at::date) > 3 AND (CURRENT_DATE - created_at::date) <= 7 THEN 1 END) as bucket_4_7d,
+                        COUNT(CASE WHEN (CURRENT_DATE - created_at::date) > 7 AND (CURRENT_DATE - created_at::date) <= 14 THEN 1 END) as bucket_8_14d,
+                        COUNT(CASE WHEN (CURRENT_DATE - created_at::date) > 14 THEN 1 END) as bucket_15plus_d
                     ")
                     ->first();
 
@@ -157,9 +157,9 @@ class LabTatDashboardController extends Controller
                     batch_code,
                     status,
                     created_at,
-                    DATEDIFF(NOW(), created_at) as days_stuck
+                    (CURRENT_DATE - created_at::date) as days_stuck
                 ')
-                ->havingRaw('DATEDIFF(NOW(), created_at) >= 7')
+                ->whereRaw('(CURRENT_DATE - created_at::date) >= 7')
                 ->orderByDesc('days_stuck')
                 ->limit(20)
                 ->get();

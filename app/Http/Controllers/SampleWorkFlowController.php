@@ -107,6 +107,7 @@ class SampleWorkFlowController extends Controller
 
     public function submissionRequestsIndex(Request $request): \Illuminate\View\View
     {
+        $tab = $request->get('tab', 'requests');
         $query = SampleSubmissionRequest::query()
             ->with([
                 'batch:id,batch_code,status',
@@ -127,6 +128,13 @@ class SampleWorkFlowController extends Controller
             });
         }
 
+        // Tab filtering
+        if ($tab === 'requests') {
+            $query->whereIn('status', ['Submitted', 'Samples Reception', 'Samples Request Review']);
+        } elseif ($tab === 'received') {
+            $query->whereIn('status', ['Samples In Lab', 'Completed', 'Sample Approval', 'Sample Verification', 'Reports In Payment', 'Reports for Collection']);
+        }
+
         $requests = $query->paginate(15)->withQueryString();
 
         $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
@@ -138,7 +146,7 @@ class SampleWorkFlowController extends Controller
             ->orderBy('title')
             ->get(['id', 'document_code', 'title', 'subtitle', 'version', 'description']);
 
-        return view('layouts.lab.sample-workflow.submission-requests.index', compact('requests', 'customers', 'contacts', 'supportingDocumentTemplates'));
+        return view('layouts.lab.sample-workflow.submission-requests.index', compact('requests', 'customers', 'contacts', 'supportingDocumentTemplates', 'tab'));
     }
 
     public function createSampleSubmissionRequest(): \Illuminate\View\View
@@ -4470,47 +4478,71 @@ class SampleWorkFlowController extends Controller
         $customer = $submissionRequest?->customer ?: $submissionFormInstance?->crmCustomer ?: $batch->client;
         $contact = $submissionRequest?->contact;
 
-        $parameterCandidates = [];
-        if ($submissionRequest && $submissionRequest->requestedAnalyses->count() > 0) {
-            foreach ($submissionRequest->requestedAnalyses as $requestedAnalysis) {
-                $label = trim((string) ($requestedAnalysis->analysis_label ?: $requestedAnalysis->analysis_key));
-                if ($label !== '') {
-                    $parameterCandidates[] = $label;
+        // Try to use the new parameters_json if available
+        $parameterRows = [];
+        if (!empty($input['parameters_json'])) {
+            try {
+                $parsedParams = json_decode($input['parameters_json'], true);
+                if (is_array($parsedParams)) {
+                    $parameterRows = array_map(function($param) {
+                        return [
+                            'name' => (string) ($param['label'] ?? $param['name'] ?? ''),
+                            'price' => (float) ($param['price'] ?? 0),
+                            'analysis_id' => (int) ($param['analysis_id'] ?? 0),
+                            'accepted' => true,
+                            'rejected' => false,
+                        ];
+                    }, $parsedParams);
                 }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to parse parameters_json: ' . $e->getMessage());
             }
         }
 
-        if (empty($parameterCandidates)) {
-            foreach ($batch->samples as $sample) {
-                $analysisIds = array_filter(array_map('trim', explode(',', (string) $sample->analysis_type_id)));
-                foreach ($analysisIds as $analysisId) {
-                    $analysis = AnalysisType::query()->find($analysisId);
-                    if ($analysis && trim((string) $analysis->name) !== '') {
-                        $parameterCandidates[] = trim((string) $analysis->name);
+        // Fallback to old text-based parsing if no parameters_json
+        if (empty($parameterRows)) {
+            $parameterCandidates = [];
+            if ($submissionRequest && $submissionRequest->requestedAnalyses->count() > 0) {
+                foreach ($submissionRequest->requestedAnalyses as $requestedAnalysis) {
+                    $label = trim((string) ($requestedAnalysis->analysis_label ?: $requestedAnalysis->analysis_key));
+                    if ($label !== '') {
+                        $parameterCandidates[] = $label;
                     }
                 }
             }
+
+            if (empty($parameterCandidates)) {
+                foreach ($batch->samples as $sample) {
+                    $analysisIds = array_filter(array_map('trim', explode(',', (string) $sample->analysis_type_id)));
+                    foreach ($analysisIds as $analysisId) {
+                        $analysis = AnalysisType::query()->find($analysisId);
+                        if ($analysis && trim((string) $analysis->name) !== '') {
+                            $parameterCandidates[] = trim((string) $analysis->name);
+                        }
+                    }
+                }
+            }
+
+            $parameterCandidates = collect($parameterCandidates)
+                ->filter()
+                ->unique()
+                ->values();
+
+            $typedParameters = collect(preg_split('/\r\n|\r|\n/', (string) ($input['parameters_text'] ?? '')))
+                ->map(fn ($row) => trim((string) $row))
+                ->filter()
+                ->values();
+
+            $finalParameters = $typedParameters->isNotEmpty() ? $typedParameters : $parameterCandidates;
+
+            $parameterRows = $finalParameters->map(function ($name) {
+                return [
+                    'name' => (string) $name,
+                    'accepted' => true,
+                    'rejected' => false,
+                ];
+            })->values()->all();
         }
-
-        $parameterCandidates = collect($parameterCandidates)
-            ->filter()
-            ->unique()
-            ->values();
-
-        $typedParameters = collect(preg_split('/\r\n|\r|\n/', (string) ($input['parameters_text'] ?? '')))
-            ->map(fn ($row) => trim((string) $row))
-            ->filter()
-            ->values();
-
-        $finalParameters = $typedParameters->isNotEmpty() ? $typedParameters : $parameterCandidates;
-
-        $parameterRows = $finalParameters->map(function ($name) {
-            return [
-                'name' => (string) $name,
-                'accepted' => true,
-                'rejected' => false,
-            ];
-        })->values()->all();
 
         $payload = [
             'date' => (string) ($input['date'] ?? now()->format('Y-m-d')),

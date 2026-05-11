@@ -13,6 +13,7 @@ class CustomerList extends BaseCrmComponent
 {
     public $search = '';
     public $activeFilter = '';
+    public $accountStatusFilter = '';
     public $startDate = '';
     public $endDate = '';
     public $selectedCustomers = [];
@@ -21,6 +22,7 @@ class CustomerList extends BaseCrmComponent
     public $countries;
     public $accounts = [];
     public $account_settings;
+    public $accountLabelMap = [];
     public $allCustomers = [];
     public $showFilters = false;
     public $perPage = 10;
@@ -39,6 +41,7 @@ class CustomerList extends BaseCrmComponent
     protected $queryString = [
         'search' => ['except' => ''],
         'activeFilter' => ['except' => ''],
+        'accountStatusFilter' => ['except' => '', 'as' => 'account'],
         'startDate' => ['except' => '', 'as' => 'start'],
         'endDate' => ['except' => '', 'as' => 'end'],
     ];
@@ -57,10 +60,7 @@ class CustomerList extends BaseCrmComponent
         }
 
         $this->countries = Country::orderBy('name')->get();
-        $this->account_settings = getConfigTypeByName('Account Settings');
-        if (isset($this->account_settings->id)) {
-            $this->accounts = getconfigByID($this->account_settings->id);
-        }
+        $this->loadAccountSettings();
 
         // Load all customers for filter dropdown
         $this->allCustomers = CRMCustomer::where('company_id', $this->getUserCompany())
@@ -71,6 +71,22 @@ class CustomerList extends BaseCrmComponent
     public $sortField = 'name';
     public $sortDirection = 'asc';
 
+    public function getBreadcrumbItemsProperty(): array
+    {
+        return [
+            [
+                'link' => route('customers-list'),
+                'name' => __('crm.module_name'),
+                'icon' => null,
+            ],
+            [
+                'link' => route('customers-list'),
+                'name' => __('crm.client_registry'),
+                'icon' => null,
+            ],
+        ];
+    }
+
     public function sortBy($field)
     {
         if ($this->sortField === $field) {
@@ -78,6 +94,35 @@ class CustomerList extends BaseCrmComponent
         } else {
             $this->sortField = $field;
             $this->sortDirection = 'asc';
+        }
+    }
+
+    protected function loadAccountSettings(): void
+    {
+        $this->account_settings = getConfigTypeByName('Account Settings');
+        $this->accounts = collect();
+        $this->accountLabelMap = [];
+
+        if (!isset($this->account_settings->id)) {
+            return;
+        }
+
+        $allowedKeys = ['POSTPAID', 'PREPAID'];
+
+        $this->accounts = collect(getconfigByID($this->account_settings->id))
+            ->filter(function ($account) use ($allowedKeys) {
+                return in_array(strtoupper((string) ($account->key ?? '')), $allowedKeys, true);
+            })
+            ->values();
+
+        $this->accountLabelMap = $this->accounts
+            ->mapWithKeys(function ($account) {
+                return [(string) $account->id => (string) $account->key];
+            })
+            ->all();
+
+        if ($this->accountStatusFilter !== '' && !array_key_exists((string) $this->accountStatusFilter, $this->accountLabelMap)) {
+            $this->accountStatusFilter = '';
         }
     }
 
@@ -96,6 +141,10 @@ class CustomerList extends BaseCrmComponent
 
         if ($this->activeFilter !== '') {
             $query->where('active', $this->activeFilter);
+        }
+
+        if ($this->accountStatusFilter !== '') {
+            $query->where('account_status', (int) $this->accountStatusFilter);
         }
 
         // Date range filter
@@ -128,6 +177,7 @@ class CustomerList extends BaseCrmComponent
     {
         $this->search = '';
         $this->activeFilter = '';
+        $this->accountStatusFilter = '';
         $this->startDate = '';
         $this->endDate = '';
         $this->selectedCustomers = [];
@@ -170,6 +220,11 @@ class CustomerList extends BaseCrmComponent
         $this->resetPage();
     }
 
+    public function updatedAccountStatusFilter()
+    {
+        $this->resetPage();
+    }
+
     public function confirmDelete($id)
     {
         $this->customerIdToDelete = $id;
@@ -205,6 +260,7 @@ class CustomerList extends BaseCrmComponent
             'company_id' => $this->getUserCompany(),
             'search' => $this->search,
             'activeFilter' => $this->activeFilter,
+            'accountStatusFilter' => $this->accountStatusFilter,
             'startDate' => $this->startDate,
             'endDate' => $this->endDate,
             'selectedCustomers' => $this->selectedCustomers,
@@ -226,6 +282,7 @@ class CustomerList extends BaseCrmComponent
             'countries' => $this->countries,
             'accounts' => $this->accounts,
             'account_settings' => $this->account_settings,
+            'accountLabelMap' => $this->accountLabelMap,
             'allCustomers' => $this->allCustomers,
             'activeCount' => $activeCount,
             'inactiveCount' => $inactiveCount,

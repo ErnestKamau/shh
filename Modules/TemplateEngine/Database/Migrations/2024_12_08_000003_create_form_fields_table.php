@@ -9,9 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('form_fields', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('form_template_id');
+            $table->uuid('id')->primary();
+            $table->uuid('form_template_id');
             $table->unsignedBigInteger('section_id')->nullable();
+            $table->uuid('parent_field_id')->nullable()->index();
+            $table->uuid('parent_id')->nullable()->index();
             $table->string('label');
             $table->string('name')->comment('Unique identifier for the field in the form');
             $table->string('type'); // text, number, date, select, radio, checkbox, dynamic, etc.

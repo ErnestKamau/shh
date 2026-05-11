@@ -146,15 +146,15 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <div class="btn-group" role="group">
+                                                <div class="d-flex">
                                                     @if($report->batch_report_url)
                                                         <button wire:click="viewReport({{ $report->id }})" 
-                                                                class="btn btn-sm btn-outline-primary mr-1" 
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--view" 
                                                                 title="View Report">
-                                                            <i class="mdi mdi-eye"></i>
+                                                            <i class="mdi mdi-eye-outline"></i>
                                                         </button>
                                                         <button wire:click="downloadReport({{ $report->id }})" 
-                                                                class="btn btn-sm btn-outline-success mr-1" 
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--download" 
                                                                 title="Download Report">
                                                             <i class="mdi mdi-download"></i>
                                                         </button>

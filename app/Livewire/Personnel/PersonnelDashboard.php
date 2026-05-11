@@ -13,12 +13,6 @@ class PersonnelDashboard extends Component
     public int $activePersonnel = 0;
     public int $inactivePersonnel = 0;
     public int $newThisMonth = 0;
-    public int $namedUsers = 0;
-    public int $sharedUsers = 0;
-
-    /** @var array<int, array{label: string, used: int, limit: int}> */
-    public array $licenseUsage = [];
-
     /** @var array<int, array{label: string, used: int, limit: int}> */
     public array $analystGazzettedMatrix = [];
 
@@ -60,28 +54,6 @@ class PersonnelDashboard extends Component
             ->whereYear('created_at', now()->year)
             ->whereMonth('created_at', now()->month)
             ->count();
-
-        $this->namedUsers = (clone $baseQuery)->where('license_type', 'named_user')->count();
-        $this->sharedUsers = (clone $baseQuery)->where('license_type', 'shared_user')->count();
-
-        $availableLicenses = getUserLicenses();
-        $licenseCounts = [
-            'named_user' => $this->namedUsers,
-            'shared_user' => $this->sharedUsers,
-        ];
-
-        $this->licenseUsage = collect($availableLicenses)
-            ->map(function (string $label, string $key) use ($licenseCounts): array {
-                $limit = (int) mamboSawa($key . 's');
-
-                return [
-                    'label' => $label,
-                    'used' => (int) ($licenseCounts[$key] ?? 0),
-                    'limit' => $limit,
-                ];
-            })
-            ->values()
-            ->toArray();
 
         $gazzettedCount = (clone $baseQuery)
             ->where('analyst_is_gazzetted', true)

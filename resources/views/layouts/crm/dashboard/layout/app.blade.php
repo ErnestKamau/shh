@@ -3,7 +3,7 @@
 
 @section('module-name')
 <li class="nav-item">
-  <a class="nav-link module-name" href="{{ route('customers-list') }}"><i class="mdi mdi-account-group"></i>CRM</a>
+	<a class="nav-link module-name" href="{{ route('customers-list') }}"><i class="mdi mdi-account-group"></i>{{ __('crm.module_name') }}</a>
 </li>
 @endsection
 
@@ -68,7 +68,7 @@
 		<ul class="list-group sticky-top sticky-offset">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
-				<span class="text-lg text-bold">CRM</span>
+				<span class="text-lg text-bold">{{ __('crm.module_name') }}</span>
 			</div>
 			<!-- Separator with title -->
 			{{-- <li class="list-group-item bg-black sidebar-separator-title text-muted d-flex align-items-center menu-collapsed">
@@ -79,33 +79,33 @@
       <a href="/dasboard/crm/client-home" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
-					<span class="menu-collapsed">Dashboard</span>
+					<span class="menu-collapsed">{{ __('crm.dashboard') }}</span>
 				</div>
 			</a>
 
             <a href="/dashboard/crm/client-details" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-details fa-fw mr-3"></span>
-					<span class="menu-collapsed">Client details</span>
+					<span class="menu-collapsed">{{ __('crm.client_details') }}</span>
 				</div>
 			</a>
 			<a href="" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-notebook-edit-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">Lab Booking</span>
+					<span class="menu-collapsed">{{ __('crm.lab_booking') }}</span>
 				</div>
 			</a>
 			<a href="" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-google-analytics fa-fw mr-3"></span>
-					<span class="menu-collapsed">Reports</span>
+					<span class="menu-collapsed">{{ __('crm.reports') }}</span>
 				</div>
 			</a>
 
 			
 
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
-				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
+				{{ __('crm.copyright') }} {{ date('Y') }} <span class="text-red">{{ __('crm.imara_lims') }}</span>
 			</div>
 			<!-- Submenu content -->
 		</ul>

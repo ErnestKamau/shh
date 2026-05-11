@@ -1,4 +1,25 @@
 <div class="container-fluid">
+    @php
+        $breadcrumbItems = [
+            [
+                'link' => route('crm.dashboard'),
+                'name' => __('crm.module_name'),
+                'icon' => null,
+            ],
+            [
+                'link' => route('customers-list'),
+                'name' => __('crm.client_registry'),
+                'icon' => null,
+            ],
+            [
+                'link' => '#',
+                'name' => $customer->name,
+                'icon' => null,
+            ],
+        ];
+    @endphp
+    <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
+
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -15,17 +36,17 @@
                         <div>
                             @if($editingCustomer)
                                 <button wire:click="cancelEditing" class="btn btn-outline-secondary me-2">
-                                    <i class="mdi mdi-close"></i> Cancel
+                                    <i class="mdi mdi-close"></i> {{ __('crm.cancel') }}
                                 </button>
                                 <button wire:click="saveCustomer" class="btn btn-primary">
-                                    <i class="mdi mdi-content-save"></i> Save Changes
+                                    <i class="mdi mdi-content-save"></i> {{ __('crm.save_changes') }}
                                 </button>
                             @else
-                                <button wire:click="openLabelModal" class="btn btn-sm btn-outline-info me-2" title="Configure Tab Names">
-                                    <i class="mdi mdi-label-outline"></i> Edit Tab Names
+                                <button wire:click="openLabelModal" class="btn btn-sm btn-outline-info pricelist-action-btn me-2" title="{{ __('crm.edit_tab_names') }}">
+                                    <i class="mdi mdi-label-outline"></i> {{ __('crm.edit_tab_names') }}
                                 </button>
-                                <button wire:click="startEditing" class="btn btn-sm btn-primary">
-                                    <i class="mdi mdi-pencil"></i> Edit Customer
+                                <button wire:click="startEditing" class="btn btn-sm btn-outline-primary pricelist-action-btn">
+                                    <i class="mdi mdi-pencil"></i> {{ __('crm.edit_customer') }}
                                 </button>
                             @endif
                         </div>
@@ -43,19 +64,24 @@
         </div>
     @endif
 
+    @php
+        $unitLabel = trim($customer->unit_configurable_name ?? '') !== '' ? trim($customer->unit_configurable_name) : __('crm.company_units');
+        $samplePointLabel = trim($customer->sample_point_configurable_name ?? '') !== '' ? trim($customer->sample_point_configurable_name) : __('crm.sample_points');
+    @endphp
+
     <!-- Tabs Navigation -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 20px; overflow: hidden;">
                 <div class="card-body p-0">
                     <div class="modern-tabs">
-                        <ul class="nav nav-pills nav-fill" id="customerTabs" role="tablist">
+                        <ul class="nav nav-pills flex-nowrap" id="customerTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link modern-tab-link {{ $activeTab === 'details' ? 'active' : '' }}" 
                                         wire:click="setActiveTab('details')" 
                                         type="button">
                                     <i class="mdi mdi-information-outline me-2"></i>
-                                    <span class="fw-semibold">Details</span>
+                                    <span class="fw-semibold">{{ __('crm.details') }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -63,23 +89,7 @@
                                         wire:click="setActiveTab('units')" 
                                         type="button">
                                     <i class="mdi mdi-sitemap me-2"></i>
-                                    <span class="fw-semibold">{{ trim($customer->unit_configurable_name ?? '') !== '' ? $customer->unit_configurable_name : 'Company Units' }}</span>
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link modern-tab-link {{ $activeTab === 'sub-units' ? 'active' : '' }}" 
-                                        wire:click="setActiveTab('sub-units')" 
-                                        type="button">
-                                    <i class="mdi mdi-file-tree me-2"></i>
-                                    <span class="fw-semibold">{{ trim($customer->sub_unit_configurable_name ?? '') !== '' ? $customer->sub_unit_configurable_name : 'Company Sub-Units' }}</span>
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link modern-tab-link {{ $activeTab === 'areas' ? 'active' : '' }}" 
-                                        wire:click="setActiveTab('areas')" 
-                                        type="button">
-                                    <i class="mdi mdi-map-marker-multiple me-2"></i>
-                                    <span class="fw-semibold">{{ trim($customer->area_configurable_name ?? '') !== '' ? $customer->area_configurable_name : 'Areas' }}</span>
+                                    <span class="fw-semibold">{{ $unitLabel }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -87,7 +97,7 @@
                                         wire:click="setActiveTab('sample-points')" 
                                         type="button">
                                     <i class="mdi mdi-map-marker me-2"></i>
-                                    <span class="fw-semibold">{{ trim($customer->sample_point_configurable_name ?? '') !== '' ? $customer->sample_point_configurable_name : 'Sample Points' }}</span>
+                                    <span class="fw-semibold">{{ $samplePointLabel }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -95,7 +105,7 @@
                                         wire:click="setActiveTab('contacts')" 
                                         type="button">
                                     <i class="mdi mdi-account-box-outline me-2"></i>
-                                    <span class="fw-semibold">Contacts</span>
+                                    <span class="fw-semibold">{{ __('crm.contacts') }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -103,7 +113,7 @@
                                         wire:click="setActiveTab('reports')" 
                                         type="button">
                                     <i class="mdi mdi-file-document-outline me-2"></i>
-                                    <span class="fw-semibold">Reports</span>
+                                    <span class="fw-semibold">{{ __('crm.reports') }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -111,7 +121,7 @@
                                         wire:click="setActiveTab('amendments')" 
                                         type="button">
                                     <i class="mdi mdi-file-document-edit me-2"></i>
-                                    <span class="fw-semibold">Amendments</span>
+                                    <span class="fw-semibold">{{ __('crm.amendments') }}</span>
                                 </button>
                             </li>
                         </ul>
@@ -129,7 +139,7 @@
                 <div class="card shadow-sm border-0" style="border-radius: 15px;">
                     <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
                         <h6 class="mb-0 text-muted">
-                            <i class="mdi mdi-information-outline"></i> Customer Details
+                            <i class="mdi mdi-information-outline"></i> {{ __('crm.customer_details') }}
                         </h6>
                     </div>
                     <div class="card-body p-4">
@@ -138,14 +148,14 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">{{ __('crm.name') }} <span class="text-danger">*</span></label>
                                             <input type="text" wire:model="customerForm.name" class="form-control">
                                             @error('customerForm.name') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">{{ __('crm.email') }} <span class="text-danger">*</span></label>
                                             <input type="email" wire:model="customerForm.email" class="form-control">
                                             @error('customerForm.email') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
@@ -155,14 +165,14 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Phone 1 <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">{{ __('crm.phone_1') }} <span class="text-danger">*</span></label>
                                             <input type="text" wire:model="customerForm.telephone1" class="form-control">
                                             @error('customerForm.telephone1') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Phone 2</label>
+                                            <label class="form-label fw-bold">{{ __('crm.phone_2') }}</label>
                                             <input type="text" wire:model="customerForm.telephone2" class="form-control">
                                         </div>
                                     </div>
@@ -171,9 +181,9 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Country <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">{{ __('crm.country') }} <span class="text-danger">*</span></label>
                                             <select wire:model="customerForm.country_id" class="form-select">
-                                                <option value="">Select Country</option>
+                                                <option value="">{{ __('crm.select_country') }}</option>
                                                 @foreach($countries as $country)
                                                     <option value="{{ $country->id }}">{{ $country->name }}</option>
                                                 @endforeach
@@ -183,9 +193,9 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Account Settings</label>
+                                            <label class="form-label fw-bold">{{ __('crm.account_settings') }} <span class="text-danger">*</span></label>
                                             <select wire:model="customerForm.account_status" class="form-select">
-                                                <option value="">Select Account Settings</option>
+                                                <option value="">{{ __('crm.select_account_settings') }}</option>
                                                 @foreach($accounts as $account)
                                                     <option value="{{ $account->id }}">{{ $account->key }}</option>
                                                 @endforeach
@@ -196,13 +206,13 @@
                                 </div>
 
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold">Postal Address <span class="text-danger">*</span></label>
+                                    <label class="form-label fw-bold">{{ __('crm.postal_address') }} <span class="text-danger">*</span></label>
                                     <textarea wire:model="customerForm.postal_address" class="form-control" rows="3"></textarea>
                                     @error('customerForm.postal_address') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div class="form-group mb-3">
-                                    <label class="form-label fw-bold">Physical Address <span class="text-danger">*</span></label>
+                                    <label class="form-label fw-bold">{{ __('crm.physical_address') }} <span class="text-danger">*</span></label>
                                     <input type="text" wire:model="customerForm.physical_address" class="form-control">
                                     @error('customerForm.physical_address') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
@@ -210,13 +220,13 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Website</label>
+                                            <label class="form-label fw-bold">{{ __('crm.website') }}</label>
                                             <input type="text" wire:model="customerForm.website" class="form-control">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Fax</label>
+                                            <label class="form-label fw-bold">{{ __('crm.fax') }}</label>
                                             <input type="text" wire:model="customerForm.fax" class="form-control">
                                         </div>
                                     </div>
@@ -225,13 +235,13 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">VAT Number</label>
+                                            <label class="form-label fw-bold">{{ __('crm.vat_number') }}</label>
                                             <input type="text" wire:model="customerForm.vat_no" class="form-control">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
-                                            <label class="form-label fw-bold">Credit Days</label>
+                                            <label class="form-label fw-bold">{{ __('crm.credit_days') }}</label>
                                             <input type="number" wire:model="customerForm.credit_days" class="form-control">
                                         </div>
                                     </div>
@@ -242,7 +252,7 @@
                                         <div class="form-check">
                                             <input type="checkbox" wire:model="customerForm.active" class="form-check-input" id="active">
                                             <label class="form-check-label" for="active">
-                                                Is Active?
+                                                {{ __('crm.is_active') }}
                                             </label>
                                         </div>
                                     </div>
@@ -250,7 +260,7 @@
                                         <div class="form-check">
                                             <input type="checkbox" wire:model="customerForm.lpos_required" class="form-check-input" id="lpos">
                                             <label class="form-check-label" for="lpos">
-                                                LPO Required?
+                                                {{ __('crm.lpo_required') }}
                                             </label>
                                         </div>
                                     </div>
@@ -430,16 +440,6 @@
                 @livewire(\App\Livewire\CRM\CompanyUnitsManager::class, ['customerId' => $customerId])
             @endif
 
-            <!-- Company Sub Units Tab -->
-            @if($activeTab === 'sub-units')
-                @livewire(\App\Livewire\CRM\CompanySubUnitsManager::class, ['customerId' => $customerId])
-            @endif
-
-            <!-- Areas Tab -->
-            @if($activeTab === 'areas')
-                @livewire(\App\Livewire\CRM\AreasManager::class, ['customerId' => $customerId])
-            @endif
-
             <!-- Sample Points Tab -->
             @if($activeTab === 'sample-points')
                 @livewire(\App\Livewire\Samples\SamplePointsManager::class, ['customerId' => $customerId])
@@ -470,6 +470,8 @@
             border-radius: 20px;
             padding: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
+            scrollbar-width: thin;
         }
 
     .modern-tab-link {
@@ -533,6 +535,14 @@
     .modern-tab-link.active i {
         transform: scale(1.1);
         filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    }
+
+    .pricelist-action-btn {
+        border-radius: 10px;
+        min-height: 42px;
+        font-weight: 600;
+        padding-left: 16px;
+        padding-right: 16px;
     }
 
     /* Responsive adjustments */
@@ -712,74 +722,44 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-label-outline"></i>
-                            Configure Tab Names
+                            {{ __('crm.edit_tab_names') }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeLabelModal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info">
                             <i class="mdi mdi-information"></i>
-                            <strong>Customize tab names for this customer.</strong>
-                            <p class="mb-0 mt-2">Leave blank to use default names. These names will be used throughout the system for this customer.</p>
+                            <strong>{{ __('crm.edit_tab_names') }}</strong>
+                            <p class="mb-0 mt-2">{{ __('crm.configure_tab_names_help') }}</p>
                         </div>
 
                         <form wire:submit.prevent="saveLabels">
                             <div class="form-group mb-4">
                                 <label class="form-label fw-bold">
                                     <i class="mdi mdi-sitemap text-primary"></i> 
-                                    Company Units Tab Name
+                                    {{ __('crm.company_units') }}
                                 </label>
                                 <input type="text" 
                                        wire:model="labelForm.unit_configurable_name" 
                                        class="form-control" 
-                                       placeholder="e.g., Sections, Departments, Branches (default: Company Units)">
+                                       placeholder="{{ __('crm.company_units') }}">
                                 <small class="text-muted">
-                                    Current: <strong>{{ trim($customer->unit_configurable_name ?? '') !== '' ? $customer->unit_configurable_name : 'Company Units' }}</strong>
+                                    {{ __('crm.current') }}: <strong>{{ trim($customer->unit_configurable_name ?? '') !== '' ? $customer->unit_configurable_name : __('crm.company_units') }}</strong>
                                 </small>
                                 @error('labelForm.unit_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="form-group mb-4">
                                 <label class="form-label fw-bold">
-                                    <i class="mdi mdi-file-tree text-info"></i> 
-                                    Company Sub-Units Tab Name
-                                </label>
-                                <input type="text" 
-                                       wire:model="labelForm.sub_unit_configurable_name" 
-                                       class="form-control" 
-                                       placeholder="e.g., Sub Sections, Sub Departments (default: Company Sub-Units)">
-                                <small class="text-muted">
-                                    Current: <strong>{{ trim($customer->sub_unit_configurable_name ?? '') !== '' ? $customer->sub_unit_configurable_name : 'Company Sub-Units' }}</strong>
-                                </small>
-                                @error('labelForm.sub_unit_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div class="form-group mb-4">
-                                <label class="form-label fw-bold">
-                                    <i class="mdi mdi-map-marker-multiple text-warning"></i> 
-                                    Areas Tab Name
-                                </label>
-                                <input type="text" 
-                                       wire:model="labelForm.area_configurable_name" 
-                                       class="form-control" 
-                                       placeholder="e.g., Zones, Regions, Locations (default: Areas)">
-                                <small class="text-muted">
-                                    Current: <strong>{{ trim($customer->area_configurable_name ?? '') !== '' ? $customer->area_configurable_name : 'Areas' }}</strong>
-                                </small>
-                                @error('labelForm.area_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div class="form-group mb-4">
-                                <label class="form-label fw-bold">
                                     <i class="mdi mdi-map-marker text-success"></i> 
-                                    Sample Points Tab Name
+                                    {{ __('crm.sample_points') }}
                                 </label>
                                 <input type="text" 
                                        wire:model="labelForm.sample_point_configurable_name" 
                                        class="form-control" 
-                                       placeholder="e.g., Locations, Sites, Testing Points (default: Sample Points)">
+                                       placeholder="{{ __('crm.sample_points') }}">
                                 <small class="text-muted">
-                                    Current: <strong>{{ trim($customer->sample_point_configurable_name ?? '') !== '' ? $customer->sample_point_configurable_name : 'Sample Points' }}</strong>
+                                    {{ __('crm.current') }}: <strong>{{ trim($customer->sample_point_configurable_name ?? '') !== '' ? $customer->sample_point_configurable_name : __('crm.sample_points') }}</strong>
                                 </small>
                                 @error('labelForm.sample_point_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                             </div>
@@ -787,28 +767,28 @@
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">
                                     <i class="mdi mdi-package-variant text-warning"></i> 
-                                    Product Tab Name
+                                    {{ __('crm.product_tab_name') }}
                                 </label>
                                 <input type="text" 
                                        wire:model="labelForm.product_configurable_name" 
                                        class="form-control" 
-                                       placeholder="e.g., Items, Materials, Services (default: Products)">
+                                       placeholder="{{ __('crm.products') }}">
                                 <small class="text-muted">
-                                    Current: <strong>{{ $customer->product_configurable_name ?: 'Products' }}</strong>
+                                    {{ __('crm.current') }}: <strong>{{ $customer->product_configurable_name ?: __('crm.products') }}</strong>
                                 </small>
                                 @error('labelForm.product_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="alert alert-warning mt-3">
                                 <i class="mdi mdi-alert"></i>
-                                <small><strong>Note:</strong> Changing these names will update how they appear in all forms, reports, and interfaces for this customer.</small>
+                                <small><strong>{{ __('crm.note') }}:</strong> {{ __('crm.tab_name_note') }}</small>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeLabelModal">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="closeLabelModal">{{ __('crm.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveLabels">
-                            <i class="mdi mdi-content-save"></i> Save Tab Names
+                            <i class="mdi mdi-content-save"></i> {{ __('crm.save_changes') }}
                         </button>
                     </div>
                 </div>

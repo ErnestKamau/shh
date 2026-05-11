@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,19 +12,28 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ai_model_registry', function (Blueprint $table) {
-            $table->uuid('id');
+        DB::statement('CREATE SCHEMA IF NOT EXISTS ai');
+
+        Schema::create('ai.ai_model_registry', function (Blueprint $table) {
+            $table->bigIncrements('id');
             $table->string('model_name');
             $table->string('model_type');
             $table->string('version')->default('1.0.0');
             $table->string('framework')->nullable();
+            $table->text('artifact_path')->nullable();
+            $table->unsignedBigInteger('feature_snapshot_id')->nullable();
             $table->integer('training_rows')->default(0);
-            $table->json('metrics')->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->double('training_duration_seconds')->nullable();
+            $table->jsonb('hyperparameters')->nullable();
+            $table->jsonb('metrics')->nullable();
+            $table->boolean('is_active')->default(false);
             $table->boolean('is_deprecated')->default(false);
-            $table->timestamp('deployed_at')->nullable();
-            $table->timestamps();
-            $table->primary(['id']);
+            $table->timestampTz('deployed_at')->nullable();
+            $table->timestampsTz();
+
+            $table->unique(['model_type', 'version']);
+            $table->index('model_type');
+            $table->index('is_active');
         });
     }
 
@@ -32,6 +42,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ai_model_registry');
+        Schema::dropIfExists('ai.ai_model_registry');
     }
 };

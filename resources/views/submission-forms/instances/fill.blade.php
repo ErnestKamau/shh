@@ -700,7 +700,7 @@
             //console.log('Client unit changed to:', clientUnitId);
             
             // Find all dependent elements
-            const dependentElements = $('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
+            const dependentElements = $('select[data-element-type="sample_point_select"]');
             //console.log('Found', dependentElements.length, 'client unit dependent elements');
             
             if (clientUnitId) {

@@ -38,6 +38,10 @@ class CustomersExport implements FromQuery, WithHeadings, WithMapping
             $query->where('active', $this->filters['activeFilter']);
         }
 
+        if (!empty($this->filters['accountStatusFilter'])) {
+            $query->where('account_status', $this->filters['accountStatusFilter']);
+        }
+
         if (!empty($this->filters['startDate'])) {
             $query->where('created_at', '>=', $this->filters['startDate']);
         }

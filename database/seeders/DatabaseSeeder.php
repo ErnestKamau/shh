@@ -4,9 +4,12 @@ namespace Database\Seeders;
 
 use Database\Seeders\Setup\PersonnelPermissionsSeeder;
 use Database\Seeders\Setup\AdminGroupPermissionsSeeder;
+use Database\Seeders\Setup\CRMPermissionsSeeder;
 use Database\Seeders\Setup\Languages\MasLanguageDatabaseSeeder;
+use Database\Seeders\Setup\Languages\CRMLanguageSeeder;
 use Database\Seeders\Setup\Languages\PersonnelLanguageSeeder;
 use Database\Seeders\Setup\Languages\SystemTranslationsSeeder;
+use Database\Seeders\Setup\LabModulePermissionsSeeder;
 use Database\Seeders\Setup\SystemConfigPermissionsSeeder;
 use Database\Seeders\Setup\SystemSetupSeeder;
 use Database\Seeders\Setup\WorkflowResponsibilityConfigSeeder;
@@ -23,9 +26,12 @@ class DatabaseSeeder extends Seeder
             SystemSetupSeeder::class,
             WorkflowResponsibilityConfigSeeder::class,
             PersonnelPermissionsSeeder::class,
+            CRMPermissionsSeeder::class,
+            LabModulePermissionsSeeder::class,
             SystemConfigPermissionsSeeder::class,
             SystemTranslationsSeeder::class,
             PersonnelLanguageSeeder::class,
+            CRMLanguageSeeder::class,
             // Keep MAS translations last so migrated MAS keys win on overlap.
             MasLanguageDatabaseSeeder::class,
             AdminGroupPermissionsSeeder::class,

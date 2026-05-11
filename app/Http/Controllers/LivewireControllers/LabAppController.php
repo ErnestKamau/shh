@@ -145,6 +145,17 @@ class LabAppController extends Controller
     }
 
     /**
+     * Display the workflow approval configuration page.
+     */
+    public function workflowApprovals()
+    {
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'workflow-approvals',
+            'pageTitle' => 'Checklist Approval Configuration'
+        ]);
+    }
+
+    /**
      * Display the standard manager page.
      */
     public function standardManager()
@@ -167,5 +178,13 @@ class LabAppController extends Controller
             'pageTitle' => 'Report Format Builder - ' . $reportFormat->report_name,
             'reportFormatId' => $reportFormatId
         ]);
+    }
+
+    /**
+     * Display the Labs Management page.
+     */
+    public function labManager()
+    {
+        return view('livewire.lab.lab-manager-page');
     }
 }

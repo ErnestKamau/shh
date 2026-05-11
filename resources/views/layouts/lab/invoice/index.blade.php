@@ -3,7 +3,7 @@
 
 
 @section('title2')
-<title> Sales-Order </title>
+<title> Draft-Invoice </title>
 <style type="text/css">
     .tab-card {
         border: 1px solid #eee;
@@ -94,7 +94,7 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
-        <i class="mdi mdi-file-cad"></i> Sales Orders
+        <i class="mdi mdi-file-cad"></i> Draft Invoices
     </h2>
 
 
@@ -103,7 +103,7 @@
             <ul class="nav nav-tabs card-header-tabs" id="Categories-tabs" role="tablist">
 
                 <li class="nav-item">
-                    <a class="nav-link" id="invoice-tab" data-toggle="tab" href="#Invoice" role="tab" aria-controls="Invoice" aria-selected="true"><i style="font-size: 20px;" class="mdi mdi-file-cad"></i> Sales Order</a>
+                    <a class="nav-link" id="invoice-tab" data-toggle="tab" href="#Invoice" role="tab" aria-controls="Invoice" aria-selected="true"><i style="font-size: 20px;" class="mdi mdi-file-cad"></i> Draft Invoice</a>
                 </li>
 
             </ul>
@@ -131,7 +131,7 @@
                                 <div class="form-group">
                                     <label class="control-label">Selection Date</label>
                                     <select name="selection_date" id="" class="form-control">
-                                        <option value="due_date" {{$selection == 'due_date' ? 'selected' : ''}} >Sales Order Due Date</option>
+                                        <option value="due_date" {{$selection == 'due_date' ? 'selected' : ''}} >Draft Invoice Due Date</option>
                                         <option value="invoice_date" {{$selection == 'invoice_date' ? 'selected' : ''}}> Created Date</option>
                                     </select>
                                 </div>
@@ -149,7 +149,7 @@
                         <thead class="bg-light p-2">
                             <tr>
                                 <th>#</th>
-                                <th>Sales Order No</th>
+                                <th>Draft Invoice No</th>
                                 <th>Status</th>
                                 <th>Zoho ID</th>
                                 <th>Amount</th>

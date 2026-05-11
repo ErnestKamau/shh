@@ -58,7 +58,7 @@ trait HasCrmPermissions
 
     /**
      * Check if user has permission, abort if not
-     * @param string $permissionKey Format: "crm.components.component-name.action"
+      * @param string $permissionKey Format: "crm.resource.action"
      */
     protected function checkPermission($permissionKey)
     {
@@ -86,7 +86,7 @@ trait HasCrmPermissions
 
     /**
      * Check if user has permission, return boolean
-     * @param string $permissionKey Format: "crm.components.component-name.action"
+      * @param string $permissionKey Format: "crm.resource.action"
      * @return bool
      */
     protected function hasPermission($permissionKey)

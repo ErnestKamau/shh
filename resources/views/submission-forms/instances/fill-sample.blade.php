@@ -989,19 +989,17 @@
             }
         }
         
-        // For client unit dependent elements (sample points & company sub units)
-        if (elementType === 'sample_point_select' || elementType === 'company_sub_unit_select') {
+        // For client unit dependent elements (sample points)
+        if (elementType === 'sample_point_select') {
             const placeholder = elementData.placeholder;
             const $element = $('#' + elementId);
             $element.html('<option value="">' + placeholder + '</option>');
             
-            // Load options based on current client unit (or all sub units if none selected)
+            // Load options based on current client unit
             const clientUnitSelect = $('select[data-element-type="client_unit_select"]');
             const currentClientUnitId = clientUnitSelect.val();
-            
-            if (elementType === 'company_sub_unit_select') {
-                loadDynamicOptions($element, elementId, elementType, null, null, null, currentClientUnitId || null);
-            } else if (currentClientUnitId) {
+
+            if (currentClientUnitId) {
                 loadDynamicOptions($element, elementId, elementType, null, null, null, currentClientUnitId);
             }
         }
@@ -1090,10 +1088,10 @@
                 });
                 
                 // Also clear elements that depend on client_unit_select
-                let clientUnitDependentElements = $(this).closest('tr').find('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
+                let clientUnitDependentElements = $(this).closest('tr').find('select[data-element-type="sample_point_select"]');
 
                 if(clientUnitDependentElements.length === 0){
-                    clientUnitDependentElements = $('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
+                    clientUnitDependentElements = $('select[data-element-type="sample_point_select"]');
                 }
 
                 clientUnitDependentElements.each(function() {
@@ -1118,7 +1116,7 @@
             //console.log('Client unit changed to:', clientUnitId);
             
             // Find all dependent elements
-            const dependentElements = $('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
+            const dependentElements = $('select[data-element-type="sample_point_select"]');
             //console.log('Found', dependentElements.length, 'client unit dependent elements');
             
             if (clientUnitId) {

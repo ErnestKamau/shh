@@ -83,11 +83,13 @@
 			$canProformaInvoices = $user->can('laboratory.components.proforma invoices.view');
 			$canTaxRegime = $user->can('laboratory.components.tax regime.view');
 			$canQuotation = $user->can('laboratory.components.quotation.view');
+			$canPricelists = $user->can('laboratory.components.pricelists.view');
 			$canQc = $user->can('laboratory.components.qc sample.view');
 			$canAnalytes = $user->can('laboratory.components.analytes.view');
 			$canLabs = $user->can('laboratory.components.labs.view');
 			$canSampleTrackingStages = $user->can('laboratory.components.sample-tracking-stages.view');
 			$canSampleTypes = $user->can('laboratory.components.sample-types.view');
+			$canChecklistApprovals = $user->can('laboratory.components.checklist-approvals.view');
 			$canRftForms = $user->can('laboratory.components.rft form.view');
 			$canMethodValidationRegistration = $user->can('laboratory.components.method-validation.registration.view');
 			$canMethodValidationDataReview = $user->can('laboratory.components.method-validation.data-review.view');
@@ -167,7 +169,7 @@
 
 			</div>
 			@endif
-			@if($canProformaInvoices || $canTaxRegime || $canQuotation)
+			@if($canProformaInvoices || $canTaxRegime || $canQuotation || $canPricelists)
 			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
@@ -178,22 +180,19 @@
 		<div id="billing-menu" class="collapse sidebar-submenu">
 			@if($canProformaInvoices)
 			<a href="{{route('billing.invoices')}}" class="list-group-item list-group-item-action bg-dark text-white">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sales Orders
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Draft Invoices
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
-
-			<a href="{{route('billing.invoicable-items')}}" class="list-group-item list-group-item-action bg-dark text-white">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Invoicable Items
-					<small class="float-right badge badge-pill"></small></span>
-			</a>
-
-		<a href="{{route('billing.dynamics-customers')}}" class="list-group-item list-group-item-action bg-dark text-white">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Dynamics Customers
-				<small class="float-right badge badge-pill"></small></span>
-		</a>
 
 		<a href="{{route('billing.currencies')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Currencies
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+			@endif
+
+			@if($canPricelists)
+		<a href="{{ route('view-pricelists') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Pricelists
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 			@endif
@@ -277,10 +276,10 @@
 			</a>
 			@endif
 			@if($canLabs)
-			<a href="/labs" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('livewire.labs') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-flask fa-fw mr-3"></span>
-					<span class="menu-collapsed">Directorate Management</span>
+					<span class="mdi mdi-flask-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">Labs</span>
 				</div>
 			</a>
 			@endif
@@ -288,7 +287,7 @@
 			<a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
-					<span class="menu-collapsed">Labs</span>
+					<span class="menu-collapsed">Sample Analysis Stages</span>
 				</div>
 			</a>
 			@endif
@@ -405,7 +404,7 @@
 			<span class="menu-collapsed">Labs</span>
 		</div>
 	</a> --}}
-	@if($canProducts || $canSampleTypes || $canConfigRouteAccess || $canRftForms)
+	@if($canProducts || $canSampleTypes || $canChecklistApprovals || $canConfigRouteAccess || $canRftForms)
 	<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
@@ -430,6 +429,12 @@
 		</a>
 		<a href="{{route('sample-type-category-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Type Category
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+		@endif
+		@if($canChecklistApprovals)
+		<a href="{{ route('livewire.workflow-approvals') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Checklist Approvals
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif

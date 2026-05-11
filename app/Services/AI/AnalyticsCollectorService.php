@@ -356,7 +356,7 @@ class AnalyticsCollectorService
                 ->select(
                     'mode as model',
                     DB::raw('count(*) as total_requests'),
-                    DB::raw('sum(case when success = true then 1 else 0 end) as successful_requests'),
+                    DB::raw('sum(case when success then 1 else 0 end) as successful_requests'),
                     DB::raw('avg(latency_ms) as avg_latency_ms'),
                     DB::raw('avg(confidence) as avg_confidence'),
                     DB::raw('avg(case when source_count > 0 then source_count else 0 end) as avg_tokens') // Using source_count as proxy if tokens not avail
@@ -462,7 +462,7 @@ class AnalyticsCollectorService
         // 2. Fetch historical scores from DB (last 7 days)
         $dbStats = DB::table('ai_analytics_logs')
             ->where('created_at', '>=', now()->subDays(7))
-            ->selectRaw('count(*) as total, sum(case when success = 1 then 1 else 0 end) as success_count')
+            ->selectRaw('count(*) as total, sum(case when success then 1 else 0 end) as success_count')
             ->first();
         
         $historicalSuccessRate = ($dbStats && $dbStats->total > 0) 

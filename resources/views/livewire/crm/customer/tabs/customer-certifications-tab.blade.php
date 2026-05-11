@@ -6,51 +6,49 @@
                 <i class="mdi mdi-file-certificate-outline text-info" style="font-size:1rem;"></i>
             </span>
             <div>
-                <small class="font-weight-bold text-dark" style="font-size:0.82rem;">Certification &amp; Compliance
-                    Register</small>
-                <small class="text-muted d-block" style="font-size:0.67rem;">Accreditation documents, expiry
-                    monitoring &amp; issuing bodies</small>
+                <small class="font-weight-bold text-dark" style="font-size:0.82rem;">{{ __('crm.certification_compliance_register') }}</small>
+                <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.certification_compliance_subtitle') }}</small>
             </div>
         </div>
         <div class="d-flex justify-content-end align-items-center">
             <div class="crm-search-wrapper mr-2">
                 <i class="mdi mdi-magnify crm-search-icon"></i>
-                <input type="text" class="form-control" placeholder="Search certifications..."
+                <input type="text" class="form-control" placeholder="{{ __('crm.search_certifications') }}"
                     wire:model.live.debounce.300ms="search">
             </div>
             <!-- Show Entries -->
             <div class="d-flex align-items-center mb-2 mb-md-0 mr-3 flex-shrink-0">
-                <label class="mb-0 mr-2 crm-filter-label text-nowrap">Show</label>
+                <label class="mb-0 mr-2 crm-filter-label text-nowrap">{{ __('crm.show') }}</label>
                 <select wire:model.live="perPage" wire:key="per-page-select" class="custom-select custom-select-sm no-select2" style="width: 70px;">
                     <option value="10">10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
                 </select>
-                <label class="mb-0 ml-2 crm-filter-label text-nowrap">entries</label>
+                <label class="mb-0 ml-2 crm-filter-label text-nowrap">{{ __('crm.entries') }}</label>
             </div>
             <button class="btn btn-outline-success btn-sm mr-2 text-nowrap" wire:click="exportToExcel">
-                <i class="mdi mdi-file-excel"></i> Export to Excel
+                <i class="mdi mdi-file-excel"></i> {{ __('crm.export_to_excel') }}
             </button>
             <button class="btn btn-add btn-sm" wire:click="openCertificationForm">
-                <i class="mdi mdi-plus"></i> Add
+                <i class="mdi mdi-plus"></i> {{ __('crm.add') }}
             </button>
         </div>
     </div>
 
     <div wire:loading wire:target="search,perPage" class="crm-loading-indicator"><i
-            class="mdi mdi-loading mdi-spin"></i> Loading...</div>
+            class="mdi mdi-loading mdi-spin"></i> {{ __('crm.loading') }}...</div>
     <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
         <x-slot:header>
             <tr>
-                <th style="min-width: 140px;">Actions</th>
-                <th nowrap>Certification Name</th>
-                <th nowrap>Document</th>
-                <th>Accreditation Date</th>
-                <th>Expiry Date</th>
-                <th nowrap>Issuing Body</th>
-                <th nowrap>Validity</th>
-                <th nowrap>Last Updated By</th>
+                <th style="min-width: 140px;">{{ __('crm.actions') }}</th>
+                <th nowrap>{{ __('crm.certification_name') }}</th>
+                <th nowrap>{{ __('crm.document') }}</th>
+                <th>{{ __('crm.accreditation_date') }}</th>
+                <th>{{ __('crm.expiry_date') }}</th>
+                <th nowrap>{{ __('crm.issuing_body') }}</th>
+                <th nowrap>{{ __('crm.validity') }}</th>
+                <th nowrap>{{ __('crm.last_updated_by') }}</th>
             </tr>
         </x-slot:header>
                     @forelse($certifications as $item)
@@ -63,7 +61,7 @@
                                     </button>
                                     <button type="button" class="btn crm-btn crm-btn-delete btn-sm"
                                         wire:click="deleteCertification({{ $item->id }})"
-                                        wire:confirm="Are you sure you want to delete this certification?">
+                                        wire:confirm="{{ __('crm.delete_certification_confirm') }}">
                                         <i class="mdi mdi-trash-can-outline"></i>
                                     </button>
                                     <button type="button" class="btn crm-btn crm-btn-view btn-sm"
@@ -86,14 +84,14 @@
                                 @endphp
                                 @if($item->status == 0)
                                     @if($daysLeft !== null && $daysLeft <= 30 && $daysLeft > 0)
-                                        <span class="crm-badge crm-badge-warning">Expiring Soon</span>
+                                        <span class="crm-badge crm-badge-warning">{{ __('crm.expiring_soon') }}</span>
                                     @elseif($daysLeft !== null && $daysLeft <= 0)
-                                        <span class="crm-badge crm-badge-danger">Expired</span>
+                                        <span class="crm-badge crm-badge-danger">{{ __('crm.expired') }}</span>
                                     @else
-                                        <span class="crm-badge crm-badge-success">Valid</span>
+                                        <span class="crm-badge crm-badge-success">{{ __('crm.valid') }}</span>
                                     @endif
                                 @else
-                                    <span class="crm-badge crm-badge-neutral">Inactive</span>
+                                    <span class="crm-badge crm-badge-neutral">{{ __('crm.inactive') }}</span>
                                 @endif
                             </td>
                             <td>{!! $item->edited == '' ? 'N/a' : $item->edited !!}</td>
@@ -103,7 +101,7 @@
                             <td colspan="8">
                                 <x-crm.empty-state
                                     icon="mdi-file-certificate-outline"
-                                    message="No certifications on record for this client."
+                                    :message="__('crm.no_certifications_for_client')"
                                 />
                             </td>
                         </tr>
@@ -132,7 +130,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            <i class="mdi mdi-file-document-outline mr-1"></i> Preview: {{ $previewTitle }}
+                            <i class="mdi mdi-file-document-outline mr-1"></i> {{ __('crm.preview') }}: {{ $previewTitle }}
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close" wire:click="closePreview">
                             <span aria-hidden="true">&times;</span>
@@ -140,19 +138,19 @@
                     </div>
                     <div class="modal-body p-0" style="background-color: #f8f9fa;">
                         @if($previewUrl)
-                            <iframe src="{{ $previewUrl }}" width="100%" height="600px" style="border:none;" title="Certificate Preview"></iframe>
+                            <iframe src="{{ $previewUrl }}" width="100%" height="600px" style="border:none;" title="{{ __('crm.certificate_preview') }}"></iframe>
                         @else
                             <div class="text-center p-5">
                                 <i class="mdi mdi-loading mdi-spin text-primary" style="font-size: 2rem;"></i>
-                                <p class="mt-2 text-muted">Loading document preview...</p>
+                                <p class="mt-2 text-muted">{{ __('crm.loading_document_preview') }}...</p>
                             </div>
                         @endif
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal" wire:click="closePreview">Close Preview</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" wire:click="closePreview">{{ __('crm.close_preview') }}</button>
                         @if($previewUrl)
                             <a href="{{ $previewUrl }}" class="btn btn-primary" target="_blank" download>
-                                <i class="mdi mdi-download mr-1"></i> Download File
+                                <i class="mdi mdi-download mr-1"></i> {{ __('crm.download_file') }}
                             </a>
                         @endif
                     </div>

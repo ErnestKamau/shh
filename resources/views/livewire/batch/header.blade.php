@@ -250,7 +250,7 @@
                         @if(isset($batch->status) && $batch->status == 'Samples In Lab' && ($batch->invoice_id == 0 || $batch->invoice_id == null))
                         <li>
                             <a href="{{ route('billing.sales-order.create', ['batches' => [$batch->batch_code]]) }}" class="dropdown-item">
-                                <i class="mdi mdi-check-decagram mr-2 text-success"></i> Generate Sales Order
+                                <i class="mdi mdi-check-decagram mr-2 text-success"></i> Generate Draft Invoice
                             </a>
                         </li>
                         @endif

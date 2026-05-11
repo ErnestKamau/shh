@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\RateLimiter;
 
 class TotpTwoFactorController extends Controller
 {
+    private const VERIFY_MAX_ATTEMPTS = 5;
+    private const VERIFY_DECAY_SECONDS = 300;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -41,8 +44,9 @@ class TotpTwoFactorController extends Controller
 
         $rateKey = 'totp:' . (string) $user->id;
 
-        if (RateLimiter::tooManyAttempts($rateKey, 5)) {
-            return redirect()->back()->with('error', 'Too many attempts. Please wait and try again.');
+        if (RateLimiter::tooManyAttempts($rateKey, self::VERIFY_MAX_ATTEMPTS)) {
+            $retryAfter = RateLimiter::availableIn($rateKey);
+            return redirect()->back()->with('error', 'Too many attempts. Please wait ' . $this->formatWait($retryAfter) . ' and try again.');
         }
 
         if (trim((string) $request->recovery_code) !== '') {
@@ -63,8 +67,9 @@ class TotpTwoFactorController extends Controller
 
         $acceptedStep = $totp->verifyTotpNewer($secret, (string) $request->code, $user->two_factor_last_used_step);
         if ($acceptedStep === null) {
-            RateLimiter::hit($rateKey, 60);
-            return redirect()->back()->with('error', 'Invalid authenticator code.');
+            RateLimiter::hit($rateKey, self::VERIFY_DECAY_SECONDS);
+            $remainingAttempts = max(0, self::VERIFY_MAX_ATTEMPTS - RateLimiter::attempts($rateKey));
+            return redirect()->back()->with('error', 'Invalid authenticator code. Remaining attempts: ' . $remainingAttempts . '.');
         }
 
         $user->two_factor_last_used_step = $acceptedStep;
@@ -184,5 +189,18 @@ class TotpTwoFactorController extends Controller
         return response()->json([
             'recovery_codes' => $codes,
         ]);
+    }
+
+    private function formatWait(int $seconds): string
+    {
+        $seconds = max(0, $seconds);
+        $minutes = (int) floor($seconds / 60);
+        $remainingSeconds = $seconds % 60;
+
+        if ($minutes <= 0) {
+            return $remainingSeconds . 's';
+        }
+
+        return $minutes . 'm ' . $remainingSeconds . 's';
     }
 }

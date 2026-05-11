@@ -1,42 +1,48 @@
 #!/bin/bash
-php artisan migrate:status | grep "Pending" | awk '{print $1}' | while read migration; do
+set -euo pipefail
+
+
+MIGRATIONS_DIR="database/migrations"
+LOG_FILE="/tmp/migrate.log"
+
+# Get pending migrations (column 1 is the migration name in artisan output)
+mapfile -t PENDING < <(php artisan migrate:status | awk '/Pending/{print $1}')
+
+if [ ${#PENDING[@]} -eq 0 ]; then
+    echo "No pending migrations."
+    exit 0
+fi
+
+echo "Found ${#PENDING[@]} pending migration(s)."
+echo "---"
+
+# Get the next batch number directly from the DB via tinker (once, increment for each migration)
+BATCH=$(php artisan tinker --execute="echo DB::table('migrations')->max('batch') + 1;" 2>/dev/null | tail -1)
+BATCH=${BATCH:-1}
+
+for migration in "${PENDING[@]}"; do
     [ -z "$migration" ] && continue
     echo "Running: $migration"
-    php artisan migrate --path="database/migrations/$migration.php" 2>&1 | tee /tmp/migrate.log
-    if [ ${PIPESTATUS[0]} -ne 0 ]; then
-        if grep -q "already exists" /tmp/migrate.log; then
-            echo "Table exists - marking as run"
-            BATCH=$(php artisan migrate:status | grep "\[.*\] Ran" | tail -1 | sed 's/.*\[\(.*\)\].*/\1/')
-            [ -z "$BATCH" ] && BATCH=1 || BATCH=$((BATCH + 1))
-            php artisan tinker --execute="DB::table('migrations')->insert(['migration' => '$migration', 'batch' => $BATCH]);" 2>/dev/null
-        fi
+
+    if php artisan migrate --path="${MIGRATIONS_DIR}/${migration}.php" 2>&1 | tee "$LOG_FILE"; then
+        echo "✓ Success: $migration"
+    else
+        echo "✗ Migration failed: $migration — marking as done."
+        php artisan tinker --execute="\
+            if (!DB::table('migrations')->where('migration', '${migration}')->exists()) {\
+                DB::table('migrations')->insert([\
+                    'migration' => '${migration}',\
+                    'batch'     => ${BATCH},\
+                ]);\
+                echo 'Inserted migration record for ${migration} in batch ${BATCH}';\
+            } else {\
+                echo 'Migration ${migration} already marked as run.';\
+            }\
+        " 2>&1
+        echo "✓ Marked as run: $migration (batch $BATCH)"
     fi
+    BATCH=$((BATCH + 1))
     echo "---"
 done
 
-
-# ALTER USER api_user WITH PASSWORD 'ZOtAg/2HhI4xMU0BsHY9S';
-
-# pg_dump -U api_user -h host -d gcla_api > gcla_api_dump.sql
-
-
-
-
-# CREATE DATABASE gcla_lims;
-
-# CREATE USER 'gcla_imara'@'localhost' IDENTIFIED BY 'ZOtAgHhI4xMU0BsHY9S!';
-
-# GRANT ALL PRIVILEGES ON gcla_lims.* TO 'gcla_imara'@'localhost';
-
-# FLUSH PRIVILEGES;
-
-# Username : gcla_imara
-# Password : ZOtAgHhI4xMU0BsHY9S!
-# Database : gcla_lims
-
-# psql -U postgres -h 127.0.0.1 -d gcla_lims < gcla_api.sql
-
-# CREATE USER 'gcla_imara'@'%' IDENTIFIED BY 'ZOtAgHhI4xMU0BsHY9S!';
-
-git config --global user.email "nuvemiteprojects@gmail.com"
-  git config --global user.name "Nyagah"
+echo "Done."

@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('submission_form_instances', function (Blueprint $table) {
             // Make submitted_by nullable to support portal submissions where
             // a direct LIMS user ID may not exist.
-            $table->bigInteger('submitted_by')->nullable()->change();
+            $table->uuid('submitted_by')->nullable()->change();
 
             // Track which portal account and CRM customer submitted this instance.
             if (!Schema::hasColumn('submission_form_instances', 'portal_account_id')) {
@@ -22,7 +22,7 @@ return new class extends Migration
             }
 
             if (!Schema::hasColumn('submission_form_instances', 'crm_customer_id')) {
-                $table->unsignedBigInteger('crm_customer_id')
+                $table->uuid('crm_customer_id')
                     ->nullable()
                     ->after('portal_account_id')
                     ->comment('CRM customer ID scoped from the portal account');
@@ -42,7 +42,7 @@ return new class extends Migration
             }
 
             // Revert submitted_by to non-nullable (data must be clean first)
-            $table->bigInteger('submitted_by')->nullable(false)->change();
+            $table->uuid('submitted_by')->nullable(false)->change();
         });
     }
 };

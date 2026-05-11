@@ -1,7 +1,7 @@
 @extends('layouts.crm.layout.app', ['dataTable'=>false, 'select2'=>true])
 
 @section('title2')
-<title>{{ $pageTitle ?? 'CRM Management' }}</title>
+<title>{{ $pageTitle ?? __('crm.crm_management') }}</title>
 @endsection
 
 @section('content2')
@@ -11,6 +11,7 @@
             'dashboard',
             'customers',
             'complaints',
+            'feedbacks',
             'customer-profile',
         ], true);
     @endphp
@@ -21,7 +22,7 @@
     // Always start with CRM Home
     $breadcrumbItems[] = [
         'link' => route('crm.dashboard'),
-        'name' => 'CRM',
+        'name' => __('crm.module_name'),
         'icon' => null
     ];
     
@@ -29,7 +30,7 @@
     if ($componentType === 'customers') {
         $breadcrumbItems[] = [
             'link' => route('livewire.customers'),
-            'name' => 'Customer List',
+            'name' => __('crm.customer_list'),
             'icon' => null
         ];
     }
@@ -38,7 +39,7 @@
     if ($componentType === 'dashboard') {
         $breadcrumbItems[] = [
             'link' => route('crm.dashboard'),
-            'name' => 'Dashboard',
+            'name' => __('crm.dashboard'),
             'icon' => null
         ];
     }
@@ -71,12 +72,10 @@
         @livewire(\App\Livewire\CRM\CustomerManager::class)
     @elseif($componentType === 'customer-profile')
         @livewire(\App\Livewire\CRM\CustomerProfile::class, ['customerId' => $customerId])
-    @elseif($componentType === 'sample-points')
-        @livewire(\App\Livewire\CRM\SamplePointManager::class)
-    @elseif($componentType === 'areas')
-        @livewire(\App\Livewire\CRM\AreaManager::class)
     @elseif($componentType === 'complaints')
         @livewire(\App\Livewire\Crm\Complaint\ComplaintList::class, ['stage' => $stage ?? null])
+    @elseif($componentType === 'feedbacks')
+        @livewire(\App\Livewire\Crm\Feedback\FeedbackList::class)
     @endif
 </main>
 @endsection

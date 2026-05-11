@@ -39,17 +39,16 @@
                     <i class="mdi mdi-note-text" style="font-size:1.1rem;color:#0891b2;"></i>
                 </span>
                 <div>
-                    <small class="font-weight-bold text-dark" style="font-size:0.82rem;">Notes</small>
-                    <small class="text-muted d-block" style="font-size:0.67rem;">Internal observations, reminders &amp;
-                        non-conformity records</small>
+                    <small class="font-weight-bold text-dark" style="font-size:0.82rem;">{{ __('crm.notes') }}</small>
+                    <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.internal_observations_reminders_nonconformity') }}</small>
                 </div>
             </div>
             <div class="d-flex align-items-center" style="gap:8px;">
                 <button type="button" class="btn btn-outline-success btn-sm text-nowrap" wire:click="exportToExcel">
-                    <i class="mdi mdi-microsoft-excel"></i> Export to Excel
+                    <i class="mdi mdi-microsoft-excel"></i> {{ __('crm.export_to_excel') }}
                 </button>
                 <button type="button" class="btn btn-add btn-sm" wire:click="openAddModal">
-                    <i class="mdi mdi-plus"></i> Add Note
+                    <i class="mdi mdi-plus"></i> {{ __('crm.add_note') }}
                 </button>
             </div>
         </div>
@@ -57,17 +56,17 @@
         {{-- Loading Indicator --}}
         <div wire:loading wire:target="openAddModal,editNote,deleteNote,addNote,updateNote"
             class="crm-loading-indicator">
-            <i class="mdi mdi-loading mdi-spin"></i> Loading...
+            <i class="mdi mdi-loading mdi-spin"></i> {{ __('crm.loading') }}...
         </div>
 
         <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
             <x-slot:header>
                 <tr>
-                    <th>Type</th>
-                    <th>Note</th>
-                    <th>Created By</th>
-                    <th>Created At</th>
-                    <th style="min-width:120px;">Actions</th>
+                    <th>{{ __('crm.type') }}</th>
+                    <th>{{ __('crm.note') }}</th>
+                    <th>{{ __('crm.created_by') }}</th>
+                    <th>{{ __('crm.created_at') }}</th>
+                    <th style="min-width:120px;">{{ __('crm.actions') }}</th>
                 </tr>
             </x-slot:header>
                         @forelse($notes as $note)
@@ -84,7 +83,7 @@
                                         </button>
                                         <button type="button" class="btn crm-btn crm-btn-delete btn-sm"
                                             wire:click="deleteNote({{ $note->id }})"
-                                            wire:confirm="Are you sure you want to delete this note?">
+                                            wire:confirm="{{ __('crm.delete_note_confirm') }}">
                                             <i class="mdi mdi-trash-can-outline"></i>
                                         </button>
                                     </x-crm.action-buttons>
@@ -95,15 +94,15 @@
                                 <td colspan="5">
                                     <x-crm.empty-state
                                         icon="mdi-note-off-outline"
-                                        message="No notes recorded"
-                                        help="Add an internal note to log observations or reminders."
+                                        :message="__('crm.no_notes_recorded')"
+                                        :help="__('crm.no_notes_recorded_help')"
                                     />
                                 </td>
                             </tr>
                         @endforelse
         </x-crm.data-table>
 
-        <x-crm.pagination :summary="'Showing ' . ($notes->firstItem() ?? 0) . ' to ' . ($notes->lastItem() ?? 0) . ' of ' . $notes->total() . ' results'">
+        <x-crm.pagination :summary="__('crm.showing_to_of_results', ['from' => ($notes->firstItem() ?? 0), 'to' => ($notes->lastItem() ?? 0), 'total' => $notes->total()])">
             {{ $notes->links() }}
         </x-crm.pagination>
 
@@ -116,7 +115,7 @@
                     <div class="modal-header">
                     <h5 class="modal-title" id="noteModalLabel">
                         <i class="mdi mdi-note-edit-outline mr-1 text-primary"></i>
-                        {{ $editingNoteId ? 'Edit Note' : 'Add Note' }}
+                        {{ $editingNoteId ? __('crm.edit_note') : __('crm.add_note') }}
                     </h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
@@ -124,29 +123,29 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Note Type <span class="text-danger">*</span>:</label>
+                        <label>{{ __('crm.note_type') }} <span class="text-danger">*</span>:</label>
                         <select wire:model.live="noteType" class="form-control custom-select-sm no-select2" required>
-                            <option value="">Select Type</option>
+                            <option value="">{{ __('crm.select_type') }}</option>
                             @foreach($availableTypes as $type)
                                 <option value="{{ $type }}">{{ $type }}</option>
                             @endforeach
-                            <option value="Other">Other (Add New...)</option>
+                            <option value="Other">{{ __('crm.other_add_new') }}</option>
                         </select>
                         @error('noteType') <span class="text-danger small">{{ $message }}</span> @enderror
                     </div>
 
                     @if($showCustomType)
                         <div class="form-group">
-                            <label>Custom Note Type <span class="text-danger">*</span>:</label>
+                            <label>{{ __('crm.custom_note_type') }} <span class="text-danger">*</span>:</label>
                             <input type="text" wire:model="customNoteType" class="form-control form-control-sm"
-                                placeholder="Enter custom note type..." required>
+                                placeholder="{{ __('crm.custom_note_type_placeholder') }}" required>
                             @error('customNoteType') <span class="text-danger small">{{ $message }}</span> @enderror
                         </div>
                     @endif
                     <div class="form-group">
-                        <label>Note <span class="text-danger">*</span>:</label>
+                        <label>{{ __('crm.note') }} <span class="text-danger">*</span>:</label>
                         <div wire:ignore class="note-editor-wrap">
-                            <textarea id="note-tinymce-editor" class="note-tinymce-editor form-control" rows="8" placeholder="Enter note description..."></textarea>
+                            <textarea id="note-tinymce-editor" class="note-tinymce-editor form-control" rows="8" placeholder="{{ __('crm.note_description_placeholder') }}"></textarea>
                         </div>
                         @error($editingNoteId ? 'editingNote' : 'newNote')
                             <span class="text-danger small">{{ $message }}</span>
@@ -155,17 +154,16 @@
                     <div class="form-group">
                         <div class="custom-control custom-checkbox">
                             <input type="checkbox" class="custom-control-input" id="isPublicNote" wire:model="isPublic">
-                            <label class="custom-control-label" for="isPublicNote">Mark as Public (Visible in
-                                Closure Report)</label>
+                            <label class="custom-control-label" for="isPublicNote">{{ __('crm.mark_public_visible_closure_report') }}</label>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('crm.close') }}</button>
                     @if($editingNoteId)
-                        <button type="button" class="btn btn-primary" @click="syncTinyMCEToLivewire(); getWire()?.updateNote()">Update</button>
+                        <button type="button" class="btn btn-primary" @click="syncTinyMCEToLivewire(); getWire()?.updateNote()">{{ __('crm.update') }}</button>
                     @else
-                        <button type="button" class="btn btn-primary" @click="syncTinyMCEToLivewire(); getWire()?.addNote()">Save Note</button>
+                        <button type="button" class="btn btn-primary" @click="syncTinyMCEToLivewire(); getWire()?.addNote()">{{ __('crm.save_note') }}</button>
                     @endif
                 </div>
                 </div>

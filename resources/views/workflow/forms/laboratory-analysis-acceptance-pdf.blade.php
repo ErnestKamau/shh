@@ -69,24 +69,41 @@
         <thead>
             <tr>
                 <th style="width: 7%;">S/No</th>
-                <th style="width: 53%;">Parameter(s) Requested</th>
-                <th style="width: 20%;">Accept (✓)</th>
-                <th style="width: 20%;">Reject (x)</th>
+                <th style="width: 43%;">Parameter(s) Requested</th>
+                <th style="width: 20%; text-align: right;">Amount (USD)</th>
+                <th style="width: 15%;">Accept (✓)</th>
+                <th style="width: 15%;">Reject (x)</th>
             </tr>
         </thead>
         <tbody>
-            @php $rows = $payload['parameters'] ?? []; @endphp
-            @for($i = 0; $i < 9; $i++)
-                @php $row = $rows[$i] ?? null; @endphp
+            @php 
+                $rows = $payload['parameters'] ?? []; 
+                $totalAmount = 0;
+            @endphp
+            @forelse($rows as $i => $row)
+                @php $totalAmount += (float)($row['price'] ?? 0); @endphp
                 <tr>
                     <td class="center">{{ $i + 1 }}</td>
                     <td>{{ $row['name'] ?? '' }}</td>
+                    <td class="right">{{ isset($row['price']) ? number_format((float)$row['price'], 2) : '' }}</td>
                     <td class="center">{{ !empty($row['accepted']) ? '✓' : '' }}</td>
                     <td class="center">{{ !empty($row['rejected']) ? 'x' : '' }}</td>
                 </tr>
-            @endfor
-            <tr>
-                <td colspan="4" class="center"><strong>TOTAL</strong></td>
+            @empty
+                @for($i = 0; $i < 3; $i++)
+                    <tr>
+                        <td class="center">{{ $i + 1 }}</td>
+                        <td></td>
+                        <td class="right"></td>
+                        <td class="center"></td>
+                        <td class="center"></td>
+                    </tr>
+                @endfor
+            @endforelse
+            <tr style="font-weight: bold; background-color: #f3f4f6;">
+                <td colspan="2" class="right"><strong>TOTAL</strong></td>
+                <td class="right"><strong>{{ number_format($totalAmount, 2) }}</strong></td>
+                <td colspan="2"></td>
             </tr>
         </tbody>
     </table>

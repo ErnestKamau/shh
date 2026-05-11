@@ -79,7 +79,7 @@ class FeedbackList extends BaseCrmComponent
     public function mount()
     {
         $this->initialize();
-        $this->checkPermission('crm.components.feedbacks.view');
+        $this->authorizeFeedbackView();
 
         // Hydrate filter state from URL for consistency on reload/navigation
         $query = request()->query();
@@ -110,6 +110,13 @@ class FeedbackList extends BaseCrmComponent
 
         // Compute insights once on mount — not on every render
         $this->loadInsights();
+    }
+
+    protected function authorizeFeedbackView(): void
+    {
+        if (! $this->hasPermission('crm.components.feedbacks.view')) {
+            $this->checkPermission('crm.feedback.view');
+        }
     }
 
     /**
@@ -167,18 +174,21 @@ class FeedbackList extends BaseCrmComponent
         $this->sortedDimensions = $dimensions;
 
         // 3. Generating Lowest Rated Feedback (Dynamic average based on crm_feedback_ratings)
+        $avgScoreExpression = '(
+                SELECT AVG(CAST(r.rating AS DECIMAL(10,2)) / CAST(m.max_rating AS DECIMAL(10,2))) * 4.0
+                FROM crm_feedback_ratings r
+                JOIN crm_evaluation_metrics m ON r.evaluation_metric_id = m.id
+                WHERE r.customer_feedback_id = customerfeedbacks.id
+            )';
+
         $topLowestQuery = CustomerFeedback::query()
             ->select('customerfeedbacks.*')
-            ->selectRaw('(
-                SELECT AVG(CAST(r.rating AS DECIMAL(10,2)) / CAST(m.max_rating AS DECIMAL(10,2))) * 4.0
-                FROM crm_feedback_ratings r 
-                JOIN crm_evaluation_metrics m ON r.evaluation_metric_id = m.id 
-                WHERE r.customer_feedback_id = customerfeedbacks.id
-            ) as avg_score')
+            ->selectRaw($avgScoreExpression . ' as avg_score')
             ->where('status', CustomerFeedback::STATUS_SUBMITTED)
             ->with(['customer', 'contact'])
-            ->having('avg_score', '<=', 1.6) // Bottom 40% (equivalent to 1.6/4)
-            ->having('avg_score', '>', 0)
+            // PostgreSQL does not reliably support HAVING on a SELECT alias in this context.
+            ->whereRaw($avgScoreExpression . ' <= ?', [1.6]) // Bottom 40% (equivalent to 1.6/4)
+            ->whereRaw($avgScoreExpression . ' > 0')
             ->orderBy('avg_score', 'asc')
             ->orderBy('id', 'desc');
 
@@ -489,7 +499,7 @@ class FeedbackList extends BaseCrmComponent
 
     public function exportToExcel()
     {
-        $this->checkPermission('crm.components.feedbacks.view');
+        $this->authorizeFeedbackView();
 
         $filters = [
             'search' => $this->search,
@@ -502,7 +512,7 @@ class FeedbackList extends BaseCrmComponent
 
     public function exportInsights()
     {
-        $this->checkPermission('crm.components.feedbacks.view');
+        $this->authorizeFeedbackView();
 
         $query = CustomerFeedback::query();
         if ($this->search) {

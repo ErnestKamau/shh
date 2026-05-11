@@ -284,6 +284,17 @@ class WorkflowBoard extends Component
         ];
     }
 
+    protected function isReceivingRequestsStage(): bool
+    {
+        return in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)
+            && $this->workflowSubTab === 'requests';
+    }
+
+    protected function isReceivingStage(): bool
+    {
+        return in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true);
+    }
+
     /**
      * Computed list of batches for the active status.
      */
@@ -320,7 +331,7 @@ class WorkflowBoard extends Component
             }, 'attachment_count')
             ->latest();
 
-        if ($this->status === 'Samples En-Route' && $this->workflowSubTab === 'requests') {
+        if ($this->isReceivingRequestsStage()) {
             $query->where('status', 'submitted');
             $query->whereDoesntHave('batches');
         }
@@ -726,7 +737,7 @@ class WorkflowBoard extends Component
         if ($this->status === 'Schedule of Analysis') {
             $query->where('status', 'Samples In Lab')
                 ->where('schedule_sent', '<', 1);
-        } elseif ($this->status === 'Samples En-Route') {
+        } elseif ($this->isReceivingStage()) {
             if ($this->workflowSubTab === 'received') {
                 $query->where(function ($inner) {
                     $inner->where('status', 'Samples Reception')
@@ -830,7 +841,7 @@ class WorkflowBoard extends Component
      */
     public function getSamplesReceptionStatsProperty(): array
     {
-        if (!in_array($this->status, ['Samples Reception', 'Samples En-Route'], true)) {
+        if (!in_array($this->status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving'], true)) {
             return [
                 'customers_requested' => 0,
                 'portal_submitted' => 0,
@@ -857,20 +868,35 @@ class WorkflowBoard extends Component
         });
         $portalFormQuery->whereDoesntHave('batches');
 
+        $requestedCustomerIds = (clone $portalRequestQuery)
+            ->whereNotNull('crm_customer_id')
+            ->pluck('crm_customer_id');
+
+        $submittedCustomerIds = (clone $portalFormQuery)
+            ->where('status', 'submitted')
+            ->whereNotNull('crm_customer_id')
+            ->pluck('crm_customer_id');
+
         return [
-            'customers_requested' => (clone $portalRequestQuery)
-                ->whereNotNull('crm_customer_id')
-                ->distinct('crm_customer_id')
-                ->count('crm_customer_id'),
+            'customers_requested' => $requestedCustomerIds
+                ->merge($submittedCustomerIds)
+                ->filter()
+                ->unique()
+                ->count(),
             'portal_submitted' => (clone $portalFormQuery)
-                ->where('status', 'submitted')
-                ->count(),
+                    ->where('status', 'submitted')
+                    ->count()
+                + (clone $portalRequestQuery)
+                    ->whereIn('status', ['submitted', 'booking_date_approved', 'booking_date_rescheduled'])
+                    ->count(),
             'sent_to_request_review' => (clone $portalFormQuery)
-                ->where('status', 'in_review')
-                ->count(),
+                    ->where('status', 'in_review')
+                    ->count()
+                + (clone $portalRequestQuery)
+                    ->where('status', 'in_review')
+                    ->count(),
             'waiting_for_delivery' => (clone $portalRequestQuery)
-                ->whereNotNull('submitted_by_date')
-                ->whereDate('submitted_by_date', '>=', Carbon::today())
+                ->whereIn('status', ['submitted', 'booking_date_approved', 'booking_date_rescheduled'])
                 ->count(),
         ];
     }
@@ -881,7 +907,7 @@ class WorkflowBoard extends Component
      */
     public function getPortalSubmissionsProperty()
     {
-        if ($this->status !== 'Samples En-Route' || $this->workflowSubTab !== 'requests') {
+        if (! $this->isReceivingRequestsStage()) {
             return null;
         }
 

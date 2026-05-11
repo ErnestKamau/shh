@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('portal_access_requests')) {
+            return;
+        }
+
         Schema::create('portal_access_requests', function (Blueprint $table): void {
             $table->bigIncrements('id');
 

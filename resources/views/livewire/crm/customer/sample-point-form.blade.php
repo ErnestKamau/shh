@@ -1,28 +1,4 @@
 <div x-data="{
-    initSelect2() {
-        setTimeout(() => {
-            let unitSelect = $('#unit-select-sample');
-            if (unitSelect.hasClass('select2-hidden-accessible')) {
-                unitSelect.select2('destroy');
-            }
-            unitSelect.select2({
-                placeholder: 'Select Unit',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: unitSelect.closest('.modal'),
-                closeOnSelect: true
-            }).on('change', function (e) {
-                var data = $(this).val();
-                $wire.set('unitId', data);
-            });
-
-            // Initial load
-            let initialUnit = $wire.get('unitId');
-            if (initialUnit) {
-                unitSelect.val(initialUnit).trigger('change');
-            }
-        }, 100);
-    },
     initMap() {
         if (typeof google === 'undefined') {
             const script = document.createElement('script');
@@ -71,7 +47,6 @@
         google.maps.event.trigger(map, 'resize');
     },
     init() {
-        this.initSelect2();
         this.initMap();
     }
 }" x-init="init()">
@@ -98,14 +73,44 @@
                                 @error('name') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group">
+                                <label class="control-label">Description</label>
+                                <textarea class="form-control @error('description') is-invalid @enderror"
+                                    wire:model="description" rows="3" placeholder="Sample Point Description..."></textarea>
+                                @error('description') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group">
                                 <label class="control-label">Company Unit <span class="text-danger">*</span></label>
-                                <div wire:ignore>
-                                    <select id="unit-select-sample" class="form-control" required>
-                                        <option value="">Select Unit</option>
-                                        @foreach($units as $unit)
-                                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
-                                        @endforeach
-                                    </select>
+                                <div class="tag-select-container @error('unitId') is-invalid @enderror"
+                                    wire:click="$set('showUnitDropdown', true)"
+                                    wire:click.outside="$set('showUnitDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($this->selectedUnit)
+                                            <span class="tag-badge">
+                                                {{ $this->selectedUnit->name }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="clearUnit"></i>
+                                            </span>
+                                        @endif
+
+                                        <input type="text"
+                                            wire:model.live="unitSearch"
+                                            class="tag-input"
+                                            placeholder="{{ $this->selectedUnit ? '' : 'Search units...' }}"
+                                            autocomplete="off">
+                                    </div>
+
+                                    @if($showUnitDropdown)
+                                        <div class="tag-dropdown">
+                                            @if(count($this->filteredUnits) > 0)
+                                                @foreach($this->filteredUnits as $unit)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectUnit({{ $unit->id }})">
+                                                        {{ $unit->name }}
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="tag-dropdown-item text-muted">No units found</div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                                 @error('unitId') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
@@ -141,3 +146,71 @@
     </template>
 
 </div>
+
+<style>
+    .tag-select-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .tag-select-input {
+        min-height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        padding: 4px 8px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        background-color: #fff;
+    }
+
+    .tag-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        min-width: 120px;
+        font-size: 0.9rem;
+    }
+
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0f2f5;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.85rem;
+    }
+
+    .tag-badge i {
+        cursor: pointer;
+    }
+
+    .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        max-height: 220px;
+        overflow-y: auto;
+        z-index: 1100;
+    }
+
+    .tag-dropdown-item {
+        padding: 8px 10px;
+        cursor: pointer;
+    }
+
+    .tag-dropdown-item:hover {
+        background: #f8f9fa;
+    }
+
+    .tag-select-container.is-invalid .tag-select-input {
+        border-color: #dc3545;
+    }
+</style>

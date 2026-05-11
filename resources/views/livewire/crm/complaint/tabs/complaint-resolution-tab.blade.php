@@ -1,14 +1,5 @@
 <div x-data="resolutionTab">
     <style>
-        .select2-container {
-            z-index: 100000 !important;
-        }
-
-        .select2-dropdown {
-            z-index: 100000 !important;
-        }
-
-
         /* Tab content area — white card with elevation, generous spacing for captions */
         .resolution-tab-content {
             border: 1px solid #E5E7EB;
@@ -229,6 +220,48 @@
         .tab-content {
             overflow: visible !important;
         }
+
+        .tag-select-container { position: relative; }
+        .tag-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            min-height: 42px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+            padding: 6px 10px;
+        }
+        .selected-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #e8f1ff;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 12px;
+            color: #1f2937;
+        }
+        .selected-tag i { cursor: pointer; font-size: 14px; }
+        .tag-input { border: none; outline: none; flex: 1 1 170px; min-width: 120px; }
+        .clear-icon { cursor: pointer; color: #9ca3af; font-size: 18px; }
+        .tag-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+            z-index: 1070;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+        .tag-dropdown-item { padding: 8px 10px; cursor: pointer; }
+        .tag-dropdown-item:hover { background: #f3f4f6; }
+        .tag-dropdown-empty { padding: 8px 10px; color: #6b7280; font-size: 13px; }
     </style>
 
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -323,13 +356,34 @@
                     <div class="resolution-officer-wrap">
                         <label><i class="mdi mdi-account-tie mr-1"></i> Officer Responsible <span
                                 class="text-danger">*</span></label>
-                        <div wire:ignore>
-                            <select class="form-control no-select2" id="officer_responsible_select" size="1" multiple
-                                required>
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                @endforeach
-                            </select>
+                        <div class="tag-select-container" wire:click.outside="$set('showOfficerDropdown', false)">
+                            <div class="tag-select-input">
+                                @forelse($this->selectedOfficers as $officer)
+                                    <span class="selected-tag">
+                                        {{ $officer->name }}
+                                        <i class="mdi mdi-close" wire:click.stop="removeOfficer('{{ $officer->id }}')"></i>
+                                    </span>
+                                @empty
+                                    <span class="text-muted small">No officer selected</span>
+                                @endforelse
+                                <input type="text" class="tag-input" placeholder="Search officer..."
+                                    wire:model.live.debounce.200ms="officerSearch"
+                                    wire:focus="$set('showOfficerDropdown', true)" />
+                                @if(!empty($resolved_by_user_id))
+                                    <i class="mdi mdi-close-circle clear-icon" wire:click="clearOfficers"></i>
+                                @endif
+                            </div>
+                            @if($showOfficerDropdown)
+                                <div class="tag-dropdown">
+                                    @forelse($this->filteredOfficerOptions as $officer)
+                                        <div class="tag-dropdown-item" wire:click="toggleOfficer('{{ $officer->id }}')">
+                                            {{ $officer->name }}
+                                        </div>
+                                    @empty
+                                        <div class="tag-dropdown-empty">No officers found</div>
+                                    @endforelse
+                                </div>
+                            @endif
                         </div>
                         @error('resolved_by_user_id') <span class="text-danger small">{{ $message }}</span>
                         @enderror
@@ -607,29 +661,6 @@
         })();
 
         Alpine.data('resolutionTab', () => ({
-            initSelect2() {
-                try {
-                    let officerSelect = $('#officer_responsible_select');
-                    if (officerSelect.length) {
-                        if (officerSelect.hasClass('select2-hidden-accessible')) {
-                            officerSelect.select2('destroy');
-                        }
-                        officerSelect.select2({
-                            placeholder: 'Select Officer(s)',
-                            allowClear: true,
-                            multiple: true,
-                            width: '100%',
-                            dropdownParent: $('#resolutionModal'),
-                            closeOnSelect: false
-                        }).on('change', function (e) {
-                            var data = $(this).val();
-                            $wire.set('resolved_by_user_id', data);
-                        });
-                    }
-                } catch (e) {
-                    console.warn('Select2 init error:', e);
-                }
-            },
             initTinyMCE() {
                 const doInit = function () {
                     if (typeof tinymce === 'undefined') return;
@@ -710,18 +741,7 @@
                     $("#resolutionModal").one("shown.bs.modal", () => {
                         // Reset to Findings tab on every open
                         $('a[href="#tab-findings"]').tab("show");
-                        this.initSelect2();
                         this.initTinyMCE();
-
-                        let officer = data.officer || (data[0] ? data[0].officer : null);
-                        setTimeout(() => {
-                            if (officer) {
-                                let values = Array.isArray(officer) ? officer : [officer];
-                                $("#officer_responsible_select").val(values).trigger("change");
-                            } else {
-                                $("#officer_responsible_select").val(null).trigger("change");
-                            }
-                        }, 50);
                     });
                 });
 

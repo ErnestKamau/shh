@@ -195,7 +195,7 @@ class DocumentComplianceDashboardController extends Controller
                     next_renewal_date,
                     approval_status,
                     document_owner,
-                    DATEDIFF(next_renewal_date, NOW()) as days_until_renewal
+                    (next_renewal_date::date - CURRENT_DATE) as days_until_renewal
                 ')
                 ->where('next_renewal_date', '>=', Carbon::now())
                 ->where('next_renewal_date', '<=', Carbon::now()->addDays(90))
@@ -235,10 +235,10 @@ class DocumentComplianceDashboardController extends Controller
                     document_type,
                     next_renewal_date,
                     document_owner,
-                    ABS(DATEDIFF(next_renewal_date, NOW())) as days_overdue
+                    ABS(next_renewal_date::date - CURRENT_DATE) as days_overdue
                 ')
                 ->where('next_renewal_date', '<', Carbon::now())
-                ->orderByRaw('ABS(DATEDIFF(next_renewal_date, NOW())) DESC')
+                ->orderByRaw('ABS(next_renewal_date::date - CURRENT_DATE) DESC')
                 ->limit(30)
                 ->get();
 

@@ -180,7 +180,8 @@ class ComplaintList extends BaseCrmComponent
 
         // 2. Handle Numeric Input (e.g., URL is .../4)
         if (is_numeric($value)) {
-            return $id_to_name[$value] ?? 'All Complaints';
+            $stageName = $id_to_name[$value] ?? 'All Complaints';
+            return translateComplaintWorkflowStage($stageName);
         }
 
         // 3. Handle String Input (e.g., URL is .../Resolution%20Approval)
@@ -189,11 +190,11 @@ class ComplaintList extends BaseCrmComponent
             
             // If the text matches one of our known stages, return it directly
             if (in_array($decoded_name, $id_to_name)) {
-                return $decoded_name;
+                return translateComplaintWorkflowStage($decoded_name);
             }
         }
 
-        return 'All Complaints';
+        return translateComplaintWorkflowStage('All Complaints');
     }
     public function exportToExcel()
     {
