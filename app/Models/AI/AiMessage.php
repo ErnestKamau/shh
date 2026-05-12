@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AiMessage extends Model
 {
+    protected $connection = 'pgsql_ai';
     use HasUuids;
 
     protected $keyType = 'string';
