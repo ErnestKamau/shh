@@ -21,11 +21,7 @@
     <div class="sidebar-section-label">AI Configuration</div>
     
     <div class="sidebar-history" style="padding-top: 4px;">
-        <a href="{{ route('ai.settings.index') }}" class="history-item {{ Route::is('ai.settings.index') ? 'active' : '' }}" style="text-decoration: none;">
-            <i class="mdi mdi-view-dashboard-outline"></i>
-            <span class="history-label">General Settings</span>
-        </a>
-        
+        {{-- Settings page removed; managed via DMS Active Documents --}}
     </div>
 
     <div class="sidebar-footer">

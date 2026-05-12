@@ -1839,10 +1839,7 @@ Route::post('/ajax/send-schedule', 'SampleWorkFlowController@sendScheduleAjax')-
 
 ##################################### IMARACHAT AI #######################
 Route::get('/imara-ai','HomeController@aiIndex')->middleware(['auth', 'twofactor', 'can:ai.module.access'])->name('imara-ai');
-Route::prefix('imara-ai/settings')->name('ai.settings.')->middleware(['auth', 'twofactor'])->group(function () {
-    Route::get('/', 'KnowledgeBaseManagerController@settings')->name('index');
-});
-Route::get('/imara-ai/knowledge-manager','KnowledgeBaseManagerController@index')->middleware(['auth', 'twofactor'])->name('ai.knowledge.manager');
+/* Settings and Knowledge Manager routes removed: functionality merged into DMS Active Documents */
 
 Route::post('/imara-ai/search', 'AI\KnowledgeAssistantController@search')
   ->middleware(['auth', 'twofactor', 'throttle:20,1'])
