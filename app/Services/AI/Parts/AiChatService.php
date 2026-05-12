@@ -23,6 +23,7 @@ class AiChatService extends AiBaseService
                 'use_visuals' => (bool) ($options['use_visuals'] ?? true),
                 'model' => $options['model'] ?? null,
                 'module_context' => $options['module_context'] ?? null,
+                'mode' => $options['mode'] ?? 'general',
             ];
 
             $client = new GuzzleClient();
@@ -70,6 +71,7 @@ class AiChatService extends AiBaseService
                     'company_id' => auth()->user()->company_id ?? 1,
                     'trace_id' => $options['trace_id'] ?? null,
                     'use_visuals' => (bool) ($options['use_visuals'] ?? true),
+                    'mode' => $options['mode'] ?? 'general',
                 ]);
 
             if ($response->successful()) {

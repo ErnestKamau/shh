@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('form_template_sections', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('form_template_id');
+            $table->uuid('form_template_id');
             $table->string('title')->nullable();
             $table->text('description')->nullable();
             $table->integer('order_index')->default(0);

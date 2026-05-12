@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('form_template_variables')) {
+            return;
+        }
+
         Schema::create('form_template_variables', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('form_template_id');

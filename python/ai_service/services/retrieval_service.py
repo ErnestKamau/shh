@@ -6,7 +6,7 @@ import logging
 from threading import Lock
 from typing import List, Dict, Any, Optional
 from sqlalchemy import text
-from python.py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 

@@ -32,4 +32,9 @@ class ConfigurationController extends Controller
   {
     return view('layouts.configuration.translations');
   }
+
+  public function bulkImport(): View
+  {
+    return view('layouts.configuration.bulk-import');
+  }
 }

@@ -5,7 +5,7 @@ Logs every AI request to `ai.ai_request_logs` in PostgreSQL.
 Fire-and-forget: writes happen on a background thread and never
 crash the request pipeline.
 
-Table: fivet_imara_ai.ai.ai_request_logs
+Table: gcla.ai.ai_request_logs
 """
 
 import logging
@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import text
-from python.py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 logger = logging.getLogger(__name__)
 

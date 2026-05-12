@@ -14,8 +14,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, roc_auc_score
 from sqlalchemy import text
 
-from ai_service.core.model_registry_service import ModelRegistryService
-from py_etl.core.database import db_manager
+from python.ai_service.core.model_registry_service import ModelRegistryService
+from python.py_pipeline.core.database import db_manager
 
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "models"

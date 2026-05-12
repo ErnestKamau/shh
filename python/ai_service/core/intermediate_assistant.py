@@ -5,9 +5,9 @@ import uuid
 import re
 from typing import List, Dict, Any, Optional, AsyncGenerator
 
-from ai_service.core.simple_assistant import SimpleAssistant
-from ai_service.services.ollama_service import OllamaService
-from ai_service.core.manifest_intent_router import GREETING_PATTERNS
+from python.ai_service.core.simple_assistant import SimpleAssistant
+from python.ai_service.services.ollama_service import OllamaService
+from python.ai_service.core.manifest_intent_router import GREETING_PATTERNS
 
 logger = logging.getLogger(__name__)
 

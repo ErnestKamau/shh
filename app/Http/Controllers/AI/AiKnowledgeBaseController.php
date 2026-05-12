@@ -660,37 +660,4 @@ class AiKnowledgeBaseController extends Controller
         return view('imara-ai.knowledge.editor', compact('doc'));
     }
 
-    /**
-     * Get real-time status of an indexing run.
-     */
-    public function getSyncStatus($runId): JsonResponse
-    {
-        try {
-            $run = DB::connection('pgsql_ai')
-                ->table('reporting.sync_runs')
-                ->where('id', $runId)
-                ->first();
-
-            if (!$run) {
-                return response()->json(['status' => 'error', 'message' => 'Run not found.'], 404);
-            }
-
-            return response()->json([
-                'status' => 'ok',
-                'data' => [
-                    'id' => $run->id,
-                    'sync_status' => $run->status,
-                    'stage' => $run->stage,
-                    'rows_synced' => $run->rows_synced,
-                    'rows_failed' => $run->rows_failed,
-                    'chunk_count' => $run->chunk_count,
-                    'error_message' => $run->error_message,
-                    'updated_at' => $run->updated_at
-                ]
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('AiKnowledgeBaseController: getSyncStatus failed', ['error' => $e->getMessage()]);
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
-    }
 }

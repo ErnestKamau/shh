@@ -7,7 +7,6 @@ Features:
 - Stale-chunk replacement (clean before reindex)
 - Batch embedding and pgvector insertion
 - Rich metadata schema (company_id, entity_type, source_table, etc.)
-- Sync run logging for observability
 - Multi-tenant isolation at the indexing level
 """
 from __future__ import annotations
@@ -21,10 +20,9 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy import text
 from loguru import logger as loguru_logger
 
-from py_etl.core.database import db_manager
-from py_etl.core.etl_tracker import etl_tracker
-from ai_service.services.retrieval_service import RetrievalService
-from ai_service.core.document_processor import DocumentProcessor
+from python.py_pipeline.core.database import db_manager
+from python.ai_service.services.retrieval_service import RetrievalService
+from python.ai_service.core.document_processor import DocumentProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -38,18 +36,6 @@ class RagIndexer:
         self.document_processor = DocumentProcessor()
         self.schema = "ai"
         self.table = "ai_knowledge_chunks"
-
-    def start_indexing_run(self, domain: str) -> int:
-        """
-        Register a new indexing run in the system logs.
-        Reuses the etl_tracker logic for cross-system consistency.
-        """
-        return etl_tracker.start_run(
-            sync_scope=f"rag_index_{domain}",
-            source_table="reporting.*",
-            target_table=f"{self.schema}.{self.table}",
-            chunk_size=50 # Standard batch size for embeddings
-        )
 
     def generate_chunk_id(self, 
                           company_id: int, 
@@ -152,12 +138,6 @@ class RagIndexer:
                 if not prepared_chunks:
                     continue
 
-                # Stage 2: Telemetry Initialization
-                total_chunks = len(prepared_chunks)
-                if etl_tracker.current_run_id:
-                    # Notify tracker of expected chunk count for this document
-                    pass 
-
                 # 3. Batch Index the chunks for this record
                 for i, chunk_data in enumerate(prepared_chunks):
                     content = chunk_data["content"]
@@ -233,29 +213,9 @@ class RagIndexer:
                     
                     indexed_count += 1
                     
-                    # Stage 2: Real-Time Telemetry Progress
-                    if etl_tracker.current_run_id:
-                        etl_tracker.record_chunk(
-                            chunk_id=f"{source_id}_{i}",
-                            rows_inserted=1 
-                        )
-                
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"RagIndexer: Failed to index {entity_type} {record.get('source_id')}: {error_msg}")
-                
-                # Stage 2: Granular Error Telemetry
-                if etl_tracker.current_run_id:
-                    etl_tracker.record_chunk_failure(f"{source_id}")
-                    # Also update the run with the specific error message if it's a critical failure
-                    etl_tracker.fail_run(error_message=f"Indexing failed for {entity_type} {source_id}: {error_msg}")
-                
                 continue
 
         return indexed_count
-
-    def finalize_run(self, run_id: int, total_synced: int):
-        """Finalize the indexing run tracking."""
-        etl_tracker.current_run_id = run_id
-        etl_tracker.start_time = 0 # Dummy to avoid duration errors if not set
-        etl_tracker.complete_run(rows_synced=total_synced)

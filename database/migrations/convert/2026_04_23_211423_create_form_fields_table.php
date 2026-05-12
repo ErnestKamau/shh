@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('form_fields')) {
+            return;
+        }
+
         Schema::create('form_fields', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('form_template_id')->index('idx_form_fields_form_template_id_65b1ae60');

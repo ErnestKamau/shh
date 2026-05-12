@@ -12,17 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('form_template_variables', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('form_template_id')->constrained('form_templates')->onDelete('cascade');
+            $table->uuid('id')->primary();
+            $table->uuid('form_template_id');
             $table->string('name');
             $table->string('type'); // static, database, system
             $table->string('data_type'); // string, number, boolean, date, collection, record
             $table->json('config')->nullable();
             $table->json('validation_rules')->nullable();
-            $table->bigInteger('created_by')->nullable();
-            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
+            $table->uuid('created_by')->nullable()->index();
             $table->timestamps();
             
+            $table->foreign('form_template_id')->references('id')->on('form_templates')->onDelete('cascade');
             $table->unique(['form_template_id', 'name']);
         });
     }

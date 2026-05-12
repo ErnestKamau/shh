@@ -211,7 +211,10 @@ class AnalysisTypeManager extends Component
         $analysisType = AnalysisType::findOrFail($id);
         
         // Get the mapped invoicable item if exists
-        $invoicableItemId = $analysisType->invoicableItems()->first()?->id;
+        $invoicableItemId = null;
+        if (Str::isUuid((string) $analysisType->id)) {
+            $invoicableItemId = $analysisType->invoicableItems()->first()?->id;
+        }
         
         $labIds = [];
         if (Schema::hasTable('analysis_type_lab_relation')) {
@@ -275,7 +278,7 @@ class AnalysisTypeManager extends Component
                 
                 // Cascade update to elements if "Has No Result Captured" and worksheet is set
                 if (($this->analysisTypeForm['has_no_result'] ?? false) && !empty($this->analysisTypeForm['procedure_worksheet_id'])) {
-                    $analysisType->analysis_elements()->update([
+                    AnalysisElements::whereRaw('analysis_type_id::text = ?', [(string) $analysisType->id])->update([
                         'procedure_worksheet_id' => $this->analysisTypeForm['procedure_worksheet_id']
                     ]);
                 }
@@ -328,7 +331,7 @@ class AnalysisTypeManager extends Component
             DB::beginTransaction();
 
             $analysisType = AnalysisType::findOrFail($id);
-            $analysisType->analysis_elements()->delete();
+            AnalysisElements::whereRaw('analysis_type_id::text = ?', [(string) $analysisType->id])->delete();
             $analysisType->delete();
 
             DB::commit();
@@ -390,6 +393,12 @@ class AnalysisTypeManager extends Component
      */
     protected function updateInvoicableItemMapping($analysisType)
     {
+        // Legacy environments may still have integer analysis type IDs while the pivot uses UUIDs.
+        // Skip pivot sync to avoid PostgreSQL UUID cast errors until IDs are normalized.
+        if (!Str::isUuid((string) $analysisType->id)) {
+            return;
+        }
+
         // Sync the invoicable item - this will remove old mappings and add the new one
         if ($this->analysisTypeForm['invoicable_item_id']) {
             $analysisType->invoicableItems()->sync([$this->analysisTypeForm['invoicable_item_id']]);
@@ -448,7 +457,7 @@ class AnalysisTypeManager extends Component
     public function loadElements()
     {
         if ($this->selectedAnalysisType) {
-            $this->elements = AnalysisElements::where('analysis_type_id', $this->selectedAnalysisType)
+            $this->elements = AnalysisElements::whereRaw('analysis_type_id::text = ?', [(string) $this->selectedAnalysisType])
                 ->with(['analyte', 'mmethod', 'ltmethod', 'equipment', 'operator'])
                 ->orderBy('level', 'asc')
                 ->get();
@@ -686,6 +695,12 @@ class AnalysisTypeManager extends Component
             $this->labSectionSearch = '';
             $this->showLabSectionDropdown = false;
         }
+    }
+
+    public function clearLabSectionSelection(): void
+    {
+        $this->analysisTypeForm['lab_section_id'] = null;
+        $this->analysisTypeForm['lab_id'] = null;
     }
 
     public function updatedLabSectionSearch(): void

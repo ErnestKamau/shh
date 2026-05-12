@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from python.ai_service.config.settings import settings
 from python.ai_service.middleware.request_id import RequestContextMiddleware
-from python.ai_service.routers import chat, health, etl_status, indexing
+from python.ai_service.routers import chat, health, indexing
 
 # Configure Logging
 logging.basicConfig(
@@ -38,11 +38,21 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(chat.router)
     app.include_router(indexing.router)
-    app.include_router(etl_status.router)
 
     return app
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
 app = create_app()
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    logger.error(f"Validation error: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
 
 @app.on_event("startup")
 async def startup_event():

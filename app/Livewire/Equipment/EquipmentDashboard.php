@@ -34,6 +34,8 @@ class EquipmentDashboard extends Component
     private function loadDashboardData(): void
     {
         $companyId = getUserCompany();
+        $calibrationDiffExpr = "((COALESCE(lc.last_calibration_date, equipment.date_purchased) + (COALESCE(equipment.calibration_days, 0) * INTERVAL '1 day'))::date - CURRENT_DATE)";
+        $maintainanceDiffExpr = "((COALESCE(lm.last_maintainance_date, equipment.date_purchased) + (COALESCE(equipment.maintainance_days, 0) * INTERVAL '1 day'))::date - CURRENT_DATE)";
 
         // Load all equipment with relationships
         $allEquipment = Equipment::query()

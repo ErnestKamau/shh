@@ -481,6 +481,55 @@
 				</div>
 			</div>
 
+			{{-- Section 6B: Workflow Decision Forms --}}
+			<div class="workflow-board-panel">
+				<div class="workflow-board-panel-header">
+					<h6><i class="mdi mdi-file-document-multiple-outline"></i> Workflow Decision Forms</h6>
+					<span class="text-muted" style="font-size: 0.8rem;">{{ $request->workflowForms->count() }} form(s)</span>
+				</div>
+				<div class="workflow-board-panel-body p-0">
+					@if($request->workflowForms->count() === 0)
+						<div class="text-center py-4 workflow-empty-state">
+							<i class="mdi mdi-file-hidden" style="font-size: 1.8rem;"></i>
+							<p class="mt-2 mb-0">No Laboratory Analysis Acceptance or Sample Rejection forms linked yet.</p>
+						</div>
+					@else
+						<div class="table-responsive">
+							<table class="table table-hover mb-0 workflow-table">
+								<thead>
+									<tr>
+										<th style="min-width: 260px;">Form Type</th>
+										<th style="width: 180px;">Reference</th>
+										<th style="width: 180px;">Submitted</th>
+										<th style="width: 140px;" class="text-end">Action</th>
+									</tr>
+								</thead>
+								<tbody>
+									@foreach($request->workflowForms as $workflowForm)
+										<tr>
+											<td class="fw-semibold">
+												{{ $workflowForm->form_type === 'laboratory_analysis_acceptance' ? 'Laboratory Analysis Acceptance Form (GCLA/F/03)' : 'Sample Rejection Form (QARM/F/01)' }}
+											</td>
+											<td>{{ $workflowForm->request_reference ?: ($workflowForm->batch_code ?: '—') }}</td>
+											<td>{{ optional($workflowForm->submitted_at)->format('Y-m-d H:i') ?: optional($workflowForm->created_at)->format('Y-m-d H:i') }}</td>
+											<td class="text-end">
+												@if($workflowForm->pdf_path)
+													<a href="{{ $workflowForm->pdf_path }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary btn-action-sm">
+														<i class="mdi mdi-file-pdf-box"></i> View PDF
+													</a>
+												@else
+													<span class="text-muted small">PDF unavailable</span>
+												@endif
+											</td>
+										</tr>
+									@endforeach
+								</tbody>
+							</table>
+						</div>
+					@endif
+				</div>
+			</div>
+
 			{{-- Section 7: Submission & Reception (merged) --}}
 			<div class="workflow-board-panel">
 				<div class="workflow-board-panel-header">

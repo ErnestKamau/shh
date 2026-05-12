@@ -392,6 +392,7 @@
 	</div>
 	<!-- Main Col END -->
 </div>
+<livewire:a-i.ai-drawer :context="'audit'" />
 @endsection
 
 @section('script')
@@ -470,6 +471,4 @@
 	});
 </script>
 
-@livewireScripts
-@yield('script2')
 @endsection

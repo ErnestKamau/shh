@@ -68,7 +68,7 @@ class LookupTable extends Model implements Auditable
         // Sort keys for consistent comparison
         ksort($keys);
         
-        // Use JSON comparison - MySQL will handle the JSON column properly
+        // Use JSON comparison for the PostgreSQL JSON column.
         $entry = $this->entries()
             ->whereRaw('JSON_CONTAINS(`keys`, ?) AND JSON_CONTAINS(?, `keys`)', [
                 json_encode($keys),

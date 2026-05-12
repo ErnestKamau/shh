@@ -6,7 +6,7 @@ from celery import Task
 from loguru import logger
 
 from celery_config import app as celery_app
-from ai_service.core.document_processor import DocumentProcessor
+from python.ai_service.core.document_processor import DocumentProcessor
 
 
 class IngestionTask(Task):

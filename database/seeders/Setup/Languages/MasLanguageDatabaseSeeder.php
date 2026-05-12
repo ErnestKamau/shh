@@ -340,13 +340,13 @@ class MasLanguageDatabaseSeeder extends Seeder
     ),
     'brand_footer' => 
     array (
-      'en' => 'KEBS | LIMS',
-      'sw' => 'KEBS | LIMS',
+      'en' => 'GCLA IMARA LIMS',
+      'sw' => 'GCLA IMARA LIMS',
     ),
     'brand_name' => 
     array (
-      'en' => 'KEBS',
-      'sw' => 'KEBS',
+      'en' => 'GCLA IMARA',
+      'sw' => 'GCLA IMARA',
     ),
     'client' => 
     array (
@@ -2337,7 +2337,7 @@ class MasLanguageDatabaseSeeder extends Seeder
         foreach ($translations as $group => $items) {
             foreach ($items as $key => $text) {
                 TranslationLanguageLine::updateOrCreate(
-                    ['group' => $group, 'key' => $key],
+                    ['group' => 'mas/' . $group, 'key' => $key],
                     ['text' => $text]
                 );
                 $count++;

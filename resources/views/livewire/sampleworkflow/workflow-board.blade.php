@@ -50,6 +50,124 @@
 	.workflow-board-header .workflow-header-actions .btn-group .btn-action-sm {
 		height: 32px;
 	}
+	.form-summary-cell {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		min-width: 220px;
+	}
+	.form-count-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 3px 10px;
+		border-radius: 999px;
+		background: #eef4ff;
+		color: #1d4ed8;
+		font-size: 11px;
+		font-weight: 600;
+		width: fit-content;
+	}
+	.form-chip-wrap {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.form-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		padding: 2px 8px;
+		border-radius: 999px;
+		background: #f8fafc;
+		border: 1px solid #dbe4ed;
+		font-size: 11px;
+		color: #475569;
+	}
+	.form-chip small {
+		font-size: 10px;
+		color: #64748b;
+	}
+	.form-chip-link {
+		text-decoration: none;
+	}
+	.form-chip-link:hover {
+		background: #e8f1ff;
+		border-color: #bfdbfe;
+		color: #1d4ed8;
+	}
+	.form-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.form-actions .btn {
+		padding: 0.2rem 0.45rem;
+	}
+	.form-template-block {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.form-attachment-group {
+		padding: 8px 10px;
+		border: 1px solid #dbeafe;
+		border-radius: 8px;
+		background: #f8fbff;
+	}
+	.form-attachment-group-title {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 11px;
+		font-weight: 600;
+		color: #1d4ed8;
+		margin-bottom: 6px;
+	}
+	.form-attachment-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.form-row.form-attachment-row td {
+		background: #fcfdff;
+	}
+	.workflow-stat-card {
+		background: #fff;
+		border: 1px solid #e9ecef;
+		border-radius: 10px;
+		padding: 14px;
+		height: 100%;
+	}
+	.workflow-stat-label {
+		font-size: 0.78rem;
+		color: #64748b;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
+	}
+	.workflow-stat-value {
+		font-size: 1.6rem;
+		font-weight: 700;
+		line-height: 1.2;
+		color: #0f172a;
+	}
+	.workflow-stat-meta {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 8px;
+	}
+	.workflow-stat-icon {
+		font-size: 1.1rem;
+		width: 30px;
+		height: 30px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 8px;
+		background: #f1f5f9;
+		color: #1e293b;
+	}
 </style>
 	<div class="row workflow-board-header mb-3">
 		<div class="col-12">
@@ -60,11 +178,11 @@
 						<span class="batch-code-label">Sample Workflow</span>
 						<span class="batch-stage-pill">
 							<i class="mdi mdi-sitemap" style="font-size:0.75rem;"></i>
-							{{ $status }}
+							{{ getSampleWorkflowStageLabel($status) }}
 						</span>
 					</div>
 					<div class="d-flex align-items-center flex-wrap workflow-header-actions" style="gap: 6px;">
-						@if($status == 'Samples En-Route')
+						@if((in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'requests'))
 							<button type="button" class="btn btn-sm btn-outline-primary btn-action-sm" data-toggle="modal" data-target="#portal-access-requests-modal">
 								<i class="mdi mdi-account-plus-outline"></i> Request Account Access Forms
 							</button>
@@ -83,7 +201,7 @@
 								<i class="mdi mdi-form-select"></i> Sample Submissions
 							</button>
 							<div class="dropdown-menu dropdown-menu-right">
-								@if ($status == "Samples Reception")
+								@if ($status == "Samples Reception" || (in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received'))
 									<button class="dropdown-item" type="button" data-toggle="modal" data-target="#add-submission-form-modal">
 										<i class="mdi mdi-plus mr-2"></i> Capture Samples
 									</button>
@@ -101,35 +219,47 @@
 								<i class="mdi mdi-dots-horizontal"></i> Actions
 							</button>
 							<div class="dropdown-menu dropdown-menu-right">
-								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Request Review", "Samples Reception", "Samples In Lab")))
+								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Receiving", "Samples Request Review", "Samples Reception", "Samples In Lab")))
 									<li>
 										<span class="btn btn-sm dropdown-item initiate-interlab" data-toggle="modal"
+											data-sf-trigger="workflow-action-interlab-transfer"
 											data-target="#inter-lab-add" data-action="bulk"><i
 												class="mdi mdi-swap-horizontal-bold mr-2 text-warning" data-toggle="tooltip"
 												title="Initiate inter Lab"></i> Intiate Inter Lab Transfer(s)</span>
 
 									</li>
 								@endif
-								@if ($status == "Samples Reception")
+								@if((in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'requests'))
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal"
+											data-sf-trigger="workflow-action-request-review"
+											data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
+									</li>
+								@endif
+								@if ($status == "Samples Reception" || $status == "Samples Receiving")
 
 
 									<li>
-										<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch">
+										<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch"
+											data-sf-trigger="workflow-action-cancel-batch">
 											<i class="mdi mdi-delete-empty mr-2"></i> Cancel Batch
 										</span>
 									</li>
 									<li>
-										<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#move-to-lab">
+										<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#move-to-lab"
+											data-sf-trigger="workflow-action-move-to-lab">
 											<i class="mdi mdi-swap-vertical mr-2"></i> Move to Lab
 										</span>
 									</li>
 
 									<li>
-										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i
+										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"
+											data-sf-trigger="workflow-action-print-labels"><i
 												class="mdi mdi-printer mr-2"></i> Labels</span>
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal"
+											data-sf-trigger="workflow-action-request-review"
 											data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
 									</li>
 									<li>
@@ -138,27 +268,32 @@
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process"
+											data-sf-trigger="workflow-action-approve-for-analysis"
 											data-toggle="modal"><i class="mdi mdi-checkbox-marked-circle-outline mr-2"></i> Approve For
 											Analysis</span>
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled
 											data-target="#dispatch-to-labs-modal-payment-reminder" data-toggle="modal"
+											data-sf-trigger="workflow-action-payment-reminder"
 											title="Dispatch Labeled"><i class="mdi mdi-bell-ring mr-2"></i> Payment Reminder</span>
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus"
+											data-sf-trigger="workflow-action-generate-customer-focus"
 											data-toggle="modal" title="Generate Customer Focus"><i
 												class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"
+											data-sf-trigger="workflow-action-send-schedule-analysis"
 											disabled>
 											<i class="mr-2 mdi mdi-email-send-outline"></i> Send Schedule of Analysis
 										</span>
 									</li>
 									<li>
-										<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"><i
+										<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"
+											data-sf-trigger="workflow-action-clone-batches"><i
 												class="mdi mdi-content-duplicate mr-2"></i> Clone Batch(es)</span>
 									</li>
 								@endif
@@ -167,7 +302,7 @@
 								@if ($status == "Reports for Collection")
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#send-email-reports-modal"
-											data-toggle="modal" title="Email Report(s)"><i class="mdi mdi-email mr-2"></i> Email
+											data-toggle="modal" data-sf-trigger="workflow-action-email-reports" title="Email Report(s)"><i class="mdi mdi-email mr-2"></i> Email
 											Report(s)</span>
 
 									</li>
@@ -175,28 +310,37 @@
 								@if($status == "Samples Request Review")
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
+											data-sf-trigger="workflow-action-generate-draft-invoice"
 											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review"
+											data-sf-trigger="workflow-action-approve-request"
 											data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right mr-2"></i>
 											Approve Request</span>
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled
-											data-target="#dispatch-to-labs-modal-review-reject" data-toggle="modal" title="Request Request">
+											data-target="#portal-request-reject-form-modal" data-toggle="modal" data-sf-trigger="workflow-action-reject-request" title="Reject Request">
 											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Reject Request
 										</span>
 									</li>
 									<li>
 
-										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
+										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
+									</li>
+								@endif
+								@if(in_array($status, ['Samples Reception', 'Samples Receiving']) || (in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'requests'))
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#portal-request-reject-form-modal" data-toggle="modal" data-sf-trigger="workflow-action-reject-request" title="Reject Request">
+											<i class="mdi mdi-close-circle-outline mr-2"></i> Reject Request
+										</span>
 									</li>
 								@endif
 								@if($status == "Samples In Lab")
 									<li>
 
-										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i
+										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i
 												class="mdi mdi-printer mr-2"></i>Print Labels</span>
 									</li>
 									<li>
@@ -207,12 +351,14 @@
 								@if($status == 'Sample Approval')
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#move-batch-complete"
+											data-sf-trigger="workflow-action-mark-complete"
 											data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i>Mark Complete</span>
 									</li>
 								@endif
 								@if($status == 'Finished Sample')
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#move-sample-approval"
+											data-sf-trigger="workflow-action-return-to-approval"
 											data-toggle="modal">
 											<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Return to Approval
 										</span>
@@ -225,6 +371,64 @@
 			</div>
 		</div>
 	</div>
+	@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving'], true))
+		<div class="row mb-3">
+			<div class="col-lg-3 col-md-6 mb-3">
+				<div class="workflow-stat-card">
+					<div class="workflow-stat-label">Customers Requested Submission</div>
+					<div class="workflow-stat-meta">
+						<div class="workflow-stat-value">{{ $samplesReceptionStats['customers_requested'] ?? 0 }}</div>
+						<span class="workflow-stat-icon"><i class="mdi mdi-account-multiple-outline"></i></span>
+					</div>
+				</div>
+			</div>
+			<div class="col-lg-3 col-md-6 mb-3">
+				<div class="workflow-stat-card">
+					<div class="workflow-stat-label">Portal Samples Submitted</div>
+					<div class="workflow-stat-meta">
+						<div class="workflow-stat-value">{{ $samplesReceptionStats['portal_submitted'] ?? 0 }}</div>
+						<span class="workflow-stat-icon"><i class="mdi mdi-file-document-outline"></i></span>
+					</div>
+				</div>
+			</div>
+			<div class="col-lg-3 col-md-6 mb-3">
+				<div class="workflow-stat-card">
+					<div class="workflow-stat-label">Sent To Request Review</div>
+					<div class="workflow-stat-meta">
+						<div class="workflow-stat-value">{{ $samplesReceptionStats['sent_to_request_review'] ?? 0 }}</div>
+						<span class="workflow-stat-icon"><i class="mdi mdi-clipboard-check-outline"></i></span>
+					</div>
+				</div>
+			</div>
+			<div class="col-lg-3 col-md-6 mb-3">
+				<div class="workflow-stat-card">
+					<div class="workflow-stat-label">Waiting For Delivery To Lab</div>
+					<div class="workflow-stat-meta">
+						<div class="workflow-stat-value">{{ $samplesReceptionStats['waiting_for_delivery'] ?? 0 }}</div>
+						<span class="workflow-stat-icon"><i class="mdi mdi-truck-delivery-outline"></i></span>
+					</div>
+				</div>
+			</div>
+		</div>
+	@endif
+	@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
+		   <div class="row mb-3">
+			   <div class="col-12">
+				   <div class="workflow-board-panel">
+					   <div class="workflow-board-panel-body">
+						   <ul class="nav nav-tabs" role="tablist">
+							   <li class="nav-item">
+								   <button type="button" class="nav-link {{ $workflowSubTab === 'requests' ? 'active' : '' }}" wire:click="setWorkflowSubTab('requests')">Requests</button>
+							   </li>
+							   <li class="nav-item">
+								   <button type="button" class="nav-link {{ $workflowSubTab === 'received' ? 'active' : '' }}" wire:click="setWorkflowSubTab('received')">Received</button>
+							   </li>
+						   </ul>
+					   </div>
+				   </div>
+			   </div>
+		   </div>
+	   @endif
 	@if($status == 'All Samples')
 		<div class="row">
 			<div class="col-12">
@@ -466,7 +670,7 @@
 		@endif
 	@endif
 
-	@if($status == 'Samples En-Route')
+	@if(in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests')
 		<div class="modal fade" id="portal-access-requests-modal" tabindex="-1" role="dialog" aria-labelledby="portal-access-requests-modal-label" aria-hidden="true" wire:ignore.self>
 			<div class="modal-dialog modal-xl" role="document">
 				<div class="modal-content">
@@ -582,15 +786,15 @@
 		</div>
 	</div>
 	
-	<!-- Submission Forms for Reception -->
-	@if($status == 'Samples Reception')
+	<!-- Submission Forms for status pages using form-instance workflow -->
+	@if($status == 'Samples Reception' || (in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests') || ($status == 'Samples Request Review' && $workflowSubTab === 'requests'))
 		<div class="row mb-4 mt-4">
 			<div class="col-12">
 				<div class="workflow-board-panel">
 					<div class="workflow-board-panel-header">
 						<h5>
 							<i class="mdi mdi-file-document-multiple"></i>
-							Samples received
+							{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
 						</h5>
 					</div>
 					<div class="workflow-board-panel-body flush-top">
@@ -607,7 +811,6 @@
 									<label class="form-label small fw-bold">Status</label>
 									<select wire:model.live="submissionFormsStatus" class="form-control form-control-sm">
 										<option value="">All Statuses</option>
-										<option value="draft">Draft</option>
 										<option value="submitted">Submitted</option>
 										<option value="in_review">In Review</option>
 										<option value="approved">Approved</option>
@@ -628,7 +831,7 @@
 								</div>
 							</div>
 							<div class="col-md-2 d-flex align-items-end">
-								<button type="button" wire:click="$set('submissionFormsSearch', ''); $set('submissionFormsStatus', 'submitted'); $set('submissionFormsPriority', '')" class="btn btn-outline-secondary btn-sm mb-2 w-100">
+								<button type="button" wire:click="$set('submissionFormsSearch', ''); $set('submissionFormsStatus', ''); $set('submissionFormsPriority', '')" class="btn btn-outline-secondary btn-sm mb-2 w-100">
 									<i class="mdi mdi-refresh"></i> Reset
 								</button>
 							</div>
@@ -639,8 +842,10 @@
 								<table class="table table-hover workflow-table">
 									<thead>
 										<tr>
+											<th style="width: 40px;"></th>
 											<th>Actions</th>
 											<th>Form Number</th>
+											<th>Customer</th>
 											<th>Form Name</th>
 											<th>Batch Status</th>
 											<th>Batches</th>
@@ -655,15 +860,87 @@
 										@foreach($this->submissionForms as $instance)
 											@php
 												$hasBatch = $instance->batches->count() > 0;
-												$sampleTypes = array_filter($instance->getUniqueSampleTypes());
-												$typeNames = [];
-												foreach($sampleTypes as $tid) {
-													$st = \App\SampleType::find($tid);
-													if($st) $typeNames[] = $st->name;
-												}
+												$formSampleTypeNames = $instance->getResolvedSampleTypeNames();
+												$testsRequiredCount = $instance->requested_tests_count;
 												$sampleCount = count($instance->getAllSampleDetails());
+												$attachmentCount = $instance->attachment_count ?? 0;
+												$instanceValues = collect($instance->values ?? []);
+												$pickValue = function (array $fieldHints) use ($instanceValues) {
+													$hintBag = collect($fieldHints)
+														->map(fn ($value) => strtolower(trim((string) $value)))
+														->filter()
+														->values();
+
+													if ($hintBag->isEmpty()) {
+														return '';
+													}
+
+													$match = $instanceValues->first(function ($row) use ($hintBag) {
+														$element = $row->element ?? null;
+														if (! $element) {
+															return false;
+														}
+
+														$mappingField = strtolower(trim((string) ($element->mapping_field ?? '')));
+														$elementName = strtolower(trim((string) ($element->name ?? '')));
+
+														foreach ($hintBag as $hint) {
+															if (($mappingField !== '' && str_contains($mappingField, $hint))
+																|| ($elementName !== '' && str_contains($elementName, $hint))) {
+																return true;
+															}
+														}
+
+														return false;
+													});
+
+													return trim((string) ($match->value ?? ''));
+												};
+
+												$instanceCustomerName = trim((string) (
+													$instance->crmCustomer->name
+													?? $pickValue(['customer_name', 'submitting_agency', 'name_of_client'])
+													?? ($instance->submittedBy->name ?? '')
+												));
+												$instanceCustomerEmail = trim((string) (
+													$instance->crmCustomer->email
+													?? $pickValue(['customer_email', 'email'])
+													?? ($instance->submittedBy->email ?? '')
+												));
+												$instanceCustomerPhone = trim((string) (
+													$instance->crmCustomer->telephone1
+													?? $pickValue(['mobile_telephone_no', 'office_telephone_no', 'telephone', 'phone', 'tel'])
+												));
+												$instanceCustomerAddress = trim((string) (
+													$instance->crmCustomer->postal_address
+													?? $instance->crmCustomer->physical_address
+													?? $pickValue(['physical_address', 'postal_address', 'address'])
+												));
+												$instanceRequestDate = trim((string) (
+													optional($instance->submitted_at)->format('Y-m-d')
+													?? $pickValue(['submitted_by_date', 'submission_date', 'date_of_seizure', 'date_of_sampling'])
+												));
 											@endphp
 											<tr>
+												<td class="align-middle">
+													@if(!$hasBatch && in_array($instance->status, ['submitted', 'in_review'], true))
+														<input type="checkbox"
+															name="submission_form_instance_id[]"
+															value="{{ $instance->id }}"
+															data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
+															data-form-name="{{ $instance->submissionForm->name ?? 'Template Form' }}"
+															data-customer-name="{{ $instanceCustomerName }}"
+															data-customer-email="{{ $instanceCustomerEmail }}"
+															data-customer-phone="{{ $instanceCustomerPhone }}"
+															data-customer-address="{{ $instanceCustomerAddress }}"
+															data-sample-type="{{ implode(', ', $formSampleTypeNames) }}"
+															data-number-samples="{{ $sampleCount }}"
+															data-request-date="{{ $instanceRequestDate }}"
+															data-mode-of-work="{{ in_array($instance->priority, ['high', 'urgent'], true) ? 'Express' : 'Normal' }}">
+													@else
+														<span class="text-muted small">-</span>
+													@endif
+												</td>
 												<td nowrap>
 													<div class="d-flex align-items-center" style="gap: 8px;">
 														@if($instance->isDraft())
@@ -671,7 +948,7 @@
 															   class="btn btn-sm btn-outline-primary" title="Edit">
 																<i class="mdi mdi-pencil"></i>
 															</a>
-															<button wire:click="deleteSubmissionForm({{ $instance->id }})" 
+															<button wire:click="deleteSubmissionForm('{{ $instance->id }}')" 
 																	wire:confirm="Are you sure you want to delete this draft?"
 																	class="btn btn-sm btn-outline-danger" title="Delete Draft">
 																<i class="mdi mdi-delete"></i>
@@ -687,10 +964,25 @@
 												<td>
 													{!! in_array($instance->priority, ['high', 'urgent']) ? '<i class="mdi mdi-star text-danger" title="'.ucfirst($instance->priority).' Priority"></i>' : '' !!}
 													<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}">
-														<strong>{{ $instance->form_number ?? 'Draft' }}</strong>
+														<strong>{{ $instance->getDocumentControlNumber() ?? 'Draft' }}</strong>
 													</a>
 												</td>
-												<td>{{ $instance->submissionForm->name }}</td>
+												<td>
+													{{-- Customer: from crm_customer_id (portal submissions) or LIMS user --}}
+													@if($instance->crmCustomer)
+														<span class="font-weight-medium" title="Portal customer">{{ $instance->crmCustomer->name }}</span>
+													@elseif($instance->submittedBy)
+														<span class="text-muted small" title="LIMS user submission">{{ $instance->submittedBy->name }}</span>
+													@else
+														<span class="text-muted small">—</span>
+													@endif
+												</td>
+												<td>
+													{{ $instance->submissionForm->name }}
+													@if(($instance->submissionForm->form_type ?? '') === 'template' && $attachmentCount > 0)
+														<span class="badge badge-soft-primary ml-1" title="{{ $attachmentCount }} attachment form{{ $attachmentCount !== 1 ? 's' : '' }} linked">{{ $attachmentCount }} <i class="mdi mdi-paperclip" style="font-size:10px;"></i></span>
+													@endif
+												</td>
 												<td>
 													@if($hasBatch)
 														<span class="workflow-status-chip" style="--chip-accent: #28a745;">
@@ -713,9 +1005,9 @@
 														<span class="text-muted small">—</span>
 													@endif
 												</td>
-												<td nowrap>{{ implode(', ', $typeNames) ?: 'N/A' }}</td>
+												<td nowrap>{{ implode(', ', $formSampleTypeNames) ?: 'N/A' }}</td>
 												<td class="text-center">
-													<span class="font-weight-bold">{{ $instance->tests_count }}</span>
+													<span class="font-weight-bold">{{ $hasBatch ? $instance->tests_count : $testsRequiredCount }}</span>
 												</td>
 												<td>
 													@php
@@ -844,7 +1136,217 @@
 						</div>
 					@endif
 					
-					@if($batches->count() > 0)
+					@if(in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests')
+						{{-- Portal submissions table: SampleSubmissionRequest records without a batch, grouped by template + attachments --}}
+						@if($portalSubmissions && $portalSubmissions->count() > 0)
+							<div class="table-responsive">
+								<table class="table table-hover">
+									<thead>
+										<tr>
+											<th style="width: 40px;"></th>
+											<th>Customer</th>
+											<th>Reference</th>
+											<th>Priority</th>
+											<th>Form Name</th>
+											<th>Status</th>
+											<th>Submitted Date</th>
+											<th>Actions</th>
+										</tr>
+									</thead>
+									<tbody>
+										@foreach($portalSubmissions as $submission)
+											@php
+												$docInstances = $submission->supportingDocumentInstances->groupBy('supporting_document_template_id');
+												$totalRows = $docInstances->flatten(1)->count();
+												$isFirstRow = true;
+											@endphp
+											@foreach($docInstances as $templateId => $instances)
+												@foreach($instances as $docInstance)
+													@php
+														$attachmentEntries = collect();
+														foreach (collect($docInstance->values ?? []) as $valueRow) {
+															$rawValue = trim((string) ($valueRow->value ?? ''));
+															if ($rawValue === '') {
+																continue;
+															}
+
+															$elementType = strtolower((string) optional($valueRow->element)->element_type);
+															$elementName = strtolower(trim((string) optional($valueRow->element)->name . ' ' . (string) optional($valueRow->element)->label));
+
+															$rawCandidates = [];
+															$decodedValue = json_decode($rawValue, true);
+															if (is_array($decodedValue)) {
+																foreach ($decodedValue as $decodedRow) {
+																	if (is_string($decodedRow)) {
+																		$rawCandidates[] = $decodedRow;
+																		continue;
+																	}
+
+																	if (is_array($decodedRow)) {
+																		foreach (['url', 'path', 'file_path', 'value'] as $fileKey) {
+																			if (!empty($decodedRow[$fileKey]) && is_string($decodedRow[$fileKey])) {
+																				$rawCandidates[] = $decodedRow[$fileKey];
+																			}
+																		}
+																	}
+																}
+															} else {
+																$rawCandidates[] = $rawValue;
+															}
+
+															foreach ($rawCandidates as $candidateRaw) {
+																$candidate = trim((string) $candidateRaw);
+																if ($candidate === '') {
+																	continue;
+																}
+
+																$isFileElement = in_array($elementType, ['file', 'attachment', 'upload', 'image'], true)
+																	|| str_contains($elementName, 'file')
+																	|| str_contains($elementName, 'attachment')
+																	|| str_contains($elementName, 'upload');
+
+																$looksLikeFile = (bool) preg_match('/(\/(storage|uploads)\/|\.(pdf|doc|docx|xls|xlsx|csv|png|jpg|jpeg|webp|gif|zip)$)/i', $candidate)
+																	|| str_starts_with($candidate, 'http://')
+																	|| str_starts_with($candidate, 'https://');
+
+																if (!$isFileElement && !$looksLikeFile) {
+																	continue;
+																}
+
+																$url = null;
+																if (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://')) {
+																	$url = $candidate;
+																} elseif (str_starts_with($candidate, '/storage/')) {
+																	$url = url($candidate);
+																}
+
+																$attachmentEntries->push([
+																	'label' => basename(parse_url($candidate, PHP_URL_PATH) ?: $candidate),
+																	'url' => $url,
+																]);
+															}
+														}
+
+														$attachmentEntries = $attachmentEntries
+															->unique(function ($entry) {
+																return ($entry['url'] ?? '') . '|' . ($entry['label'] ?? '');
+															})
+															->values();
+													@endphp
+													<tr class="form-row {{ !$isFirstRow ? 'form-attachment-row' : '' }}">
+														@if($isFirstRow)
+															<td rowspan="{{ $totalRows }}" class="align-top pt-3">
+																<input type="checkbox"
+																	   name="portal_submission_id[]"
+																	   value="{{ $submission->id }}"
+																	   data-submission-number="{{ $submission->formatted_number }}"
+																	   data-submission-customer="{{ $submission->customer->name ?? $submission->submitting_agency ?? 'Unknown' }}"
+																	   data-customer-name="{{ $submission->customer->name ?? $submission->submitting_agency ?? '' }}"
+																	   data-customer-email="{{ $submission->email ?? ($submission->customer->email ?? '') }}"
+																	   data-customer-phone="{{ $submission->mobile_telephone_no ?? $submission->office_telephone_no ?? ($submission->customer->telephone1 ?? '') }}"
+																	   data-customer-address="{{ $submission->physical_address ?? ($submission->customer->physical_address ?? $submission->customer->postal_address ?? '') }}"
+																   data-sample-type="{{ $submission->requestedAnalyses->pluck('analysis_label')->filter()->implode(', ') }}"
+																   data-number-samples="{{ $submission->number_of_samples ?? '' }}"
+																	   data-request-date="{{ optional($submission->submitted_by_date)->format('Y-m-d') ?? optional($submission->submission_date)->format('Y-m-d') }}"
+																   data-mode-of-work="{{ ($submission->mode_of_service_priority ?? 'normal') === 'express' ? 'Express' : 'Normal' }}">
+															</td>
+																<td rowspan="{{ $totalRows }}" nowrap>{{ $submission->customer->name ?? 'Unknown' }}</td>
+																<td rowspan="{{ $totalRows }}" nowrap>{{ $submission->formatted_number }}</td>
+																<td rowspan="{{ $totalRows }}" nowrap>
+																@if(($submission->mode_of_service_priority ?? 'normal') === 'express')
+																	<span class="badge badge-warning p-1"><i class="mdi mdi-star"></i> Express</span>
+																@else
+																	Normal
+																@endif
+															</td>
+														@endif
+														<td>
+															<div class="form-template-block">
+																<div style="display: flex; align-items: center; gap: 8px;">
+																	<i class="mdi mdi-file-document-outline"></i>
+																	<div>
+																		<div class="font-weight-bold">{{ $docInstance->template?->document_code ?? 'Form' }}</div>
+															@push('scripts')
+															<script>
+																document.addEventListener('DOMContentLoaded', function () {
+																	// Watch for the Lab Acceptance form success message
+																	const observer = new MutationObserver(function(mutations) {
+																		mutations.forEach(function(mutation) {
+																			if (mutation.addedNodes.length) {
+																				mutation.addedNodes.forEach(function(node) {
+																					if (node.nodeType === 1 && node.classList.contains('alert-success') && node.textContent.includes('successfully')) {
+																						// Redirect to Sample Receipt Notification form
+																						window.location.href = '/sample-receipt-notification';
+																					}
+																				});
+																			}
+																		});
+																	});
+																	const target = document.body;
+																	observer.observe(target, { childList: true, subtree: true });
+																});
+															</script>
+															@endpush
+															@endsection
+																	</div>
+																</div>
+
+																@if($attachmentEntries->count() > 0)
+																	<div class="form-attachment-group">
+																		<div class="form-attachment-group-title">
+																			<i class="mdi mdi-link-variant"></i>
+																			Linked Attachment Form{{ $attachmentEntries->count() === 1 ? '' : 's' }}
+																		</div>
+																		<div class="form-attachment-list">
+																			@foreach($attachmentEntries as $attachmentEntry)
+																				@if(!empty($attachmentEntry['url']))
+																					<a href="{{ $attachmentEntry['url'] }}" target="_blank" rel="noopener noreferrer" class="badge badge-light">
+																						<i class="mdi mdi-paperclip"></i> {{ $attachmentEntry['label'] }}
+																					</a>
+																				@else
+																					<span class="badge badge-light"><i class="mdi mdi-paperclip"></i> {{ $attachmentEntry['label'] }}</span>
+																				@endif
+																			@endforeach
+																		</div>
+																	</div>
+																@endif
+															</div>
+														</td>
+														<td nowrap>
+															<span class="badge badge-{{ $docInstance->status === 'submitted' ? 'success' : ($docInstance->status === 'draft' ? 'secondary' : 'info') }} p-1">
+																{{ ucfirst(str_replace('_', ' ', $docInstance->status ?? 'draft')) }}
+															</span>
+														</td>
+														@if($isFirstRow)
+															<td rowspan="{{ $totalRows }}" nowrap>{{ $submission->submitted_by_date?->format('Y-m-d') ?? '--' }}</td>
+															<td rowspan="{{ $totalRows }}">
+																<div class="form-actions">
+																	<a href="{{ route('sample-submission-requests.show', $submission) }}"
+																	   class="btn btn-sm btn-outline-primary" title="View Submission">
+																		<i class="mdi mdi-eye"></i>
+																	</a>
+																</div>
+															</td>
+														@endif
+													</tr>
+													@php $isFirstRow = false; @endphp
+												@endforeach
+											@endforeach
+										@endforeach
+									</tbody>
+								</table>
+							</div>
+							<div class="mt-3 d-flex justify-content-end">
+								{{ $portalSubmissions->links() }}
+							</div>
+						@else
+							<div class="text-center py-5 workflow-empty-state">
+								<i class="mdi mdi-inbox-arrow-down" style="font-size: 3rem;"></i>
+								<h5 class="mt-3">No portal submissions</h5>
+								<p class="mb-0">No pending submission requests from the portal.</p>
+							</div>
+						@endif
+					@elseif($batches->count() > 0)
 						<div class="position-relative">
 							<!-- Loading overlay for table -->
 							<div wire:loading.delay
@@ -863,30 +1365,32 @@
 										<th></th>
 										<th>Priority</th>
 										<th>Batch Code</th>
-										@if(auth()->user()->CheckViewQcSample())
+										@if($status !== 'Samples En-Route' && auth()->user()->CheckViewQcSample())
 											<th>Is Qc</th>
 										@endif
-										<th>Sample Codes</th>
-										<th>Lab Sections</th>
-										<th>Draft Invoice</th>
-										<th>Stage</th>
-										@if($status == 'Samples In Lab' || $status == 'Sample Verification')
+										@if($status !== 'Samples En-Route')
+											<th>Sample Codes</th>
+											<th>Draft Invoice</th>
+											<th>Stage</th>
 										@else
 											<th>Client</th>
 										@endif
-										<th>Client / LPO Ref</th>
-										<th nowrap>Receipt Date</th>
-										<th nowrap>Date Collected</th>
-										<th nowrap>Target Date</th>
-										<th nowrap>Status Days</th>
-										<th>Samples</th>
-										@if($status != 'Samples In Lab')
-											<th>Client Unit</th>
+										@if($status !== 'Samples En-Route')
+											<th>Client / LPO Ref</th>
 										@endif
-										<th>Lab</th>
-										<th nowrap>Sample Type</th>
-										<th>Routine</th>
-										<th>Routine Frequency</th>
+										<th nowrap>Receipt Date</th>
+										@if($status !== 'Samples En-Route')
+											<th nowrap>Date Collected</th>
+											<th nowrap>Target Date</th>
+											<th nowrap>Status Days</th>
+											<th>Samples</th>
+											@if($status != 'Samples In Lab')
+												<th>Client Unit</th>
+											@endif
+											<th>Lab</th>
+											<th nowrap>Sample Type</th>
+											<th>Routine</th>
+										@endif
 										<th>Actions</th>
 									</tr>
 								</thead>
@@ -895,14 +1399,9 @@
 								<?php
 					if (isset($item->get_target_date->id)) {
 						$target_date = date('Y-m-d', strtotime($item->get_target_date['date']));
-						$now = Carbon\Carbon::now();
 						$target_date = Carbon\Carbon::parse($target_date);
 
 						$diff = $now->diffInDays($target_date);
-
-						if ($target_date->greaterThan($now)) {
-							$diff = 0 - $diff - 1;
-						}
 					} else {
 						$target_date = "1970-01-01";
 						$diff = 0;
@@ -913,75 +1412,99 @@
 
 					$sample_count = count($sample_codes);
 					$sampleEnd = end($sample_codes) ?? '';
-												?>
-								@php $clientId = $item->client->id ?? 'unknown'; @endphp
-								@if($item->current_account_status == 'Account Holder(Overdue)')
-									<tr class="batch-row overdue-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $clientId }}"
-										data-class="{{ $clientId }}">
-								@elseif($item->current_account_status == 'Pay Upfront')
-									<tr class="batch-row upfront-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $clientId }}"
-										data-class="{{ $clientId }}">
-								@elseif($item->in_ammendment_proccess)
-									<tr class="batch-row ammend-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $clientId }}"
-										data-class="{{ $clientId }}">
-								@else
-									<tr class="batch-row {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $clientId }}"
-										data-class="{{ $clientId }}">
-								@endif
-									<td><input type="checkbox" data-batch="{{json_encode($item)}}" value="{{ $item->batch_code }}"
-											name="table_sample_id[]"></td>
-									@if($item->in_ammendment_proccess)
-										<td nowrap>
-											<div class="badge badge-danger p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">To
-												Amend</div>
-										</td>
-									@elseif($item->prelim_report_status == 1)
-										<td nowrap>
-											<div class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim
-											</div>
-										</td>
-									@elseif($item->prelim_report_status == 2)
-										<td nowrap>
-											<div class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Draft
-											</div>
-										</td>
-									@else
-										<td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!}
-											{{ $item->priority }}
-										</td>
 
-									@endif
-									<td>
+					$submissionInstance = $item->submissionFormInstance;
+					$supportingDocInstances = collect(optional($item->sampleSubmissionRequest)->supportingDocumentInstances ?? []);
+					$templateFormsCount = ($submissionInstance ? 1 : 0) + $supportingDocInstances->count();
+					$templateActionUrl = null;
+					if ($submissionInstance && $submissionInstance->submissionForm) {
+						$templateActionUrl = route('submission-forms.instances.show', [$submissionInstance->submissionForm, $submissionInstance]);
+					} elseif ($item->sampleSubmissionRequest && $supportingDocInstances->first()) {
+						$templateActionUrl = route('sample-submission-requests.supporting-documents.edit', [$item->sampleSubmissionRequest, $supportingDocInstances->first()]);
+					}
 
-										<a
-											href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">{{ $item->batch_code }}</a>
+					$attachmentForms = collect($item->batch_attachments ?? []);
+					if (!empty($submissionFormAttachmentTypeId)) {
+						$attachmentForms = $attachmentForms->where('attachment_type', $submissionFormAttachmentTypeId);
+					}
+					$attachmentFormsCount = $attachmentForms->count();
+					$attachmentActionUrl = optional($attachmentForms->first())->attachment_url;
 
-									</td>
-									@if(auth()->user()->CheckViewQcSample())
-										<td>{!! $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}
-										</td>
-									@endif
-									<td style="max-width: 200px !important;word-wrap:break-word;">
-										{{$sampleStart . ' - ' . $sampleEnd}}
-									</td>
-									<td nowrap>{{$item->getLabSectionsNames()}}</td>
+					$lastTemplateActivity = collect([
+						optional($submissionInstance)->updated_at,
+						$supportingDocInstances->max('updated_at'),
+					])->filter()->sortDesc()->first();
 
-									<td>
-										@if($item->invoice)
-											@if($item->invoice->sales_order_id != '')
-												<span class="badge badge-active p-2">Generated - Synced</span>
-											@else
-												<span class="badge badge-primary p-2">Generated - Not Synced</span>
-											@endif
-										@else
-											<span class="badge badge-danger p-2">Not Generated</span>
+					$latestFormActivity = collect([
+						$lastTemplateActivity,
+						$attachmentForms->max('updated_at'),
+					])->filter()->sortDesc()->first();
+					?>
+										@if(false) {{-- Template/attachment forms now shown in portal submissions table, not batch table --}}
+											<td>
+												<div class="form-summary-cell">
+													<span class="form-count-badge">{{ $templateFormsCount }} template form{{ $templateFormsCount === 1 ? '' : 's' }}</span>
+													<div class="form-chip-wrap">
+														@if($submissionInstance && $submissionInstance->submissionForm)
+															<a class="form-chip form-chip-link" href="{{ route('submission-forms.instances.show', [$submissionInstance->submissionForm, $submissionInstance]) }}">
+																<span>{{ $submissionInstance->form_number ?? 'Form Instance' }}</span>
+																<small>{{ ucfirst(str_replace('_', ' ', $submissionInstance->status ?? 'draft')) }}</small>
+															</a>
+														@endif
+														@foreach($supportingDocInstances->take(2) as $docInstance)
+															<a class="form-chip form-chip-link" href="{{ route('sample-submission-requests.supporting-documents.edit', [$item->sampleSubmissionRequest, $docInstance]) }}">
+																<span>{{ $docInstance->template?->document_code ?? 'Supporting Doc' }}</span>
+																<small>{{ $docInstance->status ?? 'draft' }}</small>
+															</a>
+														@endforeach
+														@if($supportingDocInstances->count() > 2)
+															<span class="form-chip">+{{ $supportingDocInstances->count() - 2 }} more</span>
+														@endif
+														@if($templateFormsCount === 0)
+															<span class="form-chip">No template forms</span>
+														@endif
+													</div>
+												</div>
+											</td>
+											<td>
+												<div class="form-summary-cell">
+													<span class="form-count-badge">{{ $attachmentFormsCount }} attachment form{{ $attachmentFormsCount === 1 ? '' : 's' }}</span>
+													<div class="form-chip-wrap">
+														@foreach($attachmentForms->take(3) as $attachment)
+															@if($attachment->attachment_url)
+																<a class="form-chip form-chip-link" href="{{ $attachment->attachment_url }}" target="_blank" rel="noopener noreferrer">
+																	<span>{{ $attachment->title ?: 'Attachment' }}</span>
+																	<small>{{ $attachment->file_extension ?: 'FILE' }}</small>
+																</a>
+															@else
+																<span class="form-chip">
+																	<span>{{ $attachment->title ?: 'Attachment' }}</span>
+																	<small>No file</small>
+																</span>
+															@endif
+														@endforeach
+														@if($attachmentForms->count() > 3)
+															<span class="form-chip">+{{ $attachmentForms->count() - 3 }} more</span>
+														@endif
+														@if($attachmentFormsCount === 0)
+															<span class="form-chip">No attachment forms</span>
+														@endif
+													</div>
+												</div>
+											</td>
+											<td nowrap>
+												@if($latestFormActivity)
+													{{ \Illuminate\Support\Carbon::parse($latestFormActivity)->format('Y-m-d H:i') }}
+												@else
+													<span class="text-muted">--</span>
+												@endif
+											</td>
 										@endif
-									</td>
-									<td style="min-width: 200px !important;">{{$item->status}}</td>
 									@if($status == 'Samples In Lab' || $status == 'Sample Verification')
 									@else
 										<td nowrap>{{ $item->client->name ?? 'Unknown' }}</td>
 									@endif
+									@if($status !== 'Samples En-Route')
 									<td nowrap>
 										<div>{{ $item->reference_number ?? 'n/a' }}</div>
 										@if($item->sampleSubmissionRequest)
@@ -989,7 +1512,9 @@
 											<div class="small text-muted">Legal Sample Submission Request</div>
 										@endif
 									</td>
+									@endif
 									<td nowrap>{{ date('Y-m-d', strtotime($item->receipt_date)) }}</td>
+									@if($status !== 'Samples En-Route')
 									<td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
 									<td nowrap>{{ date('Y-m-d', strtotime($target_date)) }}</td>
 									<td nowrap>{{ number_format($diff, 0) }} Day(s)</td>
@@ -1011,13 +1536,37 @@
 
 									<td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
 									<td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency, 0) . ' days' : 'n/a' }}</td>
-									<td>
-										<a href="{{ route('view-batch-details', ['batch' => $item->id]) }}"
-											data-target="#add-new-samples" class="btn btn-sm btn-outline-primary edit-sample-details"
-											data-header='{{ json_encode($item) }}' title="Edit">
-											<i class="mdi mdi-lead-pencil"></i>
-										</a>
-									</td>
+									@endif
+										<td>
+											<div class="form-actions">
+												<a href="{{ route('view-batch-details', ['batch' => $item->id]) }}"
+													data-target="#add-new-samples" class="btn btn-sm btn-outline-primary edit-sample-details"
+													data-header='{{ json_encode($item) }}' title="Open Batch">
+													<i class="mdi mdi-lead-pencil"></i>
+												</a>
+												@if(in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests')
+													@if($templateActionUrl)
+														<a href="{{ $templateActionUrl }}" class="btn btn-sm btn-outline-info" title="View Template Forms">
+															<i class="mdi mdi-file-document-outline"></i>
+														</a>
+													@else
+														<button type="button" class="btn btn-sm btn-outline-secondary" disabled title="No Template Forms">
+															<i class="mdi mdi-file-document-outline"></i>
+														</button>
+													@endif
+
+													@if($attachmentActionUrl)
+														<a href="{{ $attachmentActionUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark" title="View Attachment Forms">
+															<i class="mdi mdi-paperclip"></i>
+														</a>
+													@else
+														<button type="button" class="btn btn-sm btn-outline-secondary" disabled title="No Attachment Forms">
+															<i class="mdi mdi-paperclip"></i>
+														</button>
+													@endif
+												@endif
+											</div>
+										</td>
 								</tr>
 				@endforeach
 								</tbody>
@@ -1038,14 +1587,7 @@
 							<h5 class="mt-3">No batches found</h5>
 							<p class="mb-0">No batches match your current filters.</p>
 						</div>
-					@endif
-					
-					<!-- Legend -->
-					<div class="workflow-board-legend">
-						<div class="d-flex flex-wrap" style="gap: 1rem;">
-							<div class="d-flex align-items-center">
-								<div class="btn overdue-bg-color btn-sm mr-2"></div>
-								<span class="text-muted">Account Holder(Overdue)</span>
+					@endif {{-- end portal submissions / batch table conditional --}}
 							</div>
 							<div class="d-flex align-items-center">
 								<div class="btn upfront-bg-color btn-sm mr-2"></div>
@@ -1378,7 +1920,7 @@
 				</div>
 			</div>
 		@endif
-		@if ($status == "Samples Reception" || $status == "Samples Request Review")
+		@if ($status == "Samples Reception" || $status == "Samples Request Review" || (in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests'))
 			<div id="dispatch-to-labs-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
@@ -1401,6 +1943,10 @@
 							<div class="form-group">
 								<label class="control-label">Batches</label>
 								<div class="selected-batches-request"></div>
+							</div>
+							<div class="form-group mb-0">
+								<label class="control-label">Selected Forms</label>
+								<div class="selected-submissions-request text-muted small"></div>
 							</div>
 
 							<div class="form-check">
@@ -1827,25 +2373,88 @@
 				</div>
 			</div>
 		@endif
-		@if($status == "Samples Request Review")
-			<div id="dispatch-to-labs-modal-review-reject" class="modal fade" role="dialog">
+		@if($status == "Samples Request Review" || $status == "Samples Reception" || (in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests'))
+			<div id="portal-request-reject-form-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
 					<form class="modal-content" method="POST" action="{{ route('return_batch_reception') }}"
 						enctype="multipart/form-data">
 						@csrf
 
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-close-circle-outline"></i> Sample Rejection Form (QARM/F/01)</h4>
+						</div>
 						<div class="modal-body">
 							<input type="hidden" name="status" value="Samples Request Review" />
+							<div class="alert alert-callout alert-danger">
+								<i class="fas fa-info-circle"></i> Fill this rejection form before confirming request rejection.
+							</div>
+							<div class="row">
+								<div class="col-md-6 form-group">
+									<label class="control-label">Sample ID</label>
+									<input type="text" class="form-control" name="sample_rejection[sample_id]" placeholder="Sample ID">
+								</div>
+								<div class="col-md-6 form-group">
+									<label class="control-label">Name client</label>
+									<input type="text" class="form-control" name="sample_rejection[name_of_client]" placeholder="Client name">
+								</div>
+								<div class="col-md-6 form-group">
+									<label class="control-label">Date sample(s) received/collected</label>
+									<input type="date" class="form-control" name="sample_rejection[date_sample_received]">
+								</div>
+								<div class="col-md-6 form-group">
+									<label class="control-label">Date of sample(s)</label>
+									<input type="date" class="form-control" name="sample_rejection[date_of_sample_collection]">
+								</div>
+								<div class="col-md-6 form-group">
+									<label class="control-label">Number of samples received</label>
+									<input type="number" min="0" class="form-control" name="sample_rejection[number_of_samples_received]" placeholder="0">
+								</div>
+							</div>
+							<div class="form-group mb-1">
+								<label class="control-label">Reasons</label>
+								<div class="border rounded p-2" style="max-height: 190px; overflow-y: auto;">
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample was collected in improper container"> Sample was collected in improper container</label>
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample not properly sealed was leaking"> Sample not properly sealed was leaking</label>
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample was stored in appropriate storage conditions"> Sample was stored in appropriate storage conditions</label>
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample was inappropriate treated after sampling prior analysis"> Sample was inappropriate treated after sampling prior analysis</label>
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample was improperly labeled and date of collection was not clear"> Sample was improperly labeled and date of collection was not clear</label>
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample material was inappropriate for the test(s) requested"> Sample material was inappropriate for the test(s) requested</label>
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample volume /weight was inappropriate for the test(s) requested"> Sample volume /weight was inappropriate for the test(s) requested</label>
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample was not accompanied by a request form/sample could not be related to a request form"> Sample was not accompanied by a request form/sample could not be related to a request form</label>
+									<label class="d-block mb-1"><input type="checkbox" name="sample_rejection[reasons][]" value="Sample name/date of collection on request form did not match the same details on the sample label"> Sample name/date of collection on request form did not match the same details on the sample label</label>
+									<label class="d-block mb-0"><input type="checkbox" name="sample_rejection[reasons][]" value="Other"> Other</label>
+								</div>
+							</div>
 							<div class="form-group">
-								<div class="alert alert-callout alert-danger">
-									<i class="fas fa-info-circle"></i> Confirm you want to reject approval request for the following
-									batche(s).
+								<label class="control-label">Explanation</label>
+								<textarea class="form-control" name="sample_rejection[explanation]" rows="2" placeholder="Reason details..."></textarea>
+							</div>
+							<div class="row">
+								<div class="col-md-4 form-group">
+									<label class="control-label">Laboratory Staff</label>
+									<input type="text" class="form-control" name="sample_rejection[laboratory_staff]" value="{{ auth()->user()->name ?? '' }}">
+								</div>
+								<div class="col-md-4 form-group">
+									<label class="control-label">Signature Name</label>
+									<input type="text" class="form-control" name="sample_rejection[signature_name]" placeholder="Signature">
+								</div>
+								<div class="col-md-4 form-group">
+									<label class="control-label">Date</label>
+									<input type="date" class="form-control" name="sample_rejection[date]" value="{{ now()->format('Y-m-d') }}">
 								</div>
 							</div>
 							<div class="form-group">
 								<label class="control-label">Comments</label>
 								<textarea class="form-control" name="comment" placeholder="Comments..."></textarea>
+							</div>
+							<div class="form-group mb-1">
+								<label class="control-label">Selected Requests</label>
+								<div class="selected-submissions-request text-muted small"></div>
+							</div>
+							<div class="form-group">
+								<label class="control-label">Selected Batches</label>
+								<div class="selected-batches-request-approve"></div>
 							</div>
 							<div class="form-check">
 								<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
@@ -1860,20 +2469,15 @@
 									Send SMS
 								</label>
 							</div>
-							<br>
-							<div class="form-group">
-								<label class="control-label">Batches</label>
-								<div class="selected-batches-request-approve"></div>
-							</div>
-
 						</div>
 						<div class="modal-footer">
-							<button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-thumb-up"></i> Reject</button>
+							<button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-thumb-up"></i> Submit & Reject</button>
 							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 						</div>
 					</form>
 				</div>
 			</div>
+			@if($status == "Samples Request Review")
 			<div id="dispatch-to-labs-modal-review" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
@@ -1896,7 +2500,7 @@
 									required>
 									<option></option>
 									<?php $requestTypes = getRequestTypes(); ?>
-									@foreach ($requestTypes[1] as $i)
+									@foreach (($requestTypes[1] ?? []) as $i)
 										<option value="{{ $i->id }}">{{ $i->name }}</option>
 									@endforeach
 									<option value="Other">Other Type</option>
@@ -1921,6 +2525,128 @@
 								<label class="control-label">Approval Comments</label>
 								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
 							</div>
+
+							<div class="card border mb-3">
+								<div class="card-header bg-light py-2">
+									<strong>Laboratory Analysis Acceptance Form (GCLA/F/03)</strong>
+								</div>
+								<div class="card-body">
+									<div class="row">
+										<div class="col-md-6 form-group">
+											<label class="control-label">Date</label>
+											<input type="date" class="form-control" name="lab_acceptance[date]" value="{{ now()->format('Y-m-d') }}">
+										</div>
+										<div class="col-md-6 form-group">
+											<label class="control-label">Lab No.</label>
+											<input type="text" class="form-control" name="lab_acceptance[lab_no]" placeholder="Lab number">
+										</div>
+										<div class="col-md-6 form-group">
+											<label class="control-label">Customer Name</label>
+											<input type="text" class="form-control" name="lab_acceptance[customer_name]" placeholder="Customer">
+										</div>
+										<div class="col-md-6 form-group">
+											<label class="control-label">Address</label>
+											<input type="text" class="form-control" name="lab_acceptance[address]" placeholder="Address">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Email</label>
+											<input type="email" class="form-control" name="lab_acceptance[email]" placeholder="Email">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Tel</label>
+											<input type="text" class="form-control" name="lab_acceptance[tel]" placeholder="Telephone">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Mode of Work</label>
+											<select class="form-control" name="lab_acceptance[mode_of_work]">
+												<option value="Normal">Normal</option>
+												<option value="Express">Express</option>
+											</select>
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Number of Samples</label>
+											<input type="number" min="0" class="form-control" name="lab_acceptance[number_of_samples]" placeholder="0">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Type of Sample</label>
+											<input type="text" class="form-control" name="lab_acceptance[type_of_sample]" placeholder="Type">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Date of Sampling</label>
+											<input type="date" class="form-control" name="lab_acceptance[date_of_sampling]">
+										</div>
+										<div class="col-md-12 form-group">
+											<label class="control-label fw-bold">Parameters & Pricing</label>
+											<div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+												<table class="table table-sm table-bordered mb-0" id="lab_acceptance_parameters_table">
+													<thead class="bg-light">
+														<tr>
+															<th style="width: 50%;">Parameter Name</th>
+															<th style="width: 30%; text-align: right;">Amount (USD)</th>
+															<th style="width: 20%; text-align: center;">Action</th>
+														</tr>
+													</thead>
+													<tbody id="lab_acceptance_parameters_tbody">
+														<!-- Rows will be populated by JavaScript -->
+													</tbody>
+													<tfoot class="bg-light fw-bold">
+														<tr>
+															<td style="text-align: right;"><strong>TOTAL</strong></td>
+															<td style="text-align: right;"><span id="lab_acceptance_total_amount">0.00</span></td>
+															<td></td>
+														</tr>
+													</tfoot>
+												</table>
+											</div>
+											<input type="hidden" name="lab_acceptance[amount_usd]" id="lab_acceptance_amount_usd_hidden" value="0">
+											<input type="hidden" name="lab_acceptance[parameters_json]" id="lab_acceptance_parameters_json" value="[]">
+											<small class="text-muted d-block mt-2">Click the remove button (×) next to any parameter to exclude it from the analysis. The total will update automatically.</small>
+										</div>
+										<div class="col-md-6 form-group">
+											<label class="control-label">Any deviation from specified conditions?</label>
+											<select class="form-control" name="lab_acceptance[deviation_answer]">
+												<option value="No">No</option>
+												<option value="Yes">Yes</option>
+											</select>
+										</div>
+										<div class="col-md-6 form-group">
+											<label class="control-label">Conformity Request</label>
+											<select class="form-control" name="lab_acceptance[conformity_request]">
+												<option value="not requested">Not requested</option>
+												<option value="requested">Requested</option>
+											</select>
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Customer Name (Certified)</label>
+											<input type="text" class="form-control" name="lab_acceptance[customer_name_certified]" placeholder="Name">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Customer Signature Name</label>
+											<input type="text" class="form-control" name="lab_acceptance[customer_signature_name]" placeholder="Signature">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Customer Date</label>
+											<input type="date" class="form-control" name="lab_acceptance[customer_date]" value="{{ now()->format('Y-m-d') }}">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Laboratory</label>
+											<input type="text" class="form-control" name="lab_acceptance[laboratory_name]" value="{{ config('app.name') }}">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Laboratory Manager Name</label>
+											<input type="text" class="form-control" name="lab_acceptance[laboratory_manager_name]" value="{{ auth()->user()->name ?? '' }}">
+										</div>
+										<div class="col-md-4 form-group">
+											<label class="control-label">Manager Signature Name</label>
+											<input type="text" class="form-control" name="lab_acceptance[manager_signature_name]" placeholder="Signature">
+										</div>
+										<div class="col-md-4 form-group mb-0">
+											<label class="control-label">Manager Date</label>
+											<input type="date" class="form-control" name="lab_acceptance[manager_date]" value="{{ now()->format('Y-m-d') }}">
+										</div>
+									</div>
+								</div>
+							</div>
 							<div class="form-group">
 								<label class="control-label"><input type="checkbox" name="is_priority" value="High" /> Is High
 									Prority</label>
@@ -1944,6 +2670,10 @@
 								<label class="control-label">Batches</label>
 								<div class="selected-batches-review"></div>
 							</div>
+							<div class="form-group mb-0">
+								<label class="control-label">Selected Forms</label>
+								<div class="selected-submissions-request text-muted small"></div>
+							</div>
 						</div>
 
 
@@ -1954,6 +2684,7 @@
 					</form>
 				</div>
 			</div>
+			@endif
 		@endif
 		@if($status == 'Sample Approval')
 			<div class="modal fade" id="move-batch-complete" role="dialog">
@@ -2210,6 +2941,9 @@
 		<script type="text/javascript">
 			console.log('here');
 			var selectedSampleIDs = [];
+			var selectedBatchesIDs = [];
+			var selectedSubmissionIDs = [];
+			var selectedFormInstanceIDs = [];
 			var sampleAnalysisByType = [];
 			var sampleCondtions = [];
 			var defaultClass = '';
@@ -2856,139 +3590,214 @@
 			});
 		
 		
-			$("input[name='table_sample_id[]']").on('change', function () {
-				if ($("input[name='table_sample_id[]']:checked").length > 0) {
+			const rebuildSelectionLists = function () {
+				const selectedBatchCheckboxes = $("input[name='table_sample_id[]'][data-batch]:checked");
+				const selectedSubmissionCheckboxes = $("input[name='portal_submission_id[]'][data-submission-number]:checked");
+				const selectedFormInstanceCheckboxes = $("input[name='submission_form_instance_id[]'][data-form-number]:checked");
+
+				notPaid = [];
+
+				if (selectedBatchCheckboxes.length > 0 || selectedSubmissionCheckboxes.length > 0 || selectedFormInstanceCheckboxes.length > 0) {
 					$('[data-target="#delete-batch"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
 					$('[data-target="#inter-lab-add"]').removeAttr('disabled');
 					$('[data-target="#move-to-lab"]').removeAttr('disabled');
 					$('[data-target="#generarate_customer_focus"]').removeAttr('disabled');
-					$('[data-target="#clone-batches"]').removeAttr('disabled')
-					$('[data-target="#move-batch-complete"]').removeAttr('disabled')
-					$('[data-target="#move-sample-approval"]').removeAttr('disabled')
-					$('[data-target="#send-schedule-analysis"]').removeAttr('disabled')
-		
+					$('[data-target="#clone-batches"]').removeAttr('disabled');
+					$('[data-target="#move-batch-complete"]').removeAttr('disabled');
+					$('[data-target="#move-sample-approval"]').removeAttr('disabled');
+					$('[data-target="#send-schedule-analysis"]').removeAttr('disabled');
+
 					$('[data-target="#dispatch-to-labs-modal"]').removeAttr('disabled').addClass('btn-warning').removeClass('btn-outline-warning');
 					$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
-					$('[data-target="#dispatch-to-labs-modal-payment-reminder"]').removeAttr('disabled', true).removeClass('btn-outline-info').addClass('btn-info');
+					$('[data-target="#portal-request-reject-form-modal"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
+					$('[data-target="#dispatch-to-labs-modal-review"]').removeAttr('disabled');
+					$('[data-target="#dispatch-to-labs-modal-payment-reminder"]').removeAttr('disabled').removeClass('btn-outline-info').addClass('btn-info');
 					$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-outline-success').removeClass('btn-default');
-		
-		
 				} else {
 					$('[data-target="#delete-batch"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
 					$('[data-target="#inter-lab-add"]').attr('disabled', true);
-					$('[data-target="#move-to-lab"]').attr('disabled');
-					$('[data-target="#generarate_customer_focus"]').attr('disabled');
-					$('[data-target="#clone-batches"]').attr('disabled')
-					$('[data-target="#move-batch-complete"]').attr('disabled')
-					$('[data-target="#move-sample-approval"]').attr('disabled');
-					$('[data-target="#send-schedule-analysis"]').attr('disabled')
-		
+					$('[data-target="#move-to-lab"]').attr('disabled', true);
+					$('[data-target="#generarate_customer_focus"]').attr('disabled', true);
+					$('[data-target="#clone-batches"]').attr('disabled', true);
+					$('[data-target="#move-batch-complete"]').attr('disabled', true);
+					$('[data-target="#move-sample-approval"]').attr('disabled', true);
+					$('[data-target="#send-schedule-analysis"]').attr('disabled', true);
+
 					$('[data-target="#dispatch-to-labs-modal"]').attr('disabled', true).removeClass('btn-warning').addClass('btn-outline-warning');
 					$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-default').removeClass('btn-outline-success');
 					$('[data-target="#dispatch-to-labs-modal-approve"]').attr('disabled', true).removeClass('btn-success').addClass('btn-outline-success');
+					$('[data-target="#portal-request-reject-form-modal"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
+					$('[data-target="#dispatch-to-labs-modal-review"]').attr('disabled', true);
 					$('[data-target="#dispatch-to-labs-modal-payment-reminder"]').attr('disabled', true).removeClass('btn-info').addClass('btn-outline-info');
 				}
+
 				$('.selected-batches-review').empty();
 				$('.selected-batches-interlab').empty();
 				$('.selected-batches-clone').empty();
 				$('.selected-batches-movetolab').empty();
 				$('.selected-batches-request').empty();
 				$('.selected-batches-request-approve').empty();
-		
-				selectedBatchesIDs = $("input[name='table_sample_id[]']:checked")
-					.map(function () {
-						var $value = $(this).val();
-						var batch = $(this).data('batch');
-		
-						if (batch.customer_paid == 0) {
-							notPaid.push(batch.batch_code);
-						}
-						$('.selected-batches-review').append(
-							`<span class="p-2 mr-2">
-								<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
-							</span>`
-						);
-						$('.selected-batches-interlab').append(
-							`<span class="p-2 mr-2">
-								<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
-							</span>`
-						);
-						$('.selected-batches-clone').append(
-							`<span class="p-2 mr-2">
-								<input type="checkbox" class="batch_clone" name="batch_code[]" value="${$value}"  checked > ${$value}
-							</span>`
-						);
-						$('.selected-batches-movetolab').append(
-							`<span class="p-2 mr-2">
-								<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
-							</span>`
-						)
-						$('.selected-batches-request').append(
-							`<span class="p-2 mr-2">
-								<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
-							</span>
-							`
-		
-						);
-						$('.selected-batches-request-approve').append(
-							`<span class="p-2 mr-2">
-								<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
-							</span>
-							`
-						)
-						return $value;
-					}).get();
-		
-		
-		
-			});
-		
-			@if($status == "Samples Request Review")
-				$("input[name='table_sample_id[]']").on('change', function () {
-					if ($("input[name='table_sample_id[]']:checked").length > 0) {
-						$('[data-target="#dispatch-to-labs-modal-review"]').removeAttr('disabled').addClass('btn-primary').removeClass('btn-outline-primary');
-						$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
-						$('[data-target = "#dispatch-to-labs-modal-review-reject"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
-						var $custID = $(this).parents('tr').data('class');
-		
-						console.log($custID);
-						$("input[name='customer_id']").val($custID);
-					} else {
-						$('[data-target="#dispatch-to-labs-modal-review-reject"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
-						$('[data-target="#dispatch-to-labs-modal-review"]').attr('disabled', true).removeClass('btn-primary').addClass('btn-outline-primary');
-						$('[data-target="#dispatch-to-labs-modal-approve"]').attr('disabled', true).removeClass('btn-success').addClass('btn-outline-success');
+				$('.selected-submissions-request').empty();
+
+				selectedBatchesIDs = selectedBatchCheckboxes.map(function () {
+					var $value = $(this).val();
+					var batch = $(this).data('batch') || {};
+
+					if (batch.customer_paid == 0 && batch.batch_code) {
+						notPaid.push(batch.batch_code);
 					}
-					$('.selected-batches-review').empty();
-					$('.selected-batches-request-approve').empty();
-		
-					selectedBatchesIDs = $("input[name='table_sample_id[]']:checked")
-						.map(function () {
-							var $value = $(this).val();
-		
-							$('.selected-batches-review').append(
-								`<span class="p-2 mr-2">
-										<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
-									</span>`
-							);
-							$('.selected-batches-request-approve').append(
-								`<span class="p-2 mr-2">
-										<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
-									</span>
-									`
-							)
-							return $value;
-						}).get();
-		
-		
+
+					$('.selected-batches-review').append(`<span class="p-2 mr-2"><input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}</span>`);
+					$('.selected-batches-interlab').append(`<span class="p-2 mr-2"><input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}</span>`);
+					$('.selected-batches-clone').append(`<span class="p-2 mr-2"><input type="checkbox" class="batch_clone" name="batch_code[]" value="${$value}" checked> ${$value}</span>`);
+					$('.selected-batches-movetolab').append(`<span class="p-2 mr-2"><input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}</span>`);
+					$('.selected-batches-request').append(`<span class="p-2 mr-2"><input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}</span>`);
+					$('.selected-batches-request-approve').append(`<span class="p-2 mr-2"><input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}</span>`);
+
+					return $value;
+				}).get();
+
+				selectedSubmissionIDs = selectedSubmissionCheckboxes.map(function () {
+					var $source = $(this);
+					var submissionId = $(this).val();
+					var submissionNumber = $(this).data('submission-number') || ('Request #' + submissionId);
+
+					$('.selected-submissions-request').append(`<span class="p-2 mr-2 d-inline-block"><input type="checkbox" name="submission_request_id[]" value="${submissionId}" checked data-submission-number="${submissionNumber}" data-customer-name="${$source.data('customer-name') || ''}" data-customer-email="${$source.data('customer-email') || ''}" data-customer-phone="${$source.data('customer-phone') || ''}" data-customer-address="${$source.data('customer-address') || ''}" data-sample-type="${$source.data('sample-type') || ''}" data-number-samples="${$source.data('number-samples') || ''}" data-request-date="${$source.data('request-date') || ''}" data-mode-of-work="${$source.data('mode-of-work') || ''}"> ${submissionNumber}</span>`);
+
+					return submissionId;
+				}).get();
+
+				selectedFormInstanceIDs = selectedFormInstanceCheckboxes.map(function () {
+					var $source = $(this);
+					var formInstanceId = $(this).val();
+					var formNumber = $(this).data('form-number') || ('Form #' + formInstanceId);
+					var formName = $(this).data('form-name') || 'Template Form';
+
+					$('.selected-submissions-request').append(`<span class="p-2 mr-2 d-inline-block"><input type="checkbox" name="submission_form_instance_id[]" value="${formInstanceId}" checked data-form-number="${formNumber}" data-form-name="${formName}" data-customer-name="${$source.data('customer-name') || ''}" data-customer-email="${$source.data('customer-email') || ''}" data-customer-phone="${$source.data('customer-phone') || ''}" data-customer-address="${$source.data('customer-address') || ''}" data-sample-type="${$source.data('sample-type') || ''}" data-number-samples="${$source.data('number-samples') || ''}" data-request-date="${$source.data('request-date') || ''}" data-mode-of-work="${$source.data('mode-of-work') || ''}"> ${formNumber} <small class="text-muted">${formName}</small></span>`);
+
+					return formInstanceId;
+				}).get();
+
+				let prefillFrom = selectedFormInstanceCheckboxes.first().length
+					? selectedFormInstanceCheckboxes.first()
+					: (selectedSubmissionCheckboxes.first().length ? selectedSubmissionCheckboxes.first() : null);
+
+				if (!prefillFrom || !prefillFrom.length) {
+					const mirroredForm = $(".selected-submissions-request input[name='submission_form_instance_id[]']:checked").first();
+					const mirroredRequest = $(".selected-submissions-request input[name='submission_request_id[]']:checked").first();
+					prefillFrom = mirroredForm.length ? mirroredForm : (mirroredRequest.length ? mirroredRequest : null);
+				}
+
+				const batchPrefill = selectedBatchCheckboxes.first().data('batch') || {};
+				const requestPrefill = batchPrefill.sample_submission_request || {};
+				const batchClientPrefill = batchPrefill.client || {};
+
+				const customerName = prefillFrom
+					? (prefillFrom.data('customer-name') || '')
+					: (requestPrefill.submitting_agency || batchClientPrefill.name || '');
+				const customerEmail = prefillFrom
+					? (prefillFrom.data('customer-email') || '')
+					: (requestPrefill.email || batchClientPrefill.email || '');
+				const customerPhone = prefillFrom
+					? (prefillFrom.data('customer-phone') || '')
+					: (requestPrefill.mobile_telephone_no || requestPrefill.office_telephone_no || batchClientPrefill.telephone1 || '');
+				const customerAddress = prefillFrom
+					? (prefillFrom.data('customer-address') || '')
+					: (requestPrefill.physical_address || batchClientPrefill.postal_address || '');
+				const sampleType = prefillFrom
+					? (prefillFrom.data('sample-type') || '')
+					: ((batchPrefill.sample_type && batchPrefill.sample_type.name) ? batchPrefill.sample_type.name : '');
+				const numberSamples = prefillFrom
+					? (prefillFrom.data('number-samples') || '')
+					: ((batchPrefill.samples && batchPrefill.samples.length) ? batchPrefill.samples.length : '');
+				const requestDate = prefillFrom
+					? (prefillFrom.data('request-date') || '')
+					: (requestPrefill.submitted_by_date || '');
+				const modeOfWork = prefillFrom
+					? (prefillFrom.data('mode-of-work') || 'Normal')
+					: ((batchPrefill.priority && String(batchPrefill.priority).toLowerCase() === 'express') ? 'Express' : 'Normal');
+
+				$('[name="lab_acceptance[customer_name]"]').val(customerName);
+				$('[name="lab_acceptance[address]"]').val(customerAddress);
+				$('[name="lab_acceptance[email]"]').val(customerEmail);
+				$('[name="lab_acceptance[tel]"]').val(customerPhone);
+				$('[name="lab_acceptance[type_of_sample]"]').val(sampleType);
+				$('[name="lab_acceptance[number_of_samples]"]').val(numberSamples);
+				$('[name="lab_acceptance[date_of_sampling]"]').val(requestDate);
+				$('[name="lab_acceptance[mode_of_work]"]').val(modeOfWork || 'Normal');
+				$('[name="lab_acceptance[customer_name_certified]"]').val(customerName);
+
+				const sampleIdentifier = prefillFrom
+					? (prefillFrom.data('submission-number') || prefillFrom.data('form-number') || '')
+					: (batchPrefill.batch_code || '');
+				$('[name="sample_rejection[sample_id]"]').val(sampleIdentifier);
+				$('[name="sample_rejection[name_of_client]"]').val(customerName);
+				$('[name="sample_rejection[date_sample_received]"]').val(requestDate);
+				$('[name="sample_rejection[date_of_sample_collection]"]').val(requestDate);
+				$('[name="sample_rejection[number_of_samples_received]"]').val(numberSamples);
+
+			// Populate parameters table from selected request/form.
+			window.labAcceptanceParameters = [];
+			window.labAcceptancePricelist = {};
+			populateLabAcceptanceParametersTable();
+
+			if (selectedSubmissionIDs.length > 0 || selectedFormInstanceIDs.length > 0) {
+				var requestData = {};
+				if (selectedSubmissionIDs.length > 0) {
+					requestData.submission_request_id = selectedSubmissionIDs[0];
+				} else {
+					requestData.submission_form_instance_id = selectedFormInstanceIDs[0];
+				}
+
+				$.ajax({
+					url: '{{ route("api.submission-request-parameters") }}',
+					type: 'GET',
+					data: requestData,
+					success: function(response) {
+						window.labAcceptanceParameters = response.parameters || [];
+						window.labAcceptancePricelist = response.pricelist || {};
+						populateLabAcceptanceParametersTable();
+					},
+					error: function(err) {
+						console.warn('Failed to load parameters:', err);
+					}
 				});
-			@endif
-			@if($status == "Reports for Collection")
-				$('#send-email-reports-modal').on('show.bs.modal', (e) => {
-					$('#send-email-reports-modal').find('.add-contact').on('click', () => {
+			}
+			};
+
+			$(document)
+				.off('change.workflowSelection', "input[name='table_sample_id[]'], input[name='portal_submission_id[]'], input[name='submission_form_instance_id[]']")
+				.on('change.workflowSelection', "input[name='table_sample_id[]'], input[name='portal_submission_id[]'], input[name='submission_form_instance_id[]']", function () {
+					rebuildSelectionLists();
+				});
+
+			// Bind directly on the modal elements — delegated $(document).on() with a custom namespace
+			// suffix (e.g. show.bs.modal.workflowSelection) never fires because Bootstrap triggers
+			// $.Event('show.bs.modal') with namespace ['bs','modal'] and jQuery's namespace matching
+			// requires the listener's namespaces to be a subset of the event's namespaces.
+			$('#portal-request-reject-form-modal').off('show.bs.modal.workflowSelection').on('show.bs.modal', function () {
+				rebuildSelectionLists();
+			});
+			$('#dispatch-to-labs-modal-review').off('show.bs.modal.workflowSelection').on('show.bs.modal', function () {
+				rebuildSelectionLists();
+			});
+
+			// Primary prefill trigger: fire rebuildSelectionLists the moment the user clicks a
+			// modal-trigger button, BEFORE Bootstrap opens the modal. This is the most reliable
+			// mechanism and handles Livewire re-render edge cases (delegated — survives DOM morphing).
+			$(document)
+				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal-review"]')
+				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal-review"]', function () {
+					rebuildSelectionLists();
+				});
+
+			window.rebuildWorkflowSelectionLists = rebuildSelectionLists;
+
+			rebuildSelectionLists();
 						$('#send-email-reports-modal').find('.add-contact-fields').removeClass('hidden');
-					})
-					$('#send-email-reports-modal').find('.save-add-contact').on('click', () => {
-						console.log('am here');
+					});
+
+					$('#send-email-reports-modal').find('.save-add-contact').on('click', function () {
 						var body = {
 							first_name: $('.add-contact-fields').find('.first_name').val(),
 							middle_name: $('.add-contact-fields').find('.middle_name').val(),
@@ -3000,24 +3809,27 @@
 							mobile: $('.add-contact-fields').find('.mobile').val(),
 							receive_price_list: $('.add-contact-fields').find('.receive_price_list').is(':checked') ? 1 : 0,
 							receive_invoice: $('.add-contact-fields').find('.receive_invoice').is(':checked') ? 1 : 0,
-						}
+						};
+
 						$.ajax({
 							url: ``,
 							type: 'POST',
-							success: (data) => {
+							data: body,
+							success: function () {
 								$('#send-email-reports-modal').find('.add-contact-fields').addClass('hidden');
 							},
-							error: (data) => {
+							error: function (data) {
 								console.log(data);
 							}
-						})
-						})
-				})
+						});
+					});
+				});
+
 				$("input[name='table_sample_id[]']").on('change', function () {
 					if ($("input[name='table_sample_id[]']:checked").length > 0) {
 						$('[data-target="#send-email-reports-modal"]').removeAttr('disabled').addClass('btn-primary').removeClass('btn-outline-primary');
 						var custID = $(this).parents('tr').data('class');
-		
+
 						if (defaultClass == '') {
 							$.ajax({
 								url: '/get-customer-contacts/receive_report/' + custID,
@@ -3027,70 +3839,32 @@
 								},
 								success: function (js) {
 									$.each(js, function (j, s) {
-										$('select[name="contacts[]"]').append(`<option value="${s.id}">
-														${s.first_name + ' ' + s.middle_name + ' ' + s.last_name} [${s.email}]
-													</option>`)
+										$('select[name="contacts[]"]').append(`<option value="${s.id}">${s.first_name + ' ' + s.middle_name + ' ' + s.last_name} [${s.email}]</option>`);
 									});
 								}
-							})
+							});
 						}
-		
+
 						defaultClass = defaultClass == '' ? ".crm-customer-" + custID : defaultClass;
 					} else {
 						$('[data-target="#send-email-reports-modal"]').attr('disabled', true).removeClass('btn-primary').addClass('btn-outline-primary');
 						defaultClass = '';
 					}
-		
+
 					if (defaultClass == '') {
 						$('tr.batch-row').find("input[name='table_sample_id[]']").removeAttr('disabled');
 					} else {
 						$('tr.batch-row').not(defaultClass).find("input[name='table_sample_id[]']").attr('disabled', true);
 					}
-		
+
 					$('.selected-batches').empty();
-					selectedSampleIDs = $("input[name='table_sample_id[]']:checked")
-						.map(function () {
-							var $val = $(this).val();
-							var recordBatch = $(this).data('batch');
-							$('.selected-batches').append(`
-										<span class="p-2 mr-2">
-											<input type="checkbox" name="sample_code[]" value="${recordBatch.id}" checked> ${$val}
-										</span>
-									`);
-							return $val;
-						}).get();
+					selectedSampleIDs = $("input[name='table_sample_id[]']:checked").map(function () {
+						var $val = $(this).val();
+						var recordBatch = $(this).data('batch');
+						$('.selected-batches').append(`<span class="p-2 mr-2"><input type="checkbox" name="sample_code[]" value="${recordBatch.id}" checked> ${$val}</span>`);
+						return $val;
+					}).get();
 				});
-			@else
-				$("input[name='table_sample_id[]']").on('change', function () {
-					$('.selected-samples').empty();
-					selectedSampleIDs = $("input[name='table_sample_id[]']:checked")
-						.map(function () {
-							var $val = $(this).val();
-							$('.selected-samples').append(`
-										<span class="p-2 mr-2">
-											<input type="checkbox" name="sample_code[]" value="${$val}" checked> ${$val}
-										</span>
-									`);
-							return $val;
-						}).get();
-				});
-			@endif
-		
-			$('.send-report-to-client-btn').on('click', function () {
-				if ($(this).parents('form').find('.selected-batches').find('input[type="checkbox"]').length == 0) {
-					alert("No batches selected");
-				} else {
-					$(this).parents('form').submit();
-				}
-			});
-		
-			$('.print-label-btn').on('click', function () {
-				if ($(this).parents('form').find('.selected-samples').find('input[type="checkbox"]').length == 0) {
-					alert("No batches selected");
-				} else {
-					$(this).parents('form').submit();
-				}
-			});
 		
 			var detectChange = function (ts) {
 				var op = $(ts).children('option:selected');
@@ -3130,6 +3904,24 @@
 		
 			// Submission Form Modal Functionality
 			let availableForms = [];
+			const submissionFormContextRoute = @json((function () {
+				$route = request()->route();
+				if (!$route) {
+					return '';
+				}
+
+				$routeName = (string) $route->getName();
+				if ($routeName === '') {
+					return '';
+				}
+
+				$status = $route->parameter('status');
+				if (is_string($status) && trim($status) !== '') {
+					return $routeName . '@status=' . trim($status);
+				}
+
+				return $routeName;
+			})());
 		
 			// Test button click
 			$(document).on('click', '[data-target="#add-submission-form-modal"]', function() {
@@ -3187,7 +3979,7 @@
 				$('#no-forms-message').hide();
 		
 				const url = '{{ route("sample-workflow.submission-forms") }}';
-				const contextRoute = '{{ request()->route() ? request()->route()->getName() : '' }}';
+				const contextRoute = submissionFormContextRoute;
 				console.log('Making AJAX request to:', url);
 		
 				$.ajax({
@@ -3261,7 +4053,7 @@
 			function createFormInstance(formId) {
 				const btn = $('#create-form-instance-btn');
 				const originalText = btn.html();
-				const contextRoute = '{{ request()->route() ? request()->route()->getName() : '' }}';
+				const contextRoute = submissionFormContextRoute;
 				
 				// Show loading state
 				btn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Creating...');
@@ -3328,7 +4120,9 @@
 		// Close customer dropdown when clicking outside or on blur
 		document.addEventListener('click', function(e) {
 			if (!e.target.closest('.tag-select-container') && !e.target.closest('.modal')) {
-				@this.set('showCustomerDropdown', false);
+				if (window.Livewire) {
+					@this.set('showCustomerDropdown', false);
+				}
 			}
 		});
 	
@@ -3361,13 +4155,28 @@
 			if (scrollHeight - scrollTop - clientHeight < 50) {
 				// Debounce the load more call
 				scrollTimeout = setTimeout(function() {
-					@this.call('loadMoreCustomers');
+					if (window.Livewire) {
+						@this.call('loadMoreCustomers');
+					}
 				}, 100);
 			}
 		}
+
+		function onLivewireMorphUpdated(callback) {
+			if (window.Livewire && typeof window.Livewire.hook === 'function') {
+				window.Livewire.hook('morph.updated', callback);
+				return;
+			}
+
+			document.addEventListener('livewire:init', function registerMorphHook() {
+				if (window.Livewire && typeof window.Livewire.hook === 'function') {
+					window.Livewire.hook('morph.updated', callback);
+				}
+			}, { once: true });
+		}
 	
 		// Initialize scroll handler when dropdown is shown
-		Livewire.hook('morph.updated', ({ el, component }) => {
+		onLivewireMorphUpdated(({ el, component }) => {
 			setTimeout(function() {
 				const dropdown = document.getElementById('customer-dropdown-list');
 				if (dropdown) {
@@ -3419,7 +4228,7 @@
 		});
 	
 		// Ensure overlay hides after Livewire updates complete
-		Livewire.hook('morph.updated', ({ el, component }) => {
+		onLivewireMorphUpdated(({ el, component }) => {
 			// Overlay will be shown/hidden by wire:loading automatically
 			// This ensures it doesn't stay visible
 			setTimeout(function() {
@@ -3427,8 +4236,91 @@
 				if (loadingOverlay && !loadingOverlay.hasAttribute('wire:loading')) {
 					loadingOverlay.style.display = 'none';
 				}
+				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
+					window.rebuildWorkflowSelectionLists();
+				}
 			}, 100);
 		});
+
+		// Function to populate laboratory acceptance parameters table
+		function populateLabAcceptanceParametersTable() {
+			var parameters = window.labAcceptanceParameters || [];
+			var tbody = $('#lab_acceptance_parameters_tbody');
+			tbody.empty();
+
+			if (parameters.length === 0) {
+				tbody.html('<tr><td colspan="3" class="text-center text-muted">No parameters found for this request</td></tr>');
+				updateLabAcceptanceTotal();
+				return;
+			}
+
+			var totalAmount = 0;
+			var parametersData = [];
+
+			$.each(parameters, function(index, param) {
+				var paramAmount = parseFloat(param.price || 0);
+				totalAmount += paramAmount;
+
+				var row = $('<tr>')
+					.attr('data-param-id', param.analysis_id)
+					.attr('data-param-price', paramAmount);
+
+				row.append($('<td>').text(param.label || param.name || 'Unknown'));
+				row.append($('<td style="text-align: right;">').text(paramAmount.toFixed(2)));
+				
+				var removeBtn = $('<button type="button" class="btn btn-sm btn-outline-danger" title="Remove parameter">')
+					.html('&times;')
+					.on('click', function(e) {
+						e.preventDefault();
+						removeLabAcceptanceParameter(param.analysis_id);
+					});
+
+				row.append($('<td style="text-align: center;">').append(removeBtn));
+				tbody.append(row);
+
+				parametersData.push({
+					analysis_id: param.analysis_id,
+					label: param.label || param.name,
+					price: paramAmount
+				});
+			});
+
+			// Store parameters data for form submission
+			$('#lab_acceptance_parameters_json').val(JSON.stringify(parametersData));
+			updateLabAcceptanceTotal();
+		}
+
+		// Function to remove a parameter from the table
+		function removeLabAcceptanceParameter(paramId) {
+			$('#lab_acceptance_parameters_table tbody tr[data-param-id="' + paramId + '"]').fadeOut(300, function() {
+				$(this).remove();
+				updateLabAcceptanceTotal();
+
+				// Update the stored parameters JSON
+				var remainingRows = $('#lab_acceptance_parameters_table tbody tr');
+				var updatedParams = [];
+				remainingRows.each(function() {
+					updatedParams.push({
+						analysis_id: $(this).data('param-id'),
+						label: $(this).find('td').eq(0).text(),
+						price: parseFloat($(this).data('param-price'))
+					});
+				});
+				$('#lab_acceptance_parameters_json').val(JSON.stringify(updatedParams));
+			});
+		}
+
+		// Function to update the total amount in the table footer
+		function updateLabAcceptanceTotal() {
+			var total = 0;
+			$('#lab_acceptance_parameters_table tbody tr').each(function() {
+				var price = parseFloat($(this).data('param-price')) || 0;
+				total += price;
+			});
+
+			$('#lab_acceptance_total_amount').text(total.toFixed(2));
+			$('#lab_acceptance_amount_usd_hidden').val(total.toFixed(2));
+		}
 	
 	</script>
 	@endpush

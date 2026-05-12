@@ -9,9 +9,13 @@ class ChatRequest(BaseModel):
     user_id: Optional[int] = None
     trace_id: Optional[str] = None
     attachments: List[Dict[str, Any]] = []
-    company_id: Optional[int] = None
+    company_id: Optional[Any] = None
     use_visuals: bool = True
     module_context: Optional[str] = None
+    mode: Optional[str] = None          # e.g. 'general' | 'support' | 'lab' | 'inventory' | 'audit' | 'crm'
+    portal_user_id: Optional[int] = None
+    crm_customer_id: Optional[int] = None
+    user_data_snapshot: Optional[Dict[str, Any]] = None
     generation_options: Optional[Dict[str, Any]] = None
 
 class ChatResponse(BaseModel):
@@ -26,7 +30,7 @@ class ChatResponse(BaseModel):
 class ChatStreamRequest(BaseModel):
     """Request body for chat streaming endpoint - new format only"""
     messages: List[Dict[str, str]]
-    company_id: int = 1
+    company_id: Any = 1
     user_id: Optional[int] = None
     model: Optional[str] = None
     session_id: Optional[str] = None
@@ -34,4 +38,8 @@ class ChatStreamRequest(BaseModel):
     attachments: List[Dict[str, Any]] = []
     use_visuals: bool = True
     module_context: Optional[str] = None
+    mode: Optional[str] = None          # e.g. 'general' | 'support' | 'lab' | 'inventory' | 'audit' | 'crm'
+    portal_user_id: Optional[int] = None
+    crm_customer_id: Optional[int] = None
+    user_data_snapshot: Optional[Dict[str, Any]] = None
     generation_options: Optional[Dict[str, Any]] = None

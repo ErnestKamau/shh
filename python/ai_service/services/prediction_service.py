@@ -1,10 +1,10 @@
 import logging
 from typing import Optional, Dict, Any, List
 from sqlalchemy import text
-from ai_service.core.model_registry_service import ModelRegistryService
-from ai_service.core.inference_logger import InferenceLogger
-from py_etl.core.database import db_manager
-from ai_service.models import EquipmentModel, QCModel, TATModel
+from python.ai_service.core.model_registry_service import ModelRegistryService
+from python.ai_service.core.inference_logger import InferenceLogger
+from python.py_pipeline.core.database import db_manager
+from python.ai_service.models import EquipmentModel, QCModel, TATModel
 
 logger = logging.getLogger(__name__)
 

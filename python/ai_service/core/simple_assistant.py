@@ -19,14 +19,14 @@ import uuid
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
 
-from ai_service.services.ollama_service import OllamaService
-from ai_service.services.visualization_service import VisualizationService
-from ai_service.services.live_data_service import LiveDataService
-from ai_service.services.retrieval_service import RetrievalService
-from ai_service.core.manifest_intent_router import ManifestIntentRouter
-from ai_service.core.query_classifier import QueryClassifier
-from ai_service.core.query_filter_extractor import QueryFilterExtractor
-from ai_service.core.request_logger import request_logger
+from python.ai_service.services.ollama_service import OllamaService
+from python.ai_service.services.visualization_service import VisualizationService
+from python.ai_service.services.live_data_service import LiveDataService
+from python.ai_service.services.retrieval_service import RetrievalService
+from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+from python.ai_service.core.query_classifier import QueryClassifier
+from python.ai_service.core.query_filter_extractor import QueryFilterExtractor
+from python.ai_service.core.request_logger import request_logger
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +224,7 @@ class SimpleAssistant:
                         if overrides:
                             # If the LLM found a specific date label, resolve it
                             if "date_label" in overrides:
-                                from ai_service.core.query_filter_extractor import _resolve_date_range
+                                from python.ai_service.core.query_filter_extractor import _resolve_date_range
                                 try:
                                     start, end = _resolve_date_range(overrides["date_label"])
                                     overrides["date_start"] = start

@@ -163,6 +163,7 @@
 	</div>
 	<!-- Main Col END -->
 </div>
+<livewire:a-i.ai-drawer :context="'crm'" />
 @endsection
 
 @section('script')

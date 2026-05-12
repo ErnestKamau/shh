@@ -4,12 +4,13 @@ return [
     'api_base_url' => env('IMARA_AI_ENDPOINT', env('AI_SERVICE_URL', 'http://127.0.0.1:8081')),
     'api_base_urls' => array_values(array_filter(array_map('trim', explode(',', env('AI_SERVICE_URLS', 'http://127.0.0.1:8080,http://127.0.0.1:8081'))))),
 
-    'source_connection' => env('AI_SOURCE_CONNECTION', env('DB_CONNECTION', 'mysql')),
+    'source_connection' => env('DB_CONNECTION', 'pgsql'),
 
-    'repository_connection' => env('AI_REPOSITORY_CONNECTION', 'pgsql_ai'),
+    'repository_connection' => env('DB_CONNECTION', 'pgsql'),
 
     'schemas' => [
         'ai' => env('AI_SCHEMA', 'ai'),
+        'reporting' => env('AI_REPORTING_SCHEMA', 'reporting'),
     ],
 
     'pgvector' => [
@@ -17,22 +18,7 @@ return [
         'extension' => env('AI_PGVECTOR_EXTENSION', 'vector'),
     ],
 
-    'etl' => [
-        'chunk_size' => (int) env('AI_ETL_CHUNK_SIZE', 500),
-        'tables' => [
-            // Only tables targeted for AI analysis/Vectorization remain
-            'qc_results' => [
-                'source_table' => 'qc_results',
-                'target_table' => 'qc_results_ai',
-                'schema' => 'ai',
-                'primary_key' => 'id',
-            ],
-        ],
-    ],
-
     'reporting' => [
-        'refresh_interval_minutes' => (int) env('REPORTING_REFRESH_INTERVAL_MINUTES', 60),
-        'sync_before_refresh' => filter_var(env('REPORTING_SYNC_BEFORE_REFRESH', true), FILTER_VALIDATE_BOOLEAN),
         'marts' => [
             'lab_tat',
             'qc_stability',
@@ -41,11 +27,6 @@ return [
             'inventory_risk',
             'document_compliance',
         ],
-    ],
-
-    'ai_analytics' => [
-        'auto_refresh' => filter_var(env('AI_ANALYTICS_AUTO_REFRESH', false), FILTER_VALIDATE_BOOLEAN),
-        'sync_before_analysis' => filter_var(env('AI_ANALYTICS_SYNC_BEFORE', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
     /*

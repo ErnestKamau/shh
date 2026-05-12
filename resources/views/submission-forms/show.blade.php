@@ -899,6 +899,8 @@ function getElementIcon($elementType) {
             return 'checkbox-marked';
         case 'file':
             return 'file-upload-outline';
+        case 'camera_photo':
+          return 'camera';
         case 'signature':
             return 'draw';
         case 'calculation':

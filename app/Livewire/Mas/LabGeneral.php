@@ -31,9 +31,13 @@ class LabGeneral extends BaseMasPage
             'sample_type_distribution' => $labBoard['sample_type_distribution'] ?? [],
             'geographic_data'          => $generalService->getLabGeographicData(),
             'monthly_trends'           => $generalService->getLabMonthlyTrends(),
+            'top_clients'              => $generalService->getTopClientsData(8),
+            'testing_matrix'           => $generalService->getTestingMatrixData(),
             'charts'                   => [
                 'type_labels'    => $labBoard['charts']['type_labels'] ?? [],
                 'type_counts'    => $labBoard['charts']['type_counts'] ?? [],
+                'client_labels'  => $generalService->getTopClientsData(8)->pluck('name')->all(),
+                'client_counts'  => $generalService->getTopClientsData(8)->pluck('total')->all(),
             ],
             'summary'                  => $labBoard['summary'] ?? [],
             'stage_summary'            => $labBoard['stage_summary'] ?? [],

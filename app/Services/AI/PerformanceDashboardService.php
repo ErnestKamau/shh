@@ -256,18 +256,13 @@ class PerformanceDashboardService
     }
 
     /**
-     * Get a/b test results (if applicable)
+     * Get recent AI activity logs
      * 
      * @return array
      */
-    public function getABTestResults(): array
+    public function getRecentActivity(): array
     {
-        // Placeholder: In production, query A/B test database
-        return [
-            'active_tests' => [],
-            'completed_tests' => [],
-            'winner' => null,
-        ];
+        return $this->analytics->getRecentLogs(20);
     }
 
     // ── ML Model Governance ──────────────────────────────────────────────────
@@ -328,7 +323,7 @@ class PerformanceDashboardService
         $this->discoverSystemModels();
 
         try {
-            $query = \DB::table('ai_model_registry')
+            $query = \DB::table('ai.ai_model_registry')
                 ->select([
                     'id', 'model_name', 'model_type', 'version',
                     'framework', 'training_rows', 'metrics',
@@ -347,7 +342,7 @@ class PerformanceDashboardService
                 ->map(fn($row) => (array) $row)
                 ->all();
         } catch (\Throwable $e) {
-            \Log::warning('PerformanceDashboardService: could not fetch registry models from MySQL', [
+            \Log::warning('PerformanceDashboardService: could not fetch registry models from PostgreSQL', [
                 'error' => $e->getMessage(),
             ]);
             return [];
@@ -369,7 +364,7 @@ class PerformanceDashboardService
 
         foreach ($types as $featureType) {
             try {
-                $snapshots = \DB::table('ai_feature_snapshots')
+                $snapshots = \DB::table('ai.ai_feature_snapshots')
                     ->where('feature_type', $featureType)
                     ->selectRaw('snapshot_id, SUM(record_count) as cnt')
                     ->groupBy('snapshot_id')
@@ -461,7 +456,7 @@ class PerformanceDashboardService
 
         // 3. Sync to Database (Upsert)
         foreach ($discovered as $model) {
-            \DB::table('ai_model_registry')->updateOrInsert(
+            \DB::table('ai.ai_model_registry')->updateOrInsert(
                 ['model_name' => $model['model_name']],
                 array_merge($model, [
                     'is_active' => 1,

@@ -1,9 +1,9 @@
 import pytest
 import asyncio
 from unittest.mock import MagicMock, patch
-from ai_service.core.intermediate_assistant import IntermediateAssistant
-from ai_service.services.ollama_service import OllamaService
-from ai_service.core.simple_assistant import SimpleAssistant
+from python.ai_service.core.intermediate_assistant import IntermediateAssistant
+from python.ai_service.services.ollama_service import OllamaService
+from python.ai_service.core.simple_assistant import SimpleAssistant
 
 @pytest.fixture
 def mock_ollama():

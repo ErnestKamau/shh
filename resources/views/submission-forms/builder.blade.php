@@ -107,6 +107,9 @@
                   <div class="element-type" data-type="file">
                     <i class="mdi mdi-file-upload-outline"></i> File Upload
                   </div>
+                  <div class="element-type" data-type="camera_photo">
+                    <i class="mdi mdi-camera"></i> Camera Photo
+                  </div>
                   <div class="element-type" data-type="signature">
                     <i class="mdi mdi-draw"></i> Signature
                   </div>
@@ -352,6 +355,7 @@
                     <option value="radio">Radio Buttons</option>
                     <option value="checkbox">Checkbox</option>
                     <option value="file">File Upload</option>
+                    <option value="camera_photo">Camera Photo</option>
                     <option value="signature">Signature</option>
                     <option value="contact_signature">Contact Signature</option>
                     <option value="client_select">Client Select</option>
@@ -1639,15 +1643,19 @@ const FormBuilder = {
             };
         }
         
-        const label = elementItem.find('.font-weight-medium').text().trim();
+        const label = elementItem.data('element-label') || elementItem.find('.font-weight-medium').text().trim();
         const isRequired = elementItem.find('.text-danger').length > 0;
         const isReadonly = elementItem.find('.badge-outline-warning').length > 0;
         const nameAndType = elementItem.find('small.text-muted').text().trim();
+        const storedOptions = elementItem.data('options');
+        const normalizedOptions = Array.isArray(storedOptions)
+          ? storedOptions
+          : (storedOptions && typeof storedOptions === 'object' ? Object.values(storedOptions) : []);
         
         // Extract name and type from "name (type)" format
         const matches = nameAndType.match(/^(.+?)\s*\((.+?)\)$/);
-        const name = matches ? matches[1] : '';
-        const elementType = matches ? matches[2] : 'text';
+        const name = elementItem.data('element-name') || (matches ? matches[1] : '');
+        const elementType = elementItem.data('element-type') || (matches ? matches[2] : 'text');
         
         // Extract mapping information from the DOM
         const mappingInfo = elementItem.find('small.text-info');
@@ -1670,16 +1678,16 @@ const FormBuilder = {
             id: elementId,
             element_type: elementType,
             name: name,
-            label: label.replace(' *', ''), // Remove required asterisk
-            placeholder: '',
-            default_value: '',
-            help_text: '',
+          label: label,
+          placeholder: elementItem.data('placeholder') || '',
+          default_value: elementItem.data('default-value') || '',
+          help_text: elementItem.data('help-text') || '',
             is_required: isRequired,
             is_readonly: isReadonly,
             is_mapped: isMapped,
             mapping_table: mappingTable,
             mapping_field: mappingField,
-            options: [],
+          options: normalizedOptions,
             depends_on_type:  elementItem.data('depends-on-type')  || null,
             depends_on_field: elementItem.data('depends-on-field') || null,
             source_table:     elementItem.data('source-table')     || null,

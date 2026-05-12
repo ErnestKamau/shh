@@ -133,6 +133,9 @@
                 $menuTotals = getSampleWorkFLowTotals();
                 ?>
 				@foreach (getSampleWorflowStages() as $item)
+				@if($item == 'Samples Reception')
+					@continue
+				@endif
 				@if($item == 'Samples In Lab' && $canInterLabLogs)
 				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<div class="d-flex w-100 justify-content-between align-items-center">
@@ -147,7 +150,7 @@
 				<a href="{{ route('sample-workflow', ['status'=>$item]) }}" class="list-group-item list-group-item-action bg-dark text-white">
 					<div class="d-flex w-100 justify-content-between align-items-center">
 						<span class="menu-collapsed">
-							<i class="mdi mdi-circle-medium"></i>{{ $item }}
+							<i class="mdi mdi-circle-medium"></i>{{ getSampleWorkflowStageLabel($item) }}
 						</span>
 						<small class="badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ $menuTotals[$item] ?? 0 }}</small>
 					</div>
@@ -505,23 +508,91 @@
 	</div>
 	@php
 		$currentRouteName = optional(request()->route())->getName();
+		$currentRouteStatus = request()->route('status');
+		$hasStatusContext = is_string($currentRouteStatus) && trim($currentRouteStatus) !== '';
+		$currentRouteStatusValue = $hasStatusContext ? trim((string) $currentRouteStatus) : '';
+		$currentRouteContextKey = $hasStatusContext
+			? $currentRouteName . '@status=' . $currentRouteStatusValue
+			: $currentRouteName;
+
+		$routeNameCandidates = collect([$currentRouteName])->filter()->values();
+		if ($currentRouteName === 'sample-workflow') {
+			$routeNameCandidates->push('sample-workflow-stage');
+		} elseif ($currentRouteName === 'sample-workflow-stage') {
+			$routeNameCandidates->push('sample-workflow');
+		}
+		$routeNameCandidates = $routeNameCandidates->unique()->values();
+
+		$routeContextCandidates = collect([$currentRouteContextKey])->filter()->values();
+		if ($hasStatusContext) {
+			$routeContextCandidates = $routeNameCandidates
+				->map(function ($routeName) use ($currentRouteStatusValue) {
+					return $routeName . '@status=' . $currentRouteStatusValue;
+				})
+				->prepend($currentRouteContextKey)
+				->unique()
+				->values();
+		}
+
+		$getConfiguredSlotId = function ($form) use ($routeContextCandidates, $routeNameCandidates) {
+			$placementSlots = $form->placement_slot ?? [];
+			foreach ($routeContextCandidates as $contextCandidate) {
+				if (isset($placementSlots[$contextCandidate]['slot_id'])) {
+					return (string) $placementSlots[$contextCandidate]['slot_id'];
+				}
+			}
+
+			foreach ($routeNameCandidates as $routeCandidate) {
+				if (isset($placementSlots[$routeCandidate]['slot_id'])) {
+					return (string) $placementSlots[$routeCandidate]['slot_id'];
+				}
+			}
+
+			return '';
+		};
+
+		$getConfiguredTriggers = function ($form) use ($routeContextCandidates, $routeNameCandidates) {
+			$triggerMap = $form->trigger_button_ids ?? [];
+			foreach ($routeContextCandidates as $contextCandidate) {
+				if (isset($triggerMap[$contextCandidate]) && is_array($triggerMap[$contextCandidate])) {
+					return $triggerMap[$contextCandidate];
+				}
+			}
+
+			foreach ($routeNameCandidates as $routeCandidate) {
+				if (isset($triggerMap[$routeCandidate]) && is_array($triggerMap[$routeCandidate])) {
+					return $triggerMap[$routeCandidate];
+				}
+			}
+
+			return [];
+		};
+
 		$disableDynamicSubmissionForms = \Illuminate\Support\Str::startsWith((string) $currentRouteName, 'submission-forms.instances.');
 		$hasTargetPagesColumn = \Illuminate\Support\Facades\Schema::hasColumn('submission_forms', 'target_pages');
 		$pageSectionForms = collect();
 		$pageButtonForms  = collect();
 
 		if ($currentRouteName && !$disableDynamicSubmissionForms) {
-			$cacheKey = 'sf_page_forms_' . $currentRouteName;
-			$formsForCurrentPage = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($currentRouteName, $hasTargetPagesColumn) {
+			$cacheFingerprint = implode('|', array_merge($routeNameCandidates->all(), $routeContextCandidates->all()));
+			$cacheKey = 'sf_page_forms_' . md5($cacheFingerprint);
+			$formsForCurrentPage = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($routeNameCandidates, $routeContextCandidates, $hasTargetPagesColumn) {
 				$query = \App\Models\SubmissionForm::query()
 					->where('is_published', true)
 					->where('is_active', true);
 
 				if ($hasTargetPagesColumn) {
-					$query->where(function ($q) use ($currentRouteName) {
+					$query->where(function ($q) use ($routeNameCandidates, $routeContextCandidates) {
 						$q->whereNull('target_pages')
-						  ->orWhereJsonLength('target_pages', 0)
-						  ->orWhereJsonContains('target_pages', $currentRouteName);
+						  ->orWhereJsonLength('target_pages', 0);
+
+						foreach ($routeNameCandidates as $routeCandidate) {
+							$q->orWhereJsonContains('target_pages', $routeCandidate);
+						}
+
+						foreach ($routeContextCandidates as $contextCandidate) {
+							$q->orWhereJsonContains('target_pages', $contextCandidate);
+						}
 					});
 				}
 
@@ -534,29 +605,29 @@
 
 		// Split page_section forms: those for before/after content slots are rendered in PHP.
 		// Forms with other slots (after_breadcrumb, etc.) are rendered via JS after page load.
-		$phpBeforeForms = $pageSectionForms->filter(function ($f) use ($currentRouteName) {
-			$slot = $f->placement_slot[$currentRouteName]['slot_id'] ?? '';
+		$phpBeforeForms = $pageSectionForms->filter(function ($f) use ($getConfiguredSlotId) {
+			$slot = $getConfiguredSlotId($f);
 			return $slot === 'before_page_content' || $slot === '';
 		})->values();
 
-		$phpAfterForms = $pageSectionForms->filter(function ($f) use ($currentRouteName) {
-			$slot = $f->placement_slot[$currentRouteName]['slot_id'] ?? '';
+		$phpAfterForms = $pageSectionForms->filter(function ($f) use ($getConfiguredSlotId) {
+			$slot = $getConfiguredSlotId($f);
 			return $slot === 'after_page_content';
 		})->values();
 
-		$jsSectionForms = $pageSectionForms->filter(function ($f) use ($currentRouteName) {
-			$slot = $f->placement_slot[$currentRouteName]['slot_id'] ?? '';
+		$jsSectionForms = $pageSectionForms->filter(function ($f) use ($getConfiguredSlotId) {
+			$slot = $getConfiguredSlotId($f);
 			return $slot !== '' && $slot !== 'before_page_content' && $slot !== 'after_page_content';
 		})->values();
 
 		// Split button forms: those with trigger IDs go to JS binding; rest go to the dropdown
-		$dropdownButtonForms = $pageButtonForms->filter(function ($f) use ($currentRouteName) {
-			$triggers = $f->trigger_button_ids[$currentRouteName] ?? [];
+		$dropdownButtonForms = $pageButtonForms->filter(function ($f) use ($getConfiguredTriggers) {
+			$triggers = $getConfiguredTriggers($f);
 			return empty($triggers);
 		})->values();
 
-		$jsButtonForms = $pageButtonForms->filter(function ($f) use ($currentRouteName) {
-			$triggers = $f->trigger_button_ids[$currentRouteName] ?? [];
+		$jsButtonForms = $pageButtonForms->filter(function ($f) use ($getConfiguredTriggers) {
+			$triggers = $getConfiguredTriggers($f);
 			return !empty($triggers);
 		})->values();
 	@endphp
@@ -694,27 +765,45 @@
 		}
 	</style>
 	@php
-		$jsSectionFormsData = $jsSectionForms->map(function ($f) use ($currentRouteName) {
-			$slotId = $f->placement_slot[$currentRouteName]['slot_id'] ?? '';
+		$jsSectionFormsData = $jsSectionForms->map(function ($f) use ($getConfiguredSlotId, $currentRouteContextKey) {
+			$slotId = $getConfiguredSlotId($f);
 			return [
 				'id'           => $f->id,
 				'name'         => $f->name,
 				'description'  => $f->description,
 				'display_mode' => $f->display_mode ?? 'expanded',
 				'slot_id'      => $slotId,
-				'selector'     => \App\Services\PageLayoutRegistry::getSelectorForSlot($currentRouteName, $slotId),
+				'selector'     => \App\Services\PageLayoutRegistry::getSelectorForSlot((string) $currentRouteContextKey, $slotId),
 				// Old navigation URL (kept for rollback): route('submission-forms.instances.create', $f)
 				'launch_url'   => route('submission-forms.instances.launch-inline', $f),
 			];
 		})->values()->all();
-		$jsButtonFormsData = $jsButtonForms->map(function ($f) use ($currentRouteName) {
+		$jsButtonFormsData = $jsButtonForms->map(function ($f) use ($currentRouteName, $currentRouteContextKey, $routeNameCandidates, $routeContextCandidates, $getConfiguredTriggers) {
+			$targetPages = collect($f->target_pages ?? []);
+			$isContextTriggerBinding = isset($f->trigger_button_ids[$currentRouteContextKey]);
+
+			$contextTargetMatch = $routeContextCandidates->contains(function ($candidate) use ($targetPages) {
+				return $targetPages->contains($candidate);
+			});
+			$routeTargetMatch = $routeNameCandidates->contains(function ($candidate) use ($targetPages) {
+				return $targetPages->contains($candidate);
+			});
+
+			$targetMatchPriority = $contextTargetMatch
+				? 3
+				: ($routeTargetMatch
+					? 2
+					: ($targetPages->isEmpty() ? 1 : 0));
+
 			return [
 				'id'          => $f->id,
 				'name'        => $f->name,
 				'description' => $f->description,
 				// Old navigation URL (kept for rollback): route('submission-forms.instances.create', $f)
 				'launch_url'  => route('submission-forms.instances.launch-inline', $f),
-				'triggers'    => $f->trigger_button_ids[$currentRouteName] ?? [],
+				'triggers'    => $getConfiguredTriggers($f),
+				'trigger_scope_priority' => $isContextTriggerBinding ? 2 : 1,
+				'target_match_priority'  => $targetMatchPriority,
 			];
 		})->values()->all();
 	@endphp
@@ -728,6 +817,14 @@
 		var currentRoute   = @json($currentRouteName);
 		var jsSectionForms = @json($jsSectionFormsData);
 		var jsButtonForms  = @json($jsButtonFormsData);
+		var jsButtonFormLookup = {};
+		var formInstanceMap = window.__sfInlineFormInstanceMap || {};
+		var modalState = window.__sfInlineModalState || {
+			fillUrl: '',
+			instanceId: null,
+			isOpen: false
+		};
+		var triggerLaunchLocks = window.__sfInlineTriggerLaunchLocks || {};
 		var csrfToken      = @json(csrf_token());
 		var launchState = window.__sfInlineLaunchState || {
 			inProgress: false,
@@ -735,6 +832,9 @@
 			activeXhr: null,
 		};
 		window.__sfInlineLaunchState = launchState;
+		window.__sfInlineFormInstanceMap = formInstanceMap;
+		window.__sfInlineModalState = modalState;
+		window.__sfInlineTriggerLaunchLocks = triggerLaunchLocks;
 		var listenersBound = window.__sfInlineLauncherBound === true;
 
 		// ── Helpers ───────────────────────────────────────────────────────────
@@ -790,8 +890,33 @@
 			anchor.parentNode.insertBefore(wrapper, anchor.nextSibling);
 		}
 
+		function buildButtonFormLookup(forms) {
+			forms.forEach(function (form) {
+				(form.triggers || []).forEach(function (triggerId) {
+					if (!jsButtonFormLookup[triggerId]) {
+						jsButtonFormLookup[triggerId] = [];
+					}
+					jsButtonFormLookup[triggerId].push(form);
+				});
+			});
+
+			Object.keys(jsButtonFormLookup).forEach(function (triggerId) {
+				jsButtonFormLookup[triggerId].sort(function (a, b) {
+					var scopeDelta = (b.trigger_scope_priority || 0) - (a.trigger_scope_priority || 0);
+					if (scopeDelta !== 0) return scopeDelta;
+
+					var targetDelta = (b.target_match_priority || 0) - (a.target_match_priority || 0);
+					if (targetDelta !== 0) return targetDelta;
+
+					return String(a.name || '').localeCompare(String(b.name || ''));
+				});
+			});
+		}
+
 		// ── Inject section forms at their declared slots ───────────────────────
 		document.addEventListener('DOMContentLoaded', function () {
+			buildButtonFormLookup(jsButtonForms);
+
 			jsSectionForms.forEach(function (form) {
 				insertAfterSlot(form.slot_id, form.selector, buildSectionCard(form));
 			});
@@ -802,6 +927,7 @@
 					var launcher = e.target.closest('.sf-open-inline-form');
 					if (!launcher) return;
 					e.preventDefault();
+					e.stopImmediatePropagation();
 					launchAndOpenInlineForm({
 						name: launcher.getAttribute('data-form-name') || 'Submission Form',
 						launch_url: launcher.getAttribute('data-launch-url') || ''
@@ -811,15 +937,22 @@
 				// ── Bind button-trigger forms via event delegation ─────────────────
 				if (jsButtonForms.length > 0) {
 					document.addEventListener('click', function (e) {
-						jsButtonForms.forEach(function (form) {
-							(form.triggers || []).forEach(function (triggerId) {
-								var el = e.target.closest('[data-sf-trigger="' + triggerId + '"]');
-								if (el) {
-									launchAndOpenInlineForm(form, el);
-								}
-							});
-						});
-					});
+						var triggerEl = e.target.closest('[data-sf-trigger]');
+						if (!triggerEl) return;
+
+						var triggerId = triggerEl.getAttribute('data-sf-trigger');
+						if (!triggerId) return;
+
+						var matches = jsButtonFormLookup[triggerId] || [];
+						if (matches.length === 0) return;
+
+						// Stop native handlers (e.g., Bootstrap data-toggle modal) when a dynamic form is bound.
+						e.preventDefault();
+						e.stopImmediatePropagation();
+						e.stopPropagation();
+
+						launchAndOpenInlineForm(matches[0], triggerEl);
+					}, true);
 				}
 
 				window.__sfInlineLauncherBound = true;
@@ -828,10 +961,23 @@
 
 		function launchAndOpenInlineForm(form, sourceEl) {
 			if (!form.launch_url) return;
+			var lockKey = 'global:' + String(form.id || form.launch_url || 'unknown');
+			if (sourceEl) {
+				if (!sourceEl.__sfTriggerLockId) {
+					sourceEl.__sfTriggerLockId = 'trigger-' + Math.random().toString(36).slice(2);
+				}
+				lockKey = sourceEl.__sfTriggerLockId + ':' + String(form.id || form.launch_url || 'unknown');
+			}
+
+			if (triggerLaunchLocks[lockKey]) {
+				return;
+			}
+
 			var now = Date.now();
 			if (launchState.inProgress || (now - launchState.lastLaunchAt) < 700) return;
 			launchState.inProgress = true;
 			launchState.lastLaunchAt = now;
+			triggerLaunchLocks[lockKey] = true;
 
 			if (sourceEl) {
 				sourceEl.setAttribute('disabled', 'disabled');
@@ -841,12 +987,19 @@
 			launchState.activeXhr = $.ajax({
 				url: form.launch_url,
 				method: 'POST',
+				data: {
+					reuse_existing: true,
+					existing_instance_id: (form && form.id && formInstanceMap[form.id]) ? formInstanceMap[form.id] : null
+				},
 				headers: { 'X-CSRF-TOKEN': csrfToken },
 				success: function (resp) {
 					if (!resp || !resp.success || !resp.fill_url) {
 						return;
 					}
-					openFormModal({ name: form.name, fill_url: resp.fill_url });
+					if (form && form.id && resp.instance_id) {
+						formInstanceMap[form.id] = resp.instance_id;
+					}
+						openFormModal({ name: form.name, fill_url: resp.fill_url, instance_id: resp.instance_id || null });
 				},
 				error: function (xhr) {
 					if (xhr && xhr.statusText === 'abort') {
@@ -861,6 +1014,7 @@
 				complete: function () {
 					launchState.inProgress = false;
 					launchState.activeXhr = null;
+					delete triggerLaunchLocks[lockKey];
 					if (sourceEl) {
 						sourceEl.removeAttribute('disabled');
 						sourceEl.classList.remove('disabled');
@@ -871,12 +1025,16 @@
 
 		// ── Lightweight form launcher modal ────────────────────────────────────
 		function openFormModal(form) {
-			var existing = document.getElementById('sf-button-modal');
-			if (existing) existing.remove();
 			if (!form.fill_url) return;
 
 			// Append ?inline=1 so the fill view uses the bare layout (no nav/sidebar)
 			var inlineUrl = form.fill_url + (form.fill_url.indexOf('?') === -1 ? '?' : '&') + 'inline=1';
+
+			if (modalState.isOpen && modalState.fillUrl === inlineUrl) {
+				return;
+			}
+
+			cleanupInlineModalArtifacts();
 
 			var modal = document.createElement('div');
 			modal.id = 'sf-button-modal';
@@ -905,6 +1063,9 @@
 			var modalEl = $(modal).find('.modal');
 			var frame = modal.querySelector('.sf-inline-frame');
 			var loader = modal.querySelector('.sf-inline-loading');
+			modalState.fillUrl = inlineUrl;
+			modalState.instanceId = form.instance_id || null;
+			modalState.isOpen = true;
 
 			function hideIframeLimsChrome() {
 				if (!frame) return;
@@ -956,11 +1117,48 @@
 			modalEl.modal({ backdrop: true, keyboard: true });
 			modalEl.modal('show');
 			modalEl.on('hidden.bs.modal', function () {
+				modalState.fillUrl = '';
+				modalState.instanceId = null;
+				modalState.isOpen = false;
 				if (frame) {
 					frame.setAttribute('src', 'about:blank');
 				}
+				cleanupInlineModalArtifacts();
 				modal.remove();
 			});
+		}
+
+		function cleanupInlineModalArtifacts() {
+			var existing = document.getElementById('sf-button-modal');
+			if (existing) {
+				try {
+					var existingModal = $(existing).find('.modal');
+					if (existingModal.length && existingModal.data('bs.modal')) {
+						existingModal.modal('hide');
+						existingModal.modal('dispose');
+					}
+				} catch (e) {
+					// Ignore cleanup errors and continue removing stale DOM.
+				}
+				existing.remove();
+			}
+
+			document.querySelectorAll('.sf-inline-modal').forEach(function (node) {
+				var wrapper = node.closest('#sf-button-modal');
+				if (wrapper) {
+					wrapper.remove();
+				} else {
+					node.remove();
+				}
+			});
+
+			document.querySelectorAll('.modal-backdrop').forEach(function (backdrop) {
+				backdrop.remove();
+			});
+
+			document.body.classList.remove('modal-open');
+			document.body.style.removeProperty('overflow');
+			document.body.style.removeProperty('padding-right');
 		}
 	}());
 	</script>
@@ -968,7 +1166,7 @@
 </div>
 <!-- Main Col END -->
 </div>
-	<livewire:a-i.ai-drawer :context="'lab'" />
+<livewire:a-i.ai-drawer :context="'lab'" />
 @endsection
 
 @section('script')

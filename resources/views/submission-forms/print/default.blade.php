@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $submissionForm->name }} - {{ $instance->form_number }}</title>
+    <title>{{ $submissionForm->name }} - {{ $instance->getDocumentControlNumber() }}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -127,7 +127,7 @@
 <body>
     <div class="print-header">
         <div class="form-title">{{ $submissionForm->name }}</div>
-        <div class="form-number">Form Number: {{ $instance->form_number }}</div>
+        <div class="form-number">Form Number: {{ $instance->getDocumentControlNumber() ?? 'N/A' }}</div>
         @if($submissionForm->description)
             <div class="form-description">{{ $submissionForm->description }}</div>
         @endif

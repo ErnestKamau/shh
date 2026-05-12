@@ -15,7 +15,7 @@ class EquipmentDashboardService
     public function getEquipmentReliabilityBoard(): array
     {
         try {
-            $connection = DB::connection('mysql');
+            $connection = DB::connection(config('imara_ai.source_connection', config('database.default')));
 
             $detailRows = $connection->table("v_equipment_reliability")
                 ->orderByRaw("CASE WHEN maintenance_status = 'overdue' OR calibration_status = 'overdue' THEN 1 ELSE 2 END")

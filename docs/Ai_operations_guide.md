@@ -282,10 +282,10 @@ grep -E '^(APP_|DB_|AI_|QUEUE_|REDIS_)' .env | sort
 # Essential AI variables
 APP_ENV=production          # or development
 DB_HOST=127.0.0.1
-DB_DATABASE=polucon
+DB_DATABASE=gcla
 AI_DB_HOST=127.0.0.1
 AI_DB_PORT=5432
-AI_DB_DATABASE=fivet_imara_ai
+AI_DB_DATABASE=gcla
 AI_DB_SCHEMA=ai
 AI_API_URL=http://127.0.0.1:8081
 AI_INFERENCE_URL=http://127.0.0.1:8081

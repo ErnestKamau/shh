@@ -293,10 +293,12 @@ class AnalyticsCollectorService
         // 1. Fetch from database (Persistent logs from Python AI Service)
         try {
             $dbLogs = DB::connection('pgsql_ai')
-                ->table('ai.ai_request_logs')
+                ->table('ai_request_logs')
                 ->select('route_name as intent', DB::raw('count(*) as count'), DB::raw('avg(latency_ms) as avg_latency'))
                 ->where('created_at', '>=', now()->subDays(30))
                 ->whereNotNull('route_name')
+                ->where('session_id', '!=', 'local-validation-001') // Filter system probes
+                ->whereNotNull('user_id') // Only human activity
                 ->groupBy('route_name')
                 ->get();
 
@@ -356,12 +358,14 @@ class AnalyticsCollectorService
                 ->select(
                     'mode as model',
                     DB::raw('count(*) as total_requests'),
-                    DB::raw('sum(case when success = true then 1 else 0 end) as successful_requests'),
+                    DB::raw('sum(case when success then 1 else 0 end) as successful_requests'),
                     DB::raw('avg(latency_ms) as avg_latency_ms'),
                     DB::raw('avg(confidence) as avg_confidence'),
                     DB::raw('avg(case when source_count > 0 then source_count else 0 end) as avg_tokens') // Using source_count as proxy if tokens not avail
                 )
                 ->where('created_at', '>=', now()->subDays(30))
+                ->where('session_id', '!=', 'local-validation-001')
+                ->whereNotNull('user_id')
                 ->groupBy('mode')
                 ->get();
 
@@ -462,7 +466,7 @@ class AnalyticsCollectorService
         // 2. Fetch historical scores from DB (last 7 days)
         $dbStats = DB::table('ai_analytics_logs')
             ->where('created_at', '>=', now()->subDays(7))
-            ->selectRaw('count(*) as total, sum(case when success = 1 then 1 else 0 end) as success_count')
+            ->selectRaw('count(*) as total, sum(case when success then 1 else 0 end) as success_count')
             ->first();
         
         $historicalSuccessRate = ($dbStats && $dbStats->total > 0) 
@@ -545,6 +549,34 @@ class AnalyticsCollectorService
         }
 
         return $totalRequests > 0 ? ($totalErrors / $totalRequests) * 100 : 0;
+    }
+
+    /**
+     * Get recent AI request logs
+     * 
+     * @param int $limit
+     * @return array
+     */
+    public function getRecentLogs(int $limit = 50): array
+    {
+        try {
+            return DB::connection('pgsql_ai')
+                ->table('ai_request_logs')
+                ->select([
+                    'id', 'trace_id', 'query', 'mode', 'route_name', 
+                    'latency_ms', 'confidence', 'success', 'created_at'
+                ])
+                ->where('session_id', '!=', 'local-validation-001')
+                ->whereNotNull('user_id')
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get()
+                ->map(fn($log) => (array) $log)
+                ->all();
+        } catch (\Exception $e) {
+            Log::warning('AnalyticsCollector: Could not fetch recent logs: ' . $e->getMessage());
+            return [];
+        }
     }
 
     /**

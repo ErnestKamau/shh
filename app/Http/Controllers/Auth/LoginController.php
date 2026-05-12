@@ -133,21 +133,25 @@ class LoginController extends Controller
 				return;
 			}
 
-			$user->generateTwoFactorCode();
-            $app_name = env('APP_NAME', 'FIVET LIMS');
-			$body = 'Hi '.$user->first_name.',<br><br>
-				Your verification code has been successfully generated. Your verification code is:
-				<br><br>'.$user->verify_code ;
-			$mailData = array(
-				'contacts'=>array($user->email),
-				'body'=>$body,
-				'subject'=>'['.$app_name.'] Verification Code -'.$user->email
-			);
-			$mailer = new Mailers;
-			
-      if(trim($user->phone) != ""){
-        sendTextMessage($user->phone, "Your Verification code is ".$user->verify_code);
-      }
+    $user->generateTwoFactorCode();
+    $app_name = env('APP_NAME', 'FIVET LIMS');
+    $firstName = $user->first_name;
+    if (empty($firstName) || !is_string($firstName)) {
+      $firstName = $user->name;
+    }
+    $body = 'Hi ' . $firstName . ',<br><br>'
+      . 'Your verification code has been successfully generated. Your verification code is:'
+      . '<br><br>' . $user->verify_code;
+    $mailData = array(
+      'contacts' => array($user->email),
+      'body' => $body,
+      'subject' => '[' . $app_name . '] Verification Code -' . $user->email
+    );
+    $mailer = new Mailers;
+
+    if (trim($user->phone) != "") {
+      sendTextMessage($user->phone, "Your Verification code is " . $user->verify_code);
+    }
 
       try {
         $sendmail = $mailer->html_email($mailData,'default');

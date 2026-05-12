@@ -12,17 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('form_templates', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('category')->nullable();
+            $table->string('type')->default('form');
             $table->string('status')->default('draft'); // draft, published, archived
             $table->json('header_content')->nullable(); // Static header data
             $table->json('footer_content')->nullable(); // Static footer data
-            $table->bigInteger('created_by')->nullable();
-            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
+            $table->uuid('created_by')->nullable()->index();
+            $table->string('process_type')->nullable();
+            $table->unsignedBigInteger('process_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
+
+            $table->index(['process_type', 'process_id']);
         });
     }
 

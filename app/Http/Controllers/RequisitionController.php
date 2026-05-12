@@ -225,7 +225,7 @@ class RequisitionController extends Controller
 				'request_entity_items.uom',
 				'request_code',
 				'request_id',
-				DB::raw('DATEDIFF(NOW(), re.created_at) AS days_ago')
+				DB::raw('(CURRENT_DATE - re.created_at::date) AS days_ago')
 			])->with('sub_category')
 			->whereIn('inventory_sub_category_id', $itempIDs)
 			->where('re.id', '<', $id)

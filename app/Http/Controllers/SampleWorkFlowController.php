@@ -36,6 +36,7 @@ use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\Configurations\QcTypes;
 use App\Models\QcModule\QCProcessedResults;
 use App\Models\SampleSubmissionRequest;
+use App\Models\RequestWorkflowForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SupportingDocumentInstance;
 use App\Models\SupportingDocumentTemplate;
@@ -106,6 +107,7 @@ class SampleWorkFlowController extends Controller
 
     public function submissionRequestsIndex(Request $request): \Illuminate\View\View
     {
+        $tab = $request->get('tab', 'requests');
         $query = SampleSubmissionRequest::query()
             ->with([
                 'batch:id,batch_code,status',
@@ -126,6 +128,13 @@ class SampleWorkFlowController extends Controller
             });
         }
 
+        // Tab filtering
+        if ($tab === 'requests') {
+            $query->whereIn('status', ['Submitted', 'Samples Reception', 'Samples Request Review']);
+        } elseif ($tab === 'received') {
+            $query->whereIn('status', ['Samples In Lab', 'Completed', 'Sample Approval', 'Sample Verification', 'Reports In Payment', 'Reports for Collection']);
+        }
+
         $requests = $query->paginate(15)->withQueryString();
 
         $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
@@ -137,7 +146,7 @@ class SampleWorkFlowController extends Controller
             ->orderBy('title')
             ->get(['id', 'document_code', 'title', 'subtitle', 'version', 'description']);
 
-        return view('layouts.lab.sample-workflow.submission-requests.index', compact('requests', 'customers', 'contacts', 'supportingDocumentTemplates'));
+        return view('layouts.lab.sample-workflow.submission-requests.index', compact('requests', 'customers', 'contacts', 'supportingDocumentTemplates', 'tab'));
     }
 
     public function createSampleSubmissionRequest(): \Illuminate\View\View
@@ -159,6 +168,7 @@ class SampleWorkFlowController extends Controller
             'requestedAnalyses',
             'supportingDocumentTemplates',
             'supportingDocumentInstances.template',
+            'workflowForms',
         ]);
 
         if ($request->batch && ! request()->boolean('details')) {
@@ -1787,13 +1797,20 @@ class SampleWorkFlowController extends Controller
                 $batch = Sampleheader::find($request->bacth_id);
                 $responsibility = SystemConfiguration::where('key', $batch->status)->first();
 
-                $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                $users = JobDescription::where(function ($query) use ($responsibility) {
+                    $query->where('job_designation_responsibility.name', $responsibility->key)
+                        ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                })
+                    ->join('users', function ($join) {
+                        $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                    })
+                    ->get('users.*');
                 $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
 
                 $emails = $users->pluck('email')->toarray();
                 $position = $users->pluck('position')->toarray();
                 $position = array_unique($position);
-                if (!in_array(auth()->user()->email, $emails)) {
+                if (!in_array(auth()->user()->email, $emails) && !auth()->user()->hasRole('admin')) {
                     return redirect()->back()->with('error', 'Your are not allowed to perform this task!');
                 }
                 foreach ($users as $user) {
@@ -1813,12 +1830,19 @@ class SampleWorkFlowController extends Controller
 
                     $responsibility = SystemConfiguration::where('key', $batch->status)->first();
 
-                    $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                    $users = JobDescription::where(function ($query) use ($responsibility) {
+                        $query->where('job_designation_responsibility.name', $responsibility->key)
+                            ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                    })
+                        ->join('users', function ($join) {
+                            $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                        })
+                        ->get('users.*');
                     $message = 'Batch ' . $code . ' needs your attention - ' . $request->status . '.';
                     $emails = $users->pluck('email')->toarray();
                     $position = $users->pluck('position')->toarray();
                     $position = array_unique($position);
-                    if (!in_array(auth()->user()->email, $emails)) {
+                    if (!in_array(auth()->user()->email, $emails) && !auth()->user()->hasRole('admin')) {
                         return redirect()->back()->with('error', 'Your are not allowed to perform this task!');
                     }
                     foreach ($users as $user) {
@@ -1842,7 +1866,14 @@ class SampleWorkFlowController extends Controller
 
                     $responsibility = SystemConfiguration::where('key', $batch->status)->first();
 
-                    $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                    $users = JobDescription::where(function ($query) use ($responsibility) {
+                        $query->where('job_designation_responsibility.name', $responsibility->key)
+                            ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                    })
+                        ->join('users', function ($join) {
+                            $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                        })
+                        ->get('users.*');
                     $message = 'Batch ' . $code . ' needs your attention - ' . $request->status . '.';
                     $emails = $users->pluck('email')->toarray();
                     $position = $users->pluck('position')->toarray();
@@ -1859,7 +1890,14 @@ class SampleWorkFlowController extends Controller
                 $batch = Sampleheader::find($request->batch_id);
                 $responsibility = SystemConfiguration::where('key', $batch->status)->first();
 
-                $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                $users = JobDescription::where(function ($query) use ($responsibility) {
+                    $query->where('job_designation_responsibility.name', $responsibility->key)
+                        ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                })
+                    ->join('users', function ($join) {
+                        $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                    })
+                    ->get('users.*');
                 $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
 
                 $emails = $users->pluck('email')->toarray();
@@ -1958,41 +1996,134 @@ class SampleWorkFlowController extends Controller
                     $batch[0]->priority = $request->is_priority ?? 'Normal';
                     $batch[0]->save();
 
+                    $this->persistLaboratoryAcceptanceForm(
+                        $batch[0],
+                        (array) $request->input('lab_acceptance', [])
+                    );
+
                     $this->updateChainofCustody($custodyDetails);
                 }
 
                 return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'Batches Successfully Moved to ' . $request->status);
             }
-        } elseif ($request->status = 'Samples Request Review') {
+        } elseif ($request->status == 'Samples Request Review') {
             $strStage = 'Sample Labeling';
-            $samWk = 'Samples Reception';
-            $stage = SampleAnalysisStage::where('name', $strStage)->where('sample_workflow', $samWk)->first();
-            $batch_codes = $request->batch_code;
-            $previousStatus = 'Samples Reception';
 
-            $responsibility = SystemConfiguration::where('key', $previousStatus)->first();
+            $batchCodes = collect((array) $request->batch_code)
+                ->filter(fn ($code) => is_string($code) && trim($code) !== '')
+                ->map(fn ($code) => trim($code))
+                ->values();
 
-            $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+            $submissionRequestIds = collect((array) $request->submission_request_id)
+                ->filter(fn ($id) => (string) $id !== '')
+                ->map(fn ($id) => (string) $id)
+                ->unique()
+                ->values();
+
+            $submissionFormInstanceIds = collect((array) $request->submission_form_instance_id)
+                ->filter(fn ($id) => (string) $id !== '')
+                ->map(fn ($id) => (string) $id)
+                ->unique()
+                ->values();
+
+            if ($submissionRequestIds->isNotEmpty()) {
+                $submissionRequests = SampleSubmissionRequest::query()
+                    ->with(['supportingDocumentInstances'])
+                    ->whereIn('id', $submissionRequestIds)
+                    ->get();
+
+                foreach ($submissionRequests as $submissionRequest) {
+                    // Move selected portal forms into request-review queue even before batch creation.
+                    $submissionRequest->status = 'in_review';
+                    $submissionRequest->save();
+
+                    foreach ($submissionRequest->supportingDocumentInstances as $docInstance) {
+                        if (in_array($docInstance->status, ['draft', 'submitted'], true)) {
+                            $docInstance->status = 'in_review';
+                            $docInstance->save();
+                        }
+                    }
+
+                    if (!empty($submissionRequest->sample_header_id)) {
+                        $linkedBatchCode = (string) optional($submissionRequest->batch)->batch_code;
+                        if ($linkedBatchCode !== '') {
+                            $batchCodes->push($linkedBatchCode);
+                        }
+                    }
+                }
+            }
+
+            if ($submissionFormInstanceIds->isNotEmpty()) {
+                $submissionFormInstances = SubmissionFormInstance::query()
+                    ->with(['attachmentInstances', 'batches'])
+                    ->whereIn('id', $submissionFormInstanceIds)
+                    ->get();
+
+                foreach ($submissionFormInstances as $submissionFormInstance) {
+                    if ($submissionFormInstance->status === 'submitted') {
+                        $submissionFormInstance->status = 'in_review';
+                        if (!$submissionFormInstance->reviewed_at) {
+                            $submissionFormInstance->reviewed_at = now();
+                        }
+                        $submissionFormInstance->save();
+                    }
+
+                    foreach ($submissionFormInstance->attachmentInstances as $attachmentInstance) {
+                        if ($attachmentInstance->status === 'submitted') {
+                            $attachmentInstance->status = 'in_review';
+                            if (!$attachmentInstance->reviewed_at) {
+                                $attachmentInstance->reviewed_at = now();
+                            }
+                            $attachmentInstance->save();
+                        }
+                    }
+
+                    foreach ($submissionFormInstance->batches as $linkedBatch) {
+                        if (!empty($linkedBatch->batch_code)) {
+                            $batchCodes->push((string) $linkedBatch->batch_code);
+                        }
+                    }
+                }
+            }
+
+            $batch_codes = $batchCodes->unique()->values()->all();
+            $previousStatus = 'Samples En-Route';
+
+            $responsibility = SystemConfiguration::where('key', 'Samples En-Route')->first();
+
+            if (!$responsibility) {
+                return redirect()->back()->with('error', 'Workflow responsibility configuration for Samples En-Route is missing.');
+            }
+
+            $users = JobDescription::where(function ($query) use ($responsibility) {
+                $query->where('job_designation_responsibility.name', $responsibility->key)
+                    ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+            })
+                ->join('users', function ($join) {
+                    $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                })
+                ->get('users.*');
             $companyDetails = getCompanyDetails();
             $position = $users->pluck('position')->toarray();
             $position = array_unique($position);
             $emails = $users->pluck('email')->toarray();
             // return response()->json($responsibility,200);
-            if (!in_array(auth()->user()->email, $emails)) {
+            if (!in_array(auth()->user()->email, $emails) && !auth()->user()->hasRole('admin')) {
                 return redirect()->back()->with('error', 'You are not allowed to perform this task!');
             }
             // return response()->json($batch_codes,200);
             foreach ($batch_codes as $code) {
-                $batch = SampleHeader::where('status', $samWk)->where('sample_tracking_stage', $stage->id)->where('batch_code', $code)->first();
+                $batch = SampleHeader::whereIn('status', ['Samples En-Route', 'Samples Reception'])->where('batch_code', $code)->first();
 
                 if (!isset($batch->id)) {
-                    return redirect()->back()->with('error', 'No label for batch ' . $code . '.');
+                    return redirect()->back()->with('error', 'Batch ' . $code . ' cannot be moved to request review from its current stage.');
                 }
                 // return response()->json('test',200);
                 if (($batch->current_account_status == 'Account Holder(Overdue)' || $batch->current_account_status == 'Pay Upfront') && ($batch->begin_proccess == 0)) {
                     return redirect()->back()->with('error', 'Please check account status - ' . $batch->current_account_status);
                 }
-                $stages = $batch->stages($request->status);
+                $currentStatus = $batch->status;
+                $currentTrackingStage = $batch->sample_tracking_stage;
                 $batch->status = $request->status;
                 $batch->sample_tracking_stage = '20007';
                 $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
@@ -2015,8 +2146,8 @@ class SampleWorkFlowController extends Controller
                     'batch_id' => $batch->id,
                     'comments' => $request->comments ?? '',
                     'current' => [
-                        'status' => $batch->status,
-                        'tracking_stage' => $batch->sample_tracking_stage,
+                        'status' => $currentStatus,
+                        'tracking_stage' => $currentTrackingStage,
                     ],
                     'target' => [
                         'status' => $request->status,
@@ -2027,12 +2158,24 @@ class SampleWorkFlowController extends Controller
 
                 $batch->save();
             }
+
+            if (empty($batch_codes) && $submissionRequestIds->isNotEmpty()) {
+                return redirect()->route('sample-workflow', ['status' => $previousStatus])
+                    ->with('success', 'Selected submission forms were queued for Sample Request Review.');
+            }
             // return response()->json($batches,200);
         }
 
-        if (isset($request->send_message)) {
+        if (isset($request->send_message) && isset($batch) && isset($batch->status)) {
             $responsibility = SystemConfiguration::where('key', $batch->status)->first();
-            $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+            $users = JobDescription::where(function ($query) use ($responsibility) {
+                $query->where('job_designation_responsibility.name', $responsibility->key)
+                    ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+            })
+                ->join('users', function ($join) {
+                    $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                })
+                ->get('users.*');
 
             $numbers = $users->pluck('phone')->toarray();
             $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
@@ -2218,7 +2361,14 @@ class SampleWorkFlowController extends Controller
         if (isset($request->send_message)) {
             $responsibility = SystemConfiguration::where('key', $batch->status)->first();
             if (isset($responsibility->id)) {
-                $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                $users = JobDescription::where(function ($query) use ($responsibility) {
+                    $query->where('job_designation_responsibility.name', $responsibility->key)
+                        ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                })
+                    ->join('users', function ($join) {
+                        $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                    })
+                    ->get('users.*');
 
                 $numbers = $users->pluck('phone')->toarray();
                 $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
@@ -2249,13 +2399,20 @@ class SampleWorkFlowController extends Controller
             }
 
             if (isset($responsibility->id)) {
-                $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                $users = JobDescription::where(function ($query) use ($responsibility) {
+                    $query->where('job_designation_responsibility.name', $responsibility->key)
+                        ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                })
+                    ->join('users', function ($join) {
+                        $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                    })
+                    ->get('users.*');
 
                 $emails = $users->pluck('email')->toarray();
                 $position = $users->pluck('position')->toarray();
 
                 $position = array_unique($position);
-                if (!in_array(auth()->user()->email, $emails)) {
+                if (!in_array(auth()->user()->email, $emails) && !auth()->user()->hasRole('admin')) {
                     return redirect()->back()->with('error', 'You are not allowed to perform this task!');
                 }
                 $active_company = getActiveCompany();
@@ -2279,7 +2436,14 @@ class SampleWorkFlowController extends Controller
 
                     $responsibility = SystemConfiguration::where('key', $batch->status)->first();
                     if (isset($responsibility->id)) {
-                        $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                        $users = JobDescription::where(function ($query) use ($responsibility) {
+                            $query->where('job_designation_responsibility.name', $responsibility->key)
+                                ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                        })
+                            ->join('users', function ($join) {
+                                $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                            })
+                            ->get('users.*');
                         // return response()->json($users,200);
                         $message = 'Batch ' . $code . ' needs your attention - ' . $request->status . '.';
                         $emails = $users->pluck('email')->toarray();
@@ -2297,7 +2461,14 @@ class SampleWorkFlowController extends Controller
 
                 $responsibility = SystemConfiguration::where('key', $batch->status)->first();
                 if (isset($responsibility->id)) {
-                    $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                    $users = JobDescription::where(function ($query) use ($responsibility) {
+                        $query->where('job_designation_responsibility.name', $responsibility->key)
+                            ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                    })
+                        ->join('users', function ($join) {
+                            $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                        })
+                        ->get('users.*');
                     // return response()->json($responsibility,200);
                     $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
 
@@ -4112,13 +4283,42 @@ class SampleWorkFlowController extends Controller
 
     public function return_batch_reception(Request $request)
     {
-        foreach ($request->batch_code as $code) {
+        $batchCodes = collect((array) $request->batch_code)
+            ->filter(fn ($code) => is_string($code) && trim($code) !== '')
+            ->map(fn ($code) => trim($code))
+            ->unique()
+            ->values();
+
+        $submissionRequestIds = collect((array) $request->submission_request_id)
+            ->filter(fn ($id) => (string) $id !== '')
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+
+        $submissionFormInstanceIds = collect((array) $request->submission_form_instance_id)
+            ->filter(fn ($id) => (string) $id !== '')
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+
+        $rejectionPayload = (array) $request->input('sample_rejection', []);
+        $processed = 0;
+
+        foreach ($batchCodes as $code) {
             $header = SampleHeader::where('batch_code', $code)->first();
             if (isset($header->id)) {
                 $header->status = 'Samples Reception';
                 $header->save();
+                $processed++;
                 $responsibility = SystemConfiguration::where('key', $header->status)->first();
-                $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
+                $users = JobDescription::where(function ($query) use ($responsibility) {
+                    $query->where('job_designation_responsibility.name', $responsibility->key)
+                        ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
+                })
+                    ->join('users', function ($join) {
+                        $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                    })
+                    ->get('users.*');
 
                 $numbers = $users->pluck('phone')->toarray();
 
@@ -4152,10 +4352,346 @@ class SampleWorkFlowController extends Controller
                     ],
                 ];
                 $this->updateChainofCustody($custodyDetails);
+
+                $linkedSubmissionRequest = SampleSubmissionRequest::query()
+                    ->where('sample_header_id', $header->id)
+                    ->with(['customer', 'contact', 'requestedAnalyses'])
+                    ->first();
+
+                $linkedSubmissionFormInstance = null;
+                if (!empty($header->submission_form_instance_id)) {
+                    $linkedSubmissionFormInstance = SubmissionFormInstance::query()
+                        ->with(['crmCustomer'])
+                        ->find((string) $header->submission_form_instance_id);
+                }
+
+                $this->persistSampleRejectionForm(
+                    $header,
+                    $linkedSubmissionRequest,
+                    $linkedSubmissionFormInstance,
+                    $rejectionPayload
+                );
             }
         }
 
+        if ($submissionRequestIds->isNotEmpty()) {
+            $submissionRequests = SampleSubmissionRequest::query()
+                ->with(['customer', 'contact', 'requestedAnalyses', 'supportingDocumentInstances'])
+                ->whereIn('id', $submissionRequestIds)
+                ->get();
+
+            foreach ($submissionRequests as $submissionRequest) {
+                $submissionRequest->status = 'rejected';
+                $submissionRequest->save();
+                $processed++;
+
+                foreach ($submissionRequest->supportingDocumentInstances as $docInstance) {
+                    if (in_array((string) $docInstance->status, ['draft', 'submitted', 'in_review'], true)) {
+                        $docInstance->status = 'rejected';
+                        $docInstance->reviewed_at = now();
+                        $docInstance->save();
+                    }
+                }
+
+                $linkedSubmissionFormInstance = SubmissionFormInstance::query()
+                    ->with(['crmCustomer'])
+                    ->where('target_record_type', SampleSubmissionRequest::class)
+                    ->where('target_record_id', (string) $submissionRequest->id)
+                    ->latest('created_at')
+                    ->first();
+
+                $this->persistSampleRejectionForm(
+                    null,
+                    $submissionRequest,
+                    $linkedSubmissionFormInstance,
+                    $rejectionPayload
+                );
+            }
+        }
+
+        if ($submissionFormInstanceIds->isNotEmpty()) {
+            $submissionFormInstances = SubmissionFormInstance::query()
+                ->with(['crmCustomer', 'attachmentInstances'])
+                ->whereIn('id', $submissionFormInstanceIds)
+                ->get();
+
+            foreach ($submissionFormInstances as $submissionFormInstance) {
+                $submissionFormInstance->status = 'rejected';
+                $submissionFormInstance->reviewed_at = now();
+                $submissionFormInstance->reviewed_by = auth()->id();
+                $submissionFormInstance->review_notes = (string) ($request->comment ?? 'Rejected from workflow request queue.');
+                $submissionFormInstance->save();
+                $processed++;
+
+                foreach ($submissionFormInstance->attachmentInstances as $attachmentInstance) {
+                    if (in_array((string) $attachmentInstance->status, ['draft', 'submitted', 'in_review'], true)) {
+                        $attachmentInstance->status = 'rejected';
+                        $attachmentInstance->reviewed_at = now();
+                        $attachmentInstance->reviewed_by = auth()->id();
+                        $attachmentInstance->review_notes = (string) ($request->comment ?? 'Rejected from workflow request queue.');
+                        $attachmentInstance->save();
+                    }
+                }
+
+                $linkedSubmissionRequest = null;
+                if (
+                    (string) $submissionFormInstance->target_record_type === SampleSubmissionRequest::class
+                    && !empty($submissionFormInstance->target_record_id)
+                ) {
+                    $linkedSubmissionRequest = SampleSubmissionRequest::query()
+                        ->with(['customer', 'contact', 'requestedAnalyses'])
+                        ->find((string) $submissionFormInstance->target_record_id);
+                }
+
+                $this->persistSampleRejectionForm(
+                    null,
+                    $linkedSubmissionRequest,
+                    $submissionFormInstance,
+                    $rejectionPayload
+                );
+            }
+        }
+
+        if ($processed < 1) {
+            return redirect()->back()->with('error', 'No request records were selected to reject.');
+        }
+
         return redirect()->back()->with('success', 'Batch(es) rejected succesfully');
+    }
+
+    private function persistLaboratoryAcceptanceForm(SampleHeader $batch, array $input): void
+    {
+        $batch->loadMissing(['client', 'sample_type', 'samples']);
+
+        $submissionRequest = SampleSubmissionRequest::query()
+            ->with(['customer', 'contact', 'requestedAnalyses'])
+            ->where('sample_header_id', $batch->id)
+            ->first();
+
+        $submissionFormInstance = null;
+        if (!empty($batch->submission_form_instance_id)) {
+            $submissionFormInstance = SubmissionFormInstance::query()
+                ->with(['crmCustomer'])
+                ->find((string) $batch->submission_form_instance_id);
+        }
+
+        $customer = $submissionRequest?->customer ?: $submissionFormInstance?->crmCustomer ?: $batch->client;
+        $contact = $submissionRequest?->contact;
+
+        // Try to use the new parameters_json if available
+        $parameterRows = [];
+        if (!empty($input['parameters_json'])) {
+            try {
+                $parsedParams = json_decode($input['parameters_json'], true);
+                if (is_array($parsedParams)) {
+                    $parameterRows = array_map(function($param) {
+                        return [
+                            'name' => (string) ($param['label'] ?? $param['name'] ?? ''),
+                            'price' => (float) ($param['price'] ?? 0),
+                            'analysis_id' => (int) ($param['analysis_id'] ?? 0),
+                            'accepted' => true,
+                            'rejected' => false,
+                        ];
+                    }, $parsedParams);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to parse parameters_json: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback to old text-based parsing if no parameters_json
+        if (empty($parameterRows)) {
+            $parameterCandidates = [];
+            if ($submissionRequest && $submissionRequest->requestedAnalyses->count() > 0) {
+                foreach ($submissionRequest->requestedAnalyses as $requestedAnalysis) {
+                    $label = trim((string) ($requestedAnalysis->analysis_label ?: $requestedAnalysis->analysis_key));
+                    if ($label !== '') {
+                        $parameterCandidates[] = $label;
+                    }
+                }
+            }
+
+            if (empty($parameterCandidates)) {
+                foreach ($batch->samples as $sample) {
+                    $analysisIds = array_filter(array_map('trim', explode(',', (string) $sample->analysis_type_id)));
+                    foreach ($analysisIds as $analysisId) {
+                        $analysis = AnalysisType::query()->find($analysisId);
+                        if ($analysis && trim((string) $analysis->name) !== '') {
+                            $parameterCandidates[] = trim((string) $analysis->name);
+                        }
+                    }
+                }
+            }
+
+            $parameterCandidates = collect($parameterCandidates)
+                ->filter()
+                ->unique()
+                ->values();
+
+            $typedParameters = collect(preg_split('/\r\n|\r|\n/', (string) ($input['parameters_text'] ?? '')))
+                ->map(fn ($row) => trim((string) $row))
+                ->filter()
+                ->values();
+
+            $finalParameters = $typedParameters->isNotEmpty() ? $typedParameters : $parameterCandidates;
+
+            $parameterRows = $finalParameters->map(function ($name) {
+                return [
+                    'name' => (string) $name,
+                    'accepted' => true,
+                    'rejected' => false,
+                ];
+            })->values()->all();
+        }
+
+        $payload = [
+            'date' => (string) ($input['date'] ?? now()->format('Y-m-d')),
+            'lab_no' => (string) ($input['lab_no'] ?? $batch->batch_code),
+            'customer_name' => (string) ($input['customer_name'] ?? ($customer->name ?? '')),
+            'address' => (string) ($input['address'] ?? ($customer->postal_address ?? $submissionRequest?->physical_address ?? '')),
+            'email' => (string) ($input['email'] ?? ($contact->email ?? $submissionRequest?->email ?? $customer->email ?? '')),
+            'tel' => (string) ($input['tel'] ?? ($submissionRequest?->mobile_telephone_no ?? $submissionRequest?->office_telephone_no ?? $customer->telephone1 ?? '')),
+            'number_of_samples' => (string) ($input['number_of_samples'] ?? $batch->samples->count()),
+            'type_of_sample' => (string) ($input['type_of_sample'] ?? ($batch->sample_type->name ?? '')),
+            'date_of_sampling' => (string) ($input['date_of_sampling'] ?? optional($submissionRequest?->date_of_seizure)->format('Y-m-d')),
+            'mode_of_work' => (string) ($input['mode_of_work'] ?? (strtolower((string) $batch->priority) === 'express' ? 'Express' : 'Normal')),
+            'amount_usd' => (string) ($input['amount_usd'] ?? ''),
+            'parameters' => $parameterRows,
+            'deviation_answer' => (string) ($input['deviation_answer'] ?? 'No'),
+            'customer_name_certified' => (string) ($input['customer_name_certified'] ?? ($contact?->first_name ?? '') . ' ' . ($contact?->last_name ?? '')),
+            'customer_signature_name' => (string) ($input['customer_signature_name'] ?? ''),
+            'customer_date' => (string) ($input['customer_date'] ?? now()->format('Y-m-d')),
+            'conformity_request' => (string) ($input['conformity_request'] ?? 'not requested'),
+            'laboratory_name' => (string) ($input['laboratory_name'] ?? (config('app.name') ?? '')),
+            'laboratory_manager_name' => (string) ($input['laboratory_manager_name'] ?? (auth()->user()->name ?? '')),
+            'manager_signature_name' => (string) ($input['manager_signature_name'] ?? ''),
+            'manager_date' => (string) ($input['manager_date'] ?? now()->format('Y-m-d')),
+        ];
+
+        $pdfPath = $this->storeWorkflowFormPdf('workflow.forms.laboratory-analysis-acceptance-pdf', $payload);
+
+        RequestWorkflowForm::create([
+            'form_type' => 'laboratory_analysis_acceptance',
+            'sample_header_id' => (string) $batch->id,
+            'sample_submission_request_id' => $submissionRequest?->id,
+            'submission_form_instance_id' => $submissionFormInstance?->id,
+            'batch_code' => (string) $batch->batch_code,
+            'request_reference' => (string) ($submissionFormInstance?->getDocumentControlNumber() ?? $submissionRequest?->formatted_number ?? $batch->batch_code),
+            'payload' => $payload,
+            'pdf_path' => $pdfPath,
+            'created_by' => auth()->id(),
+            'submitted_at' => now(),
+        ]);
+    }
+
+    private function persistSampleRejectionForm(
+        ?SampleHeader $batch,
+        ?SampleSubmissionRequest $submissionRequest,
+        ?SubmissionFormInstance $submissionFormInstance,
+        array $input,
+    ): void {
+        $customer = $submissionRequest?->customer ?: $submissionFormInstance?->crmCustomer ?: $batch?->client;
+
+        $reasons = array_values(array_filter(array_map('trim', (array) ($input['reasons'] ?? []))));
+
+        $payload = [
+            'sample_id' => (string) ($input['sample_id'] ?? $batch?->batch_code ?? $submissionFormInstance?->getDocumentControlNumber() ?? $submissionRequest?->formatted_number ?? ''),
+            'name_of_client' => (string) ($input['name_of_client'] ?? ($customer->name ?? '')),
+            'date_sample_received' => (string) ($input['date_sample_received'] ?? optional($submissionFormInstance?->submitted_at)->format('Y-m-d') ?? optional($submissionRequest?->submitted_by_date)->format('Y-m-d')),
+            'date_of_sample_collection' => (string) ($input['date_of_sample_collection'] ?? optional($submissionRequest?->date_of_seizure)->format('Y-m-d')),
+            'number_of_samples_received' => (string) ($input['number_of_samples_received'] ?? ($batch ? $batch->samples()->count() : '')),
+            'reasons' => $reasons,
+            'reason_other' => (string) ($input['reason_other'] ?? ''),
+            'explanation' => (string) ($input['explanation'] ?? ($input['reason_other'] ?? '')),
+            'laboratory_staff' => (string) ($input['laboratory_staff'] ?? (auth()->user()->name ?? '')),
+            'signature_name' => (string) ($input['signature_name'] ?? ''),
+            'date' => (string) ($input['date'] ?? now()->format('Y-m-d')),
+        ];
+
+        $pdfPath = $this->storeWorkflowFormPdf('workflow.forms.sample-rejection-pdf', $payload);
+
+        RequestWorkflowForm::create([
+            'form_type' => 'sample_rejection',
+            'sample_header_id' => $batch ? (string) $batch->id : null,
+            'sample_submission_request_id' => $submissionRequest?->id,
+            'submission_form_instance_id' => $submissionFormInstance?->id,
+            'batch_code' => $batch?->batch_code,
+            'request_reference' => (string) ($submissionFormInstance?->getDocumentControlNumber() ?? $submissionRequest?->formatted_number ?? $batch?->batch_code ?? ''),
+            'payload' => $payload,
+            'pdf_path' => $pdfPath,
+            'created_by' => auth()->id(),
+            'submitted_at' => now(),
+        ]);
+    }
+
+    private function storeWorkflowFormPdf(string $view, array $payload): ?string
+    {
+        try {
+            $pdf = app('dompdf.wrapper');
+            $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+            $pdf->loadView($view, [
+                'payload' => $payload,
+                'logos' => $this->resolveWorkflowFormLogos(),
+            ]);
+
+            $filename = sprintf('request-workflow-form-%s-%s.pdf', date('YmdHis'), substr((string) md5((string) microtime(true)), 0, 8));
+            $relativePath = 'request-workflow-forms/' . $filename;
+            Storage::disk('public')->put($relativePath, $pdf->output());
+
+            return '/storage/' . $relativePath;
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to render workflow form PDF', [
+                'view' => $view,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * @return array{tanzania: ?string, gcla: ?string}
+     */
+    private function resolveWorkflowFormLogos(): array
+    {
+        $tanzaniaCandidates = [
+            public_path('images/forms/tanzanialogo.jpeg'),
+            public_path('images/forms/tanzanialogo.jpg'),
+            '/home/kaarr/Downloads/tanzanialogo.jpeg',
+        ];
+
+        $gclaCandidates = [
+            public_path('images/forms/gclalogo.png'),
+            public_path('images/forms/gclalogo.jpg'),
+            '/home/kaarr/Downloads/gclalogo.png',
+        ];
+
+        return [
+            'tanzania' => $this->encodeImageAsDataUri($tanzaniaCandidates),
+            'gcla' => $this->encodeImageAsDataUri($gclaCandidates),
+        ];
+    }
+
+    /**
+     * @param array<int, string> $candidates
+     */
+    private function encodeImageAsDataUri(array $candidates): ?string
+    {
+        foreach ($candidates as $path) {
+            if (!is_string($path) || trim($path) === '' || !is_file($path)) {
+                continue;
+            }
+
+            $content = @file_get_contents($path);
+            if ($content === false) {
+                continue;
+            }
+
+            $mimeType = mime_content_type($path) ?: 'image/png';
+            return 'data:' . $mimeType . ';base64,' . base64_encode($content);
+        }
+
+        return null;
     }
 
     public function regerateCustomerInvoice($id)
@@ -6085,16 +6621,20 @@ class SampleWorkFlowController extends Controller
     {
         try {
             $contextRoute = request()->get('context_route');
+            $contextRouteCandidates = $this->expandSubmissionFormContextRouteCandidates($contextRoute);
             $hasTargetPagesColumn = Schema::hasColumn('submission_forms', 'target_pages');
 
             $forms = \App\Models\SubmissionForm::with(['creator', 'sections'])
                 ->where('is_published', true)
                 ->where('is_active', true)
-                ->when($contextRoute && $hasTargetPagesColumn, function ($query) use ($contextRoute) {
-                    $query->where(function ($placementQuery) use ($contextRoute) {
+                ->when(!empty($contextRouteCandidates) && $hasTargetPagesColumn, function ($query) use ($contextRouteCandidates) {
+                    $query->where(function ($placementQuery) use ($contextRouteCandidates) {
                         $placementQuery->whereNull('target_pages')
-                            ->orWhereJsonLength('target_pages', 0)
-                            ->orWhereJsonContains('target_pages', $contextRoute);
+                            ->orWhereJsonLength('target_pages', 0);
+
+                        foreach ($contextRouteCandidates as $candidate) {
+                            $placementQuery->orWhereJsonContains('target_pages', $candidate);
+                        }
                     });
                 })
                 ->withCount(['sections', 'instances'])
@@ -6146,8 +6686,9 @@ class SampleWorkFlowController extends Controller
             }
 
             $contextRoute = $request->get('context_route');
+            $contextRouteCandidates = $this->expandSubmissionFormContextRouteCandidates($contextRoute);
             $targetPages = $submissionForm->target_pages ?? [];
-            if (!empty($targetPages) && $contextRoute && !in_array($contextRoute, $targetPages, true)) {
+            if (!empty($targetPages) && !empty($contextRouteCandidates) && empty(array_intersect($targetPages, $contextRouteCandidates))) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Selected form is not configured for this page.'
@@ -6186,6 +6727,29 @@ class SampleWorkFlowController extends Controller
                 'message' => 'Failed to create form instance: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Expand a context route into fallback candidates for target_pages matching.
+     * Example: sample-workflow@status=Samples Request Review -> [exact, sample-workflow]
+     *
+     * @param mixed $contextRoute
+     * @return array<int, string>
+     */
+    private function expandSubmissionFormContextRouteCandidates($contextRoute): array
+    {
+        if (!is_string($contextRoute) || trim($contextRoute) === '') {
+            return [];
+        }
+
+        $normalized = trim($contextRoute);
+        $candidates = [$normalized];
+
+        if (strpos($normalized, '@status=') !== false) {
+            $candidates[] = explode('@status=', $normalized, 2)[0];
+        }
+
+        return array_values(array_unique(array_filter($candidates, fn($candidate) => is_string($candidate) && $candidate !== '')));
     }
 
 

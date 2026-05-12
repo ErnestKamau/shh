@@ -42,7 +42,7 @@
         <div>
           <h2 class="h4 mb-2">
             <i class="mdi mdi-file-document"></i> {{ $submissionForm->name }}
-            <small class="d-block text-muted mt-1">{{ $instance->form_number }}</small>
+            <small class="d-block text-muted mt-1">{{ $instance->getDocumentControlNumber() ?? 'Draft' }}</small>
           </h2>
           @if($instance->title)
             <p class="text-muted mb-0">{{ $instance->title }}</p>
@@ -91,7 +91,7 @@
                   @endif
                 </div>
                 <div class="text-right">
-                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number }}</strong></small>
+                  <small class="text-muted">Form Number: <strong>{{ $instance->getDocumentControlNumber() ?? 'Pending' }}</strong></small>
                 </div>
               </div>
             </div>
@@ -104,7 +104,7 @@
                       <h6 class="card-title">Submission Details</h6>
                       <div class="row">
                         <div class="col-md-6">
-                          <p><strong>Form Number:</strong> {{ $instance->form_number }}</p>
+                          <p><strong>Form Number:</strong> {{ $instance->getDocumentControlNumber() ?? 'Pending' }}</p>
                           <p><strong>Status:</strong> 
                             <span class="badge badge-{{ $instance->getStatusBadgeColor() }}">
                               {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
@@ -150,9 +150,46 @@
               <!-- Form Data Display using Simple Form Display -->
               @php
                 $formData = $instance->getFormDataForDisplay();
+                $linkedAttachmentInstances = $instance->attachmentInstances()
+                  ->with('submissionForm')
+                  ->whereIn('status', ['submitted', 'in_review', 'approved', 'rejected'])
+                  ->latest()
+                  ->get();
               @endphp
               
               @include('submission-forms.partials.simple-form-display', ['instance' => $instance, 'formData' => $formData])
+
+              @if($linkedAttachmentInstances->count() > 0)
+                <div class="card mt-3 border-info">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0 text-info">
+                      <i class="mdi mdi-link-variant"></i> Linked Attachment Forms
+                    </h6>
+                  </div>
+                  <div class="card-body">
+                    <p class="text-muted mb-3">Filled attachment forms linked to this template are shown below as a continuation.</p>
+                    @foreach($linkedAttachmentInstances as $attachmentInstance)
+                      @php
+                        $attachmentFormData = $attachmentInstance->getFormDataForDisplay();
+                      @endphp
+                      <div class="card mb-3 shadow-none border">
+                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap bg-white">
+                          <div>
+                            <h6 class="mb-1">{{ $attachmentInstance->submissionForm->name ?? 'Attachment Form' }}</h6>
+                            <small class="text-muted">{{ $attachmentInstance->getDocumentControlNumber() ?? $attachmentInstance->form_number ?? 'Pending' }}</small>
+                          </div>
+                          <span class="badge badge-{{ $attachmentInstance->getStatusBadgeColor() }}">
+                            {{ ucfirst(str_replace('_', ' ', $attachmentInstance->status ?? 'submitted')) }}
+                          </span>
+                        </div>
+                        <div class="card-body">
+                          @include('submission-forms.partials.simple-form-display', ['instance' => $attachmentInstance, 'formData' => $attachmentFormData])
+                        </div>
+                      </div>
+                    @endforeach
+                  </div>
+                </div>
+              @endif
 
               <!-- Sample Creation Actions -->
               @php
@@ -162,7 +199,7 @@
                 $sampleStatus = app(\App\Services\SampleCreationService::class)->getSampleCreationStatus($instance);
               @endphp
 
-              @if($canCreateSamples)
+              @if($canCreateSamples && $linkedAttachmentInstances->count() === 0)
                 <div class="card mt-3">
                   <div class="card-header bg-primary text-white">
                     <h6 class="mb-0">

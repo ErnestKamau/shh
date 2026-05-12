@@ -139,7 +139,7 @@
                             <h2 class="font-weight-bold mb-1 text-dark">{{ $stats['ai_health'] }}%</h2>
                             <p class="text-muted small mb-0">{{ __('mas/dashboard.system_health') }}</p>
                         </div>
-                        <a href="{{ route('mas.ai') }}" class="btn btn-sm btn-link p-0 mt-2 font-weight-bold text-purple" style="color: #6f42c1;">
+                        <a href="{{ route('mas.ai-monitoring') }}" class="btn btn-sm btn-link p-0 mt-2 font-weight-bold text-purple" style="color: #6f42c1;">
                             {{ __('mas/common.details') }} <i class="mdi mdi-arrow-right"></i>
                         </a>
                     </div>

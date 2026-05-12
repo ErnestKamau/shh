@@ -36,11 +36,11 @@
                                                         $displayValue = $value->getDisplayValue();
                                                     @endphp
                                                     
-                                                    @if($element->element_type === 'file' && $value->file_path)
+                                                    @if(in_array($element->element_type, ['file', 'camera_photo'], true) && $value->file_path)
                                                         <a href="{{ Storage::url($value->file_path) }}" 
                                                            target="_blank" 
                                                            class="btn btn-sm btn-outline-primary">
-                                                            <i class="mdi mdi-download"></i> Download File
+                                                            <i class="mdi mdi-eye"></i> View {{ $element->element_type === 'camera_photo' ? 'Photo' : 'File' }}
                                                         </a>
                                                         <small class="text-muted d-block mt-1">
                                                             {{ basename($value->file_path) }}

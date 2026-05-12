@@ -22,6 +22,8 @@ if (!function_exists('getElementIcon')) {
                 return 'checkbox-marked';
             case 'file':
                 return 'file-upload-outline';
+            case 'camera_photo':
+                return 'camera';
             case 'signature':
                 return 'draw';
             case 'client_select':
@@ -143,6 +145,13 @@ if (!function_exists('getElementIcon')) {
                                     @forelse($holder->elements as $element)
                                         <div class="element-item d-flex justify-content-between align-items-center py-2 px-3 mb-1 border rounded"
                                              data-element-id="{{ $element->id }}"
+                                            data-element-label="{{ $element->label }}"
+                                            data-element-type="{{ $element->element_type }}"
+                                            data-element-name="{{ $element->name }}"
+                                            data-placeholder="{{ $element->placeholder ?? '' }}"
+                                            data-default-value="{{ $element->default_value ?? '' }}"
+                                            data-help-text="{{ $element->help_text ?? '' }}"
+                                            data-options='@json($element->options ?? [])'
                                              data-depends-on-type="{{ $element->depends_on_type ?? '' }}"
                                              data-depends-on-field="{{ $element->depends_on_field ?? '' }}"
                                              data-source-table="{{ $element->source_table ?? '' }}"

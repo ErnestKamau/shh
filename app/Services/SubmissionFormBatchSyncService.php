@@ -523,13 +523,34 @@ class SubmissionFormBatchSyncService
         $crmUnitName = '';
 
         if ($crmCustomerId && ! $crmUnit) {
-            $firstUnit = CRMCompanyUnit::where('crm_customer_id', $crmCustomerId)->first();
+            $firstUnit = CRMCompanyUnit::query()->where('crm_customer_id', $crmCustomerId)->first();
             if ($firstUnit) {
                 $crmUnitName = $firstUnit->name;
                 $crmUnitId = $firstUnit->id;
             }
         } else {
-            $unit = CRMCompanyUnit::find((int) $crmUnit);
+            $unit = null;
+            if ($crmUnit) {
+                $isUuid = (bool) preg_match(
+                    '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+                    (string) $crmUnit
+                );
+
+                if ($isUuid) {
+                    $unit = CRMCompanyUnit::query()->find($crmUnit);
+                }
+
+                if (! $unit && $crmCustomerId) {
+                    $unit = CRMCompanyUnit::query()->where('crm_customer_id', $crmCustomerId)
+                        ->where('name', $crmUnit)
+                        ->first();
+                }
+
+                // Last resort: match by name across all units (no customer filter).
+                if (! $unit) {
+                    $unit = CRMCompanyUnit::query()->where('name', $crmUnit)->first();
+                }
+            }
             $crmUnitId = $unit->id ?? '';
             $crmUnitName = $unit->name ?? '';
         }

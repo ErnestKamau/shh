@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('form_field_options', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('form_field_id');
+            $table->uuid('form_field_id');
             $table->string('label');
             $table->string('value');
             $table->integer('order_index')->default(0);
