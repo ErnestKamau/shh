@@ -53,7 +53,7 @@ class Dashboard extends Component
                     COUNT(CASE WHEN status = ? AND deleted_at IS NULL THEN 1 END) as pending_approvals,
                     COUNT(CASE WHEN expiry_date <= ? AND deleted_at IS NULL THEN 1 END) as expiring_soon,
                     COUNT(CASE WHEN deleted_at IS NOT NULL THEN 1 END) as archived_documents,
-                    COUNT(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? AND deleted_at IS NULL THEN 1 END) as documents_this_month
+                    COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = ? AND EXTRACT(YEAR FROM created_at) = ? AND deleted_at IS NULL THEN 1 END) as documents_this_month
                 ', [
                     $user->id,
                     'pending_approval',

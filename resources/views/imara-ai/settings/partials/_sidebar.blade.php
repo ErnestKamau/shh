@@ -26,10 +26,6 @@
             <span class="history-label">General Settings</span>
         </a>
         
-        <a href="{{ route('dms.active', ['kbFilter' => 'indexed']) }}" class="history-item {{ Request::is('dms/active-documents*') ? 'active' : '' }}" style="text-decoration: none;">
-            <i class="mdi mdi-database-search"></i>
-            <span class="history-label">Knowledge Base</span>
-        </a>
     </div>
 
     <div class="sidebar-footer">

@@ -123,7 +123,7 @@ class UncertaintyBudgetsTable extends Component
         // Load years and months
         $this->availableYears = UncertaintyBudget::where('company_id', $companyId)
             ->where('active', true)
-            ->selectRaw('YEAR(created_at) as year')
+            ->selectRaw('EXTRACT(YEAR FROM created_at) as year')
             ->distinct()
             ->orderBy('year', 'desc')
             ->pluck('year')

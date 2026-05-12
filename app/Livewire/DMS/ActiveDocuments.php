@@ -14,8 +14,8 @@ use App\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role as SpatieRole;
-use Spatie\Permission\Models\Permission as SpatiePermission;
+use App\Models\Auth\Role as SpatieRole;
+use App\Models\Auth\Permission as SpatiePermission;
 use App\Services\Documents\DocumentKnowledgeService;
 
 class ActiveDocuments extends Component
