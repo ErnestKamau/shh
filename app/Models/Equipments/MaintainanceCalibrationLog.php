@@ -20,6 +20,8 @@ class MaintainanceCalibrationLog extends Model implements Auditable
 		'equipment_id',
 		'service_provider',
 		'notes',
+		'correction_factor',
+		'uncertainty_of_measure',
 		'type',
 		'date',
 		'certificate',
@@ -49,6 +51,11 @@ class MaintainanceCalibrationLog extends Model implements Auditable
 		'stage',
 		'operator_approve',
 		'proccess_owner_approve',
+	];
+
+	protected $casts = [
+		'correction_factor' => 'decimal:6',
+		'uncertainty_of_measure' => 'decimal:6',
 	];
 
 	public function overseer(){

@@ -8,16 +8,16 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-delete-sweep text-primary"></i>
-                                Equipment Disposal Management
+                                {{ __('equipment.disposal_management') }}
                             </h2>
-                            <p class="text-muted mb-0">Manage equipment disposal requests and approvals</p>
+                            <p class="text-muted mb-0">{{ __('equipment.disposal_management_subtitle') }}</p>
                         </div>
                         <div>
                             <a href="{{ route('equipment.disposal.workflow.index') }}" class="btn btn-outline-primary me-2">
-                                <i class="mdi mdi-sitemap"></i> Manage Workflows
+                                <i class="mdi mdi-sitemap"></i> {{ __('equipment.manage_workflows') }}
                             </a>
                             <button wire:click="$dispatch('open-disposal-form')" class="btn btn-primary">
-                                <i class="mdi mdi-plus"></i> Create New Disposal Request
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.create_new_disposal_request') }}
                             </button>
                         </div>
                     </div>
@@ -40,26 +40,26 @@
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
                     <h6 class="mb-0 text-muted">
-                        <i class="mdi mdi-filter-variant"></i> Filter Options
+                        <i class="mdi mdi-filter-variant"></i> {{ __('equipment.filter_options') }}
                     </h6>
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search by equipment name, number, reason...">
+                                <label class="form-label fw-bold">{{ __('equipment.search') }}</label>
+                                <input type="text" wire:model.live="search" class="form-control" placeholder="{{ __('equipment.search_by_equipment_name_number_reason') }}">
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Date From</label>
+                                <label class="form-label fw-bold">{{ __('equipment.date_from') }}</label>
                                 <input type="date" wire:model.live="dateFrom" class="form-control">
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Date To</label>
+                                <label class="form-label fw-bold">{{ __('equipment.date_to') }}</label>
                                 <input type="date" wire:model.live="dateTo" class="form-control">
                             </div>
                         </div>
@@ -84,7 +84,7 @@
                 <li class="nav-item">
                     <button class="nav-link {{ $activeTab === 'draft' ? 'active' : '' }}" 
                             wire:click="switchTab('draft')" type="button">
-                        <i class="mdi mdi-file-document-outline"></i> Draft
+                        <i class="mdi mdi-file-document-outline"></i> {{ __('equipment.draft') }}
                         @if($this->draftCount > 0)
                             <span class="badge bg-secondary ms-1">{{ $this->draftCount }}</span>
                         @endif
@@ -93,7 +93,7 @@
                 <li class="nav-item">
                     <button class="nav-link {{ $activeTab === 'pending' ? 'active' : '' }}" 
                             wire:click="switchTab('pending')" type="button">
-                        <i class="mdi mdi-clock-outline"></i> Pending Approval
+                        <i class="mdi mdi-clock-outline"></i> {{ __('equipment.pending_approval') }}
                         @if($this->pendingCount > 0)
                             <span class="badge bg-warning ms-1">{{ $this->pendingCount }}</span>
                         @endif
@@ -102,7 +102,7 @@
                 <li class="nav-item">
                     <button class="nav-link {{ $activeTab === 'approved' ? 'active' : '' }}" 
                             wire:click="switchTab('approved')" type="button">
-                        <i class="mdi mdi-check-circle"></i> Approved
+                        <i class="mdi mdi-check-circle"></i> {{ __('equipment.approved') }}
                         @if($this->approvedCount > 0)
                             <span class="badge bg-success ms-1">{{ $this->approvedCount }}</span>
                         @endif
@@ -111,7 +111,7 @@
                 <li class="nav-item">
                     <button class="nav-link {{ $activeTab === 'rejected' ? 'active' : '' }}" 
                             wire:click="switchTab('rejected')" type="button">
-                        <i class="mdi mdi-close-circle"></i> Rejected
+                        <i class="mdi mdi-close-circle"></i> {{ __('equipment.rejected') }}
                         @if($this->rejectedCount > 0)
                             <span class="badge bg-danger ms-1">{{ $this->rejectedCount }}</span>
                         @endif
@@ -120,7 +120,7 @@
                 <li class="nav-item">
                     <button class="nav-link {{ $activeTab === 'all' ? 'active' : '' }}" 
                             wire:click="switchTab('all')" type="button">
-                        <i class="mdi mdi-format-list-bulleted"></i> All Requests
+                        <i class="mdi mdi-format-list-bulleted"></i> {{ __('equipment.all_requests') }}
                     </button>
                 </li>
             </ul>
@@ -141,7 +141,7 @@
                                 </span>
                             </div>
                             <div class="d-flex align-items-center">
-                                <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
+                                <label for="perPage" class="form-label mb-0 me-2 text-muted">{{ __('equipment.show') }}:</label>
                                 <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
                                     @foreach($perPageOptions as $option)
                                         <option value="{{ $option }}">{{ $option }}</option>
@@ -151,22 +151,29 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="table table-hover table-striped">
+                            <table class="table table-hover table-striped equipment-table">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
-                                        <th style="width: 80px;">ID</th>
-                                        <th>Equipment</th>
-                                        <th>Requested By</th>
-                                        <th>Status</th>
-                                        <th>Risk Level</th>
-                                        <th>Method</th>
-                                        <th>Created</th>
-                                        <th style="width: 100px;">Actions</th>
+                                        <th style="width: 100px;">{{ __('equipment.actions') }}</th>
+                                        <th style="width: 80px;">{{ __('equipment.id') }}</th>
+                                        <th>{{ __('equipment.equipment') }}</th>
+                                        <th>{{ __('equipment.requested_by') }}</th>
+                                        <th>{{ __('equipment.status') }}</th>
+                                        <th>{{ __('equipment.risk_level') }}</th>
+                                        <th>{{ __('equipment.method') }}</th>
+                                        <th>{{ __('equipment.created') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($disposals as $disposal)
                                         <tr>
+                                            <td class="equipment-actions-cell">
+                                                <a href="{{ route('equipment-disposal-detail', $disposal->id) }}"
+                                                   class="btn btn-sm btn-outline-primary equipment-action-btn"
+                                                   title="{{ __('equipment.view') }}">
+                                                    <i class="mdi mdi-eye"></i>
+                                                </a>
+                                            </td>
                                             <td><strong>#{{ $disposal->id }}</strong></td>
                                             <td>
                                                 <strong>{{ $disposal->equipment->name }}</strong><br>
@@ -175,15 +182,15 @@
                                             <td>{{ $disposal->requester->name ?? 'N/A' }}</td>
                                             <td>
                                                 @if($disposal->status === 'pending')
-                                                    <span class="badge bg-warning">Pending</span>
+                                                    <span class="badge bg-warning">{{ __('equipment.pending_approval') }}</span>
                                                 @elseif($disposal->status === 'approved')
-                                                    <span class="badge bg-success">Approved</span>
+                                                    <span class="badge bg-success">{{ __('equipment.approved') }}</span>
                                                 @elseif($disposal->status === 'rejected')
-                                                    <span class="badge bg-danger">Rejected</span>
+                                                    <span class="badge bg-danger">{{ __('equipment.rejected') }}</span>
                                                 @elseif($disposal->status === 'draft')
-                                                    <span class="badge bg-secondary">Draft</span>
+                                                    <span class="badge bg-secondary">{{ __('equipment.draft') }}</span>
                                                 @elseif($disposal->status === 'executed')
-                                                    <span class="badge bg-primary">Executed</span>
+                                                    <span class="badge bg-primary">{{ __('equipment.executed') }}</span>
                                                 @endif
                                             </td>
                                             <td>
@@ -193,12 +200,6 @@
                                             </td>
                                             <td><small>{{ ucfirst($disposal->proposed_method) }}</small></td>
                                             <td>{{ $disposal->created_at->format('Y-m-d H:i') }}</td>
-                                            <td>
-                                                <a href="{{ route('equipment-disposal-detail', $disposal->id) }}" 
-                                                   class="btn btn-sm btn-primary">
-                                                    <i class="mdi mdi-eye"></i> View
-                                                </a>
-                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>

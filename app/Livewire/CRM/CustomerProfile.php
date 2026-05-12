@@ -60,6 +60,12 @@ class CustomerProfile extends Component
     public $reports = [];
     public $amendments = [];
 
+    // Custom dropdown state
+    public $countrySearch = '';
+    public $accountSearch = '';
+    public $showCountryDropdown = false;
+    public $showAccountDropdown = false;
+
     // UI State
     public $loading = false;
     public $message = '';
@@ -121,6 +127,17 @@ class CustomerProfile extends Component
             'vat_no' => $this->customer->vat_no ?? '',
             'lpos_required' => $this->customer->lpos_required == 1
         ];
+
+        $this->hydrateDropdownLabels();
+    }
+
+    protected function hydrateDropdownLabels(): void
+    {
+        $selectedCountry = $this->selectedCountry;
+        $selectedAccount = $this->selectedAccount;
+
+        $this->countrySearch = $selectedCountry ? (string) data_get($selectedCountry, 'name', '') : '';
+        $this->accountSearch = $selectedAccount ? (string) data_get($selectedAccount, 'key', '') : '';
     }
 
     public function loadInitialData()
@@ -195,12 +212,103 @@ class CustomerProfile extends Component
     public function startEditing()
     {
         $this->editingCustomer = true;
+        $this->hydrateDropdownLabels();
     }
 
     public function cancelEditing()
     {
         $this->editingCustomer = false;
+        $this->showCountryDropdown = false;
+        $this->showAccountDropdown = false;
         $this->loadCustomerForm();
+    }
+
+    public function getSelectedCountryProperty()
+    {
+        if (empty($this->customerForm['country_id'])) {
+            return null;
+        }
+
+        return collect($this->countries)->firstWhere('id', (int) $this->customerForm['country_id']);
+    }
+
+    public function getFilteredCountriesProperty()
+    {
+        $search = strtolower(trim($this->countrySearch));
+        $countries = collect($this->countries);
+
+        if ($search === '') {
+            return $countries->take(10)->values();
+        }
+
+        return $countries
+            ->filter(function ($country) use ($search) {
+                return str_contains(strtolower((string) data_get($country, 'name', '')), $search);
+            })
+            ->take(10)
+            ->values();
+    }
+
+    public function selectCountry($countryId): void
+    {
+        $country = collect($this->countries)->firstWhere('id', (int) $countryId);
+
+        if ($country) {
+            $this->customerForm['country_id'] = (int) data_get($country, 'id');
+            $this->countrySearch = (string) data_get($country, 'name', '');
+            $this->showCountryDropdown = false;
+        }
+    }
+
+    public function clearCountry(): void
+    {
+        $this->customerForm['country_id'] = null;
+        $this->countrySearch = '';
+        $this->showCountryDropdown = true;
+    }
+
+    public function getSelectedAccountProperty()
+    {
+        if (empty($this->customerForm['account_status'])) {
+            return null;
+        }
+
+        return collect($this->accounts)->firstWhere('id', (int) $this->customerForm['account_status']);
+    }
+
+    public function getFilteredAccountsProperty()
+    {
+        $search = strtolower(trim($this->accountSearch));
+        $accounts = collect($this->accounts);
+
+        if ($search === '') {
+            return $accounts->take(10)->values();
+        }
+
+        return $accounts
+            ->filter(function ($account) use ($search) {
+                return str_contains(strtolower((string) data_get($account, 'key', '')), $search);
+            })
+            ->take(10)
+            ->values();
+    }
+
+    public function selectAccountStatus($accountId): void
+    {
+        $account = collect($this->accounts)->firstWhere('id', (int) $accountId);
+
+        if ($account) {
+            $this->customerForm['account_status'] = (int) data_get($account, 'id');
+            $this->accountSearch = (string) data_get($account, 'key', '');
+            $this->showAccountDropdown = false;
+        }
+    }
+
+    public function clearAccountStatus(): void
+    {
+        $this->customerForm['account_status'] = null;
+        $this->accountSearch = '';
+        $this->showAccountDropdown = true;
     }
 
     public function saveCustomer()

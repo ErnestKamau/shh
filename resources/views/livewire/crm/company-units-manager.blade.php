@@ -1,6 +1,6 @@
 <div class="container-fluid">
     <!-- Header -->
-    <div class="row mb-4">
+    <div class="row mb-4 customer-tab-filters">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-body p-4">
@@ -34,6 +34,34 @@
         </div>
     @endif
 
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <input type="text" wire:model.live="search" class="form-control"
+                placeholder="{{ __('crm.search_units') }}">
+        </div>
+        <div class="col-md-2">
+            <select wire:model.live="statusFilter" class="form-control" style="min-width: 0;">
+                <option value="">{{ __('crm.all_status') }}</option>
+                <option value="1">{{ __('crm.active') }}</option>
+                <option value="0">{{ __('crm.inactive') }}</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select wire:model.live="perPage" class="form-control">
+                <option value="10">10 / page</option>
+                <option value="25">25 / page</option>
+                <option value="50">50 / page</option>
+                <option value="100">100 / page</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button wire:click="clearFilters" class="btn btn-outline-secondary w-100">
+                {{ __('crm.clear') }}
+            </button>
+        </div>
+    </div>
+
     <!-- Company Units Table -->
     <div class="row">
         <div class="col-12">
@@ -41,8 +69,8 @@
                 <div class="card-body">
                     @if($this->units->count() > 0)
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                        <thead style="background-color: rgba(0, 0, 0, .03);">
+                            <table class="table table-hover">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>{{ __('crm.name') }}</th>
                                         <th>{{ __('crm.status') }}</th>

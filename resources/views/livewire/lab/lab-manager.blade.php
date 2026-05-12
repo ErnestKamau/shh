@@ -165,6 +165,7 @@
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Actions</th>
+                                        <th>Sections</th>
                                         <th>Code</th>
                                         <th>Name</th>
                                         <th>Zone</th>
@@ -178,20 +179,30 @@
                                 </thead>
                                 <tbody>
                                     @foreach($this->labs as $lab)
-                                        <tr>
+                                        <tr wire:key="lab-row-{{ $lab->id }}">
                                             <td>
                                                 <div class="d-flex gap-1">
-                                                    <button wire:click="showEditLabModal({{ $lab->id }})" 
+                                                    <button wire:click="toggleLabRow('{{ $lab->id }}')"
+                                                            class="rm-act-btn rm-act-btn--expand"
+                                                            title="{{ in_array($lab->id, $expandedLabs, true) ? 'Collapse' : 'Expand' }}">
+                                                        <i class="mdi mdi-chevron-{{ in_array($lab->id, $expandedLabs, true) ? 'up' : 'down' }}"></i>
+                                                    </button>
+                                                    <button wire:click="showEditLabModal('{{ $lab->id }}')" 
                                                             class="rm-act-btn rm-act-btn--edit" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="confirmDeleteLab({{ $lab->id }})" 
+                                                    <button wire:click="confirmDeleteLab('{{ $lab->id }}')" 
                                                             class="rm-act-btn rm-act-btn--delete" 
                                                             title="Delete">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <span class="lab-badge lab-badge--info">
+                                                    {{ $lab->labSections->count() }} Section{{ $lab->labSections->count() === 1 ? '' : 's' }}
+                                                </span>
                                             </td>
                                             <td>
                                                 <span class="">{{ $lab->code }}</span>
@@ -226,6 +237,80 @@
                                                 </span>
                                             </td>
                                         </tr>
+
+                                        @if(in_array($lab->id, $expandedLabs, true))
+                                            <tr class="lab-expand-row" wire:key="lab-expand-row-{{ $lab->id }}">
+                                                <td colspan="11">
+                                                    <div class="section-shell">
+                                                        <div class="section-shell__header">
+                                                            <div>
+                                                                <h6 class="mb-1">
+                                                                    <i class="mdi mdi-layers-triple"></i>
+                                                                    Lab Sections for {{ $lab->name }}
+                                                                </h6>
+                                                                <p class="text-muted mb-0">Track environmental analysis setup, expected values, and reporting units.</p>
+                                                            </div>
+                                                            <button type="button" class="btn btn-primary btn-sm section-add-btn" wire:click="showCreateLabSectionModal('{{ $lab->id }}')">
+                                                                <i class="mdi mdi-plus"></i> Add Lab Section
+                                                            </button>
+                                                        </div>
+
+                                                        <div class="row g-3 mb-3">
+                                                            @forelse($lab->labSections as $section)
+                                                                <div class="col-md-6 col-xl-4">
+                                                                    <div class="section-card">
+                                                                        <div class="section-card__top">
+                                                                            <div>
+                                                                                <p class="section-code">{{ $section->code }}</p>
+                                                                                <h6 class="mb-1">{{ $section->name }}</h6>
+                                                                            </div>
+                                                                            <div class="section-card__actions">
+                                                                                <span class="lab-badge {{ $section->active ? 'lab-badge--active' : 'lab-badge--inactive' }}">
+                                                                                    {{ $section->active ? 'Active' : 'Inactive' }}
+                                                                                </span>
+                                                                                <div class="section-card__action-buttons">
+                                                                                    <button type="button" class="rm-act-btn rm-act-btn--edit" wire:click="showEditLabSectionModal('{{ $section->id }}')" title="Edit Section">
+                                                                                        <i class="mdi mdi-pencil"></i>
+                                                                                    </button>
+                                                                                    <button type="button" class="rm-act-btn rm-act-btn--delete" wire:click="confirmDeleteLabSection('{{ $section->id }}')" title="Delete Section">
+                                                                                        <i class="mdi mdi-delete"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <ul class="section-meta">
+                                                                            <li><span>Environmental Analysis</span><strong>{{ $section->does_environmental_analysis ? 'Yes' : 'No' }}</strong></li>
+                                                                            <li><span>Equipment</span><strong>{{ $section->equipment->name ?? '-' }}</strong></li>
+                                                                            <li><span>Expected Value</span><strong>
+                                                                                @if($section->expected_value_type === 'constant')
+                                                                                    Constant: {{ $section->expected_value ?? '-' }}
+                                                                                @elseif($section->expected_value_type === 'range')
+                                                                                    Range: {{ $section->expected_min ?? '-' }} - {{ $section->expected_max ?? '-' }}
+                                                                                @else
+                                                                                    -
+                                                                                @endif
+                                                                            </strong></li>
+                                                                            <li><span>Optimum Level</span><strong>{{ $section->optimum_level ?? '-' }}</strong></li>
+                                                                            <li><span>Result Nature</span><strong>{{ $section->result_nature ?? '-' }}</strong></li>
+                                                                            <li><span>Reporting Unit</span><strong>{{ $section->reportingUnit->name ?? $section->reporting_unit ?? '-' }}</strong></li>
+                                                                        </ul>
+                                                                    </div>
+                                                                </div>
+                                                            @empty
+                                                                <div class="col-12">
+                                                                    <div class="empty-section-state">
+                                                                        <i class="mdi mdi-flask-empty"></i>
+                                                                        <p class="mb-0">No sections created for this lab yet.</p>
+                                                                    </div>
+                                                                </div>
+                                                            @endforelse
+                                                        </div>
+
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endif
                                     @endforeach
                                 </tbody>
                             </table>
@@ -375,6 +460,239 @@
         </div>
     @endif
 
+    @if($showLabSectionModal && $activeLabSectionLabId)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content lab-section-modal">
+                    <div class="modal-header lab-section-modal__header">
+                        <div>
+                            <div class="lab-section-modal__eyebrow">Lab Configuration</div>
+                            <h5 class="modal-title lab-section-modal__title">
+                                <i class="mdi mdi-{{ $editingLabSection ? 'pencil-circle-outline' : 'plus-circle-outline' }}"></i>
+                                {{ $editingLabSection ? 'Edit' : 'Create' }} Lab Section
+                            </h5>
+                            <p class="lab-section-modal__subtitle mb-0">Define monitoring logic, expected values, and reporting rules for this lab section.</p>
+                        </div>
+                        <button type="button" class="btn-close" wire:click="closeLabSectionModal"></button>
+                    </div>
+                    <div class="modal-body lab-section-modal__body">
+                        <div class="lab-section-form-grid">
+                            <section class="lab-section-panel">
+                                <div class="lab-section-panel__head">
+                                    <div>
+                                        <p class="lab-section-panel__kicker mb-1">Identity</p>
+                                        <h6 class="mb-0">Section Definition</h6>
+                                    </div>
+                                    <label class="lab-switch mb-0" for="modal_env_analysis">
+                                        <input type="checkbox" wire:model.live="labSectionForms.{{ $activeLabSectionLabId }}.does_environmental_analysis" class="form-check-input d-none" id="modal_env_analysis">
+                                        <span class="lab-switch__track"></span>
+                                        <span class="lab-switch__label">Environmental Analysis</span>
+                                    </label>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-7">
+                                        <label class="form-label form-label--modern">Section Name <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.name" class="form-control form-control--modern" placeholder="e.g. Air Quality Monitoring">
+                                        @error('labSectionForms.' . $activeLabSectionLabId . '.name') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label form-label--modern">Section Code <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.code" class="form-control form-control--modern" placeholder="AQM">
+                                        @error('labSectionForms.' . $activeLabSectionLabId . '.code') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label form-label--modern">Description</label>
+                                        <textarea wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.description" class="form-control form-control--modern form-control--modern-textarea" rows="4" placeholder="Short scope, monitoring context, and what this section is responsible for."></textarea>
+                                        @error('labSectionForms.' . $activeLabSectionLabId . '.description') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </section>
+
+                            @if(data_get($labSectionForms, $activeLabSectionLabId . '.does_environmental_analysis', false))
+                                <section class="lab-section-panel lab-section-panel--accent">
+                                    <div class="lab-section-panel__head">
+                                        <div>
+                                            <p class="lab-section-panel__kicker mb-1">Monitoring</p>
+                                            <h6 class="mb-0">Environmental Analysis Setup</h6>
+                                        </div>
+                                        <span class="lab-section-chip">Required</span>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label form-label--modern">Monitoring Equipment <span class="text-danger">*</span></label>
+                                            <div class="tag-select-container" wire:click="$set('showLabSectionEquipmentDropdown', true)" wire:click.outside="$set('showLabSectionEquipmentDropdown', false)">
+                                                <div class="tag-select-input modern-filter-tag-input lab-tag-select-input">
+                                            @if($this->selectedLabSectionEquipment)
+                                                <span class="tag-badge">
+                                                    {{ $this->selectedLabSectionEquipment->name }}{{ $this->selectedLabSectionEquipment->equipment_number ? ' (' . $this->selectedLabSectionEquipment->equipment_number . ')' : '' }}
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearLabSectionEquipment"></i>
+                                                </span>
+                                            @endif
+
+                                            <input type="text"
+                                                   wire:model.live.debounce.200ms="labSectionEquipmentSearch"
+                                                   class="tag-input"
+                                                   placeholder="{{ $this->selectedLabSectionEquipment ? '' : 'Search equipment...' }}"
+                                                   autocomplete="off">
+                                                </div>
+
+                                                @if($showLabSectionEquipmentDropdown)
+                                                    <div class="tag-dropdown">
+                                                        @forelse($this->filteredLabSectionEquipments as $equipment)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectLabSectionEquipment('{{ $equipment->id }}')">
+                                                                {{ $equipment->name }}{{ $equipment->equipment_number ? ' (' . $equipment->equipment_number . ')' : '' }}
+                                                            </div>
+                                                        @empty
+                                                            <div class="tag-dropdown-item text-muted">No equipment found</div>
+                                                        @endforelse
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            @error('labSectionForms.' . $activeLabSectionLabId . '.equipment_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label form-label--modern">Expected Value Type <span class="text-danger">*</span></label>
+                                            <div class="tag-select-container" wire:click="$set('showLabSectionExpectedValueTypeDropdown', true)" wire:click.outside="$set('showLabSectionExpectedValueTypeDropdown', false)">
+                                                <div class="tag-select-input modern-filter-tag-input lab-tag-select-input">
+                                            @if($this->selectedLabSectionExpectedValueType)
+                                                <span class="tag-badge">
+                                                    {{ $this->selectedLabSectionExpectedValueType['label'] }}
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearLabSectionExpectedValueType"></i>
+                                                </span>
+                                            @endif
+
+                                            <input type="text"
+                                                   wire:model.live.debounce.200ms="labSectionExpectedValueTypeSearch"
+                                                   class="tag-input"
+                                                   placeholder="{{ $this->selectedLabSectionExpectedValueType ? '' : 'Search type...' }}"
+                                                   autocomplete="off">
+                                                </div>
+
+                                                @if($showLabSectionExpectedValueTypeDropdown)
+                                                    <div class="tag-dropdown">
+                                                        @forelse($this->filteredLabSectionExpectedValueTypes as $option)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectLabSectionExpectedValueType('{{ $option['id'] }}')">
+                                                                {{ $option['label'] }}
+                                                            </div>
+                                                        @empty
+                                                            <div class="tag-dropdown-item text-muted">No value types found</div>
+                                                        @endforelse
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            @error('labSectionForms.' . $activeLabSectionLabId . '.expected_value_type') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                        </div>
+
+                                        @if(data_get($labSectionForms, $activeLabSectionLabId . '.expected_value_type') === 'constant')
+                                            <div class="col-md-4">
+                                                <label class="form-label form-label--modern">Expected Constant <span class="text-danger">*</span></label>
+                                                <input type="number" step="0.0001" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.expected_value" class="form-control form-control--modern" placeholder="e.g. 7.0000">
+                                                @error('labSectionForms.' . $activeLabSectionLabId . '.expected_value') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            </div>
+                                        @endif
+
+                                        @if(data_get($labSectionForms, $activeLabSectionLabId . '.expected_value_type') === 'range')
+                                            <div class="col-md-4">
+                                                <label class="form-label form-label--modern">Expected Min <span class="text-danger">*</span></label>
+                                                <input type="number" step="0.0001" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.expected_min" class="form-control form-control--modern" placeholder="e.g. 6.5000">
+                                                @error('labSectionForms.' . $activeLabSectionLabId . '.expected_min') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label form-label--modern">Expected Max <span class="text-danger">*</span></label>
+                                                <input type="number" step="0.0001" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.expected_max" class="form-control form-control--modern" placeholder="e.g. 8.5000">
+                                                @error('labSectionForms.' . $activeLabSectionLabId . '.expected_max') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            </div>
+                                        @endif
+
+                                        @if(data_get($labSectionForms, $activeLabSectionLabId . '.expected_value_type') !== 'range')
+                                            <div class="col-md-4">
+                                                <label class="form-label form-label--modern">Optimum Level <span class="text-danger">*</span></label>
+                                                <input type="text" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.optimum_level" class="form-control form-control--modern" placeholder="e.g. WHO Preferred Band">
+                                                @error('labSectionForms.' . $activeLabSectionLabId . '.optimum_level') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            </div>
+                                        @endif
+                                        <div class="col-md-6">
+                                            <label class="form-label form-label--modern">Result Nature <span class="text-danger">*</span></label>
+                                            <div class="tag-select-container" wire:click="$set('showLabSectionResultNatureDropdown', true)" wire:click.outside="$set('showLabSectionResultNatureDropdown', false)">
+                                                <div class="tag-select-input modern-filter-tag-input lab-tag-select-input">
+                                            @if(data_get($labSectionForms, $activeLabSectionLabId . '.result_nature'))
+                                                <span class="tag-badge">
+                                                    {{ data_get($labSectionForms, $activeLabSectionLabId . '.result_nature') }}
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.result_nature', null)"></i>
+                                                </span>
+                                            @endif
+
+                                            <input type="text"
+                                                   wire:model.live.debounce.200ms="labSectionResultNatureSearch"
+                                                   class="tag-input"
+                                                   placeholder="{{ data_get($labSectionForms, $activeLabSectionLabId . '.result_nature') ? '' : 'Select nature...' }}"
+                                                   autocomplete="off">
+                                                </div>
+
+                                                @if($showLabSectionResultNatureDropdown)
+                                                    <div class="tag-dropdown">
+                                                        @foreach(['Qualitative', 'Quantitative'] as $nature)
+                                                            <div class="tag-dropdown-item" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.result_nature', '{{ $nature }}')">
+                                                                {{ $nature }}
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            @error('labSectionForms.' . $activeLabSectionLabId . '.result_nature') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label form-label--modern">Reporting Unit <span class="text-danger">*</span></label>
+                                            <div class="tag-select-container" wire:click="$set('showLabSectionReportingUnitDropdown', true)" wire:click.outside="$set('showLabSectionReportingUnitDropdown', false)">
+                                                <div class="tag-select-input modern-filter-tag-input lab-tag-select-input">
+                                            @if($this->selectedLabSectionReportingUnit)
+                                                <span class="tag-badge">
+                                                    {{ $this->selectedLabSectionReportingUnit->name }}
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.reporting_unit', '')"></i>
+                                                </span>
+                                            @endif
+
+                                            <input type="text"
+                                                   wire:model.live.debounce.200ms="labSectionReportingUnitSearch"
+                                                   class="tag-input"
+                                                   placeholder="{{ $this->selectedLabSectionReportingUnit ? '' : 'Search reporting unit...' }}"
+                                                   autocomplete="off">
+                                                </div>
+
+                                                @if($showLabSectionReportingUnitDropdown)
+                                                    <div class="tag-dropdown">
+                                                        @forelse($this->filteredLabSectionReportingUnits as $unit)
+                                                            <div class="tag-dropdown-item" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.reporting_unit', '{{ $unit->id }}')">
+                                                                {{ $unit->name }}
+                                                            </div>
+                                                        @empty
+                                                            <div class="tag-dropdown-item text-muted">No active reporting units found</div>
+                                                        @endforelse
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            @error('labSectionForms.' . $activeLabSectionLabId . '.reporting_unit') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                        </div>
+                                    </div>
+                                </section>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="modal-footer lab-section-modal__footer">
+                        <button type="button" class="btn btn-outline-secondary btn-modal-soft" wire:click="resetLabSectionForm('{{ $activeLabSectionLabId }}')">Reset</button>
+                        <button type="button" class="btn btn-secondary" wire:click="closeLabSectionModal">Cancel</button>
+                        <button type="button" class="btn btn-primary btn-modal-primary" wire:click="saveLabSection('{{ $activeLabSectionLabId }}')">
+                            <i class="mdi mdi-content-save"></i> Save Section
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- DELETE CONFIRMATION MODAL -->
     @if($showDeleteModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
@@ -390,10 +708,10 @@
                     <div class="modal-body">
                         <div class="alert alert-warning">
                             <i class="mdi mdi-alert"></i> 
-                            <strong>Warning:</strong> This action cannot be undone. The lab will be permanently deleted from the database.
+                            <strong>Warning:</strong> This action cannot be undone. The {{ $deleteType === 'lab_section' ? 'lab section' : 'lab' }} will be permanently deleted from the database.
                         </div>
-                        
-                        <p class="mb-3">Are you sure you want to delete the following <strong>Lab</strong>?</p>
+
+                        <p class="mb-3">Are you sure you want to delete the following <strong>{{ $deleteType === 'lab_section' ? 'Lab Section' : 'Lab' }}</strong>?</p>
                         
                         <div class="card">
                             <div class="card-body bg-light">
@@ -406,6 +724,32 @@
                                         <th>Code:</th>
                                         <td>{{ $deleteDetails['code'] ?? '-' }}</td>
                                     </tr>
+                                    @if($deleteType === 'lab_section')
+                                        <tr>
+                                            <th>Description:</th>
+                                            <td>{{ $deleteDetails['description'] ?? '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Environmental Analysis:</th>
+                                            <td>{{ $deleteDetails['environmental_analysis'] ?? '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Equipment:</th>
+                                            <td>{{ $deleteDetails['equipment'] ?? '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Expected Value:</th>
+                                            <td>{{ $deleteDetails['expected_value'] ?? '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Result Nature:</th>
+                                            <td>{{ $deleteDetails['result_nature'] ?? '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Reporting Unit:</th>
+                                            <td>{{ $deleteDetails['reporting_unit'] ?? '-' }}</td>
+                                        </tr>
+                                    @else
                                     <tr>
                                         <th>Start Sample No:</th>
                                         <td>{{ $deleteDetails['start_sample_no'] ?? '-' }}</td>
@@ -426,6 +770,7 @@
                                         <th>Lab Type:</th>
                                         <td>{{ $deleteDetails['is_external'] ?? '-' }}</td>
                                     </tr>
+                                    @endif
                                     <tr>
                                         <th>Status:</th>
                                         <td>{{ $deleteDetails['active'] ?? '-' }}</td>
@@ -653,6 +998,17 @@
         border-color: #fca5a5;
     }
 
+    .rm-act-btn--expand {
+        border: 1px solid #d1fae5;
+        color: #047857;
+        background: #ecfdf5;
+    }
+
+    .rm-act-btn--expand:hover {
+        background: #d1fae5;
+        border-color: #6ee7b7;
+    }
+
     .lab-table {
         min-width: 1300px;
     }
@@ -698,6 +1054,350 @@
         color: #991b1b;
         background: #fee2e2;
         border-color: #fca5a5;
+    }
+
+    .lab-badge--info {
+        color: #1e3a8a;
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    .lab-expand-row {
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+
+    .section-shell {
+        border: 1px solid #dbeafe;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        padding: 16px;
+    }
+
+    .section-shell__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        gap: 16px;
+    }
+
+    .section-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        height: 100%;
+    }
+
+    .section-card__top {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .section-card__actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .section-card__action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .section-code {
+        margin-bottom: 4px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #475569;
+        font-weight: 700;
+    }
+
+    .section-meta {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .section-meta li {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 12px;
+        border-bottom: 1px dashed #e2e8f0;
+        padding: 6px 0;
+    }
+
+    .section-meta li:last-child {
+        border-bottom: none;
+    }
+
+    .section-meta li span {
+        color: #64748b;
+    }
+
+    .section-meta li strong {
+        color: #0f172a;
+        text-align: right;
+        max-width: 58%;
+        word-break: break-word;
+    }
+
+    .empty-section-state {
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 18px;
+        text-align: center;
+        color: #64748b;
+        background: #f8fafc;
+    }
+
+    .empty-section-state i {
+        font-size: 24px;
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .section-add-btn {
+        white-space: nowrap;
+        border-radius: 10px;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+    }
+
+    .lab-section-modal {
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 32px 70px rgba(15, 23, 42, 0.22);
+    }
+
+    .lab-section-modal__header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #e2e8f0;
+        background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+            linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    }
+
+    .lab-section-modal__eyebrow {
+        margin-bottom: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #2563eb;
+    }
+
+    .lab-section-modal__title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .lab-section-modal__title i {
+        color: #2563eb;
+        font-size: 1.3rem;
+    }
+
+    .lab-section-modal__subtitle {
+        max-width: 640px;
+        color: #475569;
+        font-size: 0.93rem;
+    }
+
+    .lab-section-modal__body {
+        padding: 24px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    .lab-section-form-grid {
+        display: grid;
+        gap: 18px;
+    }
+
+    .lab-section-panel {
+        padding: 24px 24px 28px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .lab-section-panel--accent {
+        border-color: #bfdbfe;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .lab-section-panel .row > [class*="col-"] {
+        margin-bottom: 1.4rem;
+    }
+
+    .lab-section-panel__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .lab-section-panel__head h6 {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .lab-section-panel__kicker {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .lab-section-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .form-label--modern {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #334155;
+    }
+
+    .form-control--modern {
+        min-height: 48px;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        padding: 12px 14px;
+        color: #0f172a;
+        background: #ffffff;
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.02);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .form-control--modern:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.12);
+    }
+
+    .form-control--modern::placeholder {
+        color: #94a3b8;
+    }
+
+    .form-control--modern-textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .lab-tag-select-input {
+        min-height: 48px;
+        padding: 8px 12px;
+        border-radius: 14px;
+        background: #ffffff;
+    }
+
+    .lab-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .lab-switch__track {
+        position: relative;
+        width: 46px;
+        height: 26px;
+        border-radius: 999px;
+        background: #cbd5e1;
+        transition: background-color 0.2s ease;
+    }
+
+    .lab-switch__track::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+        transition: transform 0.2s ease;
+    }
+
+    .lab-switch input:checked + .lab-switch__track {
+        background: #2563eb;
+    }
+
+    .lab-switch input:checked + .lab-switch__track::after {
+        transform: translateX(20px);
+    }
+
+    .lab-switch__label {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #334155;
+    }
+
+    .lab-section-modal__footer {
+        padding: 18px 24px 24px;
+        border-top: 1px solid #e2e8f0;
+        background: #ffffff;
+    }
+
+    .btn-modal-soft {
+        border-radius: 12px;
+        padding-inline: 16px;
+    }
+
+    .btn-modal-primary {
+        border-radius: 12px;
+        padding-inline: 18px;
+        box-shadow: 0 14px 26px rgba(37, 99, 235, 0.2);
+    }
+
+    @media (max-width: 768px) {
+        .section-shell__header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .lab-section-panel__head {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .lab-table {
+            min-width: 1100px;
+        }
     }
     </style>
 </div>

@@ -159,6 +159,13 @@
             'icon' => null
         ];
     }
+    if (isset($componentType) && $componentType === 'monitoring') {
+        $breadcrumbItems[] = [
+            'link' => route('livewire.monitoring'),
+            'name' => 'Monitoring',
+            'icon' => null
+        ];
+    }
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
 
@@ -190,8 +197,12 @@
     @elseif($componentType === 'standard-analytes')
     @livewire('standards.standard-analytes-manager', ['standardId' => $standard->id])
     @elseif($componentType === 'standard-manager')
+    @elseif($componentType === 'monitoring')
+    @livewire('monitoring.monitoring-dashboard')
     @elseif($componentType === 'report-format-builder')
     @livewire('reports.report-format-builder', ['reportFormatId' => $reportFormatId ?? null])
+    @elseif($componentType === 'template-create')
+    @livewire('monitoring.create-monitoring-template')
     @endif
 </main>
 @endsection

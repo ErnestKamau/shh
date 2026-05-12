@@ -13,7 +13,7 @@ use App\Models\Equipments\Equipment;
 use App\User;
 use App\InvoicableItem;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class AnalysisTypeManager extends Component
@@ -36,6 +36,7 @@ class AnalysisTypeManager extends Component
         'description' => '',
         'lab_section_id' => null,
         'lab_id' => null,
+        'lab_ids' => [],
         'level' => 1,
         'active' => true,
         'has_no_result' => false,
@@ -107,8 +108,8 @@ class AnalysisTypeManager extends Component
     protected $rules = [
         'analysisTypeForm.name' => 'required|string|max:255',
         'analysisTypeForm.code' => 'required|string|max:255',
-        'analysisTypeForm.lab_section_id' => 'nullable|exists:sample_analysis_stages,id',
-        'analysisTypeForm.lab_id' => 'nullable|exists:labs,id',
+        'analysisTypeForm.lab_ids' => 'required|array|min:1',
+        'analysisTypeForm.lab_ids.*' => 'uuid|exists:labs,id',
         'elementForm.analyte_id' => 'required|exists:analytes,id',
         'elementForm.method' => 'nullable|exists:analysis_methods,id',
         'elementForm.equipment_id' => 'nullable|exists:equipment,id',
@@ -118,6 +119,8 @@ class AnalysisTypeManager extends Component
     protected $messages = [
         'analysisTypeForm.name.required' => 'Analysis type name is required.',
         'analysisTypeForm.code.required' => 'Analysis type code is required.',
+        'analysisTypeForm.lab_ids.required' => 'At least one lab is required.',
+        'analysisTypeForm.lab_ids.min' => 'At least one lab is required.',
         'elementForm.analyte_id.required' => 'Analyte selection is required.',
     ];
 
@@ -140,13 +143,10 @@ class AnalysisTypeManager extends Component
 
     public function getAnalysisTypesProperty()
     {
-        $query = AnalysisType::with(['lab', 'procedureWorksheet'])
-            ->select('analysis_types.*')
-            ->selectSub(function ($subQuery) {
-                $subQuery->from('analysis_elements')
-                    ->selectRaw('COUNT(*)')
-                    ->whereRaw('analysis_elements.analysis_type_id::text = analysis_types.id::text');
-            }, 'analysis_elements_count');
+        $query = AnalysisType::with(['analysis_elements' => function($q) {
+            $q->with(['analyte', 'mmethod', 'ltmethod', 'equipment', 'operator'])
+              ->orderBy('level', 'asc');
+                }, 'lab', 'labs', 'procedureWorksheet']);
 
         // Filter by sample type if provided
         if ($this->sampleTypeId) {
@@ -216,12 +216,21 @@ class AnalysisTypeManager extends Component
             $invoicableItemId = $analysisType->invoicableItems()->first()?->id;
         }
         
+        $labIds = [];
+        if (Schema::hasTable('analysis_type_lab_relation')) {
+            $labIds = $analysisType->labs()->pluck('labs.id')->toArray();
+        }
+        if (empty($labIds) && !empty($analysisType->lab_id)) {
+            $labIds = [(string) $analysisType->lab_id];
+        }
+
         $this->analysisTypeForm = [
             'name' => $analysisType->name,
             'code' => $analysisType->code,
             'description' => $analysisType->description,
             'lab_section_id' => $analysisType->lab_section_id,
             'lab_id' => $analysisType->lab_id,
+            'lab_ids' => $labIds,
             'level' => $analysisType->level,
             'active' => $analysisType->active,
             'has_no_result' => (bool) $analysisType->has_no_result,
@@ -240,9 +249,12 @@ class AnalysisTypeManager extends Component
         $this->validate([
             'analysisTypeForm.name' => 'required|string|max:255',
             'analysisTypeForm.code' => 'required|string|max:255',
-            'analysisTypeForm.lab_section_id' => 'nullable|exists:sample_analysis_stages,id',
-            'analysisTypeForm.lab_id' => 'nullable|exists:labs,id',
+            'analysisTypeForm.lab_ids' => 'required|array|min:1',
+            'analysisTypeForm.lab_ids.*' => 'uuid|exists:labs,id',
         ]);
+
+        $selectedLabIds = array_values(array_unique(array_filter((array) ($this->analysisTypeForm['lab_ids'] ?? []))));
+        $primaryLabId = $selectedLabIds[0] ?? null;
 
         try {
             DB::beginTransaction();
@@ -254,7 +266,7 @@ class AnalysisTypeManager extends Component
                     'code' => $this->analysisTypeForm['code'],
                     'description' => $this->analysisTypeForm['description'],
                     'lab_section_id' => $this->analysisTypeForm['lab_section_id'],
-                    'lab_id' => $this->analysisTypeForm['lab_id'],
+                    'lab_id' => $primaryLabId,
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
                     'has_no_result' => $this->analysisTypeForm['has_no_result'] ?? false,
@@ -273,6 +285,7 @@ class AnalysisTypeManager extends Component
 
                 // Update invoicable item mapping
                 $this->updateInvoicableItemMapping($analysisType);
+                $this->syncAnalysisTypeLabs($analysisType, $selectedLabIds);
                 
                 $this->message = 'Analysis type updated successfully!';
             } else {
@@ -282,7 +295,7 @@ class AnalysisTypeManager extends Component
                     'description' => $this->analysisTypeForm['description'],
                     'sample_type_id' => $this->sampleTypeId,
                     'lab_section_id' => $this->analysisTypeForm['lab_section_id'],
-                    'lab_id' => $this->analysisTypeForm['lab_id'],
+                    'lab_id' => $primaryLabId,
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
                     'has_no_result' => $this->analysisTypeForm['has_no_result'] ?? false,
@@ -295,6 +308,7 @@ class AnalysisTypeManager extends Component
                 
                 // Create invoicable item mapping
                 $this->updateInvoicableItemMapping($analysisType);
+                $this->syncAnalysisTypeLabs($analysisType, $selectedLabIds);
                 
                 $this->message = 'Analysis type created successfully!';
             }
@@ -353,6 +367,7 @@ class AnalysisTypeManager extends Component
             'description' => '',
             'lab_section_id' => null,
             'lab_id' => null,
+            'lab_ids' => [],
             'level' => 1,
             'active' => true,
             'has_no_result' => false,
@@ -606,26 +621,40 @@ class AnalysisTypeManager extends Component
     // Lab searchable dropdown methods
     public function selectLab($labId): void
     {
-        $this->analysisTypeForm['lab_id'] = $labId;
+        $labId = (string) $labId;
+        $selected = (array) ($this->analysisTypeForm['lab_ids'] ?? []);
+
+        if (in_array($labId, $selected, true)) {
+            $selected = array_values(array_filter($selected, fn ($id): bool => (string) $id !== $labId));
+        } else {
+            $selected[] = $labId;
+            $selected = array_values(array_unique($selected));
+        }
+
+        $this->analysisTypeForm['lab_ids'] = $selected;
+        $this->analysisTypeForm['lab_id'] = $selected[0] ?? null;
         $this->labSearch = '';
-        $this->showLabDropdown = false;
+        $this->showLabDropdown = true;
     }
 
     public function updatedLabSearch(): void
     {
-        $this->showLabDropdown = !empty($this->labSearch);
+        $this->showLabDropdown = true;
     }
 
     public function getFilteredLabsProperty()
     {
-        if (empty($this->labSearch)) {
-            return [];
+        $query = Lab::query()
+            ->where('active', 1);
+
+        if (!empty($this->labSearch)) {
+            $query->where(function ($q): void {
+                $q->where('name', 'like', '%' . $this->labSearch . '%')
+                    ->orWhere('code', 'like', '%' . $this->labSearch . '%');
+            });
         }
-        
-        return Lab::where('name', 'like', '%' . $this->labSearch . '%')
-            ->where('active', 1)
-            ->limit(10)
-            ->get();
+
+        return $query->orderBy('name')->limit(20)->get();
     }
 
     public function getSelectedLabProperty()
@@ -635,6 +664,25 @@ class AnalysisTypeManager extends Component
         }
         
         return Lab::find($this->analysisTypeForm['lab_id']);
+    }
+
+    public function getSelectedLabsProperty()
+    {
+        $ids = array_values(array_unique(array_filter((array) ($this->analysisTypeForm['lab_ids'] ?? []))));
+        if (empty($ids)) {
+            return collect();
+        }
+
+        return Lab::query()->whereIn('id', $ids)->orderBy('name')->get();
+    }
+
+    protected function syncAnalysisTypeLabs(AnalysisType $analysisType, array $labIds): void
+    {
+        if (!Schema::hasTable('analysis_type_lab_relation')) {
+            return;
+        }
+
+        $analysisType->labs()->sync($labIds);
     }
 
     // Lab section searchable dropdown methods

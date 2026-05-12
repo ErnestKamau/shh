@@ -87,6 +87,7 @@
 			$canQc = $user->can('laboratory.components.qc sample.view');
 			$canAnalytes = $user->can('laboratory.components.analytes.view');
 			$canLabs = $user->can('laboratory.components.labs.view');
+			$canMonitoring = $user->can('laboratory.components.labs.view');
 			$canSampleTrackingStages = $user->can('laboratory.components.sample-tracking-stages.view');
 			$canSampleTypes = $user->can('laboratory.components.sample-types.view');
 			$canChecklistApprovals = $user->can('laboratory.components.checklist-approvals.view');
@@ -283,6 +284,14 @@
 				</div>
 			</a>
 			@endif
+			@if($canMonitoring)
+			<a href="{{ route('livewire.monitoring') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-monitor-dashboard fa-fw mr-3"></span>
+					<span class="menu-collapsed">Monitoring</span>
+				</div>
+			</a>
+			@endif
 			@if($canSampleTrackingStages)
 			<a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
@@ -308,24 +317,6 @@
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-scale-balance fa-fw mr-3"></span>
 					<span class="menu-collapsed">Standards</span>
-				</div>
-			</a>
-			<a href="{{ route('livewire.report-formats') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-file-document-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">Report Formats</span>
-				</div>
-			</a>
-			<a href="{{ route('remedies.index') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-medical-bag fa-fw mr-3"></span>
-					<span class="menu-collapsed">Remedies</span>
-				</div>
-			</a>
-			<a href="{{ route('ratings.index') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-chart-box-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">Key Configurations</span>
 				</div>
 			</a>
 			@endif
@@ -414,21 +405,9 @@
 	</a>
 	<div id="configuration-menu" class="collapse sidebar-submenu">
 
-
-
-		@if($canProducts)
-		<a href="{{route('sample-product-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Products
-				<small class="float-right badge badge-pill"></small></span>
-		</a>
-		@endif
 		@if($canSampleTypes)
 		<a href="{{route('sample_condition_index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Conditions
-				<small class="float-right badge badge-pill"></small></span>
-		</a>
-		<a href="{{route('sample-type-category-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Type Category
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif
@@ -450,11 +429,6 @@
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 
-		<a href="{{ route('supporting-documents.templates.index') }}" class="list-group-item list-group-item-action bg-dark text-white">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Supporting Documents
-				<small class="float-right badge badge-pill"></small></span>
-		</a>
-		
 		<a href="{{route('templates.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Report Templates
 				<small class="float-right badge badge-pill"></small></span>
