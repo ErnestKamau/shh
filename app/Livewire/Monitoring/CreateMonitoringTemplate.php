@@ -67,7 +67,7 @@ class CreateMonitoringTemplate extends Component
             ->where('active', true)
             ->orderBy('lab_id')
             ->orderBy('name')
-            ->with(['lab', 'equipment', 'equipment.latestCalibration'])
+            ->with(['lab', 'equipment', 'equipment.latestCalibration', 'reportingUnit'])
             ->get();
     }
 

@@ -5,6 +5,7 @@ namespace App\Livewire\Lab;
 use App\Directorate;
 use App\Lab;
 use App\LabSection;
+use App\ReportingUnit;
 use App\Zone;
 use App\Models\Equipments\Equipment;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,7 @@ class LabManager extends Component
     // Delete Confirmation
     public $deleteId = null;
     public $deleteDetails = [];
+    public string $deleteType = 'lab';
 
     // Editing State
     public $editingLab = null;
@@ -67,10 +69,15 @@ class LabManager extends Component
     public array $expandedLabs = [];
     public array $labSectionForms = [];
     public ?string $activeLabSectionLabId = null;
+    public ?string $editingLabSection = null;
     public string $labSectionEquipmentSearch = '';
     public bool $showLabSectionEquipmentDropdown = false;
     public string $labSectionExpectedValueTypeSearch = '';
     public bool $showLabSectionExpectedValueTypeDropdown = false;
+    public string $labSectionResultNatureSearch = '';
+    public bool $showLabSectionResultNatureDropdown = false;
+    public string $labSectionReportingUnitSearch = '';
+    public bool $showLabSectionReportingUnitDropdown = false;
 
     public function mount(): void
     {
@@ -83,7 +90,7 @@ class LabManager extends Component
             'zone',
             'directorate',
             'labSections' => function ($q): void {
-                $q->with('equipment')->orderBy('name');
+                $q->with(['equipment', 'reportingUnit'])->orderBy('name');
             },
         ]);
 
@@ -150,14 +157,54 @@ class LabManager extends Component
         ];
     }
 
+    protected function populateLabSectionForm(string $labId, LabSection $section): void
+    {
+        $this->labSectionForms[$labId] = [
+            'name' => $section->name,
+            'code' => $section->code,
+            'description' => $section->description ?? '',
+            'does_environmental_analysis' => (bool) $section->does_environmental_analysis,
+            'equipment_id' => $section->equipment_id ?? '',
+            'expected_value_type' => $section->expected_value_type ?? '',
+            'expected_value' => $section->expected_value,
+            'expected_min' => $section->expected_min,
+            'expected_max' => $section->expected_max,
+            'optimum_level' => $section->optimum_level ?? '',
+            'result_nature' => $section->result_nature ?? '',
+            'reporting_unit' => $section->reporting_unit ?? '',
+            'active' => (bool) $section->active,
+        ];
+    }
+
+    protected function resetLabSectionDropdownState(): void
+    {
+        $this->labSectionEquipmentSearch = '';
+        $this->showLabSectionEquipmentDropdown = false;
+        $this->labSectionExpectedValueTypeSearch = '';
+        $this->showLabSectionExpectedValueTypeDropdown = false;
+        $this->labSectionResultNatureSearch = '';
+        $this->showLabSectionResultNatureDropdown = false;
+        $this->labSectionReportingUnitSearch = '';
+        $this->showLabSectionReportingUnitDropdown = false;
+    }
+
     public function resetLabSectionForm(string $labId): void
     {
-        $this->initializeLabSectionForm($labId);
+        if ($this->editingLabSection && $this->activeLabSectionLabId === $labId) {
+            $section = LabSection::find($this->editingLabSection);
+
+            if ($section) {
+                $this->populateLabSectionForm($labId, $section);
+            } else {
+                $this->initializeLabSectionForm($labId);
+                $this->editingLabSection = null;
+            }
+        } else {
+            $this->initializeLabSectionForm($labId);
+        }
+
         if ($this->activeLabSectionLabId === $labId) {
-            $this->labSectionEquipmentSearch = '';
-            $this->showLabSectionEquipmentDropdown = false;
-            $this->labSectionExpectedValueTypeSearch = '';
-            $this->showLabSectionExpectedValueTypeDropdown = false;
+            $this->resetLabSectionDropdownState();
         }
 
         $this->resetValidation();
@@ -174,10 +221,26 @@ class LabManager extends Component
         }
 
         $this->activeLabSectionLabId = $labId;
-        $this->labSectionEquipmentSearch = '';
-        $this->showLabSectionEquipmentDropdown = false;
-        $this->labSectionExpectedValueTypeSearch = '';
-        $this->showLabSectionExpectedValueTypeDropdown = false;
+        $this->editingLabSection = null;
+        $this->initializeLabSectionForm($labId);
+        $this->resetLabSectionDropdownState();
+        $this->resetValidation();
+        $this->showLabSectionModal = true;
+    }
+
+    public function showEditLabSectionModal(string $sectionId): void
+    {
+        $section = LabSection::findOrFail($sectionId);
+        $labId = (string) $section->lab_id;
+
+        if (!in_array($labId, $this->expandedLabs, true)) {
+            $this->expandedLabs[] = $labId;
+        }
+
+        $this->activeLabSectionLabId = $labId;
+        $this->editingLabSection = $sectionId;
+        $this->populateLabSectionForm($labId, $section);
+        $this->resetLabSectionDropdownState();
         $this->resetValidation();
         $this->showLabSectionModal = true;
     }
@@ -186,10 +249,8 @@ class LabManager extends Component
     {
         $this->showLabSectionModal = false;
         $this->activeLabSectionLabId = null;
-        $this->labSectionEquipmentSearch = '';
-        $this->showLabSectionEquipmentDropdown = false;
-        $this->labSectionExpectedValueTypeSearch = '';
-        $this->showLabSectionExpectedValueTypeDropdown = false;
+        $this->editingLabSection = null;
+        $this->resetLabSectionDropdownState();
         $this->resetValidation();
     }
 
@@ -257,6 +318,47 @@ class LabManager extends Component
         ]);
     }
 
+    public function getReportingUnitOptionsProperty()
+    {
+        return ReportingUnit::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->select(['id', 'name'])
+            ->get();
+    }
+
+    public function getFilteredLabSectionReportingUnitsProperty()
+    {
+        $search = strtolower(trim($this->labSectionReportingUnitSearch));
+
+        return $this->reportingUnitOptions
+            ->filter(function (ReportingUnit $unit) use ($search): bool {
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(strtolower((string) $unit->name), $search);
+            })
+            ->values();
+    }
+
+    public function getSelectedLabSectionReportingUnitProperty(): ?ReportingUnit
+    {
+        $labId = $this->activeLabSectionLabId;
+
+        if (!$labId) {
+            return null;
+        }
+
+        $selectedId = data_get($this->labSectionForms, $labId . '.reporting_unit');
+
+        if (!$selectedId) {
+            return null;
+        }
+
+        return $this->reportingUnitOptions->firstWhere('id', $selectedId);
+    }
+
     public function getFilteredLabSectionExpectedValueTypesProperty()
     {
         $search = strtolower(trim($this->labSectionExpectedValueTypeSearch));
@@ -304,6 +406,7 @@ class LabManager extends Component
 
         if ($type === 'range') {
             data_set($this->labSectionForms, $this->activeLabSectionLabId . '.expected_value', null);
+            data_set($this->labSectionForms, $this->activeLabSectionLabId . '.optimum_level', '');
         }
 
         $this->labSectionExpectedValueTypeSearch = '';
@@ -336,7 +439,7 @@ class LabManager extends Component
 
         $rules = [
             "labSectionForms.$labId.name" => 'required|string|max:255',
-            "labSectionForms.$labId.code" => "required|string|max:100|unique:lab_sections,code,NULL,id,lab_id,$labId",
+            "labSectionForms.$labId.code" => 'required|string|max:100|unique:lab_sections,code,' . ($this->editingLabSection ?? 'NULL') . ',id,lab_id,' . $labId,
             "labSectionForms.$labId.description" => 'nullable|string|max:2000',
             "labSectionForms.$labId.does_environmental_analysis" => 'boolean',
             "labSectionForms.$labId.active" => 'boolean',
@@ -345,12 +448,12 @@ class LabManager extends Component
         if ($analysisOn) {
             $rules["labSectionForms.$labId.equipment_id"] = 'required|exists:equipment,id';
             $rules["labSectionForms.$labId.expected_value_type"] = 'required|in:constant,range';
-            $rules["labSectionForms.$labId.optimum_level"] = 'required|string|max:255';
             $rules["labSectionForms.$labId.result_nature"] = 'required|string|max:1000';
-            $rules["labSectionForms.$labId.reporting_unit"] = 'required|string|max:120';
+            $rules["labSectionForms.$labId.reporting_unit"] = 'required|exists:reporting_units,id';
 
             if ($valueType === 'constant') {
                 $rules["labSectionForms.$labId.expected_value"] = 'required|numeric';
+                $rules["labSectionForms.$labId.optimum_level"] = 'required|string|max:255';
             }
 
             if ($valueType === 'range') {
@@ -364,7 +467,7 @@ class LabManager extends Component
         try {
             DB::beginTransaction();
 
-            LabSection::create([
+            $payload = [
                 'lab_id' => $labId,
                 'name' => trim((string) $form['name']),
                 'code' => trim((string) $form['code']),
@@ -375,16 +478,23 @@ class LabManager extends Component
                 'expected_value' => $analysisOn && $valueType === 'constant' ? $form['expected_value'] : null,
                 'expected_min' => $analysisOn && $valueType === 'range' ? $form['expected_min'] : null,
                 'expected_max' => $analysisOn && $valueType === 'range' ? $form['expected_max'] : null,
-                'optimum_level' => $analysisOn ? $form['optimum_level'] : null,
+                'optimum_level' => $analysisOn && $valueType !== 'range' ? $form['optimum_level'] : null,
                 'result_nature' => $analysisOn ? $form['result_nature'] : null,
                 'reporting_unit' => $analysisOn ? $form['reporting_unit'] : null,
                 'active' => (bool) ($form['active'] ?? true),
                 'company_id' => getUserCompany(),
-            ]);
+            ];
+
+            if ($this->editingLabSection) {
+                LabSection::findOrFail($this->editingLabSection)->update($payload);
+                $this->message = 'Lab section updated successfully!';
+            } else {
+                LabSection::create($payload);
+                $this->message = 'Lab section created successfully!';
+            }
 
             DB::commit();
 
-            $this->message = 'Lab section created successfully!';
             $this->messageType = 'success';
             $this->resetLabSectionForm($labId);
             $this->closeLabSectionModal();
@@ -393,6 +503,53 @@ class LabManager extends Component
             $this->message = 'Error creating lab section: ' . $e->getMessage();
             $this->messageType = 'error';
         }
+    }
+
+    public function deleteLabSection(string $sectionId): void
+    {
+        try {
+            $section = LabSection::findOrFail($sectionId);
+            $labId = (string) $section->lab_id;
+
+            $section->delete();
+
+            if ($this->editingLabSection === $sectionId) {
+                $this->editingLabSection = null;
+                $this->closeLabSectionModal();
+                $this->initializeLabSectionForm($labId);
+            }
+
+            $this->message = 'Lab section deleted successfully!';
+            $this->messageType = 'success';
+        } catch (\Exception $e) {
+            $this->message = 'Error deleting lab section: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    public function confirmDeleteLabSection(string $sectionId): void
+    {
+        $section = LabSection::with(['equipment', 'reportingUnit'])->findOrFail($sectionId);
+
+        $this->deleteType = 'lab_section';
+        $this->deleteId = $sectionId;
+        $this->deleteDetails = [
+            'name' => $section->name,
+            'code' => $section->code,
+            'description' => $section->description,
+            'environmental_analysis' => $section->does_environmental_analysis ? 'Yes' : 'No',
+            'equipment' => $section->equipment->name ?? '-',
+            'expected_value' => $section->expected_value_type === 'constant'
+                ? 'Constant: ' . ($section->expected_value ?? '-')
+                : ($section->expected_value_type === 'range'
+                    ? 'Range: ' . ($section->expected_min ?? '-') . ' - ' . ($section->expected_max ?? '-')
+                    : '-'),
+            'result_nature' => $section->result_nature ?? '-',
+            'reporting_unit' => $section->reportingUnit->name ?? '-',
+            'active' => $section->active ? 'Active' : 'Inactive',
+        ];
+
+        $this->showDeleteModal = true;
     }
 
     public function showCreateLabModal(): void
@@ -507,7 +664,8 @@ class LabManager extends Component
     public function confirmDeleteLab($id): void
     {
         $lab = Lab::findOrFail($id);
-        
+
+        $this->deleteType = 'lab';
         $this->deleteId = $id;
         $this->deleteDetails = [
             'name' => $lab->name,
@@ -526,12 +684,28 @@ class LabManager extends Component
     public function deleteLab(): void
     {
         try {
-            Lab::findOrFail($this->deleteId)->delete();
-            $this->message = 'Lab deleted successfully!';
+            if ($this->deleteType === 'lab_section') {
+                $section = LabSection::findOrFail($this->deleteId);
+                $labId = (string) $section->lab_id;
+
+                $section->delete();
+
+                if ($this->editingLabSection === $this->deleteId) {
+                    $this->editingLabSection = null;
+                    $this->closeLabSectionModal();
+                    $this->initializeLabSectionForm($labId);
+                }
+
+                $this->message = 'Lab section deleted successfully!';
+            } else {
+                Lab::findOrFail($this->deleteId)->delete();
+                $this->message = 'Lab deleted successfully!';
+            }
+
             $this->messageType = 'success';
             $this->closeDeleteModal();
         } catch (\Exception $e) {
-            $this->message = 'Error deleting lab: ' . $e->getMessage();
+            $this->message = 'Error deleting ' . str_replace('_', ' ', $this->deleteType) . ': ' . $e->getMessage();
             $this->messageType = 'error';
             $this->closeDeleteModal();
         }
@@ -541,6 +715,7 @@ class LabManager extends Component
     {
         $this->showDeleteModal = false;
         $this->deleteId = null;
+        $this->deleteType = 'lab';
         $this->deleteDetails = [];
     }
 

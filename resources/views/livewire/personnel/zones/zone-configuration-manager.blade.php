@@ -22,7 +22,7 @@
             <div class="card h-100 shadow-sm border-0 zone-section-card zone-section-directorates" style="border-radius: 14px;">
                 <div class="card-header border-0 d-flex justify-content-between align-items-center" style="border-radius: 14px 14px 0 0;">
                     <h5 class="mb-0"><i class="mdi mdi-office-building"></i> {{ __('personnel.directorates') }}</h5>
-                    <button type="button" class="btn btn-outline-primary btn-sm zone-btn-round" wire:click="openDirectorateModal" @if(!$selectedZoneId) disabled @endif><i class="mdi mdi-plus"></i> {{ __('personnel.add') }}</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm zone-btn-round" wire:click="openDirectorateModal"><i class="mdi mdi-plus"></i> {{ __('personnel.add') }}</button>
                 </div>
                 <div class="card-body zone-section-body">
                     <input type="text" class="form-control mb-3" wire:model.live.debounce.300ms="directorateSearch" placeholder="{{ __('personnel.search_directorates') }}">

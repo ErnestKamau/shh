@@ -241,7 +241,7 @@
                              </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover equipment-table">
+                            <table class="table table-striped table-hover equipment-table" style="width:120%">
                                 <thead>
                                     <tr>
                                         <th>{{ __('equipment.actions') }}</th>
@@ -276,8 +276,8 @@
                                                         : (getUserById($log->employee_id)->name ?? '-') }}
                                                 </td>
                                                 <td>{{ $log->date }}</td>
-                                                <td>{{ $log->correction_factor ?? '-' }}</td>
-                                                <td>{{ $log->uncertainty_of_measure ?? '-' }}</td>
+                                                <td>{{ $log->correction_factor ? number_format($log->correction_factor, 1) : '-' }}</td>
+                                                <td>{{ $log->uncertainty_of_measure ? number_format($log->uncertainty_of_measure, 1) : '-' }}</td>
                                                 <td>
                                                     @if($log->certificate && $log->certificate != 'no-document')
                                                         <a href="{{ $log->certificate }}" target="_blank" class="btn btn-sm btn-success">
@@ -342,7 +342,7 @@
                              </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover equipment-table">
+                            <table class="table table-striped table-hover equipment-table" style="width:120%">
                                 <thead>
                                     <tr>
                                         <th>{{ __('equipment.actions') }}</th>
@@ -361,11 +361,11 @@
                                             <tr>
                                                 <td>
                                                     <button wire:click="showEditCalibrationModal({{ $log->id }})"
-                                                        class="btn btn-sm rm-act-btn rm-act-btn--edit">
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
                                                     <button wire:click="deleteCalibrationLog({{ $log->id }})"
-                                                        class="btn btn-sm rm-act-btn rm-act-btn--delete"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
                                                             onclick="return confirm('Are you sure?')">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
@@ -377,8 +377,8 @@
                                                         : (getUserById($log->employee_id)->name ?? '-') }}
                                                 </td>
                                                 <td>{{ $log->date }}</td>
-                                                <td>{{ $log->correction_factor ?? '-' }}</td>
-                                                <td>{{ $log->uncertainty_of_measure ?? '-' }}</td>
+                                                <td>{{ $log->correction_factor ? number_format($log->correction_factor, 1) : '-' }}</td>
+                                                <td>{{ $log->uncertainty_of_measure ? number_format($log->uncertainty_of_measure, 1) : '-' }}</td>
                                                 <td>
                                                     @if($log->certificate && $log->certificate != 'no-document')
                                                         <a href="{{ $log->certificate }}" target="_blank" class="btn btn-sm btn-success">
@@ -443,7 +443,7 @@
                              </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover equipment-table">
+                            <table class="table table-striped table-hover equipment-table" style="width:120%">
                                 <thead>
                                     <tr>
                                         <th>{{ __('equipment.actions') }}</th>
@@ -657,10 +657,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @php
-                                        $notifications = \App\Models\Equipments\EquipmentNotifications::where('equipment_id', $equipment->id)->get();
-                                    @endphp
-                                    @foreach($notifications as $notification)
+                                    @foreach($this->notifications as $notification)
                                         <tr>
                                             <td>
                                                 <button wire:click="showEditNotificationModal({{ $notification->id }})"
@@ -1974,32 +1971,6 @@
     .eq-main-body {
         background: #ffffff;
     }
-    .equipment-add-btn,
-    .rm-act-btn {
-        border-radius: 12px;
-    }
-    .equipment-add-btn {
-        padding: 0.38rem 0.8rem;
-        font-weight: 600;
-    }
-    .rm-act-btn {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 4px;
-    }
-    .equipment-action-btn {
-        border: 1px solid transparent;
-        box-shadow: none;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-    }
-    .equipment-action-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
-    }
     .equipment-tag-select {
         position: relative;
     }
@@ -2102,6 +2073,36 @@
         .eq-main-header {
             padding-top: 0.7rem;
         }
+    }
+
+    /* ── Modal form field spacing ─────────────────────────────────
+       Bootstrap g-3/gy-4 gutters only apply to .row/.col grids.
+       These modal forms stack .form-group divs vertically, so we
+       use explicit margin/padding instead.
+    ────────────────────────────────────────────────────────────── */
+    .eq-view-page .modal-body {
+        padding: 1.5rem 1.75rem;
+    }
+    .eq-view-page .modal-body .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .eq-view-page .modal-body .form-group:last-child {
+        margin-bottom: 0;
+    }
+    .eq-view-page .modal-body .form-label {
+        margin-bottom: 0.45rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #4a5568;
+    }
+    .eq-view-page .modal-body .form-control {
+        padding: 0.475rem 0.75rem;
+    }
+    .eq-view-page .modal-body .row .form-group {
+        margin-bottom: 0;
+    }
+    .eq-view-page .modal-body .row {
+        margin-bottom: 1.5rem;
     }
     </style>
 

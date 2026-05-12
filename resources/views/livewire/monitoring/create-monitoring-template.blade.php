@@ -141,7 +141,7 @@
                             <p class="text-muted mb-4">Choose which laboratories this template applies to.</p>
 
                             <div class="row">
-                                @forelse($assignedLabs as $lab)
+                                @forelse($this->assignedLabs as $lab)
                                     <div class="col-md-6 mb-3">
                                         <div class="lab-selector-card {{ in_array($lab->id, $selectedLabIds) ? 'selected' : '' }}" wire:click="toggleLab('{{ $lab->id }}')">
                                             <div class="form-check">
@@ -178,7 +178,7 @@
                             </h5>
                             <p class="text-muted mb-4">Choose sections within the selected labs to monitor.</p>
 
-                            @if($environmentalSectionsByLab->count())
+                            @if($this->environmentalSectionsByLab->count())
                                 <div class="table-responsive">
                                     <table class="table table-hover">
                                         <thead class="table-light">
@@ -189,13 +189,14 @@
                                                 <th>Code</th>
                                                 <th>Expected Value</th>
                                                 <th>Range</th>
-                                                <th>Unit</th>
-                                                <th>Reporting Unit</th>
+                                                <th>Unit & Reporting Unit</th>
+                                                <th>Frequency</th>
                                                 <th>Equipment</th>
                                             </tr>
                                         </thead>
+                                        <!-- Columns: Checkbox, Lab, Section Name, Code, Expected Value, Range, Unit+Reporting Unit, Frequency -->
                                         <tbody>
-                                            @foreach($environmentalSectionsByLab as $section)
+                                            @foreach($this->environmentalSectionsByLab as $section)
                                                 <tr class="{{ in_array($section->id, $selectedSectionIds) ? 'table-active' : '' }}">
                                                     <td>
                                                         <div class="form-check">
@@ -215,8 +216,27 @@
                                                             —
                                                         @endif
                                                     </td>
-                                                    <td>{{ $section->result_nature ?? '—' }}</td>
-                                                    <td>{{ $section->reporting_unit ?? '—' }}</td>
+                                                    <td>
+                                                        <div>{{ $section->result_nature ?? '—' }}</div>
+                                                        @if($section->reportingUnit)
+                                                            <small class="text-muted">Reporting: {{ $section->reportingUnit->name }}</small>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @php
+                                                            $frequency = $section->equipment?->daily_log_frequency ?? 1;
+                                                            $frequencyLabel = match($frequency) {
+                                                                1 => 'Once Daily',
+                                                                2 => 'Twice Daily',
+                                                                3 => 'Three Times Daily',
+                                                                4 => 'Four Times Daily',
+                                                                5 => 'Five Times Daily',
+                                                                6 => 'Six Times Daily',
+                                                                default => 'As Set (' . $frequency . '×)',
+                                                            };
+                                                        @endphp
+                                                        <span class="badge badge-pill badge-primary">{{ $frequencyLabel }}</span>
+                                                    </td>
                                                     <td>
                                                         @if($section->equipment)
                                                             <span class="badge badge-info">{{ $section->equipment->name }}</span>
@@ -252,7 +272,7 @@
                             </h5>
                             <p class="text-muted mb-4">Choose equipment within the selected labs to monitor.</p>
 
-                            @if($equipmentByLab->count())
+                            @if($this->equipmentByLab->count())
                                 <div class="table-responsive">
                                     <table class="table table-hover">
                                         <thead class="table-light">
@@ -267,10 +287,11 @@
                                                 <th>Correction Factor</th>
                                                 <th>Unit</th>
                                                 <th>Nature</th>
+                                                <th>Frequency</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach($equipmentByLab as $equipment)
+                                            @foreach($this->equipmentByLab as $equipment)
                                                 <tr class="{{ in_array($equipment->id, $selectedEquipmentIds) ? 'table-active' : '' }}">
                                                     <td>
                                                         <div class="form-check">
@@ -300,6 +321,21 @@
                                                     </td>
                                                     <td>{{ $equipment->daily_log_reporting_unit ?? '—' }}</td>
                                                     <td>{{ $equipment->daily_log_nature ?? '—' }}</td>
+                                                    <td>
+                                                        @php
+                                                            $frequency = $equipment->daily_log_frequency ?? 1;
+                                                            $frequencyLabel = match($frequency) {
+                                                                1 => 'Once Daily',
+                                                                2 => 'Twice Daily',
+                                                                3 => 'Three Times Daily',
+                                                                4 => 'Four Times Daily',
+                                                                5 => 'Five Times Daily',
+                                                                6 => 'Six Times Daily',
+                                                                default => 'As Set (' . $frequency . '×)',
+                                                            };
+                                                        @endphp
+                                                        <span class="badge badge-pill badge-primary">{{ $frequencyLabel }}</span>
+                                                    </td>
                                                 </tr>
                                             @endforeach
                                         </tbody>

@@ -1535,6 +1535,13 @@ class EquipmentDetail extends Component
             ->orderBy('id', 'desc')
             ->paginate(25, ['*'], 'attachmentPage');
     }
+
+    public function getNotificationsProperty()
+    {
+        return EquipmentNotifications::where('equipment_id', $this->equipmentId)
+            ->orderBy('next_date', 'asc')
+            ->get();
+    }
 }
 
 

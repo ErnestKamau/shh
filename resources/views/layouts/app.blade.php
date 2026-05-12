@@ -209,6 +209,85 @@
             line-height: 1;
         }
 
+        .equipment-add-btn,
+        .rm-act-btn {
+            border-radius: 12px;
+        }
+
+        .equipment-add-btn {
+            padding: 0.38rem 0.8rem;
+            font-weight: 600;
+        }
+
+        .rm-act-btn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 4px;
+        }
+
+        .rm-act-btn.equipment-action-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid transparent;
+            box-shadow: none;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+        }
+
+        .rm-act-btn.equipment-action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+        }
+        .rm-act-btn {
+            border-radius: 7px;
+            padding: 4px 8px;
+            margin-right: 3px;
+            font-size: 12px;
+        }
+
+        .rm-act-btn:last-child {
+            margin-right: 0;
+        }
+
+        /* EDIT Button - Blue */
+        .rm-act-btn--edit {
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            background: #eff6ff;
+        }
+
+        .rm-act-btn--edit:hover {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        /* VIEW Button - Green */
+        .rm-act-btn--view {
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+            background: #f0fdf4;
+        }
+
+        .rm-act-btn--view:hover {
+            background: #dcfce7;
+            border-color: #86efac;
+        }
+
+        /* DELETE Button - Red */
+        .rm-act-btn--delete {
+            border: 1px solid #fecdd3;
+            color: #e11d48;
+            background: #fff5f7;
+        }
+
+        .rm-act-btn--delete:hover {
+            background: #ffe4e6;
+            border-color: #fda4af;
+        }
+
         button.dt-button,
         div.dt-button,
         a.dt-button {

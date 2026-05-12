@@ -1,7 +1,8 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -10,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement('ALTER TABLE maintainance_calibration_logs ALTER COLUMN overseen_by TYPE varchar(255) USING overseen_by::text');
-        DB::statement('ALTER TABLE maintainance_calibration_logs ALTER COLUMN edit_by TYPE varchar(255) USING edit_by::text');
-        DB::statement('ALTER TABLE maintainance_calibration_logs ALTER COLUMN employee_id TYPE varchar(255) USING employee_id::text');
-        DB::statement('ALTER TABLE maintainance_calibration_logs ALTER COLUMN operator_id TYPE varchar(255) USING operator_id::text');
-        DB::statement('ALTER TABLE maintainance_calibration_logs ALTER COLUMN proccess_owner_id TYPE varchar(255) USING proccess_owner_id::text');
+        Schema::table('maintainance_calibration_logs', function (Blueprint $table): void {
+            $table->string('overseen_by', 255)->nullable()->change();
+            $table->string('edit_by', 255)->nullable()->change();
+            $table->string('employee_id', 255)->nullable()->change();
+            $table->string('operator_id', 255)->nullable()->change();
+            $table->string('proccess_owner_id', 255)->nullable()->change();
+        });
     }
 
     /**
@@ -22,10 +25,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE maintainance_calibration_logs ALTER COLUMN overseen_by TYPE integer USING (CASE WHEN overseen_by ~ '^[0-9]+$' THEN overseen_by::integer ELSE NULL END)");
-        DB::statement("ALTER TABLE maintainance_calibration_logs ALTER COLUMN edit_by TYPE integer USING (CASE WHEN edit_by ~ '^[0-9]+$' THEN edit_by::integer ELSE NULL END)");
-        DB::statement("ALTER TABLE maintainance_calibration_logs ALTER COLUMN employee_id TYPE integer USING (CASE WHEN employee_id ~ '^[0-9]+$' THEN employee_id::integer ELSE NULL END)");
-        DB::statement("ALTER TABLE maintainance_calibration_logs ALTER COLUMN operator_id TYPE integer USING (CASE WHEN operator_id ~ '^[0-9]+$' THEN operator_id::integer ELSE NULL END)");
-        DB::statement("ALTER TABLE maintainance_calibration_logs ALTER COLUMN proccess_owner_id TYPE integer USING (CASE WHEN proccess_owner_id ~ '^[0-9]+$' THEN proccess_owner_id::integer ELSE NULL END)");
+        Schema::table('maintainance_calibration_logs', function (Blueprint $table): void {
+            $table->integer('overseen_by')->nullable()->change();
+            $table->integer('edit_by')->nullable()->change();
+            $table->integer('employee_id')->nullable()->change();
+            $table->integer('operator_id')->nullable()->change();
+            $table->integer('proccess_owner_id')->nullable()->change();
+        });
     }
 };

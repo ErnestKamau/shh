@@ -12,7 +12,7 @@
                             </h2>
                             <p class="text-muted mb-0">Manage analysis elements for this analysis type</p>
                         </div>
-                        <button wire:click="showCreateElementModal" class="btn btn-primary">
+                        <button wire:click="showCreateElementModal" class="btn btn-outline-primary element-add-btn">
                             <i class="mdi mdi-plus"></i> Add Element
                         </button>
                     </div>
@@ -56,11 +56,15 @@
                         <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Status</label>
-                                <select wire:model.live="statusFilter" class="form-select">
-                                    <option value="">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
+                                <div class="tag-select-container status-filter-container">
+                                    <div class="tag-select-input status-filter-input">
+                                        <select wire:model.live="statusFilter" class="form-select tag-select-native">
+                                            <option value="">All Status</option>
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -468,18 +472,6 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">LOD (Limit of Detection)</label>
-                                        <input type="number" wire:model="elementForm.lod" class="form-control" step="0.0001">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">HOD (Limit of Quantification)</label>
-                                        <input type="number" wire:model="elementForm.hod" class="form-control" step="0.0001">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
                                         <label class="form-label">Significant Figures</label>
                                         <input type="number" wire:model="elementForm.significant_figures" class="form-control" min="1" max="10">
                                     </div>
@@ -507,74 +499,6 @@
                                         <div class="form-check form-check-inline">
                                             <input type="checkbox" wire:model="elementForm.remark_is_manual" class="form-check-input" id="remark_is_manual">
                                             <label class="form-check-label" for="remark_is_manual">Remark is Manual</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Remedy Recommendation Section -->
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <h6 class="card-title text-primary">
-                                                <i class="mdi mdi-medical-bag"></i> Remedy Recommendations
-                                            </h6>
-                                            <div class="form-group mb-3">
-                                                <div class="form-check">
-                                                    <input type="checkbox" 
-                                                           wire:model.live="elementForm.recommend_remedies" 
-                                                           class="form-check-input" 
-                                                           id="recommend_remedies">
-                                                    <label class="form-check-label" for="recommend_remedies">
-                                                        Recommend Remedies if Test Fails
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            
-                                            @if($elementForm['recommend_remedies'] ?? false)
-                                                <div class="form-group mb-3">
-                                                    <label class="form-label">
-                                                        <i class="mdi mdi-medical-bag text-danger"></i> Remedy System
-                                                    </label>
-                                                    <div class="tag-select-container" wire:click="$set('showRemedyHeaderDropdown', true)">
-                                                        <div class="tag-select-input">
-                                                            <!-- Display selected remedy header -->
-                                                            @if($selectedRemedyHeaderName)
-                                                                <span class="tag-badge">
-                                                                    {{ $selectedRemedyHeaderName }}
-                                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearRemedyHeader"></i>
-                                                                </span>
-                                                            @endif
-                                                            
-                                                            <!-- Search Input -->
-                                                            <input type="text" 
-                                                                   wire:model.live="remedyHeaderSearch" 
-                                                                   wire:keyup="searchRemedyHeaders"
-                                                                   class="tag-input" 
-                                                                   placeholder="{{ $selectedRemedyHeaderName ? '' : 'Search remedy systems...' }}"
-                                                                   autocomplete="off">
-                                                        </div>
-                                                        
-                                                        <!-- Dropdown -->
-                                                        @if($showRemedyHeaderDropdown && count($filteredRemedyHeaders) > 0)
-                                                            <div class="tag-dropdown">
-                                                                @foreach($filteredRemedyHeaders as $remedyHeader)
-                                                                    <div class="tag-dropdown-item" wire:click.stop="selectRemedyHeader({{ $remedyHeader->id }}, '{{ $remedyHeader->name }}')">
-                                                                        {{ $remedyHeader->name }}
-                                                                    </div>
-                                                                @endforeach
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                    @error('elementForm.remedy_header_id') 
-                                                        <span class="text-danger">{{ $message }}</span> 
-                                                    @enderror
-                                                    <small class="form-text text-muted">
-                                                        Select the remedy system to recommend when this test fails
-                                                    </small>
-                                                </div>
-                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -745,6 +669,11 @@
 <style>
 .modal.show {
     display: block !important;
+}
+
+.element-add-btn {
+    border-radius: 8px;
+    padding: 0.48rem 1rem;
 }
 
 /* Prevent body scroll when modal is open */
@@ -985,6 +914,24 @@ document.addEventListener('click', function(e) {
     border-color: #007bff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     outline: none;
+}
+
+.status-filter-input {
+    padding: 0 12px;
+}
+
+.tag-select-native {
+    border: none;
+    box-shadow: none;
+    background-color: transparent;
+    padding: 10px 28px 10px 0;
+    min-height: 42px;
+}
+
+.tag-select-native:focus {
+    border: none;
+    box-shadow: none;
+    background-color: transparent;
 }
 
 .tag-badge {

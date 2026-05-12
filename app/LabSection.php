@@ -3,6 +3,7 @@
 namespace App;
 
 use App\Models\Equipments\Equipment;
+use App\ReportingUnit;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,5 +52,10 @@ class LabSection extends Model implements Auditable
     public function equipment(): BelongsTo
     {
         return $this->belongsTo(Equipment::class, 'equipment_id');
+    }
+
+    public function reportingUnit(): BelongsTo
+    {
+        return $this->belongsTo(ReportingUnit::class, 'reporting_unit');
     }
 }

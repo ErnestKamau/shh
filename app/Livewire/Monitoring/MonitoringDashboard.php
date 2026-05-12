@@ -12,6 +12,7 @@ use App\Services\Monitoring\MonitoringAssignmentService;
 use App\Services\Monitoring\MonitoringStatusService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class MonitoringDashboard extends Component
@@ -25,6 +26,19 @@ class MonitoringDashboard extends Component
     public ?string $activeTemplateId = null;
 
     public array $executionInputs = [];
+
+    public bool $showTemplateEditModal = false;
+
+    public ?string $editingTemplateId = null;
+
+    public array $templateEditInputs = [
+        'name' => '',
+        'document_control_number' => '',
+        'version' => 1,
+        'status' => 'draft',
+        'monitoring_category' => 'environmental',
+        'is_active' => true,
+    ];
 
     protected array $scopeMap = [
         'environmental' => 'environmental',
@@ -70,10 +84,141 @@ class MonitoringDashboard extends Component
     public function getTemplateEngineTemplatesProperty()
     {
         return MonitoringTemplate::query()
-            ->withCount(['fields', 'formulaRules'])
+            ->withCount(['fields', 'formulaRules', 'logs'])
             ->latest()
             ->limit(20)
             ->get();
+    }
+
+    public function openTemplateEdit(string $templateId): void
+    {
+        $template = MonitoringTemplate::query()
+            ->where('id', $templateId)
+            ->where('company_id', Auth::user()?->company_id)
+            ->first();
+
+        if (! $template) {
+            return;
+        }
+
+        $this->resetErrorBag();
+        $this->editingTemplateId = $template->id;
+        $this->templateEditInputs = [
+            'name' => (string) $template->name,
+            'document_control_number' => (string) ($template->document_control_number ?? ''),
+            'version' => (int) $template->version,
+            'status' => (string) $template->status,
+            'monitoring_category' => (string) $template->monitoring_category,
+            'is_active' => (bool) $template->is_active,
+        ];
+
+        $this->showTemplateEditModal = true;
+    }
+
+    public function closeTemplateEditModal(): void
+    {
+        $this->showTemplateEditModal = false;
+        $this->editingTemplateId = null;
+        $this->templateEditInputs = [
+            'name' => '',
+            'document_control_number' => '',
+            'version' => 1,
+            'status' => 'draft',
+            'monitoring_category' => 'environmental',
+            'is_active' => true,
+        ];
+        $this->resetErrorBag();
+    }
+
+    public function saveTemplateEdit(): void
+    {
+        if (! $this->editingTemplateId) {
+            return;
+        }
+
+        $validated = $this->validate([
+            'templateEditInputs.name' => 'required|string|max:255',
+            'templateEditInputs.document_control_number' => 'nullable|string|max:255',
+            'templateEditInputs.version' => 'required|integer|min:1',
+            'templateEditInputs.status' => 'required|string|max:32',
+            'templateEditInputs.monitoring_category' => 'required|in:environmental,equipment',
+            'templateEditInputs.is_active' => 'required|boolean',
+        ]);
+
+        $template = MonitoringTemplate::query()
+            ->where('id', $this->editingTemplateId)
+            ->where('company_id', Auth::user()?->company_id)
+            ->first();
+
+        if (! $template) {
+            $this->addError('templateEditInputs.name', 'Template not found.');
+            return;
+        }
+
+        $template->fill([
+            'name' => $validated['templateEditInputs']['name'],
+            'document_control_number' => blank($validated['templateEditInputs']['document_control_number'])
+                ? null
+                : $validated['templateEditInputs']['document_control_number'],
+            'version' => (int) $validated['templateEditInputs']['version'],
+            'status' => $validated['templateEditInputs']['status'],
+            'monitoring_category' => $validated['templateEditInputs']['monitoring_category'],
+            'is_active' => (bool) $validated['templateEditInputs']['is_active'],
+            'updated_by' => Auth::id(),
+        ]);
+        $template->save();
+
+        session()->flash('success', 'Template updated successfully.');
+        $this->closeTemplateEditModal();
+    }
+
+    public function clearTemplateLogs(string $templateId): void
+    {
+        $template = MonitoringTemplate::query()
+            ->where('id', $templateId)
+            ->where('company_id', Auth::user()?->company_id)
+            ->first();
+
+        if (! $template) {
+            return;
+        }
+
+        $deletedCount = DB::transaction(function () use ($template): int {
+            return (int) $template->logs()->delete();
+        });
+
+        if ($this->activeTemplateId === $template->id) {
+            $this->closeExecutionModal();
+        }
+
+        session()->flash('success', "Cleared {$deletedCount} captured log(s) for template {$template->name}.");
+    }
+
+    public function deleteTemplate(string $templateId): void
+    {
+        $template = MonitoringTemplate::query()
+            ->where('id', $templateId)
+            ->where('company_id', Auth::user()?->company_id)
+            ->first();
+
+        if (! $template) {
+            return;
+        }
+
+        DB::transaction(function () use ($template): void {
+            $template->logs()->delete();
+            $template->delete();
+        });
+
+        if ($this->activeTemplateId === $template->id) {
+            $this->closeExecutionModal();
+        }
+
+        if ($this->editingTemplateId === $template->id) {
+            $this->closeTemplateEditModal();
+        }
+
+        session()->flash('success', 'Template deleted successfully, including captured logs.');
     }
 
     public function getExecutionEquipmentsProperty()
