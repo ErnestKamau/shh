@@ -181,7 +181,7 @@ class CrmDashboard extends BaseCrmComponent
     public function getSamplesTrendProperty()
     {
         $start = Carbon::now()->subMonths(6)->startOfMonth();
-        $data = SampleHeader::selectRaw('YEAR(date_collected) as y, MONTH(date_collected) as m')
+        $data = SampleHeader::selectRaw('EXTRACT(YEAR FROM date_collected) as y, EXTRACT(MONTH FROM date_collected) as m')
             ->selectRaw('count(*) as c')
             ->whereNotNull('date_collected')
             ->where('date_collected', '>=', $start)
@@ -247,7 +247,7 @@ class CrmDashboard extends BaseCrmComponent
 
     public function getComplaintsTrendProperty()
     {
-        $data = Complaint::selectRaw('YEAR(date) as y, MONTH(date) as m')
+        $data = Complaint::selectRaw('EXTRACT(YEAR FROM date) as y, EXTRACT(MONTH FROM date) as m')
             ->selectRaw('count(*) as c')
             ->whereNotNull('date')
             ->where('date', '>=', now()->subMonths(12)->startOfMonth())
