@@ -1192,7 +1192,7 @@
 </div>
 <!-- Main Col END -->
 </div>
-	<livewire:a-i.ai-drawer :context="'lab'" />
+<livewire:a-i.ai-drawer :context="'lab'" />
 @endsection
 
 @section('script')

@@ -194,6 +194,19 @@
       "description": "Open audit findings placeholder until direct operational audit table mapping is confirmed",
       "output_format": "table",
       "ttl_seconds": 300
+    },
+    "qc_stability_report": {
+      "sql": "SELECT analyte_name, robust_cv_pct, pass_rate_pct, total_tests FROM reporting.v_qc_stability_metrics ORDER BY robust_cv_pct DESC LIMIT 10",
+      "description": "Top 10 analytes by variability (CV%) and their pass rates",
+      "output_format": "table",
+      "visualize": {"type": "bar", "labels": "analyte_name", "values": "robust_cv_pct", "title": "Analyte Variability (CV%)"},
+      "ttl_seconds": 300
+    },
+    "qc_out_of_control_events": {
+      "sql": "SELECT analyte_name, test_date, avg_value, center_line, control_status FROM reporting.v_qc_drift_trends WHERE control_status = 'OUT_OF_CONTROL' ORDER BY test_date DESC LIMIT 15",
+      "description": "Recent QC results that triggered Out-of-Control alerts",
+      "output_format": "table",
+      "ttl_seconds": 120
     }
   },
   "tat": {
@@ -220,6 +233,20 @@
       "description": "Completed TAT records within SLA over the last 30 days",
       "output_format": "percentage",
       "ttl_seconds": 300
+    },
+    "lab_tat_stage_summary": {
+      "sql": "SELECT workflow_stage, total_batches, overdue_batches, due_today_batches, ROUND(avg_days_to_target::numeric, 1) as avg_days_to_target FROM public.v_lab_tat_stage_summary ORDER BY total_batches DESC",
+      "description": "Summary of batches per workflow stage with overdue/due-today counts",
+      "output_format": "table",
+      "visualize": {"type": "bar", "labels": "workflow_stage", "values": "total_batches", "title": "Batches per Stage"},
+      "ttl_seconds": 120
+    },
+    "lab_tat_aging_report": {
+      "sql": "SELECT aging_bucket, batch_count FROM public.v_lab_tat_aging_buckets",
+      "description": "Distribution of active batches by their aging/overdue status",
+      "output_format": "table",
+      "visualize": {"type": "pie", "labels": "aging_bucket", "values": "batch_count", "title": "Aging Distribution"},
+      "ttl_seconds": 120
     }
   },
   "support": {

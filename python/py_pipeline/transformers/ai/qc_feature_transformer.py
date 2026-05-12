@@ -10,8 +10,8 @@ import pandas as pd
 import numpy as np
 from loguru import logger
 
-from py_etl.core.database import DatabaseManager
-from py_etl.config.config import settings
+from py_pipeline.core.database import DatabaseManager
+from py_pipeline.config.config import settings
 
 
 class QCFeatureTransformer:

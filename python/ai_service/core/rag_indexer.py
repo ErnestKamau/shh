@@ -20,9 +20,9 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy import text
 from loguru import logger as loguru_logger
 
-from py_etl.core.database import db_manager
-from ai_service.services.retrieval_service import RetrievalService
-from ai_service.core.document_processor import DocumentProcessor
+from python.py_pipeline.core.database import db_manager
+from python.ai_service.services.retrieval_service import RetrievalService
+from python.ai_service.core.document_processor import DocumentProcessor
 
 logger = logging.getLogger(__name__)
 

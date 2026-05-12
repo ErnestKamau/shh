@@ -12,6 +12,7 @@ class AiMonitoring extends BaseMasPage
     public array $intentBreakdown = [];
     public array $costAnalysis = [];
     public array $driftAlerts = [];
+    public array $recentLogs = [];
 
     public function mount(): void
     {
@@ -36,6 +37,7 @@ class AiMonitoring extends BaseMasPage
         $this->intentBreakdown = $service->getIntentBreakdown();
         $this->costAnalysis = $service->getCostAnalysis();
         $this->driftAlerts = $service->getFeatureDriftAlerts();
+        $this->recentLogs = $service->getRecentActivity();
     }
 
     public function render()

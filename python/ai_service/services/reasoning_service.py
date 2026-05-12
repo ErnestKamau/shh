@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from ai_service.services.ollama_service import OllamaService
+from python.ai_service.services.ollama_service import OllamaService
 
 logger = logging.getLogger(__name__)
 

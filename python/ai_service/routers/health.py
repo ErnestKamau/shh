@@ -4,7 +4,7 @@ import pandas as pd
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
-from py_etl.core.database import db_manager
+from python.py_pipeline.core.database import db_manager
 
 router = APIRouter(tags=["Health"])
 

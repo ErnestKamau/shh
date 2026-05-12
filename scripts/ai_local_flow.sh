@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS reporting.sync_runs (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS reporting.etl_quarantine (
+CREATE TABLE IF NOT EXISTS reporting.sync_quarantine (
   id BIGSERIAL PRIMARY KEY,
   run_id BIGINT,
   source_table TEXT,
@@ -169,12 +169,12 @@ CREATE TABLE IF NOT EXISTS reporting.etl_quarantine (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS reporting.etl_index_state (
+CREATE TABLE IF NOT EXISTS reporting.sync_index_state (
   table_key TEXT PRIMARY KEY,
-  last_etl_completed_at TIMESTAMPTZ,
+  last_sync_at TIMESTAMPTZ,
   rows_synced_last_run BIGINT,
-  etl_status TEXT,
-  etl_error TEXT,
+  sync_status TEXT,
+  sync_error TEXT,
   last_indexed_at TIMESTAMPTZ,
   last_source_watermark BIGINT,
   chunks_produced_last BIGINT,

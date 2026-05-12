@@ -152,4 +152,5 @@
 	<!-- Main Col END -->
 </div>
 <!-- body-row END -->
+<livewire:a-i.ai-drawer :context="'general'" />
 @endsection

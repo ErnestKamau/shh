@@ -311,6 +311,7 @@
 	</div>
 	<!-- Main Col END -->
 </div>
+<livewire:a-i.ai-drawer :context="'inventory'" />
 @endsection
 
 @section('script')

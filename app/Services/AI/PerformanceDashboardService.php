@@ -256,18 +256,13 @@ class PerformanceDashboardService
     }
 
     /**
-     * Get a/b test results (if applicable)
+     * Get recent AI activity logs
      * 
      * @return array
      */
-    public function getABTestResults(): array
+    public function getRecentActivity(): array
     {
-        // Placeholder: In production, query A/B test database
-        return [
-            'active_tests' => [],
-            'completed_tests' => [],
-            'winner' => null,
-        ];
+        return $this->analytics->getRecentLogs(20);
     }
 
     // ── ML Model Governance ──────────────────────────────────────────────────
