@@ -15,7 +15,7 @@ return [
     |
     */
 
-'default' => env('DB_CONNECTION', 'pgsql'),
+    'default' => env('DB__PSQL_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------
@@ -43,34 +43,54 @@ return [
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
         ],
 
-        'pgsql' => [
-            'driver' => 'pgsql',
+        'mysql' => [
+            'driver' => 'mysql',
             'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
+            'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'forge'),
             'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        'pgsql' => [
+            'driver' => 'pgsql',
+            'url' => env('DATABASE_URL'),
+            'host' => env('DB__PSQL_HOST', '127.0.0.1'),
+            'port' => env('DB__PSQL_PORT', '5432'),
+            'database' => env('DB__PSQL_DATABASE', 'forge'),
+            'username' => env('DB__PSQL_USERNAME', 'forge'),
+            'password' => env('DB__PSQL_PASSWORD', ''),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
-            'schema' => ['public', 'ai', 'reporting'],
+            'schema' => 'public',
             'sslmode' => 'prefer',
         ],
 
         'pgsql_ai' => [
             'driver' => 'pgsql',
-            'url' => env('DATABASE_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'forge'),
-            'username' => env('DB_USERNAME', 'forge'),
-            'password' => env('DB_PASSWORD', ''),
+            'url' => env('AI_DATABASE_URL'),
+            'host' => env('AI_DB_HOST', '127.0.0.1'),
+            'port' => env('AI_DB_PORT', '5432'),
+            'database' => env('AI_DB_DATABASE', 'forge'),
+            'username' => env('AI_DB_USERNAME', 'forge'),
+            'password' => env('AI_DB_PASSWORD', ''),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
-            'schema' => 'ai',
-            'sslmode' => 'prefer',
+            'schema' => env('AI_DB_SCHEMA', 'public'),
+            'sslmode' => env('AI_DB_SSLMODE', 'prefer'),
         ],
 
         'sqlsrv' => [

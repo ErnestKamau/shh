@@ -864,6 +864,62 @@
 												$testsRequiredCount = $instance->requested_tests_count;
 												$sampleCount = count($instance->getAllSampleDetails());
 												$attachmentCount = $instance->attachment_count ?? 0;
+												$instanceValues = collect($instance->values ?? []);
+												$pickValue = function (array $fieldHints) use ($instanceValues) {
+													$hintBag = collect($fieldHints)
+														->map(fn ($value) => strtolower(trim((string) $value)))
+														->filter()
+														->values();
+
+													if ($hintBag->isEmpty()) {
+														return '';
+													}
+
+													$match = $instanceValues->first(function ($row) use ($hintBag) {
+														$element = $row->element ?? null;
+														if (! $element) {
+															return false;
+														}
+
+														$mappingField = strtolower(trim((string) ($element->mapping_field ?? '')));
+														$elementName = strtolower(trim((string) ($element->name ?? '')));
+
+														foreach ($hintBag as $hint) {
+															if (($mappingField !== '' && str_contains($mappingField, $hint))
+																|| ($elementName !== '' && str_contains($elementName, $hint))) {
+																return true;
+															}
+														}
+
+														return false;
+													});
+
+													return trim((string) ($match->value ?? ''));
+												};
+
+												$instanceCustomerName = trim((string) (
+													$instance->crmCustomer->name
+													?? $pickValue(['customer_name', 'submitting_agency', 'name_of_client'])
+													?? ($instance->submittedBy->name ?? '')
+												));
+												$instanceCustomerEmail = trim((string) (
+													$instance->crmCustomer->email
+													?? $pickValue(['customer_email', 'email'])
+													?? ($instance->submittedBy->email ?? '')
+												));
+												$instanceCustomerPhone = trim((string) (
+													$instance->crmCustomer->telephone1
+													?? $pickValue(['mobile_telephone_no', 'office_telephone_no', 'telephone', 'phone', 'tel'])
+												));
+												$instanceCustomerAddress = trim((string) (
+													$instance->crmCustomer->postal_address
+													?? $instance->crmCustomer->physical_address
+													?? $pickValue(['physical_address', 'postal_address', 'address'])
+												));
+												$instanceRequestDate = trim((string) (
+													optional($instance->submitted_at)->format('Y-m-d')
+													?? $pickValue(['submitted_by_date', 'submission_date', 'date_of_seizure', 'date_of_sampling'])
+												));
 											@endphp
 											<tr>
 												<td class="align-middle">
@@ -873,13 +929,13 @@
 															value="{{ $instance->id }}"
 															data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
 															data-form-name="{{ $instance->submissionForm->name ?? 'Template Form' }}"
-															data-customer-name="{{ $instance->crmCustomer->name ?? ($instance->submittedBy->name ?? '') }}"
-															data-customer-email="{{ $instance->crmCustomer->email ?? '' }}"
-															data-customer-phone="{{ $instance->crmCustomer->telephone1 ?? '' }}"
-															data-customer-address="{{ $instance->crmCustomer->postal_address ?? '' }}"
+															data-customer-name="{{ $instanceCustomerName }}"
+															data-customer-email="{{ $instanceCustomerEmail }}"
+															data-customer-phone="{{ $instanceCustomerPhone }}"
+															data-customer-address="{{ $instanceCustomerAddress }}"
 															data-sample-type="{{ implode(', ', $formSampleTypeNames) }}"
 															data-number-samples="{{ $sampleCount }}"
-															data-request-date="{{ optional($instance->submitted_at)->format('Y-m-d') }}"
+															data-request-date="{{ $instanceRequestDate }}"
 															data-mode-of-work="{{ in_array($instance->priority, ['high', 'urgent'], true) ? 'Express' : 'Normal' }}">
 													@else
 														<span class="text-muted small">-</span>
@@ -1184,14 +1240,14 @@
 																	   name="portal_submission_id[]"
 																	   value="{{ $submission->id }}"
 																	   data-submission-number="{{ $submission->formatted_number }}"
-																   data-submission-customer="{{ $submission->customer->name ?? 'Unknown' }}"
-																   data-customer-name="{{ $submission->customer->name ?? '' }}"
-																   data-customer-email="{{ $submission->email ?? '' }}"
-																   data-customer-phone="{{ $submission->mobile_telephone_no ?? $submission->office_telephone_no ?? '' }}"
-																   data-customer-address="{{ $submission->physical_address ?? '' }}"
+																	   data-submission-customer="{{ $submission->customer->name ?? $submission->submitting_agency ?? 'Unknown' }}"
+																	   data-customer-name="{{ $submission->customer->name ?? $submission->submitting_agency ?? '' }}"
+																	   data-customer-email="{{ $submission->email ?? ($submission->customer->email ?? '') }}"
+																	   data-customer-phone="{{ $submission->mobile_telephone_no ?? $submission->office_telephone_no ?? ($submission->customer->telephone1 ?? '') }}"
+																	   data-customer-address="{{ $submission->physical_address ?? ($submission->customer->physical_address ?? $submission->customer->postal_address ?? '') }}"
 																   data-sample-type="{{ $submission->requestedAnalyses->pluck('analysis_label')->filter()->implode(', ') }}"
 																   data-number-samples="{{ $submission->number_of_samples ?? '' }}"
-																   data-request-date="{{ optional($submission->submitted_by_date)->format('Y-m-d') }}"
+																	   data-request-date="{{ optional($submission->submitted_by_date)->format('Y-m-d') ?? optional($submission->submission_date)->format('Y-m-d') }}"
 																   data-mode-of-work="{{ ($submission->mode_of_service_priority ?? 'normal') === 'express' ? 'Express' : 'Normal' }}">
 															</td>
 																<td rowspan="{{ $totalRows }}" nowrap>{{ $submission->customer->name ?? 'Unknown' }}</td>
@@ -3715,18 +3771,24 @@
 					rebuildSelectionLists();
 				});
 
-			$(document)
-				.off('show.bs.modal.workflowSelection', '#portal-request-reject-form-modal, #dispatch-to-labs-modal-review')
-				.on('show.bs.modal.workflowSelection', '#portal-request-reject-form-modal, #dispatch-to-labs-modal-review', function () {
-					rebuildSelectionLists();
-				});
+			// Bind directly on the modal elements — delegated $(document).on() with a custom namespace
+			// suffix (e.g. show.bs.modal.workflowSelection) never fires because Bootstrap triggers
+			// $.Event('show.bs.modal') with namespace ['bs','modal'] and jQuery's namespace matching
+			// requires the listener's namespaces to be a subset of the event's namespaces.
+			$('#portal-request-reject-form-modal').off('show.bs.modal.workflowSelection').on('show.bs.modal', function () {
+				rebuildSelectionLists();
+			});
+			$('#dispatch-to-labs-modal-review').off('show.bs.modal.workflowSelection').on('show.bs.modal', function () {
+				rebuildSelectionLists();
+			});
 
+			// Primary prefill trigger: fire rebuildSelectionLists the moment the user clicks a
+			// modal-trigger button, BEFORE Bootstrap opens the modal. This is the most reliable
+			// mechanism and handles Livewire re-render edge cases (delegated — survives DOM morphing).
 			$(document)
-				.off('shown.bs.modal.workflowSelection', '#portal-request-reject-form-modal, #dispatch-to-labs-modal-review')
-				.on('shown.bs.modal.workflowSelection', '#portal-request-reject-form-modal, #dispatch-to-labs-modal-review', function () {
-					setTimeout(function () {
-						rebuildSelectionLists();
-					}, 25);
+				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal-review"]')
+				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal-review"]', function () {
+					rebuildSelectionLists();
 				});
 
 			window.rebuildWorkflowSelectionLists = rebuildSelectionLists;

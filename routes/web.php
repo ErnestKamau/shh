@@ -162,6 +162,10 @@ Route::get('/system-settings/database-export/{format}', SystemDatabaseExportCont
     ->middleware(['auth', 'can:system.dashboard.export']);
 Route::get('/system-settings/module-visibility', 'ConfigurationController@moduleVisibility')->name('system-settings.module-visibility')->middleware('can:system.module-switching.view');
 Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware('can:system.translations.view');
+
+// Bulk Data Import
+Route::get('/bulk-import', 'ConfigurationController@bulkImport')->name('bulk-import')->middleware('can:settings.module.access');
+
 Route::post('/import-my-users', 'PersonnelController@importUser')->name('importUser');
 /* COMPANIES */
 Route::get('/companies', 'CompanyController@index')->name('companies')->middleware('can:system.companies.view');
