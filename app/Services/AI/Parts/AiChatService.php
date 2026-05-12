@@ -6,14 +6,31 @@ use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
+use App\Services\AI\AnalyticsCollectorService;
+
 class AiChatService extends AiBaseService
 {
+    protected AnalyticsCollectorService $analytics;
+
+    public function __construct(AnalyticsCollectorService $analytics)
+    {
+        parent::__construct();
+        $this->analytics = $analytics;
+    }
+
     /**
      * Stream chat response with SSE (Server-Sent Events).
      */
     public function streamChat(array $messages, array $options = [])
     {
         $traceId = $options['trace_id'] ?? Str::uuid()->toString();
+        $startTime = microtime(true);
+        $totalTokens = 0;
+        $modelName = $options['model'] ?? 'unknown';
+        $queryText = end($messages)['content'] ?? 'Unknown Query';
+        $userId = auth()->id();
+        $companyId = optional(auth()->user())->company_id;
+        $sessionId = $options['session_id'] ?? null;
         
         try {
             $payload = [
@@ -47,13 +64,68 @@ class AiChatService extends AiBaseService
                     if (strpos($event, "data: ") === 0) {
                         $jsonData = substr($event, 6);
                         if (trim($jsonData) !== '[DONE]') {
+                            $decoded = json_decode($jsonData, true);
+                            if (isset($decoded['usage']['total_tokens'])) {
+                                $totalTokens = $decoded['usage']['total_tokens'];
+                            }
+                            if (isset($decoded['model'])) {
+                                $modelName = $decoded['model'];
+                            }
+                            if (isset($decoded['route_name'])) {
+                                $options['route_name'] = $decoded['route_name'];
+                            }
+                            if (isset($decoded['confidence'])) {
+                                $options['confidence'] = $decoded['confidence'];
+                            }
                             yield $jsonData;
                         }
                     }
                 }
             }
+
+            // Log successful completion
+            $latencyMs = (int)((microtime(true) - $startTime) * 1000);
+            $this->analytics->recordModelPerformance(
+                $modelName,
+                $latencyMs,
+                $totalTokens,
+                true,
+                null,
+                $queryText,
+                $userId,
+                $companyId,
+                $sessionId
+            );
+
+            // Log routing if intent was detected
+            if (isset($options['route_name'])) {
+                $this->analytics->recordRouting(
+                    $options['route_name'],
+                    $modelName,
+                    $options['route_name'],
+                    (float) ($options['confidence'] ?? 1.0),
+                    $queryText,
+                    $userId,
+                    $companyId,
+                    $sessionId
+                );
+            }
         } catch (\Throwable $e) {
             $this->log('error', 'Simplified stream chat failed', ['error' => $e->getMessage()]);
+            
+            $latencyMs = (int)((microtime(true) - $startTime) * 1000);
+            $this->analytics->recordModelPerformance(
+                $modelName,
+                $latencyMs,
+                0,
+                false,
+                $e->getMessage(),
+                $queryText,
+                $userId,
+                $companyId,
+                $sessionId
+            );
+
             yield json_encode(['error' => 'AI Service unreachable']);
         }
     }
@@ -63,6 +135,10 @@ class AiChatService extends AiBaseService
      */
     public function chat(string $message, array $options = []): array
     {
+        $userId = auth()->id();
+        $companyId = optional(auth()->user())->company_id;
+        $sessionId = $options['session_id'] ?? null;
+
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(180)
                 ->connectTimeout(5)
@@ -75,12 +151,66 @@ class AiChatService extends AiBaseService
                 ]);
 
             if ($response->successful()) {
-                return $response->json();
+                $data = $response->json();
+                
+                // Log performance
+                $this->analytics->recordModelPerformance(
+                    $data['model'] ?? ($options['model'] ?? 'unknown'),
+                    (int) ($response->header('X-Response-Time') ?? 0),
+                    (int) ($data['usage']['total_tokens'] ?? 0),
+                    true,
+                    null,
+                    $message,
+                    $userId,
+                    $companyId,
+                    $sessionId
+                );
+
+                // Log routing if intent was detected
+                if (isset($data['route_name'])) {
+                    $this->analytics->recordRouting(
+                        $data['route_name'],
+                        $data['model'] ?? 'unknown',
+                        $data['route_name'],
+                        (float) ($data['confidence'] ?? 1.0),
+                        $message,
+                        $userId,
+                        $companyId,
+                        $sessionId
+                    );
+                }
+
+                return $data;
             }
+
+            $this->analytics->recordModelPerformance(
+                $options['model'] ?? 'unknown',
+                0,
+                0,
+                false,
+                "API Error: " . $response->status(),
+                $message,
+                $userId,
+                $companyId,
+                $sessionId
+            );
 
             return ['reply' => 'No response from AI service.', 'error' => true];
         } catch (\Exception $e) {
             $this->log('error', 'Chat failed', ['error' => $e->getMessage()]);
+            
+            $this->analytics->recordModelPerformance(
+                $options['model'] ?? 'unknown',
+                0,
+                0,
+                false,
+                $e->getMessage(),
+                $message,
+                $userId,
+                $companyId,
+                $sessionId
+            );
+
             return ['reply' => 'AI Service unreachable', 'error' => true];
         }
     }

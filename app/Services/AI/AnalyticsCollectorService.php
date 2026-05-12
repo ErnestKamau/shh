@@ -40,7 +40,11 @@ class AnalyticsCollectorService
         string $intent,
         string $selectedModel,
         string $recommendedModel,
-        float $confidence
+        float $confidence,
+        string $query = 'System Routing Trace',
+        ?string $userId = null,
+        ?string $companyId = null,
+        ?string $sessionId = null
     ): void {
         $key = "routing_{$intent}_{$selectedModel}";
 
@@ -66,14 +70,17 @@ class AnalyticsCollectorService
 
         // Persist to DB
         try {
-            DB::table('ai_analytics_logs')->insert([
-                'intent' => $intent,
-                'model_used' => $selectedModel,
+            DB::connection('pgsql_ai')->table('ai_request_logs')->insert([
+                'route_name' => $intent,
+                'mode' => $selectedModel,
                 'confidence' => $confidence,
                 'success' => true,
-                'metadata' => json_encode(['recommended_model' => $recommendedModel]),
+                'query' => $query,
+                'user_id' => $userId,
+                'company_id' => $companyId,
+                'session_id' => $sessionId,
+                'response_preview' => json_encode(['recommended_model' => $recommendedModel]),
                 'created_at' => now(),
-                'updated_at' => now(),
             ]);
         } catch (\Exception $e) {
             Log::error('AnalyticsCollector: Failed to persist routing log: ' . $e->getMessage());
@@ -95,7 +102,11 @@ class AnalyticsCollectorService
         int $latencyMs,
         int $tokensUsed,
         bool $success,
-        ?string $error = null
+        ?string $error = null,
+        string $query = 'System Performance Trace',
+        ?string $userId = null,
+        ?string $companyId = null,
+        ?string $sessionId = null
     ): void {
         $key = "model_{$model}";
 
@@ -137,14 +148,17 @@ class AnalyticsCollectorService
 
         // Persist to DB
         try {
-            DB::table('ai_analytics_logs')->insert([
-                'model_used' => $model,
+            DB::connection('pgsql_ai')->table('ai_request_logs')->insert([
+                'mode' => $model,
                 'latency_ms' => $latencyMs,
-                'tokens_used' => $tokensUsed,
+                'source_count' => $tokensUsed,
                 'success' => $success,
                 'error_message' => $error,
+                'query' => $query,
+                'user_id' => $userId,
+                'company_id' => $companyId,
+                'session_id' => $sessionId,
                 'created_at' => now(),
-                'updated_at' => now(),
             ]);
         } catch (\Exception $e) {
             Log::error('AnalyticsCollector: Failed to persist performance log: ' . $e->getMessage());
@@ -197,7 +211,7 @@ class AnalyticsCollectorService
      */
     public function recordStreamStart(
         ?string $sessionId = null,
-        ?int $userId = null,
+        ?string $userId = null,
         ?int $conversationId = null,
         string $question = ''
     ): void {
@@ -233,7 +247,7 @@ class AnalyticsCollectorService
      */
     public function recordStreamEnd(
         ?string $sessionId = null,
-        ?int $userId = null,
+        ?string $userId = null,
         ?bool $completedNormally = true
     ): void {
         $key = "stream_{$sessionId}";
@@ -297,8 +311,6 @@ class AnalyticsCollectorService
                 ->select('route_name as intent', DB::raw('count(*) as count'), DB::raw('avg(latency_ms) as avg_latency'))
                 ->where('created_at', '>=', now()->subDays(30))
                 ->whereNotNull('route_name')
-                ->where('session_id', '!=', 'local-validation-001') // Filter system probes
-                ->whereNotNull('user_id') // Only human activity
                 ->groupBy('route_name')
                 ->get();
 
@@ -364,8 +376,6 @@ class AnalyticsCollectorService
                     DB::raw('avg(case when source_count > 0 then source_count else 0 end) as avg_tokens') // Using source_count as proxy if tokens not avail
                 )
                 ->where('created_at', '>=', now()->subDays(30))
-                ->where('session_id', '!=', 'local-validation-001')
-                ->whereNotNull('user_id')
                 ->groupBy('mode')
                 ->get();
 
@@ -464,7 +474,8 @@ class AnalyticsCollectorService
         $currError = $this->calculateErrorRate();
 
         // 2. Fetch historical scores from DB (last 7 days)
-        $dbStats = DB::table('ai_analytics_logs')
+        $dbStats = DB::connection('pgsql_ai')
+            ->table('ai_request_logs')
             ->where('created_at', '>=', now()->subDays(7))
             ->selectRaw('count(*) as total, sum(case when success then 1 else 0 end) as success_count')
             ->first();
@@ -564,10 +575,9 @@ class AnalyticsCollectorService
                 ->table('ai_request_logs')
                 ->select([
                     'id', 'trace_id', 'query', 'mode', 'route_name', 
-                    'latency_ms', 'confidence', 'success', 'created_at'
+                    'latency_ms', 'confidence', 'success', 'created_at',
+                    'user_id', 'session_id'
                 ])
-                ->where('session_id', '!=', 'local-validation-001')
-                ->whereNotNull('user_id')
                 ->orderByDesc('created_at')
                 ->limit($limit)
                 ->get()

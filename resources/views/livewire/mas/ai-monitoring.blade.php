@@ -213,7 +213,14 @@
                                         <td>
                                             <div class="d-flex px-2 py-1">
                                                 <div class="d-flex flex-column justify-content-center">
-                                                    <h6 class="mb-0 text-xs">{{ \Carbon\Carbon::parse($log['created_at'])->format('H:i:s') }}</h6>
+                                                    <div class="d-flex align-items-center">
+                                                        <h6 class="mb-0 text-xs">{{ \Carbon\Carbon::parse($log['created_at'])->format('H:i:s') }}</h6>
+                                                        @if(empty($log['user_id']))
+                                                            <span class="badge badge-xxs bg-light text-muted ml-2 border" style="font-size: 8px;">SYSTEM</span>
+                                                        @else
+                                                            <span class="badge badge-xxs bg-soft-purple text-purple ml-2 border" style="font-size: 8px;">USER</span>
+                                                        @endif
+                                                    </div>
                                                     <p class="text-xxs text-muted mb-0">{{ \Carbon\Carbon::parse($log['created_at'])->format('M d') }}</p>
                                                 </div>
                                             </div>
