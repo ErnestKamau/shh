@@ -82,6 +82,16 @@
                         </div>
                         <div class="col-md-2">
                             <div class="form-group mb-3">
+                                <label class="form-label fw-bold">AI Status</label>
+                                <select wire:model.live="kbFilter" class="form-select">
+                                    <option value="">All</option>
+                                    <option value="indexed">Indexed</option>
+                                    <option value="not_indexed">Not Indexed</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Per Page</label>
                                 <select wire:model.live="perPage" class="form-select">
                                     @foreach($perPageOptions as $option)
@@ -138,6 +148,7 @@
                                         <th>Owner</th>
                                         <th>Status</th>
                                         <th>Expiry Date</th>
+                                        <th>AI Knowledge</th>
                                         <th>Created</th>
                                         <th>Actions</th>
                                     </tr>
@@ -180,6 +191,20 @@
                                                     <span class="text-muted">No expiry</span>
                                                 @endif
                                             </td>
+                                            <td>
+                                                @if($item['document']->is_kb_indexed)
+                                                    <span class="badge badge-success" title="Last Indexed: {{ $item['document']->kb_last_indexed_at?->format('M d, Y H:i') }}">
+                                                        <i class="mdi mdi-robot"></i> Indexed
+                                                    </span>
+                                                    @if($item['document']->kb_indexing_status === 'failed')
+                                                        <br><small class="text-danger">Indexing failed</small>
+                                                    @endif
+                                                @else
+                                                    <span class="badge badge-outline-secondary">
+                                                        <i class="mdi mdi-robot-off"></i> Not Indexed
+                                                    </span>
+                                                @endif
+                                            </td>
                                             <td>{{ $item['document']->created_at->format('M d, Y') }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">
@@ -187,6 +212,11 @@
                                                             class="btn btn-sm mr-2 btn-outline-warning" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button wire:click="toggleAIIndexing({{ $item['document']->id }})" 
+                                                            class="btn btn-sm mr-2 {{ $item['document']->is_kb_indexed ? 'btn-success' : 'btn-outline-secondary' }}" 
+                                                            title="{{ $item['document']->is_kb_indexed ? 'Remove from AI' : 'Index in AI' }}">
+                                                        <i class="mdi mdi-robot"></i>
                                                     </button>
                                                     <a href="{{ route('dms.download', $item['document']->id) }}" 
                                                        class="btn btn-sm mr-2 btn-outline-primary" 
@@ -624,6 +654,68 @@
                                 </div>
                             </div>
                             <!-- End Access Control Section -->
+
+                            <!-- AI Knowledge Base Section -->
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="card mt-3 border">
+                                        <div class="card-header bg-soft-info">
+                                            <h6 class="mb-0">
+                                                <i class="mdi mdi-robot text-primary"></i> AI Knowledge Base Settings
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check form-switch mb-3">
+                                                <input class="form-check-input" type="checkbox" wire:model="documentForm.is_kb_indexed" id="is_kb_indexed">
+                                                <label class="form-check-label fw-bold" for="is_kb_indexed">
+                                                    Index in AI Knowledge Base
+                                                </label>
+                                                <p class="text-muted small">When enabled, this document's content will be searchable by the AI assistant.</p>
+                                            </div>
+
+                                            @if($documentForm['is_kb_indexed'])
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="form-group mb-3">
+                                                            <label class="form-label small fw-bold">KB Collection</label>
+                                                            <input type="text" wire:model="documentForm.kb_collection" class="form-control form-control-sm" placeholder="e.g. Policies, Procedures">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="form-group mb-3">
+
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="form-group mb-3">
+                                                            <label class="form-label small fw-bold">Chunk Size</label>
+                                                            <input type="number" wire:model="documentForm.kb_chunk_size" class="form-control form-control-sm">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="form-group mb-3">
+                                                            <label class="form-label small fw-bold">Chunk Overlap</label>
+                                                            <input type="number" wire:model="documentForm.kb_chunk_overlap" class="form-control form-control-sm">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-12">
+                                                        <div class="form-group">
+                                                            <label class="form-label small fw-bold">Manual Content Override (Optional)</label>
+                                                            <textarea wire:model="documentForm.kb_content" class="form-control form-control-sm" rows="5" placeholder="If provided, this text will be indexed instead of the file content."></textarea>
+                                                            <small class="text-muted">Use this if the file is an image or needs custom context for the AI.</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- End AI Section -->
                         </form>
                     </div>
                     <div class="modal-footer">
