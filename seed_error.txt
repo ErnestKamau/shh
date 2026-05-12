@@ -1,0 +1,140 @@
+
+
+   INFO  Seeding database.  
+
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "file_name" of relation "documents" violates not-null constraint
+DETAIL:  Failing row contains (019e1c2c-6d6f-7372-907b-ea7ef0468852, 019e1c29-34ac-730e-9e78-9ae2db41f1bd, SOP-TEST-001, SOP-TEST-001: Laboratory Safety Protocol, null, test/sop001.pdf, null, null, null, 019e0480-7c28-71ab-9e8b-7b230694931a, 019e0480-7c28-71ab-9e8b-7b230694931a, 1, 0, approved, null, null, null, f, null, null, null, null, f, null, null, 2026-05-12 15:32:14, 2026-05-12 15:32:14, null, t, null, null, null, null, 800, 100, LABORATORY SAFETY PROTOCOL v1.0: Always wear PPE. No eating in l...). (Connection: pgsql, Host: 127.0.0.1, Port: 5432, Database: gcla, SQL: insert into "documents" ("title", "document_number", "document_type_id", "kb_content", "is_kb_indexed", "status", "owner_id", "created_by", "file_path", "version_number", "amendment_count", "id", "updated_at", "created_at") values (SOP-TEST-001: Laboratory Safety Protocol, SOP-TEST-001, 019e1c29-34ac-730e-9e78-9ae2db41f1bd, LABORATORY SAFETY PROTOCOL v1.0: Always wear PPE. No eating in lab. Report spills., 1, approved, 019e0480-7c28-71ab-9e8b-7b230694931a, 019e0480-7c28-71ab-9e8b-7b230694931a, test/sop001.pdf, 1, 0, 019e1c2c-6d6f-7372-907b-ea7ef0468852, 2026-05-12 15:32:14, 2026-05-12 15:32:14))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor/laravel/framework/src/Illuminate/Database/Connection.php:584
+      PDOException::("SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "file_name" of relation "documents" violates not-null constraint
+DETAIL:  Failing row contains (019e1c2c-6d6f-7372-907b-ea7ef0468852, 019e1c29-34ac-730e-9e78-9ae2db41f1bd, SOP-TEST-001, SOP-TEST-001: Laboratory Safety Protocol, null, test/sop001.pdf, null, null, null, 019e0480-7c28-71ab-9e8b-7b230694931a, 019e0480-7c28-71ab-9e8b-7b230694931a, 1, 0, approved, null, null, null, f, null, null, null, null, f, null, null, 2026-05-12 15:32:14, 2026-05-12 15:32:14, null, t, null, null, null, null, 800, 100, LABORATORY SAFETY PROTOCOL v1.0: Always wear PPE. No eating in l...).")
+
+  2   vendor/laravel/framework/src/Illuminate/Database/Connection.php:584
+      PDOStatement::execute()
+
+  3   vendor/laravel/framework/src/Illuminate/Database/Connection.php:827
+      Illuminate\Database\Connection::{closure:Illuminate\Database\Connection::statement():573}()
+
+  4   vendor/laravel/framework/src/Illuminate/Database/Connection.php:794
+      Illuminate\Database\Connection::runQueryCallback()
+
+  5   vendor/laravel/framework/src/Illuminate/Database/Connection.php:573
+      Illuminate\Database\Connection::run()
+
+  6   vendor/laravel/framework/src/Illuminate/Database/Connection.php:537
+      Illuminate\Database\Connection::statement()
+
+  7   vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4121
+      Illuminate\Database\Connection::insert()
+
+  8   vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2237
+      Illuminate\Database\Query\Builder::insert()
+
+  9   vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1412
+      Illuminate\Database\Eloquent\Builder::__call()
+
+  10  vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1240
+      Illuminate\Database\Eloquent\Model::performInsert()
+
+  11  vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1219
+      Illuminate\Database\Eloquent\Model::save()
+
+  12  vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+      Illuminate\Database\Eloquent\Builder::{closure:Illuminate\Database\Eloquent\Builder::create():1218}()
+  13  vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1218
+
+  14  vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php:23
+      Illuminate\Database\Eloquent\Builder::create()
+
+  15  vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:2540
+      Illuminate\Database\Eloquent\Model::forwardCallTo()
+
+  16  vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:2556
+      Illuminate\Database\Eloquent\Model::__call()
+
+  17  database/seeders/TestDocumentSeeder.php:28
+      Illuminate\Database\Eloquent\Model::__callStatic()
+
+  18  vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php:36
+      Database\Seeders\TestDocumentSeeder::run()
+
+  19  vendor/laravel/framework/src/Illuminate/Container/Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+  20  vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php:96
+      Illuminate\Container\Util::unwrapIfClosure()
+
+  21  vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php:35
+      Illuminate\Container\BoundMethod::callBoundMethod()
+
+  22  vendor/laravel/framework/src/Illuminate/Container/Container.php:799
+      Illuminate\Container\BoundMethod::call()
+
+  23  vendor/laravel/framework/src/Illuminate/Database/Seeder.php:184
+      Illuminate\Container\Container::call()
+
+  24  vendor/laravel/framework/src/Illuminate/Database/Seeder.php:193
+      Illuminate\Database\Seeder::{closure:Illuminate\Database\Seeder::__invoke():183}()
+
+  25  vendor/laravel/framework/src/Illuminate/Database/Console/Seeds/SeedCommand.php:71
+      Illuminate\Database\Seeder::__invoke()
+
+  26  vendor/laravel/framework/src/Illuminate/Database/Eloquent/Concerns/GuardsAttributes.php:157
+      Illuminate\Database\Console\Seeds\SeedCommand::{closure:Illuminate\Database\Console\Seeds\SeedCommand::handle():70}()
+
+  27  vendor/laravel/framework/src/Illuminate/Database/Console/Seeds/SeedCommand.php:70
+      Illuminate\Database\Eloquent\Model::unguarded()
+
+  28  vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php:36
+      Illuminate\Database\Console\Seeds\SeedCommand::handle()
+
+  29  vendor/laravel/framework/src/Illuminate/Container/Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+  30  vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php:96
+      Illuminate\Container\Util::unwrapIfClosure()
+
+  31  vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php:35
+      Illuminate\Container\BoundMethod::callBoundMethod()
+
+  32  vendor/laravel/framework/src/Illuminate/Container/Container.php:799
+      Illuminate\Container\BoundMethod::call()
+
+  33  vendor/laravel/framework/src/Illuminate/Console/Command.php:211
+      Illuminate\Container\Container::call()
+
+  34  vendor/symfony/console/Command/Command.php:341
+      Illuminate\Console\Command::execute()
+
+  35  vendor/laravel/framework/src/Illuminate/Console/Command.php:180
+      Symfony\Component\Console\Command\Command::run()
+
+  36  vendor/symfony/console/Application.php:1117
+      Illuminate\Console\Command::run()
+
+  37  vendor/symfony/console/Application.php:356
+      Symfony\Component\Console\Application::doRunCommand()
+
+  38  vendor/symfony/console/Application.php:195
+      Symfony\Component\Console\Application::doRun()
+
+  39  vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php:198
+      Symfony\Component\Console\Application::run()
+
+  40  artisan:35
+      Illuminate\Foundation\Console\Kernel::handle()
+

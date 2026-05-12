@@ -281,7 +281,7 @@ return new class extends Migration
                     embedding vector(1536),
                     metadata JSONB,
                     required_permission VARCHAR(150),
-                    company_id BIGINT,
+                    company_id VARCHAR(128),
                     expires_at TIMESTAMPTZ,
                     source_lineage_url TEXT,
                     tsvector_content TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', COALESCE(content, ''))) STORED,

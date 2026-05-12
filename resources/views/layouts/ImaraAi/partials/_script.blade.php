@@ -1,9 +1,15 @@
 const KNOWLEDGE_SEARCH_URL  = '{{ route('ai.knowledge.search') }}';
 const ASK_STREAM_URL        = '{{ route('ai.knowledge.ask-stream') }}';
+const LOOKUP_DOCS_URL       = '{{ route('ai.lookup-documents') }}';
 const CSRF_TOKEN            = '{{ csrf_token() }}';
 const CONVOS_URL            = '{{ route('ai.conversations.list') }}';
 const CREATE_CONVO_URL      = '{{ route('ai.conversations.create') }}';
 const CONVO_MESSAGES_BASE   = '/imara-ai/conversations';
+
+let selectedReferences      = []; 
+let mentionSearchActive     = false;
+let mentionResults          = [];
+let mentionIndex            = -1;
 @auth
 const USER_INITIALS = '{{ strtoupper(substr(auth()->user()->name ?? "U", 0, 1)) }}';
 @else
@@ -281,12 +287,17 @@ async function createConversationOnServer(title) {
     return json.conversation;
 }
 
-async function persistMessage(convoId, role, content, sources) {
+async function persistMessage(convoId, role, content, sources, metadata) {
     try {
         const res  = await fetch(`${CONVO_MESSAGES_BASE}/${convoId}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
-            body: JSON.stringify({ role, content, sources: sources || null }),
+            body: JSON.stringify({ 
+                role, 
+                content, 
+                sources: sources || null,
+                metadata: metadata || null
+            }),
         });
         const json = await res.json();
         return json.message?.id ?? null;
@@ -307,9 +318,9 @@ async function loadConversationMessages(convoId) {
         hideThinking();
         (json.messages || []).forEach(msg => {
             if (msg.role === 'user') {
-                addUserMessage(msg.content, msg.created_at);
+                addUserMessage(msg.content, msg.created_at, msg.metadata);
             } else {
-                addBotMessage(msg.content, msg.sources || [], msg.created_at, { id: msg.id });
+                addBotMessage(msg.content, msg.sources || [], msg.created_at, { id: msg.id }, msg.metadata);
             }
         });
         if (!json.messages || !json.messages.length) {
@@ -493,10 +504,93 @@ messageInput?.addEventListener('input', function () {
 });
 
 // ── API call ──────────────────────────────────────────────────────────────
-async function fetchKnowledge(userInput, attachmentId) {
+// ── @Mention Logic ────────────────────────────────────────────────────────
+const mentionSuggestions = document.getElementById('mentionSuggestions');
+const selectedReferencesBar = document.getElementById('selectedReferencesBar');
+
+function updateMentionSuggestions(query) {
+    console.log('[Mention] Searching for:', query);
+    // Trigger search immediately, even if query is empty (just @)
+    const url = query ? `${LOOKUP_DOCS_URL}?q=${encodeURIComponent(query)}` : LOOKUP_DOCS_URL;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            mentionResults = data.results || [];
+            if (mentionResults.length === 0) {
+                mentionSuggestions.style.display = 'none';
+                return;
+            }
+            renderMentionList();
+        })
+        .catch(err => console.error('Mention lookup failed', err));
+}
+
+function renderMentionList() {
+    mentionIndex = -1;
+    mentionSuggestions.innerHTML = mentionResults.map((doc, i) => `
+        <div class="mention-item" data-index="${i}" onclick="selectMention(${i})">
+            <i class="mdi mdi-file-document-outline"></i>
+            <span>${escapeHtml(doc.title)}</span>
+        </div>
+    `).join('');
+    mentionSuggestions.style.display = 'block';
+}
+
+function selectMention(index) {
+    const doc = mentionResults[index];
+    if (!doc) return;
+
+    // Add to selected array if not already there
+    if (!selectedReferences.find(r => r.id === doc.id)) {
+        selectedReferences.push(doc);
+        renderSelectedReferences();
+    }
+
+    // Replace @search with just a space
+    const val = messageInput.value;
+    const lastAt = val.lastIndexOf('@');
+    messageInput.value = val.substring(0, lastAt).trim() + ' ';
+    
+    mentionSuggestions.style.display = 'none';
+    mentionSearchActive = false;
+    messageInput.focus();
+}
+
+function renderSelectedReferences() {
+    if (!selectedReferencesBar) return;
+    if (selectedReferences.length === 0) {
+        selectedReferencesBar.style.display = 'none';
+        return;
+    }
+
+    selectedReferencesBar.innerHTML = selectedReferences.map((ref, i) => `
+        <div class="reference-tag">
+            <i class="mdi mdi-file-link-outline"></i>
+            <span>${escapeHtml(ref.title)}</span>
+            <span class="remove-ref" onclick="removeReference(${i})">&times;</span>
+        </div>
+    `).join('');
+    selectedReferencesBar.style.display = 'flex';
+}
+
+function removeReference(index) {
+    selectedReferences.splice(index, 1);
+    renderSelectedReferences();
+}
+window.selectMention = selectMention;
+window.removeReference = removeReference;
+
+async function fetchKnowledge(userInput, attachmentId, manualReferenceIds) {
     currentAbortController = new AbortController();
     const body = { query: userInput, limit: 5 };
     if (attachmentId) body.attachment_id = attachmentId;
+    
+    // Support passed manualReferenceIds (for retries) or use currently selected ones
+    const refIds = manualReferenceIds || (selectedReferences ? selectedReferences.map(r => r.id) : []);
+    if (refIds.length > 0) {
+        body.reference_ids = refIds;
+    }
     try {
     const response = await fetch(KNOWLEDGE_SEARCH_URL, {
         method: 'POST',
@@ -745,6 +839,15 @@ function renderSources(sources) {
     return `<div class="msg-sources">${tags}</div>`;
 }
 
+function renderManualReferences(refs) {
+    if (!refs || refs.length === 0) return '';
+    return `
+        <div class="message-manual-references">
+            <div class="ref-label"><i class="mdi mdi-book-open-variant"></i> Referenced Documents:</div>
+            ${refs.map(r => `<span class="msg-ref-tag">${escapeHtml(r.title)}</span>`).join('')}
+        </div>`;
+}
+
 function addUserMessage(text, isoTimestamp, metadata) {
     metadata = metadata || {};
     const row = document.createElement('div');
@@ -764,7 +867,10 @@ function addUserMessage(text, isoTimestamp, metadata) {
 
     const row_innerHTML = `
         <div class="user-bubble-wrap">
-            <div class="user-bubble">${escapeHtml(text)}</div>
+            <div class="user-bubble" data-refs='${JSON.stringify(metadata.manual_references || [])}'>
+                ${escapeHtml(text)}
+                ${renderManualReferences(metadata.manual_references)}
+            </div>
             <div class="msg-row-actions">
                 <button class="msg-action-btn copy-btn" title="Copy message"><i class="mdi mdi-content-copy"></i></button>
                 <button class="msg-action-btn edit-btn" title="Edit message"><i class="mdi mdi-pencil-outline"></i></button>
@@ -901,7 +1007,10 @@ function addBotMessage(text, sources, isoTimestamp, msgIdRef, metadata) {
             <div class="msg-avatar bot-av"><i class="mdi mdi-head-lightbulb"></i></div>
             <div class="msg-body">
                 <div class="msg-name">Imara AI <span class="msg-timestamp">${formatTimestamp(isoTimestamp)}</span>${retryLabel}</div>
-                <div class="msg-content" data-raw="${escapeHtml(text)}">${renderMarkdown(text)}</div>
+                <div class="msg-content" data-raw="${escapeHtml(text)}">
+                    ${renderMarkdown(text)}
+                    ${renderManualReferences(metadata.manual_references)}
+                </div>
                 ${hasPrediction ? predictionHtml : renderSources(sources)}
                 <div class="msg-row-actions">
                     <button class="msg-action-btn speak-btn" title="Speak response"><i class="mdi mdi-volume-high"></i></button>
@@ -961,15 +1070,19 @@ function addBotMessage(text, sources, isoTimestamp, msgIdRef, metadata) {
             console.error('Could not find user message for retry');
             return;
         }
-        const userText = userMessage.querySelector('.user-bubble')?.innerText || '';
+        const userBubble = userMessage.querySelector('.user-bubble');
+        const userText = userBubble?.innerText || '';
+        const userRefs = JSON.parse(userBubble?.getAttribute('data-refs') || '[]');
+        const userRefIds = userRefs.map(r => r.id);
+
         const currentRetryCount = (metadata.retry_count || 0) + 1;
         
         // Show thinking indicator
         showThinking();
         
         try {
-            // Fetch new response
-            const result = await fetchKnowledge(userText);
+            // Fetch new response with same references
+            const result = await fetchKnowledge(userText, null, userRefIds);
             hideThinking();
             
             if (result.aborted) return; // silently cancelled
@@ -977,19 +1090,18 @@ function addBotMessage(text, sources, isoTimestamp, msgIdRef, metadata) {
                 addBotMessage(result.error, [], new Date().toISOString(), {}, {
                     parent_message_id: msgIdRef.id,
                     retry_count: currentRetryCount,
+                    manual_references: userRefs
                 });
             } else {
                 const retryMsgIdRef = { id: null };
                 const retryMeta = Object.assign({}, result.metadata || {}, {
                     parent_message_id: msgIdRef.id,
                     retry_count: currentRetryCount,
+                    manual_references: userRefs
                 });
                 addBotMessage(result.reply, result.sources, new Date().toISOString(), retryMsgIdRef, retryMeta);
                 if (currentConvoId) {
-                    persistMessage(currentConvoId, 'bot', result.reply, result.sources, {
-                        parent_message_id: msgIdRef.id,
-                        retry_count: currentRetryCount,
-                    })
+                    persistMessage(currentConvoId, 'bot', result.reply, result.sources, retryMeta)
                     .then(id => { retryMsgIdRef.id = id; });
                 }
             }
@@ -1105,13 +1217,18 @@ async function sendMessage() {
 
     hideWelcome();
 
+    const refsToPersist = selectedReferences.map(r => ({ id: r.id, title: r.title }));
+    const refIdsToSend  = selectedReferences.map(r => r.id);
+
     const historyReady = saveToHistory(message);
-    addUserMessage(message);
+    addUserMessage(message, null, { manual_references: refsToPersist });
     historyReady.then(() => {
-        if (currentConvoId) persistMessage(currentConvoId, 'user', message, null);
+        if (currentConvoId) persistMessage(currentConvoId, 'user', message, null, { manual_references: refsToPersist });
     });
 
     messageInput.value        = '';
+    selectedReferences        = [];
+    renderSelectedReferences();
     messageInput.style.height = 'auto';
     sendButton.style.display  = 'none';
     stopButton.style.display  = 'flex';
@@ -1135,7 +1252,10 @@ async function sendMessage() {
                 'X-CSRF-TOKEN': CSRF_TOKEN,
                 'Accept': 'text/event-stream',
             },
-            body: JSON.stringify({ question: message }),
+            body: JSON.stringify({ 
+                question: message,
+                reference_ids: refIdsToSend
+            }),
             signal: currentAbortController.signal,
         });
 
@@ -1623,9 +1743,72 @@ sidebarSearchClear?.addEventListener('click', () => {
 sendButton?.addEventListener('click', sendMessage);
 
 messageInput?.addEventListener('keydown', function (e) {
+    // Mention navigation
+    if (mentionSearchActive && mentionSuggestions.style.display !== 'none') {
+        const items = mentionSuggestions.querySelectorAll('.mention-item');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            mentionIndex = (mentionIndex + 1) % items.length;
+            updateMentionActiveState(items);
+            return;
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            mentionIndex = (mentionIndex - 1 + items.length) % items.length;
+            updateMentionActiveState(items);
+            return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            if (mentionIndex >= 0) {
+                e.preventDefault();
+                selectMention(mentionIndex);
+                return;
+            }
+        }
+        if (e.key === 'Escape') {
+            mentionSuggestions.style.display = 'none';
+            mentionSearchActive = false;
+            return;
+        }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
+    }
+});
+
+function updateMentionActiveState(items) {
+    items.forEach((item, idx) => {
+        item.classList.toggle('active', idx === mentionIndex);
+        if (idx === mentionIndex) item.scrollIntoView({ block: 'nearest' });
+    });
+}
+
+document.addEventListener('input', function (e) {
+    if (e.target.id !== 'messageInput') return;
+    
+    const input = e.target;
+    const val = input.value;
+    const cursorPos = input.selectionStart;
+    const textBefore = val.substring(0, cursorPos);
+    const lastAt = textBefore.lastIndexOf('@');
+
+    console.log('[Mention] Delegated input detected. Last @ at:', lastAt);
+
+    if (lastAt !== -1 && (lastAt === 0 || /\s/.test(textBefore[lastAt - 1]))) {
+        const query = textBefore.substring(lastAt + 1);
+        console.log('[Mention] Trigger active. Query:', query);
+        if (!/\s/.test(query)) {
+            mentionSearchActive = true;
+            updateMentionSuggestions(query);
+        } else {
+            mentionSearchActive = false;
+            mentionSuggestions.style.display = 'none';
+        }
+    } else {
+        mentionSearchActive = false;
+        mentionSuggestions.style.display = 'none';
     }
 });
 

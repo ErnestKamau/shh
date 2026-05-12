@@ -1851,6 +1851,10 @@ Route::post('/imara-ai/ask-stream', 'AI\KnowledgeAssistantController@askStream')
   ->middleware(['auth', 'twofactor', 'throttle:20,1'])
   ->name('ai.knowledge.ask-stream');
 
+Route::get('/imara-ai/lookup-documents', 'AI\KnowledgeAssistantController@lookupDocuments')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.lookup-documents');
+
 Route::post('/imara-ai/action/confirm', 'AI\KnowledgeAssistantController@confirmAction')
   ->middleware(['auth', 'twofactor', 'throttle:20,1'])
   ->name('ai.knowledge.action.confirm');
