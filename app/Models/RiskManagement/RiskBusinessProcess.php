@@ -30,7 +30,15 @@ class RiskBusinessProcess extends Model implements Auditable
 
     public function scopeForCompany($query)
     {
-        $companyId = getUserCompany() ?? 0;
-        return $query->where('company_id', $companyId)->orWhere('company_id', 0);
+        $companyId = getUserCompany();
+
+        return $query->where(function ($q) use ($companyId) {
+            if ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+                return;
+            }
+
+            $q->whereNull('company_id');
+        });
     }
 }
