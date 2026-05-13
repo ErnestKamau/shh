@@ -926,6 +926,8 @@
 													@if(!$hasBatch && in_array($instance->status, ['submitted', 'in_review'], true))
 														<input type="checkbox"
 															name="submission_form_instance_id[]"
+															data-source-selection="1"
+															form="dispatch-to-labs-modal-form"
 															value="{{ $instance->id }}"
 															data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
 															data-form-name="{{ $instance->submissionForm->name ?? 'Template Form' }}"
@@ -1238,6 +1240,8 @@
 															<td rowspan="{{ $totalRows }}" class="align-top pt-3">
 																<input type="checkbox"
 																	   name="portal_submission_id[]"
+																	   data-source-selection="1"
+																	   form="dispatch-to-labs-modal-form"
 																	   value="{{ $submission->id }}"
 																	   data-submission-number="{{ $submission->formatted_number }}"
 																	   data-submission-customer="{{ $submission->customer->name ?? $submission->submitting_agency ?? 'Unknown' }}"
@@ -1266,28 +1270,6 @@
 																	<i class="mdi mdi-file-document-outline"></i>
 																	<div>
 																		<div class="font-weight-bold">{{ $docInstance->template?->document_code ?? 'Form' }}</div>
-															@push('scripts')
-															<script>
-																document.addEventListener('DOMContentLoaded', function () {
-																	// Watch for the Lab Acceptance form success message
-																	const observer = new MutationObserver(function(mutations) {
-																		mutations.forEach(function(mutation) {
-																			if (mutation.addedNodes.length) {
-																				mutation.addedNodes.forEach(function(node) {
-																					if (node.nodeType === 1 && node.classList.contains('alert-success') && node.textContent.includes('successfully')) {
-																						// Redirect to Sample Receipt Notification form
-																						window.location.href = '/sample-receipt-notification';
-																					}
-																				});
-																			}
-																		});
-																	});
-																	const target = document.body;
-																	observer.observe(target, { childList: true, subtree: true });
-																});
-															</script>
-															@endpush
-															@endsection
 																	</div>
 																</div>
 
@@ -1924,7 +1906,7 @@
 			<div id="dispatch-to-labs-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
-					<form class="modal-content" method="POST" action="{{ route('change-batch-workflow') }}"
+					<form id="dispatch-to-labs-modal-form" class="modal-content" method="POST" action="{{ route('change-batch-workflow') }}"
 						enctype="multipart/form-data">
 						@csrf
 						<div class="modal-header">
@@ -1933,16 +1915,14 @@
 						</div>
 						<div class="modal-body">
 							<input type="hidden" name="status" value="Samples Request Review" />
+							<input type="hidden" name="return_status" value="{{ $status }}" />
+							<input type="hidden" name="return_tab" value="{{ $workflowSubTab }}" />
 							<div id="not-paid-parent"></div>
 							<div class="form-group">
 								<div class="alert alert-callout alert-primary">
 									<i class="fas fa-info-circle"></i> Are you sure you want to send labeled samples for <b>Sample
 										Request Review</b>?
 								</div>
-							</div>
-							<div class="form-group">
-								<label class="control-label">Batches</label>
-								<div class="selected-batches-request"></div>
 							</div>
 							<div class="form-group mb-0">
 								<label class="control-label">Selected Forms</label>
@@ -2538,7 +2518,7 @@
 										</div>
 										<div class="col-md-6 form-group">
 											<label class="control-label">Lab No.</label>
-											<input type="text" class="form-control" name="lab_acceptance[lab_no]" placeholder="Lab number">
+											<input type="text" class="form-control" name="lab_acceptance[lab_no]" placeholder="Auto-generated on approval" readonly>
 										</div>
 										<div class="col-md-6 form-group">
 											<label class="control-label">Customer Name</label>
@@ -2949,6 +2929,8 @@
 			var defaultClass = '';
 			var notPaid = [];
 			var invoiceItemCounter = 0;
+			var lastParametersRequestKey = null;
+			var lastPreviewRequestKey = null;
 		
 			$('[data-target="#get-batch-tat"]').hide();
 			$('[data-target="#awaiting-approval-modal"]').hide();
@@ -3590,10 +3572,58 @@
 			});
 		
 		
+			const getSourceSelections = function () {
+				const isSourceCheckbox = function () {
+					const $checkbox = $(this);
+					return $checkbox.closest('.modal').length === 0
+						&& $checkbox.closest('.selected-submissions-request').length === 0
+						&& $checkbox.closest('.selected-batches-request').length === 0;
+				};
+
+				return {
+					selectedBatchCheckboxes: $("input[name='table_sample_id[]'][data-batch]:checked").filter(isSourceCheckbox),
+					selectedSubmissionCheckboxes: $("input[name='portal_submission_id[]']:checked").filter(isSourceCheckbox),
+					selectedFormInstanceCheckboxes: $("input[name='submission_form_instance_id[]']:checked").filter(isSourceCheckbox)
+				};
+			};
+
+			const renderRequestReviewSelectionSummary = function () {
+				const $containers = $('#dispatch-to-labs-modal .selected-submissions-request');
+				if ($containers.length === 0) {
+					return;
+				}
+
+				$containers.empty();
+
+				const $formInputs = $("input[name='submission_form_instance_id[]'][form='dispatch-to-labs-modal-form']:checked").filter(function () {
+					return $(this).closest('.selected-submissions-request').length === 0;
+				});
+
+				const $requestInputs = $("input[name='portal_submission_id[]'][form='dispatch-to-labs-modal-form']:checked").filter(function () {
+					return $(this).closest('.selected-submissions-request').length === 0;
+				});
+
+				$formInputs.each(function () {
+					const $source = $(this);
+					const id = $source.val();
+					const formNumber = $source.data('form-number') || ('Form #' + id);
+					const formName = $source.data('form-name') || 'Template Form';
+					$containers.append(`<span class="p-2 mr-2 d-inline-block"><input type="checkbox" name="submission_form_instance_id[]" value="${id}" checked> ${formNumber} <small class="text-muted">${formName}</small></span>`);
+				});
+
+				$requestInputs.each(function () {
+					const $source = $(this);
+					const id = $source.val();
+					const submissionNumber = $source.data('submission-number') || ('Request #' + id);
+					$containers.append(`<span class="p-2 mr-2 d-inline-block"><input type="checkbox" name="submission_request_id[]" value="${id}" checked> ${submissionNumber}</span>`);
+				});
+			};
+
 			const rebuildSelectionLists = function () {
-				const selectedBatchCheckboxes = $("input[name='table_sample_id[]'][data-batch]:checked");
-				const selectedSubmissionCheckboxes = $("input[name='portal_submission_id[]'][data-submission-number]:checked");
-				const selectedFormInstanceCheckboxes = $("input[name='submission_form_instance_id[]'][data-form-number]:checked");
+				const selections = getSourceSelections();
+				const selectedBatchCheckboxes = selections.selectedBatchCheckboxes;
+				const selectedSubmissionCheckboxes = selections.selectedSubmissionCheckboxes;
+				const selectedFormInstanceCheckboxes = selections.selectedFormInstanceCheckboxes;
 
 				notPaid = [];
 
@@ -3726,6 +3756,7 @@
 				$('[name="lab_acceptance[date_of_sampling]"]').val(requestDate);
 				$('[name="lab_acceptance[mode_of_work]"]').val(modeOfWork || 'Normal');
 				$('[name="lab_acceptance[customer_name_certified]"]').val(customerName);
+				$('[name="lab_acceptance[lab_no]"]').val(batchPrefill.batch_code || '');
 
 				const sampleIdentifier = prefillFrom
 					? (prefillFrom.data('submission-number') || prefillFrom.data('form-number') || '')
@@ -3736,38 +3767,88 @@
 				$('[name="sample_rejection[date_of_sample_collection]"]').val(requestDate);
 				$('[name="sample_rejection[number_of_samples_received]"]').val(numberSamples);
 
-			// Populate parameters table from selected request/form.
-			window.labAcceptanceParameters = [];
-			window.labAcceptancePricelist = {};
-			populateLabAcceptanceParametersTable();
+			const shouldFetchPrefillData = $('#dispatch-to-labs-modal').hasClass('show') || $('#dispatch-to-labs-modal-review').hasClass('show');
 
-			if (selectedSubmissionIDs.length > 0 || selectedFormInstanceIDs.length > 0) {
-				var requestData = {};
-				if (selectedSubmissionIDs.length > 0) {
-					requestData.submission_request_id = selectedSubmissionIDs[0];
-				} else {
-					requestData.submission_form_instance_id = selectedFormInstanceIDs[0];
+			if (shouldFetchPrefillData) {
+				// Populate parameters table from selected request/form.
+				window.labAcceptanceParameters = [];
+				window.labAcceptancePricelist = {};
+				populateLabAcceptanceParametersTable();
+
+				if (selectedSubmissionIDs.length > 0 || selectedFormInstanceIDs.length > 0) {
+					var requestData = {};
+					if (selectedSubmissionIDs.length > 0) {
+						requestData.submission_request_id = selectedSubmissionIDs[0];
+					} else {
+						requestData.submission_form_instance_id = selectedFormInstanceIDs[0];
+					}
+
+					var parametersRequestKey = JSON.stringify(requestData);
+					if (parametersRequestKey !== lastParametersRequestKey) {
+						lastParametersRequestKey = parametersRequestKey;
+						$.ajax({
+							url: '{{ route("api.submission-request-parameters") }}',
+							type: 'GET',
+							data: requestData,
+							success: function(response) {
+								window.labAcceptanceParameters = response.parameters || [];
+								window.labAcceptancePricelist = response.pricelist || {};
+								populateLabAcceptanceParametersTable();
+							},
+							error: function(err) {
+								console.warn('Failed to load parameters:', err);
+							}
+						});
+					}
 				}
 
-				$.ajax({
-					url: '{{ route("api.submission-request-parameters") }}',
-					type: 'GET',
-					data: requestData,
-					success: function(response) {
-						window.labAcceptanceParameters = response.parameters || [];
-						window.labAcceptancePricelist = response.pricelist || {};
-						populateLabAcceptanceParametersTable();
-					},
-					error: function(err) {
-						console.warn('Failed to load parameters:', err);
+				var previewData = {};
+				if (selectedFormInstanceIDs.length > 0) {
+					previewData.submission_form_instance_id = selectedFormInstanceIDs[0];
+				} else if (selectedBatchesIDs.length > 0) {
+					previewData.batch_code = selectedBatchesIDs[0];
+				}
+
+				if (Object.keys(previewData).length > 0) {
+					var previewRequestKey = JSON.stringify(previewData);
+					if (previewRequestKey !== lastPreviewRequestKey) {
+						lastPreviewRequestKey = previewRequestKey;
+						$.ajax({
+							url: '{{ route("api.workflow.preview-batch-code") }}',
+							type: 'GET',
+							data: previewData,
+							success: function(response) {
+								if (response && response.is_new) {
+									$('[name="lab_acceptance[lab_no]"]').val('[Auto-generated on approval]').prop('readonly', true);
+								} else if (response && response.lab_no) {
+									$('[name="lab_acceptance[lab_no]"]').val(response.lab_no).prop('readonly', true);
+								}
+								if (response && response.customer_name) {
+									$('[name="lab_acceptance[customer_name]"]').val(response.customer_name);
+									$('[name="lab_acceptance[customer_name_certified]"]').val(response.customer_name);
+								}
+								if (response && response.address) {
+									$('[name="lab_acceptance[address]"]').val(response.address);
+								}
+								if (response && response.email) {
+									$('[name="lab_acceptance[email]"]').val(response.email);
+								}
+								if (response && response.tel) {
+									$('[name="lab_acceptance[tel]"]').val(response.tel);
+								}
+							},
+							error: function(err) {
+								console.warn('Failed to load preview batch code:', err);
+							}
+						});
 					}
-				});
+				}
 			}
 			};
 
 			$(document)
 				.off('change.workflowSelection', "input[name='table_sample_id[]'], input[name='portal_submission_id[]'], input[name='submission_form_instance_id[]']")
-				.on('change.workflowSelection', "input[name='table_sample_id[]'], input[name='portal_submission_id[]'], input[name='submission_form_instance_id[]']", function () {
+				.on('change.workflowSelection', "input[name='table_sample_id[]'][data-source-selection='1'], input[name='portal_submission_id[]'][data-source-selection='1'], input[name='submission_form_instance_id[]'][data-source-selection='1']", function () {
 					rebuildSelectionLists();
 				});
 
@@ -3778,6 +3859,10 @@
 			$('#portal-request-reject-form-modal').off('show.bs.modal.workflowSelection').on('show.bs.modal', function () {
 				rebuildSelectionLists();
 			});
+			$('#dispatch-to-labs-modal').off('show.bs.modal.workflowSelection').on('show.bs.modal', function () {
+				rebuildSelectionLists();
+				renderRequestReviewSelectionSummary();
+			});
 			$('#dispatch-to-labs-modal-review').off('show.bs.modal.workflowSelection').on('show.bs.modal', function () {
 				rebuildSelectionLists();
 			});
@@ -3786,18 +3871,82 @@
 			// modal-trigger button, BEFORE Bootstrap opens the modal. This is the most reliable
 			// mechanism and handles Livewire re-render edge cases (delegated — survives DOM morphing).
 			$(document)
-				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal-review"]')
-				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal-review"]', function () {
+				.off('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"]')
+				.on('click.prefillWorkflow', '[data-target="#portal-request-reject-form-modal"], [data-target="#dispatch-to-labs-modal"], [data-target="#dispatch-to-labs-modal-review"]', function (event) {
+					const target = $(this).data('target');
 					rebuildSelectionLists();
+					if (target === '#dispatch-to-labs-modal') {
+						renderRequestReviewSelectionSummary();
+					}
+
+					if (target === '#dispatch-to-labs-modal') {
+						const selections = getSourceSelections();
+						if (selections.selectedBatchCheckboxes.length === 0
+							&& selections.selectedSubmissionCheckboxes.length === 0
+							&& selections.selectedFormInstanceCheckboxes.length === 0) {
+							event.preventDefault();
+							event.stopImmediatePropagation();
+							$('#dispatch-to-labs-modal .js-selection-error').remove();
+							$('<div class="alert alert-danger js-selection-error mb-2">Please tick at least one request/form row before sending to Request Review.</div>')
+								.prependTo($('#dispatch-to-labs-modal .modal-body'));
+							return false;
+						}
+					}
 				});
 
 			window.rebuildWorkflowSelectionLists = rebuildSelectionLists;
 
-			rebuildSelectionLists();
-						$('#send-email-reports-modal').find('.add-contact-fields').removeClass('hidden');
-					});
+			$('#dispatch-to-labs-modal form').off('submit.workflowSelection').on('submit.workflowSelection', function (event) {
+				const $form = $(this);
+				rebuildSelectionLists();
+				renderRequestReviewSelectionSummary();
+				const selections = getSourceSelections();
 
-					$('#send-email-reports-modal').find('.save-add-contact').on('click', function () {
+				$form.find('.js-selection-error').remove();
+				if (selections.selectedBatchCheckboxes.length === 0
+					&& selections.selectedSubmissionCheckboxes.length === 0
+					&& selections.selectedFormInstanceCheckboxes.length === 0) {
+					event.preventDefault();
+					$('<div class="alert alert-danger js-selection-error mb-2">No requests were selected. Please tick at least one request/form row and try again.</div>')
+						.prependTo($form.find('.modal-body'));
+					return false;
+				}
+
+				$form.find('input.js-injected-selection').remove();
+
+				selections.selectedBatchCheckboxes.each(function () {
+					$('<input>')
+						.attr('type', 'hidden')
+						.attr('name', 'batch_code[]')
+						.attr('value', $(this).val())
+						.addClass('js-injected-selection')
+						.appendTo($form);
+				});
+
+				selections.selectedSubmissionCheckboxes.each(function () {
+					$('<input>')
+						.attr('type', 'hidden')
+						.attr('name', 'submission_request_id[]')
+						.attr('value', $(this).val())
+						.addClass('js-injected-selection')
+						.appendTo($form);
+				});
+
+				selections.selectedFormInstanceCheckboxes.each(function () {
+					$('<input>')
+						.attr('type', 'hidden')
+						.attr('name', 'submission_form_instance_id[]')
+						.attr('value', $(this).val())
+						.addClass('js-injected-selection')
+						.appendTo($form);
+				});
+			});
+
+			rebuildSelectionLists();
+
+			$('#send-email-reports-modal').on('show.bs.modal', function () {
+				$('#send-email-reports-modal').find('.add-contact-fields').removeClass('hidden');
+				$('#send-email-reports-modal').find('.save-add-contact').off('click').on('click', function () {
 						var body = {
 							first_name: $('.add-contact-fields').find('.first_name').val(),
 							middle_name: $('.add-contact-fields').find('.middle_name').val(),
@@ -3822,8 +3971,8 @@
 								console.log(data);
 							}
 						});
-					});
 				});
+			});
 
 				$("input[name='table_sample_id[]']").on('change', function () {
 					if ($("input[name='table_sample_id[]']:checked").length > 0) {

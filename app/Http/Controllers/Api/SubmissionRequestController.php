@@ -7,7 +7,10 @@ use App\Models\Billing\Pricelist;
 use App\Models\Billing\PricelistCustomer;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Models\System\SystemConfiguration;
 use App\SampleDetails;
+use App\SampleHeader;
+use App\SampleType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -362,5 +365,112 @@ class SubmissionRequestController extends Controller
         $pricelistItem = $priceQuery->select('selling_price')->first();
 
         return $pricelistItem ? (float) $pricelistItem->selling_price : 0.0;
+    }
+
+    /**
+     * Preview the batch code that would be generated for a portal form instance,
+     * along with customer details for prefilling the lab acceptance form.
+     * Does NOT persist anything.
+     */
+    public function previewBatchCode(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $formInstanceId = $request->input('submission_form_instance_id');
+        $batchCode = $request->input('batch_code');
+
+        // If a batch_code is supplied, just return it (already created batch)
+        if ($batchCode) {
+            $batch = SampleHeader::where('batch_code', $batchCode)->first();
+            return response()->json([
+                'lab_no' => $batchCode,
+                'customer_name' => $batch?->client?->name ?? '',
+                'email' => $batch?->client?->email ?? '',
+                'tel' => $batch?->client?->telephone1 ?? '',
+                'address' => $batch?->client?->postal_address ?? '',
+            ]);
+        }
+
+        if (!$formInstanceId) {
+            return response()->json(['lab_no' => '', 'customer_name' => '', 'email' => '', 'tel' => '', 'address' => ''], 200);
+        }
+
+        $formInstance = SubmissionFormInstance::query()
+            ->with(['crmCustomer', 'submissionForm.sampleTypes', 'batches'])
+            ->find((string) $formInstanceId);
+
+        if (!$formInstance) {
+            return response()->json(['lab_no' => '', 'customer_name' => '', 'email' => '', 'tel' => '', 'address' => ''], 200);
+        }
+
+        // If a batch already exists, return its code
+        if ($formInstance->batches->isNotEmpty()) {
+            $existingBatch = $formInstance->batches->first();
+            return response()->json([
+                'lab_no' => (string) $existingBatch->batch_code,
+                'customer_name' => $formInstance->crmCustomer?->name ?? '',
+                'email' => $formInstance->crmCustomer?->email ?? '',
+                'tel' => $formInstance->crmCustomer?->telephone1 ?? '',
+                'address' => $formInstance->crmCustomer?->postal_address ?? '',
+            ]);
+        }
+
+        $customer = $formInstance->crmCustomer;
+        if (!$customer) {
+            return response()->json(['lab_no' => '', 'customer_name' => '', 'email' => '', 'tel' => '', 'address' => ''], 200);
+        }
+
+        $batchConfig = SystemConfiguration::where('key', 'batch_code_config')->first();
+        $configBatchNo = SystemConfiguration::where('key', 'batch_start_no')->first();
+
+        if (!$batchConfig || !$configBatchNo) {
+            return response()->json(['lab_no' => '', 'customer_name' => $customer->name ?? '', 'email' => $customer->email ?? '', 'tel' => $customer->telephone1 ?? '', 'address' => $customer->postal_address ?? ''], 200);
+        }
+
+        // Resolve sample type code
+        $sampleTypeCode = 'XX';
+        $sampleTypeNames = $formInstance->getResolvedSampleTypeNames();
+        if (!empty($sampleTypeNames)) {
+            $sampleType = SampleType::where('name', $sampleTypeNames[0])->first();
+            if ($sampleType) {
+                $sampleTypeCode = (string) $sampleType->code;
+            }
+        } elseif ($formInstance->submissionForm && $formInstance->submissionForm->sampleTypes->isNotEmpty()) {
+            $sampleTypeCode = (string) $formInstance->submissionForm->sampleTypes->first()->code;
+        }
+
+        // Build customer number part (same algorithm as add_batch_info)
+        $custCode = str_split((string) $customer->code);
+        $cont = [];
+        $loop = 0;
+        foreach ($custCode as $cc) {
+            if ((int) $cc > 0) {
+                $cont[] = $loop;
+            }
+            ++$loop;
+        }
+        $tt = count($custCode) - 1;
+        $ranges = range($cont[0] ?? 0, $tt);
+        $values = [];
+        if (count($cont) < 2) {
+            $values[] = '0';
+            $values[] = $custCode[$cont[0] ?? 0] ?? '0';
+        } else {
+            foreach ($ranges as $r) {
+                $values[] = $custCode[$r] ?? '0';
+            }
+        }
+
+        $prefix = 'BA' . $batchConfig->value . implode('', $values) . $sampleTypeCode;
+        $batchCount = SampleHeader::count();
+        $batchNos = (int) $configBatchNo->value + $batchCount + 1;
+        $finalNo = str_pad((string) $batchNos, 4, '0', STR_PAD_LEFT);
+        $previewCode = $prefix . $finalNo;
+
+        return response()->json([
+            'lab_no' => $previewCode,
+            'customer_name' => $customer->name ?? '',
+            'email' => $customer->email ?? '',
+            'tel' => $customer->telephone1 ?? '',
+            'address' => $customer->postal_address ?? '',
+        ]);
     }
 }

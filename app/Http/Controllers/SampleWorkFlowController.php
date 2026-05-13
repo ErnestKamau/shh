@@ -2026,6 +2026,17 @@ class SampleWorkFlowController extends Controller
                 ->unique()
                 ->values();
 
+            if ($batchCodes->isEmpty() && $submissionRequestIds->isEmpty() && $submissionFormInstanceIds->isEmpty()) {
+                return redirect()->back()->with('error', 'No requests were selected. Please select at least one submission request, form, or batch and try again.');
+            }
+
+            Log::info('sample_workflow.request_review.transition_payload', [
+                'user_id' => optional(auth()->user())->id,
+                'batch_code_count' => $batchCodes->count(),
+                'submission_request_id_count' => $submissionRequestIds->count(),
+                'submission_form_instance_id_count' => $submissionFormInstanceIds->count(),
+            ]);
+
             if ($submissionRequestIds->isNotEmpty()) {
                 $submissionRequests = SampleSubmissionRequest::query()
                     ->with(['supportingDocumentInstances'])
@@ -2088,6 +2099,12 @@ class SampleWorkFlowController extends Controller
 
             $batch_codes = $batchCodes->unique()->values()->all();
             $previousStatus = 'Samples En-Route';
+            $returnStatus = (string) $request->input('return_status', $previousStatus);
+            $returnTab = (string) $request->input('return_tab', 'requests');
+            $returnRedirect = [
+                'status' => $returnStatus !== '' ? $returnStatus : $previousStatus,
+                'tab' => in_array($returnTab, ['requests', 'received'], true) ? $returnTab : 'requests',
+            ];
 
             $responsibility = SystemConfiguration::where('key', 'Samples En-Route')->first();
 
@@ -2159,8 +2176,8 @@ class SampleWorkFlowController extends Controller
                 $batch->save();
             }
 
-            if (empty($batch_codes) && $submissionRequestIds->isNotEmpty()) {
-                return redirect()->route('sample-workflow', ['status' => $previousStatus])
+            if (empty($batch_codes) && ($submissionRequestIds->isNotEmpty() || $submissionFormInstanceIds->isNotEmpty())) {
+                return redirect()->route('sample-workflow', $returnRedirect)
                     ->with('success', 'Selected submission forms were queued for Sample Request Review.');
             }
             // return response()->json($batches,200);
