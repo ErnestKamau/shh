@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Throwable;
+use App\EmailSent;
 
 class MailController extends Controller
 {
@@ -49,8 +50,13 @@ class MailController extends Controller
 			if (sizeof($bcc_emails) < 0) {
 				return redirect()->back()->with('error', 'Kindly set up the BCC emails.');
 			}
+
+			$template = isset($data['template']) && is_string($data['template']) && trim($data['template']) !== ''
+				? trim($data['template'])
+				: 'emails.notification';
+
 			try {
-				Mail::send('emails.notification', $data, function ($message) use ($data, $file, $bcc, $bcc_emails, $mail_username, $app_name, $bcc_emails_arr) {
+				Mail::send($template, $data, function ($message) use ($data, $file, $bcc, $bcc_emails, $mail_username, $app_name, $bcc_emails_arr) {
 					$message->to($data['contacts'])->subject($data['subject']);
 					if ($bcc == true) {
 						$message->bcc($bcc_emails);
@@ -58,13 +64,6 @@ class MailController extends Controller
 					if (sizeof($bcc_emails_arr) > 0) {
 						$message->bcc($bcc_emails_arr);
 					}
-
-					$emailSent = new \App\EmailSent;
-
-					$emailSent->email = gettype($data['contacts']) == 'array' ?  implode(",", $data['contacts']) : $data['contacts'];
-					$emailSent->subject = $data['subject'];
-					$emailSent->body = json_encode($data);
-					$emailSent->save();
 
 					if(isset($data['file'])){
 						if(gettype($data['file']) == "array"){
@@ -89,6 +88,20 @@ class MailController extends Controller
 
 					$message->from($mail_username, $app_name);
 				});
+
+				try {
+					$emailSent = new EmailSent;
+					$emailSent->email = gettype($data['contacts']) == 'array' ? implode(",", $data['contacts']) : $data['contacts'];
+					$emailSent->subject = $data['subject'];
+					$emailSent->body = json_encode($data);
+					$emailSent->save();
+				} catch (Throwable $logException) {
+					Log::warning('Email sent but failed to persist email_sents audit record.', [
+						'contacts' => $data['contacts'] ?? null,
+						'subject' => $data['subject'] ?? null,
+						'error' => $logException->getMessage(),
+					]);
+				}
 			} catch (Throwable $exception) {
 				report($exception);
 				Log::error('Failed to send notification email.', [

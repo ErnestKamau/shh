@@ -139,13 +139,15 @@ class LoginController extends Controller
     if (empty($firstName) || !is_string($firstName)) {
       $firstName = $user->name;
     }
-    $body = 'Hi ' . $firstName . ',<br><br>'
-      . 'Your verification code has been successfully generated. Your verification code is:'
-      . '<br><br>' . $user->verify_code;
     $mailData = array(
       'contacts' => array($user->email),
-      'body' => $body,
-      'subject' => '[' . $app_name . '] Verification Code -' . $user->email
+      'body' => 'Your one-time verification code is <strong>' . $user->verify_code . '</strong>.',
+      'subject' => '[' . $app_name . '] Verification Code -' . $user->email,
+      'template' => 'emails.otp',
+      'first_name' => $firstName,
+      'otp_code' => $user->verify_code,
+      'expires_in_minutes' => 30,
+      'app_name' => $app_name,
     );
     $mailer = new Mailers;
 
