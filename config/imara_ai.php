@@ -39,7 +39,9 @@ return [
     'defaults' => [
         'agent_name'    => 'Imarachat AI',
         'tone_of_voice' => 'Professional',
-        'default_model' => 'qwen2.5:3b',
+        'default_model' => 'gemma3:1b',
+        'chat_model'    => 'gemma3:1b',
+        'heavy_model'   => 'qwen2.5:3b',
         'temperature'   => 0.3,
         'max_tokens'    => 2048,
         'top_p'         => 0.9,

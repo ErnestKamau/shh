@@ -17,7 +17,8 @@ return new class extends Migration
             $table->uuid('user_id')->nullable()->index('idx_audits_user_id_cdae85a5');
             $table->string('event');
             $table->string('auditable_type');
-            $table->bigInteger('auditable_id');
+            // Support both legacy numeric IDs and UUIDs for audited entities.
+            $table->string('auditable_id');
             $table->longText('old_values')->nullable();
             $table->longText('new_values')->nullable();
             $table->string('url')->nullable();

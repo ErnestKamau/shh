@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class ReasoningService:
     def __init__(self, ollama_service: OllamaService):
         self.ollama = ollama_service
-        self.model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+        self.model = os.getenv("AI_HEAVY_MODEL", os.getenv("OLLAMA_MODEL", "qwen2.5:3b"))
 
     def classify_intent(self, message: str, canonical_intents: Dict[str, Any], system_prompt: str) -> Optional[Dict[str, Any]]:
         """Classifies user intent into canonical keys using Ollama."""

@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     
     # Ollama Settings
     ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-    ollama_model: str = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+    # Backward compatibility: if AI_HEAVY_MODEL is not set, fall back to OLLAMA_MODEL.
+    ollama_model: str = os.getenv("AI_HEAVY_MODEL", os.getenv("OLLAMA_MODEL", "qwen2.5:3b"))
+    chat_model: str = os.getenv("AI_CHAT_MODEL", "gemma3:1b")
+    heavy_model: str = os.getenv("AI_HEAVY_MODEL", os.getenv("OLLAMA_MODEL", "qwen2.5:3b"))
     
     # database & Schema
     ai_schema: str = os.getenv("AI_SCHEMA", "ai")

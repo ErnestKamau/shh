@@ -7,6 +7,7 @@ ModeRegistry to stay in character throughout the conversation.
 """
 
 import logging
+import os
 import concurrent.futures
 from typing import Optional, Dict, Any, List
 
@@ -26,6 +27,7 @@ class ChatWorker:
 
     def __init__(self, ollama: OllamaService):
         self.ollama = ollama
+        self.chat_model = os.getenv("AI_CHAT_MODEL", "gemma3:1b")
 
     def run(
         self,
@@ -45,7 +47,7 @@ class ChatWorker:
                 response = ex.submit(
                     self.ollama.chat,
                     messages=[{"role": "system", "content": system_prompt}] + messages,
-                    model=model or "gemma3:1b",
+                    model=model or self.chat_model,
                 ).result(timeout=_CHAT_TIMEOUT)
 
             answer = response.get("message", {}).get("content", "")
@@ -91,5 +93,5 @@ class ChatWorker:
         system_prompt = mode_registry.get_persona(mode)
         return self.ollama.chat_stream(
             messages=[{"role": "system", "content": system_prompt}] + messages,
-            model=model or "gemma3:1b",
+            model=model or self.chat_model,
         )
