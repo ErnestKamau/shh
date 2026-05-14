@@ -8,10 +8,10 @@
                 icon="mdi-message-cog"
             >
                 <x-slot:actions>
-                    <button type="button" class="btn btn-outline-success btn-sm mr-2 crm-btn-export" wire:click="exportToExcel" wire:loading.attr="disabled">
+                    <button type="button" class="btn btn-outline-success btn-sm mr-2 crm-btn-export crm-outline-btn-sm" wire:click="exportToExcel" wire:loading.attr="disabled">
                         <i class="fa fa-file-excel mr-1"></i> {{ __('crm.export_to_excel') }}
                     </button>
-                    <button type="button" class="btn btn-add btn-sm crm-btn-add" wire:click="openAddForm">
+                    <button type="button" class="btn btn-outline-primary btn-sm crm-outline-btn-sm" wire:click="openAddForm">
                         <i class="mdi mdi-plus"></i> {{ __('crm.add') }}
                     </button>
                 </x-slot:actions>
@@ -48,18 +48,28 @@
                         </div>
                 </x-crm.filter-bar>
 
-                <x-crm.data-table class="p-3 crm-loading-overlay" wire:loading.class="opacity-50">
+                <x-crm.data-table class="p-3 crm-loading-overlay" wire:loading.class="opacity-50" plain-rows>
                     <x-slot:header>
                             <tr>
+                                <th style="width: 100px;">{{ __('crm.actions') }}</th>
                                 <th>{{ __('crm.no') }}</th>
                                 <th>{{ __('crm.complaint_name') }}</th>
                                 <th>{{ __('crm.complaint_description') }}</th>
                                 <th>{{ __('crm.active') }}</th>
-                                <th></th>
                             </tr>
                     </x-slot:header>
                             @forelse($types as $index => $type)
                                 <tr wire:key="type-{{ $type->id }}">
+                                    <td nowrap>
+                                        <div class="d-flex flex-nowrap">
+                                            <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit" wire:click="openEditForm('{{ $type->id }}')" title="{{ __('crm.edit') }}">
+                                                <i class="mdi mdi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click="confirmDelete('{{ $type->id }}')" title="{{ __('crm.delete') }}">
+                                                <i class="mdi mdi-delete"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                     <td valign="center">{{ $types->firstItem() + $loop->iteration - 1 }}</td>
                                     <td>{{ $type->name }}</td>
                                     <td>{{ $type->description ?? '-' }}</td>
@@ -69,16 +79,6 @@
                                         @else
                                             <i class="mdi mdi-close-circle text-danger"></i>
                                         @endif
-                                    </td>
-                                    <td class="text-center">
-                                        <x-crm.action-buttons>
-                                            <button type="button" class="btn crm-btn crm-btn-edit btn-sm" wire:click="openEditForm({{ $type->id }})" title="{{ __('crm.edit') }}">
-                                                <i class="mdi mdi-pencil"></i>
-                                            </button>
-                                            <button type="button" class="btn crm-btn crm-btn-delete btn-sm" wire:click="confirmDelete({{ $type->id }})" title="{{ __('crm.delete') }}">
-                                                <i class="mdi mdi-delete"></i>
-                                            </button>
-                                        </x-crm.action-buttons>
                                     </td>
                                 </tr>
                             @empty
@@ -200,6 +200,4 @@
         })();
     </script>
     @endscript
-</div>
-
 </div>

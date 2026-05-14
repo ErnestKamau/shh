@@ -80,7 +80,7 @@
 				</div>
 			</a>
 			
-			@can('system.company.view')
+			@can('system.companies.view')
 			<a href="/companies" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-domain fa-fw mr-1"></span>
@@ -89,9 +89,7 @@
 			</a>
 			@endcan
 
-			
-
-			@can('system.module_switching.view')
+			@can('system.module-switching.view')
 			<a href="{{ route('system-settings.module-visibility') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-swap-horizontal fa-fw mr-1"></span>
@@ -100,7 +98,7 @@
 			</a>
 			@endcan
 
-			@if(auth()->user()->can('system.translation.view'))
+			@if(auth()->user()->can('system.translations.view'))
 			<a href="{{ route('system-settings.translations') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-translate fa-fw mr-1"></span>
@@ -124,19 +122,17 @@
 				</div>
 			</a>
 			<div id="system-defaults" class="collapse sidebar-submenu">
-				
-				
-						@can('system.configuration_type.view')
-						<a href="{{ route('configuration-type-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
-							<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.configuration_type') }}</span>
-						</a>
-						@endcan
-						@can('system.configuration.view')
-						<a href="{{ route('configuration-system-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
-							<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.system_configurations') }}</span>
-						</a>
-						@endcan
-		
+				@can('system.configuration_type.view')
+				<a href="{{ route('configuration-type-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.configuration_type') }}</span>
+				</a>
+				@endcan
+				@can('system.configuration.view')
+				<a href="{{ route('configuration-system-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.system_configurations') }}</span>
+				</a>
+				@endcan
+			</div>
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="position: fixed;bottom:0">
 				{{ __('system.copyright') }} {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
@@ -175,6 +171,7 @@
   <div class="flex-fill" id="main-body-content">
     @yield('content2')
   </div>
+	</div>
 </div>
 @endsection
 

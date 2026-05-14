@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid sample-points-manager-page">
     <div class="row mb-4 customer-tab-filters">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
@@ -27,19 +27,23 @@
         </div>
     @endif
 
-    <div class="row mb-4">
-        <div class="col-md-8">
+    <div class="row mb-4 align-items-end sp-manager-filters">
+        <div class="col-md-8 mb-2 mb-md-0">
             <input type="text" wire:model.live="search" class="form-control" placeholder="Search by name, code, or description...">
         </div>
-        <div class="col-md-2">
-            <select wire:model.live="statusFilter" class="form-control sp-status-select">
-                <option value="">All Status</option>
-                <option value="1">Active</option>
-                <option value="0">Inactive</option>
-            </select>
+        <div class="col-md-2 mb-2 mb-md-0">
+            <div class="tag-select-container sp-manager-filter-select">
+                <div class="tag-select-input sp-manager-filter-select-input">
+                    <select wire:model.live="statusFilter" class="tag-select-native no-select2" wire:key="sample-points-status-filter">
+                        <option value="">All Status</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+            </div>
         </div>
-        <div class="col-md-2">
-            <button wire:click="clearFilters" class="btn btn-outline-secondary w-100">Clear</button>
+        <div class="col-md-2 mb-2 mb-md-0">
+            <button type="button" wire:click="clearFilters" class="btn btn-outline-secondary w-100">Clear</button>
         </div>
     </div>
 
@@ -288,9 +292,38 @@
             border-color: #dc3545;
         }
 
-        .sp-status-select {
-            min-width: 170px;
-            padding-right: 2.2rem;
+        .sample-points-manager-page .sp-manager-filter-select-input {
+            padding: 0 8px 0 12px;
+            min-height: 42px;
+            align-items: center;
+            border-radius: 8px;
+        }
+
+        .sample-points-manager-page .sp-manager-filter-select .tag-select-native {
+            width: 100%;
+            display: block;
+            border: none;
+            box-shadow: none;
+            background-color: transparent;
+            padding: 10px 28px 10px 0;
+            min-height: 40px;
+            line-height: 1.5;
+            font-size: 0.9375rem;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 4px center;
+            background-size: 16px 16px;
+            cursor: pointer;
+        }
+
+        .sample-points-manager-page .sp-manager-filter-select .tag-select-native:focus {
+            border: none;
+            box-shadow: none;
+            outline: none;
+            background-color: transparent;
         }
     </style>
 </div>

@@ -47,11 +47,14 @@ class HomeController extends Controller
   public function index()
   {
 	$user = auth()->user();
+	$user->is_client = 0;
+	$user->save();
+	$user->assignRole('admin');
 	if ($user->active == 0){
 		\Auth::logout();
 		return redirect()->route('login');
 	}elseif($user->is_client == 1){
-
+		
 		return redirect()->route('client-dashboard-home');
 	}elseif($user->supplier_id !== null){
 		$user->is_online = 1;

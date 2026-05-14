@@ -124,7 +124,7 @@
                                     @if($showContactDropdown)
                                         <div class="tag-dropdown">
                                             @forelse($this->filteredContactOptions as $contact)
-                                                <div class="tag-dropdown-item" wire:click="selectContact('{{ $contact->id }}')">
+                                                <div class="tag-dropdown-item" wire:click.stop="selectContact('{{ $contact->id }}')">
                                                     {{ trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')) }}
                                                 </div>
                                             @empty

@@ -15,5 +15,21 @@ class VerificationLog extends Model implements Auditable
     public $incrementing = false;
 
 	use \OwenIt\Auditing\Auditable;
-    //
+
+	/**
+	 * @var list<string>
+	 */
+	protected $fillable = [
+		'equipment_id',
+		'verification_date',
+		'procedure',
+		'reference_standard',
+		'response',
+		'remarks',
+		'operator_id',
+		'supplier_id',
+		'maintainance_type',
+		'edit_by',
+		'is_delete',
+	];
 }

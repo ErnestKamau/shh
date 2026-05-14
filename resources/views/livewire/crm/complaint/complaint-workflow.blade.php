@@ -48,7 +48,7 @@
         </div>
 
         <h6 class="mt-4">Chain of Custody</h6>
-        <x-crm.data-table>
+        <x-crm.data-table plain-rows>
             <x-slot:header>
                 <tr>
                     <th>Action</th>

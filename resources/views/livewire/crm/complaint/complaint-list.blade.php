@@ -8,24 +8,24 @@
             <x-crm.page-header
                 :breadcrumbItems="$this->breadcrumbItems"
                 :title="$pageTitle ?? $stage"
-                subtitle="Tracking, resolution, and compliance status of all reported complaints"
+                :subtitle="$pageSubtitle ?? 'Tracking, resolution, and compliance status of all reported complaints.'"
                 icon="mdi-comment-alert"
             >
                 <x-slot:actions>
-                    <button type="button" class="btn btn-outline-success btn-sm mr-2 crm-btn-export" wire:click="exportToExcel" wire:loading.attr="disabled">
+                    <button type="button" class="btn btn-outline-success btn-sm mr-2 crm-btn-export crm-outline-btn-sm" wire:click="exportToExcel" wire:loading.attr="disabled">
                         <i class="fa fa-file-excel mr-1"></i> Export to Excel
                     </button>
                     @if($this->getStageName($this->stage) === 'Open Complaints' && $this->canAddComplaint)
-                        <button type="button" class="btn btn-add btn-sm crm-btn-add" wire:click="addComplaint">
+                        <button type="button" class="btn btn-outline-primary btn-sm crm-outline-btn-sm" wire:click="addComplaint">
                             <i class="mdi mdi-plus"></i> Add New Complaint
                         </button>
                     @endif
                 </x-slot:actions>
             </x-crm.page-header>
 
-
-
-        <x-crm.filter-bar title="Filters" class="crm-filter-bar-sticky">
+            <div class="card tab-card">
+                <div class="card-body p-0">
+        <x-crm.filter-bar :title="__('crm.filters')" class="crm-filter-bar-sticky p-3 border-bottom">
                 <div class="col-md-3 mb-3 mb-md-0">
                     <div class="crm-search-wrapper w-100" style="max-width: 100%;">
                         <i class="mdi mdi-magnify crm-search-icon"></i>
@@ -85,10 +85,10 @@
                 </div>
         </x-crm.filter-bar>
 
-        <x-crm.data-table wire:loading.class="opacity-50" class="crm-loading-overlay">
+        <x-crm.data-table wire:loading.class="opacity-50" class="p-3 crm-loading-overlay" plain-rows>
                 <x-slot:header>
                         <tr>
-                            <th>Actions</th>
+                            <th style="width: 100px;">Actions</th>
                             <th>Date Received</th>
                             <th nowrap>Serial No.</th>
                             <th>Organization / Customer</th>
@@ -103,13 +103,13 @@
                 </x-slot:header>
                         @forelse($complaints as $complaint)
                             <tr wire:key="complaint-{{ $complaint->id }}">
-                                <td>
-                                    <x-crm.action-buttons>
+                                <td nowrap>
+                                    <div class="d-flex flex-nowrap">
                                         <a href="{{ route('complaint-show', ['id' => $complaint->id]) }}"
-                                            class="btn crm-btn crm-btn-view btn-sm" title="View Details">
-                                            <i class="mdi mdi-eye-outline"></i> View
+                                            class="btn btn-sm rm-act-btn rm-act-btn--view" title="View Details">
+                                            <i class="mdi mdi-eye-outline"></i>
                                         </a>
-                                    </x-crm.action-buttons>
+                                    </div>
                                 </td>
                                 <td>{{ $complaint->date ? $complaint->date->format('d-M-Y') : '-' }}</td>
                                 <td>{{ $complaint->complaint_id }}</td>
@@ -156,8 +156,11 @@
             <x-crm.pagination :summary="'Showing ' . ($complaints->firstItem() ?? 0) . ' to ' . ($complaints->lastItem() ?? 0) . ' of ' . $complaints->total() . ' results'">
                 {{ $complaints->links() }}
             </x-crm.pagination>
+                </div>
+            </div>
 
-        </div>        @if($showForm)
+        </div>
+        @if($showForm)
             <div class="modal fade show"
                 style="display: flex; align-items: flex-start; overflow-y: auto; background-color: rgba(0,0,0,0.5); padding-top: 30px; padding-bottom: 30px;"
                 tabindex="-1" role="dialog" aria-hidden="true" wire:ignore.self>

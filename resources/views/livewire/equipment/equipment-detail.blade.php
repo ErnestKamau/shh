@@ -259,13 +259,13 @@
                                     @foreach($this->maintenanceLogs as $log)
                                             <tr>
                                                 <td>
-                                                    <button wire:click="showEditMaintenanceModal({{ $log->id }})"
+                                                    <button wire:click="showEditMaintenanceModal('{{ $log->id }}')"
                                                                 class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteMaintenanceLog({{ $log->id }})"
+                                                    <button wire:click="openDeleteMaintenanceConfirmModal('{{ $log->id }}')"
                                                                 class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
-                                                            onclick="return confirm('Are you sure?')">
+                                                            title="{{ __('equipment.delete') }}">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </td>
@@ -360,13 +360,13 @@
                                     @foreach($this->calibrationLogs as $log)
                                             <tr>
                                                 <td>
-                                                    <button wire:click="showEditCalibrationModal({{ $log->id }})"
-                                                        class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
+                                                    <button wire:click="showEditCalibrationModal('{{ $log->id }}')"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteCalibrationLog({{ $log->id }})"
+                                                    <button wire:click="openDeleteCalibrationConfirmModal('{{ $log->id }}')"
                                                         class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
-                                                            onclick="return confirm('Are you sure?')">
+                                                        title="{{ __('equipment.delete') }}">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </td>
@@ -458,13 +458,13 @@
                                     @foreach($this->verificationLogs as $log)
                                         <tr>
                                             <td>
-                                                <button wire:click="showEditVerificationModal({{ $log->id }})"
+                                                <button wire:click="showEditVerificationModal('{{ $log->id }}')"
                                                     class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
-                                                <button wire:click="deleteVerificationLog({{ $log->id }})"
+                                                <button wire:click="openDeleteVerificationConfirmModal('{{ $log->id }}')"
                                                     class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
-                                                        onclick="return confirm('Are you sure?')">
+                                                    title="{{ __('equipment.delete') }}">
                                                     <i class="mdi mdi-delete"></i>
                                                 </button>
                                             </td>
@@ -1445,6 +1445,81 @@
                         <button type="button" class="btn btn-secondary" wire:click="$set('showMaintenanceModal', false)">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveMaintenanceLog">
                             <i class="mdi mdi-content-save"></i> Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showDeleteMaintenanceConfirmModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-md">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-alert-circle-outline"></i> {{ __('equipment.delete') }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteMaintenanceConfirmModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0">Are you sure you want to delete this maintenance log? This cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeDeleteMaintenanceConfirmModal">{{ __('equipment.cancel') }}</button>
+                        <button type="button" class="btn btn-danger" wire:click="confirmDeleteMaintenanceLog" wire:loading.attr="disabled" wire:target="confirmDeleteMaintenanceLog">
+                            <span wire:loading.remove wire:target="confirmDeleteMaintenanceLog">{{ __('equipment.delete') }}</span>
+                            <span wire:loading wire:target="confirmDeleteMaintenanceLog">{{ __('equipment.delete') }}…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showDeleteCalibrationConfirmModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-md">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-alert-circle-outline"></i> {{ __('equipment.delete') }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteCalibrationConfirmModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0">Are you sure you want to delete this calibration log? This cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeDeleteCalibrationConfirmModal">{{ __('equipment.cancel') }}</button>
+                        <button type="button" class="btn btn-danger" wire:click="confirmDeleteCalibrationLog" wire:loading.attr="disabled" wire:target="confirmDeleteCalibrationLog">
+                            <span wire:loading.remove wire:target="confirmDeleteCalibrationLog">{{ __('equipment.delete') }}</span>
+                            <span wire:loading wire:target="confirmDeleteCalibrationLog">{{ __('equipment.delete') }}…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showDeleteVerificationConfirmModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-md">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-alert-circle-outline"></i> {{ __('equipment.delete') }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteVerificationConfirmModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0">Are you sure you want to remove this verification log from the list? This cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeDeleteVerificationConfirmModal">{{ __('equipment.cancel') }}</button>
+                        <button type="button" class="btn btn-danger" wire:click="confirmDeleteVerificationLog" wire:loading.attr="disabled" wire:target="confirmDeleteVerificationLog">
+                            <span wire:loading.remove wire:target="confirmDeleteVerificationLog">{{ __('equipment.delete') }}</span>
+                            <span wire:loading wire:target="confirmDeleteVerificationLog">{{ __('equipment.delete') }}…</span>
                         </button>
                     </div>
                 </div>

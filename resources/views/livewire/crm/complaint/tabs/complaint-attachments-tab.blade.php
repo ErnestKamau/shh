@@ -29,10 +29,10 @@
                 </div>
             </div>
             <div class="d-flex align-items-center" style="gap:8px;">
-                <button type="button" class="btn btn-outline-success btn-sm text-nowrap" wire:click="exportToExcel">
+                <button type="button" class="btn btn-outline-success btn-sm text-nowrap crm-outline-btn-sm" wire:click="exportToExcel">
                     <i class="mdi mdi-microsoft-excel"></i> {{ __('crm.export_to_excel') }}
                 </button>
-                <button type="button" class="btn btn-add btn-sm" wire:click="openAttachmentModal">
+                <button type="button" class="btn btn-outline-primary btn-sm crm-outline-btn-sm" wire:click="openAttachmentModal">
                     <i class="mdi mdi-plus"></i> {{ __('crm.add_attachment') }}
                 </button>
             </div>
@@ -45,19 +45,31 @@
             <i class="mdi mdi-loading mdi-spin"></i> {{ __('crm.loading') }}...
         </div>
 
-        <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
+        <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50" plain-rows>
             <x-slot:header>
                 <tr>
+                    <th style="min-width:100px;">{{ __('crm.actions') }}</th>
                     <th>{{ __('crm.title') }}</th>
                     <th>{{ __('crm.type') }}</th>
                     <th>{{ __('crm.description') }}</th>
                     <th>{{ __('crm.posted_by') }}</th>
                     <th>{{ __('crm.file') }}</th>
-                    <th style="min-width:120px;">{{ __('crm.actions') }}</th>
                 </tr>
             </x-slot:header>
                         @forelse($attachments as $attachment)
                             <tr wire:key="attachment-{{ $attachment->id }}">
+                                <td nowrap>
+                                    <div class="d-flex flex-nowrap">
+                                        <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                            wire:click="editAttachment('{{ $attachment->id }}')" title="{{ __('crm.edit') }}">
+                                            <i class="mdi mdi-pencil-outline"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete"
+                                            wire:click="confirmDelete('{{ $attachment->id }}')" title="{{ __('crm.delete') }}">
+                                            <i class="mdi mdi-trash-can-outline"></i>
+                                        </button>
+                                    </div>
+                                </td>
                                 <td>{{ $attachment->title }}</td>
                                 <td>{{ $attachment->type }}</td>
                                 <td>{{ $attachment->description ?? '-' }}</td>
@@ -65,24 +77,12 @@
                                 <td>
                                     @if($attachment->file_path)
                                         <a href="{{ route('crm.complaint.attachment.download', ['complaint' => $complaintId, 'attachment' => $attachment->id]) }}"
-                                            target="_blank" class="btn crm-btn crm-btn-view btn-sm" title="{{ __('crm.download_file') }}">
+                                            target="_blank" class="btn btn-sm rm-act-btn rm-act-btn--view" title="{{ __('crm.download_file') }}">
                                             <i class="mdi mdi-download"></i>
                                         </a>
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif
-                                </td>
-                                <td nowrap>
-                                    <x-crm.action-buttons>
-                                        <button type="button" class="btn crm-btn crm-btn-edit btn-sm"
-                                            wire:click="editAttachment({{ $attachment->id }})" title="{{ __('crm.edit') }}">
-                                            <i class="mdi mdi-pencil-outline"></i>
-                                        </button>
-                                        <button type="button" class="btn crm-btn crm-btn-delete btn-sm"
-                                            wire:click="confirmDelete({{ $attachment->id }})" title="{{ __('crm.delete') }}">
-                                            <i class="mdi mdi-trash-can-outline"></i>
-                                        </button>
-                                    </x-crm.action-buttons>
                                 </td>
                             </tr>
                         @empty

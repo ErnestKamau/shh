@@ -277,11 +277,11 @@
             </div>
         </div>
         <div class="d-flex align-items-center" style="gap:8px;">
-            <button type="button" class="btn btn-outline-success btn-sm text-nowrap" wire:click="exportToExcel">
+            <button type="button" class="btn btn-outline-success btn-sm text-nowrap crm-outline-btn-sm" wire:click="exportToExcel">
                 <i class="mdi mdi-microsoft-excel"></i> Export to Excel
             </button>
             @if($complaint->complaint_workflow == 3)
-                <button type="button" class="btn btn-add btn-sm" wire:click="openResolutionModal">
+                <button type="button" class="btn btn-outline-primary btn-sm crm-outline-btn-sm" wire:click="openResolutionModal">
                     <i class="mdi mdi-plus"></i> Create Resolution
                 </button>
             @endif
@@ -291,37 +291,37 @@
     <div wire:loading wire:target="openResolutionModal,viewResolution,saveResolution" class="crm-loading-indicator">
         <i class="mdi mdi-loading mdi-spin"></i> Loading...
     </div>
-    <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50">
+    <x-crm.data-table class="crm-loading-overlay" wire:loading.class="opacity-50" plain-rows>
         <x-slot:header>
             <tr>
+                <th style="min-width:100px;">Actions</th>
                 <th>CAR No</th>
                 <th>Officer Responsible</th>
                 <th>Registered By</th>
                 <th>Date</th>
                 <th>Status</th>
-                <th style="min-width:120px;">Actions</th>
             </tr>
         </x-slot:header>
                     @forelse($resolutions as $index => $res)
                         <tr wire:key="resolution-{{ $res->id }}">
+                            <td nowrap>
+                                <div class="d-flex flex-nowrap">
+                                    <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--view"
+                                        wire:click="viewResolution('{{ $res->id }}')" title="View Resolution">
+                                        <i class="mdi mdi-eye-outline"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                        wire:click="openResolutionModal('{{ $res->id }}')" title="Edit Resolution">
+                                        <i class="mdi mdi-pencil-outline"></i>
+                                    </button>
+                                </div>
+                            </td>
                             <td>{{ $res->car_no }}</td>
                             <td>{{ $res->officer_responsible }}</td>
                             <td>{{ $res->registered_by }}</td>
                             <td>{{ $res->created_at->format('Y-m-d H:i') }}</td>
                             <td>
                                 <span class="crm-badge crm-badge-success">Active</span>
-                            </td>
-                            <td nowrap>
-                                <x-crm.action-buttons>
-                                    <button class="btn crm-btn crm-btn-view btn-sm"
-                                        wire:click="viewResolution({{ $res->id }})" title="View Resolution">
-                                        <i class="mdi mdi-eye-outline"></i>
-                                    </button>
-                                    <button class="btn crm-btn crm-btn-edit btn-sm"
-                                        wire:click="openResolutionModal({{ $res->id }})" title="Edit Resolution">
-                                        <i class="mdi mdi-pencil-outline"></i>
-                                    </button>
-                                </x-crm.action-buttons>
                             </td>
                         </tr>
                     @empty

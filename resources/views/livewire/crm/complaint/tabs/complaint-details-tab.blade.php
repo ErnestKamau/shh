@@ -16,7 +16,7 @@
     </div>
     <div class="row">
         <div class="col-md-6">
-            <x-crm.data-table>
+            <x-crm.data-table plain-rows>
                 <x-slot:header>
                     <tr>
                         <th>Detail</th>

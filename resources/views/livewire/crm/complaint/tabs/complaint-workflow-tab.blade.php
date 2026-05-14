@@ -34,7 +34,7 @@
                 </div>
                 <div class="col-md-6">
                     <div class="d-flex justify-content-end align-items-center">
-                        <button type="button" class="btn btn-outline-success btn-sm text-nowrap" wire:click="exportToExcel">
+                        <button type="button" class="btn btn-outline-success btn-sm text-nowrap crm-outline-btn-sm" wire:click="exportToExcel">
                             <i class="mdi mdi-microsoft-excel"></i> Export to Excel
                         </button>
                     </div>
@@ -59,7 +59,7 @@
                         taken.</p>
                 </div>
             @else
-                <x-crm.data-table>
+                <x-crm.data-table plain-rows>
                     <x-slot:header>
                         <tr>
                             <th>Action</th>
