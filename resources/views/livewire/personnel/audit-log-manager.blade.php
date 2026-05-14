@@ -147,7 +147,7 @@
                                 <td>{{ $item->url }}</td>
                                 <td>{{ $item->created_at }}</td>
                                 <td>
-                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--info" wire:click="openChangesModal({{ $item->id }})" title="{{ __('personnel.view_changes') }}">
+                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--info" wire:click="openChangesModal('{{ $item->id }}')" title="{{ __('personnel.view_changes') }}">
                                         <i class="mdi mdi-alert-decagram"></i>
                                     </button>
                                 </td>

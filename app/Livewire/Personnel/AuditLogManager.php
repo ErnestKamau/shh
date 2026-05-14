@@ -4,6 +4,7 @@ namespace App\Livewire\Personnel;
 
 use App\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
 use OwenIt\Auditing\Models\Audit;
@@ -25,14 +26,14 @@ class AuditLogManager extends Component
     public string $sortField = 'audits.created_at';
     public string $sortDirection = 'desc';
     public string $userFilter = '';
-    /** @var array<int, array{id:int,name:string}> */
+    /** @var array<int, array{id:string,name:string}> */
     public array $users = [];
     /** @var array<int, string> */
     public array $events = [];
     /** @var array<int, string> */
     public array $entities = [];
     public bool $showChangesModal = false;
-    public ?int $selectedAuditId = null;
+    public ?string $selectedAuditId = null;
     /** @var array<int, string> */
     public array $changeColumns = [];
     /** @var array<string, mixed> */
@@ -47,7 +48,7 @@ class AuditLogManager extends Component
         $this->users = User::query()
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(fn ($item): array => ['id' => (int) $item->id, 'name' => (string) $item->name])
+            ->map(fn ($item): array => ['id' => (string) $item->id, 'name' => (string) $item->name])
             ->toArray();
 
         $this->events = Audit::query()
@@ -164,10 +165,10 @@ class AuditLogManager extends Component
         return $this->sortDirection === 'asc' ? 'mdi mdi-arrow-up' : 'mdi mdi-arrow-down';
     }
 
-    public function openChangesModal(int $auditId): void
+    public function openChangesModal(string $auditId): void
     {
         $audit = Audit::query()->findOrFail($auditId);
-        $this->selectedAuditId = $audit->id;
+        $this->selectedAuditId = (string) $audit->id;
         $this->newValues = is_array($audit->new_values) ? $audit->new_values : [];
         $this->oldValues = is_array($audit->old_values) ? $audit->old_values : [];
         $this->changeColumns = array_values(array_unique(array_merge(array_keys($this->newValues), array_keys($this->oldValues))));
@@ -200,8 +201,8 @@ class AuditLogManager extends Component
             });
         }
 
-        if ($this->userFilter !== '') {
-            $query->where('audits.user_id', (int) $this->userFilter);
+        if ($this->userFilter !== '' && Str::isUuid($this->userFilter)) {
+            $query->where('audits.user_id', $this->userFilter);
         }
 
         if ($this->eventFilter !== '') {

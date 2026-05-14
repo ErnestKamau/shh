@@ -69,9 +69,7 @@ class ConfigurationManager extends Component
         ]);
 
         if ($this->editingConfigId) {
-            $item = ModulePreConfigs::query()
-                ->where('inventory_location_id', getCurrentUserLocation()->id)
-                ->findOrFail($this->editingConfigId);
+            $item = $this->buildScopedQuery()->findOrFail($this->editingConfigId);
         } else {
             $item = new ModulePreConfigs();
             $item->type = $this->config;
