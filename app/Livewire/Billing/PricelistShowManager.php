@@ -46,6 +46,14 @@ class PricelistShowManager extends Component
     public array $itemElementRows = [];
     public ?string $editingItemId = null;
 
+    public bool $showItemSampleTypeDropdown = false;
+
+    public bool $showItemAnalysisTypeDropdown = false;
+
+    public string $itemSampleTypeSearch = '';
+
+    public string $itemAnalysisTypeSearch = '';
+
     public $selectedItemIds = [];
     public $showCloneModal = false;
     public $cloneForm = [];
@@ -145,7 +153,10 @@ class PricelistShowManager extends Component
                 $analyte = $item->analysisElement?->analyte;
                 $cost = (float) ($item->cost_price ?? 0);
                 $selling = (float) ($item->selling_price ?? 0);
-                $changed = (float) ($item->changed_price ?? 0);
+                $changedRaw = $item->changed_price;
+                $changed = $changedRaw === null || $changedRaw === ''
+                    ? $selling
+                    : (float) $changedRaw;
                 $profit = $selling - $cost;
 
                 $item->sample_type_name = $sampleType->name ?? null;
@@ -156,7 +167,7 @@ class PricelistShowManager extends Component
                 $item->analyte_code = $analyte?->code;
                 $item->profit = $profit;
                 $item->profit_margin = $selling > 0 ? (($profit / $selling) * 100) : 0;
-                $item->has_pending_change = $selling !== $changed;
+                $item->has_pending_change = abs($selling - $changed) > 0.004;
 
                 return $item;
             })
@@ -432,6 +443,34 @@ class PricelistShowManager extends Component
             ->get();
     }
 
+    public function getFilteredItemSampleTypesProperty()
+    {
+        $types = $this->sampleTypes;
+        $query = mb_strtolower(trim($this->itemSampleTypeSearch));
+        if ($query === '') {
+            return $types;
+        }
+
+        return $types->filter(function ($st) use ($query) {
+            return str_contains(mb_strtolower((string) ($st->name ?? '')), $query)
+                || str_contains(mb_strtolower((string) ($st->code ?? '')), $query);
+        })->values();
+    }
+
+    public function getFilteredItemAnalysisTypesProperty()
+    {
+        $types = $this->availableAnalysisTypes;
+        $query = mb_strtolower(trim($this->itemAnalysisTypeSearch));
+        if ($query === '') {
+            return $types;
+        }
+
+        return $types->filter(function ($at) use ($query) {
+            return str_contains(mb_strtolower((string) ($at->name ?? '')), $query)
+                || str_contains(mb_strtolower((string) ($at->code ?? '')), $query);
+        })->values();
+    }
+
     public function getCurrenciesProperty()
     {
         return Currency::query()
@@ -450,7 +489,7 @@ class PricelistShowManager extends Component
             'total_items' => $items->count(),
             'active_items' => $items->where('active', true)->count(),
             'changed_items' => $items->filter(function ($item) {
-                return (float) ($item->selling_price ?? 0) !== (float) ($item->changed_price ?? 0);
+                return round((float) ($item->selling_price ?? 0), 2) !== round((float) ($item->changed_price ?? 0), 2);
             })->count(),
             'assigned_customers' => $assignedCustomers->count(),
         ];
@@ -873,6 +912,10 @@ class PricelistShowManager extends Component
 
         $this->editingItem = true;
         $this->editingItemId = (string) $item->id;
+        $this->showItemSampleTypeDropdown = false;
+        $this->showItemAnalysisTypeDropdown = false;
+        $this->itemSampleTypeSearch = '';
+        $this->itemAnalysisTypeSearch = '';
         $this->itemForm = [
             'id' => $item->id,
             'analysis_id' => $item->analysis_id,
@@ -887,30 +930,68 @@ class PricelistShowManager extends Component
         $this->showItemModal = true;
     }
 
-    public function updatedItemFormSampleTypeId($value): void
+    public function setItemSampleTypeDropdown(bool $open): void
     {
-        if (empty($value)) {
-            $this->itemForm['analysis_id'] = '';
-            $this->itemElementRows = [];
+        $this->showItemSampleTypeDropdown = $open;
+        if ($open) {
+            $this->showItemAnalysisTypeDropdown = false;
+        }
+    }
+
+    public function setItemAnalysisTypeDropdown(bool $open): void
+    {
+        if ($open && empty($this->itemForm['sample_type_id'])) {
             return;
         }
+
+        $this->showItemAnalysisTypeDropdown = $open;
+        if ($open) {
+            $this->showItemSampleTypeDropdown = false;
+        }
+    }
+
+    public function selectItemSampleType(string $id): void
+    {
+        $this->itemForm['sample_type_id'] = $id;
+        $this->showItemSampleTypeDropdown = false;
+        $this->itemSampleTypeSearch = '';
 
         if (!empty($this->itemForm['analysis_id'])) {
             $analysisType = AnalysisType::query()
                 ->where('id', $this->itemForm['analysis_id'])
                 ->first(['id', 'sample_type_id']);
 
-            if (!$analysisType || (string) $analysisType->sample_type_id !== (string) $value) {
+            if (!$analysisType || (string) $analysisType->sample_type_id !== (string) $id) {
                 $this->itemForm['analysis_id'] = '';
             }
         }
 
-        $this->itemElementRows = [];
+        $this->refreshItemElementRows();
     }
 
-    public function updatedItemFormAnalysisId(): void
+    public function selectItemAnalysisType(string $id): void
     {
+        $this->itemForm['analysis_id'] = $id;
+        $this->showItemAnalysisTypeDropdown = false;
+        $this->itemAnalysisTypeSearch = '';
         $this->refreshItemElementRows();
+    }
+
+    public function clearItemSampleType(): void
+    {
+        $this->itemForm['sample_type_id'] = '';
+        $this->itemForm['analysis_id'] = '';
+        $this->itemElementRows = [];
+        $this->itemSampleTypeSearch = '';
+        $this->showItemSampleTypeDropdown = false;
+    }
+
+    public function clearItemAnalysisType(): void
+    {
+        $this->itemForm['analysis_id'] = '';
+        $this->itemElementRows = [];
+        $this->itemAnalysisTypeSearch = '';
+        $this->showItemAnalysisTypeDropdown = false;
     }
 
     public function saveItem(): void
@@ -1249,6 +1330,10 @@ class PricelistShowManager extends Component
         ];
 
         $this->itemElementRows = [];
+        $this->showItemSampleTypeDropdown = false;
+        $this->showItemAnalysisTypeDropdown = false;
+        $this->itemSampleTypeSearch = '';
+        $this->itemAnalysisTypeSearch = '';
     }
 
     private function refreshItemElementRows(): void
@@ -1273,9 +1358,12 @@ class PricelistShowManager extends Component
         $elements = AnalysisElements::query()
             ->with(['analyte:id,name,code'])
             ->where('analysis_type_id', $analysisId)
-            ->where('active', true)
+            ->where(function ($query): void {
+                $query->where('active', true)
+                    ->orWhereNull('active');
+            })
             ->orderBy('level')
-            ->get(['id', 'analysis_type_id', 'analyte_id', 'level']);
+            ->get(['id', 'analysis_type_id', 'analyte_id', 'level', 'active']);
 
         $existingItems = PricelistItem::query()
             ->where('pricelist_id', $this->pricelistId)

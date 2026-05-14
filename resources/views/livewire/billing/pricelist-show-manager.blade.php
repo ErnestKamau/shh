@@ -487,8 +487,11 @@
                                 </div>
                             </div>
                             <div class="card-body">
-                                @if($groupedItems->count() > 0)
-                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap: 10px;">
+                                @if($items->count() > 0)
+                                    @php
+                                        $pendingItemsCount = $items->filter(fn ($i) => (bool) ($i->has_pending_change ?? false))->count();
+                                    @endphp
+                                    <div class="pricelist-items-toolbar d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap: 10px;" wire:key="pricelist-items-toolbar">
                                         <div class="pricelist-item-legend">
                                             <span class="legend-label">Item state:</span>
                                             <span class="legend-item">
@@ -497,19 +500,20 @@
                                             </span>
                                         </div>
 
-                                        <div class="item-filter-tabs">
+                                        <div class="item-filter-tabs" role="tablist" aria-label="Pricelist item commit filter">
                                             <button type="button" class="item-filter-tab {{ $itemCommitFilter === 'all' ? 'active' : '' }}" wire:click="setItemCommitFilter('all')">
-                                                All
+                                                All <span class="item-filter-tab-count">({{ $items->count() }})</span>
                                             </button>
                                             <button type="button" class="item-filter-tab {{ $itemCommitFilter === 'pending' ? 'active' : '' }}" wire:click="setItemCommitFilter('pending')">
-                                                Pending
+                                                Pending <span class="item-filter-tab-count">({{ $pendingItemsCount }})</span>
                                             </button>
                                             <button type="button" class="item-filter-tab {{ $itemCommitFilter === 'applied' ? 'active' : '' }}" wire:click="setItemCommitFilter('applied')">
-                                                Applied
+                                                Applied <span class="item-filter-tab-count">({{ $items->count() - $pendingItemsCount }})</span>
                                             </button>
                                         </div>
                                     </div>
 
+                                    @if($groupedItems->count() > 0)
                                     <div class="grouped-items-layout">
                                         @foreach($groupedItems as $sampleGroup)
                                             <section class="sample-group-card mb-3">
@@ -559,16 +563,10 @@
                                                                                 <td class="fit-col">
                                                                                     <input type="checkbox" wire:model.live="selectedItemIds" value="{{ $item->id }}">
                                                                                 </td>
-                                                                                <td class="fit-col">
-                                                                                    <div class="d-flex align-items-center flex-wrap">
-                                                                                        <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--move" wire:click="moveItem(@js($item->id), 'up')" title="Move up">
-                                                                                            <i class="mdi mdi-arrow-up"></i>
-                                                                                        </button>
-                                                                                        <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--move" wire:click="moveItem(@js($item->id), 'down')" title="Move down">
-                                                                                            <i class="mdi mdi-arrow-down"></i>
-                                                                                        </button>
+                                                                                <td class="fit-col pricelist-actions-cell">
+                                                                                    <div class="pricelist-row-actions">
                                                                                         <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit" wire:click="showEditItemModal(@js($item->id))" title="Edit item">
-                                                                                            <i class="mdi mdi-pencil"></i>
+                                                                                            <i class="mdi mdi-pencil-outline"></i>
                                                                                         </button>
                                                                                         <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click="deleteItem(@js($item->id))" title="Delete item" onclick="return confirm('Delete this pricelist item?')">
                                                                                             <i class="mdi mdi-delete"></i>
@@ -605,6 +603,18 @@
                                             </section>
                                         @endforeach
                                     </div>
+                                    @else
+                                        <div class="compact-empty pricelist-filter-empty">
+                                            <i class="mdi mdi-filter-variant"></i>
+                                            @if($itemCommitFilter === 'pending')
+                                                <p class="mb-0"><strong>No pending items.</strong> Nothing has an uncommitted price change, or adjust prices and save before applying.</p>
+                                            @elseif($itemCommitFilter === 'applied')
+                                                <p class="mb-0"><strong>No applied-only rows.</strong> All items may still show as pending until you apply price changes.</p>
+                                            @else
+                                                <p class="mb-0">No line items match the current view.</p>
+                                            @endif
+                                        </div>
+                                    @endif
                                 @else
                                     <div class="empty-state">
                                         <i class="mdi mdi-format-list-bulleted-square"></i>
@@ -637,25 +647,77 @@
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label item-modal-label">Sample Type <span class="text-danger">*</span></label>
-                                            <select wire:model="itemForm.sample_type_id" class="form-select item-modal-input @error('itemForm.sample_type_id') is-invalid @enderror">
-                                                <option value="">Select sample type</option>
-                                                @foreach($sampleTypes as $sampleType)
-                                                    <option value="{{ $sampleType->id }}">{{ $sampleType->code }} - {{ $sampleType->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            @error('itemForm.sample_type_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            <div class="item-tag-select tag-select-container" wire:click="setItemSampleTypeDropdown(true)">
+                                                <div class="tag-select-input item-tag-select-input">
+                                                    @if(!empty($itemForm['sample_type_id']))
+                                                        @php $selectedSt = $sampleTypes->firstWhere('id', $itemForm['sample_type_id']); @endphp
+                                                        @if($selectedSt)
+                                                            <span class="tag-badge">
+                                                                {{ $selectedSt->code }} — {{ $selectedSt->name }}
+                                                                <i class="mdi mdi-close-circle" wire:click.stop="clearItemSampleType" role="button" tabindex="0"></i>
+                                                            </span>
+                                                        @endif
+                                                    @else
+                                                        <input type="text"
+                                                            wire:model.live.debounce.300ms="itemSampleTypeSearch"
+                                                            class="tag-input"
+                                                            placeholder="Search sample types..."
+                                                            autocomplete="off">
+                                                    @endif
+                                                </div>
+                                                @if($showItemSampleTypeDropdown && $this->filteredItemSampleTypes->isNotEmpty())
+                                                    <div class="tag-dropdown">
+                                                        @foreach($this->filteredItemSampleTypes as $sampleType)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectItemSampleType('{{ $sampleType->id }}')">
+                                                                <span class="tag-dropdown-code">{{ $sampleType->code }}</span>
+                                                                <span class="tag-dropdown-name">{{ $sampleType->name }}</span>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @elseif($showItemSampleTypeDropdown)
+                                                    <div class="tag-dropdown tag-dropdown--empty text-muted small">No matching sample types.</div>
+                                                @endif
+                                            </div>
+                                            @error('itemForm.sample_type_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                             <label class="form-label item-modal-label">Analysis Type <span class="text-danger">*</span></label>
-                                            <select wire:model="itemForm.analysis_id" class="form-select item-modal-input @error('itemForm.analysis_id') is-invalid @enderror">
-                                                <option value="">Select analysis</option>
-                                                @foreach($availableAnalysisTypes as $analysisType)
-                                                    <option value="{{ $analysisType->id }}">{{ $analysisType->code }} - {{ $analysisType->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            @error('itemForm.analysis_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            <div class="item-tag-select tag-select-container" wire:click="setItemAnalysisTypeDropdown(true)">
+                                                <div class="tag-select-input item-tag-select-input {{ empty($itemForm['sample_type_id']) ? 'item-tag-select-input--disabled' : '' }}">
+                                                    @if(empty($itemForm['sample_type_id']))
+                                                        <span class="tag-input-placeholder text-muted">Select a sample type first…</span>
+                                                    @elseif(!empty($itemForm['analysis_id']))
+                                                        @php $selectedAt = $availableAnalysisTypes->firstWhere('id', $itemForm['analysis_id']); @endphp
+                                                        @if($selectedAt)
+                                                            <span class="tag-badge">
+                                                                {{ $selectedAt->code }} — {{ $selectedAt->name }}
+                                                                <i class="mdi mdi-close-circle" wire:click.stop="clearItemAnalysisType" role="button" tabindex="0"></i>
+                                                            </span>
+                                                        @endif
+                                                    @else
+                                                        <input type="text"
+                                                            wire:model.live.debounce.300ms="itemAnalysisTypeSearch"
+                                                            class="tag-input"
+                                                            placeholder="Search analysis types..."
+                                                            autocomplete="off">
+                                                    @endif
+                                                </div>
+                                                @if($showItemAnalysisTypeDropdown && !empty($itemForm['sample_type_id']) && $this->filteredItemAnalysisTypes->isNotEmpty())
+                                                    <div class="tag-dropdown">
+                                                        @foreach($this->filteredItemAnalysisTypes as $analysisType)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectItemAnalysisType('{{ $analysisType->id }}')">
+                                                                <span class="tag-dropdown-code">{{ $analysisType->code }}</span>
+                                                                <span class="tag-dropdown-name">{{ $analysisType->name }}</span>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @elseif($showItemAnalysisTypeDropdown && !empty($itemForm['sample_type_id']))
+                                                    <div class="tag-dropdown tag-dropdown--empty text-muted small">No matching analysis types for this sample type.</div>
+                                                @endif
+                                            </div>
+                                            @error('itemForm.analysis_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                         </div>
                                     </div>
                                 </div>
@@ -886,6 +948,128 @@
         .item-modal-input:focus {
             border-color: #93c5fd;
             box-shadow: 0 0 0 0.18rem rgba(59, 130, 246, 0.15);
+        }
+
+        /* Tag select (Add / Edit pricelist item modal) */
+        .item-modal-section .item-tag-select.tag-select-container {
+            position: relative;
+            cursor: text;
+        }
+
+        .item-modal-section .item-tag-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            min-height: 44px;
+            padding: 6px 12px;
+            background: #fff;
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .item-modal-section .item-tag-select-input:focus-within {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 0.18rem rgba(59, 130, 246, 0.12);
+        }
+
+        .item-modal-section .item-tag-select-input--disabled {
+            background: #f1f5f9;
+            cursor: not-allowed;
+        }
+
+        .item-modal-section .tag-input-placeholder {
+            font-size: 13px;
+            padding: 4px 2px;
+        }
+
+        .item-modal-section .tag-input {
+            flex: 1;
+            min-width: 120px;
+            border: none;
+            outline: none;
+            padding: 4px;
+            font-size: 14px;
+            background: transparent;
+        }
+
+        .item-modal-section .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #2563eb;
+            color: #fff;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+
+        .item-modal-section .tag-badge i {
+            cursor: pointer;
+            font-size: 1rem;
+            opacity: 0.85;
+        }
+
+        .item-modal-section .tag-badge i:hover {
+            opacity: 1;
+        }
+
+        .item-modal-section .tag-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #93c5fd;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 1080;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+            margin-top: -1px;
+        }
+
+        .item-modal-section .tag-dropdown--empty {
+            padding: 12px 14px;
+        }
+
+        .item-modal-section .tag-dropdown-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 8px;
+            transition: background 0.15s ease;
+        }
+
+        .item-modal-section .tag-dropdown-item:hover {
+            background: #f8fafc;
+        }
+
+        .item-modal-section .tag-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-modal-section .tag-dropdown-code {
+            font-size: 11px;
+            font-weight: 700;
+            color: #1d4ed8;
+            background: #dbeafe;
+            border-radius: 6px;
+            padding: 2px 8px;
+        }
+
+        .item-modal-section .tag-dropdown-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0f172a;
         }
 
         .flag-tile {
@@ -1501,17 +1685,64 @@
             border-color: #eef2f7;
         }
 
-        .pricelist-item-row--uncommitted td:first-child {
-            border-left: 4px solid #f59e0b;
+        .pricelist-items-toolbar {
+            flex-shrink: 0;
         }
 
         .pricelist-item-row--uncommitted {
-            background: #fffdf5;
+            background: linear-gradient(90deg, rgba(245, 158, 11, 0.14) 0%, #fffbeb 10px, #fffbeb 100%);
+        }
+
+        .pricelist-item-row--uncommitted td {
+            border-color: rgba(245, 158, 11, 0.45) !important;
+            border-top-width: 1px;
+            border-bottom-width: 1px;
+        }
+
+        .pricelist-item-row--uncommitted td:first-child {
+            box-shadow: inset 4px 0 0 #ea580c;
+        }
+
+        .pricelist-actions-cell {
+            vertical-align: middle;
+        }
+
+        .pricelist-row-actions {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .pricelist-row-actions .rm-act-btn {
+            margin-right: 0;
+            padding: 2px 6px;
+            min-width: 30px;
+            line-height: 1;
+        }
+
+        .pricelist-row-actions .rm-act-btn .mdi {
+            font-size: 16px;
+            vertical-align: middle;
+        }
+
+        .pricelist-filter-empty {
+            margin-top: 0.25rem;
+        }
+
+        .pricelist-filter-empty i {
+            margin-bottom: 8px;
         }
 
         .fit-col {
             width: 1%;
             white-space: nowrap;
+        }
+
+        .item-filter-tab-count {
+            font-weight: 600;
+            opacity: 0.82;
         }
 
         .flag-stack {
@@ -1572,17 +1803,6 @@
         .rm-act-btn--delete:hover {
             background: #ffe4e6;
             border-color: #fda4af;
-        }
-
-        .rm-act-btn--move {
-            border: 1px solid #cbd5e1;
-            color: #334155;
-            background: #f8fafc;
-        }
-
-        .rm-act-btn--move:hover {
-            background: #f1f5f9;
-            border-color: #94a3b8;
         }
 
         @media (max-width: 991.98px) {
