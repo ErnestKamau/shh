@@ -15,7 +15,7 @@ return new class extends Migration
         DB::statement('CREATE SCHEMA IF NOT EXISTS ai');
 
         Schema::create('ai.ai_feature_snapshots', function (Blueprint $table) {
-            $table->bigIncrements('id');
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->timestampTz('snapshot_time')->useCurrent();
             $table->text('description')->nullable();
             $table->jsonb('metadata')->nullable();

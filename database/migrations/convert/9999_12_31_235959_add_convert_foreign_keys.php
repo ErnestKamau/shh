@@ -345,9 +345,11 @@ return new class extends Migration
             $table->foreign(['created_by'], 'fk_corrective_actions_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
         });
 
-        Schema::table('crm_areas', function (Blueprint $table) {
-            $table->foreign(['created_by'], 'fk_crm_areas_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
-        });
+        if (Schema::hasTable('crm_areas')) {
+            Schema::table('crm_areas', function (Blueprint $table) {
+                $table->foreign(['created_by'], 'fk_crm_areas_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
+            });
+        }
 
         Schema::table('crm_company_sections', function (Blueprint $table) {
             $table->foreign(['crm_customer_id'], 'fk_crm_company_sections_crm_customer_id_81f517eb')->references(['id'])->on('crm_customers')->onUpdate('no action')->onDelete('cascade');
@@ -388,9 +390,11 @@ return new class extends Migration
             $table->foreign(['crm_customer_id'], 'fk_crm_report_info_columns_crm_customer_id_edc2a5dc')->references(['id'])->on('crm_customers')->onUpdate('no action')->onDelete('cascade');
         });
 
-        Schema::table('crm_sample_points', function (Blueprint $table) {
-            $table->foreign(['created_by'], 'fk_crm_sample_points_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
-        });
+        if (Schema::hasTable('crm_sample_points')) {
+            Schema::table('crm_sample_points', function (Blueprint $table) {
+                $table->foreign(['created_by'], 'fk_crm_sample_points_created_by')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
+            });
+        }
 
         Schema::table('currency_conversions', function (Blueprint $table) {
             $table->foreign(['inventory_location_id'], 'fk_currency_conversions_inventory_location_id_b8466137')->references(['id'])->on('inventory_locations')->onUpdate('no action')->onDelete('set null');
@@ -1260,20 +1264,30 @@ return new class extends Migration
             $table->foreign(['sample_header_id'], 'fk_sample_imports_sample_header_id_31a30e9f')->references(['id'])->on('sample_headers')->onUpdate('no action')->onDelete('set null');
         });
 
-        Schema::table('sample_point_area', function (Blueprint $table) {
-            $table->foreign(['crm_customer_id'], 'fk_sample_point_area_crm_customer_id_a7c9520c')->references(['id'])->on('crm_customers')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['crm_area_id'], 'fk_sample_point_area_crm_area_id_60117a20')->references(['id'])->on('crm_areas')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['crm_company_sub_unit_id'], 'fk_sample_point_area_crm_company_sub_unit_id_7479b6de')->references(['id'])->on('crm_company_sub_units')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['crm_company_unit_id'], 'fk_sample_point_area_crm_company_unit_id_b92fe99c')->references(['id'])->on('crm_company_units')->onUpdate('no action')->onDelete('set null');
-        });
+        if (Schema::hasTable('sample_point_area')) {
+            Schema::table('sample_point_area', function (Blueprint $table) {
+                $table->foreign(['crm_customer_id'], 'fk_sample_point_area_crm_customer_id_a7c9520c')->references(['id'])->on('crm_customers')->onUpdate('no action')->onDelete('cascade');
+                if (Schema::hasTable('crm_areas')) {
+                    $table->foreign(['crm_area_id'], 'fk_sample_point_area_crm_area_id_60117a20')->references(['id'])->on('crm_areas')->onUpdate('no action')->onDelete('set null');
+                }
+                $table->foreign(['crm_company_sub_unit_id'], 'fk_sample_point_area_crm_company_sub_unit_id_7479b6de')->references(['id'])->on('crm_company_sub_units')->onUpdate('no action')->onDelete('set null');
+                $table->foreign(['crm_company_unit_id'], 'fk_sample_point_area_crm_company_unit_id_b92fe99c')->references(['id'])->on('crm_company_units')->onUpdate('no action')->onDelete('set null');
+            });
+        }
 
         Schema::table('sample_points', function (Blueprint $table) {
-            $table->foreign(['sample_point_area_id'], 'fk_sample_points_sample_point_area_id_288fec45')->references(['id'])->on('sample_point_area')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['crm_area_id'], 'fk_sample_points_crm_area_id_49c57678')->references(['id'])->on('crm_areas')->onUpdate('no action')->onDelete('set null');
+            if (Schema::hasTable('sample_point_area')) {
+                $table->foreign(['sample_point_area_id'], 'fk_sample_points_sample_point_area_id_288fec45')->references(['id'])->on('sample_point_area')->onUpdate('no action')->onDelete('cascade');
+            }
+            if (Schema::hasTable('crm_areas')) {
+                $table->foreign(['crm_area_id'], 'fk_sample_points_crm_area_id_49c57678')->references(['id'])->on('crm_areas')->onUpdate('no action')->onDelete('set null');
+            }
             $table->foreign(['crm_company_sub_unit_id'], 'fk_sample_points_crm_company_sub_unit_id_f42a1dd4')->references(['id'])->on('crm_company_sub_units')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['crm_company_unit_id'], 'fk_sample_points_crm_company_unit_id_acbfb0fc')->references(['id'])->on('crm_company_units')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['crm_customer_id'], 'fk_sample_points_crm_customer_id_d6d2e4fc')->references(['id'])->on('crm_customers')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['crm_sample_point_id'], 'fk_sample_points_crm_sample_point_id_9dc4db32')->references(['id'])->on('crm_sample_points')->onUpdate('no action')->onDelete('set null');
+            if (Schema::hasTable('crm_sample_points')) {
+                $table->foreign(['crm_sample_point_id'], 'fk_sample_points_crm_sample_point_id_9dc4db32')->references(['id'])->on('crm_sample_points')->onUpdate('no action')->onDelete('set null');
+            }
         });
 
         Schema::table('sample_progress', function (Blueprint $table) {
@@ -1333,13 +1347,21 @@ return new class extends Migration
             $table->foreign(['formula_step_id'], 'fk_sample_worksheet_formular_step_data_formula_step_id_753dd4c6')->references(['id'])->on('formula_steps')->onUpdate('no action')->onDelete('cascade');
         });
 
+        if (Schema::hasTable('sampletype_area_relation') && Schema::hasTable('crm_areas')) {
+            Schema::table('sampletype_area_relation', function (Blueprint $table) {
+                $table->foreign(['area_id'], 'fk_sampletype_area_relation_area_id_8a8d5dd5')->references(['id'])->on('crm_areas')->onUpdate('no action')->onDelete('cascade');
+            });
+        }
         Schema::table('sampletype_area_relation', function (Blueprint $table) {
-            $table->foreign(['area_id'], 'fk_sampletype_area_relation_area_id_8a8d5dd5')->references(['id'])->on('crm_areas')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['sample_type_id'], 'fk_sampletype_area_relation_sample_type_id_f00d6d77')->references(['id'])->on('sample_types')->onUpdate('no action')->onDelete('cascade');
         });
 
+        if (Schema::hasTable('sampletype_sample_point_relation') && Schema::hasTable('crm_sample_points')) {
+            Schema::table('sampletype_sample_point_relation', function (Blueprint $table) {
+                $table->foreign(['sample_point_id'], 'fk_sampletype_sample_point_relation_sample_point_id_af6516ee')->references(['id'])->on('crm_sample_points')->onUpdate('no action')->onDelete('cascade');
+            });
+        }
         Schema::table('sampletype_sample_point_relation', function (Blueprint $table) {
-            $table->foreign(['sample_point_id'], 'fk_sampletype_sample_point_relation_sample_point_id_af6516ee')->references(['id'])->on('crm_sample_points')->onUpdate('no action')->onDelete('cascade');
             $table->foreign(['sample_type_id'], 'fk_sampletype_sample_point_relation_sample_type_id_21358013')->references(['id'])->on('sample_types')->onUpdate('no action')->onDelete('cascade');
         });
 

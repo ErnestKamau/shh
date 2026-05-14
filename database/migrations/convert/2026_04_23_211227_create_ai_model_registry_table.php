@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('version')->default('1.0.0');
             $table->string('framework')->nullable();
             $table->text('artifact_path')->nullable();
-            $table->unsignedBigInteger('feature_snapshot_id')->nullable();
+            $table->uuid('feature_snapshot_id')->nullable();
             $table->integer('training_rows')->default(0);
             $table->double('training_duration_seconds')->nullable();
             $table->jsonb('hyperparameters')->nullable();
