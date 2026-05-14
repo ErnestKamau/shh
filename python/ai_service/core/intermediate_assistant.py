@@ -3,6 +3,7 @@ import asyncio
 import time
 import uuid
 import re
+import os
 from typing import List, Dict, Any, Optional, AsyncGenerator
 
 from python.ai_service.core.simple_assistant import SimpleAssistant
@@ -24,6 +25,7 @@ class IntermediateAssistant:
     def __init__(self, ollama: OllamaService, operational: SimpleAssistant):
         self.ollama = ollama
         self.operational = operational
+        self.chat_model = os.getenv("AI_CHAT_MODEL", "gemma3:1b")
         
         # Broad patterns for fast-path conversational routing
         self.fast_path_patterns = re.compile(
@@ -122,7 +124,7 @@ class IntermediateAssistant:
             response = await asyncio.to_thread(
                 self.ollama.chat,
                 messages=[{"role": "system", "content": system_prompt}] + messages,
-                model=model or "gemma3:1b"
+                model=model or self.chat_model
             )
             
             return {
@@ -187,7 +189,7 @@ class IntermediateAssistant:
         # We use the full messages array for history in the stream
         stream = self.ollama.chat_stream(
             messages=[{"role": "system", "content": system_prompt}] + messages,
-            model=model or "gemma3:1b"
+            model=model or self.chat_model
         )
         
         async for chunk in stream:

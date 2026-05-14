@@ -278,7 +278,7 @@ class Risk extends Model implements Auditable
     // Scopes
     public function scopeForCompany($query)
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
         return $query->where('company_id', $companyId);
     }
 
@@ -349,7 +349,7 @@ class Risk extends Model implements Auditable
             return null;
         }
 
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
         
         // Try to get configurable risk level thresholds if table exists
         try {
@@ -442,9 +442,14 @@ class Risk extends Model implements Auditable
         }
 
         $status = RiskStatus::where('name', $this->status_name)
-            ->where(function($q) {
-                $companyId = getUserCompany() ?? 0;
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
+            ->where(function ($q) {
+                $companyId = getUserCompany();
+                if ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                    return;
+                }
+
+                $q->whereNull('company_id');
             })
             ->first();
 
@@ -470,11 +475,16 @@ class Risk extends Model implements Auditable
             return null; // Already at the last step (Step 8 is Closed)
         }
 
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
         return RiskStatus::active()
             ->where('workflow_step', $nextStep)
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
+            ->where(function ($q) use ($companyId) {
+                if ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                    return;
+                }
+
+                $q->whereNull('company_id');
             })
             ->ordered()
             ->first();
@@ -625,11 +635,16 @@ class Risk extends Model implements Auditable
      */
     public static function getStatusByCode(string $code): ?RiskStatus
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
         return RiskStatus::active()
             ->where('code', $code)
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
+            ->where(function ($q) use ($companyId) {
+                if ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                    return;
+                }
+
+                $q->whereNull('company_id');
             })
             ->first();
     }
@@ -639,11 +654,16 @@ class Risk extends Model implements Auditable
      */
     public static function getStatusByName(string $name): ?RiskStatus
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
         return RiskStatus::active()
             ->where('name', $name)
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
+            ->where(function ($q) use ($companyId) {
+                if ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                    return;
+                }
+
+                $q->whereNull('company_id');
             })
             ->first();
     }

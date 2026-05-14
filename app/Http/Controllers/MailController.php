@@ -59,12 +59,19 @@ class MailController extends Controller
 						$message->bcc($bcc_emails_arr);
 					}
 
-					$emailSent = new \App\EmailSent;
-
-					$emailSent->email = gettype($data['contacts']) == 'array' ?  implode(",", $data['contacts']) : $data['contacts'];
-					$emailSent->subject = $data['subject'];
-					$emailSent->body = json_encode($data);
-					$emailSent->save();
+					try {
+						$emailSent = new \App\EmailSent;
+						$emailSent->email = gettype($data['contacts']) == 'array' ?  implode(",", $data['contacts']) : $data['contacts'];
+						$emailSent->subject = $data['subject'];
+						$emailSent->body = json_encode($data);
+						$emailSent->save();
+					} catch (Throwable $exception) {
+						Log::warning('Email sent but failed to persist email_sents audit row.', [
+							'contacts' => $data['contacts'] ?? null,
+							'subject' => $data['subject'] ?? null,
+							'error' => $exception->getMessage(),
+						]);
+					}
 
 					if(isset($data['file'])){
 						if(gettype($data['file']) == "array"){
