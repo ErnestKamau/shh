@@ -365,14 +365,14 @@ Route::post('/analysis-element/{id}', 'AnalysisElementsController@edit')->name('
 Route::get('/move-analysis-analyte/{direction}/{analysis}/{element}', 'AnalysisElementsController@move_analysis_analyte')->name('move-analysis-analyte')->middleware('can:laboratory.components.analysis types.edit');
 Route::post('/delete-Analysis-Element', 'AnalysisElementsController@deleteAnalysisElement')->name('deleteAnalysisElement')->middleware('can:laboratory.components.analysis types.delete');
 
-Route::get('/analysis-methods', function () {
-    return view('livewire.lab.method-manager-page');
-})->name('analysis-methods')->middleware('can:laboratory.components.methods.view');
+Route::get('/analysis-methods', [LabAppController::class, 'methods'])
+    ->name('analysis-methods')
+    ->middleware('can:laboratory.components.methods.view');
 Route::post('/analysis-methods', 'AnalysisMethodController@add')->name('add-analysis-methods')->middleware('can:laboratory.components.methods.add');
 Route::post('/analysis-method/edit', 'AnalysisMethodController@edit')->name('edit-analysis-method')->middleware('can:laboratory.components.methods.edit');
-Route::get('/analysis-method/{id}', function ($id) {
-    return view('livewire.lab.method-detail-page', ['methodId' => (int) $id]);
-})->name('analysis-method')->middleware('can:laboratory.components.methods.view');
+Route::get('/analysis-method/{id}', [LabAppController::class, 'methodDetail'])
+    ->name('analysis-method')
+    ->middleware('can:laboratory.components.methods.view');
 Route::post('/send-for-validation', 'AnalysisMethodController@sendForValidation')->name('send-for-validation')->middleware('can:laboratory.components.methods.edit');
 
 // Method Validation Routes
@@ -1034,15 +1034,14 @@ Route::prefix('crm/v2')->middleware(['auth', 'can:crm.customers.view'])->name('c
 });
 
 Route::get('/crm/customer/{id}', function ($id) {
-    $customerId = (int) $id;
-    $customer = \App\Models\CRM\CRMCustomer::find($customerId);
+    $customer = \App\Models\CRM\CRMCustomer::find($id);
 
     if (!$customer) {
         abort(404);
     }
 
     return view('layouts.crm.v2-customer-show', [
-        'customerId' => $customerId,
+        'customerId' => $id,
         'customer' => $customer,
     ]);
 })->middleware(['auth', 'can:crm.customers.view'])->name('crm.customer.show');

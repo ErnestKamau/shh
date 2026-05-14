@@ -89,8 +89,9 @@ class ComplaintForm extends BaseCrmComponent
 
         if ($customer) {
             $this->customerId = $customer->id;
-            $this->contacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $customer->id)
-                ->where('active', 1)
+            $this->contacts = \App\Models\CRM\CustomerContact::query()
+                ->where('crm_customer_id', $customer->id)
+                ->where('active', true)
                 ->get();
 
             // Auto-select if ONLY one contact exists
@@ -139,12 +140,23 @@ class ComplaintForm extends BaseCrmComponent
             ->values();
     }
 
-    public function selectOrganization($name)
+    public function selectOrganization(string $customerId): void
     {
-        $this->organization_name = $name;
+        $customer = CRMCustomer::query()
+            ->where('company_id', $this->getUserCompany())
+            ->find($customerId);
+
+        if ($customer === null) {
+            return;
+        }
+
+        $this->customerId = $customer->id;
+        $this->organization_name = $customer->name;
         $this->organizationSearch = '';
         $this->showOrganizationDropdown = false;
-        $this->customerId = null;
+        $this->contact_name = '';
+        $this->contactSearch = '';
+        $this->title_position = '';
         $this->loadDynamicData();
     }
 
@@ -177,15 +189,12 @@ class ComplaintForm extends BaseCrmComponent
 
         return collect($this->contacts)
             ->filter(function ($contact) use ($search) {
-                if ((string) $contact->id === (string) $this->contact_name) {
-                    return false;
-                }
-
                 if ($search === '') {
                     return true;
                 }
 
                 $name = strtolower(trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? '')));
+
                 return str_contains($name, $search);
             })
             ->values();

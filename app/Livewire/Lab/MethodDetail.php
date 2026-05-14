@@ -57,7 +57,7 @@ class MethodDetail extends Component
         ];
     }
 
-    public function mount(int $methodId): void
+    public function mount(string $methodId): void
     {
         $this->method = AnalysisMethod::with(['referencemethod', 'methodtype'])->findOrFail($methodId);
         

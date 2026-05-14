@@ -34,9 +34,6 @@ class EquipmentDashboard extends Component
     private function loadDashboardData(): void
     {
         $companyId = getUserCompany();
-        $calibrationDiffExpr = "((COALESCE(lc.last_calibration_date, equipment.date_purchased) + (COALESCE(equipment.calibration_days, 0) * INTERVAL '1 day'))::date - CURRENT_DATE)";
-        $maintainanceDiffExpr = "((COALESCE(lm.last_maintainance_date, equipment.date_purchased) + (COALESCE(equipment.maintainance_days, 0) * INTERVAL '1 day'))::date - CURRENT_DATE)";
-
         // Load all equipment with relationships
         $allEquipment = Equipment::query()
             ->where('company_id', $companyId)
@@ -68,7 +65,9 @@ class EquipmentDashboard extends Component
             ->filter(fn($e) => $this->isDueForMaintenance($e))
             ->count();
 
-        $healthyCount = max($this->activeCount - ($this->dueCalibrationCount + $this->dueMaintainanceCount), 0);
+        $healthyCount = $activeEquipment
+            ->filter(fn($e) => $this->isHealthy($e))
+            ->count();
 
         $this->statusDistribution = [
             ['label' => 'Active', 'value' => $this->activeCount, 'color' => '#28a745'],
@@ -82,10 +81,17 @@ class EquipmentDashboard extends Component
         ];
 
         // Purchase trend grouped by month
+        $trendStart = Carbon::now()->subMonths(5)->startOfMonth();
+
         $this->purchaseTrend = $allEquipment
-            ->whereNotNull('date_purchased')
-            ->where('date_purchased', '>=', Carbon::now()->subMonths(5)->startOfMonth())
-            ->groupBy(fn($equipment) => $equipment->date_purchased->format('Y-m'))
+            ->filter(function ($equipment) use ($trendStart): bool {
+                if (empty($equipment->date_purchased)) {
+                    return false;
+                }
+
+                return Carbon::parse($equipment->date_purchased)->gte($trendStart);
+            })
+            ->groupBy(fn($equipment) => Carbon::parse($equipment->date_purchased)->format('Y-m'))
             ->map(fn($group, $monthKey) => [
                 'month' => Carbon::createFromFormat('Y-m', $monthKey)->format('M Y'),
                 'count' => $group->count(),
@@ -123,7 +129,7 @@ class EquipmentDashboard extends Component
         }
         
         $dueDate = Carbon::parse($lastDate)->addDays($equipment->calibration_days ?? 0);
-        return (int) $dueDate->diffInDays(Carbon::now(), false);
+        return (int) Carbon::now()->diffInDays($dueDate, false);
     }
 
     private function getDaysUntilMaintenance(Equipment $equipment): int
@@ -134,7 +140,7 @@ class EquipmentDashboard extends Component
         }
         
         $dueDate = Carbon::parse($lastDate)->addDays($equipment->maintainance_days ?? 0);
-        return (int) $dueDate->diffInDays(Carbon::now(), false);
+        return (int) Carbon::now()->diffInDays($dueDate, false);
     }
 
     private function isDueForCalibration(Equipment $equipment): bool
@@ -151,6 +157,11 @@ class EquipmentDashboard extends Component
         $notificationDays = $equipment->maintainance_notification_in_days ?? 0;
         
         return $daysLeft < 0 || ($notificationDays > 0 && $daysLeft <= $notificationDays);
+    }
+
+    private function isHealthy(Equipment $equipment): bool
+    {
+        return !$this->isDueForCalibration($equipment) && !$this->isDueForMaintenance($equipment);
     }
 
     public function render()

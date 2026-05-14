@@ -101,10 +101,21 @@ class DepartmentManager extends Component
             'editingDepartmentId' => 'required|string',
         ]);
 
-        $department = InventoryDepartment::query()->findOrFail($this->editingDepartmentId);
+        $department = InventoryDepartment::query()->find($this->editingDepartmentId);
+
+        if (!$department) {
+            $this->showDeleteModal = false;
+            $this->editingDepartmentId = null;
+            $this->message = 'This department was already deleted or could not be found.';
+            $this->messageType = 'danger';
+            $this->resetPage();
+
+            return;
+        }
 
         $department->delete();
         $this->showDeleteModal = false;
+        $this->editingDepartmentId = null;
         $this->message = 'Department deleted successfully.';
         $this->messageType = 'success';
         $this->resetPage();

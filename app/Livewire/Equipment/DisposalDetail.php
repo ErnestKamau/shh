@@ -61,7 +61,7 @@ class DisposalDetail extends Component
         $this->reportService = $reportService;
     }
 
-    public function mount(int $disposalId): void
+    public function mount(string $disposalId): void
     {
         $this->disposalId = $disposalId;
         $this->loadDisposal();

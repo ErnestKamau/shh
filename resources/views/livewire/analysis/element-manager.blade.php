@@ -105,11 +105,14 @@
                         </div>
                         
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover" id="elements-table">
-                                <thead style="background-color: rgba(0, 0, 0, .03);">
+                            <table class="table table-hover elements-data-table" id="elements-table">
+                                <thead>
                                     <tr>
-                                        <th style="width: 60px;">
-                                            <i class="mdi mdi-drag text-muted"></i>
+                                        <th class="em-actions-col" style="min-width: 132px;">
+                                            <span class="d-inline-flex align-items-center gap-1 text-muted" style="font-size: 12px; font-weight: 600;">
+                                                <i class="mdi mdi-drag-vertical" title="Drag to reorder"></i>
+                                                <span>Actions</span>
+                                            </span>
                                         </th>
                                         <th>Level</th>
                                         <th>Analyte</th>
@@ -117,58 +120,57 @@
                                         <th>Equipment</th>
                                         <th>Operator</th>
                                         <th>Reporting Unit</th>
-                                        <th>LOD</th>
-                                        <th>HOD</th>
-                                        <th>Remedy</th>
                                         <th>Calculated</th>
                                         <th>Method Sequence</th>
                                         <th>Status</th>
-                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sortable-elements">
                                     @foreach($this->elements as $element)
                                         <tr class="sortable-row" data-element-id="{{ $element->id }}">
-                                            <td class="drag-handle text-center">
-                                                <i class="mdi mdi-drag-vertical text-muted" style="cursor: move; font-size: 18px;"></i>
+                                            <td class="em-actions-cell">
+                                                <div class="d-flex align-items-center flex-nowrap em-actions-inner">
+                                                    <span class="drag-handle d-inline-flex align-items-center justify-content-center text-muted" title="Drag to reorder" style="cursor: move; min-width: 28px;">
+                                                        <i class="mdi mdi-drag-vertical" style="font-size: 18px;"></i>
+                                                    </span>
+                                                    <button type="button"
+                                                        wire:click="showEditElementModal('{{ $element->id }}')"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                                        title="Edit">
+                                                        <i class="mdi mdi-pencil-outline"></i>
+                                                    </button>
+                                                    <button type="button"
+                                                        wire:click="deleteElement('{{ $element->id }}')"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--delete"
+                                                        title="Delete"
+                                                        onclick="return confirm('Are you sure you want to delete this element?')">
+                                                        <i class="mdi mdi-delete"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                             <td>
-                                                <span class="badge badge-info p-2">{{ $element->level ?? 'N/A' }}</span>
+                                                <span class="em-pill em-pill--level">{{ $element->level ?? 'N/A' }}</span>
                                             </td>
                                             <td>{{ $element->analyte->name ?? 'N/A' }}</td>
                                             <td>{{ $element->mmethod->name ?? $element->ltmethod->name ?? 'N/A' }}</td>
                                             <td>{{ $element->equipment->name ?? 'N/A' }}</td>
                                             <td>{{ $element->operator->name ?? 'N/A' }}</td>
                                             <td>{{ $element->reporting_unit }}</td>
-                                            <td>{{ $element->lod ?? 'N/A' }}</td>
-                                            <td>{{ $element->hod ?? 'N/A' }}</td>
-                                            <td>
-                                                @if($element->recommend_remedies)
-                                                    <span class="badge badge-warning p-2" title="Remedy Recommended">
-                                                        <i class="mdi mdi-medical-bag"></i> Yes
-                                                    </span>
-                                                    @if($element->remedyHeader)
-                                                        <br><small class="text-muted">{{ $element->remedyHeader->name }}</small>
-                                                    @endif
-                                                @else
-                                                    <span class="badge badge-secondary p-2">No</span>
-                                                @endif
-                                            </td>
                                             <td>
                                                 @if($element->result_is_calculated)
-                                                    <span class="badge badge-info p-2" title="Result is Calculated">
+                                                    <span class="em-pill em-pill--calc em-pill--on" title="Result is Calculated">
                                                         <i class="mdi mdi-calculator"></i> Yes
                                                     </span>
                                                     @if($element->formular)
                                                         <br><small class="text-muted">{{ $element->formular->name }}</small>
                                                     @endif
                                                 @else
-                                                    <span class="badge badge-secondary p-2">No</span>
+                                                    <span class="em-pill em-pill--calc em-pill--off">No</span>
                                                 @endif
                                             </td>
                                             <td>
                                                 @if($element->has_method_sequence)
-                                                    <span class="badge badge-info p-2" title="Has Method Sequence">
+                                                    <span class="em-pill em-pill--sequence em-pill--on" title="Has Method Sequence">
                                                         <i class="mdi mdi-timeline-check"></i> Yes
                                                     </span>
                                                     @if($element->methodSequence)
@@ -179,41 +181,26 @@
                                                                 $latestVersion = $element->methodSequence->latestVersion->first();
                                                             @endphp
                                                             @if($activeVersion)
-                                                                <br><span class="badge badge-success badge-sm">v{{ $activeVersion->version_number }} - Active</span>
+                                                                <br><span class="em-pill em-pill--ver em-pill--ver-active">v{{ $activeVersion->version_number }} · Active</span>
                                                             @elseif($latestVersion)
-                                                                <br><span class="badge badge-warning badge-sm">v{{ $latestVersion->version_number }} - Latest</span>
+                                                                <br><span class="em-pill em-pill--ver em-pill--ver-latest">v{{ $latestVersion->version_number }} · Latest</span>
                                                             @endif
                                                         </small>
                                                     @endif
                                                 @else
-                                                    <span class="badge badge-secondary p-2">No</span>
+                                                    <span class="em-pill em-pill--sequence em-pill--off">No</span>
                                                 @endif
                                             </td>
                                             <td>
                                                 @if($element->active)
-                                                    <span class="badge badge-success p-2 ">Active</span>
+                                                    <span class="em-pill em-pill--status-active">Active</span>
                                                 @else
-                                                    <span class="badge badge-secondary p-2">Inactive</span>
+                                                    <span class="em-pill em-pill--status-inactive">Inactive</span>
                                                 @endif
-                                            </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <button wire:click="showEditElementModal('{{ $element->id }}')" 
-                                                            class="btn btn-sm mr-2 btn-outline-warning" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
-                                                    </button>
-                                                    <button wire:click="deleteElement('{{ $element->id }}')" 
-                                                            class="btn btn-sm btn-outline-danger" 
-                                                            title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this element?')">
-                                                        <i class="mdi mdi-delete"></i>
-                                                    </button>
-                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
-                                </tbody>
+                                    </tbody>
                             </table>
                         </div>
                         <!-- Pagination -->
@@ -275,15 +262,14 @@
                                                         {{ $selectedAnalyteName }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="clearAnalyte"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="analyteSearch" 
+                                                           wire:keyup="searchAnalytes"
+                                                           class="tag-input" 
+                                                           placeholder="Search analytes..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="analyteSearch" 
-                                                       wire:keyup="searchAnalytes"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $selectedAnalyteName ? '' : 'Search analytes...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -313,15 +299,14 @@
                                                         {{ $selectedMethodName }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="clearMethod"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="methodSearch" 
+                                                           wire:keyup="searchMethods"
+                                                           class="tag-input" 
+                                                           placeholder="Search methods..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="methodSearch" 
-                                                       wire:keyup="searchMethods"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $selectedMethodName ? '' : 'Search methods...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -353,15 +338,14 @@
                                                         {{ $selectedEquipmentName }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="clearEquipment"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="equipmentSearch" 
+                                                           wire:keyup="searchEquipment"
+                                                           class="tag-input" 
+                                                           placeholder="Search equipment..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="equipmentSearch" 
-                                                       wire:keyup="searchEquipment"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $selectedEquipmentName ? '' : 'Search equipment...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -391,15 +375,14 @@
                                                         {{ $selectedOperatorName }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="clearOperator"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="operatorSearch" 
+                                                           wire:keyup="searchOperators"
+                                                           class="tag-input" 
+                                                           placeholder="Search operators..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="operatorSearch" 
-                                                       wire:keyup="searchOperators"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $selectedOperatorName ? '' : 'Search operators...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -431,15 +414,14 @@
                                                         {{ $elementForm['reporting_unit'] }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="$set('elementForm.reporting_unit', '')"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="reportingUnitSearch" 
+                                                           wire:keyup="searchReportingUnits"
+                                                           class="tag-input" 
+                                                           placeholder="Search reporting units..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="reportingUnitSearch" 
-                                                       wire:keyup="searchReportingUnits"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $elementForm['reporting_unit'] ? '' : 'Search reporting units...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -676,6 +658,158 @@
     padding: 0.48rem 1rem;
 }
 
+/* Elements table: gray header, white body rows */
+#elements-table.elements-data-table {
+    margin-bottom: 0;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#elements-table.elements-data-table thead th {
+    background-color: rgba(0, 0, 0, 0.03);
+    color: #495057;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-bottom: 1px solid #dee2e6;
+    border-top: none;
+    vertical-align: middle;
+    padding: 0.75rem 0.65rem;
+}
+
+#elements-table.elements-data-table tbody tr {
+    background-color: #fff !important;
+}
+
+#elements-table.elements-data-table tbody tr:hover {
+    background-color: #f8f9fa !important;
+}
+
+#elements-table.elements-data-table tbody td {
+    background-color: inherit;
+    border-color: #e9ecef;
+    vertical-align: middle;
+}
+
+/* Actions column: drag + rm-act-btn (matches personnel role manager) */
+#elements-table.elements-data-table .em-actions-cell {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+#elements-table.elements-data-table .em-actions-inner {
+    gap: 6px;
+}
+
+#elements-table.elements-data-table .rm-act-btn {
+    border-radius: 7px;
+    padding: 4px 8px;
+    margin-right: 0;
+    font-size: 12px;
+}
+
+#elements-table.elements-data-table .rm-act-btn--edit {
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    background: #eff6ff;
+}
+
+#elements-table.elements-data-table .rm-act-btn--edit:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
+
+#elements-table.elements-data-table .rm-act-btn--delete {
+    border: 1px solid #fecdd3;
+    color: #e11d48;
+    background: #fff5f7;
+}
+
+#elements-table.elements-data-table .rm-act-btn--delete:hover {
+    background: #ffe4e6;
+    border-color: #fda4af;
+}
+
+/* Soft pills: level, calculated, method sequence */
+.em-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.25;
+    border: 1px solid transparent;
+}
+
+.em-pill .mdi {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.em-pill--level {
+    background: #eff6ff;
+    color: #1d40af;
+    border-color: #bfdbfe;
+}
+
+.em-pill--calc.em-pill--on {
+    background: #ecfeff;
+    color: #0e7490;
+    border-color: #a5f3fc;
+}
+
+.em-pill--calc.em-pill--off {
+    background: #f8fafc;
+    color: #64748b;
+    border-color: #e2e8f0;
+}
+
+.em-pill--sequence.em-pill--on {
+    background: #f5f3ff;
+    color: #5b21b6;
+    border-color: #ddd6fe;
+}
+
+.em-pill--sequence.em-pill--off {
+    background: #f8fafc;
+    color: #64748b;
+    border-color: #e2e8f0;
+}
+
+.em-pill--ver {
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.em-pill--ver-active {
+    background: #ecfdf5;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.em-pill--ver-latest {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+
+.em-pill--status-active {
+    background: #ecfdf5;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.em-pill--status-inactive {
+    background: #f8fafc;
+    color: #64748b;
+    border-color: #e2e8f0;
+}
+
 /* Prevent body scroll when modal is open */
 body.modal-open {
     overflow: hidden;
@@ -770,6 +904,19 @@ function initializeSortable() {
         });
     }
 }
+// Utility: Markdown formatting with marked, always safe
+function formatMessage(text) {
+    if (!text) return '';
+    try {
+        if (window.marked) {
+            const rawHtml = window.marked.parse(text || '');
+            return DOMPurify.sanitize(rawHtml);
+        }
+        return text || '';
+    } catch (e) {
+        return text || '';
+    }
+}
 
 // Close dropdowns when clicking outside
 document.addEventListener('click', function(e) {
@@ -848,12 +995,8 @@ document.addEventListener('click', function(e) {
 }
 
 /* Drag and Drop Styling */
-.sortable-row {
-    transition: all 0.2s ease;
-}
-
-.sortable-row:hover {
-    background-color: #f8f9fa !important;
+#elements-table.elements-data-table tbody tr.sortable-row {
+    transition: background-color 0.2s ease;
 }
 
 .drag-handle:hover {

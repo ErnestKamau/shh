@@ -22,7 +22,7 @@ class RoleDetailManager extends Component
     public string $message = '';
     public string $messageType = 'success';
 
-    public function mount(int $roleId): void
+    public function mount(string $roleId): void
     {
         $this->roleId = $roleId;
         $this->initializePermissionsState();

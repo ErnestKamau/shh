@@ -9,7 +9,7 @@ use Livewire\Attributes\On;
 
 class CustomerShow extends BaseCrmComponent
 {
-    public int $customerId;
+    public string $customerId;
 
     public $customer;
 
@@ -28,7 +28,7 @@ class CustomerShow extends BaseCrmComponent
         $this->customer = CRMCustomer::with(['country'])->findOrFail($this->customerId);
     }
 
-    public function mount(int $customerId): void
+    public function mount(string $customerId): void
     {
         $this->initialize();
         $this->checkPermission('crm.components.customer-list.view');

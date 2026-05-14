@@ -7,6 +7,7 @@ use App\Lab;
 use App\User;
 use App\Zone;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -45,6 +46,8 @@ class ConfigurationManager extends Component
         'is_hq_zone' => false,
     ];
 
+    public string $linkExistingZoneId = '';
+
     public array $directorateForm = [
         'name' => '',
         'code' => '',
@@ -68,6 +71,7 @@ class ConfigurationManager extends Component
         $this->selectedDirectorateId = Directorate::query()
             ->where(function ($query): void {
                 $query->whereHas('zone', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', getCurrentUserLocation()->id))
+                    ->orWhereHas('additionalZones', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', getCurrentUserLocation()->id))
                     ->orWhereNull('zone_id');
             })
             ->orderBy('name')
@@ -96,10 +100,55 @@ class ConfigurationManager extends Component
 
     public function getZonesProperty(): Collection
     {
+        if (! $this->selectedDirectorateId) {
+            return collect();
+        }
+
+        $directorate = Directorate::query()
+            ->with([
+                'zone',
+                'additionalZones' => function ($q): void {
+                    $q->where('inventory_location_id', getCurrentUserLocation()->id);
+                },
+            ])
+            ->where('id', $this->selectedDirectorateId)
+            ->first();
+
+        if (! $directorate) {
+            return collect();
+        }
+
+        $locationId = getCurrentUserLocation()->id;
+        $zones = collect();
+
+        if (
+            $directorate->zone
+            && (string) $directorate->zone->inventory_location_id === (string) $locationId
+        ) {
+            $zones->push($directorate->zone);
+        }
+
+        foreach ($directorate->additionalZones as $zone) {
+            if ((string) $zone->inventory_location_id !== (string) $locationId) {
+                continue;
+            }
+            if (! $zones->contains(fn (Zone $z): bool => (string) $z->id === (string) $zone->id)) {
+                $zones->push($zone);
+            }
+        }
+
+        if ($zones->isEmpty()) {
+            return collect();
+        }
+
+        $zoneIds = $zones->pluck('id')->unique()->values();
+
         $query = Zone::query()
             ->with('sectionHeadUser')
             ->withCount('directorates')
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
+            ->withCount('directoratesViaAdditionalZonePivot as directorates_pivot_count')
+            ->whereIn('id', $zoneIds)
+            ->where('inventory_location_id', $locationId)
             ->orderBy('key');
 
         if ($this->zoneSearch !== '') {
@@ -110,7 +159,44 @@ class ConfigurationManager extends Component
             });
         }
 
-        return $query->get();
+        $results = $query->get();
+
+        foreach ($results as $z) {
+            $z->setAttribute(
+                'directorates_count',
+                (int) $z->directorates_count + (int) $z->directorates_pivot_count
+            );
+        }
+
+        return $results;
+    }
+
+    public function getZonesAvailableForLinkProperty(): Collection
+    {
+        $query = Zone::query()
+            ->where('inventory_location_id', getCurrentUserLocation()->id)
+            ->orderBy('key');
+
+        if ($this->selectedDirectorateId) {
+            $directorate = Directorate::query()
+                ->with('additionalZones')
+                ->where('id', $this->selectedDirectorateId)
+                ->first(['id', 'zone_id']);
+
+            if ($directorate) {
+                $excludeIds = $directorate->additionalZones->pluck('id')->map(fn ($id): string => (string) $id);
+                if ($directorate->zone_id) {
+                    $excludeIds->push((string) $directorate->zone_id);
+                }
+                $excludeIds = $excludeIds->unique()->filter()->values();
+
+                if ($excludeIds->isNotEmpty()) {
+                    $query->whereNotIn('id', $excludeIds->all());
+                }
+            }
+        }
+
+        return $query->get(['id', 'key', 'value']);
     }
 
     public function getDirectoratesProperty(): Collection
@@ -119,6 +205,7 @@ class ConfigurationManager extends Component
             ->with(['sectionHeadUser', 'head', 'zone'])
             ->where(function ($builder): void {
                 $builder->whereHas('zone', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', getCurrentUserLocation()->id))
+                    ->orWhereHas('additionalZones', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', getCurrentUserLocation()->id))
                     ->orWhereNull('zone_id');
             })
             ->withCount('labs')
@@ -162,12 +249,6 @@ class ConfigurationManager extends Component
     public function selectZone(string $zoneId): void
     {
         $this->selectedZoneId = $zoneId;
-
-        if ($this->selectedDirectorateId) {
-            Directorate::query()
-                ->where('id', $this->selectedDirectorateId)
-                ->update(['zone_id' => $zoneId]);
-        }
     }
 
     public function selectDirectorate(string $directorateId): void
@@ -178,8 +259,17 @@ class ConfigurationManager extends Component
 
     public function openZoneModal(): void
     {
+        if (! $this->selectedDirectorateId) {
+            $this->message = __('personnel.select_directorate_before_zone');
+            $this->messageType = 'danger';
+            $this->showToast = true;
+
+            return;
+        }
+
         $this->resetValidation();
         $this->editingZoneId = null;
+        $this->linkExistingZoneId = '';
         $this->zoneForm = [
             'key' => '',
             'value' => '',
@@ -193,6 +283,76 @@ class ConfigurationManager extends Component
     public function closeZoneModal(): void
     {
         $this->showZoneModal = false;
+        $this->linkExistingZoneId = '';
+    }
+
+    public function linkExistingZoneToDirectorate(): void
+    {
+        if (! $this->selectedDirectorateId) {
+            $this->message = __('personnel.select_directorate_before_zone');
+            $this->messageType = 'danger';
+            $this->showToast = true;
+
+            return;
+        }
+
+        $this->resetValidation();
+
+        $this->validate([
+            'linkExistingZoneId' => ['required', 'uuid', 'exists:zones,id'],
+        ]);
+
+        $zone = Zone::query()
+            ->where('id', $this->linkExistingZoneId)
+            ->where('inventory_location_id', getCurrentUserLocation()->id)
+            ->first();
+
+        if (! $zone) {
+            $this->message = __('personnel.zone_not_found');
+            $this->messageType = 'danger';
+            $this->showToast = true;
+
+            return;
+        }
+
+        $directorate = Directorate::query()
+            ->where('id', $this->selectedDirectorateId)
+            ->first();
+
+        if (! $directorate) {
+            $this->message = __('personnel.directorate_not_found');
+            $this->messageType = 'danger';
+            $this->showToast = true;
+
+            return;
+        }
+
+        if ((string) $directorate->zone_id === (string) $zone->id) {
+            $this->message = __('personnel.zone_already_linked_to_directorate');
+            $this->messageType = 'danger';
+            $this->showToast = true;
+
+            return;
+        }
+
+        if ($directorate->additionalZones()->where('zones.id', $zone->id)->exists()) {
+            $this->message = __('personnel.zone_already_linked_to_directorate');
+            $this->messageType = 'danger';
+            $this->showToast = true;
+
+            return;
+        }
+
+        $directorate->additionalZones()->attach((string) $zone->id, [
+            'id' => (string) Str::uuid(),
+        ]);
+
+        $this->selectedZoneId = (string) $zone->id;
+        $this->linkExistingZoneId = '';
+        $this->showZoneModal = false;
+        $this->message = __('personnel.zone_linked_to_directorate');
+        $this->messageType = 'success';
+        $this->showToast = true;
     }
 
     public function saveZone(): void
@@ -230,10 +390,17 @@ class ConfigurationManager extends Component
             $this->message = 'Zone created successfully.';
         }
 
-        if ($this->selectedDirectorateId && $this->selectedZoneId) {
-            Directorate::query()
-                ->where('id', $this->selectedDirectorateId)
-                ->update(['zone_id' => $this->selectedZoneId]);
+        if ($this->selectedDirectorateId && $this->selectedZoneId && ! $this->editingZoneId) {
+            $directorate = Directorate::query()->where('id', $this->selectedDirectorateId)->first();
+            if ($directorate) {
+                $isPrimary = (string) $directorate->zone_id === (string) $this->selectedZoneId;
+                $inPivot = $directorate->additionalZones()->where('zones.id', $this->selectedZoneId)->exists();
+                if (! $isPrimary && ! $inPivot) {
+                    $directorate->additionalZones()->attach($this->selectedZoneId, [
+                        'id' => (string) Str::uuid(),
+                    ]);
+                }
+            }
         }
 
         $this->syncSelectedDirectorate();
@@ -258,6 +425,7 @@ class ConfigurationManager extends Component
 
         $this->resetValidation();
         $this->editingZoneId = (string) $zone->id;
+        $this->linkExistingZoneId = '';
         $this->zoneForm = [
             'key' => (string) $zone->key,
             'value' => (string) ($zone->value ?? ''),
@@ -325,12 +493,14 @@ class ConfigurationManager extends Component
                 ->update($directoratePayload);
 
             $this->selectedDirectorateId = $this->editingDirectorateId;
+            $this->realignLabsToDirectorateZone($this->editingDirectorateId, $directoratePayload['zone_id'] ?? null);
             $this->message = 'Directorate updated successfully.';
         } else {
             $directorate = Directorate::query()->create($directoratePayload + [
                 'active' => true,
             ]);
             $this->selectedDirectorateId = (string) $directorate->id;
+            $this->realignLabsToDirectorateZone($this->selectedDirectorateId, $directorate->zone_id);
             $this->message = 'Directorate created successfully.';
         }
 
@@ -522,7 +692,11 @@ class ConfigurationManager extends Component
     {
         if ($this->deleteZoneId) {
             $zoneId = $this->deleteZoneId;
-            $hasDirectorates = Directorate::query()->where('zone_id', $zoneId)->exists();
+            $hasDirectorates = Directorate::query()->where('zone_id', $zoneId)->exists()
+                || Zone::query()
+                    ->whereKey($zoneId)
+                    ->whereHas('directoratesViaAdditionalZonePivot')
+                    ->exists();
             if ($hasDirectorates) {
                 $this->message = 'Cannot delete zone with existing directorates.';
                 $this->messageType = 'danger';
@@ -562,10 +736,14 @@ class ConfigurationManager extends Component
                 return;
             }
 
-            Directorate::query()
-                ->where('id', $directorateId)
-                ->where('zone_id', $this->selectedZoneId)
-                ->delete();
+            $deleteQuery = Directorate::query()->where('id', $directorateId);
+            if ($this->selectedZoneId) {
+                $deleteQuery->where(function ($q): void {
+                    $q->where('zone_id', $this->selectedZoneId)
+                        ->orWhereHas('additionalZones', fn ($zq) => $zq->where('zones.id', $this->selectedZoneId));
+                });
+            }
+            $deleteQuery->delete();
 
             if ($this->selectedDirectorateId === $directorateId) {
                 $this->syncSelectedDirectorate();
@@ -626,19 +804,39 @@ class ConfigurationManager extends Component
         return 'Delete selected item?';
     }
 
+    private function realignLabsToDirectorateZone(?string $directorateId, ?string $zoneId): void
+    {
+        if ($directorateId === null || $directorateId === '' || $zoneId === null || $zoneId === '') {
+            return;
+        }
+
+        Lab::query()
+            ->where('directorate_id', $directorateId)
+            ->update(['zone_id' => $zoneId]);
+    }
+
     private function syncSelectedDirectorate(): void
     {
-        if (!$this->selectedZoneId) {
+        if (! $this->selectedZoneId) {
+            $locationId = getCurrentUserLocation()->id;
             $this->selectedDirectorateId = Directorate::query()
-                ->whereNull('zone_id')
+                ->where(function ($builder) use ($locationId): void {
+                    $builder->whereHas('zone', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', $locationId))
+                        ->orWhereHas('additionalZones', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', $locationId))
+                        ->orWhereNull('zone_id');
+                })
                 ->orderBy('name')
                 ->value('id');
+
             return;
         }
 
         $exists = Directorate::query()
-            ->where('zone_id', $this->selectedZoneId)
             ->where('id', $this->selectedDirectorateId)
+            ->where(function ($q): void {
+                $q->where('zone_id', $this->selectedZoneId)
+                    ->orWhereHas('additionalZones', fn ($zq) => $zq->where('zones.id', $this->selectedZoneId));
+            })
             ->exists();
 
         if ($exists) {
@@ -646,21 +844,54 @@ class ConfigurationManager extends Component
         }
 
         $this->selectedDirectorateId = Directorate::query()
-            ->where('zone_id', $this->selectedZoneId)
+            ->where(function ($q): void {
+                $q->where('zone_id', $this->selectedZoneId)
+                    ->orWhereHas('additionalZones', fn ($zq) => $zq->where('zones.id', $this->selectedZoneId));
+            })
             ->orderBy('name')
             ->value('id');
     }
 
     private function syncSelectedZoneFromDirectorate(): void
     {
-        if (!$this->selectedDirectorateId) {
+        if (! $this->selectedDirectorateId) {
             $this->selectedZoneId = null;
+
             return;
         }
 
-        $this->selectedZoneId = Directorate::query()
+        $directorate = Directorate::query()
+            ->with(['zone', 'additionalZones'])
             ->where('id', $this->selectedDirectorateId)
-            ->value('zone_id');
+            ->first();
+
+        if (! $directorate) {
+            $this->selectedZoneId = null;
+
+            return;
+        }
+
+        if ($this->selectedZoneId) {
+            if ($directorate->zone_id && (string) $directorate->zone_id === (string) $this->selectedZoneId) {
+                return;
+            }
+            if ($directorate->additionalZones->contains('id', $this->selectedZoneId)) {
+                return;
+            }
+        }
+
+        $merged = collect();
+        if ($directorate->zone) {
+            $merged->push($directorate->zone);
+        }
+        foreach ($directorate->additionalZones as $z) {
+            if (! $merged->contains('id', $z->id)) {
+                $merged->push($z);
+            }
+        }
+
+        $first = $merged->sortBy('key')->first();
+        $this->selectedZoneId = $first ? (string) $first->id : null;
     }
 
     public function render()

@@ -49,7 +49,7 @@ class TemplateEditor extends Component
     public bool $editElementReadonly = false;
     public ?string $editElementDefaultValue = null;
 
-    public function mount(int $templateId): void
+    public function mount(string $templateId): void
     {
         $this->templateModel = SupportingDocumentTemplate::with('sections.elements')->findOrFail($templateId);
 

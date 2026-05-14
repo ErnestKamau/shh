@@ -162,9 +162,27 @@ class RoleManager extends Component
             'editingRoleId' => 'required|string',
         ]);
 
-        $role = Role::query()->where('guard_name', 'web')->findOrFail($this->editingRoleId);
+        $role = Role::query()->where('guard_name', 'web')->find($this->editingRoleId);
+
+        if (!$role) {
+            $this->showDeleteModal = false;
+            $this->editingRoleId = null;
+            $this->message = 'This role was already deleted or could not be found.';
+            $this->messageType = 'danger';
+            $this->resetPage();
+
+            return;
+        }
+
+        $deletedId = (string) $role->id;
         $role->delete();
+
+        $this->expandedRoleRows = array_values(
+            array_filter($this->expandedRoleRows, fn (string $k): bool => $k !== $deletedId)
+        );
+
         $this->showDeleteModal = false;
+        $this->editingRoleId = null;
         $this->message = 'Role deleted successfully.';
         $this->messageType = 'success';
         $this->resetPage();

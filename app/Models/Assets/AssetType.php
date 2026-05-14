@@ -16,4 +16,9 @@ class AssetType extends Model implements Auditable
 
 	use \OwenIt\Auditing\Auditable;
     protected $fillable = ['asset_code', 'descripton', 'is_active'];
+
+    public function equipments()
+    {
+        return $this->hasMany(\App\Models\Equipments\Equipment::class, 'asset_type_id');
+    }
 }

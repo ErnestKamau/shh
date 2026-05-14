@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('pricelist_items', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('pricelist_id')->index('idx_pricelist_items_pricelist_id_50a36d48');
-            $table->integer('analysis_id');
+            $table->uuid('analysis_id');
             $table->uuid('sample_type_id')->index('idx_pricelist_items_sample_type_id_ef7a8b94');
             $table->float('cost_price');
             $table->float('selling_price');

@@ -88,7 +88,7 @@
                                     @if($showOrganizationDropdown)
                                         <div class="tag-dropdown">
                                             @forelse($this->filteredOrganizationOptions as $customer)
-                                                <div class="tag-dropdown-item" wire:click="selectOrganization('{{ $customer->name }}')">
+                                                <div class="tag-dropdown-item" wire:click="selectOrganization('{{ $customer->id }}')">
                                                     {{ $customer->name }}
                                                 </div>
                                             @empty

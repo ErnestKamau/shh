@@ -13,7 +13,7 @@
                             <p class="text-muted mb-0">{{ __('equipment.asset_types_subtitle') }}</p>
                         </div>
                         <div>
-                            <button wire:click="openModal" class="btn btn-primary">
+                            <button wire:click="openModal" class="btn btn-outline-primary px-3" style="border-radius: 9px;">
                                 <i class="mdi mdi-plus"></i> {{ __('equipment.add_new_type') }}
                             </button>
                         </div>
@@ -55,10 +55,11 @@
                         <table class="table table-striped table-hover align-middle equipment-table">
                             <thead style="background-color: rgba(0, 0, 0, .03);">
                                 <tr>
-                                    <th class="text-start" style="width: 100px;">{{ __('equipment.actions') }}</th>
-                                    <th>{{ __('equipment.asset_code') }}</th>
+                                    <th class="text-start" style="width: 120px;">{{ __('equipment.actions') }}</th>
+                                    <th style="width: 180px;">{{ __('equipment.asset_code') }}</th>
                                     <th>{{ __('equipment.description') }}</th>
-                                    <th>{{ __('equipment.status') }}</th>
+                                    <th style="width: 160px;" class="text-center">Active Equipments</th>
+                                    <th style="width: 140px;">{{ __('equipment.status') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -66,12 +67,12 @@
                                     <tr>
                                         <td class="equipment-actions-cell text-start">
                                             <div class="equipment-actions-group">
-                                                <button wire:click="edit({{ $type->id }})" class="btn btn-sm btn-outline-info equipment-action-btn" title="{{ __('equipment.edit') }}">
+                                                <button wire:click="edit({{ $type->id }})" class="btn btn-sm rm-act-btn rm-act-btn--edit" title="{{ __('equipment.edit') }}">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
                                                 <button wire:click="delete({{ $type->id }})"
                                                         wire:confirm="Are you sure you want to delete this asset type?"
-                                                        class="btn btn-sm btn-outline-danger equipment-action-btn"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                         title="{{ __('equipment.delete') }}">
                                                     <i class="mdi mdi-trash-can"></i>
                                                 </button>
@@ -80,18 +81,27 @@
                                         <td>
                                             <span class="fw-bold text-primary">{{ $type->asset_code }}</span>
                                         </td>
-                                        <td>{{ $type->descripton }}</td>
+                                        <td class="asset-type-description-cell">{{ $type->descripton }}</td>
+                                        <td class="text-center">
+                                            <span class="badge rounded-pill bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-1 fw-bold fs-6 shadow-sm">
+                                                {{ $type->active_equipments_count ?? 0 }}
+                                            </span>
+                                        </td>
                                         <td>
                                             @if($type->is_active)
-                                                <span class="badge bg-success">{{ __('equipment.active') }}</span>
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3 py-2 fw-medium shadow-sm">
+                                                    <i class="mdi mdi-check-circle-outline me-1"></i> {{ __('equipment.active') }}
+                                                </span>
                                             @else
-                                                <span class="badge bg-secondary">{{ __('equipment.inactive') }}</span>
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill px-3 py-2 fw-medium shadow-sm">
+                                                    <i class="mdi mdi-minus-circle-outline me-1"></i> {{ __('equipment.inactive') }}
+                                                </span>
                                             @endif
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="text-center py-5">
+                                        <td colspan="5" class="text-center py-5">
                                             <div class="mb-3">
                                                 <i class="mdi mdi-format-list-bulleted-type text-muted" style="font-size: 3rem;"></i>
                                             </div>
@@ -156,4 +166,25 @@
             </div>
         </div>
     @endif
+
+    <style>
+        .equipment-table {
+            table-layout: fixed;
+            width: 100%;
+        }
+        .equipment-actions-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            white-space: nowrap;
+        }
+        .equipment-actions-group .rm-act-btn {
+            margin-right: 0;
+        }
+        .asset-type-description-cell {
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+    </style>
 </div>
