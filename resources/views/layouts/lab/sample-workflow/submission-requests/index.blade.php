@@ -39,9 +39,7 @@
 					</div>
 				</div>
 				<div class="d-flex align-items-center flex-wrap gap-2">
-					<button type="button" class="btn btn-outline-secondary btn-action-sm">
-						<i class="mdi mdi-file-document-outline"></i> Request Account Access Forms
-					</button>
+					@livewire('sampleworkflow.portal-access-requests')
 					<button type="button" class="btn btn-outline-secondary btn-action-sm">
 						<i class="mdi mdi-clock-outline"></i> TAT Today Batches
 					</button>

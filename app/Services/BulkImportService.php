@@ -87,6 +87,9 @@ class BulkImportService
      */
     public function processImport(BulkImportBatch $batch, $uploadedFile)
     {
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
+
         try {
             $batch->status = 'processing';
             $batch->started_at = now();
@@ -99,7 +102,24 @@ class BulkImportService
             }
 
             $importer = new $importerClass($batch);
-            $results = Excel::import($importer, $uploadedFile);
+            
+            // Reset counters before starting multi-sheet import
+            if (method_exists($importer, 'resetBatchCounters')) {
+                $importer->resetBatchCounters();
+            }
+
+            // Use toCollection to get all sheets
+            $sheets = Excel::toCollection($importer, $uploadedFile);
+            
+            foreach ($sheets as $sheet) {
+                // Skip empty sheets or sheets that don't have the required headers
+                // (shouldSkipRow inside collection() handles detailed row skipping)
+                if ($sheet->isEmpty()) {
+                    continue;
+                }
+                
+                $importer->collection($sheet);
+            }
 
             $batch->markAsCompleted();
 

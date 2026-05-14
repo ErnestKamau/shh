@@ -20,6 +20,7 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
     protected BulkImportBatch $batch;
     protected int $rowNumber = 1;
     protected array $errors = [];
+    protected array $detectedHeaders = [];
 
     /**
      * Constructor.
@@ -30,16 +31,31 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
     }
 
     /**
+     * Reset batch counters.
+     */
+    public function resetBatchCounters(): void
+    {
+        $this->batch->total_rows = 0;
+        $this->batch->imported_rows = 0;
+        $this->batch->error_rows = 0;
+        $this->batch->errors_json = [];
+        $this->batch->upserted_summary = [];
+        $this->batch->save();
+    }
+
+    /**
      * Collection callback.
      */
     public function collection(Collection $rows)
     {
-        $this->batch->total_rows = 0;
-        $this->batch->save();
-
         foreach ($rows as $row) {
             $this->rowNumber++;
             $rawRowData = $row instanceof Collection ? $row->toArray() : (array) $row;
+            
+            if (empty($this->detectedHeaders)) {
+                $this->detectedHeaders = array_keys($rawRowData);
+            }
+
             $rowData = $this->normalizeRow($rawRowData);
 
             if ($this->shouldSkipRow($rowData)) {
@@ -167,6 +183,34 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
     }
 
     /**
+     * Helper: Get value from row by trying multiple possible column names.
+     */
+    protected function fuzzyGet(array $row, array $possibilities, $default = null)
+    {
+        foreach ($possibilities as $possibility) {
+            $normalizedPossibility = $this->normalizeHeaderName($possibility);
+            if (array_key_exists($normalizedPossibility, $row)) {
+                return $row[$normalizedPossibility];
+            }
+        }
+        return $default;
+    }
+
+    /**
+     * Helper: Check if row has any of the possible column names.
+     */
+    protected function hasFuzzy(array $row, array $possibilities): bool
+    {
+        foreach ($possibilities as $possibility) {
+            $normalizedPossibility = $this->normalizeHeaderName($possibility);
+            if (array_key_exists($normalizedPossibility, $row)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Helper: Check if relationship exists.
      */
     protected function relationshipExists(string $modelClass, string $field, $value): bool
@@ -249,12 +293,19 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
         $normalized = [];
 
         foreach ($row as $key => $value) {
-            $normalizedKey = is_string($key) ? strtolower(trim($key)) : (string) $key;
+            if (is_string($key)) {
+                $normalizedKey = str_replace("\xA0", ' ', $key); // Handle Non-breaking spaces
+                $normalizedKey = strtolower(trim($normalizedKey));
+            } else {
+                $normalizedKey = (string) $key;
+            }
+
             $normalizedKey = preg_replace('/\*/', '', $normalizedKey);
             $normalizedKey = preg_replace('/\s+/', '_', $normalizedKey);
             $normalizedKey = preg_replace('/[^a-z0-9_]/', '', (string) $normalizedKey);
 
             if (is_string($value)) {
+                $value = str_replace("\xA0", ' ', $value);
                 $value = trim($value);
             }
 
@@ -284,7 +335,8 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
             return true;
         });
 
-        if (count($nonEmpty) === 0) {
+        // Skip rows with only 1 value (usually titles or decorative cells)
+        if (count($nonEmpty) <= 1) {
             return true;
         }
 
@@ -306,6 +358,8 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
                 || str_contains($text, 'save the file and upload')
                 || str_contains($text, 'do not modify headers')
                 || str_contains($text, 'fill in the data below')
+                || str_contains($text, 'report title')
+                || str_contains($text, 'confidential')
             ) {
                 return true;
             }
@@ -360,6 +414,7 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
      */
     protected function normalizeHeaderName(string $header): string
     {
+        $header = str_replace("\xA0", ' ', $header); // Handle Non-breaking spaces
         $header = strtolower(trim($header));
         $header = str_replace('*', '', $header);
         $header = preg_replace('/\s+/', '_', $header);
