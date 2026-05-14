@@ -14,7 +14,9 @@ use App\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role as SpatieRole;
+use App\Models\Auth\Role as SpatieRole;
+use App\Models\Auth\Permission as SpatiePermission;
+use App\Services\Documents\DocumentKnowledgeService;
 
 class ActiveDocuments extends Component
 {
@@ -36,12 +38,19 @@ class ActiveDocuments extends Component
             'roles' => [],
             'users' => [],
         ],
+        'is_kb_indexed' => false,
+        'kb_collection' => 'General Documents',
+        'kb_required_permission' => 'general.view',
+        'kb_chunk_size' => 800,
+        'kb_chunk_overlap' => 100,
+        'kb_content' => '',
     ];
 
     public $search = '';
     public $typeFilter = null;
     public $ownerFilter = null;
     public $statusFilter = '';
+    public $kbFilter = '';
     public $expiringFilter = false;
     public $perPage = 10;
     
@@ -51,6 +60,7 @@ class ActiveDocuments extends Component
     public $documentTypes = [];
     public $users = [];
     public $roles = [];
+    public $spatiePermissions = [];
     public $availableUsers = [];
     public $selectedRole = null;
     public $selectedRoles = [];
@@ -64,11 +74,13 @@ class ActiveDocuments extends Component
 
     protected $numberGenerator;
     protected $permissionManager;
+    protected $knowledgeService;
 
-    public function boot(DocumentNumberGenerator $numberGenerator, PermissionManager $permissionManager)
+    public function boot(DocumentNumberGenerator $numberGenerator, PermissionManager $permissionManager, DocumentKnowledgeService $knowledgeService)
     {
         $this->numberGenerator = $numberGenerator;
         $this->permissionManager = $permissionManager;
+        $this->knowledgeService = $knowledgeService;
     }
 
     public function mount(): void
@@ -77,6 +89,7 @@ class ActiveDocuments extends Component
         $this->loadUsers();
         $this->loadRoles();
         $this->loadAvailableUsers();
+        $this->loadSpatiePermissions();
         $this->documentForm['owner_id'] = auth()->id();
     }
 
@@ -109,6 +122,11 @@ class ActiveDocuments extends Component
         $this->availableUsers = User::where('active', true)->orderBy('name')->get();
     }
 
+    public function loadSpatiePermissions(): void
+    {
+        $this->spatiePermissions = SpatiePermission::orderBy('name')->pluck('name')->toArray();
+    }
+
     public function getDocumentsProperty()
     {
         // Optimize with selective field loading and better relationships
@@ -121,7 +139,8 @@ class ActiveDocuments extends Component
             ->select([
                 'id', 'document_type_id', 'title', 'document_number', 
                 'description', 'owner_id', 'created_by', 'approved_by',
-                'status', 'expiry_date', 'created_at', 'updated_at'
+                'status', 'expiry_date', 'created_at', 'updated_at',
+                'is_kb_indexed', 'kb_indexing_status', 'kb_last_indexed_at'
             ])
             ->active();
 
@@ -143,6 +162,10 @@ class ActiveDocuments extends Component
 
         if ($this->statusFilter !== '') {
             $query->where('status', $this->statusFilter);
+        }
+
+        if ($this->kbFilter !== '') {
+            $query->where('is_kb_indexed', $this->kbFilter === 'indexed');
         }
 
         if ($this->expiringFilter) {
@@ -250,6 +273,12 @@ class ActiveDocuments extends Component
             'tags' => $document->tags ?? [],
             'status' => $document->status,
             'permissions' => $existingPermissions,
+            'is_kb_indexed' => $document->is_kb_indexed,
+            'kb_collection' => $document->kb_collection ?: 'General Documents',
+            'kb_required_permission' => $document->kb_required_permission ?: 'general.view',
+            'kb_chunk_size' => $document->kb_chunk_size ?: 800,
+            'kb_chunk_overlap' => $document->kb_chunk_overlap ?: 100,
+            'kb_content' => $document->kb_content,
         ];
         
         // Load inherited permissions from document type
@@ -325,6 +354,12 @@ class ActiveDocuments extends Component
                     'expiry_date' => $this->documentForm['expiry_date'],
                     'status' => $this->documentForm['status'],
                     'tags' => $this->documentForm['tags'],
+                    'is_kb_indexed' => $this->documentForm['is_kb_indexed'],
+                    'kb_collection' => $this->documentForm['kb_collection'],
+                    'kb_required_permission' => $this->documentForm['kb_required_permission'],
+                    'kb_chunk_size' => $this->documentForm['kb_chunk_size'],
+                    'kb_chunk_overlap' => $this->documentForm['kb_chunk_overlap'],
+                    'kb_content' => $this->documentForm['kb_content'],
                 ]);
 
                 // Handle file upload if provided
@@ -362,6 +397,12 @@ class ActiveDocuments extends Component
                     'expiry_date' => $this->documentForm['expiry_date'],
                     'status' => $this->documentForm['status'],
                     'tags' => $this->documentForm['tags'],
+                    'is_kb_indexed' => $this->documentForm['is_kb_indexed'],
+                    'kb_collection' => $this->documentForm['kb_collection'],
+                    'kb_required_permission' => $this->documentForm['kb_required_permission'],
+                    'kb_chunk_size' => $this->documentForm['kb_chunk_size'],
+                    'kb_chunk_overlap' => $this->documentForm['kb_chunk_overlap'],
+                    'kb_content' => $this->documentForm['kb_content'],
                     'file_path' => '',
                     'file_name' => '',
                 ]);
@@ -388,6 +429,15 @@ class ActiveDocuments extends Component
             );
 
             $this->messageType = 'success';
+            
+            // Handle AI Indexing if requested
+            if ($document->is_kb_indexed) {
+                $this->knowledgeService->indexDocument($document);
+            } else if ($this->editingDocument) {
+                // If it was indexed but now unchecked, remove it
+                $this->knowledgeService->removeDocument($document);
+            }
+
             $this->closeModal();
 
         } catch (\Exception $e) {
@@ -506,6 +556,31 @@ class ActiveDocuments extends Component
         }
     }
 
+    public function toggleAIIndexing($documentId): void
+    {
+        try {
+            $document = Document::findOrFail($documentId);
+            
+            if ($document->is_kb_indexed) {
+                $result = $this->knowledgeService->removeDocument($document);
+                $this->message = 'Document removed from AI Knowledge Base';
+            } else {
+                $document->update(['is_kb_indexed' => true]);
+                $result = $this->knowledgeService->indexDocument($document);
+                $this->message = 'Document sent for AI indexing';
+            }
+
+            $this->messageType = $result['status'] === 'ok' ? 'success' : 'error';
+            if ($result['status'] !== 'ok') {
+                $this->message = 'AI Action failed: ' . ($result['message'] ?? 'Unknown error');
+            }
+
+        } catch (\Exception $e) {
+            $this->message = 'Error toggling AI indexing: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
     public function closeModal(): void
     {
         $this->showModal = false;
@@ -550,6 +625,12 @@ class ActiveDocuments extends Component
                 'roles' => [],
                 'users' => [],
             ],
+            'is_kb_indexed' => false,
+            'kb_collection' => 'General Documents',
+            'kb_required_permission' => 'general.view',
+            'kb_chunk_size' => 800,
+            'kb_chunk_overlap' => 100,
+            'kb_content' => '',
         ];
         $this->file = null;
         $this->selectedRole = null;
@@ -565,6 +646,7 @@ class ActiveDocuments extends Component
         $this->typeFilter = null;
         $this->ownerFilter = null;
         $this->statusFilter = '';
+        $this->kbFilter = '';
         $this->expiringFilter = false;
     }
 

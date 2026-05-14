@@ -2,8 +2,8 @@
 
 namespace App;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class AnalysisType extends Model implements Auditable
@@ -13,7 +13,6 @@ class AnalysisType extends Model implements Auditable
 
   protected $keyType = 'string';
   public $incrementing = false;
-
   protected $fillable = [
     'name',
     'code',
@@ -48,6 +47,16 @@ class AnalysisType extends Model implements Auditable
   public function lab()
   {
     return $this->belongsTo('App\Lab');
+  }
+
+  public function labs()
+  {
+    return $this->belongsToMany(
+      Lab::class,
+      'analysis_type_lab_relation',
+      'analysis_type_id',
+      'lab_id'
+    )->withTimestamps();
   }
 
   public function sample_type()

@@ -48,9 +48,15 @@ class RiskScoringConfig extends Model implements Auditable
      */
     public function scopeForCompany($query, $companyId = null)
     {
-        $companyId = $companyId ?? getUserCompany() ?? 0;
-        return $query->where(function($q) use ($companyId) {
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
+        $companyId = $companyId ?? getUserCompany();
+
+        return $query->where(function ($q) use ($companyId) {
+            if ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+                return;
+            }
+
+            $q->whereNull('company_id');
         });
     }
 
@@ -94,7 +100,7 @@ class RiskScoringConfig extends Model implements Auditable
      */
     public static function getDefault($companyId = null): ?self
     {
-        $companyId = $companyId ?? getUserCompany() ?? 0;
+        $companyId = $companyId ?? getUserCompany();
         return static::forCompany($companyId)
             ->active()
             ->default()

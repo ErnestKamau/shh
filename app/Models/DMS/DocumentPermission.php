@@ -79,9 +79,9 @@ class DocumentPermission extends Model implements Auditable
      * @param int $roleId
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeForRole($query, int $roleId)
+    public function scopeForRole($query, string $roleId)
     {
-        return $query->where('subject_type', 'App\\Models\\Role')
+        return $query->where('subject_type', \App\Models\Auth\Role::class)
                      ->where('subject_id', $roleId);
     }
 

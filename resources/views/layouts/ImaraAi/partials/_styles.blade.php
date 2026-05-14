@@ -1039,6 +1039,7 @@ body > nav + * {
     padding: 12px 20px 14px;
     background: #fff;
     flex-shrink: 0;
+    position: relative;
 }
 
 /* Attachment preview bar */
@@ -1996,5 +1997,100 @@ input:checked + .premium-switch.small .switch-slider:before { transform: transla
     border: 1px solid #fbcfe8;
 }
 
+/* Mention Suggestions */
+.mention-suggestions {
+    position: absolute;
+    bottom: 100%;
+    left: 15px;
+    right: 15px;
+    background: #fff9c4; /* light yellow */
+    border: 2px solid #a72b2a;
+    border-radius: 12px;
+    box-shadow: 0 -10px 25px rgba(0,0,0,0.2);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 9999999;
+    margin-bottom: 8px;
+}
+.mention-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.mention-item:last-child { border-bottom: none; }
+.mention-item:hover, .mention-item.active {
+    background: #f8fafc;
+    color: #a72b2a;
+}
+.mention-item i {
+    font-size: 1.1rem;
+    color: #64748b;
+}
+.mention-item.active i { color: #a72b2a; }
 
+/* Selected References Bar */
+.selected-references-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+}
+.reference-tag {
+    background: #a72b2a;
+    color: white;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.reference-tag .remove-ref {
+    cursor: pointer;
+    font-weight: bold;
+    opacity: 0.8;
+}
+.reference-tag .remove-ref:hover { opacity: 1; }
 
+/* Persistent Message References */
+.message-manual-references {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255,255,255,0.2);
+    font-size: 0.75rem;
+}
+.bot-bubble .message-manual-references {
+    border-top: 1px dashed #e2e8f0;
+    color: #64748b;
+}
+.ref-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.msg-ref-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+.bot-bubble .msg-ref-tag {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}

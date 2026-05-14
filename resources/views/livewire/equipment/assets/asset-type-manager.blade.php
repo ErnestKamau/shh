@@ -8,13 +8,13 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-format-list-bulleted-type text-primary"></i>
-                                Asset Types
+                                {{ __('equipment.asset_types') }}
                             </h2>
-                            <p class="text-muted mb-0">Manage asset categories and classifications</p>
+                            <p class="text-muted mb-0">{{ __('equipment.asset_types_subtitle') }}</p>
                         </div>
                         <div>
                             <button wire:click="openModal" class="btn btn-primary">
-                                <i class="mdi mdi-plus"></i> Add New Type
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.add_new_type') }}
                             </button>
                         </div>
                     </div>
@@ -29,15 +29,15 @@
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
                     <h6 class="mb-0 text-muted">
-                        <i class="mdi mdi-filter-variant"></i> Filter Options
+                        <i class="mdi mdi-filter-variant"></i> {{ __('equipment.filter_options') }}
                     </h6>
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by asset code or description...">
+                                <label class="form-label fw-bold">{{ __('equipment.search') }}</label>
+                                <input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="{{ __('equipment.search_by_asset_code_or_description') }}">
                             </div>
                         </div>
                     </div>
@@ -52,38 +52,41 @@
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover align-middle">
+                        <table class="table table-striped table-hover align-middle equipment-table">
                             <thead style="background-color: rgba(0, 0, 0, .03);">
                                 <tr>
-                                    <th>Asset Code</th>
-                                    <th>Description</th>
-                                    <th>Status</th>
-                                    <th class="text-end">Actions</th>
+                                    <th class="text-start" style="width: 100px;">{{ __('equipment.actions') }}</th>
+                                    <th>{{ __('equipment.asset_code') }}</th>
+                                    <th>{{ __('equipment.description') }}</th>
+                                    <th>{{ __('equipment.status') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($types as $type)
                                     <tr>
+                                        <td class="equipment-actions-cell text-start">
+                                            <div class="equipment-actions-group">
+                                                <button wire:click="edit({{ $type->id }})" class="btn btn-sm btn-outline-info equipment-action-btn" title="{{ __('equipment.edit') }}">
+                                                    <i class="mdi mdi-pencil"></i>
+                                                </button>
+                                                <button wire:click="delete({{ $type->id }})"
+                                                        wire:confirm="Are you sure you want to delete this asset type?"
+                                                        class="btn btn-sm btn-outline-danger equipment-action-btn"
+                                                        title="{{ __('equipment.delete') }}">
+                                                    <i class="mdi mdi-trash-can"></i>
+                                                </button>
+                                            </div>
+                                        </td>
                                         <td>
                                             <span class="fw-bold text-primary">{{ $type->asset_code }}</span>
                                         </td>
                                         <td>{{ $type->descripton }}</td>
                                         <td>
                                             @if($type->is_active)
-                                                <span class="badge bg-success">Active</span>
+                                                <span class="badge bg-success">{{ __('equipment.active') }}</span>
                                             @else
-                                                <span class="badge bg-secondary">Inactive</span>
+                                                <span class="badge bg-secondary">{{ __('equipment.inactive') }}</span>
                                             @endif
-                                        </td>
-                                        <td class="text-end">
-                                            <button wire:click="edit({{ $type->id }})" class="btn btn-sm btn-outline-info me-1">
-                                                <i class="mdi mdi-pencil"></i>
-                                            </button>
-                                            <button wire:click="delete({{ $type->id }})" 
-                                                    wire:confirm="Are you sure you want to delete this asset type?"
-                                                    class="btn btn-sm btn-outline-danger">
-                                                <i class="mdi mdi-trash-can"></i>
-                                            </button>
                                         </td>
                                     </tr>
                                 @empty
@@ -92,8 +95,8 @@
                                             <div class="mb-3">
                                                 <i class="mdi mdi-format-list-bulleted-type text-muted" style="font-size: 3rem;"></i>
                                             </div>
-                                            <h5 class="text-muted">No Asset Types Found</h5>
-                                            <p class="text-muted">Get started by creating a new asset type.</p>
+                                            <h5 class="text-muted">{{ __('equipment.no_asset_types_found') }}</h5>
+                                            <p class="text-muted">{{ __('equipment.create_asset_type') }}</p>
                                         </td>
                                     </tr>
                                 @endforelse
@@ -117,36 +120,36 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editId ? 'pencil' : 'plus' }} text-primary"></i>
-                            {{ $editId ? 'Edit Asset Type' : 'Create Asset Type' }}
+                            {{ $editId ? __('equipment.edit_asset_type') : __('equipment.create_asset_type') }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeModal"></button>
                     </div>
                     <div class="modal-body">
                         <form wire:submit.prevent="save">
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Asset Code <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('asset_code') is-invalid @enderror" wire:model="asset_code" placeholder="e.g. IT-HW">
+                                <label class="form-label fw-bold">{{ __('equipment.asset_code') }} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('asset_code') is-invalid @enderror" wire:model="asset_code" placeholder="{{ __('equipment.asset_code_example') }}">
                                 @error('asset_code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Description <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control @error('description') is-invalid @enderror" wire:model="description" placeholder="e.g. IT Hardware">
+                                <label class="form-label fw-bold">{{ __('equipment.description') }} <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('description') is-invalid @enderror" wire:model="description" placeholder="{{ __('equipment.asset_description_example') }}">
                                 @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="mb-3">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" role="switch" id="isActive" wire:model="is_active">
-                                    <label class="form-check-label" for="isActive">Active Status</label>
+                                    <label class="form-check-label" for="isActive">{{ __('equipment.active_status') }}</label>
                                 </div>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeModal">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="closeModal">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="save">
-                            <i class="mdi mdi-content-save"></i> Save Changes
+                            <i class="mdi mdi-content-save"></i> {{ __('equipment.save_changes') }}
                         </button>
                     </div>
                 </div>

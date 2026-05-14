@@ -1,5 +1,5 @@
 <div class="container-fluid">
-    <div class="row mb-4">
+    <div class="row mb-4 customer-tab-filters">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-body p-4">

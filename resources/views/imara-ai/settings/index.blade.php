@@ -11,7 +11,7 @@
 
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
             {{-- Knowledge Base Card --}}
-            <a href="{{ route('ai.knowledge.manager') }}" style="text-decoration: none; display: block; group;">
+            <a href="{{ route('dms.active', ['kbFilter' => 'indexed']) }}" style="text-decoration: none; display: block; group;">
                 <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; overflow: hidden;"
                      onmouseover="this.style.borderColor='#a72b2a'; this.style.boxShadow='0 10px 25px -5px rgba(167, 43, 42, 0.1), 0 8px 10px -6px rgba(167, 43, 42, 0.1)';"
                      onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)';">

@@ -9,17 +9,8 @@
             <span>ImaraChat AI</span>
         </div>
     </div>
-    <div class="header-right">
-        @if(Route::currentRouteName() === 'ai.knowledge.manager')
-             <a href="{{ route('imara-ai') }}" class="header-btn" title="Back to Chat">
-                <i class="mdi mdi-chat-outline"></i>
-                <span>Chat</span>
-            </a>
-        @else
-            <button class="header-btn" id="btnHeaderNewChat" title="New conversation">
+        <button class="header-btn" id="btnHeaderNewChat" title="New conversation">
                 <i class="mdi mdi-plus"></i>
                 <span>New</span>
             </button>
-        @endif
-    </div>
 </header>

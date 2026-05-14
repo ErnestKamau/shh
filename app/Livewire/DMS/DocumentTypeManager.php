@@ -10,7 +10,7 @@ use App\Services\DMS\DocumentNumberGenerator;
 use App\Services\DMS\PermissionManager;
 use App\User;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role as SpatieRole;
+use App\Models\Auth\Role as SpatieRole;
 
 class DocumentTypeManager extends Component
 {

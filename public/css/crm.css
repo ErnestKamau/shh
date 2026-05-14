@@ -99,6 +99,13 @@
   padding: var(--crm-space-4) var(--crm-space-5);
 }
 
+.crm-page-subtitle {
+  margin: 0;
+  padding: 0 var(--crm-space-5) var(--crm-space-4) var(--crm-space-5);
+  color: var(--crm-neutral-600);
+  font-size: var(--crm-font-body);
+}
+
 .crm-page-title i {
   color: var(--crm-primary);
   margin-right: var(--crm-space-2);
@@ -243,6 +250,24 @@
 
 .crm-card-body {
   padding: var(--crm-space-5);
+}
+
+.crm-dash-card-header {
+  padding: var(--crm-space-4) var(--crm-space-5);
+  border-bottom: var(--crm-border);
+  display: flex;
+  align-items: center;
+  gap: var(--crm-space-3);
+}
+
+.crm-dash-card-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--crm-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Dashboard / Feedback pulse card: consistent padding (4/8 scale) */

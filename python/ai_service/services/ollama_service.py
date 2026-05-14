@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class OllamaService:
     def __init__(self):
         self.host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        self.model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+        self.model = os.getenv("AI_HEAVY_MODEL", os.getenv("OLLAMA_MODEL", "qwen2.5:3b"))
         self.request_timeout_s = float(os.getenv("OLLAMA_REQUEST_TIMEOUT_S", "120"))
         try:
             import ollama

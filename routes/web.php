@@ -229,6 +229,15 @@ Route::get('/livewire/sample-types', [LabAppController::class, 'sampleTypes'])
     ->name('livewire.sample-types')
     ->middleware('can:laboratory.components.sample-types.view');
 
+// Livewire Monitoring Management
+Route::get('/livewire/monitoring', [LabAppController::class, 'monitoring'])
+    ->name('livewire.monitoring')
+    ->middleware('can:laboratory.components.labs.view');
+
+Route::get('/livewire/monitoring/template/create', [LabAppController::class, 'createMonitoringTemplate'])
+    ->name('monitoring.template.create')
+    ->middleware('can:laboratory.components.labs.view');
+
 // Remedies Management Routes
 Route::get('/remedies', [LabAppController::class, 'remedies'])
     ->name('remedies.index')
@@ -1830,10 +1839,7 @@ Route::post('/ajax/send-schedule', 'SampleWorkFlowController@sendScheduleAjax')-
 
 ##################################### IMARACHAT AI #######################
 Route::get('/imara-ai','HomeController@aiIndex')->middleware(['auth', 'twofactor', 'can:ai.module.access'])->name('imara-ai');
-Route::prefix('imara-ai/settings')->name('ai.settings.')->middleware(['auth', 'twofactor'])->group(function () {
-    Route::get('/', 'KnowledgeBaseManagerController@settings')->name('index');
-});
-Route::get('/imara-ai/knowledge-manager','KnowledgeBaseManagerController@index')->middleware(['auth', 'twofactor'])->name('ai.knowledge.manager');
+/* Settings and Knowledge Manager routes removed: functionality merged into DMS Active Documents */
 
 Route::post('/imara-ai/search', 'AI\KnowledgeAssistantController@search')
   ->middleware(['auth', 'twofactor', 'throttle:20,1'])
@@ -1844,6 +1850,10 @@ Route::post('/imara-ai/ask', 'AI\KnowledgeAssistantController@ask')
 Route::post('/imara-ai/ask-stream', 'AI\KnowledgeAssistantController@askStream')
   ->middleware(['auth', 'twofactor', 'throttle:20,1'])
   ->name('ai.knowledge.ask-stream');
+
+Route::get('/imara-ai/lookup-documents', 'AI\KnowledgeAssistantController@lookupDocuments')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.lookup-documents');
 
 Route::post('/imara-ai/action/confirm', 'AI\KnowledgeAssistantController@confirmAction')
   ->middleware(['auth', 'twofactor', 'throttle:20,1'])

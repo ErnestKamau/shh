@@ -620,11 +620,11 @@ class ComplaintForm extends BaseCrmComponent
         $this->validate();
 
         if ($this->complaintId) {
-            $this->checkPermission('crm.components.complaints.edit');
+            $this->checkPermission(\App\Constants\CRM\CrmConstants::PERMISSION_COMPLAINT_EDIT);
             $complaint = Complaint::find($this->complaintId);
             $complaint->edited_by = auth()->user()->name;
         } else {
-            $this->checkPermission('crm.components.open complaints.add');
+            $this->checkPermission(\App\Constants\CRM\CrmConstants::PERMISSION_COMPLAINT_ADD);
             $complaint = new Complaint();
             
             // Generate complaint ID

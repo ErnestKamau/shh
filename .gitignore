@@ -4,8 +4,7 @@
 /storage/*.key
 /vendor
 vendor
-.env
-.env.backup
+.env*
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
@@ -62,7 +61,7 @@ coverage.xml
 htmlcov/
 
 # Environments
-.env
+.env*
 .venv
 env/
 venv/

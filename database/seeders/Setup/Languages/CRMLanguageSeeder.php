@@ -513,6 +513,7 @@ class CRMLanguageSeeder extends Seeder
             'can_login' => ['en' => 'Can Login?', 'sw' => 'Anaweza Kuingia?'],
             'delete_contact_confirm' => ['en' => 'Are you sure you want to delete this contact?', 'sw' => 'Una uhakika unataka kufuta mawasiliano haya?'],
             'no_contacts_found' => ['en' => 'No contacts found', 'sw' => 'Hakuna mawasiliano yaliyopatikana'],
+                        'add_first_contact_hint' => ['en' => 'Start by adding your first contact.', 'sw' => 'Anza kwa kuongeza mawasiliano yako ya kwanza.'],
             'no_contacts_help' => ['en' => 'Add a liaison contact to begin managing communication preferences.', 'sw' => 'Ongeza mawasiliano ya kiunganishi kuanza kusimamia mapendeleo ya mawasiliano.'],
             'company_unit' => ['en' => 'Company Unit', 'sw' => 'Kitengo cha Kampuni'],
             'edit_label' => ['en' => 'Edit label', 'sw' => 'Hariri lebo'],

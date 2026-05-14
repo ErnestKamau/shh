@@ -12,7 +12,7 @@
                             </h2>
                             <p class="text-muted mb-0">Manage analysis types and their elements</p>
                         </div>
-                        <button wire:click="showCreateAnalysisTypeModal" class="btn btn-primary">
+                        <button wire:click="showCreateAnalysisTypeModal" class="btn btn-outline-primary analysis-add-btn">
                             <i class="mdi mdi-plus"></i> Add Analysis Type
                         </button>
                     </div>
@@ -97,11 +97,9 @@
                                         <th>Actions</th>
                                         <th>Code</th>
                                         <th>Name</th>
-                                        <th>Procedure</th>
-                                        <th>Lab Section</th>
+                                        <th>Labs</th>
                                         <th>Elements</th>
                                         <th>Level</th>
-                                        <th>Calculations</th>
                                         <th>Has Attachable Result</th>
                                         <th>Reporting Time</th>
                                         <th>Status</th>
@@ -111,19 +109,19 @@
                                     @foreach($this->analysisTypes as $analysisType)
                                         <tr>
                                             <td>
-                                                <div class="btn-group" role="group">
+                                                <div class="d-flex gap-1">
                                                     <a href="{{ route('livewire.elements', ['analysisTypeId' => $analysisType->id]) }}" 
-                                                       class="btn btn-sm btn-outline-primary mr-1" 
+                                                       class="rm-act-btn rm-act-btn--view" 
                                                        title="View Elements">
                                                         <i class="mdi mdi-eye"></i>
                                                     </a>
                                                     <button wire:click="showEditAnalysisTypeModal('{{ $analysisType->id }}')" 
-                                                            class="btn btn-sm btn-outline-warning mr-1" 
+                                                            class="rm-act-btn rm-act-btn--edit" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
                                                     <button wire:click="deleteAnalysisType('{{ $analysisType->id }}')" 
-                                                            class="btn btn-sm btn-outline-danger mr-1" 
+                                                            class="rm-act-btn rm-act-btn--delete" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this analysis type? This will also delete all associated elements.')">
                                                         <i class="mdi mdi-delete"></i>
@@ -141,31 +139,24 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                @if($analysisType->procedureWorksheet)
-                                                    <span class="badge bg-light text-dark p-2 border">{{ $analysisType->procedureWorksheet->name }}</span>
+                                                @php
+                                                    $labs = $analysisType->labs;
+                                                @endphp
+                                                @if($labs->count() > 0)
+                                                    @foreach($labs as $lab)
+                                                        <span class="badge bg-light text-dark p-2 border mr-1">{{ $lab->name }}</span>
+                                                    @endforeach
+                                                @elseif($analysisType->lab)
+                                                    <span class="badge bg-light text-dark p-2 border">{{ $analysisType->lab->name }}</span>
                                                 @else
-                                                    <span class="text-muted">-</span>
+                                                    <span class="text-muted">N/A</span>
                                                 @endif
                                             </td>
                                             <td>
-                                                {{ $analysisType->labsectionname ?? 'N/A' }}
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-info p-2" style="color: white;">{{ $analysisType->analysis_elements_count ?? 0 }}</span>
+                                                <span class="badge bg-info p-2" style="color: white;">{{ $analysisType->analysis_elements->count() }}</span>
                                             </td>
                                             <td>
                                                 <span class="badge bg-primary p-2" style="color: white;">{{ $analysisType->level }}</span>
-                                            </td>
-                                            <td>
-                                                @if($analysisType->include_hygiene_score)
-                                                    <span class="badge bg-info p-2" style="color: white;">Hygiene Score</span>
-                                                @endif
-                                                @if($analysisType->include_sanitizer_efficiency)
-                                                    <span class="badge bg-info p-2" style="color: white;">Sanitizer Efficiency</span>
-                                                @endif
-                                                @if(!$analysisType->include_hygiene_score && !$analysisType->include_sanitizer_efficiency)
-                                                    <span class="text-muted">Not set</span>
-                                                @endif
                                             </td>
                                             <td>
                                                 @if($analysisType->has_no_result)
@@ -259,48 +250,36 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label class="form-label"><i class="mdi mdi-layers text-primary"></i> Lab Section</label>
-                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
+                                        <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Lab <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="$set('showLabDropdown', true)" wire:click.outside="$set('showLabDropdown', false)">
                                             <div class="tag-select-input">
-                                                <!-- Display selected lab section or allow searching -->
-                                                @if($this->selectedLabSection)
+                                                @foreach($this->selectedLabs as $selectedLab)
                                                     <span class="tag-badge">
-                                                        {{ $this->selectedLabSection->name }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearLabSectionSelection"></i>
+                                                        {{ $selectedLab->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="selectLab('{{ $selectedLab->id }}')"></i>
                                                     </span>
-                                                @endif
-                                                
-                                                <!-- Search Input -->
+                                                @endforeach
+
                                                 <input type="text" 
-                                                       wire:model.live="labSectionSearch" 
+                                                       wire:model.live="labSearch" 
                                                        class="tag-input" 
-                                                       placeholder="{{ $this->selectedLabSection ? '' : 'Search lab sections...' }}"
+                                                       placeholder="Search labs..."
                                                        autocomplete="off">
                                             </div>
-                                            
-                                            <!-- Dropdown -->
-                                            @if($showLabSectionDropdown && count($this->filteredLabSections) > 0)
+
+                                            @if($showLabDropdown && count($this->filteredLabs) > 0)
                                                 <div class="tag-dropdown">
-                                                    @foreach($this->filteredLabSections as $labSection)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectLabSection({{ $labSection->id }})">
-                                                            {{ $labSection->code }} - {{ $labSection->name }}
+                                                    @foreach($this->filteredLabs as $lab)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectLab('{{ $lab->id }}')">
+                                                            {{ $lab->code }} - {{ $lab->name }}
+                                                            @if(in_array((string) $lab->id, (array) ($analysisTypeForm['lab_ids'] ?? []), true))
+                                                                <span class="badge bg-success float-end">Selected</span>
+                                                            @endif
                                                         </div>
                                                     @endforeach
                                                 </div>
                                             @endif
                                         </div>
-                                        @error('analysisTypeForm.lab_section_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Lab (Auto-populated)</label>
-                                        <input type="text" 
-                                               class="form-control" 
-                                               value="{{ $this->selectedLab ? $this->selectedLab->name : '' }}" 
-                                               readonly 
-                                               style="background-color: #f8f9fa; cursor: not-allowed;"
-                                               placeholder="Select lab section first">
                                         @error('analysisTypeForm.lab_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -315,45 +294,6 @@
                                         <label class="form-label">Reporting Time (days)</label>
                                         <input type="number" wire:model="analysisTypeForm.reporting_time" class="form-control" min="0" placeholder="e.g., 7">
                                         <small class="form-text text-muted">Expected time to complete analysis in days</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Invoicable Item Selection -->
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-currency-usd text-success"></i> Invoicable Item
-                                        </label>
-                                        <div class="tag-select-container" wire:click="$set('showInvoicableItemDropdown', true)" wire:click.outside="$set('showInvoicableItemDropdown', false)">
-                                            <div class="tag-select-input">
-                                                @if($this->selectedInvoicableItem)
-                                                    <span class="tag-badge">
-                                                        {{ $this->selectedInvoicableItem->item_code }} - {{ $this->selectedInvoicableItem->item_name }} ({{ number_format($this->selectedInvoicableItem->unit_price, 2) }})
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.invoicable_item_id', null)"></i>
-                                                    </span>
-                                                @endif
-                                                
-                                                <input type="text" 
-                                                       wire:model.live="invoicableItemSearch" 
-                                                       class="tag-input" 
-                                                       placeholder="{{ $this->selectedInvoicableItem ? '' : 'Search invoicable items...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            
-                                            @if($showInvoicableItemDropdown && count($this->filteredInvoicableItems) > 0)
-                                                <div class="tag-dropdown">
-                                                    @foreach($this->filteredInvoicableItems as $item)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectInvoicableItem({{ $item->id }})">
-                                                            <strong>{{ $item->item_code }}</strong> - {{ $item->item_name }}
-                                                            <span class="badge bg-success float-end">{{ number_format($item->unit_price, 2) }}</span>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <small class="form-text text-muted">Select the invoicable item for billing this analysis type</small>
                                     </div>
                                 </div>
                             </div>
@@ -411,7 +351,7 @@
                                                         @if($showProcedureWorksheetDropdown && count($this->filteredProcedureWorksheets) > 0)
                                                             <div class="tag-dropdown">
                                                                 @foreach($this->filteredProcedureWorksheets as $worksheet)
-                                                                    <div class="tag-dropdown-item" wire:click.stop="selectProcedureWorksheet({{ $worksheet->id }})">
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectProcedureWorksheet('{{ $worksheet->id }}')">
                                                                         <strong>{{ $worksheet->name }}</strong>
                                                                         @if($worksheet->description)
                                                                             <br><small class="text-muted">{{ Str::limit($worksheet->description, 50) }}</small>
@@ -426,22 +366,6 @@
                                                 </div>
                                             </div>
                                         @endif
-                                        <div class="col-md-6 mb-2">
-                                            <div class="form-check form-switch">
-                                                <input type="checkbox" wire:model="analysisTypeForm.include_hygiene_score" class="form-check-input" id="include_hygiene_score" role="switch">
-                                                <label class="form-check-label" for="include_hygiene_score">
-                                                    <i class="mdi mdi-bacteria text-info"></i> Include Hygiene Score
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 mb-2">
-                                            <div class="form-check form-switch">
-                                                <input type="checkbox" wire:model="analysisTypeForm.include_sanitizer_efficiency" class="form-check-input" id="include_sanitizer_efficiency" role="switch">
-                                                <label class="form-check-label" for="include_sanitizer_efficiency">
-                                                    <i class="mdi mdi-spray text-info"></i> Include Sanitizer Efficiency
-                                                </label>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -461,6 +385,11 @@
     <style>
     .modal.show {
         display: block !important;
+    }
+
+    .analysis-add-btn {
+        border-radius: 8px;
+        padding: 0.48rem 1rem;
     }
     
     /* Modern Select Styling */

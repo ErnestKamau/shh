@@ -59,7 +59,7 @@ class EquipmentReportsController extends Controller
             $result =  $data->get();
         }
         if ($request->report_name == 'maintainance_report') {
-            $theads = ['Equipment', 'Description', 'Log', 'Type', 'Service Performer', 'Asset Type', 'Asset Location', 'Department', 'Remarks',];
+            $theads = ['Equipment', 'Description', 'Log', 'Type', 'Correction Factor', 'Uncertainty Of Measure', 'Service Performer', 'Asset Type', 'Asset Location', 'Department', 'Remarks',];
             $data = $this->maintainanceLogReports($data, $request);
             $result = $data;
         }

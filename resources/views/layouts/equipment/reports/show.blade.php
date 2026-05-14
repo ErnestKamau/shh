@@ -93,14 +93,7 @@
                                 @if($filter['report_name'] == 'maintainance_report')
                                 <tr class="bg-dark" style="color:white;font-weight:600">
                                     <td>Group By</td>
-                                    <td>{{$key}}</td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
+                                    <td colspan="{{ max(count($theads) - 1, 1) }}">{{$key}}</td>
                                     
                                 </tr>
                                 @endif
@@ -154,6 +147,8 @@
                                     <td style="width: 20%;">{{isset($data->description) ?  $data->description ?? '-' : $data->procedure ?? '-'}}</td>
                                     <td>{{isset($data->type) ? $data->type : 'Verification' }} Log</td>
                                     <td>{{$data->maintainance_type}}</td>
+                                    <td>{{ isset($data->correction_factor) && $data->correction_factor !== null ? $data->correction_factor : '-' }}</td>
+                                    <td>{{ isset($data->uncertainty_of_measure) && $data->uncertainty_of_measure !== null ? $data->uncertainty_of_measure : '-' }}</td>
                                     <td>{{$data->maintainance_type == 'in-house'  ? getUserById($data->employee_id)->name ?? '-' : getSupplierByID($data->supplier_id)->name ?? '-'}}</td>
                                     <td>{{getAssetTypeById($data->asset_type_id)->descripton}}</td>
                                     <td>{{getAssetLocationByid($data->asset_location_id)->name}}</td>
@@ -213,6 +208,8 @@
                                     <td style="width: 20%;">{{isset($value->description) ?  $value->description ?? '-' : $value->procedure ?? '-'}}</td>
                                     <td>{{isset($value->type) ? $value->type : 'Verification' }} Log</td>
                                     <td>{{$value->maintainance_type}}</td>
+                                    <td>{{ isset($value->correction_factor) && $value->correction_factor !== null ? $value->correction_factor : '-' }}</td>
+                                    <td>{{ isset($value->uncertainty_of_measure) && $value->uncertainty_of_measure !== null ? $value->uncertainty_of_measure : '-' }}</td>
                                     <td>{{$value->maintainance_type == 'in-house'  ? getUserById($value->employee_id)->name ?? '-' : getSupplierByID($value->supplier_id)->name ?? '-'}}</td>
                                     <td>{{getAssetTypeById($value->asset_type_id)->descripton}}</td>
                                     <td>{{getAssetLocationByid($value->asset_location_id)->name}}</td>

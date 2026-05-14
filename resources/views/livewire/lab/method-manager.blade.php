@@ -12,7 +12,7 @@
                             </h2>
                             <p class="text-muted mb-0">Manage analysis methods for laboratory testing</p>
                         </div>
-                        <button wire:click="showCreateMethodModal" class="btn btn-primary">
+                        <button wire:click="showCreateMethodModal" class="btn btn-outline-primary method-add-btn">
                             <i class="mdi mdi-plus"></i> Add Method
                         </button>
                     </div>
@@ -49,22 +49,29 @@
                         <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Status</label>
-                                <select wire:model.live="statusFilter" class="form-select">
-                                    <option value="">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
+                                <div class="tag-select-container status-filter-container">
+                                    <div class="tag-select-input status-filter-input">
+                                        <select wire:model.live="statusFilter" class="tag-select-native no-select2">
+                                            <option value="">All Status</option>
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Method Type</label>
-                                <select wire:model.live="methodTypeFilter" class="form-select">
-                                    <option value="">All Types</option>
-                                    @foreach($methodTypes as $type)
-                                        <option value="{{ $type->id }}">{{ $type->value }}</option>
-                                    @endforeach
-                                </select>
+                                <label for="perPage" class="form-label fw-bold">Show</label>
+                                <div class="tag-select-container show-filter-container">
+                                    <div class="tag-select-input status-filter-input">
+                                        <select wire:model.live="perPage" id="perPage" class="tag-select-native no-select2">
+                                            @foreach($perPageOptions as $option)
+                                                <option value="{{ $option }}">{{ $option }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-2">
@@ -93,14 +100,6 @@
                                 <span class="text-muted">
                                     Showing {{ $this->methods->firstItem() ?? 0 }} to {{ $this->methods->lastItem() ?? 0 }} of {{ $this->methods->total() }} entries
                                 </span>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
-                                <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
-                                    @foreach($perPageOptions as $option)
-                                        <option value="{{ $option }}">{{ $option }}</option>
-                                    @endforeach
-                                </select>
                             </div>
                         </div>
                         
@@ -233,70 +232,6 @@
                             </div>
                             
                             <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label fw-bold"><i class="mdi mdi-test-tube text-primary"></i> Method Type</label>
-                                        <div x-data="{
-                                            open: false,
-                                            search: '',
-                                            selected: @entangle('methodForm.method_type_id').live,
-                                            types: {{ json_encode($methodTypes->map(fn($t) => ['id' => $t->id, 'value' => $t->value])->values()) }},
-                                            get filteredTypes() {
-                                                if (!this.search) return this.types;
-                                                return this.types.filter(type => 
-                                                    type.value.toLowerCase().includes(this.search.toLowerCase())
-                                                );
-                                            },
-                                            selectType(typeId) {
-                                                this.selected = typeId;
-                                                this.open = false;
-                                                this.search = '';
-                                            },
-                                            getSelectedName() {
-                                                const type = this.types.find(t => t.id == this.selected);
-                                                return type ? type.value : '';
-                                            }
-                                        }" class="searchable-dropdown-wrapper">
-                                            <div class="single-select-container" @click="open = !open">
-                                                <input 
-                                                    type="text" 
-                                                    x-model="search"
-                                                    :placeholder="selected ? getSelectedName() : 'Search method types...'"
-                                                    @focus="open = true"
-                                                    class="form-control searchable-input-single"
-                                                    autocomplete="off"
-                                                >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
-                                            </div>
-
-                                            <div x-show="open" 
-                                                 @click.away="open = false"
-                                                 x-transition
-                                                 class="dropdown-list">
-                                                <template x-if="filteredTypes.length > 0">
-                                                    <div class="options-list">
-                                                        <template x-for="type in filteredTypes" :key="type.id">
-                                                            <div @click="selectType(type.id)" 
-                                                                 class="option-item"
-                                                                 :class="{ 'selected': selected == type.id }">
-                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == type.id"></i>
-                                                                <span x-text="type.value"></span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                                <template x-if="filteredTypes.length === 0">
-                                                    <div class="no-results">
-                                                        <i class="mdi mdi-alert-circle-outline"></i>
-                                                        <span>No types found</span>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                        @error('methodForm.method_type_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                
                                 @if($methodForm['method_type_id'] == $ltmMethodTypeId)
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
@@ -386,6 +321,11 @@
         </div>
     @endif
     <style>
+        .method-add-btn {
+            border-radius: 8px;
+            padding: 0.48rem 1rem;
+        }
+
         .modal.show {
             display: block !important;
         }
@@ -429,6 +369,64 @@
     </script>
     
     <style>
+        .tag-select-container {
+            position: relative;
+            cursor: text;
+        }
+
+        .tag-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            min-height: 42px;
+            padding: 6px 12px;
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .tag-select-input:hover {
+            border-color: #007bff;
+        }
+
+        .tag-select-input:focus-within {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
+        .status-filter-input {
+            padding: 0 12px;
+        }
+
+        .tag-select-native {
+            width: 100%;
+            display: block;
+            border: none;
+            box-shadow: none;
+            background-color: transparent;
+            padding: 10px 32px 10px 0;
+            min-height: 42px;
+            line-height: 1.5;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+            background-size: 16px 16px;
+            cursor: pointer;
+        }
+
+        .tag-select-native:focus {
+            border: none;
+            box-shadow: none;
+            background-color: transparent;
+            outline: none;
+        }
+
         /* Single-Select Searchable Dropdown Styling */
         .searchable-input-single {
             border: none;

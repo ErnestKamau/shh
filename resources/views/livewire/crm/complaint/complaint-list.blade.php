@@ -15,7 +15,7 @@
                     <button type="button" class="btn btn-outline-success btn-sm mr-2 crm-btn-export" wire:click="exportToExcel" wire:loading.attr="disabled">
                         <i class="fa fa-file-excel mr-1"></i> Export to Excel
                     </button>
-                    @if($this->getStageName($this->stage) == "Open Complaint")
+                    @if($this->getStageName($this->stage) === 'Open Complaints' && $this->canAddComplaint)
                         <button type="button" class="btn btn-add btn-sm crm-btn-add" wire:click="addComplaint">
                             <i class="mdi mdi-plus"></i> Add New Complaint
                         </button>

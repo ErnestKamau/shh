@@ -49,6 +49,14 @@ class Document extends Model implements Auditable
         'is_expiring',
         'last_expiry_notification_sent_at',
         'tags',
+        'is_kb_indexed',
+        'kb_collection',
+        'kb_required_permission',
+        'kb_last_indexed_at',
+        'kb_indexing_status',
+        'kb_chunk_size',
+        'kb_chunk_overlap',
+        'kb_content',
     ];
 
     protected $casts = [
@@ -62,6 +70,10 @@ class Document extends Model implements Auditable
         'file_size' => 'integer',
         'version_number' => 'integer',
         'amendment_count' => 'integer',
+        'is_kb_indexed' => 'boolean',
+        'kb_last_indexed_at' => 'datetime',
+        'kb_chunk_size' => 'integer',
+        'kb_chunk_overlap' => 'integer',
     ];
 
     /**

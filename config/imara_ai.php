@@ -2,7 +2,7 @@
 
 return [
     'api_base_url' => env('IMARA_AI_ENDPOINT', env('AI_SERVICE_URL', 'http://127.0.0.1:8081')),
-    'api_base_urls' => array_values(array_filter(array_map('trim', explode(',', env('AI_SERVICE_URLS', 'http://127.0.0.1:8080,http://127.0.0.1:8081'))))),
+    'api_base_urls' => array_values(array_filter(array_map('trim', explode(',', env('AI_SERVICE_URLS', 'http://127.0.0.1:8081,http://127.0.0.1:8080'))))),
 
     'source_connection' => env('DB_CONNECTION', 'pgsql'),
 
@@ -39,7 +39,9 @@ return [
     'defaults' => [
         'agent_name'    => 'Imarachat AI',
         'tone_of_voice' => 'Professional',
-        'default_model' => 'qwen2.5:3b',
+        'default_model' => 'gemma3:1b',
+        'chat_model'    => 'gemma3:1b',
+        'heavy_model'   => 'qwen2.5:3b',
         'temperature'   => 0.3,
         'max_tokens'    => 2048,
         'top_p'         => 0.9,

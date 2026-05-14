@@ -53,6 +53,11 @@ class ContactsManager extends Component
     public $units = [];
     public $titles = [];
 
+    // Filter / Pagination
+    public $search = '';
+    public $statusFilter = '';
+    public $perPage = 10;
+
     // UI State
     public $loading = false;
     public $message = '';
@@ -120,8 +125,22 @@ class ContactsManager extends Component
     public function getContactsProperty()
     {
         return CustomerContact::where('crm_customer_id', $this->customerId)
+            ->when($this->search, function ($q) {
+                $search = $this->search;
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('first_name', 'like', '%' . $search . '%')
+                        ->orWhere('last_name', 'like', '%' . $search . '%')
+                        ->orWhere('email', 'like', '%' . $search . '%')
+                        ->orWhere('telephone', 'like', '%' . $search . '%')
+                        ->orWhere('job_occupation', 'like', '%' . $search . '%');
+                });
+            })
+            ->when($this->statusFilter !== '', function ($q) {
+                $q->where('active', $this->statusFilter);
+            })
             ->orderByDesc('active')
             ->orderBy('first_name')
+            ->take((int) $this->perPage)
             ->get();
     }
 
@@ -312,6 +331,13 @@ class ContactsManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    public function clearFilters()
+    {
+        $this->search = '';
+        $this->statusFilter = '';
+        $this->perPage = 10;
     }
 
     public function render()

@@ -22,6 +22,11 @@ class CompanyUnitsManager extends Component
         'active' => true
     ];
 
+    // Filter / Pagination
+    public $search = '';
+    public $statusFilter = '';
+    public $perPage = 10;
+
     // UI State
     public $loading = false;
     public $message = '';
@@ -44,7 +49,14 @@ class CompanyUnitsManager extends Component
     public function getUnitsProperty()
     {
         return CRMCompanyUnit::where('crm_customer_id', $this->customerId)
+            ->when($this->search, function ($q) {
+                $q->where('name', 'like', '%' . $this->search . '%');
+            })
+            ->when($this->statusFilter !== '', function ($q) {
+                $q->where('active', $this->statusFilter);
+            })
             ->orderBy('name')
+            ->take((int) $this->perPage)
             ->get();
     }
 
@@ -146,6 +158,13 @@ class CompanyUnitsManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    public function clearFilters()
+    {
+        $this->search = '';
+        $this->statusFilter = '';
+        $this->perPage = 10;
     }
 
     public function render()

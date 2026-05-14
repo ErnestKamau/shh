@@ -6,12 +6,12 @@
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
                         <div>
-                            <div class="eq-kicker mb-1">Equipment Management</div>
+                            <div class="eq-kicker mb-1">{{ __('equipment.equipment_management') }}</div>
                             <h2 class="mb-1 eq-hero-title">
                                 <i class="mdi mdi-tools text-primary"></i>
                                 {{ $equipment->name ?? 'Equipment' }}
                             </h2>
-                            <p class="text-muted mb-0">Equipment Details and Management</p>
+                            <p class="text-muted mb-0">{{ __('equipment.equipment_details_management') }}</p>
                         </div>
                         <div class="d-flex align-items-center" style="gap: 8px;">
                             <span class="badge badge-light border px-3 py-2">{{ $equipment->equipment_number }}</span>
@@ -59,7 +59,7 @@
                 </div>
 
                 <div class="card-body px-4 py-4">
-                    <!-- Description -->
+                    <!-- {{ __('equipment.description') }} -->
                     @if($equipment->description)
                         <div class="mb-4 pb-3" style="border-bottom: 1px solid #f0f0f0;">
                             <p class="text-muted mb-0" style="font-size: 14px; line-height: 1.6;">
@@ -175,37 +175,37 @@
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'maintenance' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('maintenance')" type="button">
-                                Maintenance Log
+                                {{ __('equipment.maintenance_log') }}
                             </button>
                         </li>
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'calibration' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('calibration')" type="button">
-                                Calibration Log
+                                {{ __('equipment.calibration_log') }}
                             </button>
                         </li>
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'verification' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('verification')" type="button">
-                                Verification Log
+                                {{ __('equipment.verification_log') }}
                             </button>
                         </li>
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'operators' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('operators')" type="button">
-                                Operators
+                                {{ __('equipment.operators') }}
                             </button>
                         </li>
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'attachments' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('attachments')" type="button">
-                                Attachments
+                                {{ __('equipment.attachments') }}
                             </button>
                         </li>
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'notifications' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('notifications')" type="button">
-                                Notifications
+                                {{ __('equipment.notifications') }}
                             </button>
                         </li>
                         @endif
@@ -213,7 +213,7 @@
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'dailylog' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('dailylog')" type="button">
-                                <i class="mdi mdi-notebook-check-outline"></i> Daily Log Config
+                                <i class="mdi mdi-notebook-check-outline"></i> {{ __('equipment.daily_log_config') }}
                             </button>
                         </li>
                         @endif
@@ -223,14 +223,14 @@
                     <!-- Maintenance Log Tab -->
                     @if($activeTab === 'maintenance')
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">Maintenance Logs</h5>
-                            <button wire:click="showCreateMaintenanceModal" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-plus"></i> Add Maintenance Log
+                            <h5 class="mb-0">{{ __('equipment.maintenance_log') }}</h5>
+                            <button wire:click="showCreateMaintenanceModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.add_maintenance_log') }}
                             </button>
                         </div>
                         <div class="row mb-3">
                              <div class="col-md-4">
-                                 <input type="text" wire:model.live="maintenanceSearch" class="form-control form-control-sm" placeholder="Search maintenance logs...">
+                                 <input type="text" wire:model.live="maintenanceSearch" class="form-control form-control-sm" placeholder="{{ __('equipment.search_maintenance_logs') }}">
                              </div>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -241,43 +241,47 @@
                              </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table class="table table-striped table-hover equipment-table" style="width:120%">
                                 <thead>
                                     <tr>
-                                        <th>Actions</th>
-                                        <th>Type</th>
-                                        <th>Service Provider</th>
-                                        <th>Date</th>
-                                        <th>Certificate</th>
-                                        <th>Overseen By</th>
-                                        <th>Notes</th>
+                                        <th>{{ __('equipment.actions') }}</th>
+                                        <th>{{ __('equipment.type') }}</th>
+                                        <th>{{ __('equipment.service_provider') }}</th>
+                                        <th>{{ __('equipment.date') }}</th>
+                                        <th>{{ __('equipment.correction_factor') }}</th>
+                                        <th>{{ __('equipment.uncertainty_of_measure') }}</th>
+                                        <th>{{ __('equipment.certificate') }}</th>
+                                        <th>{{ __('equipment.overseen_by') }}</th>
+                                        <th>{{ __('equipment.notes') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->maintenanceLogs as $log)
                                             <tr>
                                                 <td>
-                                                    <button wire:click="showEditMaintenanceModal({{ $log->id }})" 
-                                                            class="btn btn-sm btn-outline-warning">
+                                                    <button wire:click="showEditMaintenanceModal({{ $log->id }})"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteMaintenanceLog({{ $log->id }})" 
-                                                            class="btn btn-sm btn-outline-danger"
+                                                    <button wire:click="deleteMaintenanceLog({{ $log->id }})"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
                                                             onclick="return confirm('Are you sure?')">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </td>
-                                                <td>{{ $log->maintainance_type == 'in-house' ? 'In House' : 'External' }}</td>
+                                                <td>{{ $log->maintainance_type == 'in-house' ? __('equipment.in_house') : __('equipment.external') }}</td>
                                                 <td>
                                                     {{ $log->maintainance_type != 'in-house' 
                                                         ? (\App\Supplier::find($log->supplier_id)->name ?? '-') 
                                                         : (getUserById($log->employee_id)->name ?? '-') }}
                                                 </td>
                                                 <td>{{ $log->date }}</td>
+                                                <td>{{ $log->correction_factor ? number_format($log->correction_factor, 1) : '-' }}</td>
+                                                <td>{{ $log->uncertainty_of_measure ? number_format($log->uncertainty_of_measure, 1) : '-' }}</td>
                                                 <td>
                                                     @if($log->certificate && $log->certificate != 'no-document')
                                                         <a href="{{ $log->certificate }}" target="_blank" class="btn btn-sm btn-success">
-                                                            <i class="mdi mdi-download"></i> Download
+                                                            <i class="mdi mdi-download"></i> {{ __('equipment.download') }}
                                                         </a>
                                                     @else
                                                         -
@@ -288,20 +292,20 @@
                                                     <button class="btn btn-sm btn-info" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#notesModal{{ $log->id }}">
-                                                        <i class="mdi mdi-eye"></i> View
+                                                        <i class="mdi mdi-eye"></i> {{ __('equipment.view') }}
                                                     </button>
                                                     <div class="modal fade" id="notesModal{{ $log->id }}" tabindex="-1">
                                                         <div class="modal-dialog">
                                                             <div class="modal-content">
                                                                 <div class="modal-header">
-                                                                    <h5 class="modal-title">Maintenance Notes</h5>
+                                                                    <h5 class="modal-title">{{ __('equipment.maintenance_notes') }}</h5>
                                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                                 </div>
                                                                 <div class="modal-body">
                                                                     <p>{{ $log->notes }}</p>
                                                                 </div>
                                                                 <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('equipment.close') }}</button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -320,14 +324,14 @@
                     <!-- Calibration Log Tab -->
                     @if($activeTab === 'calibration')
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">Calibration Logs</h5>
-                            <button wire:click="showCreateCalibrationModal" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-plus"></i> Add Calibration Log
+                            <h5 class="mb-0">{{ __('equipment.calibration_log') }}</h5>
+                            <button wire:click="showCreateCalibrationModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.add_calibration_log') }}
                             </button>
                         </div>
                         <div class="row mb-3">
                              <div class="col-md-4">
-                                 <input type="text" wire:model.live="calibrationSearch" class="form-control form-control-sm" placeholder="Search calibration logs...">
+                                 <input type="text" wire:model.live="calibrationSearch" class="form-control form-control-sm" placeholder="{{ __('equipment.search_calibration_logs') }}">
                              </div>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -338,43 +342,47 @@
                              </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table class="table table-striped table-hover equipment-table" style="width:120%">
                                 <thead>
                                     <tr>
-                                        <th>Actions</th>
-                                        <th>Type</th>
-                                        <th>Service Provider</th>
-                                        <th>Date</th>
-                                        <th>Certificate</th>
-                                        <th>Overseen By</th>
-                                        <th>Notes</th>
+                                        <th>{{ __('equipment.actions') }}</th>
+                                        <th>{{ __('equipment.type') }}</th>
+                                        <th>{{ __('equipment.service_provider') }}</th>
+                                        <th>{{ __('equipment.date') }}</th>
+                                        <th>{{ __('equipment.correction_factor') }}</th>
+                                        <th>UM</th>
+                                        <th>{{ __('equipment.certificate') }}</th>
+                                        <th>{{ __('equipment.overseen_by') }}</th>
+                                        <th>{{ __('equipment.notes') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->calibrationLogs as $log)
                                             <tr>
                                                 <td>
-                                                    <button wire:click="showEditCalibrationModal({{ $log->id }})" 
-                                                            class="btn btn-sm btn-outline-warning">
+                                                    <button wire:click="showEditCalibrationModal({{ $log->id }})"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteCalibrationLog({{ $log->id }})" 
-                                                            class="btn btn-sm btn-outline-danger"
+                                                    <button wire:click="deleteCalibrationLog({{ $log->id }})"
+                                                        class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
                                                             onclick="return confirm('Are you sure?')">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </td>
-                                                <td>{{ $log->maintainance_type == 'in-house' ? 'In House' : 'External' }}</td>
+                                                <td>{{ $log->maintainance_type == 'in-house' ? __('equipment.in_house') : __('equipment.external') }}</td>
                                                 <td>
                                                     {{ $log->maintainance_type != 'in-house' 
                                                         ? (\App\Supplier::find($log->supplier_id)->name ?? '-') 
                                                         : (getUserById($log->employee_id)->name ?? '-') }}
                                                 </td>
                                                 <td>{{ $log->date }}</td>
+                                                <td>{{ $log->correction_factor ? number_format($log->correction_factor, 1) : '-' }}</td>
+                                                <td>{{ $log->uncertainty_of_measure ? number_format($log->uncertainty_of_measure, 1) : '-' }}</td>
                                                 <td>
                                                     @if($log->certificate && $log->certificate != 'no-document')
                                                         <a href="{{ $log->certificate }}" target="_blank" class="btn btn-sm btn-success">
-                                                            <i class="mdi mdi-download"></i> Download
+                                                            <i class="mdi mdi-download"></i> {{ __('equipment.download') }}
                                                         </a>
                                                     @else
                                                         -
@@ -385,20 +393,20 @@
                                                     <button class="btn btn-sm btn-info" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#calNotesModal{{ $log->id }}">
-                                                        <i class="mdi mdi-eye"></i> View
+                                                        <i class="mdi mdi-eye"></i> {{ __('equipment.view') }}
                                                     </button>
                                                     <div class="modal fade" id="calNotesModal{{ $log->id }}" tabindex="-1">
                                                         <div class="modal-dialog">
                                                             <div class="modal-content">
                                                                 <div class="modal-header">
-                                                                    <h5 class="modal-title">Calibration Notes</h5>
+                                                                    <h5 class="modal-title">{{ __('equipment.calibration_notes') }}</h5>
                                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                                 </div>
                                                                 <div class="modal-body">
                                                                     <p>{{ $log->notes }}</p>
                                                                 </div>
                                                                 <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('equipment.close') }}</button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -417,14 +425,14 @@
                     <!-- Verification Log Tab -->
                     @if($activeTab === 'verification')
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">Verification Logs</h5>
-                            <button wire:click="showCreateVerificationModal" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-plus"></i> Add Verification Log
+                            <h5 class="mb-0">{{ __('equipment.verification_log') }}</h5>
+                            <button wire:click="showCreateVerificationModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.add_verification_log') }}
                             </button>
                         </div>
                         <div class="row mb-3">
                              <div class="col-md-4">
-                                 <input type="text" wire:model.live="verificationSearch" class="form-control form-control-sm" placeholder="Search verification logs...">
+                                 <input type="text" wire:model.live="verificationSearch" class="form-control form-control-sm" placeholder="{{ __('equipment.search_verification_logs') }}">
                              </div>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -435,27 +443,27 @@
                              </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table class="table table-striped table-hover equipment-table" style="width:120%">
                                 <thead>
                                     <tr>
-                                        <th>Actions</th>
+                                        <th>{{ __('equipment.actions') }}</th>
                                         <th>Type</th>
                                         <th>Reference Standards</th>
                                         <th>Service Performer</th>
                                         <th>Verification Date</th>
-                                        <th>Description</th>
+                                        <th>{{ __('equipment.description') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->verificationLogs as $log)
                                         <tr>
                                             <td>
-                                                <button wire:click="showEditVerificationModal({{ $log->id }})" 
-                                                        class="btn btn-sm btn-outline-warning">
+                                                <button wire:click="showEditVerificationModal({{ $log->id }})"
+                                                    class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
-                                                <button wire:click="deleteVerificationLog({{ $log->id }})" 
-                                                        class="btn btn-sm btn-outline-danger"
+                                                <button wire:click="deleteVerificationLog({{ $log->id }})"
+                                                    class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
                                                         onclick="return confirm('Are you sure?')">
                                                     <i class="mdi mdi-delete"></i>
                                                 </button>
@@ -478,7 +486,7 @@
                                                     <div class="modal-dialog modal-lg">
                                                         <div class="modal-content">
                                                             <div class="modal-header">
-                                                                <h5 class="modal-title">Verification Details</h5>
+                                                                <h5 class="modal-title">{{ __('equipment.verification_details') }}</h5>
                                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                             </div>
                                                             <div class="modal-body">
@@ -486,11 +494,11 @@
                                                                 <p>{{ $log->procedure }}</p>
                                                                 <h6>Responses</h6>
                                                                 <p>{{ $log->response }}</p>
-                                                                <h6>Remarks</h6>
+                                                                <h6>{{ __('equipment.remarks') }}</h6>
                                                                 <p>{{ $log->remarks }}</p>
                                                             </div>
                                                             <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('equipment.close') }}</button>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -509,9 +517,9 @@
                     <!-- Operators Tab -->
                     @if($activeTab === 'operators')
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">Operators</h5>
-                            <button wire:click="showOperatorModal" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-plus"></i> Add Operator
+                            <h5 class="mb-0">{{ __('equipment.operators') }}</h5>
+                            <button wire:click="showOperatorModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.add_operator') }}
                             </button>
                         </div>
                         <div class="p-3">
@@ -521,7 +529,7 @@
                             @foreach($operators as $operator)
                                 <div class="d-inline-block m-2">
                                     <span class="badge badge-primary p-2">
-                                        <i class="mdi mdi-account"></i> {{ $operator->operator()->name ?? 'N/A' }}
+                                        <i class="mdi mdi-account"></i> {{ $operator->operator()->name ?? __('equipment.not_available') }}
                                         <button wire:click="removeOperator({{ $operator->id }})" 
                                                 class="btn btn-sm btn-link text-white p-0 ms-2"
                                                 onclick="return confirm('Remove this operator?')">
@@ -532,7 +540,7 @@
                             @endforeach
                             @if($operators->count() == 0)
                                 <div class="alert alert-info">
-                                    <i class="mdi mdi-alert"></i> No operators assigned yet.
+                                    <i class="mdi mdi-alert"></i> {{ __('equipment.no_operators_assigned_yet') }}
                                 </div>
                             @endif
                         </div>
@@ -541,14 +549,14 @@
                     <!-- Attachments Tab -->
                     @if($activeTab === 'attachments')
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">Attachments</h5>
-                            <button wire:click="showCreateAttachmentModal" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-plus"></i> Add Attachment
+                            <h5 class="mb-0">{{ __('equipment.attachments') }}</h5>
+                            <button wire:click="showCreateAttachmentModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.add_attachment') }}
                             </button>
                         </div>
                         <div class="row mb-3">
                              <div class="col-md-4">
-                                 <input type="text" wire:model.live="attachmentSearch" class="form-control form-control-sm" placeholder="Search attachments...">
+                                 <input type="text" wire:model.live="attachmentSearch" class="form-control form-control-sm" placeholder="{{ __('equipment.search_attachments') }}">
                              </div>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -559,61 +567,65 @@
                              </div>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table class="table table-striped table-hover equipment-table">
                                 <thead>
                                     <tr>
+                                        <th>{{ __('equipment.actions') }}</th>
                                         <th>#</th>
                                         <th>Title</th>
-                                        <th>Attachment</th>
-                                        <th>Uploaded By</th>
-                                        <th>Description</th>
-                                        <th>Actions</th>
+                                        <th>{{ __('equipment.attachment') }}</th>
+                                        <th>{{ __('equipment.uploaded_by') }}</th>
+                                        <th>{{ __('equipment.description') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->attachments as $attachment)
                                         <tr>
+                                            <td class="equipment-actions-cell">
+                                                <div class="equipment-actions-group">
+                                                    <button wire:click="showEditAttachmentModal({{ $attachment->id }})"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn"
+                                                            title="{{ __('equipment.edit') }}">
+                                                        <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button wire:click="deleteAttachment({{ $attachment->id }})"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
+                                                            onclick="return confirm('Are you sure?')"
+                                                            title="{{ __('equipment.delete') }}">
+                                                        <i class="mdi mdi-delete"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
                                             <td>{{ $loop->iteration + ($this->attachments->active() ? ($this->attachments->currentPage() - 1) * $this->attachments->perPage() : 0) }}</td>
                                             <td>{{ $attachment->title }}</td>
                                             <td>
                                                 <a href="{{ $attachment->attachment }}" target="_blank" class="btn btn-sm btn-success">
-                                                    <i class="mdi mdi-download"></i> Download
+                                                    <i class="mdi mdi-download"></i> {{ __('equipment.download') }}
                                                 </a>
                                             </td>
-                                            <td>{{ getUserById($attachment->upload_by)->name ?? 'N/A' }}</td>
+                                            <td>{{ getUserById($attachment->upload_by)->name ?? __('equipment.not_available') }}</td>
                                             <td>
                                                 <button class="btn btn-sm btn-info" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#attachmentDescModal{{ $attachment->id }}">
-                                                    <i class="mdi mdi-eye"></i> View
+                                                    <i class="mdi mdi-eye"></i> {{ __('equipment.view') }}
                                                 </button>
                                                 <div class="modal fade" id="attachmentDescModal{{ $attachment->id }}" tabindex="-1">
                                                     <div class="modal-dialog">
                                                         <div class="modal-content">
                                                             <div class="modal-header">
-                                                                <h5 class="modal-title">Description</h5>
+                                                                <h5 class="modal-title">{{ __('equipment.description') }}</h5>
                                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                             </div>
                                                             <div class="modal-body">
-                                                                <p>{{ $attachment->description ?? 'No description' }}</p>
+                                                                <p>{{ $attachment->description ?? __('equipment.no_description') }}</p>
                                                             </div>
                                                             <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('equipment.close') }}</button>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </td>
-                                            <td>
-                                                <button wire:click="showEditAttachmentModal({{ $attachment->id }})" 
-                                                        class="btn btn-sm btn-outline-warning">
-                                                    <i class="mdi mdi-pencil"></i>
-                                                </button>
-                                                <button wire:click="deleteAttachment({{ $attachment->id }})" 
-                                                        class="btn btn-sm btn-outline-danger"
-                                                        onclick="return confirm('Are you sure?')">
-                                                    <i class="mdi mdi-delete"></i>
-                                                </button>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -628,35 +640,32 @@
                     <!-- Notifications Tab -->
                     @if($activeTab === 'notifications')
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">Notification Frequency</h5>
-                            <button wire:click="showCreateNotificationModal" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-plus"></i> Add Notification
+                            <h5 class="mb-0">{{ __('equipment.notification_frequency') }}</h5>
+                            <button wire:click="showCreateNotificationModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
+                                <i class="mdi mdi-plus"></i> {{ __('equipment.add_notification') }}
                             </button>
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table class="table table-striped table-hover equipment-table">
                                 <thead>
                                     <tr>
-                                        <th>Actions</th>
-                                        <th>Frequency</th>
-                                        <th>Notification Type</th>
-                                        <th>Notification Date</th>
-                                        <th>Status</th>
+                                        <th>{{ __('equipment.actions') }}</th>
+                                        <th>{{ __('equipment.frequency') }}</th>
+                                        <th>{{ __('equipment.notification_type') }}</th>
+                                        <th>{{ __('equipment.notification_date') }}</th>
+                                        <th>{{ __('equipment.status') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @php
-                                        $notifications = \App\Models\Equipments\EquipmentNotifications::where('equipment_id', $equipment->id)->get();
-                                    @endphp
-                                    @foreach($notifications as $notification)
+                                    @foreach($this->notifications as $notification)
                                         <tr>
                                             <td>
-                                                <button wire:click="showEditNotificationModal({{ $notification->id }})" 
-                                                        class="btn btn-sm btn-outline-warning">
+                                                <button wire:click="showEditNotificationModal({{ $notification->id }})"
+                                                    class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
-                                                <button wire:click="deleteNotification({{ $notification->id }})" 
-                                                        class="btn btn-sm btn-outline-danger"
+                                                <button wire:click="deleteNotification({{ $notification->id }})"
+                                                    class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
                                                         onclick="return confirm('Are you sure?')">
                                                     <i class="mdi mdi-delete"></i>
                                                 </button>
@@ -666,9 +675,9 @@
                                             <td>{{ $notification->next_date }}</td>
                                             <td>
                                                 @if($notification->is_sent)
-                                                    <span class="badge badge-success">Sent</span>
+                                                    <span class="badge badge-success">{{ __('equipment.sent') }}</span>
                                                 @else
-                                                    <span class="badge badge-warning">Not Sent</span>
+                                                    <span class="badge badge-warning">{{ __('equipment.not_sent') }}</span>
                                                 @endif
                                             </td>
                                         </tr>
@@ -681,9 +690,9 @@
                     <!-- Daily Log Configuration Tab -->
                     @if($activeTab === 'dailylog' && $equipment->requires_daily_log)
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0"><i class="mdi mdi-notebook-check-outline"></i> Daily Log Configuration</h5>
-                            <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-pencil"></i> Edit Configuration
+                            <h5 class="mb-0"><i class="mdi mdi-notebook-check-outline"></i> {{ __('equipment.daily_log_configuration') }}</h5>
+                            <button wire:click="showEditEquipmentModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
+                                <i class="mdi mdi-pencil"></i> {{ __('equipment.edit_configuration') }}
                             </button>
                         </div>
                         @php
@@ -702,38 +711,38 @@
                             <div class="col-md-6">
                                 <table class="table table-sm table-borderless">
                                     <tr>
-                                        <th class="text-muted" style="width:50%">Value Type</th>
+                                        <th class="text-muted" style="width:50%">{{ __('equipment.value_type') }}</th>
                                         <td>
                                             <span class="badge badge-info">{{ $dlTypeLabel }}</span>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th class="text-muted">Nature of Results</th>
+                                        <th class="text-muted">{{ __('equipment.nature_of_results') }}</th>
                                         <td>
                                             <span class="badge badge-secondary">{{ $dlNatureLabel }}</span>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <th class="text-muted">Reporting Unit</th>
+                                        <th class="text-muted">{{ __('equipment.reporting_unit') }}</th>
                                         <td>{{ $equipment->daily_log_reporting_unit ?: '-' }}</td>
                                     </tr>
                                     @php
-                                        $freqLabels = [1=>'Once a day',2=>'Twice a day',3=>'Three times a day',4=>'Four times a day',5=>'Five times a day',6=>'Six times a day'];
+                                        $freqLabels = [1=>__('equipment.once_a_day'),2=>__('equipment.twice_a_day'),3=>__('equipment.three_times_a_day'),4=>__('equipment.four_times_a_day'),5=>__('equipment.five_times_a_day'),6=>__('equipment.six_times_a_day')];
                                         $equipFreq = $equipment->daily_log_frequency ?? 1;
                                     @endphp
                                     <tr>
-                                        <th class="text-muted">Logging Frequency</th>
-                                        <td>{{ $freqLabels[$equipFreq] ?? 'Once a day' }}</td>
+                                        <th class="text-muted">{{ __('equipment.logging_frequency') }}</th>
+                                        <td>{{ $freqLabels[$equipFreq] ?? __('equipment.once_a_day') }}</td>
                                     </tr>
                                     @if($equipFreq >= 2)
                                     <tr>
-                                        <th class="text-muted">Time Interval</th>
-                                        <td>Every {{ $equipment->daily_log_time_interval }} hours</td>
+                                        <th class="text-muted">{{ __('equipment.time_interval') }}</th>
+                                        <td>{{ __('equipment.every_hours', ['hours' => $equipment->daily_log_time_interval]) }}</td>
                                     </tr>
                                     @endif
                                     @if($equipment->daily_log_value_type === 'constant')
                                     <tr>
-                                        <th class="text-muted">Expected Value</th>
+                                        <th class="text-muted">{{ __('equipment.expected_value') }}</th>
                                         <td>
                                             {{ $equipment->daily_log_expected_value ?: '-' }}
                                             @if($equipment->daily_log_reporting_unit)
@@ -756,7 +765,7 @@
                                     @endif
                                     @if($equipment->daily_log_value_type === 'range')
                                     <tr>
-                                        <th class="text-muted">Acceptable Range</th>
+                                        <th class="text-muted">{{ __('equipment.acceptable_range') }}</th>
                                         <td>
                                             {{ $equipment->daily_log_expected_min }} &ndash; {{ $equipment->daily_log_expected_max }}
                                             @if($equipment->daily_log_reporting_unit)
@@ -778,7 +787,7 @@
                                     @elseif($equipment->daily_log_value_type === 'range')
                                         <p class="mb-0 small">This equipment requires a daily reading within the range <strong>{{ $equipment->daily_log_expected_min }} &ndash; {{ $equipment->daily_log_expected_max }}{{ $equipment->daily_log_reporting_unit ? ' ' . $equipment->daily_log_reporting_unit : '' }}</strong>.</p>
                                     @else
-                                        <p class="mb-0 small">Configuration is incomplete. Click <strong>Edit Configuration</strong> to set up daily log parameters.</p>
+                                        <p class="mb-0 small">{{ __('equipment.configuration_incomplete_click_edit_configuration') }}</p>
                                     @endif
                                 </div>
                             </div>
@@ -823,12 +832,19 @@
                             </div>
                             <div class="col-md-2">
                                 <label class="small text-muted mb-1">Per Page</label>
-                                <select wire:model.live="nonConformancePerPage" class="form-control form-control-sm">
-                                    <option value="10">10</option>
-                                    <option value="25">25</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                </select>
+                                <div class="tag-select-container equipment-tag-select equipment-tag-select--compact" wire:click="$toggle('showNonConformancePerPageDropdown')">
+                                    <div class="tag-select-input modern-filter-tag-input">
+                                        <span class="tag-badge">{{ $nonConformancePerPage }}</span>
+                                    </div>
+                                    @if($showNonConformancePerPageDropdown ?? false)
+                                        <div class="tag-dropdown">
+                                            <div class="tag-dropdown-item" wire:click.stop="$set('nonConformancePerPage', 10)">10</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="$set('nonConformancePerPage', 25)">25</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="$set('nonConformancePerPage', 50)">50</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="$set('nonConformancePerPage', 100)">100</div>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                         @if(empty($this->nonConformanceReport))
@@ -840,7 +856,7 @@
                                 <table class="table table-sm table-bordered table-hover">
                                     <thead class="thead-light">
                                         <tr>
-                                            <th>Date</th>
+                                            <th>{{ __('equipment.date') }}</th>
                                             <th style="width:70px">Slot #</th>
                                             <th>Recorded Value</th>
                                             <th>Reason</th>
@@ -920,7 +936,7 @@
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Description <span class="text-danger">*</span></label>
+                                        <label class="form-label">{{ __('equipment.description') }} <span class="text-danger">*</span></label>
                                         <textarea wire:model="equipmentForm.description" class="form-control" rows="2" required></textarea>
                                         @error('equipmentForm.description') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
@@ -929,7 +945,7 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Photo</label>
+                                        <label class="form-label">{{ __('equipment.photo') }}</label>
                                         <input type="file" wire:model="photo" class="form-control" accept="image/*">
                                         @if($equipment->picture)
                                             <small class="text-muted">Current: <img src="{{ $equipment->picture }}" style="width: 50px;"></small>
@@ -985,11 +1001,23 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Status <span class="text-danger">*</span></label>
-                                        <select wire:model="equipmentForm.status" class="form-control" required>
-                                            @foreach($statuses as $status)
-                                                <option value="{{ $status }}">{{ $status }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showStatusDropdown')">
+                                            <div class="tag-select-input modern-filter-tag-input">
+                                                @if($selectedStatusName)
+                                                    <span class="tag-badge">{{ $selectedStatusName }}</span>
+                                                @endif
+                                                <input type="text" class="tag-input" placeholder="{{ $selectedStatusName ? '' : 'Choose Status...' }}" readonly>
+                                            </div>
+                                            @if($showStatusDropdown)
+                                                <div class="tag-dropdown">
+                                                    @foreach($statuses as $status)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectStatus(@js($status))">
+                                                            {{ $status }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -1017,41 +1045,75 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Department <span class="text-danger">*</span></label>
-                                        <select wire:model="equipmentForm.assigned_department" class="form-control" required>
-                                            <option value="">Choose Department...</option>
-                                            @foreach($departments as $department)
-                                                <option value="{{ $department->id }}">{{ $department->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="tag-select-container equipment-tag-select" wire:click="searchDepartments">
+                                            <div class="tag-select-input modern-filter-tag-input">
+                                                @if($selectedDepartmentName)
+                                                    <span class="tag-badge">{{ $selectedDepartmentName }}</span>
+                                                @endif
+                                                <input type="text"
+                                                       wire:model.live.debounce.200ms="departmentSearch"
+                                                       class="tag-input"
+                                                       placeholder="{{ $selectedDepartmentName ? '' : 'Choose Department...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showDepartmentDropdown)
+                                                <div class="tag-dropdown">
+                                                    @forelse($filteredDepartments as $department)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectDepartment('{{ $department->id }}')">
+                                                            {{ $department->name }}
+                                                        </div>
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No departments found</div>
+                                                    @endforelse
+                                                </div>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Assigned Employee</label>
-                                        <select wire:model="equipmentForm.assigned_employee_id" class="form-control">
-                                            <option value="">Choose Employee...</option>
-                                            @foreach($employees as $employee)
-                                                <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="tag-select-container equipment-tag-select" wire:click="searchEmployees">
+                                            <div class="tag-select-input modern-filter-tag-input">
+                                                @if($selectedEmployeeName)
+                                                    <span class="tag-badge">{{ $selectedEmployeeName }}</span>
+                                                @endif
+                                                <input type="text"
+                                                       wire:model.live.debounce.200ms="employeeSearch"
+                                                       class="tag-input"
+                                                       placeholder="{{ $selectedEmployeeName ? '' : 'Choose Employee...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showEmployeeDropdown)
+                                                <div class="tag-dropdown">
+                                                    @forelse($filteredEmployees as $employee)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectEmployee('{{ $employee->id }}', '{{ $employee->name }}')">
+                                                            {{ $employee->name }}
+                                                        </div>
+                                                    @empty
+                                                        <div class="tag-dropdown-item text-muted">No employees found</div>
+                                                    @endforelse
+                                                </div>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Active</label>
+                                        <label class="form-label">{{ __('equipment.active') }}</label>
                                         <div class="d-flex align-items-center" style="height:38px;">
                                             <div class="form-check">
                                                 <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active">
-                                                <label class="form-check-label" for="equipment_active">Mark this equipment as active</label>
+                                                <label class="form-check-label" for="equipment_active">{{ __('equipment.mark_this_equipment_as_active') }}</label>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Requires Daily Log</label>
+                                        <label class="form-label">{{ __('equipment.requires_daily_log') }}</label>
                                         <div class="d-flex align-items-center" style="height:38px;">
                                             <div class="form-check">
                                                 <input type="checkbox" wire:model.live="equipmentForm.requires_daily_log" class="form-check-input" id="equipment_requires_daily_log">
@@ -1064,30 +1126,40 @@
                             @if(!empty($equipmentForm['requires_daily_log']))
                             @php $dlType = $equipmentForm['daily_log_value_type'] ?? ''; $dlNature = $equipmentForm['daily_log_nature'] ?? ''; $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
                             <div class="eq-section-header mt-4">
-                                <i class="mdi mdi-notebook-check-outline"></i> Daily Log Configuration
+                                <i class="mdi mdi-notebook-check-outline"></i> {{ __('equipment.daily_log_configuration') }}
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Logging Frequency <span class="text-danger">*</span></label>
-                                        <select wire:model.live="equipmentForm.daily_log_frequency" class="form-control">
-                                            <option value="1">Once a day</option>
-                                            <option value="2">Twice a day</option>
-                                            <option value="3">Three times a day</option>
-                                            <option value="4">Four times a day</option>
-                                            <option value="5">Five times a day</option>
-                                            <option value="6">Six times a day</option>
-                                        </select>
+                                        <label class="form-label">{{ __('equipment.logging_frequency') }} <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showDailyLogFrequencyDropdown')">
+                                            <div class="tag-select-input modern-filter-tag-input">
+                                                @if($selectedDailyLogFrequencyLabel)
+                                                    <span class="tag-badge">{{ $selectedDailyLogFrequencyLabel }}</span>
+                                                @endif
+                                                <input type="text" class="tag-input" placeholder="{{ $selectedDailyLogFrequencyLabel ? '' : 'Choose Frequency...' }}" readonly>
+                                            </div>
+                                            @if($showDailyLogFrequencyDropdown)
+                                                <div class="tag-dropdown">
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(1, @js(__('equipment.once_a_day')))">{{ __('equipment.once_a_day') }}</div>
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(2, @js(__('equipment.twice_a_day')))">{{ __('equipment.twice_a_day') }}</div>
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(3, @js(__('equipment.three_times_a_day')))">{{ __('equipment.three_times_a_day') }}</div>
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(4, @js(__('equipment.four_times_a_day')))">{{ __('equipment.four_times_a_day') }}</div>
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(5, @js(__('equipment.five_times_a_day')))">{{ __('equipment.five_times_a_day') }}</div>
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(6, @js(__('equipment.six_times_a_day')))">{{ __('equipment.six_times_a_day') }}</div>
+                                                </div>
+                                            @endif
+                                        </div>
                                         @error('equipmentForm.daily_log_frequency') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 @if($dlFreq >= 2)
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Time Interval (hours) <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_time_interval" class="form-control" min="1" placeholder="e.g. 4">
+                                        <label class="form-label">{{ __('equipment.time_interval_hours') }} <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_time_interval" class="form-control" min="1" placeholder="{{ __('equipment.daily_log_interval_example') }}">
                                         @error('equipmentForm.daily_log_time_interval') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">Number of hours between each reading.</small>
+                                        <small class="form-text text-muted">{{ __('equipment.number_of_hours_between_each_reading') }}</small>
                                     </div>
                                 </div>
                                 @endif
@@ -1095,27 +1167,45 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Value Type <span class="text-danger">*</span></label>
-                                        <select wire:model.live="equipmentForm.daily_log_value_type" class="form-control">
-                                            <option value="">-- Select --</option>
-                                            <option value="constant">Constant</option>
-                                            <option value="range">Range</option>
-                                        </select>
+                                        <label class="form-label">{{ __('equipment.value_type') }} <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showDailyLogValueTypeDropdown')">
+                                            <div class="tag-select-input modern-filter-tag-input">
+                                                @if($selectedDailyLogValueTypeLabel)
+                                                    <span class="tag-badge">{{ $selectedDailyLogValueTypeLabel }}</span>
+                                                @endif
+                                                <input type="text" class="tag-input" placeholder="{{ $selectedDailyLogValueTypeLabel ? '' : __('equipment.select_option') }}" readonly>
+                                            </div>
+                                            @if($showDailyLogValueTypeDropdown)
+                                                <div class="tag-dropdown">
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogValueType('constant', @js(__('equipment.constant')))">{{ __('equipment.constant') }}</div>
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogValueType('range', @js(__('equipment.range')))">{{ __('equipment.range') }}</div>
+                                                </div>
+                                            @endif
+                                        </div>
                                         @error('equipmentForm.daily_log_value_type') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">Whether the expected value is a single constant or a range.</small>
+                                        <small class="form-text text-muted">{{ __('equipment.expected_value_constant_or_range') }}</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Nature of Result <span class="text-danger">*</span></label>
-                                        <select wire:model.live="equipmentForm.daily_log_nature" class="form-control" {{ $dlType === 'range' ? 'disabled' : '' }}>
-                                            <option value="">-- Select --</option>
-                                            <option value="qualitative">Qualitative</option>
-                                            <option value="quantitative">Quantitative</option>
-                                        </select>
+                                        <label class="form-label">{{ __('equipment.nature_of_result') }} <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container equipment-tag-select {{ $dlType === 'range' ? 'is-disabled' : '' }}" wire:click="{{ $dlType === 'range' ? '' : '$toggle(\'showDailyLogNatureDropdown\')' }}">
+                                            <div class="tag-select-input modern-filter-tag-input">
+                                                @if($selectedDailyLogNatureLabel)
+                                                    <span class="tag-badge">{{ $selectedDailyLogNatureLabel }}</span>
+                                                @endif
+                                                <input type="text" class="tag-input" placeholder="{{ $selectedDailyLogNatureLabel ? '' : __('equipment.select_option') }}" readonly>
+                                            </div>
+                                            @if($showDailyLogNatureDropdown && $dlType !== 'range')
+                                                <div class="tag-dropdown">
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogNature('qualitative', @js(__('equipment.qualitative')))">{{ __('equipment.qualitative') }}</div>
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogNature('quantitative', @js(__('equipment.quantitative')))">{{ __('equipment.quantitative') }}</div>
+                                                </div>
+                                            @endif
+                                        </div>
                                         @error('equipmentForm.daily_log_nature') <span class="text-danger">{{ $message }}</span> @enderror
                                         @if($dlType === 'range')
-                                            <small class="form-text text-muted"><i class="mdi mdi-information-outline"></i> Range values are always quantitative.</small>
+                                            <small class="form-text text-muted"><i class="mdi mdi-information-outline"></i> {{ __('equipment.range_values_are_always_quantitative') }}</small>
                                         @endif
                                     </div>
                                 </div>
@@ -1125,8 +1215,8 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="equipmentForm.daily_log_expected_value" class="form-control" placeholder="e.g. Pass, Clear, Present">
+                                        <label class="form-label">{{ __('equipment.expected_value') }} <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model="equipmentForm.daily_log_expected_value" class="form-control" placeholder="{{ __('equipment.daily_log_expected_text_example') }}">
                                         @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -1137,17 +1227,17 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_value" class="form-control" step="any" placeholder="e.g. 7.0">
+                                        <label class="form-label">{{ __('equipment.expected_value') }} <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_value" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_expected_numeric_example') }}">
                                         @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
+                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="{{ __('equipment.daily_log_tolerance_example') }}">
                                         @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">Acceptable deviation from the expected value (e.g. &plusmn;2).</small>
+                                        <small class="form-text text-muted">{{ __('equipment.acceptable_deviation_from_expected_value') }}</small>
                                     </div>
                                 </div>
                             </div>
@@ -1158,14 +1248,14 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_min" class="form-control" step="any" placeholder="e.g. 6.5">
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_min" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_min_value_example') }}">
                                         @error('equipmentForm.daily_log_expected_min') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="e.g. 7.5">
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_max_value_example') }}">
                                         @error('equipmentForm.daily_log_expected_max') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -1174,7 +1264,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
+                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="{{ __('equipment.daily_log_tolerance_example') }}">
                                         @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
                                         <small class="form-text text-muted">Acceptable deviation (&plusmn;).</small>
                                     </div>
@@ -1186,33 +1276,44 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Reporting Unit</label>
-                                        <select wire:model="equipmentForm.daily_log_reporting_unit" class="form-control">
-                                            <option value="">-- Select Unit --</option>
-                                            @foreach($reportingUnits as $unit)
-                                                <option value="{{ $unit->name }}">{{ $unit->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <label class="form-label">{{ __('equipment.reporting_unit') }}</label>
+                                        <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showReportingUnitDropdown')">
+                                            <div class="tag-select-input modern-filter-tag-input">
+                                                @if($selectedReportingUnitName)
+                                                    <span class="tag-badge">{{ $selectedReportingUnitName }}</span>
+                                                @endif
+                                                <input type="text" class="tag-input" placeholder="{{ $selectedReportingUnitName ? '' : __('equipment.select_unit') }}" readonly>
+                                            </div>
+                                            @if($showReportingUnitDropdown)
+                                                <div class="tag-dropdown">
+                                                    @foreach($reportingUnits as $unit)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit(@js($unit->name))">
+                                                            {{ $unit->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
                                         @error('equipmentForm.daily_log_reporting_unit') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">Unit of measurement for the recorded value.</small>
+                                        <small class="form-text text-muted">{{ __('equipment.unit_of_measurement_for_recorded_value') }}</small>
                                     </div>
                                 </div>
                             </div>
                             @endif
                             @endif
                             <div class="eq-section-header mt-4">
-                                <i class="mdi mdi-calendar-clock"></i> Maintenance &amp; Calibration Schedule
+                                <i class="mdi mdi-calendar-clock"></i> {{ __('equipment.maintenance_calibration_schedule') }}
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Maintenance After (Days) <span class="text-danger">*</span></label>
+                                        <label class="form-label">{{ __('equipment.maintenance_after_days') }} <span class="text-danger">*</span></label>
                                         <input type="number" wire:model="equipmentForm.maintainance_days" class="form-control" min="0" required>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Maintenance Notification (Days) <span class="text-danger">*</span></label>
+                                        <label class="form-label">{{ __('equipment.maintenance_notification_days') }} <span class="text-danger">*</span></label>
                                         <input type="number" wire:model="equipmentForm.maintainance_notification_in_days" class="form-control" min="0" required>
                                     </div>
                                 </div>
@@ -1220,13 +1321,13 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Calibration After (Days) <span class="text-danger">*</span></label>
+                                        <label class="form-label">{{ __('equipment.calibration_after_days') }} <span class="text-danger">*</span></label>
                                         <input type="number" wire:model="equipmentForm.calibration_days" class="form-control" min="0" required>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Calibration Notification (Days) <span class="text-danger">*</span></label>
+                                        <label class="form-label">{{ __('equipment.calibration_notification_days') }} <span class="text-danger">*</span></label>
                                         <input type="number" wire:model="equipmentForm.calibration_notification_in_days" class="form-control" min="0" required>
                                     </div>
                                 </div>
@@ -1234,7 +1335,7 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showEditModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showEditModal', false)">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveEquipment">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
@@ -1252,7 +1353,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingLog ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingLog ? 'Edit' : 'Create' }} Maintenance Log
+                            {{ $editingLog ? __('equipment.edit') : __('equipment.create') }} {{ __('equipment.maintenance_log') }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="$set('showMaintenanceModal', false)"></button>
                     </div>
@@ -1264,7 +1365,7 @@
                                 @error('maintenanceForm.date') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label">Description <span class="text-danger">*</span></label>
+                                <label class="form-label">{{ __('equipment.description') }} <span class="text-danger">*</span></label>
                                 <textarea wire:model="maintenanceForm.description" class="form-control" rows="4" required></textarea>
                                 @error('maintenanceForm.description') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
@@ -1288,22 +1389,44 @@
                             @if($maintenanceForm['maintainance_type'] == 'in_house')
                                 <div class="form-group mb-3">
                                     <label class="form-label">Employee</label>
-                                    <select wire:model="maintenanceForm.employee_id" class="form-select">
-                                        <option value="">Choose Employee...</option>
-                                        @foreach($employees as $employee)
-                                            <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <div class="tag-select-container equipment-tag-select" wire:click="searchEmployees">
+                                        <div class="tag-select-input modern-filter-tag-input">
+                                            @if($selectedEmployeeName)
+                                                <span class="tag-badge">{{ $selectedEmployeeName }}</span>
+                                            @endif
+                                            <input type="text" wire:model.live.debounce.200ms="employeeSearch" class="tag-input" placeholder="{{ $selectedEmployeeName ? '' : 'Choose Employee...' }}" autocomplete="off">
+                                        </div>
+                                        @if($showEmployeeDropdown)
+                                            <div class="tag-dropdown">
+                                                @forelse($filteredEmployees as $employee)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectEmployee('{{ $employee->id }}', '{{ $employee->name }}')">{{ $employee->name }}</div>
+                                                @empty
+                                                    <div class="tag-dropdown-item text-muted">No employees found</div>
+                                                @endforelse
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @else
                                 <div class="form-group mb-3">
                                     <label class="form-label">Supplier</label>
-                                    <select wire:model="maintenanceForm.supplier_id" class="form-select">
-                                        <option value="">Choose Supplier...</option>
-                                        @foreach($suppliers as $supplier)
-                                            <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <div class="tag-select-container equipment-tag-select" wire:click="searchSuppliers">
+                                        <div class="tag-select-input modern-filter-tag-input">
+                                            @if($selectedSupplierName)
+                                                <span class="tag-badge">{{ $selectedSupplierName }}</span>
+                                            @endif
+                                            <input type="text" wire:model.live.debounce.200ms="supplierSearch" class="tag-input" placeholder="{{ $selectedSupplierName ? '' : 'Choose Supplier...' }}" autocomplete="off">
+                                        </div>
+                                        @if($showSupplierDropdown)
+                                            <div class="tag-dropdown">
+                                                @forelse($filteredSuppliers as $supplier)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectSupplier('{{ $supplier->id }}', '{{ $supplier->name }}')">{{ $supplier->name }}</div>
+                                                @empty
+                                                    <div class="tag-dropdown-item text-muted">No suppliers found</div>
+                                                @endforelse
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                             <div class="form-group mb-3">
@@ -1319,7 +1442,7 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showMaintenanceModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showMaintenanceModal', false)">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveMaintenanceLog">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
@@ -1337,75 +1460,113 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingLog ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingLog ? 'Edit' : 'Create' }} Calibration Log
+                            {{ $editingLog ? __('equipment.edit') : __('equipment.create') }} {{ __('equipment.calibration_log') }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="$set('showCalibrationModal', false)"></button>
                     </div>
                     <div class="modal-body">
                         <form wire:submit.prevent="saveCalibrationLog">
                             <div class="form-group mb-3">
-                                <label class="form-label">Date <span class="text-danger">*</span></label>
+                                <label class="form-label">{{ __('equipment.date') }} <span class="text-danger">*</span></label>
                                 <input type="date" wire:model="calibrationForm.date" class="form-control" required>
                                 @error('calibrationForm.date') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label">Description <span class="text-danger">*</span></label>
+                                <label class="form-label">{{ __('equipment.description') }} <span class="text-danger">*</span></label>
                                 <textarea wire:model="calibrationForm.description" class="form-control" rows="4" required></textarea>
                                 @error('calibrationForm.description') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                                <label class="form-label">{{ __('equipment.reference_number') }} <span class="text-danger">*</span></label>
                                 <input type="text" wire:model="calibrationForm.reference_number" class="form-control" required>
                                 @error('calibrationForm.reference_number') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">{{ __('equipment.correction_factor') }} <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="calibrationForm.correction_factor" class="form-control" step="any" placeholder="{{ __('equipment.enter_correction_factor') }}" required>
+                                        @error('calibrationForm.correction_factor') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">{{ __('equipment.uncertainty_of_measure') }} <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="calibrationForm.uncertainty_of_measure" class="form-control" step="any" placeholder="{{ __('equipment.enter_uncertainty_of_measure') }}" required>
+                                        @error('calibrationForm.uncertainty_of_measure') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
                             <div class="form-group mb-3">
-                                <label class="form-label">Service Type</label>
+                                <label class="form-label">{{ __('equipment.service_type') }}</label>
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" wire:model="calibrationForm.maintainance_type" 
                                            value="in_house" id="calib_inhouse">
-                                    <label class="form-check-label" for="calib_inhouse">In House</label>
+                                    <label class="form-check-label" for="calib_inhouse">{{ __('equipment.in_house') }}</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" wire:model="calibrationForm.maintainance_type" 
                                            value="external" id="calib_external">
-                                    <label class="form-check-label" for="calib_external">External</label>
+                                    <label class="form-check-label" for="calib_external">{{ __('equipment.external') }}</label>
                                 </div>
                             </div>
                             @if($calibrationForm['maintainance_type'] == 'in_house')
                                 <div class="form-group mb-3">
-                                    <label class="form-label">Employee</label>
-                                    <select wire:model="calibrationForm.employee_id" class="form-select">
-                                        <option value="">Choose Employee...</option>
-                                        @foreach($employees as $employee)
-                                            <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <label class="form-label">{{ __('equipment.employee') }}</label>
+                                    <div class="tag-select-container equipment-tag-select" wire:click="searchEmployees">
+                                        <div class="tag-select-input modern-filter-tag-input">
+                                            @if($selectedEmployeeName)
+                                                <span class="tag-badge">{{ $selectedEmployeeName }}</span>
+                                            @endif
+                                            <input type="text" wire:model.live.debounce.200ms="employeeSearch" class="tag-input" placeholder="{{ $selectedEmployeeName ? '' : __('equipment.choose_employee') }}" autocomplete="off">
+                                        </div>
+                                        @if($showEmployeeDropdown)
+                                            <div class="tag-dropdown">
+                                                @forelse($filteredEmployees as $employee)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectEmployee('{{ $employee->id }}', '{{ $employee->name }}')">{{ $employee->name }}</div>
+                                                @empty
+                                                    <div class="tag-dropdown-item text-muted">No employees found</div>
+                                                @endforelse
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @else
                                 <div class="form-group mb-3">
-                                    <label class="form-label">Supplier</label>
-                                    <select wire:model="calibrationForm.supplier_id" class="form-select">
-                                        <option value="">Choose Supplier...</option>
-                                        @foreach($suppliers as $supplier)
-                                            <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <label class="form-label">{{ __('equipment.supplier') }}</label>
+                                    <div class="tag-select-container equipment-tag-select" wire:click="searchSuppliers">
+                                        <div class="tag-select-input modern-filter-tag-input">
+                                            @if($selectedSupplierName)
+                                                <span class="tag-badge">{{ $selectedSupplierName }}</span>
+                                            @endif
+                                            <input type="text" wire:model.live.debounce.200ms="supplierSearch" class="tag-input" placeholder="{{ $selectedSupplierName ? '' : __('equipment.choose_supplier') }}" autocomplete="off">
+                                        </div>
+                                        @if($showSupplierDropdown)
+                                            <div class="tag-dropdown">
+                                                @forelse($filteredSuppliers as $supplier)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectSupplier('{{ $supplier->id }}', '{{ $supplier->name }}')">{{ $supplier->name }}</div>
+                                                @empty
+                                                    <div class="tag-dropdown-item text-muted">No suppliers found</div>
+                                                @endforelse
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                             <div class="form-group mb-3">
-                                <label class="form-label">Certificate</label>
+                                <label class="form-label">{{ __('equipment.certificate') }}</label>
                                 <input type="file" wire:model="certificate" class="form-control" accept=".pdf,.doc,.docx">
                                 @error('certificate') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label">Notes <span class="text-danger">*</span></label>
+                                <label class="form-label">{{ __('equipment.notes') }} <span class="text-danger">*</span></label>
                                 <textarea wire:model="calibrationForm.notes" class="form-control" rows="4" required></textarea>
                                 @error('calibrationForm.notes') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showCalibrationModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showCalibrationModal', false)">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveCalibrationLog">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
@@ -1423,7 +1584,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingLog ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingLog ? 'Edit' : 'Create' }} Verification Log
+                            {{ $editingLog ? __('equipment.edit') : __('equipment.create') }} {{ __('equipment.verification_log') }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="$set('showVerificationModal', false)"></button>
                     </div>
@@ -1455,22 +1616,44 @@
                             @if($verificationForm['maintainance_type'] == 'in_house')
                                 <div class="form-group mb-3">
                                     <label class="form-label">Operator</label>
-                                    <select wire:model="verificationForm.operator_id" class="form-select">
-                                        <option value="">Choose Operator...</option>
-                                        @foreach($employees as $employee)
-                                            <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <div class="tag-select-container equipment-tag-select" wire:click="searchEmployees">
+                                        <div class="tag-select-input modern-filter-tag-input">
+                                            @if($selectedEmployeeName)
+                                                <span class="tag-badge">{{ $selectedEmployeeName }}</span>
+                                            @endif
+                                            <input type="text" wire:model.live.debounce.200ms="employeeSearch" class="tag-input" placeholder="{{ $selectedEmployeeName ? '' : 'Choose Operator...' }}" autocomplete="off">
+                                        </div>
+                                        @if($showEmployeeDropdown)
+                                            <div class="tag-dropdown">
+                                                @forelse($filteredEmployees as $employee)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectEmployee('{{ $employee->id }}', '{{ $employee->name }}')">{{ $employee->name }}</div>
+                                                @empty
+                                                    <div class="tag-dropdown-item text-muted">No operators found</div>
+                                                @endforelse
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @else
                                 <div class="form-group mb-3">
                                     <label class="form-label">Supplier</label>
-                                    <select wire:model="verificationForm.supplier_id" class="form-select">
-                                        <option value="">Choose Supplier...</option>
-                                        @foreach($suppliers as $supplier)
-                                            <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <div class="tag-select-container equipment-tag-select" wire:click="searchSuppliers">
+                                        <div class="tag-select-input modern-filter-tag-input">
+                                            @if($selectedSupplierName)
+                                                <span class="tag-badge">{{ $selectedSupplierName }}</span>
+                                            @endif
+                                            <input type="text" wire:model.live.debounce.200ms="supplierSearch" class="tag-input" placeholder="{{ $selectedSupplierName ? '' : 'Choose Supplier...' }}" autocomplete="off">
+                                        </div>
+                                        @if($showSupplierDropdown)
+                                            <div class="tag-dropdown">
+                                                @forelse($filteredSuppliers as $supplier)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectSupplier('{{ $supplier->id }}', '{{ $supplier->name }}')">{{ $supplier->name }}</div>
+                                                @empty
+                                                    <div class="tag-dropdown-item text-muted">No suppliers found</div>
+                                                @endforelse
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                             <div class="form-group mb-3">
@@ -1491,7 +1674,7 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showVerificationModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showVerificationModal', false)">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveVerificationLog">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
@@ -1507,25 +1690,41 @@
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title"><i class="mdi mdi-plus"></i> Add Operators</h5>
+                        <h5 class="modal-title"><i class="mdi mdi-plus"></i> {{ __('equipment.add_operators') }}</h5>
                         <button type="button" class="btn-close" wire:click="$set('showOperatorModal', false)"></button>
                     </div>
                     <div class="modal-body">
                         <form wire:submit.prevent="saveOperators">
                             <div class="form-group mb-3">
-                                <label class="form-label">Select Operators <span class="text-danger">*</span></label>
-                                <select wire:model="operatorForm.operators" class="form-select" multiple size="10" required>
-                                    @foreach($employees as $employee)
-                                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                                    @endforeach
-                                </select>
-                                <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                                <label class="form-label">{{ __('equipment.select_operators') }} <span class="text-danger">*</span></label>
+                                <div class="tag-select-container equipment-tag-select equipment-tag-select--multi" wire:click="$toggle('showOperatorDropdown')">
+                                    <div class="tag-select-input modern-filter-tag-input">
+                                        @forelse($employees->whereIn('id', $operatorForm['operators']) as $employee)
+                                            <span class="tag-badge me-1 mb-1">{{ $employee->name }}</span>
+                                        @empty
+                                            <span class="text-muted small">Select operators...</span>
+                                        @endforelse
+                                    </div>
+                                    @if($showOperatorDropdown)
+                                        <div class="tag-dropdown tag-dropdown--scrollable">
+                                            @foreach($employees as $employee)
+                                                <div class="tag-dropdown-item d-flex justify-content-between align-items-center" wire:click.stop="toggleOperatorSelection('{{ $employee->id }}')">
+                                                    <span>{{ $employee->name }}</span>
+                                                    @if(in_array($employee->id, $operatorForm['operators']))
+                                                        <i class="mdi mdi-check text-primary"></i>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                                <small class="text-muted">Click to select multiple operators</small>
                                 @error('operatorForm.operators') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showOperatorModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showOperatorModal', false)">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveOperators">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
@@ -1563,13 +1762,13 @@
                                 @error('attachmentFile') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
-                                <label class="form-label">Description</label>
+                                <label class="form-label">{{ __('equipment.description') }}</label>
                                 <textarea wire:model="attachmentForm.description" class="form-control" rows="4"></textarea>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showAttachmentModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showAttachmentModal', false)">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveAttachment">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
@@ -1595,11 +1794,21 @@
                         <form wire:submit.prevent="saveNotification">
                             <div class="form-group mb-3">
                                 <label class="form-label">Notification Type <span class="text-danger">*</span></label>
-                                <select wire:model="notificationForm.notification_type" class="form-select" required>
-                                    <option value="calibration">Calibration</option>
-                                    <option value="maintanance">Maintenance</option>
-                                    <option value="verification">Verification</option>
-                                </select>
+                                <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showNotificationTypeDropdown')">
+                                    <div class="tag-select-input modern-filter-tag-input">
+                                        @if($selectedNotificationTypeLabel)
+                                            <span class="tag-badge">{{ $selectedNotificationTypeLabel }}</span>
+                                        @endif
+                                        <input type="text" class="tag-input" placeholder="{{ $selectedNotificationTypeLabel ? '' : 'Choose Type...' }}" readonly>
+                                    </div>
+                                    @if($showNotificationTypeDropdown)
+                                        <div class="tag-dropdown">
+                                            <div class="tag-dropdown-item" wire:click.stop="selectNotificationType('calibration', 'Calibration')">Calibration</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectNotificationType('maintanance', 'Maintenance')">Maintenance</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectNotificationType('verification', 'Verification')">Verification</div>
+                                        </div>
+                                    @endif
+                                </div>
                                 @error('notificationForm.notification_type') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
@@ -1609,17 +1818,27 @@
                             </div>
                             <div class="form-group mb-3">
                                 <label class="form-label">Frequency <span class="text-danger">*</span></label>
-                                <select wire:model="notificationForm.frequency" class="form-select" required>
-                                    <option value="days">Days</option>
-                                    <option value="weeks">Weeks</option>
-                                    <option value="months">Months</option>
-                                </select>
+                                <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showNotificationFrequencyDropdown')">
+                                    <div class="tag-select-input modern-filter-tag-input">
+                                        @if($selectedNotificationFrequencyLabel)
+                                            <span class="tag-badge">{{ $selectedNotificationFrequencyLabel }}</span>
+                                        @endif
+                                        <input type="text" class="tag-input" placeholder="{{ $selectedNotificationFrequencyLabel ? '' : 'Choose Frequency...' }}" readonly>
+                                    </div>
+                                    @if($showNotificationFrequencyDropdown)
+                                        <div class="tag-dropdown">
+                                            <div class="tag-dropdown-item" wire:click.stop="selectNotificationFrequency('days', 'Days')">Days</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectNotificationFrequency('weeks', 'Weeks')">Weeks</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectNotificationFrequency('months', 'Months')">Months</div>
+                                        </div>
+                                    @endif
+                                </div>
                                 @error('notificationForm.frequency') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showNotificationModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showNotificationModal', false)">{{ __('equipment.cancel') }}</button>
                         <button type="button" class="btn btn-primary" wire:click="saveNotification">
                             <i class="mdi mdi-content-save"></i> Save
                         </button>
@@ -1713,7 +1932,7 @@
     }
     .eq-hero-card {
         border-radius: 16px;
-        background: linear-gradient(120deg, #ffffff 0%, #f3f6fb 100%);
+        background: #ffffff;
         box-shadow: 0 8px 20px rgba(10, 33, 68, 0.08);
     }
     .eq-kicker {
@@ -1752,6 +1971,73 @@
     .eq-main-body {
         background: #ffffff;
     }
+    .equipment-tag-select {
+        position: relative;
+    }
+    .equipment-tag-select .tag-select-input {
+        min-height: 38px;
+        align-items: center;
+    }
+    .equipment-tag-select .tag-input {
+        border: 0;
+        outline: none;
+        background: transparent;
+        width: 100%;
+        min-width: 0;
+        padding: 0;
+        font-size: 0.875rem;
+    }
+    .equipment-tag-select .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        z-index: 1080;
+        max-height: 260px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid #d8e0eb;
+        border-radius: 14px;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+        padding: 6px;
+    }
+    .equipment-tag-select--compact .tag-select-input {
+        min-height: 34px;
+    }
+    .equipment-tag-select--multi .tag-select-input {
+        min-height: 52px;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: flex-start;
+    }
+    .equipment-tag-select.is-disabled {
+        opacity: 0.65;
+        pointer-events: none;
+    }
+    .tag-dropdown--scrollable {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .modal.fade.show.d-block {
+        position: fixed;
+        inset: 0;
+        overflow-y: auto;
+    }
+    .modal.fade.show.d-block .modal-dialog {
+        margin: 1.5rem auto;
+    }
+    .modal.fade.show.d-block .modal-content {
+        max-height: calc(100vh - 3rem);
+    }
+    .modal.fade.show.d-block .modal-body {
+        overflow-y: auto;
+    }
+    body.modal-open {
+        overflow: hidden !important;
+    }
+    .modal-backdrop {
+        display: none !important;
+    }
     .eq-main-tabs {
         border-bottom: none;
         gap: 6px;
@@ -1788,11 +2074,54 @@
             padding-top: 0.7rem;
         }
     }
+
+    /* ── Modal form field spacing ─────────────────────────────────
+       Bootstrap g-3/gy-4 gutters only apply to .row/.col grids.
+       These modal forms stack .form-group divs vertically, so we
+       use explicit margin/padding instead.
+    ────────────────────────────────────────────────────────────── */
+    .eq-view-page .modal-body {
+        padding: 1.5rem 1.75rem;
+    }
+    .eq-view-page .modal-body .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .eq-view-page .modal-body .form-group:last-child {
+        margin-bottom: 0;
+    }
+    .eq-view-page .modal-body .form-label {
+        margin-bottom: 0.45rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #4a5568;
+    }
+    .eq-view-page .modal-body .form-control {
+        padding: 0.475rem 0.75rem;
+    }
+    .eq-view-page .modal-body .row .form-group {
+        margin-bottom: 0;
+    }
+    .eq-view-page .modal-body .row {
+        margin-bottom: 1.5rem;
+    }
     </style>
 
     @script
     <script>
     (function () {
+        function syncBodyModalState() {
+            var isModalOpen = document.querySelector('.modal.fade.show.d-block') !== null;
+            document.body.classList.toggle('modal-open', isModalOpen);
+        }
+
+        var modalObserver = null;
+        if (typeof MutationObserver !== 'undefined') {
+            modalObserver = new MutationObserver(function () {
+                syncBodyModalState();
+            });
+            modalObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+        }
+
         function buildDailyLogChart() {
         var chartDataEl = document.getElementById('dl-chart-data');
         var canvas = document.getElementById('dl-perf-chart');
@@ -2014,6 +2343,7 @@
         }
 
         scheduleBuild();
+        syncBodyModalState();
     })();
     </script>
     @endscript

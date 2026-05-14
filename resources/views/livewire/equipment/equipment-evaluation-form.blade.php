@@ -2,7 +2,7 @@
     <!-- Trigger Button (only show if modal is closed) -->
     @if(!$showModal)
         <button wire:click="openModal" class="btn btn-primary">
-            <i class="mdi mdi-clipboard-check"></i> Create Evaluation
+            <i class="mdi mdi-clipboard-check"></i> {{ __('equipment.create_evaluation') }}
         </button>
     @endif
 
@@ -14,7 +14,7 @@
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title">
                             <i class="mdi mdi-clipboard-check"></i>
-                            {{ $evaluationId ? 'Edit' : 'Create' }} Equipment Evaluation
+                            {{ $evaluationId ? __('equipment.edit') : __('equipment.create') }} {{ __('equipment.equipment_evaluation') }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" wire:click="closeModal"></button>
                     </div>
@@ -33,20 +33,20 @@
                                 <div class="card mb-4">
                                     <div class="card-header bg-light">
                                         <h6 class="mb-0">
-                                            <i class="mdi mdi-tools text-primary"></i> Equipment Information
+                                            <i class="mdi mdi-tools text-primary"></i> {{ __('equipment.equipment_information') }}
                                         </h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="row">
                                             <div class="col-md-6">
-                                                <p class="mb-1"><strong>Name:</strong> {{ $equipment->name }}</p>
-                                                <p class="mb-1"><strong>Equipment Number:</strong> {{ $equipment->equipment_number }}</p>
-                                                <p class="mb-1"><strong>Serial Number:</strong> {{ $equipment->serial_number ?? '-' }}</p>
+                                                <p class="mb-1"><strong>{{ __('equipment.name') }}:</strong> {{ $equipment->name }}</p>
+                                                <p class="mb-1"><strong>{{ __('equipment.equipment_number') }}:</strong> {{ $equipment->equipment_number }}</p>
+                                                <p class="mb-1"><strong>{{ __('equipment.serial_number') }}:</strong> {{ $equipment->serial_number ?? '-' }}</p>
                                             </div>
                                             <div class="col-md-6">
-                                                <p class="mb-1"><strong>Model:</strong> {{ $equipment->model }}</p>
-                                                <p class="mb-1"><strong>Make:</strong> {{ $equipment->make }}</p>
-                                                <p class="mb-1"><strong>Condition:</strong> {{ $equipment->condition ?? '-' }}</p>
+                                                <p class="mb-1"><strong>{{ __('equipment.model') }}:</strong> {{ $equipment->model }}</p>
+                                                <p class="mb-1"><strong>{{ __('equipment.make') }}:</strong> {{ $equipment->make }}</p>
+                                                <p class="mb-1"><strong>{{ __('equipment.condition') }}:</strong> {{ $equipment->condition ?? '-' }}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -57,7 +57,7 @@
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0">
-                                        <i class="mdi mdi-file-document-text text-primary"></i> Evaluation Details
+                                            <i class="mdi mdi-file-document-text text-primary"></i> {{ __('equipment.evaluation_details') }}
                                     </h6>
                                 </div>
                                 <div class="card-body">
@@ -65,7 +65,7 @@
                                         <div class="col-md-4">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">
-                                                    Evaluation Date <span class="text-danger">*</span>
+                                                    {{ __('equipment.evaluation_date') }} <span class="text-danger">*</span>
                                                 </label>
                                                 <input type="date" wire:model="form.evaluation_date" class="form-control" required>
                                                 @error('form.evaluation_date') <span class="text-danger d-block">{{ $message }}</span> @enderror
@@ -74,15 +74,15 @@
                                         <div class="col-md-4">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">
-                                                    Physical Condition <span class="text-danger">*</span>
+                                                    {{ __('equipment.physical_condition') }} <span class="text-danger">*</span>
                                                 </label>
                                                 <select wire:model="form.physical_condition" class="form-select" required>
-                                                    <option value="">Select Condition</option>
-                                                    <option value="excellent">Excellent</option>
-                                                    <option value="good">Good</option>
-                                                    <option value="fair">Fair</option>
-                                                    <option value="poor">Poor</option>
-                                                    <option value="failed">Failed</option>
+                                                    <option value="">{{ __('equipment.select_condition') }}</option>
+                                                    <option value="excellent">{{ __('equipment.excellent') }}</option>
+                                                    <option value="good">{{ __('equipment.good') }}</option>
+                                                    <option value="fair">{{ __('equipment.fair') }}</option>
+                                                    <option value="poor">{{ __('equipment.poor') }}</option>
+                                                    <option value="failed">{{ __('equipment.failed') }}</option>
                                                 </select>
                                                 @error('form.physical_condition') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                             </div>
@@ -90,13 +90,13 @@
                                         <div class="col-md-4">
                                             <div class="form-group mb-3">
                                                 <label class="form-label fw-bold">
-                                                    Recommendation <span class="text-danger">*</span>
+                                                    {{ __('equipment.recommendation') }} <span class="text-danger">*</span>
                                                 </label>
                                                 <select wire:model="form.recommendation" class="form-select" required>
-                                                    <option value="">Select Recommendation</option>
-                                                    <option value="continue_use">Continue Use</option>
-                                                    <option value="repair">Repair</option>
-                                                    <option value="dispose">Dispose</option>
+                                                    <option value="">{{ __('equipment.select_recommendation') }}</option>
+                                                    <option value="continue_use">{{ __('equipment.continue_use') }}</option>
+                                                    <option value="repair">{{ __('equipment.repair') }}</option>
+                                                    <option value="dispose">{{ __('equipment.dispose') }}</option>
                                                 </select>
                                                 @error('form.recommendation') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                             </div>
@@ -106,19 +106,19 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
-                                                <label class="form-label fw-bold">Last Calibration Date</label>
+                                                <label class="form-label fw-bold">{{ __('equipment.last_calibration_date') }}</label>
                                                 <input type="date" wire:model="form.last_calibration_date" class="form-control">
                                                 @error('form.last_calibration_date') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
-                                                <label class="form-label fw-bold">Last Calibration Status</label>
+                                                <label class="form-label fw-bold">{{ __('equipment.last_calibration_status') }}</label>
                                                 <select wire:model="form.last_calibration_status" class="form-select">
-                                                    <option value="">Select Status</option>
-                                                    <option value="pass">Pass</option>
-                                                    <option value="fail">Fail</option>
-                                                    <option value="not_applicable">Not Applicable</option>
+                                                    <option value="">{{ __('equipment.select_status') }}</option>
+                                                    <option value="pass">{{ __('equipment.pass') }}</option>
+                                                    <option value="fail">{{ __('equipment.fail') }}</option>
+                                                    <option value="not_applicable">{{ __('equipment.not_applicable') }}</option>
                                                 </select>
                                                 @error('form.last_calibration_status') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                             </div>
@@ -126,9 +126,9 @@
                                     </div>
 
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Impact on Testing</label>
+                                        <label class="form-label fw-bold">{{ __('equipment.impact_on_testing') }}</label>
                                         <textarea wire:model="form.impact_on_testing" class="form-control" rows="3" 
-                                                  placeholder="Describe the impact if this equipment fails or is disposed..."></textarea>
+                                                  placeholder="{{ __('equipment.impact_on_testing_placeholder') }}"></textarea>
                                         @error('form.impact_on_testing') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -138,21 +138,21 @@
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0">
-                                        <i class="mdi mdi-calculator text-primary"></i> Cost Analysis
+                                            <i class="mdi mdi-calculator text-primary"></i> {{ __('equipment.cost_analysis') }}
                                     </h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
-                                                <label class="form-label fw-bold">Repair Cost Estimate</label>
+                                                <label class="form-label fw-bold">{{ __('equipment.repair_cost_estimate') }}</label>
                                                 <input type="number" step="0.01" min="0" wire:model.blur="form.repair_cost_estimate" class="form-control" placeholder="0.00">
                                                 @error('form.repair_cost_estimate') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group mb-3">
-                                                <label class="form-label fw-bold">Replacement Cost Estimate</label>
+                                                <label class="form-label fw-bold">{{ __('equipment.replacement_cost_estimate') }}</label>
                                                 <input type="number" step="0.01" min="0" wire:model.blur="form.replacement_cost_estimate" class="form-control" placeholder="0.00">
                                                 @error('form.replacement_cost_estimate') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                             </div>
@@ -161,7 +161,7 @@
 
                                     @if(!empty($costComparison))
                                         <div class="alert alert-{{ $costComparison['recommendation'] === 'replace' ? 'danger' : ($costComparison['recommendation'] === 'repair' ? 'success' : 'warning') }}">
-                                            <strong>Cost Comparison Result:</strong>
+                                            <strong>{{ __('equipment.cost_comparison_result') }}:</strong>
                                             <p class="mb-0">{{ $costComparison['reason'] ?? 'N/A' }}</p>
                                         </div>
                                     @endif
@@ -172,21 +172,21 @@
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0">
-                                        <i class="mdi mdi-information text-primary"></i> Additional Information
+                                            <i class="mdi mdi-information text-primary"></i> {{ __('equipment.additional_information') }}
                                     </h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Fault Report Reference</label>
+                                             <label class="form-label fw-bold">{{ __('equipment.fault_report_reference') }}</label>
                                         <input type="text" wire:model="form.fault_report_reference" class="form-control" 
-                                               placeholder="Enter fault/nonconformance report reference">
+                                                 placeholder="{{ __('equipment.fault_report_reference_placeholder') }}">
                                         @error('form.fault_report_reference') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                     </div>
 
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Evaluation Notes</label>
+                                        <label class="form-label fw-bold">{{ __('equipment.evaluation_notes') }}</label>
                                         <textarea wire:model="form.evaluation_notes" class="form-control" rows="4" 
-                                                  placeholder="Additional notes and observations..."></textarea>
+                                                  placeholder="{{ __('equipment.evaluation_notes_placeholder') }}"></textarea>
                                         @error('form.evaluation_notes') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -197,7 +197,7 @@
                                 <div class="card mb-4">
                                     <div class="card-header bg-light">
                                         <h6 class="mb-0">
-                                            <i class="mdi mdi-history text-primary"></i> Recent Calibration History
+                                            <i class="mdi mdi-history text-primary"></i> {{ __('equipment.recent_calibration_history') }}
                                         </h6>
                                     </div>
                                     <div class="card-body">
@@ -205,9 +205,9 @@
                                             <table class="table table-sm">
                                                 <thead>
                                                     <tr>
-                                                        <th>Date</th>
-                                                        <th>Notes</th>
-                                                        <th>Overseen By</th>
+                                                        <th>{{ __('equipment.date') }}</th>
+                                                        <th>{{ __('equipment.notes') }}</th>
+                                                        <th>{{ __('equipment.overseen_by') }}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -228,14 +228,14 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeModal">
-                            <i class="mdi mdi-close"></i> Cancel
+                            <i class="mdi mdi-close"></i> {{ __('equipment.cancel') }}
                         </button>
                         <button type="button" wire:click="save" class="btn btn-primary" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="save">
-                                <i class="mdi mdi-content-save"></i> Save Evaluation
+                                <i class="mdi mdi-content-save"></i> {{ __('equipment.save_evaluation') }}
                             </span>
                             <span wire:loading wire:target="save">
-                                <i class="mdi mdi-loading mdi-spin"></i> Saving...
+                                <i class="mdi mdi-loading mdi-spin"></i> {{ __('equipment.saving') }}
                             </span>
                         </button>
                     </div>

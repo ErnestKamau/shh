@@ -74,7 +74,7 @@
         .smart-table td { vertical-align: middle; font-weight: 500; color: #334155; border-color: #f1f5f9; }
     </style>
 
-    <div class="p-4">
+    <div class="px-3 py-4">
         <!-- HEADER -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>

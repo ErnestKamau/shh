@@ -186,7 +186,7 @@
 
     <div class="d-flex align-items-center justify-content-between px-4 pt-4 pb-3">
         <h4 class="mb-0 font-weight-bold" style="color:#212529; letter-spacing:-0.01em;">
-            <i class="mdi mdi-notebook-check-outline text-primary mr-2"></i>Equipment Checks
+            <i class="mdi mdi-notebook-check-outline text-primary mr-2"></i>{{ __('equipment.equipment_checks') }}
         </h4>
         @php $totalEquipment = array_sum($freqCounts); @endphp
         <span class="badge badge-pill" style="background:#e9ecef; color:#495057; font-size:0.78rem; font-weight:600; padding:6px 12px;">
@@ -203,8 +203,8 @@
         <div class="mx-4 mb-4 ec-tab-panel">
             <div class="ec-no-equipment">
                 <i class="mdi mdi-notebook-outline"></i>
-                <p class="font-weight-semibold mb-1" style="color:#495057;">No Equipment Checks Configured</p>
-                <p class="mb-0">Enable "Requires Equipment Checks" on equipment items to see them here.</p>
+                <p class="font-weight-semibold mb-1" style="color:#495057;">No {{ __('equipment.equipment_checks') }} Configured</p>
+                <p class="mb-0">Enable "Requires {{ __('equipment.equipment_checks') }}" on equipment items to see them here.</p>
             </div>
         </div>
     @else
@@ -252,8 +252,8 @@
                         <thead>
                             <tr>
                                 <th class="ec-sticky-index">#</th>
-                                <th class="ec-sticky-name">Equipment Name</th>
-                                <th class="ec-sticky-number">Equipment No.</th>
+                                <th class="ec-sticky-name">{{ __('equipment.name') }}</th>
+                                <th class="ec-sticky-number">{{ __('equipment.equipment_number') }}</th>
                                 @for($slot = 1; $slot <= $activeFrequency; $slot++)
                                     <th style="min-width:170px;">
                                         @if($activeFrequency === 1)
@@ -267,7 +267,7 @@
                                 <th>Tolerance</th>
                                 <th>Nature</th>
                                 <th>Department</th>
-                                <th>Status</th>
+                                <th>{{ __('equipment.status') }}</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -310,7 +310,7 @@
                                             <input type="text"
                                                    wire:model.live.debounce.700ms="entryValues.{{ $key }}"
                                                    class="form-control form-control-sm ec-reading-input {{ isset($savedFlags[$key]) ? 'ec-input-saved' : '' }}"
-                                                   placeholder="{{ $unit ?: 'Enter value' }}"
+                                                  placeholder="{{ $unit ?: __('equipment.enter_value') }}"
                                                    style="max-width:130px; border-radius:5px;">
                                             @if($item->daily_log_value_type === 'range' && $readingValue !== '')
                                                 <div class="mt-1">
@@ -358,15 +358,15 @@
 
                                 <td class="text-center">
                                     @if($item->active)
-                                        <span class="badge badge-pill" style="background:#d4edda; color:#155724; font-size:0.72rem; padding:4px 8px;">Active</span>
+                                        <span class="badge badge-pill" style="background:#d4edda; color:#155724; font-size:0.72rem; padding:4px 8px;">{{ __('equipment.active') }}</span>
                                     @else
-                                        <span class="badge badge-pill" style="background:#f8d7da; color:#721c24; font-size:0.72rem; padding:4px 8px;">Inactive</span>
+                                        <span class="badge badge-pill" style="background:#f8d7da; color:#721c24; font-size:0.72rem; padding:4px 8px;">{{ __('equipment.inactive') }}</span>
                                     @endif
                                 </td>
                                 <td>
                                     <a class="btn btn-sm btn-outline-primary"
                                        href="{{ route('view-equipment', ['equipmentId' => $item->id, 'from' => 'equipment-checks']) }}"
-                                       title="View Equipment" style="border-radius:6px;">
+                                                    title="{{ __('equipment.view_equipment') }}" style="border-radius:6px;">
                                         <i class="mdi mdi-eye-outline"></i>
                                     </a>
                                 </td>
@@ -413,9 +413,9 @@
                         <table class="table table-sm table-bordered table-hover mb-0">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Equipment</th>
-                                    <th>Equipment No.</th>
+                                    <th>{{ __('equipment.date') }}</th>
+                                    <th>{{ __('equipment.equipment') }}</th>
+                                    <th>{{ __('equipment.equipment_number') }}</th>
                                     <th style="width:70px">Slot #</th>
                                     <th>Recorded Value</th>
                                     <th>Reason</th>

@@ -25,33 +25,33 @@
                                 </div>
                             @endif
 
-                            <!-- Disposal Request Summary -->
+                            <!-- {{ __('equipment.disposal_request_summary') }} -->
                             <div class="card mb-4">
                                 <div class="card-header bg-light">
                                     <h6 class="mb-0">
-                                        <i class="mdi mdi-information"></i> Disposal Request Summary
+                                        <i class="mdi mdi-information"></i> {{ __('equipment.disposal_request_summary') }}
                                     </h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-6">
                                             <p class="mb-2"><strong>Equipment:</strong> {{ $disposal->equipment->name }}</p>
-                                            <p class="mb-2"><strong>Equipment Number:</strong> {{ $disposal->equipment->equipment_number }}</p>
-                                            <p class="mb-2"><strong>Proposed Method:</strong> {{ ucfirst($disposal->proposed_method) }}</p>
+                                            <p class="mb-2"><strong>{{ __('equipment.equipment_number') }}:</strong> {{ $disposal->equipment->equipment_number }}</p>
+                                            <p class="mb-2"><strong>{{ __('equipment.proposed_method') }}:</strong> {{ ucfirst($disposal->proposed_method) }}</p>
                                         </div>
                                         <div class="col-md-6">
-                                            <p class="mb-2"><strong>Risk Level:</strong> 
+                                            <p class="mb-2"><strong>{{ __('equipment.risk_level') }}:</strong> 
                                                 <span class="badge badge-{{ $disposal->risk_level === 'High' || $disposal->risk_level === 'Critical' ? 'danger' : 'warning' }}">
                                                     {{ $disposal->risk_level }}
                                                 </span>
                                             </p>
-                                            <p class="mb-2"><strong>Requested By:</strong> {{ $disposal->requester->name }}</p>
-                                            <p class="mb-2"><strong>Requested Date:</strong> {{ $disposal->created_at->format('Y-m-d') }}</p>
+                                            <p class="mb-2"><strong>{{ __('equipment.requested_by') }}:</strong> {{ $disposal->requester->name }}</p>
+                                            <p class="mb-2"><strong>{{ __('equipment.requested_date') }}:</strong> {{ $disposal->created_at->format('Y-m-d') }}</p>
                                         </div>
                                     </div>
                                     <div class="row mt-3">
                                         <div class="col-12">
-                                            <strong>Justification:</strong>
+                                            <strong>{{ __('equipment.justification') }}:</strong>
                                             <div class="bg-light p-3 mt-2" style="border-radius: 5px;">
                                                 <p class="mb-0" style="white-space: pre-wrap;">{{ $disposal->justification }}</p>
                                             </div>
@@ -65,13 +65,13 @@
                                 <div class="card mb-4">
                                     <div class="card-header bg-light">
                                         <h6 class="mb-0">
-                                            <i class="mdi mdi-file-check"></i> Approval Decision
+                                            <i class="mdi mdi-file-check"></i> {{ __('equipment.approval_decision') }}
                                         </h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                Decision <span class="text-danger">*</span>
+                                                {{ __('equipment.decision') }} <span class="text-danger">*</span>
                                             </label>
                                             <div class="row">
                                                 <div class="col-md-6">
@@ -86,7 +86,7 @@
                                                                    class="form-check-input">
                                                             <label for="decision-approve" class="form-check-label w-100" style="cursor: pointer;">
                                                                 <i class="mdi mdi-check-circle text-success" style="font-size: 2rem;"></i>
-                                                                <h5 class="mt-2">Approve</h5>
+                                                                <h5 class="mt-2">{{ __('equipment.approve') }}</h5>
                                                             </label>
                                                         </div>
                                                     </div>
@@ -103,7 +103,7 @@
                                                                    class="form-check-input">
                                                             <label for="decision-reject" class="form-check-label w-100" style="cursor: pointer;">
                                                                 <i class="mdi mdi-close-circle text-danger" style="font-size: 2rem;"></i>
-                                                                <h5 class="mt-2">Reject</h5>
+                                                                <h5 class="mt-2">{{ __('equipment.reject') }}</h5>
                                                             </label>
                                                         </div>
                                                     </div>
@@ -115,19 +115,19 @@
                                         <!-- Remarks (Mandatory for Reject) -->
                                         <div class="form-group mb-3" id="remarks-section" style="display: {{ $approvalForm['decision'] === 'reject' ? 'block' : 'none' }};">
                                             <label class="form-label fw-bold">
-                                                Remarks <span class="text-danger">*</span>
+                                                {{ __('equipment.remarks') }} <span class="text-danger">*</span>
                                             </label>
                                             <textarea wire:model="approvalForm.remarks" 
                                                       class="form-control" 
                                                       rows="4" 
-                                                      placeholder="Provide detailed remarks for your decision..."
+                                                      placeholder="{{ __('equipment.provide_detailed_remarks_for_decision') }}"
                                                       {{ $approvalForm['decision'] === 'reject' ? 'required' : '' }}></textarea>
                                             @error('approvalForm.remarks') <span class="text-danger d-block">{{ $message }}</span> @enderror
                                             <small class="text-muted">
                                                 @if($approvalForm['decision'] === 'reject')
-                                                    Remarks are mandatory when rejecting a disposal request.
+                                                    {{ __('equipment.remarks_mandatory_when_rejecting') }}
                                                 @else
-                                                    Optional remarks can be added for approval.
+                                                    {{ __('equipment.optional_remarks_for_approval') }}
                                                 @endif
                                             </small>
                                         </div>
@@ -135,7 +135,7 @@
                                         <!-- Signature Upload -->
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">
-                                                Digital Signature
+                                                {{ __('equipment.digital_signature') }}
                                             </label>
                                             <input type="file" wire:model="approvalForm.signature" class="form-control" accept="image/*">
                                             @error('approvalForm.signature') <span class="text-danger d-block">{{ $message }}</span> @enderror
@@ -152,12 +152,12 @@
                                             @endif
                                         </div>
 
-                                        <!-- Current Approval Step Info -->
+                                        <!-- Current {{ __('equipment.approval_step') }} Info -->
                                         <div class="alert alert-info">
                                             <i class="mdi mdi-information"></i>
-                                            <strong>Approval Step:</strong> Step {{ $approvalStep->step }}
+                                            <strong>{{ __('equipment.approval_step') }}:</strong> Step {{ $approvalStep->step }}
                                             <br>
-                                            <strong>Approver:</strong> {{ auth()->user()->name }}
+                                            <strong>{{ __('equipment.approver') }}:</strong> {{ auth()->user()->name }}
                                             <br>
                                             <small>By proceeding, you acknowledge that you have reviewed all documentation and evidence.</small>
                                         </div>
@@ -168,7 +168,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeModal">
-                            <i class="mdi mdi-close"></i> Cancel
+                            <i class="mdi mdi-close"></i> {{ __('equipment.cancel') }}
                         </button>
                         @if($disposal && $approvalStep)
                             <button type="button" 
@@ -182,11 +182,11 @@
                                     @elseif($approvalForm['decision'] === 'reject')
                                         <i class="mdi mdi-close-circle"></i> Reject
                                     @else
-                                        <i class="mdi mdi-send"></i> Submit Decision
+                                        <i class="mdi mdi-send"></i> {{ __('equipment.submit_decision') }}
                                     @endif
                                 </span>
                                 <span wire:loading wire:target="processApproval">
-                                    <i class="mdi mdi-loading mdi-spin"></i> Processing...
+                                    <i class="mdi mdi-loading mdi-spin"></i> {{ __('equipment.processing') }}
                                 </span>
                             </button>
                         @endif

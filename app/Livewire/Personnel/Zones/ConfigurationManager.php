@@ -65,12 +65,24 @@ class ConfigurationManager extends Component
     public function mount(string $module): void
     {
         $this->module = $module;
-        $this->selectedZoneId = Zone::query()
-            ->where('inventory_location_id', getCurrentUserLocation()->id)
-            ->orderBy('key')
+        $this->selectedDirectorateId = Directorate::query()
+            ->where(function ($query): void {
+                $query->whereHas('zone', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', getCurrentUserLocation()->id))
+                    ->orWhereNull('zone_id');
+            })
+            ->orderBy('name')
             ->value('id');
 
-        $this->syncSelectedDirectorate();
+        $this->syncSelectedZoneFromDirectorate();
+
+        if (!$this->selectedDirectorateId) {
+            $this->selectedZoneId = Zone::query()
+                ->where('inventory_location_id', getCurrentUserLocation()->id)
+                ->orderBy('key')
+                ->value('id');
+
+            $this->syncSelectedDirectorate();
+        }
     }
 
     public function getUsersProperty(): Collection
@@ -103,13 +115,12 @@ class ConfigurationManager extends Component
 
     public function getDirectoratesProperty(): Collection
     {
-        if (!$this->selectedZoneId) {
-            return collect();
-        }
-
         $query = Directorate::query()
-            ->with(['sectionHeadUser', 'head'])
-            ->where('zone_id', $this->selectedZoneId)
+            ->with(['sectionHeadUser', 'head', 'zone'])
+            ->where(function ($builder): void {
+                $builder->whereHas('zone', fn ($zoneQuery) => $zoneQuery->where('inventory_location_id', getCurrentUserLocation()->id))
+                    ->orWhereNull('zone_id');
+            })
             ->withCount('labs')
             ->orderBy('name');
 
@@ -151,12 +162,18 @@ class ConfigurationManager extends Component
     public function selectZone(string $zoneId): void
     {
         $this->selectedZoneId = $zoneId;
-        $this->syncSelectedDirectorate();
+
+        if ($this->selectedDirectorateId) {
+            Directorate::query()
+                ->where('id', $this->selectedDirectorateId)
+                ->update(['zone_id' => $zoneId]);
+        }
     }
 
     public function selectDirectorate(string $directorateId): void
     {
         $this->selectedDirectorateId = $directorateId;
+        $this->syncSelectedZoneFromDirectorate();
     }
 
     public function openZoneModal(): void
@@ -211,6 +228,12 @@ class ConfigurationManager extends Component
             ]);
             $this->selectedZoneId = (string) $zone->id;
             $this->message = 'Zone created successfully.';
+        }
+
+        if ($this->selectedDirectorateId && $this->selectedZoneId) {
+            Directorate::query()
+                ->where('id', $this->selectedDirectorateId)
+                ->update(['zone_id' => $this->selectedZoneId]);
         }
 
         $this->syncSelectedDirectorate();
@@ -272,11 +295,6 @@ class ConfigurationManager extends Component
 
     public function saveDirectorate(): void
     {
-        if (!$this->selectedZoneId) {
-            $this->addError('selectedZoneId', 'Please select a zone before adding a directorate.');
-            return;
-        }
-
         $nameRule = Rule::unique('directorates', 'name');
         $codeRule = Rule::unique('directorates', 'code');
 
@@ -296,7 +314,7 @@ class ConfigurationManager extends Component
         $directoratePayload = [
             'name' => trim($validated['directorateForm']['name']),
             'code' => trim($validated['directorateForm']['code']),
-            'zone_id' => $this->selectedZoneId,
+            'zone_id' => $this->selectedZoneId ?: null,
             'section_head_user_id' => $sectionHeadUserId,
             'head_id' => $sectionHeadUserId,
         ];
@@ -304,7 +322,6 @@ class ConfigurationManager extends Component
         if ($this->editingDirectorateId) {
             Directorate::query()
                 ->where('id', $this->editingDirectorateId)
-                ->where('zone_id', $this->selectedZoneId)
                 ->update($directoratePayload);
 
             $this->selectedDirectorateId = $this->editingDirectorateId;
@@ -324,16 +341,8 @@ class ConfigurationManager extends Component
 
     public function editDirectorate(string $directorateId): void
     {
-        if (!$this->selectedZoneId) {
-            $this->message = 'Please select a zone first.';
-            $this->messageType = 'danger';
-            $this->showToast = true;
-            return;
-        }
-
         $directorate = Directorate::query()
             ->where('id', $directorateId)
-            ->where('zone_id', $this->selectedZoneId)
             ->first();
 
         if (!$directorate) {
@@ -364,7 +373,7 @@ class ConfigurationManager extends Component
     public function openLabModal(): void
     {
         if (!$this->selectedZoneId || !$this->selectedDirectorateId) {
-            $this->addError('selectedDirectorateId', 'Please select a zone and directorate before adding a lab.');
+            $this->addError('selectedDirectorateId', 'Please select a directorate and link it to a zone before adding a lab.');
             return;
         }
 
@@ -391,7 +400,7 @@ class ConfigurationManager extends Component
     public function saveLab(): void
     {
         if (!$this->selectedZoneId || !$this->selectedDirectorateId) {
-            $this->addError('selectedDirectorateId', 'Please select a zone and directorate before adding a lab.');
+            $this->addError('selectedDirectorateId', 'Please select a directorate and link it to a zone before adding a lab.');
             return;
         }
 
@@ -620,7 +629,10 @@ class ConfigurationManager extends Component
     private function syncSelectedDirectorate(): void
     {
         if (!$this->selectedZoneId) {
-            $this->selectedDirectorateId = null;
+            $this->selectedDirectorateId = Directorate::query()
+                ->whereNull('zone_id')
+                ->orderBy('name')
+                ->value('id');
             return;
         }
 
@@ -637,6 +649,18 @@ class ConfigurationManager extends Component
             ->where('zone_id', $this->selectedZoneId)
             ->orderBy('name')
             ->value('id');
+    }
+
+    private function syncSelectedZoneFromDirectorate(): void
+    {
+        if (!$this->selectedDirectorateId) {
+            $this->selectedZoneId = null;
+            return;
+        }
+
+        $this->selectedZoneId = Directorate::query()
+            ->where('id', $this->selectedDirectorateId)
+            ->value('zone_id');
     }
 
     public function render()
