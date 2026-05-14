@@ -411,24 +411,6 @@
 			</div>
 		</div>
 	@endif
-	@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
-		   <div class="row mb-3">
-			   <div class="col-12">
-				   <div class="workflow-board-panel">
-					   <div class="workflow-board-panel-body">
-						   <ul class="nav nav-tabs" role="tablist">
-							   <li class="nav-item">
-								   <button type="button" class="nav-link {{ $workflowSubTab === 'requests' ? 'active' : '' }}" wire:click="setWorkflowSubTab('requests')">Requests</button>
-							   </li>
-							   <li class="nav-item">
-								   <button type="button" class="nav-link {{ $workflowSubTab === 'received' ? 'active' : '' }}" wire:click="setWorkflowSubTab('received')">Received</button>
-							   </li>
-						   </ul>
-					   </div>
-				   </div>
-			   </div>
-		   </div>
-	   @endif
 	@if($status == 'All Samples')
 		<div class="row">
 			<div class="col-12">
@@ -643,7 +625,11 @@
 							<h5 class="mb-0">
 								<i class="mdi mdi-file-document-multiple"></i>
 								@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
-									{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
+									@if(in_array($status, ['Samples En-Route', 'Samples Receiving']))
+										{{ $workflowSubTab === 'received' ? 'Submission requests' : 'Samples received' }}
+									@else
+										{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
+									@endif
 								@else
 									{{ getSampleWorkflowStageLabel($status) }}
 								@endif
@@ -668,7 +654,11 @@
 									<div class="form-group mb-3 mb-md-0">
 										<label class="form-label small fw-bold">Search</label>
 										<div class="position-relative">
-											@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']) && $workflowSubTab === 'requests')
+											@if(
+												($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
+												(in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received') ||
+												($status === 'Samples In Lab')
+											)
 												<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Name...">
 												<div wire:loading wire:target="submissionFormsSearch" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
 													<span class="spinner-border spinner-border-sm text-primary"></span>
@@ -683,7 +673,11 @@
 									</div>
 								</div>
 								
-								@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']) && $workflowSubTab === 'requests')
+								@if(
+									($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
+									(in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received') ||
+									($status === 'Samples In Lab')
+								)
 									<div class="col-md-2">
 										<div class="form-group mb-3 mb-md-0">
 											<label class="form-label small fw-bold">Status</label>
@@ -794,9 +788,23 @@
 									</div>
 								</div>
 							</div>
-						</div>
+						@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
+							<div class="mb-4">
+								<ul class="nav nav-tabs" role="tablist">
+									<li class="nav-item">
+										<button type="button" class="nav-link {{ $workflowSubTab === 'requests' ? 'active' : '' }}" wire:click="setWorkflowSubTab('requests')">Requests</button>
+									</li>
+									<li class="nav-item">
+										<button type="button" class="nav-link {{ $workflowSubTab === 'received' ? 'active' : '' }}" wire:click="setWorkflowSubTab('received')">Received</button>
+									</li>
+								</ul>
+							</div>
+						@endif
 
-						@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']) && $workflowSubTab === 'requests')
+						@if(
+							($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
+							(in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received')
+						)
 							<!-- Submission Forms Table -->
 							@if($this->submissionForms->count() > 0)
 								<div class="table-responsive">
@@ -1124,7 +1132,7 @@
 												$sample_codes = $item->samples->pluck('sample_code')->toArray();
 												$sample_count = count($sample_codes);
 												?>
-												<tr style="{{ $item->upfront_payment ? 'background-color:#d7ffd7 !important;' : ($item->is_ammendment ? 'background-color:#fcfeb2 !important;' : '') }}">
+												<tr style="{{ $item->upfront_payment ? 'background-color:#d7ffd7 !important;' : ($item->is_amendment ? 'background-color:#fcfeb2 !important;' : '') }}">
 													<td>
 														<input type="checkbox" name="batch_id[]" value="{{$item->id}}" data-batch-code="{{$item->batch_code}}">
 													</td>
@@ -2064,7 +2072,7 @@
 			</div>
 			@if($status == "Samples Request Review")
 			<div id="dispatch-to-labs-modal-review" class="modal fade" role="dialog">
-				<div class="modal-dialog">
+				<div class="modal-dialog modal-lg">
 					<!-- Modal content-->
 					<form class="modal-content" method="POST" action="{{ route('change-batch-workflow') }}"
 						enctype="multipart/form-data">
@@ -2072,172 +2080,407 @@
 
 						<div class="modal-header">
 							<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</h4>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
 						</div>
-						<div class="modal-body">
-
-
+						<div class="modal-body p-0 bg-light">
 							<input type="hidden" name="status" value="Samples In Lab" />
 							<input type="hidden" name="tracking_stage" value="20008" />
 							<input type="hidden" name="customer_id" value=0>
 
-							<div class="card border mb-3">
-								<div class="card-header bg-light py-2">
-									<strong>Laboratory Analysis Acceptance Form (GCLA/F/03)</strong>
-								</div>
-								<div class="card-body">
-									<div class="row">
-										<div class="col-md-6 form-group">
-											<label class="control-label">Date</label>
-											<input type="date" class="form-control" name="lab_acceptance[date]" value="{{ now()->format('Y-m-d') }}">
+							<ul class="nav nav-tabs nav-tabs-custom nav-justified px-3 pt-3 bg-white" role="tablist" style="border-bottom: 1px solid #dee2e6;">
+								<li class="nav-item">
+									<a class="nav-link active" data-toggle="tab" href="#review-lab-acceptance" role="tab">
+										<i class="mdi mdi-file-document-edit-outline mr-1"></i> Laboratory Acceptance Form
+									</a>
+								</li>
+								<li class="nav-item">
+									<a class="nav-link" data-toggle="tab" href="#review-receipt-notification" role="tab">
+										<i class="mdi mdi-file-document-outline mr-1"></i> Receipt Notification
+									</a>
+								</li>
+							</ul>
+
+							<div class="tab-content px-4 py-3">
+								<!-- Lab Acceptance Form Tab -->
+								<div class="tab-pane active" id="review-lab-acceptance" role="tabpanel">
+									<div class="workflow-board-panel mb-0 border-0 shadow-sm">
+										<div class="workflow-board-panel-header d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
+											<h5><i class="mdi mdi-file-document-edit-outline"></i> Laboratory Analysis Acceptance Form (GCLA/F/03)</h5>
 										</div>
-										<div class="col-md-6 form-group">
-											<label class="control-label">Lab No.</label>
-											<input type="text" class="form-control" name="lab_acceptance[lab_no]" placeholder="Auto-generated on approval" readonly>
-										</div>
-										<div class="col-md-6 form-group">
-											<label class="control-label">Customer Name</label>
-											<input type="text" class="form-control" name="lab_acceptance[customer_name]" placeholder="Customer">
-										</div>
-										<div class="col-md-6 form-group">
-											<label class="control-label">Address</label>
-											<input type="text" class="form-control" name="lab_acceptance[address]" placeholder="Address">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Email</label>
-											<input type="email" class="form-control" name="lab_acceptance[email]" placeholder="Email">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Tel</label>
-											<input type="text" class="form-control" name="lab_acceptance[tel]" placeholder="Telephone">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Mode of Work</label>
-											<select class="form-control" name="lab_acceptance[mode_of_work]">
-												<option value="Normal">Normal</option>
-												<option value="Express">Express</option>
-											</select>
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Number of Samples</label>
-											<input type="number" min="0" class="form-control" name="lab_acceptance[number_of_samples]" placeholder="0">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Type of Sample</label>
-											<input type="text" class="form-control" name="lab_acceptance[type_of_sample]" placeholder="Type">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Date of Sampling</label>
-											<input type="date" class="form-control" name="lab_acceptance[date_of_sampling]">
-										</div>
-										<div class="col-md-12 form-group">
-											<label class="control-label fw-bold">Parameters & Pricing</label>
-											<div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
-												<table class="table table-sm table-bordered mb-0" id="lab_acceptance_parameters_table">
-													<thead class="bg-light">
-														<tr>
-															<th style="width: 50%;">Parameter Name</th>
-															<th style="width: 30%; text-align: right;">Amount (USD)</th>
-															<th style="width: 20%; text-align: center;">Action</th>
-														</tr>
-													</thead>
-													<tbody id="lab_acceptance_parameters_tbody">
-														<!-- Rows will be populated by JavaScript -->
-													</tbody>
-													<tfoot class="bg-light fw-bold">
-														<tr>
-															<td style="text-align: right;"><strong>TOTAL</strong></td>
-															<td style="text-align: right;"><span id="lab_acceptance_total_amount">0.00</span></td>
-															<td></td>
-														</tr>
-													</tfoot>
-												</table>
+										<div class="workflow-board-panel-body">
+											<div class="d-flex flex-wrap mb-3" style="gap: 6px;">
+												<button type="button" class="btn btn-sm btn-primary lab-acc-part-btn" data-part="1">Part A</button>
+												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="2">Part B</button>
+												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="3">Part C</button>
+												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="4">Part D</button>
 											</div>
-											<input type="hidden" name="lab_acceptance[amount_usd]" id="lab_acceptance_amount_usd_hidden" value="0">
-											<input type="hidden" name="lab_acceptance[parameters_json]" id="lab_acceptance_parameters_json" value="[]">
-											<small class="text-muted d-block mt-2">Click the remove button (×) next to any parameter to exclude it from the analysis. The total will update automatically.</small>
+
+											<!-- Part A -->
+											<div class="card border-0 lab-acc-part" id="lab-acc-part-1" style="background: #f8fafc;">
+												<div class="card-body">
+													<h6 class="mb-3">Part A: Sample Details</h6>
+													<div class="row">
+														<div class="col-md-6 form-group">
+															<label class="control-label">Date</label>
+															<input type="date" class="form-control" name="lab_acceptance[date]" value="{{ now()->format('Y-m-d') }}">
+														</div>
+														<div class="col-md-6 form-group">
+															<label class="control-label">Lab No.</label>
+															<input type="text" class="form-control" name="lab_acceptance[lab_no]" placeholder="Auto-generated on approval" readonly>
+														</div>
+														<div class="col-md-6 form-group">
+															<label class="control-label">Customer Name</label>
+															<input type="text" class="form-control" name="lab_acceptance[customer_name]" placeholder="Customer">
+														</div>
+														<div class="col-md-6 form-group">
+															<label class="control-label">Address</label>
+															<input type="text" class="form-control" name="lab_acceptance[address]" placeholder="Address">
+														</div>
+														<div class="col-md-4 form-group">
+															<label class="control-label">Email</label>
+															<input type="email" class="form-control" name="lab_acceptance[email]" placeholder="Email">
+														</div>
+														<div class="col-md-4 form-group">
+															<label class="control-label">Tel</label>
+															<input type="text" class="form-control" name="lab_acceptance[tel]" placeholder="Telephone">
+														</div>
+														<div class="col-md-4 form-group">
+															<label class="control-label">Mode of Work</label>
+															<select class="form-control" name="lab_acceptance[mode_of_work]">
+																<option value="Normal">Normal</option>
+																<option value="Express">Express</option>
+															</select>
+														</div>
+														<div class="col-md-4 form-group">
+															<label class="control-label">Number of Samples</label>
+															<input type="number" min="0" class="form-control" name="lab_acceptance[number_of_samples]" placeholder="0">
+														</div>
+														<div class="col-md-4 form-group">
+															<label class="control-label">Type of Sample</label>
+															<input type="text" class="form-control" name="lab_acceptance[type_of_sample]" placeholder="Type">
+														</div>
+														<div class="col-md-4 form-group">
+															<label class="control-label">Date of Sampling</label>
+															<input type="date" class="form-control" name="lab_acceptance[date_of_sampling]">
+														</div>
+														<div class="col-md-12 form-group">
+															<label class="control-label fw-bold">Parameters & Pricing</label>
+															<div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+																<table class="table table-sm table-bordered mb-0" id="lab_acceptance_parameters_table">
+																	<thead class="bg-light">
+																		<tr>
+																			<th style="width: 50%;">Parameter Name</th>
+																			<th style="width: 30%; text-align: right;">Amount (USD)</th>
+																			<th style="width: 20%; text-align: center;">Action</th>
+																		</tr>
+																	</thead>
+																	<tbody id="lab_acceptance_parameters_tbody">
+																	</tbody>
+																	<tfoot class="bg-light fw-bold">
+																		<tr>
+																			<td style="text-align: right;"><strong>TOTAL</strong></td>
+																			<td style="text-align: right;"><span id="lab_acceptance_total_amount">0.00</span></td>
+																			<td></td>
+																		</tr>
+																	</tfoot>
+																</table>
+															</div>
+															<input type="hidden" name="lab_acceptance[amount_usd]" id="lab_acceptance_amount_usd_hidden" value="0">
+															<input type="hidden" name="lab_acceptance[parameters_json]" id="lab_acceptance_parameters_json" value="[]">
+															<small class="text-muted d-block mt-2">Click the remove button (×) next to any parameter to exclude it from the analysis. The total will update automatically.</small>
+														</div>
+														<div class="col-md-12 form-group">
+															<label class="control-label">Any deviation from specified conditions?</label>
+															<div class="d-flex" style="gap: 18px;">
+																<label class="mb-0"><input type="radio" name="lab_acceptance[deviation_answer]" value="Yes"> Yes</label>
+																<label class="mb-0"><input type="radio" name="lab_acceptance[deviation_answer]" value="No" checked> No</label>
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+
+											<!-- Part B -->
+											<div class="card border-0 lab-acc-part d-none" id="lab-acc-part-2" style="background: #f8fafc;">
+												<div class="card-body">
+													<h6 class="mb-3">Part B: Customer Certified</h6>
+													<div class="row">
+														<div class="col-md-6 form-group">
+															<label class="control-label">Customer Name</label>
+															<input type="text" class="form-control" name="lab_acceptance[customer_name_certified]" placeholder="Name">
+														</div>
+														<div class="col-md-6 form-group">
+															<label class="control-label">Date</label>
+															<input type="date" class="form-control" name="lab_acceptance[customer_date]" value="{{ now()->format('Y-m-d') }}">
+														</div>
+													</div>
+													<label class="form-label d-block">Customer Signature</label>
+													<div class="bg-white border rounded p-2" style="max-width: 560px;">
+														<canvas id="review-customer-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
+														<div class="d-flex mt-2" style="gap: 8px;">
+															<button type="button" class="btn btn-sm btn-outline-secondary" id="review-customer-sign-clear">Clear</button>
+														</div>
+													</div>
+													<input type="hidden" id="review-customer-signature-input" name="lab_acceptance[customer_signature]">
+												</div>
+											</div>
+
+											<!-- Part C -->
+											<div class="card border-0 lab-acc-part d-none" id="lab-acc-part-3" style="background: #f8fafc;">
+												<div class="card-body">
+													<h6 class="mb-3">Part C: Conformity Assessment</h6>
+													<label class="form-label d-block">Customer requests a statement of conformity to specification/standard</label>
+													<div class="d-flex" style="gap: 18px;">
+														<label class="mb-0"><input type="radio" name="lab_acceptance[conformity_request]" value="requested"> Requested</label>
+														<label class="mb-0"><input type="radio" name="lab_acceptance[conformity_request]" value="not_requested" checked> Not requested</label>
+													</div>
+												</div>
+											</div>
+
+											<!-- Part D -->
+											<div class="card border-0 lab-acc-part d-none" id="lab-acc-part-4" style="background: #f8fafc;">
+												<div class="card-body">
+													<h6 class="mb-3">Part D: Laboratory Manager</h6>
+													<label class="form-label d-block">I certify that the laboratory has/has not capability and resources to meet customer requirements</label>
+													<div class="d-flex mb-3" style="gap: 18px;">
+														<label class="mb-0"><input type="radio" name="lab_acceptance[manager_capability]" value="has" checked> Has</label>
+														<label class="mb-0"><input type="radio" name="lab_acceptance[manager_capability]" value="has_not"> Has not</label>
+													</div>
+
+													<div class="row">
+														<div class="col-md-4 form-group">
+															<label class="control-label">Laboratory</label>
+															<input type="text" class="form-control" name="lab_acceptance[laboratory_name]" value="{{ config('app.name') }}">
+														</div>
+														<div class="col-md-4 form-group">
+															<label class="control-label">Laboratory Manager Name</label>
+															<input type="text" class="form-control" name="lab_acceptance[laboratory_manager_name]" value="{{ auth()->user()->name ?? '' }}">
+														</div>
+														<div class="col-md-4 form-group">
+															<label class="control-label">Manager Date</label>
+															<input type="date" class="form-control" name="lab_acceptance[manager_date]" value="{{ now()->format('Y-m-d') }}">
+														</div>
+													</div>
+
+													<label class="form-label d-block">Manager Signature</label>
+													<div class="bg-white border rounded p-2" style="max-width: 560px;">
+														<canvas id="review-manager-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
+														<div class="d-flex mt-2" style="gap: 8px;">
+															<button type="button" class="btn btn-sm btn-outline-secondary" id="review-manager-sign-clear">Clear</button>
+														</div>
+													</div>
+													<input type="hidden" id="review-manager-signature-input" name="lab_acceptance[manager_signature]">
+												</div>
+											</div>
 										</div>
-										<div class="col-md-6 form-group">
-											<label class="control-label">Any deviation from specified conditions?</label>
-											<select class="form-control" name="lab_acceptance[deviation_answer]">
-												<option value="No">No</option>
-												<option value="Yes">Yes</option>
-											</select>
+									</div>
+								</div>
+
+								<!-- Receipt Notification Tab -->
+								<div class="tab-pane" id="review-receipt-notification" role="tabpanel">
+									<div class="workflow-board-panel mb-0 border-0 shadow-sm">
+										<div class="workflow-board-panel-header d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
+											<h5><i class="mdi mdi-file-document-outline"></i> Sample Receipt Notification (GCLA 01)</h5>
 										</div>
-										<div class="col-md-6 form-group">
-											<label class="control-label">Conformity Request</label>
-											<select class="form-control" name="lab_acceptance[conformity_request]">
-												<option value="not requested">Not requested</option>
-												<option value="requested">Requested</option>
-											</select>
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Customer Name (Certified)</label>
-											<input type="text" class="form-control" name="lab_acceptance[customer_name_certified]" placeholder="Name">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Customer Signature Name</label>
-											<input type="text" class="form-control" name="lab_acceptance[customer_signature_name]" placeholder="Signature">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Customer Date</label>
-											<input type="date" class="form-control" name="lab_acceptance[customer_date]" value="{{ now()->format('Y-m-d') }}">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Laboratory</label>
-											<input type="text" class="form-control" name="lab_acceptance[laboratory_name]" value="{{ config('app.name') }}">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Laboratory Manager Name</label>
-											<input type="text" class="form-control" name="lab_acceptance[laboratory_manager_name]" value="{{ auth()->user()->name ?? '' }}">
-										</div>
-										<div class="col-md-4 form-group">
-											<label class="control-label">Manager Signature Name</label>
-											<input type="text" class="form-control" name="lab_acceptance[manager_signature_name]" placeholder="Signature">
-										</div>
-										<div class="col-md-4 form-group mb-0">
-											<label class="control-label">Manager Date</label>
-											<input type="date" class="form-control" name="lab_acceptance[manager_date]" value="{{ now()->format('Y-m-d') }}">
+										<div class="workflow-board-panel-body">
+											<div class="card border-0" style="background: #f8fafc;">
+												<div class="card-body">
+													<div class="row">
+														<div class="col-md-6 mb-3">
+															<label class="form-label">Name of the client or submitting authority</label>
+															<input type="text" class="form-control" name="receipt_notification[client_or_authority_name]">
+														</div>
+														<div class="col-md-6 mb-3">
+															<label class="form-label">Laboratory Identification Number / Lab. No. (Batch No)</label>
+															<input type="text" class="form-control" name="receipt_notification[laboratory_identification_number]" placeholder="Auto-generated on approval" readonly>
+														</div>
+													</div>
+
+													<div class="row">
+														<div class="col-md-8 mb-3">
+															<label class="form-label">Description of sample(s)</label>
+															<textarea class="form-control" rows="3" name="receipt_notification[sample_description]"></textarea>
+														</div>
+														<div class="col-md-4 mb-3">
+															<label class="form-label">Number of Samples</label>
+															<input type="number" min="0" class="form-control" name="receipt_notification[number_of_samples]">
+														</div>
+													</div>
+
+													<hr>
+													<h6 class="mb-3">Person Submitting the Sample or Exhibit</h6>
+													<div class="row">
+														<div class="col-md-6 mb-3">
+															<label class="form-label">Name</label>
+															<input type="text" class="form-control" name="receipt_notification[submitter_name]">
+														</div>
+														<div class="col-md-6 mb-3">
+															<label class="form-label">Designation</label>
+															<input type="text" class="form-control" name="receipt_notification[submitter_designation]">
+														</div>
+													</div>
+
+													<label class="form-label d-block">Signature</label>
+													<div class="bg-white border rounded p-2 mb-3" style="max-width: 560px;">
+														<canvas id="review-submitter-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
+														<div class="d-flex mt-2" style="gap: 8px;">
+															<button type="button" class="btn btn-sm btn-outline-secondary" id="review-submitter-sign-clear">Clear</button>
+														</div>
+													</div>
+													<input type="hidden" id="review-submitter-signature-input" name="receipt_notification[submitter_signature]">
+
+													<hr>
+													<h6 class="mb-3">Receiving Person</h6>
+													<div class="row">
+														<div class="col-md-4 mb-3">
+															<label class="form-label">Name</label>
+															<input type="text" class="form-control" name="receipt_notification[receiver_name]">
+														</div>
+														<div class="col-md-4 mb-3">
+															<label class="form-label">Designation</label>
+															<input type="text" class="form-control" name="receipt_notification[receiver_designation]">
+														</div>
+														<div class="col-md-4 mb-3">
+															<label class="form-label">Sample receiving date</label>
+															<input type="date" class="form-control" name="receipt_notification[sample_receiving_date]" value="{{ now()->format('Y-m-d') }}">
+														</div>
+													</div>
+
+													<label class="form-label d-block">Signature</label>
+													<div class="bg-white border rounded p-2" style="max-width: 560px;">
+														<canvas id="review-receiver-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
+														<div class="d-flex mt-2" style="gap: 8px;">
+															<button type="button" class="btn btn-sm btn-outline-secondary" id="review-receiver-sign-clear">Clear</button>
+														</div>
+													</div>
+													<input type="hidden" id="review-receiver-signature-input" name="receipt_notification[receiver_signature]">
+												</div>
+											</div>
 										</div>
 									</div>
 								</div>
 							</div>
-							<div class="form-group">
-								<label class="control-label"><input type="checkbox" name="is_priority" value="High" /> Is High
-									Prority</label>
-							</div>
-							<br>
-							<div class="form-check">
-								<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
-								<label class="form-check-label">
-									Send Email Notification
-								</label>
-							</div>
-							<br>
-							<div class="form-check">
-								<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
-								<label class="form-check-label">
-									Send Message
-								</label>
-							</div>
-							<br>
-							<div class="form-group">
-								<label class="control-label">Batches</label>
-								<div class="selected-batches-review"></div>
-							</div>
-							<div class="form-group mb-0">
-								<label class="control-label">Selected Forms</label>
-								<div class="selected-submissions-request text-muted small"></div>
+
+							<div class="px-4 pb-3">
+								<div class="card border-0 bg-white">
+									<div class="card-body">
+										<h6 class="mb-3">Other Settings & Confirmations</h6>
+										<div class="form-group">
+											<div class="custom-control custom-checkbox">
+												<input type="checkbox" class="custom-control-input" id="reviewIsPriority" name="is_priority" value="High">
+												<label class="custom-control-label" for="reviewIsPriority">Is High Priority</label>
+											</div>
+										</div>
+										<div class="form-group">
+											<div class="custom-control custom-checkbox">
+												<input type="checkbox" class="custom-control-input" id="reviewSendEmail" name="notification">
+												<label class="custom-control-label" for="reviewSendEmail">Send Email Notification</label>
+											</div>
+										</div>
+										<div class="form-group">
+											<div class="custom-control custom-checkbox">
+												<input type="checkbox" class="custom-control-input" id="reviewSendSMS" name="send_message">
+												<label class="custom-control-label" for="reviewSendSMS">Send SMS</label>
+											</div>
+										</div>
+										<div class="form-group mt-3">
+											<label class="control-label fw-bold">Batches</label>
+											<div class="selected-batches-review"></div>
+										</div>
+										<div class="form-group mb-0">
+											<label class="control-label fw-bold">Selected Forms</label>
+											<div class="selected-submissions-request text-muted small"></div>
+										</div>
+									</div>
+								</div>
 							</div>
 						</div>
 
-
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Yes</button>
+						<div class="modal-footer bg-light">
+							<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Approve Request</button>
 							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 						</div>
 					</form>
 				</div>
 			</div>
+			
+			<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+			<script>
+				document.addEventListener('DOMContentLoaded', function () {
+					// Parts navigation
+					const partBtns = document.querySelectorAll('.lab-acc-part-btn');
+					const parts = document.querySelectorAll('.lab-acc-part');
+					
+					partBtns.forEach(btn => {
+						btn.addEventListener('click', function() {
+							const targetPart = this.getAttribute('data-part');
+							
+							// Update buttons
+							partBtns.forEach(b => {
+								b.classList.remove('btn-primary');
+								b.classList.add('btn-outline-primary');
+							});
+							this.classList.remove('btn-outline-primary');
+							this.classList.add('btn-primary');
+							
+							// Update parts
+							parts.forEach(p => p.classList.add('d-none'));
+							document.getElementById('lab-acc-part-' + targetPart).classList.remove('d-none');
+						});
+					});
+
+					// Signature Pads
+					function setupPad(canvasId, inputId, clearBtnId) {
+						const canvas = document.getElementById(canvasId);
+						const input = document.getElementById(inputId);
+						const clearBtn = document.getElementById(clearBtnId);
+						if (!canvas || !input || !window.SignaturePad) return null;
+
+						const ratio = Math.max(window.devicePixelRatio || 1, 1);
+						const rect = canvas.getBoundingClientRect();
+						const width = rect.width > 10 ? rect.width : 520;
+						canvas.width = width * ratio;
+						canvas.height = rect.height * ratio;
+						canvas.getContext('2d').scale(ratio, ratio);
+
+						const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+
+						pad.addEventListener('endStroke', function () {
+							input.value = pad.isEmpty() ? '' : pad.toDataURL('image/png');
+						});
+
+						if (clearBtn) {
+							clearBtn.addEventListener('click', function () {
+								pad.clear();
+								input.value = '';
+							});
+						}
+
+						return pad;
+					}
+
+					let padsInitialized = false;
+					let pads = [];
+					
+					$('#dispatch-to-labs-modal-review').on('shown.bs.modal', function () {
+						if (!padsInitialized) {
+							pads.push(setupPad('review-customer-signature-canvas', 'review-customer-signature-input', 'review-customer-sign-clear'));
+							pads.push(setupPad('review-manager-signature-canvas', 'review-manager-signature-input', 'review-manager-sign-clear'));
+							pads.push(setupPad('review-submitter-signature-canvas', 'review-submitter-signature-input', 'review-submitter-sign-clear'));
+							pads.push(setupPad('review-receiver-signature-canvas', 'review-receiver-signature-input', 'review-receiver-sign-clear'));
+							padsInitialized = true;
+						} else {
+						    window.dispatchEvent(new Event('resize'));
+						}
+					});
+					
+					$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+						window.dispatchEvent(new Event('resize'));
+					});
+				});
+			</script>
 			@endif
 		@endif
 		@if($status == 'Sample Approval')

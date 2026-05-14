@@ -923,6 +923,9 @@ function getDefaultCompany()
 
 function getAnalysisTypeByID($id, $is_arr = false)
 {
+    if (empty($id)) {
+        return $is_arr ? collect() : collect();
+    }
 	if ($is_arr) {
 		return App\AnalysisType::whereIn('id', $id)->get();
 	}
@@ -930,6 +933,9 @@ function getAnalysisTypeByID($id, $is_arr = false)
 }
 function getAnalysisTypeID($id)
 {
+    if (empty($id)) {
+        return null;
+    }
 	return App\AnalysisType::find($id);
 }
 function getAnalysisTypes()

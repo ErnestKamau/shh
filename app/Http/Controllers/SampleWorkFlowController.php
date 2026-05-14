@@ -1521,7 +1521,7 @@ class SampleWorkFlowController extends Controller
             $not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae', function ($join) {
                 $join->on('ae.analysis_type_id', '=', 'captured_results.analysis_type_id');
                 $join->on('ae.analyte_id', '=', 'captured_results.analyte_id');
-            })->where('ae.active', 1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+            })->where('ae.active', 1)->selectRaw("string_agg(analyte_code, ',') as codes,sample_detail_code")->groupBy('sample_detail_id', 'sample_detail_code')->get();
             // return response()->json($test);
         }
 
@@ -2139,13 +2139,17 @@ class SampleWorkFlowController extends Controller
                     ],
                     'target' => [
                         'status' => $request->status,
-                        'tracking_stage' => $targetTrackingStage,
+                        'tracking_stage' => \Illuminate\Support\Str::isUuid($targetTrackingStage) ? $targetTrackingStage : null,
                     ],
                 ];
 
                 $batch->status = $request->status;
-                $batch->sample_tracking_stage = $targetTrackingStage;
-                $batch->specialist_analyst_id = $request->specialist_analyst_id ?: null;
+                $batch->sample_tracking_stage = \Illuminate\Support\Str::isUuid($targetTrackingStage) ? $targetTrackingStage : null;
+                if (!empty($request->specialist_analyst_id) && \Illuminate\Support\Str::isUuid($request->specialist_analyst_id)) {
+                    $batch->specialist_analyst_id = $request->specialist_analyst_id;
+                } else {
+                    $batch->specialist_analyst_id = null;
+                }
                 $batch->priority = $request->is_priority ?? 'Normal';
                 $batch->save();
 
@@ -2302,7 +2306,9 @@ class SampleWorkFlowController extends Controller
                 $currentStatus = $batch->status;
                 $currentTrackingStage = $batch->sample_tracking_stage;
                 $batch->status = $request->status;
-                $batch->sample_tracking_stage = '20007';
+                
+                $reviewStage = \App\SampleAnalysisStage::where('name', 'Samples Request Review')->first();
+                $batch->sample_tracking_stage = $reviewStage ? $reviewStage->id : null;
                 $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
                 if (isset($request->notification)) {
                     $emails = $users->pluck('email')->toarray();
@@ -2328,7 +2334,7 @@ class SampleWorkFlowController extends Controller
                     ],
                     'target' => [
                         'status' => $request->status,
-                        'tracking_stage' => '20007',
+                        'tracking_stage' => $batch->sample_tracking_stage,
                     ],
                 ];
                 $this->updateChainofCustody($custodyDetails);
@@ -4027,7 +4033,7 @@ class SampleWorkFlowController extends Controller
         $request->validate([
             'batch_id' => 'required|integer|exists:sample_headers,id',
             'title' => 'required|string|max:255',
-            'attachment_type' => 'required|integer',
+            'attachment_type' => 'required',
             'attachment' => 'required|file',
             'selected_captured_result_ids' => 'nullable|string',
         ]);
@@ -4138,7 +4144,7 @@ class SampleWorkFlowController extends Controller
         $request->validate([
             'attachment_ids' => 'required|string',
             'title' => 'required|string',
-            'attachment_type' => 'required|integer',
+            'attachment_type' => 'required',
             'batch_id' => 'required|integer'
         ]);
 
@@ -5977,7 +5983,7 @@ class SampleWorkFlowController extends Controller
             $not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae', function ($join) {
                 $join->on('ae.analysis_type_id', '=', 'captured_results.analysis_type_id');
                 $join->on('ae.analyte_id', '=', 'captured_results.analyte_id');
-            })->where('ae.active', 1)->where('ae.active', 1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+            })->where('ae.active', 1)->where('ae.active', 1)->selectRaw("string_agg(analyte_code, ',') as codes,sample_detail_code")->groupBy('sample_detail_id', 'sample_detail_code')->get();
             // return response()->json($test);
         }
 

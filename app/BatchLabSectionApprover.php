@@ -21,7 +21,11 @@ class BatchLabSectionApprover extends Model implements Auditable
     }
 
     public function getLabSectionNamesAttribute(){
-        $stages = SampleAnalysisStage::whereIn('id', explode(',', $this->lab_section_ids))->get();
+        $ids = array_filter(array_map('trim', explode(',', (string)$this->lab_section_ids)), fn($id) => \Illuminate\Support\Str::isUuid($id));
+        if (empty($ids)) {
+            return collect();
+        }
+        $stages = SampleAnalysisStage::whereIn('id', $ids)->get();
         return implode(', ', $stages->pluck('namecode')->toArray());
     }
 

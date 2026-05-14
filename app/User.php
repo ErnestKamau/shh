@@ -82,9 +82,9 @@ class User extends Authenticatable implements Auditable
 		'designation' => 'encrypted',
 		'date_of_birth' => 'encrypted',
 		'id_number' => 'encrypted',
-		'first_name' => 'encrypted',
-		'middle_name' => 'encrypted',
-		'last_name' => 'encrypted',
+		# 'first_name' => 'encrypted',
+		# 'middle_name' => 'encrypted',
+		# 'last_name' => 'encrypted',
 		'two_factor_secret' => 'encrypted',
 		'two_factor_recovery_codes' => 'encrypted',
 		'client_id' => 'string',
@@ -125,7 +125,12 @@ class User extends Authenticatable implements Auditable
 			return '';
 		}
 
-		return implode(', ', SampleAnalysisStage::whereIn('id', $ids)->pluck('name')->toArray());
+		$validIds = array_filter($ids, fn($id) => \Illuminate\Support\Str::isUuid($id));
+		if (empty($validIds)) {
+			return '';
+		}
+
+		return implode(', ', SampleAnalysisStage::whereIn('id', $validIds)->pluck('name')->toArray());
 	}
 	protected function getLabSectionIdsAttribute(){
 		$ids = collect(explode(',', (string) $this->lab_section_id))
@@ -138,7 +143,12 @@ class User extends Authenticatable implements Auditable
 			return [];
 		}
 
-		return SampleAnalysisStage::whereIn('id', $ids)->pluck('id')->toArray();
+		$validIds = array_filter($ids, fn($id) => \Illuminate\Support\Str::isUuid($id));
+		if (empty($validIds)) {
+			return [];
+		}
+
+		return SampleAnalysisStage::whereIn('id', $validIds)->pluck('id')->toArray();
 	}
 
 	public function audit_logs()

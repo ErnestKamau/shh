@@ -130,7 +130,11 @@ class SampleCreationService
                         $formData[$table][$index][$field] = $itemValue;
                     }
                 } else {
-                    $formData[$table][$field] = $value;
+                    if ($table === 'sample_details') {
+                        $formData[$table][0][$field] = $value;
+                    } else {
+                        $formData[$table][$field] = $value;
+                    }
                 }
             }
         }
@@ -336,15 +340,30 @@ class SampleCreationService
             $detailData['ammendment_number'] = $detailData['ammendment_number'] ?? 1;
             $detailData['is_disposed'] = $detailData['is_disposed'] ?? 0;
 
+            // Store original analysis type string for relations later
+            $analysisTypeIdsStr = $detailData['analysis_type_id'] ?? null;
+
+            // Clean up invalid UUIDs before Eloquent insertion
+            if (!empty($detailData['analysis_type_id']) && !$this->isValidUuid($detailData['analysis_type_id'])) {
+                unset($detailData['analysis_type_id']);
+            }
+            
+            $uuidColumns = ['lab_id', 'sample_condition_id', 'sample_point_id'];
+            foreach ($uuidColumns as $col) {
+                if (!empty($detailData[$col]) && !$this->isValidUuid($detailData[$col])) {
+                    unset($detailData[$col]);
+                }
+            }
+
             $sampleDetail = SampleDetails::create($detailData);
             $sampleDetails[] = $sampleDetail;
 
             // Create analysis relations if analysis types are specified
-            if (!empty($detailData['analysis_type_id'])) {
+            if (!empty($analysisTypeIdsStr)) {
                 $this->createDetailAnalysisRelation(
                     $sampleHeader->id,
                     $sampleDetail->id,
-                    explode(',', $detailData['analysis_type_id'])
+                    explode(',', $analysisTypeIdsStr)
                 );
             }
 

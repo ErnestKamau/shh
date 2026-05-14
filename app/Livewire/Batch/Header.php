@@ -108,7 +108,7 @@ class Header extends Component
                 ->get();
 
             // Section Approvers (for verification modal)
-            $this->sectionApprovers = \App\LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $this->batch->lab_section_ids))->get();
+            $this->sectionApprovers = \App\LabSectionApproverRelationShip::whereIn('lab_section_id', array_filter(explode(',', (string)$this->batch->lab_section_ids)))->get();
 
             // Lab Stores
             $this->labStores = getStorageByType('lab_store');
@@ -362,7 +362,7 @@ class Header extends Component
             return;
         }
 
-        $section_users = \App\LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get();
+        $section_users = \App\LabSectionApproverRelationShip::whereIn('lab_section_id', array_filter(explode(',', (string)$batch->lab_section_ids)))->get();
         if ($section_users->count() <= 0) {
             session()->flash('error', 'Kindly provide approval configuration for the selected batch lab sections');
             return;
@@ -393,7 +393,7 @@ class Header extends Component
         // The legacy controller logic does this:
         $users = [];
         $user_approvers = [];
-        foreach (explode(',', $batch->lab_section_ids) as $section_id) {
+        foreach (array_filter(explode(',', (string)$batch->lab_section_ids)) as $section_id) {
             $c_user = CapturedResult::where('lab_section_id', $section_id)
                 ->where('sample_header_id', $batch->id)
                 ->orderBy('updated_at', 'DESC')

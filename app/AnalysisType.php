@@ -83,6 +83,9 @@ class AnalysisType extends Model implements Auditable
   }
   public function getLabSectionNameAttribute()
   {
+    if (empty($this->lab_section_id) || !\Illuminate\Support\Str::isUuid($this->lab_section_id)) {
+      return '';
+    }
     return SampleAnalysisStage::find($this->lab_section_id)->name ?? '';
   }
   public function zohoitem()

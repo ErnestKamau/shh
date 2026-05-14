@@ -109,4 +109,9 @@ class SampleDetails extends Model implements Auditable
 	{
 		return CapturedResult::where('sample_detail_id', $this->id)->pluck('analyte_code')->toArray();
 	}
+
+	public function lab()
+	{
+		return $this->belongsTo('App\Lab', 'lab_id');
+	}
 }
