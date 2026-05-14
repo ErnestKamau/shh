@@ -212,8 +212,10 @@
                                                 </div>
                                             </td>
                                         </tr>
-                                    @endforeach
-                                </tbody>
+                                    @empty
+                                        <!-- tbody always present, even if empty -->
+                                    @endforelse
+                                    </tbody>
                             </table>
                         </div>
                         <!-- Pagination -->
@@ -275,15 +277,14 @@
                                                         {{ $selectedAnalyteName }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="clearAnalyte"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="analyteSearch" 
+                                                           wire:keyup="searchAnalytes"
+                                                           class="tag-input" 
+                                                           placeholder="Search analytes..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="analyteSearch" 
-                                                       wire:keyup="searchAnalytes"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $selectedAnalyteName ? '' : 'Search analytes...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -313,15 +314,14 @@
                                                         {{ $selectedMethodName }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="clearMethod"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="methodSearch" 
+                                                           wire:keyup="searchMethods"
+                                                           class="tag-input" 
+                                                           placeholder="Search methods..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="methodSearch" 
-                                                       wire:keyup="searchMethods"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $selectedMethodName ? '' : 'Search methods...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -353,15 +353,14 @@
                                                         {{ $selectedEquipmentName }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="clearEquipment"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="equipmentSearch" 
+                                                           wire:keyup="searchEquipment"
+                                                           class="tag-input" 
+                                                           placeholder="Search equipment..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="equipmentSearch" 
-                                                       wire:keyup="searchEquipment"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $selectedEquipmentName ? '' : 'Search equipment...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -391,15 +390,14 @@
                                                         {{ $selectedOperatorName }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="clearOperator"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="operatorSearch" 
+                                                           wire:keyup="searchOperators"
+                                                           class="tag-input" 
+                                                           placeholder="Search operators..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="operatorSearch" 
-                                                       wire:keyup="searchOperators"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $selectedOperatorName ? '' : 'Search operators...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -431,15 +429,14 @@
                                                         {{ $elementForm['reporting_unit'] }}
                                                         <i class="mdi mdi-close-circle" wire:click.stop="$set('elementForm.reporting_unit', '')"></i>
                                                     </span>
+                                                @else
+                                                    <input type="text" 
+                                                           wire:model.live="reportingUnitSearch" 
+                                                           wire:keyup="searchReportingUnits"
+                                                           class="tag-input" 
+                                                           placeholder="Search reporting units..."
+                                                           autocomplete="off">
                                                 @endif
-                                                
-                                                <!-- Search Input -->
-                                                <input type="text" 
-                                                       wire:model.live="reportingUnitSearch" 
-                                                       wire:keyup="searchReportingUnits"
-                                                       class="tag-input" 
-                                                       placeholder="{{ $elementForm['reporting_unit'] ? '' : 'Search reporting units...' }}"
-                                                       autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
@@ -768,6 +765,19 @@ function initializeSortable() {
             sortableElement: sortableElement,
             sortableLibrary: typeof Sortable
         });
+    }
+}
+// Utility: Markdown formatting with marked, always safe
+function formatMessage(text) {
+    if (!text) return '';
+    try {
+        if (window.marked) {
+            const rawHtml = window.marked.parse(text || '');
+            return DOMPurify.sanitize(rawHtml);
+        }
+        return text || '';
+    } catch (e) {
+        return text || '';
     }
 }
 

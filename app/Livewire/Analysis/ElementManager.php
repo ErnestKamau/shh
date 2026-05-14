@@ -220,6 +220,12 @@ class ElementManager extends Component
     public function showCreateElementModal()
     {
         $this->resetElementForm();
+        // Preload all active options for dropdowns
+        $this->filteredAnalytes = Analyte::where('active', 1)->orderBy('name')->get();
+        $this->filteredMethods = AnalysisMethod::where('active', 1)->orderBy('name')->get();
+        $this->filteredEquipment = Equipment::where('active', 1)->orderBy('name')->get();
+        $this->filteredOperators = User::where('active', 1)->orderBy('name')->get();
+        $this->filteredReportingUnits = ReportingUnit::orderBy('name')->get();
         $this->showElementModal = true;
         $this->editingElement = null;
         $this->dispatch('element-modal-opened');

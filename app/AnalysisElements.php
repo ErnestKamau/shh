@@ -3,12 +3,27 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\Analyte;
 
 class AnalysisElements extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+
+	public $incrementing = false;
+	protected $keyType = 'string';
+
+	protected static function boot(): void
+	{
+		parent::boot();
+
+		static::creating(function ($model) {
+			if (empty($model->{$model->getKeyName()})) {
+				$model->{$model->getKeyName()} = (string) Str::uuid();
+			}
+		});
+	}
 
   protected $appends = ['parametername'];
   protected $fillable = [
@@ -42,7 +57,7 @@ class AnalysisElements extends Model implements Auditable
   ];
   
   protected $casts = [
-    'operator_id' => 'integer',
+    'operator_id' => 'string',
     'lod' => 'float',
     'hod' => 'float',
     'level' => 'integer',

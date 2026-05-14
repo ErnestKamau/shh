@@ -25,7 +25,7 @@ class TicketChat extends Component
 
     protected $listeners = ['refreshChat' => '$refresh'];
 
-    public function mount(int $id): void
+    public function mount(string $id): void
     {
         $this->ticketId = $id;
         $this->loadTicket();

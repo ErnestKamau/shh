@@ -25,7 +25,7 @@ class ShowTicket extends Component
     public $showArchiveModal = false;
     public $archiveReason = '';
 
-    public function mount(int $id): void
+    public function mount(string $id): void
     {
         $this->ticketId = $id;
         $this->loadTicket();

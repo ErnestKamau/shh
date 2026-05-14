@@ -288,6 +288,17 @@
             border-color: #fda4af;
         }
 
+        .rm-act-btn--expand {
+            border: 1px solid transparent;
+            color: #0d6efd;
+            background: #f8fafc;
+        }
+
+        .rm-act-btn--expand:hover {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+
         button.dt-button,
         div.dt-button,
         a.dt-button {

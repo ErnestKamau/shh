@@ -74,6 +74,29 @@
         }
     }
 
+    // Add Workflow Manager breadcrumb
+    if (isset($componentType) && $componentType === 'workflow-manager') {
+        $breadcrumbItems[] = [
+            'link' => route('equipment.disposal.workflow.index'),
+            'name' => 'Workflow',
+            'icon' => null
+        ];
+    }
+    
+    // Add Workflow Form breadcrumb
+    if (isset($componentType) && $componentType === 'workflow-form') {
+        $breadcrumbItems[] = [
+            'link' => route('equipment.disposal.workflow.index'),
+            'name' => 'Workflow',
+            'icon' => null
+        ];
+        $breadcrumbItems[] = [
+            'link' => '#',
+            'name' => 'Create',
+            'icon' => null
+        ];
+    }
+
     // Add Equipment Checks breadcrumb
     if (isset($componentType) && $componentType === 'equipment-checks') {
         $breadcrumbItems[] = [

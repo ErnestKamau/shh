@@ -5,6 +5,7 @@ namespace App\Http\Controllers\LivewireControllers;
 use App\Http\Controllers\Controller;
 use App\SampleType;
 use App\AnalysisType;
+use App\AnalysisMethod;
 use App\Models\RemedyHeader;
 use App\Models\RatingHeader;
 use Illuminate\Support\Str;
@@ -40,6 +41,32 @@ class LabAppController extends Controller
         return view('livewire.layout.lab-app', [
             'componentType' => 'analytes',
             'pageTitle' => 'Analytes Management'
+        ]);
+    }
+
+    /**
+     * Display the analysis methods management page.
+     */
+    public function methods()
+    {
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'methods',
+            'pageTitle' => 'Analysis Methods Management'
+        ]);
+    }
+
+    /**
+     * Display the analysis method detail page.
+     */
+    public function methodDetail($methodId)
+    {
+        $method = AnalysisMethod::findOrFail($methodId);
+
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'method-detail',
+            'pageTitle' => 'Analysis Method Detail - ' . $method->name,
+            'methodId' => $methodId,
+            'methodName' => $method->name,
         ]);
     }
 

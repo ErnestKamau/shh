@@ -140,17 +140,17 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <a href="{{ route('analysis-method', ['id' => $method->id]) }}" 
-                                                       class="btn btn-sm btn-outline-info mr-2" 
+                                                       class="btn btn-sm rm-act-btn rm-act-btn--view" 
                                                        title="View Details">
                                                         <i class="mdi mdi-eye"></i>
                                                     </a>
-                                                    <button wire:click="showEditMethodModal({{ $method->id }})" 
-                                                            class="btn btn-sm btn-outline-warning mr-2" 
+                                                    <button wire:click="showEditMethodModal(@js($method->id))" 
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--edit" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteMethod({{ $method->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
+                                                    <button wire:click="deleteMethod(@js($method->id))" 
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--delete" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this method?')">
                                                         <i class="mdi mdi-delete"></i>

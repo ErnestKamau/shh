@@ -32,7 +32,7 @@ class JobResponsibilityManager extends Component
 
     protected $paginationTheme = 'bootstrap';
 
-    public function mount(int $designationId): void
+    public function mount(string $designationId): void
     {
         $this->designationId = $designationId;
     }

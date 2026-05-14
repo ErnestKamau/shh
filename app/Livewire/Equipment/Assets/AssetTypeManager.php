@@ -110,11 +110,15 @@ class AssetTypeManager extends Component
 
     public function render()
     {
-        $query = AssetType::query();
+        $query = AssetType::query()->withCount(['equipments as active_equipments_count' => function ($query) {
+            $query->where('active', 1);
+        }]);
 
         if ($this->search) {
-            $query->where('asset_code', 'like', '%' . $this->search . '%')
+            $query->where(function($q) {
+                $q->where('asset_code', 'like', '%' . $this->search . '%')
                   ->orWhere('descripton', 'like', '%' . $this->search . '%');
+            });
         }
 
         return view('livewire.equipment.assets.asset-type-manager', [

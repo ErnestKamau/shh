@@ -34,6 +34,31 @@
         ];
     }
 
+    // Add Methods if we're in methods section
+    if (isset($componentType) && $componentType === 'methods') {
+        $breadcrumbItems[] = [
+            'link' => route('analysis-methods'),
+            'name' => 'Methods Management',
+            'icon' => null
+        ];
+    }
+
+    // Add Method Details if we're in method detail section
+    if (isset($componentType) && $componentType === 'method-detail') {
+        $breadcrumbItems[] = [
+            'link' => route('analysis-methods'),
+            'name' => 'Methods Management',
+            'icon' => null
+        ];
+        if (isset($methodName) && $methodName) {
+            $breadcrumbItems[] = [
+                'link' => '#',
+                'name' => $methodName,
+                'icon' => null
+            ];
+        }
+    }
+
     // Add Remedies if we're in remedies section
     if (isset($componentType) && $componentType === 'remedies') {
         $breadcrumbItems[] = [
@@ -174,6 +199,10 @@
     @livewire('samples.sample-type-manager')
     @elseif($componentType === 'analytes')
     @livewire('lab.analyte-manager')
+    @elseif($componentType === 'methods')
+    @livewire('lab.method-manager')
+    @elseif($componentType === 'method-detail')
+    @livewire('lab.method-detail', ['methodId' => $methodId])
     @elseif($componentType === 'analysis-types')
     @livewire('analysis.analysis-type-manager', ['sampleTypeId' => $sampleType->id ?? null])
     @elseif($componentType === 'elements')

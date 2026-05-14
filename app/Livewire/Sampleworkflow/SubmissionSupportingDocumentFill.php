@@ -24,7 +24,7 @@ class SubmissionSupportingDocumentFill extends Component
      */
     public array $values = [];
 
-    public function mount(int $submissionRequestId, int $instanceId): void
+    public function mount(string $submissionRequestId, string $instanceId): void
     {
         $this->submissionRequestId = $submissionRequestId;
         $this->instanceId = $instanceId;

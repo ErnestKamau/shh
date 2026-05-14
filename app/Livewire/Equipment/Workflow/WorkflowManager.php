@@ -18,6 +18,13 @@ class WorkflowManager extends Component
     // Filters
     public $typeFilter = '';
     public $locationFilter = '';
+    public $typeFilterName = '';
+    public $locationFilterName = '';
+    public $typeFilterSearch = '';
+    public $locationFilterSearch = '';
+    
+    // Expanded workflows
+    public $expandedWorkflows = [];
     
     protected $paginationTheme = 'bootstrap';
 
@@ -29,11 +36,25 @@ class WorkflowManager extends Component
     public function updatedTypeFilter()
     {
         $this->resetPage();
+        // Update typeFilterName when filter changes
+        if ($this->typeFilter) {
+            $assetType = AssetType::find($this->typeFilter);
+            $this->typeFilterName = $assetType ? $assetType->name : '';
+        } else {
+            $this->typeFilterName = '';
+        }
     }
 
     public function updatedLocationFilter()
     {
         $this->resetPage();
+        // Update locationFilterName when filter changes
+        if ($this->locationFilter) {
+            $location = AssetLocation::find($this->locationFilter);
+            $this->locationFilterName = $location ? $location->name : '';
+        } else {
+            $this->locationFilterName = '';
+        }
     }
 
     public function deleteWorkflow($id)
@@ -55,6 +76,15 @@ class WorkflowManager extends Component
             $this->dispatch('alert', ['type' => 'success', 'message' => 'Workflow status updated successfully.']);
         } catch (\Exception $e) {
             $this->dispatch('alert', ['type' => 'error', 'message' => 'Error updating status: ' . $e->getMessage()]);
+        }
+    }
+
+    public function toggleExpand($id)
+    {
+        if (isset($this->expandedWorkflows[$id])) {
+            unset($this->expandedWorkflows[$id]);
+        } else {
+            $this->expandedWorkflows[$id] = true;
         }
     }
 

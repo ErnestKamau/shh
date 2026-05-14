@@ -46,38 +46,54 @@ class Analyte extends Model implements Auditable
     }
 
 	public function equipment(){
-    return $this->belongsTo('App\Models\Equipments\Equipment');
-  }
+        return $this->belongsTo('App\Models\Equipments\Equipment');
+    }
 
 	public function method(){
-    return $this->belongsTo('App\AnalysisMethod', 'method');
+        return $this->belongsTo('App\AnalysisMethod', 'method');
+	}
+
+	/**
+	 * Many-to-many relationship with AnalysisMethod via analyte_methods pivot table.
+	 */
+	public function analysisMethods()
+	{
+		return $this->belongsToMany(
+			AnalysisMethod::class,
+			'analyte_methods',
+			'analyte_id',
+			'analysis_method_id'
+		)->withTimestamps();
+	}
+
+	/**
+	 * Many-to-many relationship with Equipment via analyte_equipment pivot table.
+	 */
+	public function equipmentItems()
+	{
+		return $this->belongsToMany(
+			Models\Equipments\Equipment::class,
+			'analyte_equipment',
+			'analyte_id',
+			'equipment_id'
+		)->withTimestamps();
 	}
 
 	public function methods(){
-		if (empty($this->method)) return [];
-		$ids = array_filter(explode(",", $this->method));
-		if (empty($ids)) return [];
-		$methods = AnalysisMethod::whereIn('id', $ids)->get();
-		$response = array();
-
-		foreach($methods as $method){
+		$methods = $this->analysisMethods()->get();
+		$response = [];
+		foreach ($methods as $method) {
 			$response[$method->name] = $method->id;
 		}
-
 		return $response;
 	}
 
 	public function equipments(){
-		if (empty($this->equipment_id)) return [];
-		$ids = array_filter(explode(",", $this->equipment_id));
-		if (empty($ids)) return [];
-		$equipments = Models\Equipments\Equipment::whereIn('id', $ids)->get();
-		$response = array();
-
-		foreach($equipments as $equipment){
+		$equipments = $this->equipmentItems()->get();
+		$response = [];
+		foreach ($equipments as $equipment) {
 			$response[$equipment->name] = $equipment->id;
 		}
-
 		return $response;
 	}
 }

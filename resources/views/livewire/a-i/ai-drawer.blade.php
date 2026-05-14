@@ -71,7 +71,7 @@
     formatMessage(text) {
         if (!text) return '';
         try {
-            const rawHtml = marked.parse(text);
+            const rawHtml = marked.parse(text || '');
             return DOMPurify.sanitize(rawHtml);
         } catch (e) {
             return text;
@@ -84,7 +84,7 @@
             container.scrollTop = container.scrollHeight;
         }
     }
-}" x-init="marked.setOptions({ breaks: true, gfm: true, headerIds: false, mangle: false });">
+}" x-init="window.marked?.setOptions({ breaks: true, gfm: true, headerIds: false, mangle: false });">
     {{-- Floating Trigger Button --}}
     <div
         class="ai-drawer-trigger" 

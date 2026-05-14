@@ -974,7 +974,6 @@ class PersonnelDetailManager extends Component
     {
         return Role::query()
             ->where('guard_name', 'web')
-            ->where('company_id', getUserCompany())
             ->where('active', 1)
             ->orderBy('name')
             ->get(['id', 'name']);

@@ -54,6 +54,9 @@ class AnalyteManager extends Component
     public $equipmentSearch = '';
     public $showMethodDropdown = false;
     public $showEquipmentDropdown = false;
+
+    // Status tag-select
+    public $showStatusDropdown = false;
     
     // Reporting unit single-select properties
     public $reportingUnitSearch = '';
@@ -85,6 +88,13 @@ class AnalyteManager extends Component
 
     public function updatedStatusFilter(): void
     {
+        $this->resetPage();
+    }
+
+    public function selectStatus($value): void
+    {
+        $this->statusFilter = $value;
+        $this->showStatusDropdown = false;
         $this->resetPage();
     }
 
@@ -129,8 +139,8 @@ class AnalyteManager extends Component
             'equivalent_weight' => $analyte->equivalent_weight,
             'reporting_symbol' => $analyte->reporting_symbol,
             'reporting_unit' => $analyte->reporting_unit,
-            'method' => $analyte->method ? array_filter(explode(',', $analyte->method)) : [],
-            'equipment_id' => $analyte->equipment_id ? array_filter(explode(',', $analyte->equipment_id)) : [],
+            'method' => $analyte->analysisMethods()->pluck('analysis_methods.id')->toArray(),
+            'equipment_id' => $analyte->equipmentItems()->pluck('equipment.id')->toArray(),
             'is_italic' => (bool) $analyte->is_italic,
             'non_detectable' => (bool) $analyte->non_detectable,
             'non_accredited' => (bool) $analyte->non_accredited,
@@ -160,8 +170,6 @@ class AnalyteManager extends Component
                 'equivalent_weight' => $this->analyteForm['equivalent_weight'],
                 'reporting_symbol' => $this->analyteForm['reporting_symbol'],
                 'reporting_unit' => $this->analyteForm['reporting_unit'],
-                'method' => !empty($this->analyteForm['method']) ? implode(',', $this->analyteForm['method']) : null,
-                'equipment_id' => !empty($this->analyteForm['equipment_id']) ? implode(',', $this->analyteForm['equipment_id']) : null,
                 'is_italic' => ($this->analyteForm['is_italic'] ?? false) ? 1 : 0,
                 'non_detectable' => ($this->analyteForm['non_detectable'] ?? false) ? 1 : 0,
                 'non_accredited' => ($this->analyteForm['non_accredited'] ?? false) ? 1 : 0,
@@ -172,11 +180,16 @@ class AnalyteManager extends Component
             
             if ($this->editingAnalyte) {
                 $this->editingAnalyte->update($data);
+                $analyte = $this->editingAnalyte;
                 $this->message = 'Analyte updated successfully!';
             } else {
-                Analyte::create($data);
+                $analyte = Analyte::create($data);
                 $this->message = 'Analyte created successfully!';
             }
+
+            // Sync pivot relationships
+            $analyte->analysisMethods()->sync($this->analyteForm['method'] ?? []);
+            $analyte->equipmentItems()->sync($this->analyteForm['equipment_id'] ?? []);
             
             $this->messageType = 'success';
             $this->closeModal();
@@ -271,7 +284,7 @@ class AnalyteManager extends Component
 
     public function updatedMethodSearch(): void
     {
-        $this->showMethodDropdown = !empty($this->methodSearch);
+        $this->showMethodDropdown = true;
     }
 
     // Tag-based multi-select methods for Equipment
@@ -294,31 +307,25 @@ class AnalyteManager extends Component
 
     public function updatedEquipmentSearch(): void
     {
-        $this->showEquipmentDropdown = !empty($this->equipmentSearch);
+        $this->showEquipmentDropdown = true;
     }
 
     public function getFilteredMethodsProperty()
     {
-        if (empty($this->methodSearch)) {
-            return [];
+        $query = AnalysisMethod::where('active', 1)->orderBy('name');
+        if (!empty($this->methodSearch)) {
+            $query->where('name', 'like', '%' . $this->methodSearch . '%');
         }
-        
-        return AnalysisMethod::where('name', 'like', '%' . $this->methodSearch . '%')
-            ->where('active', 1)
-            ->limit(10)
-            ->get();
+        return $query->limit(30)->get();
     }
 
     public function getFilteredEquipmentProperty()
     {
-        if (empty($this->equipmentSearch)) {
-            return [];
+        $query = Equipment::where('active', 1)->orderBy('name');
+        if (!empty($this->equipmentSearch)) {
+            $query->where('name', 'like', '%' . $this->equipmentSearch . '%');
         }
-        
-        return Equipment::where('name', 'like', '%' . $this->equipmentSearch . '%')
-            ->where('active', 1)
-            ->limit(10)
-            ->get();
+        return $query->limit(30)->get();
     }
 
     public function getSelectedMethodsProperty()
@@ -349,19 +356,18 @@ class AnalyteManager extends Component
 
     public function updatedReportingUnitSearch(): void
     {
-        $this->showReportingUnitDropdown = !empty($this->reportingUnitSearch);
+        $this->showReportingUnitDropdown = true;
     }
 
     public function getFilteredReportingUnitsProperty()
     {
-        if (empty($this->reportingUnitSearch)) {
-            return [];
+        $query = ReportingUnit::where('active', 1)->orderBy('name');
+
+        if (!empty($this->reportingUnitSearch)) {
+            $query->where('name', 'like', '%' . $this->reportingUnitSearch . '%');
         }
-        
-        return ReportingUnit::where('name', 'like', '%' . $this->reportingUnitSearch . '%')
-            ->where('active', 1)
-            ->limit(50)
-            ->get();
+
+        return $query->limit(50)->get();
     }
 
     public function render()
@@ -382,7 +388,8 @@ class AnalyteManager extends Component
             $query->where('active', $this->statusFilter);
         }
         
-        $analytes = $query->orderBy('created_at', 'desc')
+        $analytes = $query->with(['analysisMethods', 'equipmentItems'])
+            ->orderBy('created_at', 'desc')
             ->paginate($this->perPage);
         
         $reportingUnits = ReportingUnit::where('active', 1)->get();
