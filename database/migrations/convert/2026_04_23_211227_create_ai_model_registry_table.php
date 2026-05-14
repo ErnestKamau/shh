@@ -14,27 +14,29 @@ return new class extends Migration
     {
         DB::statement('CREATE SCHEMA IF NOT EXISTS ai');
 
-        Schema::create('ai.ai_model_registry', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->string('model_name');
-            $table->string('model_type');
-            $table->string('version')->default('1.0.0');
-            $table->string('framework')->nullable();
-            $table->text('artifact_path')->nullable();
-            $table->uuid('feature_snapshot_id')->nullable();
-            $table->integer('training_rows')->default(0);
-            $table->double('training_duration_seconds')->nullable();
-            $table->jsonb('hyperparameters')->nullable();
-            $table->jsonb('metrics')->nullable();
-            $table->boolean('is_active')->default(false);
-            $table->boolean('is_deprecated')->default(false);
-            $table->timestampTz('deployed_at')->nullable();
-            $table->timestampsTz();
+        if (!Schema::hasTable('ai.ai_model_registry')) {
+            Schema::create('ai.ai_model_registry', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->string('model_name');
+                $table->string('model_type');
+                $table->string('version')->default('1.0.0');
+                $table->string('framework')->nullable();
+                $table->text('artifact_path')->nullable();
+                $table->uuid('feature_snapshot_id')->nullable();
+                $table->integer('training_rows')->default(0);
+                $table->double('training_duration_seconds')->nullable();
+                $table->jsonb('hyperparameters')->nullable();
+                $table->jsonb('metrics')->nullable();
+                $table->boolean('is_active')->default(false);
+                $table->boolean('is_deprecated')->default(false);
+                $table->timestampTz('deployed_at')->nullable();
+                $table->timestampsTz();
 
-            $table->unique(['model_type', 'version']);
-            $table->index('model_type');
-            $table->index('is_active');
-        });
+                $table->unique(['model_type', 'version']);
+                $table->index('model_type');
+                $table->index('is_active');
+            });
+        }
     }
 
     /**

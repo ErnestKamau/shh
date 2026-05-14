@@ -14,22 +14,24 @@ return new class extends Migration
     {
         DB::statement('CREATE SCHEMA IF NOT EXISTS ai');
 
-        Schema::create('ai.ai_feature_snapshots', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
-            $table->timestampTz('snapshot_time')->useCurrent();
-            $table->text('description')->nullable();
-            $table->jsonb('metadata')->nullable();
+        if (!Schema::hasTable('ai.ai_feature_snapshots')) {
+            Schema::create('ai.ai_feature_snapshots', function (Blueprint $table) {
+                $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+                $table->timestampTz('snapshot_time')->useCurrent();
+                $table->text('description')->nullable();
+                $table->jsonb('metadata')->nullable();
 
-            // Legacy aggregate columns kept nullable for existing dashboard code.
-            $table->string('feature_type')->nullable();
-            $table->unsignedBigInteger('snapshot_id')->nullable()->index('idx_ai_feature_snapshots_snapshot_id');
-            $table->string('feature_name')->nullable();
-            $table->double('mean_value')->default(0);
-            $table->double('variance')->default(0);
-            $table->integer('record_count')->default(0);
+                // Legacy aggregate columns kept nullable for existing dashboard code.
+                $table->string('feature_type')->nullable();
+                $table->unsignedBigInteger('snapshot_id')->nullable()->index('idx_ai_feature_snapshots_snapshot_id');
+                $table->string('feature_name')->nullable();
+                $table->double('mean_value')->default(0);
+                $table->double('variance')->default(0);
+                $table->integer('record_count')->default(0);
 
-            $table->timestampsTz();
-        });
+                $table->timestampsTz();
+            });
+        }
     }
 
     /**
