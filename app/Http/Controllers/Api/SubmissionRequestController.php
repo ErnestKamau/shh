@@ -11,6 +11,8 @@ use App\Models\System\SystemConfiguration;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SampleType;
+use App\Zone;
+use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -244,6 +246,12 @@ class SubmissionRequestController extends Controller
 
     private function resolveParameterLabel(string $token): string
     {
+        $token = trim($token);
+
+        if ($token === '' || (!ctype_digit($token) && !Str::isUuid($token))) {
+            return $token;
+        }
+
         $analyte = DB::table('analytes')->where('id', $token)->value('name');
         if (!empty($analyte)) {
             return (string) $analyte;
@@ -347,7 +355,9 @@ class SubmissionRequestController extends Controller
 
     private function resolveParameterPrice(?Pricelist $pricelist, string $analysisId, ?string $sampleTypeId): float
     {
-        if (!$pricelist || trim($analysisId) === '') {
+        $analysisId = trim($analysisId);
+
+        if (!$pricelist || $analysisId === '' || !ctype_digit($analysisId)) {
             return 0.0;
         }
 
@@ -418,52 +428,8 @@ class SubmissionRequestController extends Controller
             return response()->json(['lab_no' => '', 'customer_name' => '', 'email' => '', 'tel' => '', 'address' => ''], 200);
         }
 
-        $batchConfig = SystemConfiguration::where('key', 'batch_code_config')->first();
-        $configBatchNo = SystemConfiguration::where('key', 'batch_start_no')->first();
-
-        if (!$batchConfig || !$configBatchNo) {
-            return response()->json(['lab_no' => '', 'customer_name' => $customer->name ?? '', 'email' => $customer->email ?? '', 'tel' => $customer->telephone1 ?? '', 'address' => $customer->postal_address ?? ''], 200);
-        }
-
-        // Resolve sample type code
-        $sampleTypeCode = 'XX';
-        $sampleTypeNames = $formInstance->getResolvedSampleTypeNames();
-        if (!empty($sampleTypeNames)) {
-            $sampleType = SampleType::where('name', $sampleTypeNames[0])->first();
-            if ($sampleType) {
-                $sampleTypeCode = (string) $sampleType->code;
-            }
-        } elseif ($formInstance->submissionForm && $formInstance->submissionForm->sampleTypes->isNotEmpty()) {
-            $sampleTypeCode = (string) $formInstance->submissionForm->sampleTypes->first()->code;
-        }
-
-        // Build customer number part (same algorithm as add_batch_info)
-        $custCode = str_split((string) $customer->code);
-        $cont = [];
-        $loop = 0;
-        foreach ($custCode as $cc) {
-            if ((int) $cc > 0) {
-                $cont[] = $loop;
-            }
-            ++$loop;
-        }
-        $tt = count($custCode) - 1;
-        $ranges = range($cont[0] ?? 0, $tt);
-        $values = [];
-        if (count($cont) < 2) {
-            $values[] = '0';
-            $values[] = $custCode[$cont[0] ?? 0] ?? '0';
-        } else {
-            foreach ($ranges as $r) {
-                $values[] = $custCode[$r] ?? '0';
-            }
-        }
-
-        $prefix = 'BA' . $batchConfig->value . implode('', $values) . $sampleTypeCode;
-        $batchCount = SampleHeader::count();
-        $batchNos = (int) $configBatchNo->value + $batchCount + 1;
-        $finalNo = str_pad((string) $batchNos, 4, '0', STR_PAD_LEFT);
-        $previewCode = $prefix . $finalNo;
+        $zoneCode = $this->resolveZoneCodeForPreview($formInstance) ?? 'XX';
+        $previewCode = $this->generateZoneYearPreviewCode($zoneCode);
 
         return response()->json([
             'lab_no' => $previewCode,
@@ -472,5 +438,116 @@ class SubmissionRequestController extends Controller
             'tel' => $customer->telephone1 ?? '',
             'address' => $customer->postal_address ?? '',
         ]);
+    }
+
+    private function resolveZoneCodeForPreview(SubmissionFormInstance $instance): ?string
+    {
+        $linkedRequest = $this->resolveLinkedSubmissionRequestFromFormInstance($instance);
+        if ($linkedRequest) {
+            $zoneCode = $this->normalizeZoneCode($linkedRequest->getAttribute('zone_code'))
+                ?? $this->resolveZoneCodeFromZoneId($linkedRequest->getAttribute('zone_id'))
+                ?? $this->normalizeZoneCode($linkedRequest->getAttribute('zone'));
+
+            if ($zoneCode !== null) {
+                return $zoneCode;
+            }
+        }
+
+        $directZoneCode = $this->normalizeZoneCode($instance->getAttribute('zone_code'))
+            ?? $this->resolveZoneCodeFromZoneId($instance->getAttribute('zone_id'))
+            ?? $this->resolveZoneCodeFromFormValues($instance)
+            ?? $this->resolveZoneCodeFromSubmittingUser($instance);
+
+        return $directZoneCode;
+    }
+
+    private function resolveZoneCodeFromFormValues(SubmissionFormInstance $instance): ?string
+    {
+        $values = $instance->values()->with('element')->get();
+
+        foreach ($values as $value) {
+            $element = $value->element;
+            if (! $element) {
+                continue;
+            }
+
+            $name = Str::lower(trim(((string) $element->name) . ' ' . ((string) $element->label) . ' ' . ((string) $element->mapping_field)));
+            if (! Str::contains($name, ['zone', 'submission zone'])) {
+                continue;
+            }
+
+            $zoneCode = $this->normalizeZoneCode($value->value)
+                ?? $this->resolveZoneCodeFromZoneId($value->value);
+
+            if ($zoneCode !== null) {
+                return $zoneCode;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveZoneCodeFromSubmittingUser(SubmissionFormInstance $instance): ?string
+    {
+        if (empty($instance->submitted_by)) {
+            return null;
+        }
+
+        $user = User::query()->select('id', 'zone_id')->find((string) $instance->submitted_by);
+        if (! $user) {
+            return null;
+        }
+
+        return $this->resolveZoneCodeFromZoneId($user->zone_id);
+    }
+
+    private function resolveZoneCodeFromZoneId($zoneId): ?string
+    {
+        if (empty($zoneId)) {
+            return null;
+        }
+
+        $zone = Zone::query()->select('id', 'key')->find((string) $zoneId);
+        if (! $zone) {
+            return null;
+        }
+
+        return $this->normalizeZoneCode($zone->key);
+    }
+
+    private function normalizeZoneCode($zone): ?string
+    {
+        $value = strtoupper(trim((string) $zone));
+        if ($value === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/[^A-Z0-9]/', '', $value);
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function generateZoneYearPreviewCode(string $zoneCode): string
+    {
+        $yy = date('y');
+        $prefix = strtoupper($zoneCode) . $yy . '-';
+
+        $existingCodes = SampleHeader::query()
+            ->where('batch_code', 'like', $prefix . '%')
+            ->pluck('batch_code');
+
+        $maxSeq = 0;
+        foreach ($existingCodes as $code) {
+            $code = (string) $code;
+            if (!str_starts_with($code, $prefix)) {
+                continue;
+            }
+
+            $suffix = substr($code, strlen($prefix));
+            if (ctype_digit($suffix)) {
+                $maxSeq = max($maxSeq, (int) $suffix);
+            }
+        }
+
+        return $prefix . sprintf('%05d', $maxSeq + 1);
     }
 }

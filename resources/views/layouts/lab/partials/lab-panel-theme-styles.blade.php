@@ -2,17 +2,23 @@
 	.lab-panel-theme {
 		--workflow-accent: #3b5fc0;
 		--workflow-accent-soft: #f0f4ff;
-		--workflow-border: #e9ecef;
+		--workflow-border: #e2e8f0;
 		--workflow-muted: #64748b;
-		--workflow-surface: #fafbfc;
+		--workflow-surface: #ffffff;
+		--workflow-bg: #f8fafc;
+		--workflow-text-main: #1e293b;
+		--workflow-text-muted: #64748b;
+		--card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+		--card-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 	}
 
 	.lab-panel-theme .workflow-board-panel {
 		background: #fff;
 		border: 1px solid var(--workflow-border);
-		border-radius: 10px;
-		margin-bottom: 1rem;
-		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+		border-radius: 12px;
+		margin-bottom: 1.5rem;
+		box-shadow: var(--card-shadow);
+		overflow: hidden;
 	}
 
 	.lab-panel-theme .workflow-board-panel-header {
@@ -20,204 +26,169 @@
 		align-items: center;
 		justify-content: space-between;
 		flex-wrap: wrap;
-		gap: 10px;
-		padding: 12px 18px;
-		border-bottom: 1px solid #f1f5f9;
-		background: var(--workflow-surface);
-		border-radius: 10px 10px 0 0;
+		gap: 12px;
+		padding: 20px 24px;
+		border-bottom: 1px solid var(--workflow-border);
+		background: #fff;
 	}
 
 	.lab-panel-theme .workflow-board-panel-header h5,
 	.lab-panel-theme .workflow-board-panel-header h6 {
 		margin: 0;
-		font-size: 0.95rem;
-		font-weight: 600;
-		color: #334155;
+		font-size: 1.1rem;
+		font-weight: 700;
+		color: var(--workflow-text-main);
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 10px;
 	}
 
 	.lab-panel-theme .workflow-board-panel-header h5 .mdi,
 	.lab-panel-theme .workflow-board-panel-header h6 .mdi {
-		color: var(--workflow-muted);
-		font-size: 1.1rem;
+		color: var(--workflow-accent);
+		font-size: 1.25rem;
+	}
+
+	/* Stat Cards */
+	.lab-panel-theme .stat-cards-row {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 16px;
+		margin-bottom: 24px;
+	}
+
+	.lab-panel-theme .stat-card {
+		background: #fff;
+		border: 1px solid var(--workflow-border);
+		border-radius: 12px;
+		padding: 20px;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		box-shadow: var(--card-shadow);
+		transition: transform 0.2s, box-shadow 0.2s;
+	}
+
+	.lab-panel-theme .stat-card:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--card-shadow-hover);
+	}
+
+	.lab-panel-theme .stat-card-label {
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--workflow-text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.025em;
+		margin-bottom: 8px;
+	}
+
+	.lab-panel-theme .stat-card-content {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.lab-panel-theme .stat-card-value {
+		font-size: 1.875rem;
+		font-weight: 800;
+		color: var(--workflow-text-main);
+	}
+
+	.lab-panel-theme .stat-card-icon {
+		width: 48px;
+		height: 48px;
+		border-radius: 10px;
+		background: var(--workflow-accent-soft);
+		color: var(--workflow-accent);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1.5rem;
 	}
 
 	.lab-panel-theme .workflow-board-panel-body {
-		padding: 18px 20px;
+		padding: 24px;
 	}
 
-	.lab-panel-theme .workflow-board-panel-body.flush-top {
-		padding-top: 12px;
-	}
-
-	.lab-panel-theme .workflow-board-section-label {
-		font-size: 0.9rem;
-		font-weight: 600;
-		color: #475569;
-		margin-bottom: 12px;
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-
-	.lab-panel-theme .workflow-board-section-label .mdi {
-		color: var(--workflow-muted);
+	.lab-panel-theme .workflow-board-panel-body.p-0 {
+		padding: 0;
 	}
 
 	.lab-panel-theme .workflow-board-filter-nested {
-		background: #fff;
-		border: 1px solid #f1f5f9;
-		border-radius: 8px;
-		padding: 16px 18px;
-		margin-bottom: 16px;
-	}
-
-	.lab-panel-theme .workflow-board-legend {
-		border-top: 1px solid #f1f5f9;
-		padding-top: 16px;
-		margin-top: 8px;
-	}
-
-	.lab-panel-theme .workflow-board-legend .text-muted {
-		color: #64748b !important;
-		font-size: 0.85rem;
+		background: #f8fafc;
+		border: 1px solid var(--workflow-border);
+		border-radius: 10px;
+		padding: 20px;
+		margin-bottom: 20px;
 	}
 
 	.lab-panel-theme .workflow-table thead th {
 		background: #f8fafc !important;
-		color: var(--workflow-muted) !important;
+		color: var(--workflow-text-muted) !important;
 		font-size: 0.75rem;
-		font-weight: 600;
+		font-weight: 700;
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.05em;
 		border-bottom: 1px solid var(--workflow-border) !important;
-		border-top: none !important;
+		padding: 14px 16px;
+	}
+
+	.lab-panel-theme .workflow-table tbody td {
+		padding: 16px;
 		vertical-align: middle;
+		color: var(--workflow-text-main);
+		border-bottom: 1px solid var(--workflow-border);
 	}
 
 	.lab-panel-theme .workflow-table.table-hover tbody tr:hover {
-		background-color: #f8fafc;
+		background-color: #f1f5f9;
 	}
 
 	.lab-panel-theme .workflow-status-chip {
-		display: inline-block;
-		background-color: #f8fafc;
-		padding: 6px 12px 6px 14px;
-		border-radius: 6px;
-		font-weight: 500;
+		display: inline-flex;
+		align-items: center;
+		padding: 4px 10px;
+		border-radius: 20px;
+		font-weight: 600;
+		font-size: 0.75rem;
+		background: #f1f5f9;
 		color: #475569;
-		font-size: 0.85rem;
-		border: 1px solid var(--workflow-border);
-		border-left: 4px solid var(--chip-accent, #6c757d);
-	}
-
-	.lab-panel-theme .workflow-empty-state .mdi {
-		color: #cbd5e1 !important;
-	}
-
-	.lab-panel-theme .workflow-empty-state p,
-	.lab-panel-theme .workflow-empty-state h5 {
-		color: var(--workflow-muted) !important;
+		border: 1px solid #e2e8f0;
 	}
 
 	.lab-panel-theme .btn-action-sm {
-		height: 32px;
-		padding: 0 14px;
-		font-size: 0.82rem;
-		border-radius: 6px;
-		display: inline-flex;
-		align-items: center;
-		gap: 5px;
-		font-weight: 500;
-	}
-
-	.lab-panel-theme .workflow-board-panel-body .control-label,
-	.lab-panel-theme .workflow-board-filter-nested .control-label {
-		font-size: 0.8rem;
+		height: 38px;
+		padding: 0 18px;
+		font-size: 0.875rem;
+		border-radius: 8px;
 		font-weight: 600;
-		color: #64748b;
-		margin-bottom: 0.35rem;
+		transition: all 0.2s;
 	}
 
-	.lab-panel-theme .workflow-board-panel-body .form-label {
-		font-size: 0.8rem;
-		font-weight: 600;
-		color: #64748b;
+	.lab-panel-theme .nav-tabs {
+		border-bottom: 1px solid var(--workflow-border);
+		padding: 0 24px;
+		background: #fff;
 	}
 
-	.lab-panel-theme .workflow-board-panel-body .form-control,
-	.lab-panel-theme .workflow-board-filter-nested .form-control {
-		border-radius: 6px;
-		border-color: var(--workflow-border);
-	}
-
-	.lab-panel-theme .workflow-board-panel-body .form-control:focus,
-	.lab-panel-theme .workflow-board-filter-nested .form-control:focus {
-		border-color: var(--workflow-accent);
-		box-shadow: 0 0 0 0.2rem rgba(59, 95, 192, 0.12);
-	}
-
-	.lab-panel-theme .batch-nav-tabs {
-		border-bottom: 2px solid var(--workflow-border);
-		justify-content: flex-start;
-		flex-wrap: wrap;
-		gap: 2px;
-	}
-
-	.lab-panel-theme .batch-nav-tabs .nav-item {
-		margin-bottom: -2px;
-	}
-
-	.lab-panel-theme .batch-nav-tabs .nav-link {
-		color: var(--workflow-muted);
-		background: transparent;
+	.lab-panel-theme .nav-tabs .nav-link {
 		border: none;
 		border-bottom: 2px solid transparent;
-		border-radius: 0;
-		padding: 10px 14px;
-		font-size: 0.82rem;
-		font-weight: 500;
-		white-space: nowrap;
-		transition: color 0.2s, border-color 0.2s;
-	}
-
-	.lab-panel-theme .batch-nav-tabs .nav-link i {
-		margin-right: 5px;
-		font-size: 0.9em;
-	}
-
-	.lab-panel-theme .batch-nav-tabs .nav-link:hover {
-		color: var(--workflow-accent);
-		border-bottom-color: #c7d7fc;
-		background: transparent;
-	}
-
-	.lab-panel-theme .batch-nav-tabs .nav-link.active {
-		color: var(--workflow-accent);
-		border-bottom-color: var(--workflow-accent);
-		background: transparent;
+		color: var(--workflow-text-muted);
+		padding: 14px 16px;
 		font-weight: 600;
+		font-size: 0.875rem;
 	}
 
-	.lab-panel-theme .batch-nav-tabs .nav-link .badge {
-		font-size: 0.65rem;
-		padding: 2px 6px;
-		border-radius: 20px;
-		margin-left: 4px;
-		background: #e2e8f0;
-		color: #475569;
-		font-weight: 600;
-	}
-
-	.lab-panel-theme .batch-nav-tabs .nav-link.active .badge {
-		background: var(--workflow-accent-soft);
+	.lab-panel-theme .nav-tabs .nav-link:hover {
 		color: var(--workflow-accent);
+		border-bottom-color: #cbd5e1;
 	}
 
-	.lab-panel-theme .batch-show-alerts .alert {
-		border-radius: 8px;
-		border: 1px solid transparent;
+	.lab-panel-theme .nav-tabs .nav-link.active {
+		color: var(--workflow-accent);
+		border-bottom: 2px solid var(--workflow-accent);
+		background: transparent;
 	}
 </style>

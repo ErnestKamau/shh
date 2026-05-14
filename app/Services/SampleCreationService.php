@@ -11,9 +11,13 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CRMCompanyUnit;
 use App\SampleType;
 use App\Lab;
+use App\Zone;
+use App\User;
+use App\Models\SampleSubmissionRequest;
 use App\Models\System\SystemConfiguration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class SampleCreationService
@@ -231,12 +235,62 @@ class SampleCreationService
             $headerData['date_collected'] = now()->format('Y-m-d');
         }
 
+        // Recovery logic for CRM Unit
+        if (empty($headerData['crm_unit_id']) || !$this->isValidUuid($headerData['crm_unit_id'])) {
+            $headerData['crm_unit_id'] = $this->resolveUnitId($instance, $headerData['crm_customer_id'] ?? null);
+            
+            if ($this->isValidUuid($headerData['crm_unit_id'])) {
+                Log::info('Recovered missing or invalid crm_unit_id for sample header', [
+                    'instance_id' => $instance->id,
+                    'recovered_id' => $headerData['crm_unit_id']
+                ]);
+            }
+        }
+
         // Get CRM unit name from client unit ID
         if (!empty($headerData['crm_unit_id']) && empty($headerData['crm_unit_name'])) {
             $crmUnit = CRMCompanyUnit::find($headerData['crm_unit_id']);
             if ($crmUnit) {
                 $headerData['crm_unit_name'] = $crmUnit->name;
             }
+        }
+
+        // Fallback for crm_unit_name if still missing (mandatory field)
+        if (empty($headerData['crm_unit_name'])) {
+            $headerData['crm_unit_name'] = 'N/A';
+        }
+
+        // Recovery logic for missing or invalid mandatory fields
+        if (empty($headerData['crm_customer_id']) || !$this->isValidUuid($headerData['crm_customer_id'])) {
+            $recoveredId = $instance->crm_customer_id ?? $this->resolveCustomerIdFromLinkedRequest($instance);
+            
+            if ($this->isValidUuid($recoveredId)) {
+                $headerData['crm_customer_id'] = $recoveredId;
+                Log::info('Recovered missing or invalid crm_customer_id for sample header', [
+                    'instance_id' => $instance->id,
+                    'recovered_id' => $headerData['crm_customer_id']
+                ]);
+            }
+        }
+
+        if (empty($headerData['sample_type_id']) || !$this->isValidUuid($headerData['sample_type_id'])) {
+            $recoveredId = $this->resolveSampleTypeId($instance);
+            
+            if ($this->isValidUuid($recoveredId)) {
+                $headerData['sample_type_id'] = $recoveredId;
+                Log::info('Recovered missing or invalid sample_type_id for sample header', [
+                    'instance_id' => $instance->id,
+                    'recovered_id' => $headerData['sample_type_id']
+                ]);
+            }
+        }
+
+        if (empty($headerData['crm_customer_id']) || !$this->isValidUuid($headerData['crm_customer_id'])) {
+            throw new \RuntimeException("Mandatory 'crm_customer_id' is missing or invalid and could not be recovered for form instance {$instance->id}");
+        }
+
+        if (empty($headerData['sample_type_id']) || !$this->isValidUuid($headerData['sample_type_id'])) {
+            throw new \RuntimeException("Mandatory 'sample_type_id' is missing or invalid and could not be recovered for form instance {$instance->id}");
         }
 
         $sampleHeader = SampleHeader::create($headerData);
@@ -305,65 +359,233 @@ class SampleCreationService
     }
 
     /**
-     * Generate batch code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}
-     * Smart logic: If only 1 batch, reuse form_number; if multiple batches, use sequential codes
+     * Generate batch code using required format: [ZoneCode][YY]-[NNNNN]
+     * Example: LZ26-00015
      */
     private function generateBatchCode($headerData, $submissionFormInstanceId = null, $batchCount = 1, $instance = null)
     {
-        // If no submission form instance ID provided, fall back to old method
-        if (!$submissionFormInstanceId) {
-            return $this->generateLegacyBatchCode($headerData);
-        }
-
         try {
-            // Get submission form instance and its prefix
             if (!$instance) {
                 $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
             }
 
-            if (!$instance) {
-                throw new \Exception('Submission form instance not found');
-            }
+            // New required format: [ZoneCode][YY]-[NNNNN], e.g. LZ26-00015
+            $zoneCode = $this->resolveZoneCodeForBatch($instance, $headerData);
+            $batchCode = $this->generateZoneYearBatchCode($zoneCode);
 
-            $submissionForm = $instance->submissionForm;
-            if (!$submissionForm) {
-                throw new \Exception('Submission form not found');
-            }
-
-            // SMART LOGIC: If only 1 batch, reuse the form_number
-            if ($batchCount === 1) {
-                $batchCode = $instance->form_number;
-
-                Log::info('Smart batch code generation: Reusing form_number for single batch', [
-                    'form_number' => $batchCode,
-                    'batch_count' => $batchCount
-                ]);
-
-                return $batchCode;
-            }
-
-            // Multiple batches: Use sequential batch codes
-            $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
-            $currentYear = date('Y');
-
-            // Get next batch sequence for this form instance and year
-            $batchSeqNo = \App\Models\BatchSequence::getNextBatchSequence($submissionFormInstanceId, $currentYear);
-
-            // Generate batch code: {prefix}{batch_seq_no}/{YY}
-            $batchCode = $prefix . sprintf('%03d', $batchSeqNo) . '/' . date('y');
-
-            Log::info('Standard batch code generation for multiple batches', [
+            Log::info('Generated zone-based batch code', [
                 'batch_code' => $batchCode,
-                'batch_count' => $batchCount
+                'zone_code' => $zoneCode,
+                'batch_count' => $batchCount,
+                'form_instance_id' => $instance?->id,
             ]);
 
             return $batchCode;
 
         } catch (\Exception $e) {
-            Log::error('Error generating new batch code: ' . $e->getMessage());
-            // Fall back to legacy method
+            Log::error('Error generating zone-based batch code: ' . $e->getMessage());
             return $this->generateLegacyBatchCode($headerData);
         }
+    }
+
+    private function resolveZoneCodeForBatch(?SubmissionFormInstance $instance, array $formData = []): string
+    {
+        if ($instance) {
+            $zoneFromRequest = $this->resolveZoneCodeFromLinkedSubmissionRequest($instance);
+            if ($zoneFromRequest !== null) {
+                return $zoneFromRequest;
+            }
+
+            $zoneFromInstance = $this->normalizeZoneCode($instance->getAttribute('zone_code'))
+                ?? $this->resolveZoneCodeFromZoneId($instance->getAttribute('zone_id'))
+                ?? $this->resolveZoneCodeFromFormValues($instance)
+                ?? $this->resolveZoneCodeFromSubmittingUser($instance);
+
+            if ($zoneFromInstance !== null) {
+                return $zoneFromInstance;
+            }
+        }
+
+        $zonesFromLabs = $this->resolveZoneCodesFromMappedLabs($formData);
+
+        if ($zonesFromLabs->count() === 1) {
+            return (string) $zonesFromLabs->first();
+        }
+
+        if ($zonesFromLabs->count() > 1) {
+            throw new \RuntimeException(
+                'Samples belong to multiple zones (' . $zonesFromLabs->implode(', ') . '). Split submission by zone or provide zone explicitly on submission request.'
+            );
+        }
+
+        throw new \RuntimeException('Unable to resolve zone code for batch generation.');
+    }
+
+    private function resolveZoneCodeFromLinkedSubmissionRequest(SubmissionFormInstance $instance): ?string
+    {
+        $candidateIds = collect([
+            $instance->getAttribute('sample_submission_request_id'),
+            $instance->getAttribute('target_record_type') === SampleSubmissionRequest::class
+                ? $instance->getAttribute('target_record_id')
+                : null,
+            $instance->getAttribute('portal_request_id'),
+        ])
+            ->filter(fn ($id) => !empty($id))
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+
+        foreach ($candidateIds as $requestId) {
+            $submissionRequest = SampleSubmissionRequest::query()->find($requestId);
+            if (! $submissionRequest) {
+                continue;
+            }
+
+            $zoneCode = $this->normalizeZoneCode($submissionRequest->getAttribute('zone_code'))
+                ?? $this->resolveZoneCodeFromZoneId($submissionRequest->getAttribute('zone_id'))
+                ?? $this->normalizeZoneCode($submissionRequest->getAttribute('zone'));
+
+            if ($zoneCode !== null) {
+                return $zoneCode;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveZoneCodeFromFormValues(SubmissionFormInstance $instance): ?string
+    {
+        $values = $instance->values()->with('element')->get();
+
+        foreach ($values as $value) {
+            $element = $value->element;
+            if (! $element) {
+                continue;
+            }
+
+            $name = Str::lower(trim(((string) $element->name) . ' ' . ((string) $element->label) . ' ' . ((string) $element->mapping_field)));
+            if (! Str::contains($name, ['zone', 'submission zone'])) {
+                continue;
+            }
+
+            $zoneCode = $this->normalizeZoneCode($value->value)
+                ?? $this->resolveZoneCodeFromZoneId($value->value);
+
+            if ($zoneCode !== null) {
+                return $zoneCode;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveZoneCodeFromSubmittingUser(SubmissionFormInstance $instance): ?string
+    {
+        if (empty($instance->submitted_by)) {
+            return null;
+        }
+
+        $user = User::query()->select('id', 'zone_id')->find((string) $instance->submitted_by);
+        if (! $user) {
+            return null;
+        }
+
+        return $this->resolveZoneCodeFromZoneId($user->zone_id);
+    }
+
+    private function resolveZoneCodesFromMappedLabs(array $formData): \Illuminate\Support\Collection
+    {
+        $detailRows = $formData['sample_details'] ?? [];
+        if (! is_array($detailRows)) {
+            return collect();
+        }
+
+        $labIds = collect($detailRows)
+            ->map(function ($row) {
+                if (! is_array($row)) {
+                    return null;
+                }
+
+                $labId = $row['lab_id'] ?? null;
+                return !empty($labId) ? (string) $labId : null;
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($labIds->isEmpty()) {
+            return collect();
+        }
+
+        $zoneIds = Lab::query()
+            ->whereIn('id', $labIds)
+            ->whereNotNull('zone_id')
+            ->pluck('zone_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        return Zone::query()
+            ->whereIn('id', $zoneIds)
+            ->pluck('key')
+            ->map(fn ($key) => $this->normalizeZoneCode($key))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    private function resolveZoneCodeFromZoneId($zoneId): ?string
+    {
+        if (empty($zoneId)) {
+            return null;
+        }
+
+        $zone = Zone::query()->select('id', 'key')->find((string) $zoneId);
+        if (! $zone) {
+            return null;
+        }
+
+        return $this->normalizeZoneCode($zone->key);
+    }
+
+    private function normalizeZoneCode($zone): ?string
+    {
+        $value = strtoupper(trim((string) $zone));
+        if ($value === '') {
+            return null;
+        }
+
+        // Keep only alphanumeric zone tokens (e.g., LZ, MZ, CZ)
+        $normalized = preg_replace('/[^A-Z0-9]/', '', $value);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function generateZoneYearBatchCode(string $zoneCode): string
+    {
+        $yy = date('y');
+        $prefix = strtoupper($zoneCode) . $yy . '-';
+
+        $existingCodes = SampleHeader::query()
+            ->where('batch_code', 'like', $prefix . '%')
+            ->pluck('batch_code');
+
+        $maxSeq = 0;
+        foreach ($existingCodes as $code) {
+            $code = (string) $code;
+            if (!str_starts_with($code, $prefix)) {
+                continue;
+            }
+
+            $suffix = substr($code, strlen($prefix));
+            if (ctype_digit($suffix)) {
+                $maxSeq = max($maxSeq, (int) $suffix);
+            }
+        }
+
+        $nextSeq = $maxSeq + 1;
+
+        return $prefix . sprintf('%05d', $nextSeq);
     }
 
     /**
@@ -542,9 +764,16 @@ class SampleCreationService
             if (empty($analysisTypeId))
                 continue;
 
+            // Validate UUID if table expects it
+            if (!$this->isValidUuid($analysisTypeId)) {
+                Log::warning('Skipping invalid analysis_type_id for relation creation', [
+                    'sample_detail_id' => $sampleDetailId,
+                    'invalid_id' => $analysisTypeId
+                ]);
+                continue;
+            }
+
             // Create the analysis relation
-            // This would typically create a record in a sample_analysis_relations table
-            // The exact implementation depends on your database structure
             DB::table('sample_analysis_relations')->insert([
                 'sample_header_id' => $sampleHeaderId,
                 'sample_detail_id' => $sampleDetailId,
@@ -752,5 +981,114 @@ class SampleCreationService
                 'message' => 'Failed to regenerate sample codes: ' . $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Resolve customer ID from linked submission request
+     */
+    private function resolveCustomerIdFromLinkedRequest(SubmissionFormInstance $instance): ?string
+    {
+        $candidateIds = collect([
+            $instance->getAttribute('sample_submission_request_id'),
+            $instance->getAttribute('target_record_type') === SampleSubmissionRequest::class
+                ? $instance->getAttribute('target_record_id')
+                : null,
+            $instance->getAttribute('portal_request_id'),
+        ])
+            ->filter(fn ($id) => !empty($id))
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+
+        foreach ($candidateIds as $requestId) {
+            $submissionRequest = SampleSubmissionRequest::query()->find($requestId);
+            if ($submissionRequest && !empty($submissionRequest->crm_customer_id)) {
+                return (string) $submissionRequest->crm_customer_id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve sample type ID for the form instance
+     */
+    private function resolveSampleTypeId(SubmissionFormInstance $instance): ?string
+    {
+        // 1. Try to get from linked request
+        $candidateIds = collect([
+            $instance->getAttribute('sample_submission_request_id'),
+            $instance->getAttribute('target_record_type') === SampleSubmissionRequest::class
+                ? $instance->getAttribute('target_record_id')
+                : null,
+            $instance->getAttribute('portal_request_id'),
+        ])
+            ->filter(fn ($id) => !empty($id))
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+
+        foreach ($candidateIds as $requestId) {
+            $submissionRequest = SampleSubmissionRequest::query()->find($requestId);
+            if ($submissionRequest && !empty($submissionRequest->sample_type_id)) {
+                return (string) $submissionRequest->sample_type_id;
+            }
+        }
+
+        // 2. Try to get from form template sample types pivot
+        $formSampleTypes = $instance->submissionForm->sampleTypes;
+        if ($formSampleTypes->count() === 1) {
+            return (string) $formSampleTypes->first()->id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve CRM unit ID for the form instance
+     */
+    private function resolveUnitId(SubmissionFormInstance $instance, ?string $customerId): ?string
+    {
+        // 1. Try to get from linked request
+        $candidateIds = collect([
+            $instance->getAttribute('sample_submission_request_id'),
+            $instance->getAttribute('target_record_type') === SampleSubmissionRequest::class
+                ? $instance->getAttribute('target_record_id')
+                : null,
+            $instance->getAttribute('portal_request_id'),
+        ])
+            ->filter(fn ($id) => !empty($id))
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+
+        foreach ($candidateIds as $requestId) {
+            $submissionRequest = SampleSubmissionRequest::query()->find($requestId);
+            if ($submissionRequest && $this->isValidUuid($submissionRequest->crm_unit_id)) {
+                return (string) $submissionRequest->crm_unit_id;
+            }
+        }
+
+        // 2. Try to get from customer units (if only one exists)
+        if ($this->isValidUuid($customerId)) {
+            $customer = CRMCustomer::find($customerId);
+            if ($customer && $customer->units->count() === 1) {
+                return (string) $customer->units->first()->id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Validate if a string is a valid UUID
+     */
+    private function isValidUuid($value): bool
+    {
+        if (empty($value) || !is_string($value)) {
+            return false;
+        }
+
+        return preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $value) === 1;
     }
 }

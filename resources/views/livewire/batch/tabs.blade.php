@@ -159,3 +159,41 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var tabActivationAttempts = 0;
+
+    function activateTabFromHash() {
+        var hash = window.location.hash;
+        if (!hash) return;
+        var tabId = hash.replace('#', '');
+        var $tabLink = $('#' + tabId + '-tab, [href="' + hash + '"]').first();
+
+        if (!$tabLink.length) {
+            if (tabActivationAttempts < 12) {
+                tabActivationAttempts += 1;
+                window.setTimeout(activateTabFromHash, 100);
+            }
+            return;
+        }
+
+        tabActivationAttempts = 0;
+        $tabLink.tab('show');
+        setTimeout(function () {
+            $tabLink[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+    }
+
+    // Run after DOM and Livewire are ready
+    document.addEventListener('livewire:init', function () {
+        Livewire.hook('commit', function () {
+            activateTabFromHash();
+        });
+    });
+
+    $(document).ready(function () {
+        activateTabFromHash();
+    });
+})();
+</script>

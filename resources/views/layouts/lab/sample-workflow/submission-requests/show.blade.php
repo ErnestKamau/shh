@@ -140,47 +140,70 @@
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 
-	<div class="row" style="margin: 0 15px;">
-		<div class="col-12 px-0">
-
-			{{-- Summary Bar --}}
-			<div class="sr-summary-bar d-flex align-items-center justify-content-between flex-wrap" style="gap: 12px;">
-				<div class="d-flex align-items-center flex-wrap" style="gap: 12px;">
-					<span class="workflow-status-chip" style="--chip-accent: {{ ($request->status ?? '') === 'Submitted' ? '#3b5fc0' : '#6c757d' }}; font-size: 0.88rem;">
-						{{ $request->status ?: 'Draft' }}
-					</span>
-					<div>
-						<div class="fw-semibold" style="font-size: 0.95rem; color: #1e293b;">
-							Request #{{ $request->id }}
-							@if($request->case_no)
-							<span class="text-muted fw-normal">&mdash; Case: {{ $request->case_no }}</span>
-							@endif
-						</div>
-						@if($request->offence)
-						<div class="text-muted" style="font-size: 0.8rem;">{{ $request->offence }}</div>
-						@endif
+	<div class="row mb-4">
+		<div class="col-12">
+			<div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+				<div>
+					<h3 class="fw-bold mb-1" style="color: #1e293b;">Request Details</h3>
+					<div class="d-flex align-items-center gap-2">
+						<span class="badge badge-primary px-3 py-2" style="border-radius: 6px; font-weight: 600;">{{ $request->formatted_number }}</span>
+						<span class="workflow-status-chip" style="background-color: {{ ($request->status ?? '') === 'Submitted' ? '#eef2ff' : '#f1f5f9' }}; color: {{ ($request->status ?? '') === 'Submitted' ? '#3b5fc0' : '#475569' }}; border-color: {{ ($request->status ?? '') === 'Submitted' ? '#c7d7fc' : '#e2e8f0' }}">
+							<i class="mdi mdi-circle mr-1" style="font-size: 8px;"></i> {{ $request->status ?: 'Draft' }}
+						</span>
 					</div>
 				</div>
-				<div class="d-flex align-items-center flex-wrap" style="gap: 0;">
-					<div class="sr-stat-item">
-						<span class="stat-value">{{ $request->exhibits->count() }}</span>
-						<span class="stat-label">Exhibits</span>
-					</div>
-					<div class="sr-stat-item">
-						<span class="stat-value">{{ $request->suspects->count() }}</span>
-						<span class="stat-label">Suspects</span>
-					</div>
-					<div class="sr-stat-item">
-						<span class="stat-value">{{ $request->requestedAnalyses->count() }}</span>
-						<span class="stat-label">Analyses</span>
-					</div>
-					<div style="padding-left: 18px; border-left: 1px solid #f1f5f9; margin-left: 4px;">
-						<a class="btn btn-outline-secondary btn-action-sm" href="{{ route('sample-submission-requests.index') }}">
-							<i class="mdi mdi-arrow-left"></i> Back
-						</a>
-					</div>
+				<div class="d-flex align-items-center flex-wrap gap-2">
+					<a class="btn btn-outline-secondary btn-action-sm" href="{{ route('sample-submission-requests.index') }}">
+						<i class="mdi mdi-arrow-left"></i> Back to List
+					</a>
+					@if(!$request->batch)
+					<button type="button" class="btn btn-primary btn-action-sm">
+						<i class="mdi mdi-plus-circle-outline"></i> Create Batch
+					</button>
+					@endif
 				</div>
 			</div>
+		</div>
+	</div>
+
+	<div class="stat-cards-row mb-4">
+		<div class="stat-card">
+			<div class="stat-card-label">Exhibits</div>
+			<div class="stat-card-content">
+				<div class="stat-card-value">{{ $request->exhibits->count() }}</div>
+				<div class="stat-card-icon">
+					<i class="mdi mdi-package-variant-closed"></i>
+				</div>
+			</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-card-label">Suspects</div>
+			<div class="stat-card-content">
+				<div class="stat-card-value">{{ $request->suspects->count() }}</div>
+				<div class="stat-card-icon">
+					<i class="mdi mdi-account-multiple"></i>
+				</div>
+			</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-card-label">Analyses</div>
+			<div class="stat-card-content">
+				<div class="stat-card-value">{{ $request->requestedAnalyses->count() }}</div>
+				<div class="stat-card-icon">
+					<i class="mdi mdi-flask-outline"></i>
+				</div>
+			</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-card-label">Documents</div>
+			<div class="stat-card-content">
+				<div class="stat-card-value">{{ $request->supportingDocumentInstances->count() }}</div>
+				<div class="stat-card-icon">
+					<i class="mdi mdi-file-document-outline"></i>
+				</div>
+			</div>
+		</div>
+	</div>
 
 			@if($request->batch)
 			<div class="workflow-board-panel mb-3">
@@ -584,7 +607,5 @@
 				</div>
 			</div>
 
-		</div>
-	</div>
 </main>
 @endsection

@@ -514,159 +514,6 @@
 	@if($status != 'All Samples' && $status != 'Finished Sample')
 		<!-- Livewire Filters -->
 		@if($status != 'Samples Reception')
-		<div class="row mb-4 mt-4">
-			<div class="col-12">
-				<div class="workflow-board-panel">
-					<div class="workflow-board-panel-header">
-						<h6>
-							<i class="mdi mdi-filter-variant"></i>
-							Filter options
-						</h6>
-					</div>
-					<div class="workflow-board-panel-body">
-						<div class="row">
-							<div class="col-md-4">
-								<div class="form-group mb-3">
-									<label class="form-label fw-bold">Search</label>
-									<div class="position-relative">
-										<input type="text" wire:model.live.debounce.300ms="search" class="form-control" placeholder="Search by batch code or sample code...">
-										<div wire:loading wire:target="search" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
-											<span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-										</div>
-									</div>
-								</div>
-							</div>
-							<div class="col-md-4">
-								<div class="form-group mb-3">
-									<label class="form-label fw-bold">Receipt Date From</label>
-									<div class="position-relative">
-										<input type="date" wire:model.live="receiptDateFrom" class="form-control">
-										<div wire:loading wire:target="receiptDateFrom" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
-											<span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-										</div>
-									</div>
-								</div>
-							</div>
-							<div class="col-md-4">
-								<div class="form-group mb-3">
-									<label class="form-label fw-bold">Receipt Date To</label>
-									<div class="position-relative">
-										<input type="date" wire:model.live="receiptDateTo" class="form-control">
-										<div wire:loading wire:target="receiptDateTo" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
-											<span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-										</div>
-									</div>
-								</div>
-							</div>
-							<div class="col-md-4">
-								<div class="form-group mb-3">
-									<label class="form-label fw-bold">Customer</label>
-									<div class="position-relative">
-										<div class="tag-select-container" 
-											 wire:click="$set('showCustomerDropdown', true)"
-											 wire:key="customer-dropdown-{{ $customerFilter }}">
-											<div class="tag-select-input">
-												<!-- Display selected customer badge -->
-												@if($this->selectedCustomer)
-													<span class="tag-badge">
-														{{ $this->selectedCustomer->name }}
-														<i class="mdi mdi-close-circle" wire:click.stop="$set('customerFilter', null); $set('customerSearch', ''); $set('customerPage', 1)"></i>
-													</span>
-												@endif
-												
-												<!-- Search Input - Only show if no customer selected -->
-												@if(!$this->selectedCustomer)
-													<input type="text" 
-														   wire:model.live.debounce.300ms="customerSearch" 
-														   wire:click.stop="$set('showCustomerDropdown', true)"
-														   class="tag-input customer-search-input" 
-														   placeholder="Search customers..."
-														   autocomplete="off"
-														   id="customer-search-input">
-												@endif
-											</div>
-											
-											<!-- Dropdown -->
-											@if($showCustomerDropdown)
-												<div class="tag-dropdown customer-dropdown-scroll" 
-													 id="customer-dropdown-list"
-													 style="max-height: 300px; overflow-y: auto;">
-													<div wire:loading wire:target="customerSearch,selectCustomer" class="tag-dropdown-item text-center">
-														<span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>
-														<span class="text-muted">Loading...</span>
-													</div>
-													<div wire:loading.remove wire:target="customerSearch,selectCustomer">
-														@if(count($this->filteredCustomers) > 0)
-															@foreach($this->filteredCustomers as $customer)
-																<div class="tag-dropdown-item" wire:click.stop="selectCustomer({{ $customer->id }})">
-																	{{ $customer->name }}
-																</div>
-															@endforeach
-															
-															@if($this->hasMoreCustomers)
-																<div class="tag-dropdown-item text-center text-primary customer-load-more" 
-																	 wire:click.stop="loadMoreCustomers"
-																	 style="cursor: pointer; font-weight: 600;">
-																	<span wire:loading.remove wire:target="loadMoreCustomers">
-																		<i class="mdi mdi-chevron-down"></i> Load More
-																	</span>
-																	<span wire:loading wire:target="loadMoreCustomers">
-																		<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-																		Loading...
-																	</span>
-																</div>
-															@endif
-														@else
-															<div class="tag-dropdown-item text-muted">
-																No customers found
-															</div>
-														@endif
-													</div>
-												</div>
-											@endif
-										</div>
-										<!-- Loading indicator for customer filter -->
-										<div wire:loading wire:target="customerFilter,selectCustomer" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%); z-index: 10;">
-											<span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-										</div>
-									</div>
-								</div>
-							</div>
-							<div class="col-md-4">
-								<div class="form-group mb-3">
-									<label class="form-label fw-bold">Sample Type</label>
-									<div class="position-relative">
-										<select wire:model.live="sampleTypeFilter" class="form-control">
-											<option value="">All Sample Types</option>
-											@foreach($sampletypes as $sampleType)
-												<option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
-											@endforeach
-										</select>
-										<div wire:loading wire:target="sampleTypeFilter" class="position-absolute" style="right: 25px; top: 50%; transform: translateY(-50%); pointer-events: none;">
-											<span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-										</div>
-									</div>
-								</div>
-							</div>
-							<div class="col-md-4">
-								<div class="form-group mb-3">
-									<label class="form-label fw-bold">&nbsp;</label>
-									<button wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100">
-										<span wire:loading.remove wire:target="clearFilters">
-											<i class="mdi mdi-refresh"></i> Clear Filters
-										</span>
-										<span wire:loading wire:target="clearFilters">
-											<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-											Clearing...
-										</span>
-									</button>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
 		@endif
 	@endif
 
@@ -787,806 +634,564 @@
 	</div>
 	
 	<!-- Submission Forms for status pages using form-instance workflow -->
-	@if($status == 'Samples Reception' || (in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests') || ($status == 'Samples Request Review' && $workflowSubTab === 'requests'))
-		<div class="row mb-4 mt-4">
+	@if($status != 'All Samples')
+		<div class="row mb-4 mt-2">
 			<div class="col-12">
 				<div class="workflow-board-panel">
 					<div class="workflow-board-panel-header">
-						<h5>
-							<i class="mdi mdi-file-document-multiple"></i>
-							{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
-						</h5>
-					</div>
-					<div class="workflow-board-panel-body flush-top">
-						<!-- Forms Search and Filter -->
-						<div class="row mb-3">
-							<div class="col-md-4">
-								<div class="form-group mb-2">
-									<label class="form-label small fw-bold">Search Forms</label>
-									<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Form Name...">
-								</div>
-							</div>
-							<div class="col-md-3">
-								<div class="form-group mb-2">
-									<label class="form-label small fw-bold">Status</label>
-									<select wire:model.live="submissionFormsStatus" class="form-control form-control-sm">
-										<option value="">All Statuses</option>
-										<option value="submitted">Submitted</option>
-										<option value="in_review">In Review</option>
-										<option value="approved">Approved</option>
-										<option value="rejected">Rejected</option>
+						<div class="d-flex align-items-center justify-content-between w-100">
+							<h5 class="mb-0">
+								<i class="mdi mdi-file-document-multiple"></i>
+								@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
+									{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
+								@else
+									{{ getSampleWorkflowStageLabel($status) }}
+								@endif
+							</h5>
+							<div class="d-flex align-items-center" style="gap: 15px;">
+								<div class="d-flex align-items-center">
+									<span class="mr-2 text-muted" style="font-size: 0.82rem;">Per page</span>
+									<select wire:model.live="batchesPerPage" class="form-control form-control-sm" style="width: auto; min-width: 4.5rem; height: 30px; border-radius: 6px;">
+										@foreach($batchesPerPageOptions as $size)
+											<option value="{{ $size }}">{{ $size }}</option>
+										@endforeach
 									</select>
 								</div>
-							</div>
-							<div class="col-md-3">
-								<div class="form-group mb-2">
-									<label class="form-label small fw-bold">Priority</label>
-									<select wire:model.live="submissionFormsPriority" class="form-control form-control-sm">
-										<option value="">All Priorities</option>
-										<option value="low">Low</option>
-										<option value="normal">Normal</option>
-										<option value="high">High</option>
-										<option value="urgent">Urgent</option>
-									</select>
-								</div>
-							</div>
-							<div class="col-md-2 d-flex align-items-end">
-								<button type="button" wire:click="$set('submissionFormsSearch', ''); $set('submissionFormsStatus', ''); $set('submissionFormsPriority', '')" class="btn btn-outline-secondary btn-sm mb-2 w-100">
-									<i class="mdi mdi-refresh"></i> Reset
-								</button>
 							</div>
 						</div>
-
-						@if($this->submissionForms->count() > 0)
-							<div class="table-responsive">
-								<table class="table table-hover workflow-table">
-									<thead>
-										<tr>
-											<th style="width: 40px;"></th>
-											<th>Actions</th>
-											<th>Form Number</th>
-											<th>Customer</th>
-											<th>Form Name</th>
-											<th>Batch Status</th>
-											<th>Batches</th>
-											<th>Sample Type</th>
-											<th>Tests Required</th>
-											<th>Status</th>
-											<th>Submitted</th>
-											<th>Due Date</th>
-										</tr>
-									</thead>
-									<tbody>
-										@foreach($this->submissionForms as $instance)
-											@php
-												$hasBatch = $instance->batches->count() > 0;
-												$formSampleTypeNames = $instance->getResolvedSampleTypeNames();
-												$testsRequiredCount = $instance->requested_tests_count;
-												$sampleCount = count($instance->getAllSampleDetails());
-												$attachmentCount = $instance->attachment_count ?? 0;
-												$instanceValues = collect($instance->values ?? []);
-												$pickValue = function (array $fieldHints) use ($instanceValues) {
-													$hintBag = collect($fieldHints)
-														->map(fn ($value) => strtolower(trim((string) $value)))
-														->filter()
-														->values();
-
-													if ($hintBag->isEmpty()) {
-														return '';
-													}
-
-													$match = $instanceValues->first(function ($row) use ($hintBag) {
-														$element = $row->element ?? null;
-														if (! $element) {
-															return false;
-														}
-
-														$mappingField = strtolower(trim((string) ($element->mapping_field ?? '')));
-														$elementName = strtolower(trim((string) ($element->name ?? '')));
-
-														foreach ($hintBag as $hint) {
-															if (($mappingField !== '' && str_contains($mappingField, $hint))
-																|| ($elementName !== '' && str_contains($elementName, $hint))) {
-																return true;
-															}
-														}
-
-														return false;
-													});
-
-													return trim((string) ($match->value ?? ''));
-												};
-
-												$instanceCustomerName = trim((string) (
-													$instance->crmCustomer->name
-													?? $pickValue(['customer_name', 'submitting_agency', 'name_of_client'])
-													?? ($instance->submittedBy->name ?? '')
-												));
-												$instanceCustomerEmail = trim((string) (
-													$instance->crmCustomer->email
-													?? $pickValue(['customer_email', 'email'])
-													?? ($instance->submittedBy->email ?? '')
-												));
-												$instanceCustomerPhone = trim((string) (
-													$instance->crmCustomer->telephone1
-													?? $pickValue(['mobile_telephone_no', 'office_telephone_no', 'telephone', 'phone', 'tel'])
-												));
-												$instanceCustomerAddress = trim((string) (
-													$instance->crmCustomer->postal_address
-													?? $instance->crmCustomer->physical_address
-													?? $pickValue(['physical_address', 'postal_address', 'address'])
-												));
-												$instanceRequestDate = trim((string) (
-													optional($instance->submitted_at)->format('Y-m-d')
-													?? $pickValue(['submitted_by_date', 'submission_date', 'date_of_seizure', 'date_of_sampling'])
-												));
-											@endphp
-											<tr>
-												<td class="align-middle">
-													@if(!$hasBatch && in_array($instance->status, ['submitted', 'in_review'], true))
-														<input type="checkbox"
-															name="submission_form_instance_id[]"
-															data-source-selection="1"
-															form="dispatch-to-labs-modal-form"
-															value="{{ $instance->id }}"
-															data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
-															data-form-name="{{ $instance->submissionForm->name ?? 'Template Form' }}"
-															data-customer-name="{{ $instanceCustomerName }}"
-															data-customer-email="{{ $instanceCustomerEmail }}"
-															data-customer-phone="{{ $instanceCustomerPhone }}"
-															data-customer-address="{{ $instanceCustomerAddress }}"
-															data-sample-type="{{ implode(', ', $formSampleTypeNames) }}"
-															data-number-samples="{{ $sampleCount }}"
-															data-request-date="{{ $instanceRequestDate }}"
-															data-mode-of-work="{{ in_array($instance->priority, ['high', 'urgent'], true) ? 'Express' : 'Normal' }}">
-													@else
-														<span class="text-muted small">-</span>
-													@endif
-												</td>
-												<td nowrap>
-													<div class="d-flex align-items-center" style="gap: 8px;">
-														@if($instance->isDraft())
-															<a href="{{ route('submission-forms.instances.fill', [$instance->submissionForm, $instance]) }}" 
-															   class="btn btn-sm btn-outline-primary" title="Edit">
-																<i class="mdi mdi-pencil"></i>
-															</a>
-															<button wire:click="deleteSubmissionForm('{{ $instance->id }}')" 
-																	wire:confirm="Are you sure you want to delete this draft?"
-																	class="btn btn-sm btn-outline-danger" title="Delete Draft">
-																<i class="mdi mdi-delete"></i>
-															</button>
-														@else
-															<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}" 
-															   class="btn btn-sm btn-outline-info" title="View Details">
-																<i class="mdi mdi-eye"></i>
-															</a>
-														@endif
-													</div>
-												</td>
-												<td>
-													{!! in_array($instance->priority, ['high', 'urgent']) ? '<i class="mdi mdi-star text-danger" title="'.ucfirst($instance->priority).' Priority"></i>' : '' !!}
-													<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}">
-														<strong>{{ $instance->getDocumentControlNumber() ?? 'Draft' }}</strong>
-													</a>
-												</td>
-												<td>
-													{{-- Customer: from crm_customer_id (portal submissions) or LIMS user --}}
-													@if($instance->crmCustomer)
-														<span class="font-weight-medium" title="Portal customer">{{ $instance->crmCustomer->name }}</span>
-													@elseif($instance->submittedBy)
-														<span class="text-muted small" title="LIMS user submission">{{ $instance->submittedBy->name }}</span>
-													@else
-														<span class="text-muted small">—</span>
-													@endif
-												</td>
-												<td>
-													{{ $instance->submissionForm->name }}
-													@if(($instance->submissionForm->form_type ?? '') === 'template' && $attachmentCount > 0)
-														<span class="badge badge-soft-primary ml-1" title="{{ $attachmentCount }} attachment form{{ $attachmentCount !== 1 ? 's' : '' }} linked">{{ $attachmentCount }} <i class="mdi mdi-paperclip" style="font-size:10px;"></i></span>
-													@endif
-												</td>
-												<td>
-													@if($hasBatch)
-														<span class="workflow-status-chip" style="--chip-accent: #28a745;">
-															{{ $instance->batches->count() }} Batch{{ $instance->batches->count() > 1 ? 'es' : '' }} created
-														</span>
-													@else
-														<span class="workflow-status-chip" style="--chip-accent: #dc3545;">
-															Not created
-														</span>
-													@endif
-												</td>
-												<td nowrap>
-													@if($hasBatch)
-														@foreach($instance->batches as $batch)
-															<a href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
-																{{ $batch->batch_code }}
-															</a>@if(!$loop->last) @endif
-														@endforeach
-													@else
-														<span class="text-muted small">—</span>
-													@endif
-												</td>
-												<td nowrap>{{ implode(', ', $formSampleTypeNames) ?: 'N/A' }}</td>
-												<td class="text-center">
-													<span class="font-weight-bold">{{ $hasBatch ? $instance->tests_count : $testsRequiredCount }}</span>
-												</td>
-												<td>
-													@php
-														$color = match($instance->getStatusBadgeColor()) {
-															'success' => '#28a745',
-															'warning' => '#ffc107',
-															'danger' => '#dc3545',
-															'info' => '#17a2b8',
-															'secondary' => '#6c757d',
-															default => '#6c757d'
-														};
-														$statusText = ucfirst(str_replace('_', ' ', $instance->status));
-													@endphp
-													<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
-														{{ $statusText }}
-													</span>
-												</td>
-												<td nowrap>
-													@if($instance->submitted_at)
-														{{ $instance->submitted_at->format('Y-m-d H:i') }}
-													@else
-														<span class="text-muted small">Not submitted</span>
-													@endif
-												</td>
-												<td nowrap>
-													@if($instance->due_date)
-														{{ $instance->due_date->format('Y-m-d') }}
-														@if($instance->isOverdue())
-															<i class="mdi mdi-alert text-danger" title="Overdue"></i>
-														@endif
-													@else
-														<span class="text-muted small">No due date</span>
-													@endif
-												</td>
-
-											</tr>
-										@endforeach
-									</tbody>
-								</table>
-							</div>
-							<div class="mt-2">
-								{{ $this->submissionForms->links() }}
-							</div>
-						@else
-							<div class="text-center py-4 workflow-empty-state">
-								<i class="mdi mdi-file-document-outline" style="font-size: 2rem;"></i>
-								<p class="mb-0 mt-2">No submission forms found matching filters.</p>
-							</div>
-						@endif
 					</div>
-				</div>
-			</div>
-		</div>
-	@endif
-
-	<!-- Batches Table -->
-	@if($status != 'Samples Reception')
-	<div class="row">
-		<div class="col-12">
-			<div class="workflow-board-panel">
-				<div class="workflow-board-panel-header">
-					<h5>
-						<i class="mdi mdi-file-document-edit"></i>
-						Batches
-					</h5>
-					<div class="d-flex align-items-center">
-						<span class="mr-2 text-muted" style="font-size: 0.85rem;">Per page</span>
-						<select wire:model.live="batchesPerPage" class="form-control form-control-sm" style="width: auto; min-width: 4.5rem; border-radius: 6px;">
-							@foreach($batchesPerPageOptions as $size)
-								<option value="{{ $size }}">{{ $size }}</option>
-							@endforeach
-						</select>
-					</div>
-				</div>
-				<div class="workflow-board-panel-body">
-					@if($status == 'Finished Sample')
-						<div class="mb-4">
-							<div class="workflow-board-section-label">
-								<i class="mdi mdi-filter-outline"></i>
-								Apply filters
-							</div>
-							<form action="{{ route('sample-workflow', ['status' => 'Finished Sample']) }}" method="get">
-								<div class="workflow-board-filter-nested">
-								<div class="row">
-									<div class="col-md-4">
-										<div class="form-group">
-											<label for="" class="control-label">Receipt Date From</label>
-											<input type="date" name="receipt_from" id="" value="{{$finishedFilter['receipt_from'] ?? ''}}"
-												class="form-control">
+					<div class="workflow-board-panel-body flush-top">
+						<!-- Consolidated Filters -->
+						<div class="bg-light p-3 rounded mb-4 border-bottom">
+							<div class="row">
+								<div class="col-md-3">
+									<div class="form-group mb-3 mb-md-0">
+										<label class="form-label small fw-bold">Search</label>
+										<div class="position-relative">
+											@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']) && $workflowSubTab === 'requests')
+												<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Name...">
+												<div wire:loading wire:target="submissionFormsSearch" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
+													<span class="spinner-border spinner-border-sm text-primary"></span>
+												</div>
+											@else
+												<input type="text" wire:model.live.debounce.300ms="search" class="form-control form-control-sm" placeholder="Batch code or sample code...">
+												<div wire:loading wire:target="search" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
+													<span class="spinner-border spinner-border-sm text-primary"></span>
+												</div>
+											@endif
 										</div>
 									</div>
-									<div class="col-md-4">
-										<div class="form-group">
-											<label for="" class="control-label">Receipt Date To</label>
-											<input type="date" name="receipt_to" id="" value="{{$finishedFilter['receipt_to'] ?? ''}}"
-												class="form-control">
-										</div>
-									</div>
-									<div class="col-md-4">
-										<div class="form-group">
-											<label for="" class="control-label">Customer</label>
-											<select name="customer_id" id="" class="form-control">
-												<option value="">Select Customer</option>
-												@foreach($customers as $customer)
-													<option value="{{$customer->id}}" {{isset($finishedFilter['customer_id']) && $customer->id == $finishedFilter['customer_id'] ? 'selected' : ''}}>{{$customer->name}}</option>
-												@endforeach
+								</div>
+								
+								@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']) && $workflowSubTab === 'requests')
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Status</label>
+											<select wire:model.live="submissionFormsStatus" class="form-control form-control-sm">
+												<option value="">All Statuses</option>
+												<option value="submitted">Submitted</option>
+												<option value="in_review">In Review</option>
+												<option value="approved">Approved</option>
+												<option value="rejected">Rejected</option>
 											</select>
 										</div>
 									</div>
-									<div class="col-md-12">
-										<div class="form-group">
-											<label for="" class="control-label">Sample Codes <small>(can provide multiple sample codes comma
-													separated)</small></label>
-											<input type="text" name="sample_codes" value="{{$finishedFilter['sample_codes'] ?? ''}}"
-												class="form-control">
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Priority</label>
+											<select wire:model.live="submissionFormsPriority" class="form-control form-control-sm">
+												<option value="">All Priorities</option>
+												<option value="low">Low</option>
+												<option value="normal">Normal</option>
+												<option value="high">High</option>
+												<option value="urgent">Urgent</option>
+											</select>
 										</div>
 									</div>
-									<input type="hidden" name="has_filter" value="1">
-									<div class="col-md-12">
-										<button type="submit" class="btn btn-sm btn-outline-primary float-right btn-action-sm"><i
-												class="mdi mdi-filter"></i> Apply</button>
+								@endif
+
+								<div class="col-md-2">
+									<div class="form-group mb-3 mb-md-0">
+										<label class="form-label small fw-bold">Receipt From</label>
+										<input type="date" wire:model.live="receiptDateFrom" class="form-control form-control-sm">
 									</div>
 								</div>
+								<div class="col-md-2">
+									<div class="form-group mb-3 mb-md-0">
+										<label class="form-label small fw-bold">Receipt To</label>
+										<input type="date" wire:model.live="receiptDateTo" class="form-control form-control-sm">
+									</div>
 								</div>
-							</form>
+								
+								<div class="col-md-1 d-flex align-items-end">
+									<button type="button" wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;" title="Clear Filters">
+										<i class="mdi mdi-refresh"></i>
+									</button>
+								</div>
+							</div>
+
+							<div class="row mt-3">
+								<div class="col-md-6">
+									<div class="form-group mb-0">
+										<label class="form-label small fw-bold">Customer</label>
+										<div class="position-relative">
+											<div class="tag-select-container form-control-sm py-0" 
+												 wire:click="$set('showCustomerDropdown', true)"
+												 wire:key="customer-dropdown-{{ $customerFilter }}">
+												<div class="tag-select-input" style="min-height: 29px;">
+													@if($this->selectedCustomer)
+														<span class="tag-badge py-0 px-2" style="font-size: 11px;">
+															{{ $this->selectedCustomer->name }}
+															<i class="mdi mdi-close-circle" wire:click.stop="$set('customerFilter', null); $set('customerSearch', ''); $set('customerPage', 1)"></i>
+														</span>
+													@endif
+													@if(!$this->selectedCustomer)
+														<input type="text" 
+															   wire:model.live.debounce.300ms="customerSearch" 
+															   wire:click.stop="$set('showCustomerDropdown', true)"
+															   class="tag-input customer-search-input py-0" 
+															   style="font-size: 12px; height: 28px;"
+															   placeholder="Search customers..."
+															   autocomplete="off">
+													@endif
+												</div>
+												@if($showCustomerDropdown)
+													<div class="tag-dropdown customer-dropdown-scroll" style="max-height: 250px; overflow-y: auto; z-index: 1000;">
+														<div wire:loading wire:target="customerSearch,selectCustomer" class="tag-dropdown-item text-center py-2">
+															<span class="spinner-border spinner-border-sm text-primary"></span>
+														</div>
+														<div wire:loading.remove wire:target="customerSearch,selectCustomer">
+															@if(count($this->filteredCustomers) > 0)
+																@foreach($this->filteredCustomers as $customer)
+																	<div class="tag-dropdown-item py-1 px-3" style="font-size: 12px;" wire:click.stop="selectCustomer({{ $customer->id }})">
+																		{{ $customer->name }}
+																	</div>
+																@endforeach
+																@if($this->hasMoreCustomers)
+																	<div class="tag-dropdown-item text-center text-primary py-1" wire:click.stop="loadMoreCustomers" style="cursor: pointer; font-weight: 600; font-size: 11px;">
+																		<i class="mdi mdi-chevron-down"></i> Load More
+																	</div>
+																@endif
+															@else
+																<div class="tag-dropdown-item text-muted py-1 px-3" style="font-size: 12px;">No customers found</div>
+															@endif
+														</div>
+													</div>
+												@endif
+											</div>
+										</div>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group mb-0">
+										<label class="form-label small fw-bold">Sample Type</label>
+										<select wire:model.live="sampleTypeFilter" class="form-control form-control-sm">
+											<option value="">All Sample Types</option>
+											@foreach($sampletypes as $sampleType)
+												<option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+											@endforeach
+										</select>
+									</div>
+								</div>
+							</div>
 						</div>
-					@endif
-					
-					@if(in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests')
-						{{-- Portal submissions table: SampleSubmissionRequest records without a batch, grouped by template + attachments --}}
-						@if($portalSubmissions && $portalSubmissions->count() > 0)
-							<div class="table-responsive">
-								<table class="table table-hover">
-									<thead>
-										<tr>
-											<th style="width: 40px;"></th>
-											<th>Customer</th>
-											<th>Reference</th>
-											<th>Priority</th>
-											<th>Form Name</th>
-											<th>Status</th>
-											<th>Submitted Date</th>
-											<th>Actions</th>
-										</tr>
-									</thead>
-									<tbody>
-										@foreach($portalSubmissions as $submission)
-											@php
-												$docInstances = $submission->supportingDocumentInstances->groupBy('supporting_document_template_id');
-												$totalRows = $docInstances->flatten(1)->count();
-												$isFirstRow = true;
-											@endphp
-											@foreach($docInstances as $templateId => $instances)
-												@foreach($instances as $docInstance)
-													@php
-														$attachmentEntries = collect();
-														foreach (collect($docInstance->values ?? []) as $valueRow) {
-															$rawValue = trim((string) ($valueRow->value ?? ''));
-															if ($rawValue === '') {
-																continue;
-															}
 
-															$elementType = strtolower((string) optional($valueRow->element)->element_type);
-															$elementName = strtolower(trim((string) optional($valueRow->element)->name . ' ' . (string) optional($valueRow->element)->label));
+						@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']) && $workflowSubTab === 'requests')
+							<!-- Submission Forms Table -->
+							@if($this->submissionForms->count() > 0)
+								<div class="table-responsive">
+									<table class="table table-hover workflow-table">
+										<thead>
+											<tr>
+												<th style="width: 40px;"></th>
+												<th>Actions</th>
+												<th>Form Number</th>
+												<th>Customer</th>
+												<th>Form Name</th>
+												<th>Batch Status</th>
+												<th>Batches</th>
+												<th>Sample Type</th>
+												<th>Tests Required</th>
+												<th>Status</th>
+												<th>Submitted</th>
+												<th>Due Date</th>
+											</tr>
+										</thead>
+										<tbody>
+											@foreach($this->submissionForms as $instance)
+												@php
+													$hasBatch = $instance->batches->count() > 0;
+													$formSampleTypeNames = $instance->getResolvedSampleTypeNames();
+													$testsRequiredCount = $instance->requested_tests_count;
+													$sampleCount = count($instance->getAllSampleDetails());
+													$attachmentCount = $instance->attachment_count ?? 0;
+													$instanceValues = collect($instance->values ?? []);
+													$pickValue = function (array $fieldHints) use ($instanceValues) {
+														$hintBag = collect($fieldHints)
+															->map(fn ($value) => strtolower(trim((string) $value)))
+															->filter()
+															->values();
 
-															$rawCandidates = [];
-															$decodedValue = json_decode($rawValue, true);
-															if (is_array($decodedValue)) {
-																foreach ($decodedValue as $decodedRow) {
-																	if (is_string($decodedRow)) {
-																		$rawCandidates[] = $decodedRow;
-																		continue;
-																	}
-
-																	if (is_array($decodedRow)) {
-																		foreach (['url', 'path', 'file_path', 'value'] as $fileKey) {
-																			if (!empty($decodedRow[$fileKey]) && is_string($decodedRow[$fileKey])) {
-																				$rawCandidates[] = $decodedRow[$fileKey];
-																			}
-																		}
-																	}
-																}
-															} else {
-																$rawCandidates[] = $rawValue;
-															}
-
-															foreach ($rawCandidates as $candidateRaw) {
-																$candidate = trim((string) $candidateRaw);
-																if ($candidate === '') {
-																	continue;
-																}
-
-																$isFileElement = in_array($elementType, ['file', 'attachment', 'upload', 'image'], true)
-																	|| str_contains($elementName, 'file')
-																	|| str_contains($elementName, 'attachment')
-																	|| str_contains($elementName, 'upload');
-
-																$looksLikeFile = (bool) preg_match('/(\/(storage|uploads)\/|\.(pdf|doc|docx|xls|xlsx|csv|png|jpg|jpeg|webp|gif|zip)$)/i', $candidate)
-																	|| str_starts_with($candidate, 'http://')
-																	|| str_starts_with($candidate, 'https://');
-
-																if (!$isFileElement && !$looksLikeFile) {
-																	continue;
-																}
-
-																$url = null;
-																if (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://')) {
-																	$url = $candidate;
-																} elseif (str_starts_with($candidate, '/storage/')) {
-																	$url = url($candidate);
-																}
-
-																$attachmentEntries->push([
-																	'label' => basename(parse_url($candidate, PHP_URL_PATH) ?: $candidate),
-																	'url' => $url,
-																]);
-															}
+														if ($hintBag->isEmpty()) {
+															return '';
 														}
 
-														$attachmentEntries = $attachmentEntries
-															->unique(function ($entry) {
-																return ($entry['url'] ?? '') . '|' . ($entry['label'] ?? '');
-															})
-															->values();
-													@endphp
-													<tr class="form-row {{ !$isFirstRow ? 'form-attachment-row' : '' }}">
-														@if($isFirstRow)
-															<td rowspan="{{ $totalRows }}" class="align-top pt-3">
-																<input type="checkbox"
-																	   name="portal_submission_id[]"
-																	   data-source-selection="1"
-																	   form="dispatch-to-labs-modal-form"
-																	   value="{{ $submission->id }}"
-																	   data-submission-number="{{ $submission->formatted_number }}"
-																	   data-submission-customer="{{ $submission->customer->name ?? $submission->submitting_agency ?? 'Unknown' }}"
-																	   data-customer-name="{{ $submission->customer->name ?? $submission->submitting_agency ?? '' }}"
-																	   data-customer-email="{{ $submission->email ?? ($submission->customer->email ?? '') }}"
-																	   data-customer-phone="{{ $submission->mobile_telephone_no ?? $submission->office_telephone_no ?? ($submission->customer->telephone1 ?? '') }}"
-																	   data-customer-address="{{ $submission->physical_address ?? ($submission->customer->physical_address ?? $submission->customer->postal_address ?? '') }}"
-																   data-sample-type="{{ $submission->requestedAnalyses->pluck('analysis_label')->filter()->implode(', ') }}"
-																   data-number-samples="{{ $submission->number_of_samples ?? '' }}"
-																	   data-request-date="{{ optional($submission->submitted_by_date)->format('Y-m-d') ?? optional($submission->submission_date)->format('Y-m-d') }}"
-																   data-mode-of-work="{{ ($submission->mode_of_service_priority ?? 'normal') === 'express' ? 'Express' : 'Normal' }}">
-															</td>
-																<td rowspan="{{ $totalRows }}" nowrap>{{ $submission->customer->name ?? 'Unknown' }}</td>
-																<td rowspan="{{ $totalRows }}" nowrap>{{ $submission->formatted_number }}</td>
-																<td rowspan="{{ $totalRows }}" nowrap>
-																@if(($submission->mode_of_service_priority ?? 'normal') === 'express')
-																	<span class="badge badge-warning p-1"><i class="mdi mdi-star"></i> Express</span>
-																@else
-																	Normal
-																@endif
-															</td>
+														$match = $instanceValues->first(function ($row) use ($hintBag) {
+															$element = $row->element ?? null;
+															if (! $element) {
+																return false;
+															}
+
+															$mappingField = strtolower(trim((string) ($element->mapping_field ?? '')));
+															$elementName = strtolower(trim((string) ($element->name ?? '')));
+
+															foreach ($hintBag as $hint) {
+																if (($mappingField !== '' && str_contains($mappingField, $hint))
+																	|| ($elementName !== '' && str_contains($elementName, $hint))) {
+																	return true;
+																}
+															}
+
+															return false;
+														});
+
+														return trim((string) ($match->value ?? ''));
+													};
+
+													$instanceCustomerName = trim((string) (
+														$instance->crmCustomer->name
+														?? $pickValue(['customer_name', 'submitting_agency', 'name_of_client'])
+														?? ($instance->submittedBy->name ?? '')
+													));
+													$instanceCustomerEmail = trim((string) (
+														$instance->crmCustomer->email
+														?? $pickValue(['customer_email', 'email'])
+														?? ($instance->submittedBy->email ?? '')
+													));
+													$instanceCustomerPhone = trim((string) (
+														$instance->crmCustomer->telephone1
+														?? $pickValue(['mobile_telephone_no', 'office_telephone_no', 'telephone', 'phone', 'tel'])
+													));
+													$instanceCustomerAddress = trim((string) (
+														$instance->crmCustomer->postal_address
+														?? $instance->crmCustomer->physical_address
+														?? $pickValue(['physical_address', 'postal_address', 'address'])
+													));
+													$instanceRequestDate = trim((string) (
+														optional($instance->submitted_at)->format('Y-m-d')
+														?? $pickValue(['submitted_by_date', 'submission_date', 'date_of_seizure', 'date_of_sampling'])
+													));
+												@endphp
+												<tr>
+													<td class="align-middle">
+														@if(!$hasBatch && in_array($instance->status, ['submitted', 'in_review'], true))
+															<input type="checkbox"
+																name="submission_form_instance_id[]"
+																data-source-selection="1"
+																form="dispatch-to-labs-modal-form"
+																value="{{ $instance->id }}"
+																data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
+																data-form-name="{{ $instance->submissionForm->name ?? 'Template Form' }}"
+																data-customer-name="{{ $instanceCustomerName }}"
+																data-customer-email="{{ $instanceCustomerEmail }}"
+																data-customer-phone="{{ $instanceCustomerPhone }}"
+																data-customer-address="{{ $instanceCustomerAddress }}"
+																data-sample-type="{{ implode(', ', $formSampleTypeNames) }}"
+																data-number-samples="{{ $sampleCount }}"
+																data-request-date="{{ $instanceRequestDate }}"
+																data-mode-of-work="{{ in_array($instance->priority, ['high', 'urgent'], true) ? 'Express' : 'Normal' }}">
+														@else
+															<span class="text-muted small">-</span>
 														@endif
-														<td>
-															<div class="form-template-block">
-																<div style="display: flex; align-items: center; gap: 8px;">
-																	<i class="mdi mdi-file-document-outline"></i>
-																	<div>
-																		<div class="font-weight-bold">{{ $docInstance->template?->document_code ?? 'Form' }}</div>
-																	</div>
-																</div>
-
-																@if($attachmentEntries->count() > 0)
-																	<div class="form-attachment-group">
-																		<div class="form-attachment-group-title">
-																			<i class="mdi mdi-link-variant"></i>
-																			Linked Attachment Form{{ $attachmentEntries->count() === 1 ? '' : 's' }}
-																		</div>
-																		<div class="form-attachment-list">
-																			@foreach($attachmentEntries as $attachmentEntry)
-																				@if(!empty($attachmentEntry['url']))
-																					<a href="{{ $attachmentEntry['url'] }}" target="_blank" rel="noopener noreferrer" class="badge badge-light">
-																						<i class="mdi mdi-paperclip"></i> {{ $attachmentEntry['label'] }}
-																					</a>
-																				@else
-																					<span class="badge badge-light"><i class="mdi mdi-paperclip"></i> {{ $attachmentEntry['label'] }}</span>
-																				@endif
-																			@endforeach
-																		</div>
-																	</div>
-																@endif
-															</div>
-														</td>
-														<td nowrap>
-															<span class="badge badge-{{ $docInstance->status === 'submitted' ? 'success' : ($docInstance->status === 'draft' ? 'secondary' : 'info') }} p-1">
-																{{ ucfirst(str_replace('_', ' ', $docInstance->status ?? 'draft')) }}
-															</span>
-														</td>
-														@if($isFirstRow)
-															<td rowspan="{{ $totalRows }}" nowrap>{{ $submission->submitted_by_date?->format('Y-m-d') ?? '--' }}</td>
-															<td rowspan="{{ $totalRows }}">
-																<div class="form-actions">
-																	<a href="{{ route('sample-submission-requests.show', $submission) }}"
-																	   class="btn btn-sm btn-outline-primary" title="View Submission">
-																		<i class="mdi mdi-eye"></i>
-																	</a>
-																</div>
-															</td>
-														@endif
-													</tr>
-													@php $isFirstRow = false; @endphp
-												@endforeach
-											@endforeach
-										@endforeach
-									</tbody>
-								</table>
-							</div>
-							<div class="mt-3 d-flex justify-content-end">
-								{{ $portalSubmissions->links() }}
-							</div>
-						@else
-							<div class="text-center py-5 workflow-empty-state">
-								<i class="mdi mdi-inbox-arrow-down" style="font-size: 3rem;"></i>
-								<h5 class="mt-3">No portal submissions</h5>
-								<p class="mb-0">No pending submission requests from the portal.</p>
-							</div>
-						@endif
-					@elseif($batches->count() > 0)
-						<div class="position-relative">
-							<!-- Loading overlay for table -->
-							<div wire:loading.delay
-								 wire:target="search,receiptDateFrom,receiptDateTo,customerFilter,sampleTypeFilter,selectCustomer,clearFilters" 
-								 class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center table-filter-loading" 
-								 style="background-color: rgba(255, 255, 255, 0.92); z-index: 10; top: 0; left: 0; border-radius: 10px; min-height: 200px;">
-								<div class="text-center">
-									<span class="spinner-border spinner-border-lg text-primary" role="status" aria-hidden="true"></span>
-									<p class="mt-2 text-muted mb-0">Filtering batches...</p>
-								</div>
-							</div>
-							<div class="table-responsive">
-								<table class="table table-hover workflow-table" data-fixedcls="{{json_encode(["left" => 3])}}">
-								<thead>
-									<tr>
-										<th></th>
-										<th>Priority</th>
-										<th>Batch Code</th>
-										@if($status !== 'Samples En-Route' && auth()->user()->CheckViewQcSample())
-											<th>Is Qc</th>
-										@endif
-										@if($status !== 'Samples En-Route')
-											<th>Sample Codes</th>
-											<th>Draft Invoice</th>
-											<th>Stage</th>
-										@else
-											<th>Client</th>
-										@endif
-										@if($status !== 'Samples En-Route')
-											<th>Client / LPO Ref</th>
-										@endif
-										<th nowrap>Receipt Date</th>
-										@if($status !== 'Samples En-Route')
-											<th nowrap>Date Collected</th>
-											<th nowrap>Target Date</th>
-											<th nowrap>Status Days</th>
-											<th>Samples</th>
-											@if($status != 'Samples In Lab')
-												<th>Client Unit</th>
-											@endif
-											<th>Lab</th>
-											<th nowrap>Sample Type</th>
-											<th>Routine</th>
-										@endif
-										<th>Actions</th>
-									</tr>
-								</thead>
-			<tbody>
-				@foreach ($batches as $item)
-								<?php
-					if (isset($item->get_target_date->id)) {
-						$target_date = date('Y-m-d', strtotime($item->get_target_date['date']));
-						$target_date = Carbon\Carbon::parse($target_date);
-
-						$diff = $now->diffInDays($target_date);
-					} else {
-						$target_date = "1970-01-01";
-						$diff = 0;
-					}
-					$sample_codes = $item->samples->pluck('sample_code')->toArray();
-
-					$sampleStart = $sample_codes[0] ?? '';
-
-					$sample_count = count($sample_codes);
-					$sampleEnd = end($sample_codes) ?? '';
-
-					$submissionInstance = $item->submissionFormInstance;
-					$supportingDocInstances = collect(optional($item->sampleSubmissionRequest)->supportingDocumentInstances ?? []);
-					$templateFormsCount = ($submissionInstance ? 1 : 0) + $supportingDocInstances->count();
-					$templateActionUrl = null;
-					if ($submissionInstance && $submissionInstance->submissionForm) {
-						$templateActionUrl = route('submission-forms.instances.show', [$submissionInstance->submissionForm, $submissionInstance]);
-					} elseif ($item->sampleSubmissionRequest && $supportingDocInstances->first()) {
-						$templateActionUrl = route('sample-submission-requests.supporting-documents.edit', [$item->sampleSubmissionRequest, $supportingDocInstances->first()]);
-					}
-
-					$attachmentForms = collect($item->batch_attachments ?? []);
-					if (!empty($submissionFormAttachmentTypeId)) {
-						$attachmentForms = $attachmentForms->where('attachment_type', $submissionFormAttachmentTypeId);
-					}
-					$attachmentFormsCount = $attachmentForms->count();
-					$attachmentActionUrl = optional($attachmentForms->first())->attachment_url;
-
-					$lastTemplateActivity = collect([
-						optional($submissionInstance)->updated_at,
-						$supportingDocInstances->max('updated_at'),
-					])->filter()->sortDesc()->first();
-
-					$latestFormActivity = collect([
-						$lastTemplateActivity,
-						$attachmentForms->max('updated_at'),
-					])->filter()->sortDesc()->first();
-					?>
-										@if(false) {{-- Template/attachment forms now shown in portal submissions table, not batch table --}}
-											<td>
-												<div class="form-summary-cell">
-													<span class="form-count-badge">{{ $templateFormsCount }} template form{{ $templateFormsCount === 1 ? '' : 's' }}</span>
-													<div class="form-chip-wrap">
-														@if($submissionInstance && $submissionInstance->submissionForm)
-															<a class="form-chip form-chip-link" href="{{ route('submission-forms.instances.show', [$submissionInstance->submissionForm, $submissionInstance]) }}">
-																<span>{{ $submissionInstance->form_number ?? 'Form Instance' }}</span>
-																<small>{{ ucfirst(str_replace('_', ' ', $submissionInstance->status ?? 'draft')) }}</small>
-															</a>
-														@endif
-														@foreach($supportingDocInstances->take(2) as $docInstance)
-															<a class="form-chip form-chip-link" href="{{ route('sample-submission-requests.supporting-documents.edit', [$item->sampleSubmissionRequest, $docInstance]) }}">
-																<span>{{ $docInstance->template?->document_code ?? 'Supporting Doc' }}</span>
-																<small>{{ $docInstance->status ?? 'draft' }}</small>
-															</a>
-														@endforeach
-														@if($supportingDocInstances->count() > 2)
-															<span class="form-chip">+{{ $supportingDocInstances->count() - 2 }} more</span>
-														@endif
-														@if($templateFormsCount === 0)
-															<span class="form-chip">No template forms</span>
-														@endif
-													</div>
-												</div>
-											</td>
-											<td>
-												<div class="form-summary-cell">
-													<span class="form-count-badge">{{ $attachmentFormsCount }} attachment form{{ $attachmentFormsCount === 1 ? '' : 's' }}</span>
-													<div class="form-chip-wrap">
-														@foreach($attachmentForms->take(3) as $attachment)
-															@if($attachment->attachment_url)
-																<a class="form-chip form-chip-link" href="{{ $attachment->attachment_url }}" target="_blank" rel="noopener noreferrer">
-																	<span>{{ $attachment->title ?: 'Attachment' }}</span>
-																	<small>{{ $attachment->file_extension ?: 'FILE' }}</small>
+													</td>
+													<td nowrap>
+														<div class="d-flex align-items-center" style="gap: 8px;">
+															@if($instance->isDraft())
+																<a href="{{ route('submission-forms.instances.fill', [$instance->submissionForm, $instance]) }}" 
+																   class="btn btn-sm btn-outline-primary" title="Edit">
+																	<i class="mdi mdi-pencil"></i>
 																</a>
+																<button wire:click="deleteSubmissionForm('{{ $instance->id }}')" 
+																		wire:confirm="Are you sure you want to delete this draft?"
+																		class="btn btn-sm btn-outline-danger" title="Delete Draft">
+																	<i class="mdi mdi-delete"></i>
+																</button>
 															@else
-																<span class="form-chip">
-																	<span>{{ $attachment->title ?: 'Attachment' }}</span>
-																	<small>No file</small>
-																</span>
+																<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}" 
+																   class="btn btn-sm btn-outline-info" title="View Details">
+																	<i class="mdi mdi-eye"></i>
+																</a>
 															@endif
-														@endforeach
-														@if($attachmentForms->count() > 3)
-															<span class="form-chip">+{{ $attachmentForms->count() - 3 }} more</span>
+														</div>
+													</td>
+													<td>
+														{!! in_array($instance->priority, ['high', 'urgent']) ? '<i class="mdi mdi-star text-danger" title="'.ucfirst($instance->priority).' Priority"></i>' : '' !!}
+														<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}">
+															<strong>{{ $instance->getDocumentControlNumber() ?? 'Draft' }}</strong>
+														</a>
+													</td>
+													<td>
+														@if($instance->crmCustomer)
+															<span class="font-weight-medium" title="Portal customer">{{ $instance->crmCustomer->name }}</span>
+														@elseif($instance->submittedBy)
+															<span class="text-muted small" title="LIMS user submission">{{ $instance->submittedBy->name }}</span>
+														@else
+															<span class="text-muted small">—</span>
 														@endif
-														@if($attachmentFormsCount === 0)
-															<span class="form-chip">No attachment forms</span>
+													</td>
+													<td>
+														{{ $instance->submissionForm->name }}
+														@if(($instance->submissionForm->form_type ?? '') === 'template' && $attachmentCount > 0)
+															<span class="badge badge-soft-primary ml-1" title="{{ $attachmentCount }} attachment form{{ $attachmentCount !== 1 ? 's' : '' }} linked">{{ $attachmentCount }} <i class="mdi mdi-paperclip" style="font-size:10px;"></i></span>
 														@endif
-													</div>
+													</td>
+													<td>
+														@if($hasBatch)
+															<span class="workflow-status-chip" style="--chip-accent: #28a745;">
+																{{ $instance->batches->count() }} Batch{{ $instance->batches->count() > 1 ? 'es' : '' }} created
+															</span>
+														@else
+															<span class="workflow-status-chip" style="--chip-accent: #dc3545;">
+																Not created
+															</span>
+														@endif
+													</td>
+													<td nowrap>
+														@if($hasBatch)
+															@foreach($instance->batches as $batch)
+																<a href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
+																	{{ $batch->batch_code }}
+																</a>@if(!$loop->last) @endif
+															@endforeach
+														@else
+															<span class="text-muted small">—</span>
+														@endif
+													</td>
+													<td nowrap>{{ implode(', ', $formSampleTypeNames) ?: 'N/A' }}</td>
+													<td class="text-center">
+														<span class="font-weight-bold">{{ $hasBatch ? $instance->tests_count : $testsRequiredCount }}</span>
+													</td>
+													<td>
+														@php
+															$color = match($instance->getStatusBadgeColor()) {
+																'success' => '#28a745',
+																'warning' => '#ffc107',
+																'danger' => '#dc3545',
+																'info' => '#17a2b8',
+																'secondary' => '#6c757d',
+																default => '#6c757d'
+															};
+															$statusText = ucfirst(str_replace('_', ' ', $instance->status));
+														@endphp
+														<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
+															{{ $statusText }}
+														</span>
+													</td>
+													<td nowrap>
+														@if($instance->submitted_at)
+															{{ $instance->submitted_at->format('Y-m-d H:i') }}
+														@else
+															<span class="text-muted small">Not submitted</span>
+														@endif
+													</td>
+													<td nowrap>
+														@if($instance->due_date)
+															{{ $instance->due_date->format('Y-m-d') }}
+															@if($instance->isOverdue())
+																<i class="mdi mdi-alert text-danger" title="Overdue"></i>
+															@endif
+														@else
+															<span class="text-muted small">No due date</span>
+														@endif
+													</td>
+												</tr>
+											@endforeach
+										</tbody>
+									</table>
+								</div>
+								<div class="mt-2">
+									{{ $this->submissionForms->links() }}
+								</div>
+							@else
+								<div class="text-center py-5 workflow-empty-state">
+									<i class="mdi mdi-file-document-outline" style="font-size: 3rem;"></i>
+									<h5 class="mt-3">No submission forms found</h5>
+									<p class="mb-0">No submission forms match your current filters.</p>
+								</div>
+							@endif
+						@else
+							<!-- Batches Table -->
+							@if($status == 'Finished Sample')
+								<div class="mb-4">
+									<div class="workflow-board-section-label">
+										<i class="mdi mdi-filter-outline"></i>
+										Apply filters
+									</div>
+									<form action="{{ route('sample-workflow', ['status' => 'Finished Sample']) }}" method="get">
+										<div class="workflow-board-filter-nested">
+										<div class="row">
+											<div class="col-md-4">
+												<div class="form-group">
+													<label for="" class="control-label">Receipt Date From</label>
+													<input type="date" name="receipt_from" id="" value="{{$finishedFilter['receipt_from'] ?? ''}}"
+														class="form-control">
 												</div>
-											</td>
-											<td nowrap>
-												@if($latestFormActivity)
-													{{ \Illuminate\Support\Carbon::parse($latestFormActivity)->format('Y-m-d H:i') }}
+											</div>
+											<div class="col-md-4">
+												<div class="form-group">
+													<label for="" class="control-label">Receipt Date To</label>
+													<input type="date" name="receipt_to" id="" value="{{$finishedFilter['receipt_to'] ?? ''}}"
+														class="form-control">
+												</div>
+											</div>
+											<div class="col-md-4">
+												<div class="form-group">
+													<label for="" class="control-label">Customer</label>
+													<select name="customer_id" id="" class="form-control">
+														<option value="">Select Customer</option>
+														@foreach($customers as $customer)
+															<option value="{{$customer->id}}" {{isset($finishedFilter['customer_id']) && $customer->id == $finishedFilter['customer_id'] ? 'selected' : ''}}>{{$customer->name}}</option>
+														@endforeach
+													</select>
+												</div>
+											</div>
+											<div class="col-md-12">
+												<div class="form-group">
+													<label for="" class="control-label">Sample Codes <small>(can provide multiple sample codes comma
+															separated)</small></label>
+													<input type="text" name="sample_codes" value="{{$finishedFilter['sample_codes'] ?? ''}}"
+														class="form-control">
+												</div>
+											</div>
+											<input type="hidden" name="has_filter" value="1">
+											<div class="col-md-12">
+												<button type="submit" class="btn btn-sm btn-outline-primary float-right btn-action-sm"><i
+														class="mdi mdi-filter"></i> Apply</button>
+											</div>
+										</div>
+										</div>
+									</form>
+								</div>
+							@endif
+
+							@if($batches && $batches->count() > 0)
+								<div class="table-responsive">
+									<table class="table table-hover workflow-table">
+										<thead>
+											<tr>
+												<th style="width: 40px;"></th>
+												<th>Batch Code</th>
+												@if($status !== 'Samples En-Route' && auth()->user()->CheckViewQcSample())
+													<th>Is Qc</th>
+												@endif
+												@if($status !== 'Samples En-Route')
+													<th>Sample Codes</th>
+													<th>Draft Invoice</th>
+													<th>Stage</th>
 												@else
-													<span class="text-muted">--</span>
+													<th>Client</th>
 												@endif
-											</td>
-										@endif
-									@if($status == 'Samples In Lab' || $status == 'Sample Verification')
-									@else
-										<td nowrap>{{ $item->client->name ?? 'Unknown' }}</td>
-									@endif
-									@if($status !== 'Samples En-Route')
-									<td nowrap>
-										<div>{{ $item->reference_number ?? 'n/a' }}</div>
-										@if($item->sampleSubmissionRequest)
-											<div class="small text-info">{{ $item->sampleSubmissionRequest->submitting_agency }}</div>
-											<div class="small text-muted">Legal Sample Submission Request</div>
-										@endif
-									</td>
-									@endif
-									<td nowrap>{{ date('Y-m-d', strtotime($item->receipt_date)) }}</td>
-									@if($status !== 'Samples En-Route')
-									<td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
-									<td nowrap>{{ date('Y-m-d', strtotime($target_date)) }}</td>
-									<td nowrap>{{ number_format($diff, 0) }} Day(s)</td>
-									<td>{{ $sample_count }}</td>
-									@if($status != 'Samples In Lab')
-										<td nowrap>{{ $item->unit_name }}</td>
-									@endif
-									<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
-									<td nowrap>
-										<div>{{ $item->sample_type->name ?? '' }}</div>
-										@if($item->sampleSubmissionRequest && $item->sampleSubmissionRequest->requestedAnalyses->count() > 0)
-											<div class="small text-muted">
-												{{ $item->sampleSubmissionRequest->requestedAnalyses->pluck('analysis_label')->implode(', ') }}
-											</div>
-										@endif
-									</td>
-
-
-
-									<td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
-									<td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency, 0) . ' days' : 'n/a' }}</td>
-									@endif
-										<td>
-											<div class="form-actions">
-												<a href="{{ route('view-batch-details', ['batch' => $item->id]) }}"
-													data-target="#add-new-samples" class="btn btn-sm btn-outline-primary edit-sample-details"
-													data-header='{{ json_encode($item) }}' title="Open Batch">
-													<i class="mdi mdi-lead-pencil"></i>
-												</a>
-												@if(in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests')
-													@if($templateActionUrl)
-														<a href="{{ $templateActionUrl }}" class="btn btn-sm btn-outline-info" title="View Template Forms">
-															<i class="mdi mdi-file-document-outline"></i>
-														</a>
-													@else
-														<button type="button" class="btn btn-sm btn-outline-secondary" disabled title="No Template Forms">
-															<i class="mdi mdi-file-document-outline"></i>
-														</button>
-													@endif
-
-													@if($attachmentActionUrl)
-														<a href="{{ $attachmentActionUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark" title="View Attachment Forms">
-															<i class="mdi mdi-paperclip"></i>
-														</a>
-													@else
-														<button type="button" class="btn btn-sm btn-outline-secondary" disabled title="No Attachment Forms">
-															<i class="mdi mdi-paperclip"></i>
-														</button>
-													@endif
+												@if($status !== 'Samples En-Route')
+													<th>Client / LPO Ref</th>
 												@endif
-											</div>
-										</td>
-								</tr>
-				@endforeach
-								</tbody>
-							</table>
-							</div>
-							<div class="mt-3 d-flex justify-content-between align-items-center">
-								<div class="text-muted" style="font-size: 0.85rem;">
-									Showing {{ $batches->firstItem() }}–{{ $batches->lastItem() }} of {{ $batches->total() }} batches
+												<th nowrap>Receipt Date</th>
+												@if($status !== 'Samples En-Route')
+													<th nowrap>Date Collected</th>
+													<th nowrap>Target Date</th>
+													<th nowrap>Status Days</th>
+													<th>Samples</th>
+													@if($status != 'Samples In Lab')
+														<th>Client Unit</th>
+													@endif
+													<th>Lab</th>
+													<th nowrap>Sample Type</th>
+													<th>Routine</th>
+												@endif
+												<th>Actions</th>
+											</tr>
+										</thead>
+										<tbody>
+											@foreach ($batches as $item)
+												<?php
+												if (isset($item->get_target_date->id)) {
+													$target_date = date('Y-m-d', strtotime($item->get_target_date['date']));
+													$target_date = Carbon\Carbon::parse($target_date);
+													$diff = $now->diffInDays($target_date);
+												} else {
+													$target_date = "1970-01-01";
+													$diff = 0;
+												}
+												$sample_codes = $item->samples->pluck('sample_code')->toArray();
+												$sample_count = count($sample_codes);
+												?>
+												<tr style="{{ $item->upfront_payment ? 'background-color:#d7ffd7 !important;' : ($item->is_ammendment ? 'background-color:#fcfeb2 !important;' : '') }}">
+													<td>
+														<input type="checkbox" name="batch_id[]" value="{{$item->id}}" data-batch-code="{{$item->batch_code}}">
+													</td>
+													<td nowrap>
+														<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
+															<strong>{{ $item->batch_code }}</strong>
+														</a>
+													</td>
+													@if($status !== 'Samples En-Route' && auth()->user()->CheckViewQcSample())
+														<td>{{ $item->is_qc ? 'Yes' : 'No' }}</td>
+													@endif
+													@if($status !== 'Samples En-Route')
+														<td>
+															<small>{{ $sample_codes[0] ?? '' }} ... {{ end($sample_codes) ?? '' }}</small>
+														</td>
+														<td>{{ $item->invoice->invoice_number ?? 'N/A' }}</td>
+														<td>{{ $item->prelim_batch_status }}</td>
+													@else
+														<td>{{ $item->client->name ?? 'N/A' }}</td>
+													@endif
+													@if($status !== 'Samples En-Route')
+														<td>{{ $item->client->name ?? 'N/A' }} / {{ $item->lpo_ref ?? 'N/A' }}</td>
+													@endif
+													<td nowrap>{{ $item->receipt_date }}</td>
+													@if($status !== 'Samples En-Route')
+														<td nowrap>{{ $item->date_collected }}</td>
+														<td nowrap>{{ isset($item->get_target_date->date) ? $item->get_target_date->date : 'N/A' }}</td>
+														<td nowrap>{{ $diff }} days</td>
+														<td>{{ $sample_count }}</td>
+														@if($status != 'Samples In Lab')
+															<td>{{ $item->client_unit ?? 'N/A' }}</td>
+														@endif
+														<td>{{ $item->lab->name ?? 'N/A' }}</td>
+														<td nowrap>{{ $item->sample_type->name ?? 'N/A' }}</td>
+														<td>{{ $item->is_routine ? 'Yes' : 'No' }}</td>
+													@endif
+													<td nowrap>
+														<a href="{{ route('view-batch-details', ['batch' => $item->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}" class="btn btn-sm btn-outline-info">
+															<i class="mdi mdi-eye"></i>
+														</a>
+													</td>
+												</tr>
+											@endforeach
+										</tbody>
+									</table>
 								</div>
-								<div>
-									{{ $batches->links() }}
+								<div class="mt-3 d-flex justify-content-between align-items-center">
+									<div class="text-muted" style="font-size: 0.85rem;">
+										Showing {{ $batches->firstItem() }}–{{ $batches->lastItem() }} of {{ $batches->total() }} batches
+									</div>
+									<div>
+										{{ $batches->links() }}
+									</div>
 								</div>
-							</div>
-						</div>
-					@else
-						<div class="text-center py-5 workflow-empty-state">
-							<i class="mdi mdi-file-document-outline" style="font-size: 3rem;"></i>
-							<h5 class="mt-3">No batches found</h5>
-							<p class="mb-0">No batches match your current filters.</p>
-						</div>
-					@endif {{-- end portal submissions / batch table conditional --}}
-							</div>
-							<div class="d-flex align-items-center">
-								<div class="btn upfront-bg-color btn-sm mr-2"></div>
-								<span class="text-muted">Account Pay Upfront</span>
-							</div>
-							<div class="d-flex align-items-center">
-								<div class="btn ammend-bg-color btn-sm mr-2"></div>
-								<span class="text-muted">Amended Batch</span>
-							</div>
-						</div>
+							@else
+								<div class="text-center py-5 workflow-empty-state">
+									<i class="mdi mdi-file-document-outline" style="font-size: 3rem;"></i>
+									<h5 class="mt-3">No batches found</h5>
+									<p class="mb-0">No batches match your current filters.</p>
+								</div>
+							@endif
+						@endif
 					</div>
 				</div>
 			</div>
 		</div>
-	</div>
 	@endif
-
 	@push('script2')
 		<div class="modal fade" id="get-batch-tat" role="dialog">
 			<div class="modal-dialog">
@@ -2474,37 +2079,6 @@
 							<input type="hidden" name="status" value="Samples In Lab" />
 							<input type="hidden" name="tracking_stage" value="20008" />
 							<input type="hidden" name="customer_id" value=0>
-							<div class="form-group">
-								<label class="control-label">Select Request Type</label>
-								<select class="form-control" name="request_type_id[]" placeholder="Request Type..." multiple
-									required>
-									<option></option>
-									<?php $requestTypes = getRequestTypes(); ?>
-									@foreach (($requestTypes[1] ?? []) as $i)
-										<option value="{{ $i->id }}">{{ $i->name }}</option>
-									@endforeach
-									<option value="Other">Other Type</option>
-								</select>
-							</div>
-							<div class="form-group other-reason hidden">
-								<label class="control-label">Specify Other Request Type</label>
-								<textarea class="form-control" name="other_type"
-									placeholder="Specify Other Request Type..."></textarea>
-							</div>
-							<div class="form-group">
-								<label class="control-label">Select Specific Specialist</label>
-								<select class="form-control" name="specialist_analyst_id" placeholder="Specific Specialist..."
-									required>
-									<option></option>
-									@foreach ($analysts as $i)
-										<option value="{{ $i->id }}">{{ $i->name }}</option>
-									@endforeach
-								</select>
-							</div>
-							<div class="form-group">
-								<label class="control-label">Approval Comments</label>
-								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
-							</div>
 
 							<div class="card border mb-3">
 								<div class="card-header bg-light py-2">

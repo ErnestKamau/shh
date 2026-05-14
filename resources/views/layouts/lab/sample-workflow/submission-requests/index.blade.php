@@ -29,141 +29,196 @@
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 
-	<div class="row" style="margin: 0 15px;">
-		<div class="col-12 px-0">
-			<div class="workflow-board-panel">
-				<div class="workflow-board-panel-header">
-					<h6><i class="mdi mdi-inbox-arrow-down"></i> Submission Requests</h6>
-					<div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
-						<button type="button" class="btn btn-primary btn-action-sm" data-toggle="modal" data-target="#add-submission-request-modal">
-							<i class="mdi mdi-plus"></i> Add Submission Request
-						</button>
+	<div class="row mb-4">
+		<div class="col-12">
+			<div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+				<div>
+					<h3 class="fw-bold mb-1" style="color: #1e293b;">Sample Workflow</h3>
+					<div class="d-flex align-items-center gap-2">
+						<span class="badge badge-primary px-3 py-2" style="border-radius: 6px; font-weight: 600;">Samples Receiving</span>
 					</div>
 				</div>
-
-				<div class="workflow-board-panel-body flush-top">
-					<div class="workflow-board-filter-nested mb-0">
-						<div class="row">
-							<div class="col-md-8">
-								<form method="GET" action="{{ route('sample-submission-requests.index') }}">
-									<label class="form-label fw-bold">Search</label>
-									<div class="d-flex align-items-center" style="gap: 8px;">
-										<input type="text"
-											name="q"
-											class="form-control"
-											placeholder="Search case no, offence, officer, email..."
-											value="{{ request('q') }}">
-										<button class="btn btn-outline-primary btn-action-sm" type="submit">
-											<i class="mdi mdi-magnify"></i> Search
-										</button>
-									</div>
-								</form>
-							</div>
-							<div class="col-md-4 d-flex align-items-end justify-content-md-end mt-3 mt-md-0">
-								<a class="btn btn-outline-secondary btn-action-sm" href="{{ route('sample-submission-requests.index') }}">
-									<i class="mdi mdi-filter-remove-outline"></i> Reset
-								</a>
-							</div>
+				<div class="d-flex align-items-center flex-wrap gap-2">
+					<button type="button" class="btn btn-outline-secondary btn-action-sm">
+						<i class="mdi mdi-file-document-outline"></i> Request Account Access Forms
+					</button>
+					<button type="button" class="btn btn-outline-secondary btn-action-sm">
+						<i class="mdi mdi-clock-outline"></i> TAT Today Batches
+					</button>
+					<button type="button" class="btn btn-primary btn-action-sm">
+						<i class="mdi mdi-format-list-bulleted"></i> Sample Submissions
+					</button>
+					<div class="dropdown">
+						<button class="btn btn-outline-primary btn-action-sm dropdown-toggle" type="button" data-toggle="dropdown">
+							Actions
+						</button>
+						<div class="dropdown-menu dropdown-menu-right">
+							<a class="dropdown-item" href="#" data-toggle="modal" data-target="#add-submission-request-modal">
+								<i class="mdi mdi-plus-circle-outline mr-2"></i> New Submission Request
+							</a>
 						</div>
 					</div>
 				</div>
+			</div>
+		</div>
+	</div>
 
-				<div class="workflow-board-panel-body p-0">
-					<ul class="nav nav-tabs mb-3" id="submission-requests-tab" role="tablist">
-						<li class="nav-item">
-							<a class="nav-link{{ $tab === 'requests' ? ' active' : '' }}" href="{{ route('sample-submission-requests.index', array_merge(request()->except('page'), ['tab' => 'requests'])) }}">Requests</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link{{ $tab === 'received' ? ' active' : '' }}" href="{{ route('sample-submission-requests.index', array_merge(request()->except('page'), ['tab' => 'received'])) }}">Received</a>
-						</li>
-					</ul>
-					<div class="table-responsive">
-						<table class="table table-hover mb-0 workflow-table">
-							<thead>
-								<tr>
-									<th style="width: 90px;">Req #</th>
-									<th style="min-width: 140px;">Batch</th>
-									<th style="min-width: 220px;">Customer</th>
-									<th style="min-width: 240px;">Contact</th>
-									<th style="min-width: 160px;">Case No</th>
-									<th style="min-width: 160px;">Status</th>
-									<th style="min-width: 140px;">Submitted</th>
-									<th class="text-center" style="width: 90px;">Exhibits</th>
-									<th class="text-center" style="width: 90px;">Suspects</th>
-									<th class="text-center" style="width: 110px;">Analyses</th>
-								</tr>
-							</thead>
-							<tbody>
-								@forelse($requests as $req)
-								<tr>
-									<td class="text-muted fw-semibold">
-										@if($req->batch)
-											<a href="{{ route('view-batch-details', ['batch' => $req->batch->id, 'client' => 0, 'portal' => 0, 'status' => 'Samples En-Route']) }}">{{ $req->formatted_number }}</a>
-										@else
-											<a href="{{ route('sample-submission-requests.show', ['request' => $req, 'details' => 1]) }}">{{ $req->formatted_number }}</a>
-										@endif
-									</td>
-									<td>
-										@if($req->batch)
-										<a href="{{ route('view-batch-details', ['batch' => $req->batch->id, 'client' => 0, 'portal' => 0, 'status' => $req->batch->status]) }}">
-											{{ $req->batch->batch_code }}
-										</a>
-										@else
-										<span class="text-muted">N/A</span>
-										@endif
-									</td>
-									<td>
-										<div class="fw-semibold">{{ $req->customer?->name ?? 'N/A' }}</div>
-										<small class="text-muted">{{ $req->customer?->code ?? $req->crm_customer_id ?? 'N/A' }}</small>
-									</td>
-									<td>
-										@if($req->contact)
-										<div class="fw-semibold">
-											{{ trim(($req->contact->first_name ?? '').' '.($req->contact->middle_name ?? '').' '.($req->contact->last_name ?? '')) }}
-										</div>
-										<small class="text-muted">{{ $req->contact->email }}</small>
-										@else
-										<div class="fw-semibold text-muted">N/A</div>
-										<small class="text-muted">{{ $req->email ?? '' }}</small>
-										@endif
-									</td>
-									<td>
-										<div class="fw-semibold">{{ $req->case_no ?: 'N/A' }}</div>
-										<small class="text-muted">{{ $req->offence ?: '' }}</small>
-									</td>
-									<td>
-										<span class="workflow-status-chip" style="--chip-accent: {{ ($req->status ?? '') === 'Submitted' ? '#3b5fc0' : '#6c757d' }}">
-											{{ $req->status ?: 'N/A' }}
-										</span>
-									</td>
-									<td>
-										<div class="fw-semibold">{{ optional($req->submitted_by_date)->format('Y-m-d') ?: 'N/A' }}</div>
-										<small class="text-muted">{{ $req->submitted_by_time ?: '' }}</small>
-									</td>
-									<td class="text-center fw-semibold">{{ (int) $req->exhibits_count }}</td>
-									<td class="text-center fw-semibold">{{ (int) $req->suspects_count }}</td>
-									<td class="text-center fw-semibold">{{ (int) $req->requested_analyses_count }}</td>
-								</tr>
-								@empty
-								<tr>
-									<td colspan="10">
-										<div class="text-center py-5 workflow-empty-state">
-											<i class="mdi mdi-inbox-outline" style="font-size: 2.2rem;"></i>
-											<h5 class="mt-2 mb-1">No submission requests found</h5>
-											<p class="mb-0 text-muted">Try adjusting search.</p>
-										</div>
-									</td>
-								</tr>
-								@endforelse
-							</tbody>
-						</table>
-					</div>
-				</div>
-
-				<div class="workflow-board-panel-body">
-					{{ $requests->links() }}
+	<div class="stat-cards-row">
+		<div class="stat-card">
+			<div class="stat-card-label">Customers Requested Submission</div>
+			<div class="stat-card-content">
+				<div class="stat-card-value">{{ $totals['requested'] ?? 0 }}</div>
+				<div class="stat-card-icon">
+					<i class="mdi mdi-account-question"></i>
 				</div>
 			</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-card-label">Portal Samples Submitted</div>
+			<div class="stat-card-content">
+				<div class="stat-card-value">{{ $totals['portal'] ?? 0 }}</div>
+				<div class="stat-card-icon">
+					<i class="mdi mdi-web"></i>
+				</div>
+			</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-card-label">Sent to Request Review</div>
+			<div class="stat-card-content">
+				<div class="stat-card-value">{{ $totals['review'] ?? 0 }}</div>
+				<div class="stat-card-icon">
+					<i class="mdi mdi-file-find"></i>
+				</div>
+			</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-card-label">Waiting for Delivery to Lab</div>
+			<div class="stat-card-content">
+				<div class="stat-card-value">{{ $totals['delivery'] ?? 0 }}</div>
+				<div class="stat-card-icon">
+					<i class="mdi mdi-truck-delivery"></i>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="workflow-board-panel">
+		<div class="workflow-board-panel-header">
+			<h6><i class="mdi mdi-table"></i> Submission Records</h6>
+			<div class="d-flex align-items-center gap-3">
+				<form method="GET" action="{{ route('sample-submission-requests.index') }}" class="d-flex align-items-center gap-2">
+					<input type="text" name="q" class="form-control" style="width: 300px; height: 38px; border-radius: 8px;" placeholder="Search records..." value="{{ request('q') }}">
+					<button class="btn btn-primary btn-action-sm" type="submit">
+						<i class="mdi mdi-magnify"></i>
+					</button>
+					@if(request('q'))
+						<a href="{{ route('sample-submission-requests.index') }}" class="btn btn-outline-secondary btn-action-sm">
+							<i class="mdi mdi-close"></i>
+						</a>
+					@endif
+				</form>
+			</div>
+		</div>
+
+		<ul class="nav nav-tabs" id="submission-requests-tab" role="tablist">
+			<li class="nav-item">
+				<a class="nav-link{{ $tab === 'requests' ? ' active' : '' }}" href="{{ route('sample-submission-requests.index', array_merge(request()->except('page'), ['tab' => 'requests'])) }}">
+					Requests <span class="ml-2 badge badge-pill {{ $tab === 'requests' ? 'badge-primary' : 'badge-light' }}">{{ $requests->total() }}</span>
+				</a>
+			</li>
+			<li class="nav-item">
+				<a class="nav-link{{ $tab === 'received' ? ' active' : '' }}" href="{{ route('sample-submission-requests.index', array_merge(request()->except('page'), ['tab' => 'received'])) }}">
+					Received
+				</a>
+			</li>
+		</ul>
+
+		<div class="workflow-board-panel-body p-0">
+			<div class="table-responsive">
+				<table class="table table-hover mb-0 workflow-table">
+					<thead>
+						<tr>
+							<th style="width: 100px;">Req #</th>
+							<th style="min-width: 150px;">Batch</th>
+							<th style="min-width: 250px;">Customer</th>
+							<th style="min-width: 250px;">Contact</th>
+							<th style="min-width: 180px;">Case / Offence</th>
+							<th style="min-width: 150px;">Status</th>
+							<th style="min-width: 150px;">Submitted On</th>
+							<th class="text-center">Details</th>
+						</tr>
+					</thead>
+					<tbody>
+						@forelse($requests as $req)
+						<tr>
+							<td class="fw-bold">
+								@if($req->batch)
+									<a href="{{ route('view-batch-details', ['batch' => $req->batch->id, 'client' => 0, 'portal' => 0, 'status' => 'Samples En-Route']) }}" class="text-primary">{{ $req->formatted_number }}</a>
+								@else
+									<a href="{{ route('sample-submission-requests.show', ['request' => $req, 'details' => 1]) }}" class="text-primary">{{ $req->formatted_number }}</a>
+								@endif
+							</td>
+							<td>
+								@if($req->batch)
+								<a href="{{ route('view-batch-details', ['batch' => $req->batch->id, 'client' => 0, 'portal' => 0, 'status' => $req->batch->status]) }}" class="font-weight-bold">
+									<i class="mdi mdi-barcode-scan text-muted mr-1"></i> {{ $req->batch->batch_code }}
+								</a>
+								@else
+								<span class="text-muted italic">No Batch</span>
+								@endif
+							</td>
+							<td>
+								<div class="fw-bold text-dark">{{ $req->customer?->name ?? 'N/A' }}</div>
+								<div class="text-muted small"><i class="mdi mdi-account-card-details-outline"></i> {{ $req->customer?->code ?? $req->crm_customer_id ?? 'N/A' }}</div>
+							</td>
+							<td>
+								@if($req->contact)
+								<div class="fw-bold text-dark">
+									{{ trim(($req->contact->first_name ?? '').' '.($req->contact->middle_name ?? '').' '.($req->contact->last_name ?? '')) }}
+								</div>
+								<div class="text-muted small"><i class="mdi mdi-email-outline"></i> {{ $req->contact->email }}</div>
+								@else
+								<div class="text-muted small"><i class="mdi mdi-email-outline"></i> {{ $req->email ?? 'N/A' }}</div>
+								@endif
+							</td>
+							<td>
+								<div class="fw-bold text-dark">{{ $req->case_no ?: 'N/A' }}</div>
+								<div class="text-muted small">{{ $req->offence ?: '' }}</div>
+							</td>
+							<td>
+								<span class="workflow-status-chip" style="background-color: {{ ($req->status ?? '') === 'Submitted' ? '#eef2ff' : '#f1f5f9' }}; color: {{ ($req->status ?? '') === 'Submitted' ? '#3b5fc0' : '#475569' }}; border-color: {{ ($req->status ?? '') === 'Submitted' ? '#c7d7fc' : '#e2e8f0' }}">
+									<i class="mdi mdi-circle mr-1" style="font-size: 8px;"></i> {{ $req->status ?: 'N/A' }}
+								</span>
+							</td>
+							<td>
+								<div class="fw-bold text-dark">{{ optional($req->submitted_by_date)->format('d M, Y') ?: 'N/A' }}</div>
+								<div class="text-muted small"><i class="mdi mdi-clock-outline"></i> {{ $req->submitted_by_time ?: '' }}</div>
+							</td>
+							<td class="text-center">
+								<div class="d-flex justify-content-center gap-2">
+									<span class="badge badge-light px-2" title="Exhibits"><i class="mdi mdi-package-variant"></i> {{ (int) $req->exhibits_count }}</span>
+									<span class="badge badge-light px-2" title="Analyses"><i class="mdi mdi-flask-outline"></i> {{ (int) $req->requested_analyses_count }}</span>
+								</div>
+							</td>
+						</tr>
+						@empty
+						<tr>
+							<td colspan="8">
+								<div class="text-center py-5 workflow-empty-state">
+									<i class="mdi mdi-inbox-outline" style="font-size: 3rem; color: #cbd5e1;"></i>
+									<h5 class="mt-3 font-weight-bold" style="color: #64748b;">No submission records found</h5>
+									<p class="text-muted">Adjust your search or filters to see results.</p>
+								</div>
+							</td>
+						</tr>
+						@endforelse
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="workflow-board-panel-body">
+			{{ $requests->links() }}
 		</div>
 	</div>
 

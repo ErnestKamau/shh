@@ -41,6 +41,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SupportingDocumentInstance;
 use App\Models\SupportingDocumentTemplate;
 use App\Services\SupportingDocumentInstanceFormService;
+use App\Services\SampleCreationService;
 use App\Models\System\SystemConfiguration;
 use App\Services\SubmissionFormPdfService;
 use App\ModulePreConfigs;
@@ -89,6 +90,7 @@ class SampleWorkFlowController extends Controller
      */
     public function __construct(
         private readonly SupportingDocumentInstanceFormService $supportingDocumentInstanceFormService,
+        private readonly SampleCreationService $sampleCreationService,
     ) {
         $this->middleware('auth');
     }
@@ -135,6 +137,14 @@ class SampleWorkFlowController extends Controller
             $query->whereIn('status', ['Samples In Lab', 'Completed', 'Sample Approval', 'Sample Verification', 'Reports In Payment', 'Reports for Collection']);
         }
 
+        // Calculate totals for status cards
+        $totals = [
+            'requested' => (clone $query)->where('status', 'Submitted')->count(),
+            'portal' => (clone $query)->where('status', 'Portal Samples Submitted')->count(),
+            'review' => (clone $query)->where('status', 'Samples Request Review')->count(),
+            'delivery' => (clone $query)->where('status', 'Samples Reception')->count(),
+        ];
+
         $requests = $query->paginate(15)->withQueryString();
 
         $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
@@ -146,7 +156,7 @@ class SampleWorkFlowController extends Controller
             ->orderBy('title')
             ->get(['id', 'document_code', 'title', 'subtitle', 'version', 'description']);
 
-        return view('layouts.lab.sample-workflow.submission-requests.index', compact('requests', 'customers', 'contacts', 'supportingDocumentTemplates', 'tab'));
+        return view('layouts.lab.sample-workflow.submission-requests.index', compact('requests', 'customers', 'contacts', 'supportingDocumentTemplates', 'tab', 'totals'));
     }
 
     public function createSampleSubmissionRequest(): \Illuminate\View\View
@@ -1408,7 +1418,10 @@ class SampleWorkFlowController extends Controller
         $countries = Country::orderBy('name')->get();
         // $methods = AnalysisMethod::where('active', 1)->where('is_sampling_method',0)->where('is_ltm',0)->get();
         $is_ltm_id = SystemConfiguration::where('key', 'method_ltm_id')->first();
-        $ltmethods = AnalysisMethod::where('active', 1)->where('method_type_id', $is_ltm_id->value)->get();
+        $ltMethodTypeId = $this->resolveIntegerConfigValue($is_ltm_id->value ?? null, 'method_ltm_id');
+        $ltmethods = $ltMethodTypeId !== null
+            ? AnalysisMethod::where('active', 1)->where('method_type_id', $ltMethodTypeId)->get()
+            : collect();
         // return response()->json(['methods'=>$methods,'ltm'=>$ltmethods])
 
         $account_settings = getConfigTypeByName('Account Settings');
@@ -1424,7 +1437,10 @@ class SampleWorkFlowController extends Controller
         $workflows = getSampleWorflowStages();
         $sample_types = getSampleTypes();
         $is_sampling = SystemConfiguration::where('key', 'sampling_method_type_id')->first();
-        $samplingmethods = AnalysisMethod::where('active', 1)->where('method_type_id', $is_sampling->value)->get();
+        $samplingMethodTypeId = $this->resolveIntegerConfigValue($is_sampling->value ?? null, 'sampling_method_type_id');
+        $samplingmethods = $samplingMethodTypeId !== null
+            ? AnalysisMethod::where('active', 1)->where('method_type_id', $samplingMethodTypeId)->get()
+            : collect();
         $processed_results = [];
         $raw_results = [];
         $interlabs = [];
@@ -1564,7 +1580,11 @@ class SampleWorkFlowController extends Controller
         // return response()->json($batch);
 
 
-        $methods = AnalysisMethod::whereNotIn('method_type_id', [$is_sampling->value])->pluck('name', 'id')->toArray();
+        $methodsQuery = AnalysisMethod::query();
+        if ($samplingMethodTypeId !== null) {
+            $methodsQuery->whereNotIn('method_type_id', [$samplingMethodTypeId]);
+        }
+        $methods = $methodsQuery->pluck('name', 'id')->toArray();
 
         // return response()->json($methods);
 
@@ -1754,6 +1774,43 @@ class SampleWorkFlowController extends Controller
         ], 200);
     }
 
+    private function resolveIntegerConfigValue(mixed $rawValue, string $configKey): ?int
+    {
+        if (is_int($rawValue)) {
+            return $rawValue;
+        }
+
+        $value = trim((string) $rawValue);
+        if ($value === '') {
+            return null;
+        }
+
+        if (ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        try {
+            $decrypted = decrypt($value);
+            if (is_int($decrypted)) {
+                return $decrypted;
+            }
+
+            $decryptedString = trim((string) $decrypted);
+            if ($decryptedString !== '' && ctype_digit($decryptedString)) {
+                return (int) $decryptedString;
+            }
+        } catch (\Throwable $e) {
+            // Non-encrypted values will fail decryption and are handled below.
+        }
+
+        Log::warning('System configuration value is not a valid integer', [
+            'key' => $configKey,
+            'value' => $value,
+        ]);
+
+        return null;
+    }
+
     public function updateChainofCustody($data)
     {
         \App\ChainOfCustody::where('sample_header_id', $data['batch_id'])
@@ -1927,7 +1984,7 @@ class SampleWorkFlowController extends Controller
                 ],
             ];
 
-            $requestTypes = $request->request_type_id;
+            $requestTypes = (array) ($request->request_type_id ?? []);
             $requestTypes = array_diff($requestTypes, ['Other']);
 
             if ($request->has('other_type') && $request->other_reason) {
@@ -1951,61 +2008,164 @@ class SampleWorkFlowController extends Controller
         }
 
         if ($request->status == 'Samples In Lab') {
-            if (isset($request->batch_code)) {
-                $batch_codes = $request->batch_code;
-                foreach ($batch_codes as $code) {
-                    $batch = Sampleheader::where('batch_code', $code)->get();
-                    $batch[0]->in_lab_date = date('Y-m-d');
+            // Collect batch codes from direct batch selection
+            $batchCodes = collect((array) ($request->batch_code ?? []))
+                ->filter(fn ($c) => is_string($c) && trim($c) !== '')
+                ->map(fn ($c) => trim($c))
+                ->unique()
+                ->values();
 
-                    $previousStatus = $batch[0]->status;
-                    $custodyDetails = [
-                        'batch_id' => $batch[0]->id,
-                        'comments' => $request->comments,
-                        'current' => [
-                            'status' => $batch[0]->status,
-                            'tracking_stage' => $batch[0]->sample_tracking_stage,
-                        ],
-                        'target' => [
-                            'status' => $request->status,
-                            'tracking_stage' => $request->tracking_stage,
-                        ],
-                    ];
+            $resolvedBatchCodes = collect();
+            $unresolvedSubmissionRequestIds = collect();
+            $unresolvedSubmissionFormInstanceIds = collect();
 
-                    $requestTypes = $request->request_type_id;
-                    $requestTypes = array_diff($requestTypes, ['Other']);
+            // Also resolve batches from any submitted form instance IDs
+            $formInstanceIds = collect((array) ($request->submission_form_instance_id ?? []))
+                ->filter(fn ($id) => (string) $id !== '')
+                ->map(fn ($id) => (string) $id)
+                ->unique()
+                ->values();
 
-                    if ($request->has('other_type') && $request->other_reason) {
-                        $reason = new \App\RequestType();
-                        $reason->name = $request->other_type;
-                        $reason->visible = 0;
-                        $reason->save();
+            if ($formInstanceIds->isNotEmpty()) {
+                $formInstances = SubmissionFormInstance::with('batches')
+                    ->whereIn('id', $formInstanceIds)
+                    ->get();
 
-                        $requestTypes = array_merge($requestTypes, [$reason->id]);
+                foreach ($formInstances as $formInstance) {
+                    $resolvedCodes = $this->resolveBatchCodesFromFormInstance($formInstance);
+
+                    if ($resolvedCodes->isNotEmpty()) {
+                        $resolvedBatchCodes = $resolvedBatchCodes->merge($resolvedCodes);
+                        continue;
                     }
-                    $stages = $batch[0]->stages($request->status);
-                    if (!isset($stages[0]->id)) {
-                        return redirect()->back()->with('error', 'Kindly add Sample Analysis Stage to the sample type');
+
+                    $unresolvedSubmissionFormInstanceIds->push((string) $formInstance->id);
+                }
+            }
+
+            $submissionRequestIds = collect((array) ($request->submission_request_id ?? []))
+                ->filter(fn ($id) => (string) $id !== '')
+                ->map(fn ($id) => (string) $id)
+                ->unique()
+                ->values();
+
+            if ($submissionRequestIds->isNotEmpty()) {
+                $submissionRequests = SampleSubmissionRequest::query()
+                    ->with(['batch'])
+                    ->whereIn('id', $submissionRequestIds)
+                    ->get();
+
+                foreach ($submissionRequests as $submissionRequest) {
+                    $linkedBatch = $submissionRequest->batch;
+                    if (! $linkedBatch && !empty($submissionRequest->sample_header_id)) {
+                        $linkedBatch = SampleHeader::query()->find($submissionRequest->sample_header_id);
                     }
-                    $returnstatus = $batch[0]->status;
-                    $batch[0]->status = $request->status;
-                    $batch[0]->sample_tracking_stage = $stages[0]->id;
 
-                    $batch[0]->reason_for_submission = implode(',', $requestTypes);
-                    $batch[0]->specialist_analyst_id = $request->specialist_analyst_id;
-                    $batch[0]->sample_tracking_stage = $request->tracking_stage;
-                    $batch[0]->priority = $request->is_priority ?? 'Normal';
-                    $batch[0]->save();
+                    if ($linkedBatch && !empty($linkedBatch->batch_code)) {
+                        $resolvedBatchCodes->push((string) $linkedBatch->batch_code);
+                        continue;
+                    }
 
-                    $this->persistLaboratoryAcceptanceForm(
-                        $batch[0],
-                        (array) $request->input('lab_acceptance', [])
-                    );
+                    $unresolvedSubmissionRequestIds->push((string) $submissionRequest->id);
+                }
+            }
 
-                    $this->updateChainofCustody($custodyDetails);
+            $batchCodes = $batchCodes
+                ->merge($resolvedBatchCodes)
+                ->unique()
+                ->values();
+
+            if ($batchCodes->isEmpty()) {
+                $failureParts = [];
+
+                if ($unresolvedSubmissionFormInstanceIds->isNotEmpty()) {
+                    $failureParts[] = 'form instance ID(s): ' . $unresolvedSubmissionFormInstanceIds->implode(', ');
                 }
 
-                return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'Batches Successfully Moved to ' . $request->status);
+                if ($unresolvedSubmissionRequestIds->isNotEmpty()) {
+                    $failureParts[] = 'submission request ID(s): ' . $unresolvedSubmissionRequestIds->implode(', ');
+                }
+
+                $failureMessage = 'No batches could be created or resolved for the selected items.';
+                if (!empty($failureParts)) {
+                    $failureMessage .= ' Unresolved ' . implode('; ', $failureParts) . '.';
+                } else {
+                    $failureMessage .= ' Please ensure samples have been received and a batch has been created before approving.';
+                }
+
+                return redirect()->back()->with('error', $failureMessage);
             }
+
+            $processedBatch = null;
+            foreach ($batchCodes as $code) {
+                $batch = SampleHeader::where('batch_code', $code)->first();
+                if (!$batch) {
+                    continue;
+                }
+
+                $batch->in_lab_date = date('Y-m-d');
+                $previousStatus = $batch->status;
+                $targetTrackingStage = $request->tracking_stage;
+
+                $stages = $batch->stages($request->status);
+                if (isset($stages[0]->id)) {
+                    $targetTrackingStage = $targetTrackingStage ?: $stages[0]->id;
+                } else {
+                    $fallbackStages = $batch->stages();
+                    if (isset($fallbackStages[0]->id)) {
+                        $targetTrackingStage = $targetTrackingStage ?: $fallbackStages[0]->id;
+                        Log::warning('No workflow-specific stage found; using fallback stage for Samples In Lab transition', [
+                            'batch_id' => $batch->id,
+                            'batch_code' => $batch->batch_code,
+                            'status' => $request->status,
+                            'fallback_stage_id' => $targetTrackingStage,
+                        ]);
+                    } else {
+                        Log::warning('No sample analysis stages configured for sample type; proceeding without tracking stage', [
+                            'batch_id' => $batch->id,
+                            'batch_code' => $batch->batch_code,
+                            'sample_type_id' => $batch->sample_type_id,
+                            'status' => $request->status,
+                        ]);
+                    }
+                }
+
+                $custodyDetails = [
+                    'batch_id' => $batch->id,
+                    'comments' => $request->comments,
+                    'current' => [
+                        'status' => $batch->status,
+                        'tracking_stage' => $batch->sample_tracking_stage,
+                    ],
+                    'target' => [
+                        'status' => $request->status,
+                        'tracking_stage' => $targetTrackingStage,
+                    ],
+                ];
+
+                $batch->status = $request->status;
+                $batch->sample_tracking_stage = $targetTrackingStage;
+                $batch->specialist_analyst_id = $request->specialist_analyst_id ?: null;
+                $batch->priority = $request->is_priority ?? 'Normal';
+                $batch->save();
+
+                $this->persistLaboratoryAcceptanceForm(
+                    $batch,
+                    (array) $request->input('lab_acceptance', [])
+                );
+
+                $this->updateChainofCustody($custodyDetails);
+                $processedBatch = $batch;
+            }
+
+            if ($processedBatch) {
+                return redirect()
+                    ->to(route('view-batch-details', ['batch' => $processedBatch->id, 'client' => 0, 'portal' => 0, 'status' => 'Samples In Lab']) . '#sample-receipt-notification')
+                    ->with('success', 'Lab acceptance approved. Please complete the Sample Receipt Notification (GCLA 01) below.');
+            }
+
+            return redirect()->route('sample-workflow', ['status' => 'Samples Request Review'])
+                ->with('success', 'Batches Successfully Moved to ' . $request->status);
         } elseif ($request->status == 'Samples Request Review') {
             $strStage = 'Sample Labeling';
 
@@ -4563,7 +4723,7 @@ class SampleWorkFlowController extends Controller
 
         $payload = [
             'date' => (string) ($input['date'] ?? now()->format('Y-m-d')),
-            'lab_no' => (string) ($input['lab_no'] ?? $batch->batch_code),
+            'lab_no' => $this->normalizeLabNumber($input['lab_no'] ?? null, (string) $batch->batch_code),
             'customer_name' => (string) ($input['customer_name'] ?? ($customer->name ?? '')),
             'address' => (string) ($input['address'] ?? ($customer->postal_address ?? $submissionRequest?->physical_address ?? '')),
             'email' => (string) ($input['email'] ?? ($contact->email ?? $submissionRequest?->email ?? $customer->email ?? '')),
@@ -4599,6 +4759,208 @@ class SampleWorkFlowController extends Controller
             'created_by' => auth()->id(),
             'submitted_at' => now(),
         ]);
+    }
+
+    private function normalizeLabNumber(mixed $labNumber, string $fallbackLabNumber): string
+    {
+        $candidate = trim((string) $labNumber);
+        $fallback = trim($fallbackLabNumber);
+
+        if ($fallback === '') {
+            return $candidate;
+        }
+
+        if ($candidate === '') {
+            return $fallback;
+        }
+
+        if (str_contains(strtolower($candidate), 'auto-generated on approval')) {
+            return $fallback;
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    private function resolveBatchCodesFromFormInstance(SubmissionFormInstance $formInstance): \Illuminate\Support\Collection
+    {
+        $resolvedCodes = collect();
+        $visitedIds = collect();  // Prevent infinite loops in parent traversal
+
+        $candidateInstances = collect([$formInstance]);
+
+        // Recursively walk up the parent_instance_id chain
+        if (!empty($formInstance->parent_instance_id) && (string) $formInstance->parent_instance_id !== (string) $formInstance->id) {
+            $this->collectParentInstances($formInstance, $candidateInstances, $visitedIds);
+        }
+
+        // Also check portal_request_id as a form instance reference
+        if (!empty($formInstance->portal_request_id)) {
+            $portalInstance = SubmissionFormInstance::with('batches')
+                ->find((string) $formInstance->portal_request_id);
+
+            if ($portalInstance && !$visitedIds->contains((string) $portalInstance->id)) {
+                $candidateInstances->push($portalInstance);
+                $visitedIds->push((string) $portalInstance->id);
+            }
+        }
+
+        // Check for child instances
+        $childInstances = SubmissionFormInstance::with('batches')
+            ->where('parent_instance_id', (string) $formInstance->id)
+            ->orWhere('portal_request_id', (string) $formInstance->id)
+            ->get();
+
+        if ($childInstances->isNotEmpty()) {
+            $candidateInstances = $candidateInstances->merge($childInstances);
+        }
+
+        $candidateInstances = $candidateInstances
+            ->filter()
+            ->unique(fn (SubmissionFormInstance $instance) => (string) $instance->id)
+            ->values();
+
+        foreach ($candidateInstances as $candidateInstance) {
+            foreach ($candidateInstance->batches as $linkedBatch) {
+                if (!empty($linkedBatch->batch_code)) {
+                    $resolvedCodes->push((string) $linkedBatch->batch_code);
+                }
+            }
+
+            if ($candidateInstance->batches->isNotEmpty()) {
+                continue;
+            }
+
+            try {
+                $created = $this->sampleCreationService->createSamplesFromForm($candidateInstance);
+                $createdBatch = $created['sample_header'] ?? null;
+
+                if ($createdBatch && !empty($createdBatch->batch_code)) {
+                    $resolvedCodes->push((string) $createdBatch->batch_code);
+                    $this->syncSubmissionRequestBatchLink($candidateInstance, $createdBatch);
+                    $this->syncSubmissionRequestBatchLink($formInstance, $createdBatch);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to create batch from form instance during Samples In Lab approval', [
+                    'form_instance_id' => $candidateInstance->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($resolvedCodes->isEmpty()) {
+            $requestIdCandidates = $candidateInstances
+                ->flatMap(fn (SubmissionFormInstance $instance) => $this->inferSubmissionRequestIdsFromFormInstance($instance))
+                ->merge($this->inferSubmissionRequestIdsFromFormInstance($formInstance))
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($requestIdCandidates->isNotEmpty()) {
+                $linkedRequests = SampleSubmissionRequest::query()
+                    ->whereIn('id', $requestIdCandidates)
+                    ->whereNotNull('sample_header_id')
+                    ->get();
+
+                foreach ($linkedRequests as $linkedRequest) {
+                    $linkedBatch = SampleHeader::query()->find((string) $linkedRequest->sample_header_id);
+                    if ($linkedBatch && !empty($linkedBatch->batch_code)) {
+                        $resolvedCodes->push((string) $linkedBatch->batch_code);
+                    }
+                }
+            }
+        }
+
+        return $resolvedCodes
+            ->filter(fn ($code) => is_string($code) && trim($code) !== '')
+            ->map(fn ($code) => trim($code))
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * Recursively collect parent form instances up the chain
+     */
+    private function collectParentInstances(
+        SubmissionFormInstance $instance,
+        \Illuminate\Support\Collection &$candidateInstances,
+        \Illuminate\Support\Collection &$visitedIds,
+        int $maxDepth = 10
+    ): void {
+        if ($maxDepth <= 0 || empty($instance->parent_instance_id)) {
+            return;
+        }
+
+        $parentId = (string) $instance->parent_instance_id;
+
+        if ($visitedIds->contains($parentId) || $parentId === (string) $instance->id) {
+            return;  // Already visited or self-reference
+        }
+
+        $parentInstance = SubmissionFormInstance::with('batches')
+            ->find($parentId);
+
+        if (!$parentInstance) {
+            return;
+        }
+
+        $visitedIds->push($parentId);
+        $candidateInstances->push($parentInstance);
+
+        // Continue recursion up the chain
+        $this->collectParentInstances($parentInstance, $candidateInstances, $visitedIds, $maxDepth - 1);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    private function inferSubmissionRequestIdsFromFormInstance(SubmissionFormInstance $formInstance): \Illuminate\Support\Collection
+    {
+        $ids = collect();
+
+        $targetType = strtolower(trim((string) ($formInstance->target_record_type ?? '')));
+        $targetId = trim((string) ($formInstance->target_record_id ?? ''));
+        $portalRequestId = trim((string) ($formInstance->portal_request_id ?? ''));
+        $legacyRequestId = trim((string) ($formInstance->sample_submission_request_id ?? ''));
+
+        if ($targetId !== '' && ($targetType === '' || str_contains($targetType, 'samplesubmissionrequest') || str_contains($targetType, 'sample_submission_request'))) {
+            $ids->push($targetId);
+        }
+
+        if ($legacyRequestId !== '') {
+            $ids->push($legacyRequestId);
+        }
+
+        if ($portalRequestId !== '' && SampleSubmissionRequest::query()->where('id', $portalRequestId)->exists()) {
+            $ids->push($portalRequestId);
+        }
+
+        return $ids
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '')
+            ->unique()
+            ->values();
+    }
+
+    private function syncSubmissionRequestBatchLink(SubmissionFormInstance $formInstance, SampleHeader $batch): void
+    {
+        if ((string) $formInstance->target_record_type !== SampleSubmissionRequest::class || empty($formInstance->target_record_id)) {
+            return;
+        }
+
+        $submissionRequest = SampleSubmissionRequest::query()->find((string) $formInstance->target_record_id);
+        if (! $submissionRequest) {
+            return;
+        }
+
+        if ((string) $submissionRequest->sample_header_id === (string) $batch->id) {
+            return;
+        }
+
+        $submissionRequest->sample_header_id = (string) $batch->id;
+        $submissionRequest->save();
     }
 
     private function persistSampleRejectionForm(
