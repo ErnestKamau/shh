@@ -25,11 +25,11 @@
 		@php
 			$user = auth()->user();
 			$canPersonnel = $user->can('personnel.personnel.view');
-			$canDepartments = $user->can('personnel.department.view');
-			$canRoles = $user->can('personnel.role.view');
-			$canAuditTrail = $user->can('personnel.audit_trail.view');
+			$canDepartments = $user->can('personnel.departments.view');
+			$canRoles = $user->can('personnel.roles.view');
+			$canAuditTrail = $user->can('personnel.audit trail.view');
 			$canPersonnelEdit = $user->can('personnel.personnel.edit');
-			$canPersonnelConfigurations = $user->can('personnel.configuration.view');
+			$canPersonnelConfigurations = $user->can('personnel.configurations.view');
 			$canModulePreConfigsRoute = $user->can('personnel.module.access');
 		@endphp
 		<ul class="list-group">

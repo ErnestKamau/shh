@@ -13,7 +13,7 @@
         </div>
     </div>
 
-    @can('system.module_switching.view')
+    @can('system.module-switching.view')
         @livewire('system.module-visibility-manager')
     @else
         <div class="alert alert-warning mb-0">

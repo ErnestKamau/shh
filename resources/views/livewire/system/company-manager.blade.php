@@ -11,7 +11,7 @@
                             </h2>
                             <p class="text-muted mb-0">{{ __('system.manage_companies_profile') }}</p>
                         </div>
-                        @can('system.company.add')
+                        @can('system.companies.add')
                             <button wire:click="openCreateModal" class="btn btn-primary">
                                 <i class="mdi mdi-plus"></i> {{ __('system.add_company') }}
                             </button>
@@ -108,7 +108,7 @@
                                         <tr>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    @can('system.company.edit')
+                                                    @can('system.companies.edit')
                                                         <button wire:click="openEditModal('{{ $company->id }}')" class="btn btn-sm btn-outline-warning mr-1" title="{{ __('system.edit') }}">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>

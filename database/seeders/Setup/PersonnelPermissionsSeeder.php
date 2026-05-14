@@ -31,6 +31,7 @@ class PersonnelPermissionsSeeder extends Seeder
             'personnel.configurations.edit',
             'personnel.configurations.delete',
             'personnel.audit trail.view',
+            'personnel.module.access',
         ];
 
         $permissions = [];
