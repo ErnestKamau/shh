@@ -174,7 +174,7 @@ class ComplaintForm extends BaseCrmComponent
 
     public function getSelectedContactProperty()
     {
-        if (empty($this->contact_name) || !is_numeric($this->contact_name)) {
+        if ($this->contact_name === '' || $this->contact_name === null) {
             return null;
         }
 
@@ -469,39 +469,39 @@ class ComplaintForm extends BaseCrmComponent
         $this->syncContactTitle($value);
     }
 
-    protected function syncContactTitle($value)
+    protected function syncContactTitle($value): void
     {
-        if ($this->received_from_type === 'Customer' && $value) {
-            $contact = null;
-            if (is_numeric($value)) {
-                $contact = \App\Models\CRM\CustomerContact::find($value);
-            } else {
-                // Defensive: resolve customerId if it's missing
-                if (!$this->customerId && $this->organization_name) {
-                    $customer = CRMCustomer::where('name', $this->organization_name)->first();
-                    if ($customer) {
-                        $this->customerId = $customer->id;
-                    }
-                }
-
-                if ($this->customerId) {
-                    // Try to find by full name if it's a string (backwards compatibility)
-                    $contact = \App\Models\CRM\CustomerContact::where('crm_customer_id', $this->customerId)
-                        ->where(DB::raw("TRIM(CONCAT_WS(' ', first_name, middle_name, last_name))"), $value)
-                        ->first();
-                }
-            }
-
-            if ($contact) {
-                $this->title_position = $contact->job_occupation;
-                // If we matched a string name to an ID, update the model to use the ID
-                if (!is_numeric($value)) {
-                    $this->contact_name = $contact->id;
-                }
-            }
-        } else {
+        if ($this->received_from_type !== 'Customer' || $value === '' || $value === null) {
             $this->title_position = '';
+
+            return;
         }
+
+        $contact = \App\Models\CRM\CustomerContact::find($value);
+
+        if ($contact === null) {
+            if (! $this->customerId && $this->organization_name) {
+                $customer = CRMCustomer::where('name', $this->organization_name)->first();
+                if ($customer) {
+                    $this->customerId = $customer->id;
+                }
+            }
+
+            if ($this->customerId) {
+                $contact = \App\Models\CRM\CustomerContact::where('crm_customer_id', $this->customerId)
+                    ->where(DB::raw("TRIM(CONCAT_WS(' ', first_name, middle_name, last_name))"), $value)
+                    ->first();
+            }
+        }
+
+        if ($contact !== null) {
+            $this->title_position = $contact->job_occupation ?? '';
+            $this->contact_name = (string) $contact->id;
+
+            return;
+        }
+
+        $this->title_position = '';
     }
 
     public function updatedReceivedFromType($value)
@@ -667,12 +667,14 @@ class ComplaintForm extends BaseCrmComponent
         $complaint->title_position = $this->title_position;
         $complaint->organization_name = $this->organization_name;
         
-        // Handle Contact Name conversion from ID to Full Name for storage
-        if ($this->received_from_type === 'Customer' && is_numeric($this->contact_name)) {
+        // Handle Contact Name conversion from ID to Full Name for storage (IDs may be UUID strings)
+        if ($this->received_from_type === 'Customer' && $this->contact_name !== '' && $this->contact_name !== null) {
             $contact = \App\Models\CRM\CustomerContact::find($this->contact_name);
-            $complaint->contact_name = $contact ? ($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name) : $this->contact_name;
+            $complaint->contact_name = $contact
+                ? trim(($contact->first_name ?? '') . ' ' . ($contact->middle_name ?? '') . ' ' . ($contact->last_name ?? ''))
+                : (string) $this->contact_name;
         } else {
-            $complaint->contact_name = $this->contact_name;
+            $complaint->contact_name = (string) $this->contact_name;
         }
         
         if ($this->customerId) {

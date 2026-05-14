@@ -428,65 +428,47 @@
 
 <div class="complaint-show-section">
     <main>
-        <x-bread-crumb :items="$this->breadcrumbItems"></x-bread-crumb>
+        <div class="container-fluid px-2 px-md-4">
+            @php
+                $complaintSubtitle = ($complaint->client->name ?? $complaint->received_from) . ' · Logged ' . \Carbon\Carbon::parse($complaint->date)->format('d M Y');
+                $pLower = strtolower((string) ($complaint->priority ?? ''));
+                $priBadge = $pLower === 'high' || $pLower === 'critical' ? 'crm-badge-danger' : ($pLower === 'medium' ? 'crm-badge-warning' : 'crm-badge-secondary');
+            @endphp
+            <x-crm.page-header
+                :breadcrumbItems="$this->breadcrumbItems"
+                :title="$complaint->complaint_id"
+                :subtitle="$complaintSubtitle"
+                icon="mdi-comment-alert"
+            >
+                <x-slot:actions>
+                    <span class="d-inline-flex flex-wrap align-items-center justify-content-end" style="gap:8px;">
+                        @if($complaint->complaint_workflow == 1)
+                            <button type="button" class="btn btn-outline-success btn-sm crm-outline-btn-sm"
+                                wire:click="$dispatch('initiate-workflow-action', 'approveNext')">
+                                <i class="mdi mdi-check-all"></i> Approve & Proceed
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm crm-outline-btn-sm"
+                                wire:click="$dispatch('initiate-workflow-action', 'logForRecordOnly')">
+                                <i class="mdi mdi-archive-outline"></i> Log for Record Only
+                            </button>
+                        @endif
+                        @if($complaint->complaint_workflow >= 5 && $activeTab !== 'capa')
+                            <button type="button" class="btn btn-outline-danger btn-sm crm-outline-btn-sm"
+                                wire:click="generateReport({{ $complaint->id }})">
+                                <i class="mdi mdi-file-pdf-box"></i> Export to PDF
+                            </button>
+                        @endif
+                    </span>
+                </x-slot:actions>
+            </x-crm.page-header>
 
-        {{-- Incident Identity Card --}}
-        <div class="px-4 pb-4 pt-3"> {{-- Increased padding for better vertical spacing --}}
-            <div class="d-flex align-items-start justify-content-between flex-wrap">
-                <div class="d-flex align-items-center">
-                    <div class="mr-3 d-flex align-items-center justify-content-center rounded"
-                        style="width:48px;height:48px;background:#fff3f3;flex-shrink:0;border:2px solid #f8d6d6;">
-                        <i class="mdi mdi-comment-alert text-danger" style="font-size:1.3rem;"></i>
-                    </div>
-                    <div>
-                        <div class="d-flex align-items-center flex-wrap">
-                            <span class="font-weight-bold text-dark mr-2"
-                                style="font-size:1.15rem;font-family:monospace;letter-spacing:.03em;">{{ $complaint->complaint_id }}</span>
-                            @php
-                                $priColor = match ($complaint->priority) {
-                                    'high' => 'badge-danger',
-                                    'medium' => 'badge-warning',
-                                    default => 'badge-secondary',
-                                };
-                            @endphp
-                            <span class="badge {{ $priColor }} mr-1"
-                                style="font-size:0.68rem;padding:3px 8px;">{{ ucfirst($complaint->priority ?? 'Low') }}
-                                Priority</span>
-                            <span class="badge badge-light border"
-                                style="font-size:0.68rem;padding:3px 8px;">{{ $workflowStage }}</span>
-                        </div>
-                        <small class="text-muted" style="font-size:0.72rem;">
-                            <i
-                                class="mdi mdi-account-outline mr-1"></i>{{ $complaint->client->name ?? $complaint->received_from }}
-                            <span class="mx-2">&middot;</span>
-                            <i class="mdi mdi-calendar-outline mr-1"></i>Logged
-                            {{ \Carbon\Carbon::parse($complaint->date)->format('d M Y') }}
-                        </small>
-                    </div>
-                </div>
-                <div class="workflow-actions mt-2 mt-md-0">
-                    @if($complaint->complaint_workflow == 1)
-                        <button class="btn btn-success btn-sm"
-                            wire:click="$dispatch('initiate-workflow-action', 'approveNext')">
-                            <i class="mdi mdi-check-all"></i> Approve & Proceed
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm"
-                            wire:click="$dispatch('initiate-workflow-action', 'logForRecordOnly')">
-                            <i class="mdi mdi-archive-outline"></i> Log for Record Only
-                        </button>
-                    @endif
-                    @if($complaint->complaint_workflow >= 5 && $activeTab !== 'capa')
-                        <button class="btn btn-outline-danger btn-sm"
-                            wire:click="generateReport({{ $complaint->id }})">
-                            <i class="mdi mdi-file-pdf-box"></i> Export to PDF
-                        </button>
-                    @endif
-                </div>
+            <div class="mb-3 d-flex flex-wrap align-items-center">
+                <span class="crm-badge {{ $priBadge }} mr-2">{{ ucfirst($complaint->priority ?? 'Low') }} priority</span>
+                <span class="crm-badge crm-badge-primary">{{ $workflowStage }}</span>
             </div>
-        </div>
 
-        <div class="row no-gutters">
-            <div class="col-sm-12 p-2">
+            <div class="row no-gutters">
+                <div class="col-sm-12 p-2">
                 <div class="card tab-card">
                     <div class="card-header tab-card-header">
                         <ul class="crm-tab-nav" id="complaint-tabs" role="tablist">
@@ -562,6 +544,7 @@
                             @livewire(\App\Livewire\Crm\Complaint\Tabs\ComplaintWorkflowTab::class, ['complaintId' => $complaint->id, 'viewMode' => 'tab'], 'workflow-tab-' . $complaint->id)
                         @endif
                     </div>
+                </div>
                 </div>
             </div>
         </div>

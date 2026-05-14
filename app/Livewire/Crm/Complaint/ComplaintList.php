@@ -224,8 +224,8 @@ class ComplaintList extends BaseCrmComponent
         return view('livewire.crm.complaint.complaint-list', [
             'complaints' => $this->complaints,
             'complaintTypes' => $this->complaintTypes,
-            // Pass the title to the view so you can use {{ $pageTitle }} in the H1 header
-            'pageTitle' => $this->getStageName($this->stage) 
+            'pageTitle' => $this->getStageName($this->stage),
+            'pageSubtitle' => 'Tracking, resolution, and compliance status of all reported complaints.',
         ])->extends('layouts.crm.layout.app', ['dataTable' => false, 'select2' => true])
             ->section('content2');
     }

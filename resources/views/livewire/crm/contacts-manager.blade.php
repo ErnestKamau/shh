@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid contacts-manager-page">
     <!-- Header -->
     <div class="row mb-4 customer-tab-filters">
         <div class="col-12">
@@ -35,28 +35,36 @@
     @endif
 
     <!-- Filters -->
-    <div class="row mb-4">
-        <div class="col-md-6">
+    <div class="row mb-4 align-items-end contacts-manager-filters">
+        <div class="col-md-6 mb-2 mb-md-0">
             <input type="text" wire:model.live="search" class="form-control"
                 placeholder="{{ __('crm.search_contacts') }}">
         </div>
-        <div class="col-md-2">
-            <select wire:model.live="statusFilter" class="form-control" style="min-width: 0;">
-                <option value="">{{ __('crm.all_status') }}</option>
-                <option value="1">{{ __('crm.active') }}</option>
-                <option value="0">{{ __('crm.inactive') }}</option>
-            </select>
+        <div class="col-md-2 mb-2 mb-md-0">
+            <div class="tag-select-container contacts-manager-filter-select">
+                <div class="tag-select-input contacts-manager-filter-select-input">
+                    <select wire:model.live="statusFilter" class="tag-select-native no-select2" wire:key="contacts-status-filter">
+                        <option value="">{{ __('crm.all_status') }}</option>
+                        <option value="1">{{ __('crm.active') }}</option>
+                        <option value="0">{{ __('crm.inactive') }}</option>
+                    </select>
+                </div>
+            </div>
         </div>
-        <div class="col-md-2">
-            <select wire:model.live="perPage" class="form-control">
-                <option value="10">10 / page</option>
-                <option value="25">25 / page</option>
-                <option value="50">50 / page</option>
-                <option value="100">100 / page</option>
-            </select>
+        <div class="col-md-2 mb-2 mb-md-0">
+            <div class="tag-select-container contacts-manager-filter-select">
+                <div class="tag-select-input contacts-manager-filter-select-input">
+                    <select wire:model.live="perPage" class="tag-select-native no-select2" wire:key="contacts-per-page">
+                        <option value="10">10 / page</option>
+                        <option value="25">25 / page</option>
+                        <option value="50">50 / page</option>
+                        <option value="100">100 / page</option>
+                    </select>
+                </div>
+            </div>
         </div>
-        <div class="col-md-2">
-            <button wire:click="clearFilters" class="btn btn-outline-secondary w-100">
+        <div class="col-md-2 mb-2 mb-md-0">
+            <button type="button" wire:click="clearFilters" class="btn btn-outline-secondary w-100">
                 {{ __('crm.clear') }}
             </button>
         </div>
@@ -303,7 +311,7 @@
                                                 allUnits: {{ json_encode($units->pluck('name')->toArray()) }},
                                                 get filteredUnits() {
                                                     if (!this.search) return this.allUnits;
-                                                    return this.allUnits.filter(unit => 
+                                                    return this.allUnits.filter(unit =>
                                                         unit.toLowerCase().includes(this.search.toLowerCase())
                                                     );
                                                 },
@@ -328,56 +336,43 @@
                                                 isSelected(unit) {
                                                     return Array.isArray(this.selectedUnits) && this.selectedUnits.includes(unit);
                                                 }
-                                            }" class="searchable-dropdown-wrapper">
-                                                <!-- Selected Units Tags -->
-                                                <div class="selected-tags-container" @click="open = true">
-                                                    <template x-if="Array.isArray(selectedUnits) && selectedUnits.length > 0">
-                                                        <div class="tags-wrapper">
-                                                            <template x-for="unit in selectedUnits" :key="unit">
-                                                                <span class="unit-tag">
-                                                                    <span x-text="unit"></span>
-                                                                    <button type="button" @click.stop="removeUnit(unit)" class="remove-tag-btn">
-                                                                        <i class="mdi mdi-close"></i>
-                                                                    </button>
-                                                                </span>
-                                                            </template>
-                                                        </div>
+                                            }"
+                                                class="tag-select-container modal-contact-units-select @error('contactForm.unit_name') is-invalid @enderror">
+                                                <div class="tag-select-input" @click="open = true">
+                                                    <template x-for="unit in (Array.isArray(selectedUnits) ? selectedUnits : [])" :key="unit">
+                                                        <span class="tag-badge">
+                                                            <span class="tag-badge-label" x-text="unit"></span>
+                                                            <i class="mdi mdi-close" @click.stop="removeUnit(unit)" role="button" title="{{ __('crm.delete') }}"></i>
+                                                        </span>
                                                     </template>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         x-model="search"
                                                         @focus="open = true"
                                                         @click="open = true"
                                                         placeholder="{{ __('crm.search_or_select_units') }}"
-                                                        class="form-control searchable-input"
+                                                        class="tag-input"
+                                                        autocomplete="off"
                                                     >
-                                                    <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                                    <i class="mdi mdi-chevron-down flex-shrink-0 ml-auto" :class="{ 'rotated': open }"></i>
                                                 </div>
-
-                                                <!-- Dropdown List -->
-                                                <div x-show="open" 
-                                                     @click.away="open = false"
-                                                     x-transition
-                                                     class="dropdown-list">
-                                                    <template x-if="filteredUnits.length > 0">
-                                                        <div class="units-list">
-                                                            <template x-for="unit in filteredUnits" :key="unit">
-                                                                <div @click="toggleUnit(unit)" 
-                                                                     class="unit-item"
-                                                                     :class="{ 'selected': isSelected(unit) }">
-                                                                    <i class="mdi" 
-                                                                       :class="isSelected(unit) ? 'mdi-checkbox-marked text-primary' : 'mdi-checkbox-blank-outline'"></i>
-                                                                    <span x-text="unit"></span>
-                                                                </div>
-                                                            </template>
+                                                <div x-show="open"
+                                                    @click.away="open = false"
+                                                    x-transition
+                                                    class="tag-dropdown">
+                                                    <template x-for="unit in filteredUnits" :key="unit">
+                                                        <div @click="toggleUnit(unit)"
+                                                            class="tag-dropdown-item d-flex align-items-center"
+                                                            :class="{ 'bg-light': isSelected(unit) }">
+                                                            <i class="mdi mr-2"
+                                                                :class="isSelected(unit) ? 'mdi-checkbox-marked text-primary' : 'mdi-checkbox-blank-outline'"></i>
+                                                            <span x-text="unit"></span>
                                                         </div>
                                                     </template>
-                                                    <template x-if="filteredUnits.length === 0">
-                                                        <div class="no-results">
-                                                            <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>{{ __('crm.no_units_found_static') }}</span>
-                                                        </div>
-                                                    </template>
+                                                    <div x-show="filteredUnits.length === 0" class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>{{ __('crm.no_units_found_static') }}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             @error('contactForm.unit_name') <span class="text-danger">{{ $message }}</span> @enderror
@@ -762,6 +757,43 @@
         padding-left: 16px;
         padding-right: 16px;
     }
+
+    .contacts-manager-page .contacts-manager-filter-select-input {
+        padding: 0 8px 0 12px;
+        min-height: 42px;
+        align-items: center;
+        border: 1px solid #ced4da;
+        border-radius: 8px;
+        background: #fff;
+        display: flex;
+    }
+
+    .contacts-manager-page .contacts-manager-filter-select .tag-select-native {
+        width: 100%;
+        display: block;
+        border: none;
+        box-shadow: none;
+        background-color: transparent;
+        padding: 10px 28px 10px 0;
+        min-height: 40px;
+        line-height: 1.5;
+        font-size: 0.9375rem;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 4px center;
+        background-size: 16px 16px;
+        cursor: pointer;
+    }
+
+    .contacts-manager-page .contacts-manager-filter-select .tag-select-native:focus {
+        border: none;
+        box-shadow: none;
+        outline: none;
+        background-color: transparent;
+    }
     
     /* Make modal body scrollable */
     .modal-body {
@@ -871,148 +903,26 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
-    
-    /* Searchable Dropdown Styling */
-    .searchable-dropdown-wrapper {
-        position: relative;
-    }
-    
-    .selected-tags-container {
-        position: relative;
-        min-height: 45px;
-        border: 1px solid #ced4da;
-        border-radius: 12px;
-        padding: 8px 40px 8px 12px;
-        background: white;
-        cursor: text;
-        transition: all 0.3s ease;
-    }
-    
-    .selected-tags-container:hover {
-        border-color: #007bff;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-    }
-    
-    .selected-tags-container:has(.searchable-input:focus) {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-    
-    .tags-wrapper {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 6px;
-    }
-    
-    .unit-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-        color: white;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
-        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
-    }
-    
-    .remove-tag-btn {
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        padding: 0;
-        color: white;
-    }
-    
-    .remove-tag-btn:hover {
-        background: rgba(255, 255, 255, 0.4);
-        transform: scale(1.1);
-    }
-    
-    .remove-tag-btn i {
-        font-size: 12px;
-    }
-    
-    .searchable-input {
-        border: none;
-        outline: none;
-        box-shadow: none !important;
-        padding: 4px 0;
-        min-width: 200px;
-        flex: 1;
-    }
-    
-    .searchable-input:focus {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .dropdown-arrow {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 20px;
+
+    /* Contact modal: company units multi-select uses global tag-select-*; chevron + empty state only */
+    .modal-contact-units-select .tag-select-input .mdi-chevron-down {
+        transition: transform 0.2s ease;
         color: #6c757d;
-        transition: transform 0.3s ease;
-        pointer-events: none;
+        font-size: 1.25rem;
+        line-height: 1;
     }
-    
-    .dropdown-arrow.rotated {
-        transform: translateY(-50%) rotate(180deg);
+
+    .modal-contact-units-select .tag-select-input .mdi-chevron-down.rotated {
+        transform: rotate(180deg);
     }
-    
-    .dropdown-list {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        max-height: 300px;
-        overflow-y: auto;
-        z-index: 1000;
-    }
-    
-    .units-list {
-        padding: 8px;
-    }
-    
-    .unit-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
+
+    .modal-contact-units-select .tag-dropdown {
+        margin-top: 4px;
+        border-top: 1px solid #007bff;
         border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 14px;
     }
-    
-    .unit-item:hover {
-        background: #f8f9fa;
-    }
-    
-    .unit-item.selected {
-        background: rgba(0, 123, 255, 0.08);
-    }
-    
-    .unit-item i {
-        font-size: 20px;
-    }
-    
-    .no-results {
+
+    .modal-contact-units-select .no-results {
         padding: 20px;
         text-align: center;
         color: #6c757d;
@@ -1021,29 +931,10 @@
         align-items: center;
         gap: 8px;
     }
-    
-    .no-results i {
+
+    .modal-contact-units-select .no-results i {
         font-size: 32px;
         opacity: 0.5;
-    }
-    
-    /* Custom scrollbar for dropdown */
-    .dropdown-list::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .dropdown-list::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
-    }
-    
-    .dropdown-list::-webkit-scrollbar-thumb {
-        background: #888;
-        border-radius: 4px;
-    }
-    
-    .dropdown-list::-webkit-scrollbar-thumb:hover {
-        background: #555;
     }
     </style>
 </div>

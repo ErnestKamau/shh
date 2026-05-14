@@ -37,9 +37,15 @@ class EquipmentDetail extends Component
     // Modal States
     public $showEditModal = false;
     public $showMaintenanceModal = false;
+    public bool $showDeleteMaintenanceConfirmModal = false;
+    public ?string $pendingDeleteMaintenanceLogId = null;
     public $showCalibrationModal = false;
+    public bool $showDeleteCalibrationConfirmModal = false;
+    public ?string $pendingDeleteCalibrationLogId = null;
     public $showRepairModal = false;
     public $showVerificationModal = false;
+    public bool $showDeleteVerificationConfirmModal = false;
+    public ?string $pendingDeleteVerificationLogId = null;
     public $showOperatorModal = false;
     public $showAttachmentModal = false;
     public $showNotificationModal = false;
@@ -466,15 +472,20 @@ class EquipmentDetail extends Component
         $this->editingLog = null;
     }
 
-    public function showEditMaintenanceModal($logId): void
+    public function showEditMaintenanceModal(string $logId): void
     {
         $log = MaintainanceCalibrationLog::findOrFail($logId);
         $this->editingLog = $log;
+        $serviceType = $log->maintainance_type ?? 'in_house';
+        $serviceType = str_replace('-', '_', (string) $serviceType);
+        if (! in_array($serviceType, ['in_house', 'external'], true)) {
+            $serviceType = 'in_house';
+        }
         $this->maintenanceForm = [
-            'date' => $log->date,
+            'date' => $log->date instanceof Carbon ? $log->date->format('Y-m-d') : (string) $log->date,
             'description' => $log->description ?? '',
             'reference_number' => $log->reference_number ?? '',
-            'maintainance_type' => $log->maintainance_type ?? 'in-house',
+            'maintainance_type' => $serviceType,
             'employee_id' => $log->employee_id,
             'supplier_id' => $log->supplier_id,
             'notes' => $log->notes,
@@ -536,16 +547,34 @@ class EquipmentDetail extends Component
         }
     }
 
-    public function deleteMaintenanceLog($logId): void
+    public function openDeleteMaintenanceConfirmModal(string $logId): void
     {
+        $this->pendingDeleteMaintenanceLogId = $logId;
+        $this->showDeleteMaintenanceConfirmModal = true;
+    }
+
+    public function closeDeleteMaintenanceConfirmModal(): void
+    {
+        $this->showDeleteMaintenanceConfirmModal = false;
+        $this->pendingDeleteMaintenanceLogId = null;
+    }
+
+    public function confirmDeleteMaintenanceLog(): void
+    {
+        if ($this->pendingDeleteMaintenanceLogId === null) {
+            return;
+        }
+
         try {
-            MaintainanceCalibrationLog::findOrFail($logId)->delete();
+            MaintainanceCalibrationLog::findOrFail($this->pendingDeleteMaintenanceLogId)->delete();
             $this->message = 'Maintenance log deleted successfully!';
             $this->messageType = 'success';
             $this->loadEquipment();
         } catch (\Exception $e) {
             $this->message = 'Error deleting maintenance log: ' . $e->getMessage();
             $this->messageType = 'danger';
+        } finally {
+            $this->closeDeleteMaintenanceConfirmModal();
         }
     }
 
@@ -557,17 +586,22 @@ class EquipmentDetail extends Component
         $this->editingLog = null;
     }
 
-    public function showEditCalibrationModal($logId): void
+    public function showEditCalibrationModal(string $logId): void
     {
         $log = MaintainanceCalibrationLog::findOrFail($logId);
         $this->editingLog = $log;
+        $serviceType = $log->maintainance_type ?? 'in_house';
+        $serviceType = str_replace('-', '_', (string) $serviceType);
+        if (! in_array($serviceType, ['in_house', 'external'], true)) {
+            $serviceType = 'in_house';
+        }
         $this->calibrationForm = [
-            'date' => $log->date,
+            'date' => $log->date instanceof Carbon ? $log->date->format('Y-m-d') : (string) $log->date,
             'description' => $log->description ?? '',
             'reference_number' => $log->reference_number ?? '',
             'correction_factor' => $log->correction_factor ?? '',
             'uncertainty_of_measure' => $log->uncertainty_of_measure ?? '',
-            'maintainance_type' => $log->maintainance_type ?? 'in-house',
+            'maintainance_type' => $serviceType,
             'employee_id' => $log->employee_id,
             'supplier_id' => $log->supplier_id,
             'notes' => $log->notes,
@@ -634,16 +668,34 @@ class EquipmentDetail extends Component
         }
     }
 
-    public function deleteCalibrationLog($logId): void
+    public function openDeleteCalibrationConfirmModal(string $logId): void
     {
+        $this->pendingDeleteCalibrationLogId = $logId;
+        $this->showDeleteCalibrationConfirmModal = true;
+    }
+
+    public function closeDeleteCalibrationConfirmModal(): void
+    {
+        $this->showDeleteCalibrationConfirmModal = false;
+        $this->pendingDeleteCalibrationLogId = null;
+    }
+
+    public function confirmDeleteCalibrationLog(): void
+    {
+        if ($this->pendingDeleteCalibrationLogId === null) {
+            return;
+        }
+
         try {
-            MaintainanceCalibrationLog::findOrFail($logId)->delete();
+            MaintainanceCalibrationLog::findOrFail($this->pendingDeleteCalibrationLogId)->delete();
             $this->message = 'Calibration log deleted successfully!';
             $this->messageType = 'success';
             $this->loadEquipment();
         } catch (\Exception $e) {
             $this->message = 'Error deleting calibration log: ' . $e->getMessage();
             $this->messageType = 'danger';
+        } finally {
+            $this->closeDeleteCalibrationConfirmModal();
         }
     }
 
@@ -655,17 +707,24 @@ class EquipmentDetail extends Component
         $this->editingLog = null;
     }
 
-    public function showEditVerificationModal($logId): void
+    public function showEditVerificationModal(string $logId): void
     {
         $log = VerificationLog::findOrFail($logId);
         $this->editingLog = $log;
+        $serviceType = $log->maintainance_type ?? 'in_house';
+        $serviceType = str_replace('-', '_', (string) $serviceType);
+        if (! in_array($serviceType, ['in_house', 'external'], true)) {
+            $serviceType = 'in_house';
+        }
         $this->verificationForm = [
-            'verification_date' => $log->verification_date,
+            'verification_date' => $log->verification_date instanceof Carbon
+                ? $log->verification_date->format('Y-m-d')
+                : (string) $log->verification_date,
             'reference_standard' => $log->reference_standard ?? '',
             'procedure' => $log->procedure ?? '',
             'response' => $log->response ?? '',
             'remarks' => $log->remarks ?? '',
-            'maintainance_type' => $log->maintainance_type ?? 'in-house',
+            'maintainance_type' => $serviceType,
             'operator_id' => $log->operator_id,
             'supplier_id' => $log->supplier_id,
         ];
@@ -718,10 +777,26 @@ class EquipmentDetail extends Component
         }
     }
 
-    public function deleteVerificationLog($logId): void
+    public function openDeleteVerificationConfirmModal(string $logId): void
     {
+        $this->pendingDeleteVerificationLogId = $logId;
+        $this->showDeleteVerificationConfirmModal = true;
+    }
+
+    public function closeDeleteVerificationConfirmModal(): void
+    {
+        $this->showDeleteVerificationConfirmModal = false;
+        $this->pendingDeleteVerificationLogId = null;
+    }
+
+    public function confirmDeleteVerificationLog(): void
+    {
+        if ($this->pendingDeleteVerificationLogId === null) {
+            return;
+        }
+
         try {
-            $log = VerificationLog::findOrFail($logId);
+            $log = VerificationLog::findOrFail($this->pendingDeleteVerificationLogId);
             $log->update(['is_delete' => 1]);
             $this->message = 'Verification log deleted successfully!';
             $this->messageType = 'success';
@@ -729,6 +804,8 @@ class EquipmentDetail extends Component
         } catch (\Exception $e) {
             $this->message = 'Error deleting verification log: ' . $e->getMessage();
             $this->messageType = 'danger';
+        } finally {
+            $this->closeDeleteVerificationConfirmModal();
         }
     }
 

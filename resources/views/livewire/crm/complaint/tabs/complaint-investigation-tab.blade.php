@@ -70,11 +70,11 @@
             </div>
         </div>
         <div class="d-flex align-items-center" style="gap:8px;">
-            <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generateReport">
+            <button type="button" class="btn btn-outline-primary btn-sm crm-outline-btn-sm" wire:click="generateReport">
                 <i class="mdi mdi-file-pdf-outline"></i> Generate Report
             </button>
             @if($complaint->complaint_workflow <= 2)
-                <button type="button" class="btn btn-add btn-sm" wire:click="openInvestigationModal">
+                <button type="button" class="btn btn-outline-secondary btn-sm crm-outline-btn-sm" wire:click="openInvestigationModal">
                     <i class="mdi mdi-pencil-outline"></i> Edit Investigation
                 </button>
             @endif

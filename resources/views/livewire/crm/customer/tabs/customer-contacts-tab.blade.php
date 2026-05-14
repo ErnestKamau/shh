@@ -17,14 +17,19 @@
                     wire:model.live.debounce.300ms="search">
             </div>
             <!-- Show Entries -->
-            <div class="d-flex align-items-center mb-2 mb-md-0 mr-3 flex-shrink-0">
+            <div class="d-flex align-items-center flex-wrap flex-shrink-0 crm-contacts-per-page">
                 <label class="mb-0 mr-2 crm-filter-label text-nowrap">{{ __('crm.show') }}</label>
-                <select wire:model.live="perPage" wire:key="per-page-select" class="custom-select custom-select-sm no-select2" style="width: 70px;">
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
+                <div class="tag-select-container crm-units-tag-select" style="min-width: 88px;">
+                    <div class="tag-select-input crm-units-tag-select-input">
+                        <select wire:model.live="perPage" wire:key="per-page-select"
+                            class="tag-select-native no-select2">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
                 <label class="mb-0 ml-2 crm-filter-label text-nowrap">{{ __('crm.entries') }}</label>
             </div>
             <button class="btn btn-outline-success btn-sm mr-2 text-nowrap" wire:click="exportToExcel">
@@ -152,4 +157,35 @@
             'contactId' => $editingContact ? $editingContact->id : null
         ], 'contact-form-' . ($editingContact ? $editingContact->id : 'new'))
     @endif
+    <style>
+        .crm-units-tag-select-input {
+            padding: 0 8px 0 10px;
+            min-height: 38px;
+            align-items: center;
+        }
+
+        .crm-units-tag-select .tag-select-native {
+            width: 100%;
+            border: none;
+            box-shadow: none;
+            background: transparent;
+            padding: 8px 26px 8px 0;
+            min-height: 36px;
+            line-height: 1.5;
+            font-size: 0.875rem;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 2px center;
+            background-size: 14px 14px;
+            cursor: pointer;
+        }
+
+        .crm-units-tag-select .tag-select-native:focus {
+            outline: none;
+            box-shadow: none;
+        }
+    </style>
 </div>

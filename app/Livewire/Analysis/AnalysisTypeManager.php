@@ -14,6 +14,7 @@ use App\User;
 use App\InvoicableItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AnalysisTypeManager extends Component
