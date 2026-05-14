@@ -1521,7 +1521,7 @@ class SampleWorkFlowController extends Controller
             $not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae', function ($join) {
                 $join->on('ae.analysis_type_id', '=', 'captured_results.analysis_type_id');
                 $join->on('ae.analyte_id', '=', 'captured_results.analyte_id');
-            })->where('ae.active', 1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+            })->where('ae.active', 1)->selectRaw("string_agg(analyte_code, ',') as codes,sample_detail_code")->groupBy('sample_detail_id', 'sample_detail_code')->get();
             // return response()->json($test);
         }
 
@@ -4027,7 +4027,7 @@ class SampleWorkFlowController extends Controller
         $request->validate([
             'batch_id' => 'required|integer|exists:sample_headers,id',
             'title' => 'required|string|max:255',
-            'attachment_type' => 'required|integer',
+            'attachment_type' => 'required',
             'attachment' => 'required|file',
             'selected_captured_result_ids' => 'nullable|string',
         ]);
@@ -4138,7 +4138,7 @@ class SampleWorkFlowController extends Controller
         $request->validate([
             'attachment_ids' => 'required|string',
             'title' => 'required|string',
-            'attachment_type' => 'required|integer',
+            'attachment_type' => 'required',
             'batch_id' => 'required|integer'
         ]);
 
@@ -5977,7 +5977,7 @@ class SampleWorkFlowController extends Controller
             $not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae', function ($join) {
                 $join->on('ae.analysis_type_id', '=', 'captured_results.analysis_type_id');
                 $join->on('ae.analyte_id', '=', 'captured_results.analyte_id');
-            })->where('ae.active', 1)->where('ae.active', 1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+            })->where('ae.active', 1)->where('ae.active', 1)->selectRaw("string_agg(analyte_code, ',') as codes,sample_detail_code")->groupBy('sample_detail_id', 'sample_detail_code')->get();
             // return response()->json($test);
         }
 

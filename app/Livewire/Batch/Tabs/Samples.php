@@ -47,12 +47,66 @@ class Samples extends Component
     // Delete confirmation modals
     public $deletingStagingId = null;
     public $showDeleteModal = false;
+    public $deletingSampleIndex = null;
+    public $showDeleteSampleModal = false;
+    public $showEditModal = false;
+    public $showSubUnitDropdown = false;
+    public $showSampleTypeDropdown = false;
+    public $showStagingAnalysisTypeDropdown = false;
+    public $showAnalysisTypeDropdown = [];
+    public $subUnitSearch = '';
+    public $sampleTypeSearch = '';
+    public $stagingAnalysisTypeSearch = '';
+    public $analysisTypeSearch = '';
+    public $editingRowIndex = null;
+    public $selectedRows = [];
+    public $uncertaintyRequired = false;
+    public $parametersForm = [];
+    public $modalLists = ['operators' => [], 'methods' => [], 'units' => [], 'equipments' => []];
+
+    // More modals and reactive state
+    public $showEditStandardModal = false;
+    public $showAddOperatorModal = false;
+    public $showAddEquipmentModal = false;
+    public $showAddMethodModal = false;
+    public $showBatchEditModal = false;
+    public $allParametersSelected = false;
+    public $selectedParameters = [];
+    public $showProductDropdown = false;
+    public $showStorageDropdown = false;
+    public $productSearch = '';
+    public $storageSearch = '';
+    public $showAnalysisDateDropdown = [];
+    public $batchEditForm = [
+        'date_of_analysis' => '',
+        'operator_id' => '',
+        'method_id' => '',
+        'equipment_id' => '',
+    ];
+
+    public $editingStandardData = [];
+    public $standardValueOptions = [];
+
+    // Dropdown data
+    public $analysisTypes = [];
+    public $standards = [];
+    public $conditions = [];
+    public $samplePoints = [];
+    public $products = [];
+    public $labSections = [];
+    public $sampleTypes = [];
+    public $unitsOfMeasure = [];
+    public $subUnits = [];
+    public $storageLocations = [];
+
     public $sampleForms = [];
     public $samples = [];
     // View parameters modal
     public $showParametersModal = false;
     public $selectedSampleCode = null;
     public $sampleParameters = [];
+    public $activeField = '';
+    public $activeRowIndex = null;
     /** Lab section dropdown options for Parameters modal (SampleAnalysisStage) */
     public $modalLabSections = [];
     /** Date of analysis per lab section for the current sample: [ section_id => 'Y-m-d' ] */
@@ -128,9 +182,6 @@ class Samples extends Component
     public $newPointAreaId = '';
     public $newProductName = '';
     public $newStorageName = '';
-
-    public $activeRowIndex = null;
-    public $activeField = null; // 'sample_point_id', 'company_product_id', etc.
     public $areas = [];
 
     // Modal-level toast message

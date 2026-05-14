@@ -346,7 +346,7 @@ class SampleHeader extends Model implements Auditable
             $submissionFormAttachmentTypeId = \App\Models\System\SystemConfiguration::where('key', 'attachment_type')->value('id');
         }
 
-		return $this->batch_attachments()->where('attachment_type', $submissionFormAttachmentTypeId)->exists();
+		return $this->batch_attachments()->whereRaw('attachment_type::text = ?', [(string)$submissionFormAttachmentTypeId])->exists();
 	}
 
 	public function tracking_stage()
