@@ -2139,13 +2139,17 @@ class SampleWorkFlowController extends Controller
                     ],
                     'target' => [
                         'status' => $request->status,
-                        'tracking_stage' => $targetTrackingStage,
+                        'tracking_stage' => \Illuminate\Support\Str::isUuid($targetTrackingStage) ? $targetTrackingStage : null,
                     ],
                 ];
 
                 $batch->status = $request->status;
-                $batch->sample_tracking_stage = $targetTrackingStage;
-                $batch->specialist_analyst_id = $request->specialist_analyst_id ?: null;
+                $batch->sample_tracking_stage = \Illuminate\Support\Str::isUuid($targetTrackingStage) ? $targetTrackingStage : null;
+                if (!empty($request->specialist_analyst_id) && \Illuminate\Support\Str::isUuid($request->specialist_analyst_id)) {
+                    $batch->specialist_analyst_id = $request->specialist_analyst_id;
+                } else {
+                    $batch->specialist_analyst_id = null;
+                }
                 $batch->priority = $request->is_priority ?? 'Normal';
                 $batch->save();
 
@@ -2302,7 +2306,9 @@ class SampleWorkFlowController extends Controller
                 $currentStatus = $batch->status;
                 $currentTrackingStage = $batch->sample_tracking_stage;
                 $batch->status = $request->status;
-                $batch->sample_tracking_stage = '20007';
+                
+                $reviewStage = \App\SampleAnalysisStage::where('name', 'Samples Request Review')->first();
+                $batch->sample_tracking_stage = $reviewStage ? $reviewStage->id : null;
                 $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
                 if (isset($request->notification)) {
                     $emails = $users->pluck('email')->toarray();
@@ -2328,7 +2334,7 @@ class SampleWorkFlowController extends Controller
                     ],
                     'target' => [
                         'status' => $request->status,
-                        'tracking_stage' => '20007',
+                        'tracking_stage' => $batch->sample_tracking_stage,
                     ],
                 ];
                 $this->updateChainofCustody($custodyDetails);

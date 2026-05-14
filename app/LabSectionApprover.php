@@ -40,8 +40,11 @@ class LabSectionApprover extends Model implements Auditable
     }
 
     public function getSectionNameAttribute(){
-        $data = SampleAnalysisStage::whereIn('id',explode(',',$this->lab_section_ids))->get();
-        
-        return implode(', ',$data->pluck('namecode')->toArray() ?? []);
+        $ids = array_filter(array_map('trim', explode(',', (string)$this->lab_section_ids)), fn($id) => \Illuminate\Support\Str::isUuid($id));
+        if (empty($ids)) {
+            return '';
+        }
+        $data = SampleAnalysisStage::whereIn('id', $ids)->get();
+        return implode(', ', $data->pluck('namecode')->toArray() ?? []);
     }
 }

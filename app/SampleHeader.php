@@ -351,7 +351,7 @@ class SampleHeader extends Model implements Auditable
 
 	public function tracking_stage()
 	{
-		if ($this->sample_tracking_stage == 0) {
+		if (empty($this->sample_tracking_stage) || !\Illuminate\Support\Str::isUuid($this->sample_tracking_stage)) {
 			return (object) ["name" => "N/A"];
 		}
 		$stage = \App\SampleAnalysisStage::find($this->sample_tracking_stage);
@@ -429,7 +429,11 @@ class SampleHeader extends Model implements Auditable
 		if (empty($tracking_stages_arr)) {
 			return '';
 		}
-		return implode(',',SampleAnalysisStage::whereIn('id',$tracking_stages_arr)->pluck('name')->toArray()); 
+		$valid_stages = array_filter($tracking_stages_arr, fn($id) => \Illuminate\Support\Str::isUuid($id));
+		if (empty($valid_stages)) {
+			return '';
+		}
+		return implode(',', SampleAnalysisStage::whereIn('id', $valid_stages)->pluck('name')->toArray()); 
 	}
 	public function getUnitNameAttribute(){
 		if($this->crm_unit_id > 0){

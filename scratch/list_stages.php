@@ -1,0 +1,13 @@
+<?php
+require __DIR__.'/vendor/autoload.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
+
+use App\SampleAnalysisStage;
+
+$stages = SampleAnalysisStage::all();
+echo "Total stages: " . $stages->count() . "\n";
+foreach ($stages as $stage) {
+    echo "- '{$stage->name}' (ID: {$stage->id})\n";
+}

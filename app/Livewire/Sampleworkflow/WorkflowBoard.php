@@ -284,10 +284,17 @@ class WorkflowBoard extends Component
         ];
     }
 
-    protected function isReceivingRequestsStage(): bool
+    protected function isReceivingFormsTab(): bool
     {
-        return in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)
-            && $this->workflowSubTab === 'requests';
+        if (in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)) {
+            return $this->workflowSubTab === 'received';
+        }
+
+        if ($this->status === 'Samples Request Review') {
+            return $this->workflowSubTab === 'requests';
+        }
+
+        return false;
     }
 
     protected function isReceivingStage(): bool
@@ -331,18 +338,22 @@ class WorkflowBoard extends Component
             }, 'attachment_count')
             ->latest();
 
-        if ($this->isReceivingRequestsStage()) {
-            $query->where('status', 'submitted');
-            $query->whereDoesntHave('batches');
-        }
-
-        if ($this->status === 'Samples Request Review') {
-            if ($this->workflowSubTab === 'requests') {
+        if ($this->isReceivingFormsTab()) {
+            if (in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)) {
+                $query->where('status', 'submitted');
+                $query->whereDoesntHave('batches');
+            } elseif ($this->status === 'Samples Request Review') {
                 $query->where('status', 'in_review');
                 $query->whereDoesntHave('batches');
-            } else {
-                $query->whereIn('status', ['approved', 'rejected']);
             }
+        }
+
+        if ($this->status === 'Samples Request Review' && $this->workflowSubTab === 'received') {
+            $query->whereIn('status', ['approved', 'rejected']);
+        }
+
+        if ($this->status === 'Samples In Lab') {
+            $query->where('status', 'approved');
         }
 
         if ($this->submissionFormsStatus) {
@@ -741,12 +752,18 @@ class WorkflowBoard extends Component
             if ($this->workflowSubTab === 'received') {
                 $query->where(function ($inner) {
                     $inner->where('status', 'Samples Reception')
-                        ->orWhere('prelim_batch_status', 'Samples Reception');
+                        ->where(function ($q) {
+                            $q->whereNotNull('in_lab_date')
+                                ->orWhere('is_amendment', 1);
+                        });
                 });
             } else {
                 $query->where(function ($inner) {
-                    $inner->where('status', 'Samples En-Route')
-                        ->orWhere('prelim_batch_status', 'Samples En-Route');
+                    $inner->whereIn('status', ['Samples En-Route', 'Samples Reception'])
+                        ->where(function ($q) {
+                            $q->whereNull('in_lab_date')
+                                ->where('is_amendment', 0);
+                        });
                 });
             }
         } elseif ($this->status === 'Samples Request Review') {
@@ -795,6 +812,34 @@ class WorkflowBoard extends Component
         // Apply sample type filter
         if ($this->sampleTypeFilter) {
             $query->where('sample_type_id', $this->sampleTypeFilter);
+        }
+
+        // Apply submission form filters to batches for certain stages
+        if ($this->status === 'Samples In Lab' || ($this->isReceivingStage() && $this->workflowSubTab === 'requests')) {
+            if ($this->submissionFormsSearch) {
+                $search = $this->submissionFormsSearch;
+                $query->whereHas('submissionFormInstance', function ($q) use ($search) {
+                    $q->where('form_number', 'like', "%{$search}%")
+                        ->orWhere('title', 'like', "%{$search}%")
+                        ->orWhereHas('submissionForm', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            if ($this->submissionFormsStatus) {
+                $status = $this->submissionFormsStatus;
+                $query->whereHas('submissionFormInstance', function ($q) use ($status) {
+                    $q->where('status', $status);
+                });
+            }
+
+            if ($this->submissionFormsPriority) {
+                $priority = $this->submissionFormsPriority;
+                $query->whereHas('submissionFormInstance', function ($q) use ($priority) {
+                    $q->withPriority($priority);
+                });
+            }
         }
 
         return $query->paginate($this->batchesPerPage, ['*'], 'batches_page');
@@ -907,7 +952,7 @@ class WorkflowBoard extends Component
      */
     public function getPortalSubmissionsProperty()
     {
-        if (! $this->isReceivingRequestsStage()) {
+        if (! $this->isReceivingFormsTab()) {
             return null;
         }
 
