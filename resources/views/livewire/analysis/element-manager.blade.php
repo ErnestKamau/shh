@@ -212,9 +212,7 @@
                                                 </div>
                                             </td>
                                         </tr>
-                                    @empty
-                                        <!-- tbody always present, even if empty -->
-                                    @endforelse
+                                    @endforeach
                                     </tbody>
                             </table>
                         </div>

@@ -4,6 +4,7 @@
 		<meta charset="utf-8">
 		<link rel="stylesheet" href="{{ asset('css/w3.css') }}">
 		<link href="{{ asset('css/icons/css/fontawesome.min.css') }}" rel="stylesheet">
+		<link href="{{ asset('material-design/css/materialdesignicons.min.css') }}" rel="stylesheet">
 		<link href="{{ asset('css/app.css') }}" rel="stylesheet">  
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -67,6 +68,72 @@
 					background-color: rgba(199,199,199, 0.8);
 					color: #232323;
 				}
+
+				.password-input-wrap {
+					position: relative;
+					display: block;
+					width: 100%;
+				}
+
+				.password-input-wrap .form-control {
+					padding-right: 2.75rem;
+					box-sizing: border-box;
+				}
+
+				.password-toggle-btn {
+					position: absolute;
+					top: 70%;
+					right: 0.35rem;
+					transform: translateY(-50%);
+					width: 2.5rem;
+					height: 2.5rem;
+					margin: 0;
+					padding: 0;
+					border: none;
+					border-radius: 0.2rem;
+					background: transparent;
+					color: #555;
+					cursor: pointer;
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					line-height: 1;
+					-webkit-appearance: none;
+					appearance: none;
+					z-index: 2;
+				}
+
+				.password-toggle-btn .mdi {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					width: 1.5rem;
+					height: 1.5rem;
+					font-size: 1.25rem;
+					line-height: 1;
+					text-align: center;
+					pointer-events: none;
+				}
+
+				.password-toggle-btn .mdi::before {
+					line-height: 1;
+					vertical-align: middle;
+				}
+
+				.password-toggle-btn:hover,
+				.password-toggle-btn:focus {
+					color: #232323;
+				}
+
+				.password-toggle-btn:focus {
+					outline: none;
+					box-shadow: none;
+				}
+
+				.password-toggle-btn:focus-visible {
+					outline: 2px solid #795548;
+					outline-offset: 2px;
+				}
 		  </style>
 	 </head>
 	 <body>
@@ -98,7 +165,12 @@
 										 </div>
 										 <div class="form-group{{ $errors->has('password') ? ' has-error' : '' }}">
 											<label for="password" class="control-label w3-left w3-text-dark-grey"><strong>Password</strong></label>
-											<input id="password" type="password" placeholder="{{ __('Password') }}..." class="form-control" name="password" required>
+											<div class="password-input-wrap">
+												<input id="password" type="password" placeholder="{{ __('Password') }}..." class="form-control" name="password" required>
+												<button type="button" class="password-toggle-btn" id="password-toggle" aria-label="Show password" aria-pressed="false">
+													<i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+												</button>
+											</div>
 											@if ($errors->has('password'))
 												 <span class="help-block">
 													  <strong>{{ $errors->first('password') }}</strong>
@@ -155,5 +227,30 @@
 				</div>
 			</div>
 		</div>
+		<script>
+			(function () {
+				var input = document.getElementById('password');
+				var btn = document.getElementById('password-toggle');
+				var icon = btn ? btn.querySelector('i') : null;
+				if (!input || !btn || !icon) {
+					return;
+				}
+				btn.addEventListener('click', function () {
+					if (input.type === 'password') {
+						input.type = 'text';
+						icon.classList.remove('mdi-eye-outline');
+						icon.classList.add('mdi-eye-off-outline');
+						btn.setAttribute('aria-label', 'Hide password');
+						btn.setAttribute('aria-pressed', 'true');
+					} else {
+						input.type = 'password';
+						icon.classList.remove('mdi-eye-off-outline');
+						icon.classList.add('mdi-eye-outline');
+						btn.setAttribute('aria-label', 'Show password');
+						btn.setAttribute('aria-pressed', 'false');
+					}
+				});
+			})();
+		</script>
 	 </body>
 </html>

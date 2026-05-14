@@ -59,10 +59,10 @@
                                 <td>{{ $department->name }}</td>
                                 <td class="text-small">{!! $department->active == 1 ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                                 <td>
-                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--edit" wire:click='openEditModal(@js($department->id))' title="{{ __('personnel.edit') }}">
+                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--edit" wire:click="openEditModal('{{ $department->id }}')" title="{{ __('personnel.edit') }}">
                                         <i class="mdi mdi-pencil-outline"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--delete" wire:click='openDeleteModal(@js($department->id))' title="{{ __('personnel.delete') }}">
+                                    <button type="button" class="btn btn-sm pm-act-btn pm-act-btn--delete" wire:click="openDeleteModal('{{ $department->id }}')" title="{{ __('personnel.delete') }}">
                                         <i class="mdi mdi-delete"></i>
                                     </button>
                                 </td>
