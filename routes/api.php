@@ -51,6 +51,9 @@ Route::get('/translations', [\App\Http\Controllers\Api\TranslationController::cl
 Route::get('/submission-request/parameters', [\App\Http\Controllers\Api\SubmissionRequestController::class, 'getParametersWithPricing'])
     ->name('api.submission-request-parameters');
 
+Route::get('/workflow/preview-batch-code', [\App\Http\Controllers\Api\SubmissionRequestController::class, 'previewBatchCode'])
+    ->name('api.workflow.preview-batch-code');
+
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('access-requests', [PortalAccessRequestController::class, 'store'])->middleware('throttle:60,1');

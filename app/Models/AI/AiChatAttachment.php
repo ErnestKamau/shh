@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AiChatAttachment extends Model
 {
+    protected $connection = 'pgsql_ai';
     use HasUuids;
 
     protected $keyType = 'string';

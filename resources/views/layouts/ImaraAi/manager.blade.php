@@ -27,8 +27,6 @@
     <div class="ai-body">
         @php
             $settingsRoutes = [
-                'ai.settings.index', 
-                'ai.knowledge.manager', 
                 'ai.knowledge.dashboard', 
                 'ai.knowledge.show',
                 'ai.knowledge.editor'

@@ -2454,24 +2454,8 @@
 				<input type="hidden" name="status" value="Samples Request Review" />
 				<input type="hidden" name="tracking_stage" value="20008" />
 				<input type="hidden" name="bacth_id" value="{{ $batch->id }}" />
-				<div class="form-group">
-					<label class="control-label">Select Request Type</label>
-					<select class="form-control" name="request_type_id[]" placeholder="Request Type..." multiple required>
-						<option></option>
-						@foreach ($requestTypes[1] as $i)
-						<option value="{{ $i->id }}">{{ $i->name }}</option>
-						@endforeach
-						<option value="Other">Other Type</option>
-					</select>
-				</div>
-				<div class="form-group other-reason hidden">
-					<label class="control-label">Specify Other Request Type</label>
-					<textarea class="form-control" name="other_type" placeholder="Specify Other Request Type..."></textarea>
-				</div>
-				<div class="form-group">
-					<label class="control-label">Approval Comments</label>
-					<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
-				</div>
+
+
 				<div class="form-group">
 					<label class="control-label"><input type="checkbox" name="is_priority" value="High" /> Is High Prority</label>
 				</div>
@@ -2483,20 +2467,8 @@
 			<div class="modal-body">
 				<input type="hidden" name="status" value="Samples In Lab" />
 				<input type="hidden" name="bacth_id" value="{{ $batch->id }}" />
-				<div class="form-group">
-					<label class="control-label">Select Specific Specialist</label>
-					<select class="form-control" name="specialist_analyst_id" placeholder="Specific Specialist..." required>
-						<option></option>
 
-						@foreach ($analysts as $i)
-						<option value="{{ $i->id }}">{{ $i->name }}</option>
-						@endforeach
-					</select>
-				</div>
-				<div class="form-group other-reason">
-					<label class="control-label">Approval Comments</label>
-					<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
-				</div>
+
 			</div>
 			@endif
 			<div class="modal-footer">

@@ -151,6 +151,13 @@ class SampleReceiptNotification extends Component
     {
         $this->form['laboratory_identification_number'] = (string) ($this->batch->batch_code ?? '');
         $this->form['number_of_samples'] = (int) $this->batch->samples()->count();
+        $this->form['sample_receiving_date'] = (string) ($this->batch->receipt_date ?? now()->format('Y-m-d'));
+        
+        $user = Auth::user();
+        if ($user) {
+            $this->form['receiver_name'] = (string) $user->name;
+            $this->form['receiver_designation'] = (string) ($user->roles->first()->name ?? '');
+        }
     }
 
     private function loadExistingDraft(): void

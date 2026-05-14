@@ -42,6 +42,12 @@
 
     {{-- Input --}}
     <div class="ai-input-area">
+        {{-- Selected References Bar (hidden until @ selected) --}}
+        <div id="selectedReferencesBar" class="selected-references-bar" style="display:none;"></div>
+
+        {{-- Mention Suggestions Dropdown --}}
+        <div id="mentionSuggestions" class="mention-suggestions" style="display:none;"></div>
+
         {{-- Attachment preview bar (hidden until file selected) --}}
         <div id="attachPreviewBar" style="display:none; align-items:center; gap:8px; padding:8px 12px; background:#f0f9ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:8px; font-size:0.85rem; color:#1d4ed8;">
             <i class="mdi mdi-paperclip" style="font-size:1.1rem;"></i>

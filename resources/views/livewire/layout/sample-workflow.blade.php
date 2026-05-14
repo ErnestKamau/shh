@@ -6,20 +6,6 @@
 
 @section('content2')
 <main>
-	<style>
-		/* Keep Sample Workflow content scrollable even with fixed sidebar/header layout */
-		#main-container-body {
-			height: calc(100vh - 56px);
-			overflow-y: auto;
-		}
-
-		@media (max-width: 767.98px) {
-			#main-container-body {
-				height: auto;
-				overflow-y: visible;
-			}
-		}
-	</style>
 	<?php
 $items = [
 	[
@@ -40,14 +26,10 @@ $items = [
 ];
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-	<div data-sf-slot="after_breadcrumb"></div>
-	<div data-sf-slot="before_workflow_table"></div>
-
 	@livewire('sampleworkflow.workflow-board', [
 		'status' => $status,
 		'initialFilters' => $initialFilters ?? [],
 	])
-	<div data-sf-slot="after_workflow_table"></div>
 </main>
 @endsection
 @section('script2')

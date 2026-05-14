@@ -26,7 +26,7 @@ return new class extends Migration
             $table->timestamps();
             $table->uuid('procedure_worksheet_id')->nullable()->index('idx_analysis_elements_procedure_worksheet_id_411805d7');
             $table->uuid('equipment_id')->nullable()->index('idx_analysis_elements_equipment_id_16853057');
-            $table->integer('method')->nullable()->index('idx_analysis_elements_method_abea260f');
+            $table->uuid('method')->nullable()->index('idx_analysis_elements_method_abea260f');
             $table->smallInteger('is_manual')->nullable()->default(0);
             $table->string('operator_id', 100)->nullable()->index('idx_analysis_elements_operator_id_bd9d93e9');
             $table->double('significant_figures')->nullable()->default(3);
@@ -38,7 +38,7 @@ return new class extends Migration
             $table->boolean('remark_is_manual')->nullable()->default(false);
             $table->boolean('result_is_calculated')->default(false);
             $table->boolean('is_pesticide')->nullable()->default(false);
-            $table->integer('ltm_method_id')->nullable();
+            $table->uuid('ltm_method_id')->nullable();
             $table->boolean('recommend_remedies')->default(false);
             $table->uuid('remedy_header_id')->nullable()->index('idx_analysis_elements_remedy_header_id_590ed162');
             $table->unsignedBigInteger('formular_id')->nullable();

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AiConversation extends Model
 {
+    protected $connection = 'pgsql_ai';
     use HasUuids;
 
     protected $keyType = 'string';

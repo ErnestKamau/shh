@@ -1,90 +1,4 @@
-<div x-data="{ 
-    open: @entangle('isOpen'),
-    userInput: '',
-    messages: [],
-    convoId: null,
-    isThinking: false,
-
-    async sendMessage() {
-        if (!this.userInput.trim() || this.isThinking) return;
-        
-        const text = this.userInput;
-        this.userInput = '';
-        this.messages.push({ role: 'user', content: text });
-        this.isThinking = true;
-
-        this.$nextTick(() => { this.scrollToBottom(); });
-
-        try {
-            // Create conversation if needed
-            if (!this.convoId) {
-                const convoRes = await fetch('/imara-ai/conversations', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').content },
-                    body: JSON.stringify({ title: text.substring(0, 50), context: '{{ $context }}', mode: '{{ $context }}' })
-                });
-                const convoData = await convoRes.json();
-                this.convoId = convoData.conversation.id;
-            }
-
-            // Create bot placeholder
-            this.messages.push({ role: 'bot', content: '' });
-            const botMsgIndex = this.messages.length - 1;
-
-            const aiRes = await fetch('/imara-ai/ask-stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').content },
-                body: JSON.stringify({ question: text, module_context: '{{ $context }}', mode: '{{ $context }}' })
-            });
-
-            const reader = aiRes.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let fullReply = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.substring(6).trim();
-                        if (dataStr === '[DONE]') continue;
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.token) {
-                                fullReply += data.token;
-                                this.messages[botMsgIndex].content = fullReply;
-                                this.scrollToBottom();
-                            }
-                        } catch (e) {}
-                    }
-                }
-            }
-        } catch (e) {
-            this.messages.push({ role: 'bot', content: 'Connection error.' });
-        } finally {
-            this.isThinking = false;
-        }
-    },
-
-    formatMessage(text) {
-        if (!text) return '';
-        try {
-            const rawHtml = marked.parse(text || '');
-            return DOMPurify.sanitize(rawHtml);
-        } catch (e) {
-            return text;
-        }
-    },
-
-    scrollToBottom() {
-        const container = document.getElementById('aiDrawerMessages');
-        if (container) {
-            container.scrollTop = container.scrollHeight;
-        }
-    }
-}" x-init="window.marked?.setOptions({ breaks: true, gfm: true, headerIds: false, mangle: false });">
+<div x-data="imaraAiDrawer(@js($context))">
     {{-- Floating Trigger Button --}}
     <div
         class="ai-drawer-trigger" 
@@ -147,7 +61,7 @@
                         <div 
                             class="drawer-msg" 
                             :class="msg.role === 'user' ? 'drawer-msg-user' : 'drawer-msg-bot'"
-                            x-html="msg.role === 'bot' ? formatMessage(msg.content) : msg.content"
+                            x-html="formatMessage(msg.content)"
                         ></div>
                     </template>
 
@@ -199,6 +113,128 @@
         .drawer-msg pre code { background: transparent; padding: 0; color: inherit; }
         .drawer-msg ul, .drawer-msg ol { padding-left: 20px; margin-bottom: 10px; }
     </style>
+
+    <script>
+        if (typeof window.imaraAiDrawer !== 'function') {
+            window.imaraAiDrawer = function (context) {
+                return {
+                    open: false,
+                    userInput: '',
+                    messages: [],
+                    convoId: null,
+                    isThinking: false,
+
+                    async sendMessage() {
+                        if (!this.userInput.trim() || this.isThinking) return;
+
+                        const text = this.userInput;
+                        this.userInput = '';
+                        this.messages.push({ role: 'user', content: text });
+                        this.isThinking = true;
+
+                        this.$nextTick(() => {
+                            this.scrollToBottom();
+                        });
+
+                        try {
+                            const csrfTokenTag = document.querySelector("meta[name='csrf-token']");
+                            const csrfToken = csrfTokenTag ? csrfTokenTag.content : '';
+
+                            if (!this.convoId) {
+                                const convoRes = await fetch('/imara-ai/conversations', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': csrfToken,
+                                    },
+                                    body: JSON.stringify({
+                                        title: text.substring(0, 50),
+                                        context: context,
+                                        mode: context,
+                                    }),
+                                });
+
+                                const convoData = await convoRes.json();
+                                this.convoId = convoData.conversation.id;
+                            }
+
+                            this.messages.push({ role: 'bot', content: '' });
+                            const botMsgIndex = this.messages.length - 1;
+
+                            const aiRes = await fetch('/imara-ai/ask-stream', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': csrfToken,
+                                },
+                                body: JSON.stringify({
+                                    question: text,
+                                    module_context: context,
+                                    mode: context,
+                                }),
+                            });
+
+                            const reader = aiRes.body.getReader();
+                            const decoder = new TextDecoder('utf-8');
+                            let fullReply = '';
+
+                            while (true) {
+                                const result = await reader.read();
+                                if (result.done) break;
+
+                                const chunk = decoder.decode(result.value, { stream: true });
+                                const lines = chunk.split('\n');
+
+                                for (const line of lines) {
+                                    if (!line.startsWith('data: ')) continue;
+
+                                    const dataStr = line.substring(6).trim();
+                                    if (dataStr === '[DONE]') continue;
+
+                                    try {
+                                        const data = JSON.parse(dataStr);
+                                        if (data.token) {
+                                            fullReply += data.token;
+                                            this.messages[botMsgIndex].content = fullReply;
+                                            this.scrollToBottom();
+                                        }
+                                    } catch (e) {
+                                        // Ignore malformed partial stream chunks.
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            this.messages.push({ role: 'bot', content: 'Connection error.' });
+                        } finally {
+                            this.isThinking = false;
+                        }
+                    },
+
+                    formatMessage(text) {
+                        if (!text) return '';
+
+                        const escaped = String(text)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/\"/g, '&quot;')
+                            .replace(/'/g, '&#39;');
+
+                        return escaped.replace(/\n/g, '<br>');
+                    },
+
+                    scrollToBottom() {
+                        const container = document.getElementById('aiDrawerMessages');
+                        if (container) {
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    },
+                };
+            };
+        }
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>

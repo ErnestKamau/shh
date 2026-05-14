@@ -262,7 +262,7 @@ class PerformanceDashboardService
      */
     public function getRecentActivity(): array
     {
-        return $this->analytics->getRecentLogs(20);
+        return $this->analytics->getRecentLogs(10);
     }
 
     // ── ML Model Governance ──────────────────────────────────────────────────
@@ -323,7 +323,7 @@ class PerformanceDashboardService
         $this->discoverSystemModels();
 
         try {
-            $query = \DB::table('ai.ai_model_registry')
+            $query = \DB::connection('pgsql_ai')->table('ai_model_registry')
                 ->select([
                     'id', 'model_name', 'model_type', 'version',
                     'framework', 'training_rows', 'metrics',
@@ -364,7 +364,7 @@ class PerformanceDashboardService
 
         foreach ($types as $featureType) {
             try {
-                $snapshots = \DB::table('ai.ai_feature_snapshots')
+                $snapshots = \DB::connection('pgsql_ai')->table('ai_feature_snapshots')
                     ->where('feature_type', $featureType)
                     ->selectRaw('snapshot_id, SUM(record_count) as cnt')
                     ->groupBy('snapshot_id')
@@ -456,7 +456,7 @@ class PerformanceDashboardService
 
         // 3. Sync to Database (Upsert)
         foreach ($discovered as $model) {
-            \DB::table('ai.ai_model_registry')->updateOrInsert(
+            \DB::connection('pgsql_ai')->table('ai_model_registry')->updateOrInsert(
                 ['model_name' => $model['model_name']],
                 array_merge($model, [
                     'is_active' => 1,

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Samples En-Route | Core LIMS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-error-container": "#93000a",
+                        "primary-fixed-dim": "#adc7ff",
+                        "background": "#f8f9fa",
+                        "on-secondary-fixed-variant": "#3f484f",
+                        "tertiary-container": "#c64f00",
+                        "tertiary": "#9e3d00",
+                        "on-secondary": "#ffffff",
+                        "surface": "#f8f9fa",
+                        "surface-variant": "#e1e3e4",
+                        "secondary": "#575f67",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-tertiary-container": "#fffbff",
+                        "primary-container": "#0070ea",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed-variant": "#004493",
+                        "outline-variant": "#e9ecef",
+                        "surface-container-low": "#f3f4f5",
+                        "inverse-primary": "#adc7ff",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-bright": "#f8f9fa",
+                        "surface-container-high": "#e7e8e9",
+                        "primary-fixed": "#d8e2ff",
+                        "on-surface-variant": "#414754",
+                        "secondary-container": "#d8e1ea",
+                        "surface-container-highest": "#e1e3e4",
+                        "primary": "#0059bb",
+                        "surface-dim": "#d9dadb",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#005bc0",
+                        "on-primary-container": "#fefcff",
+                        "surface-container": "#edeeef",
+                        "on-secondary-fixed": "#141d23",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-background": "#191c1d",
+                        "on-primary-fixed": "#001a41",
+                        "on-secondary-container": "#5b646b",
+                        "inverse-surface": "#2e3132",
+                        "outline": "#717786",
+                        "on-surface": "#191c1d",
+                        "secondary-fixed": "#dbe4ed",
+                        "secondary-fixed-dim": "#bfc8d0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "10px",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "component-gap": "12px",
+                        "table-cell-padding": "12px 16px",
+                        "gutter": "16px",
+                        "container-padding": "24px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "code": ["JetBrains Mono"],
+                        "title-sm": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "display-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+            vertical-align: middle;
+            font-size: 20px;
+        }
+        .status-chip {
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            border-left-width: 2px;
+        }
+        .status-blue { background-color: rgba(0, 89, 187, 0.1); color: #0059bb; border-left-color: #0059bb; }
+        .status-green { background-color: rgba(21, 128, 61, 0.1); color: #15803d; border-left-color: #15803d; }
+        .status-yellow { background-color: rgba(161, 98, 7, 0.1); color: #a16207; border-left-color: #a16207; }
+        .status-red { background-color: rgba(185, 28, 28, 0.1); color: #b91c1c; border-left-color: #b91c1c; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e1e3e4; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md text-body-md antialiased min-h-screen flex">
+<!-- SideNavBar -->
+<aside class="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-surface-container-low border-r border-outline-variant py-4 z-50">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary">biotech</span>
+</div>
+<div>
+<h1 class="font-title-sm text-title-sm font-black text-on-surface">Core LIMS</h1>
+<p class="text-[10px] text-secondary leading-none uppercase tracking-widest font-bold">V3.4.12-Enterprise</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-3 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-secondary hover:bg-surface-container-high hover:text-on-surface-variant rounded transition-all duration-150" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-secondary-container text-on-secondary-container border-l-4 border-primary font-bold rounded" href="#">
+<span class="material-symbols-outlined">biotech</span>
+<span class="font-label-caps text-label-caps">Sample Queue</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-secondary hover:bg-surface-container-high hover:text-on-surface-variant rounded transition-all duration-150" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-label-caps text-label-caps">Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-secondary hover:bg-surface-container-high hover:text-on-surface-variant rounded transition-all duration-150" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-label-caps text-label-caps">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-secondary hover:bg-surface-container-high hover:text-on-surface-variant rounded transition-all duration-150" href="#">
+<span class="material-symbols-outlined">precision_manufacturing</span>
+<span class="font-label-caps text-label-caps">Instruments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-secondary hover:bg-surface-container-high hover:text-on-surface-variant rounded transition-all duration-150" href="#">
+<span class="material-symbols-outlined">settings_applications</span>
+<span class="font-label-caps text-label-caps">Admin</span>
+</a>
+</nav>
+<div class="px-3 pt-4 border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-secondary hover:bg-surface-container-high hover:text-on-surface-variant rounded transition-all duration-150" href="#">
+<span class="material-symbols-outlined">support_agent</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-secondary hover:bg-surface-container-high hover:text-on-surface-variant rounded transition-all duration-150" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-caps text-label-caps">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col min-w-0 lg:ml-64">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center h-14 px-gutter w-full sticky top-0 z-40 bg-surface border-b border-outline-variant">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-lg pl-10 py-1.5 text-body-sm focus:ring-1 focus:ring-primary" placeholder="Search samples..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 flex items-center justify-center text-secondary hover:bg-surface-container-low transition-colors duration-200 cursor-pointer">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center text-secondary hover:bg-surface-container-low transition-colors duration-200 cursor-pointer">
+<span class="material-symbols-outlined">help</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center text-secondary hover:bg-surface-container-low transition-colors duration-200 cursor-pointer">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
+<div class="flex items-center gap-2 cursor-pointer active:opacity-70">
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-outline-variant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAGOPqQtz69yFKzUPwReXhWum4-fnq2arZ9pbkllRQx2UoFVPGc1cxV8HQIRsxVChYORJ-kGPHe27yFxp8tIW28mtn3DAXX3FH7M7haIGSFLGEwl0j6ufcGWPl3wVgRaQ_4FCHoFWoRyF_uJD8gzKmzAhNRdkwjrzutZ4mAt6uPwObr5s5rWHIhogIF2Mej77S-jsLOLhi-IbNPuPa9OqhvnpjWP8gs4xDvxXV6MWD3VA9xnANpFfTeLTuI2VCXwEhST8rkit0OxM"/>
+<span class="font-label-caps text-label-caps text-primary">Lab Admin</span>
+</div>
+</div>
+</header>
+<div class="p-6 space-y-6 flex-1 flex flex-col">
+<!-- 1. Header Card -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant p-4 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-primary-container text-on-primary-container rounded-lg flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined" style="font-size: 28px;">Archive</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Sample Workflow</h2>
+<div class="flex items-center gap-2 mt-1">
+<span class="bg-primary/10 text-primary px-2 py-0.5 rounded font-label-caps text-[10px]">STAGE</span>
+<span class="text-secondary font-body-sm text-body-sm">Samples En-Route</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 2. Action Row -->
+<div class="flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-2">
+<button class="bg-surface-container-lowest border border-outline-variant px-3 py-1.5 rounded-lg text-body-sm font-semibold text-secondary hover:bg-surface-container-high transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined">description</span>
+                        Request Account Access Forms
+                    </button>
+<button class="bg-primary text-on-primary px-3 py-1.5 rounded-lg text-body-sm font-semibold hover:bg-primary-container transition-colors flex items-center gap-2">
+                        TAT Today Batches
+                        <span class="bg-white/20 text-white px-1.5 py-0.5 rounded-full text-[10px]">14</span>
+</button>
+</div>
+<div class="flex items-center gap-2">
+<div class="relative inline-block">
+<button class="bg-surface-container-lowest border border-outline-variant px-3 py-1.5 rounded-lg text-body-sm font-semibold text-secondary hover:bg-surface-container-high transition-colors flex items-center gap-2">
+                            Sample Submissions
+                            <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+</div>
+<div class="relative inline-block">
+<button class="bg-surface-container-lowest border border-outline-variant px-3 py-1.5 rounded-lg text-body-sm font-semibold text-secondary hover:bg-surface-container-high transition-colors flex items-center gap-2">
+                            Actions
+                            <span class="material-symbols-outlined text-[16px]">bolt</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 3. Stat Cards Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg flex items-center justify-between">
+<div>
+<p class="text-secondary font-label-caps text-label-caps mb-1">Customers Requested Submission</p>
+<h3 class="text-3xl font-black text-on-surface">42</h3>
+</div>
+<div class="w-10 h-10 bg-secondary-container text-secondary rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">person_add</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg flex items-center justify-between">
+<div>
+<p class="text-secondary font-label-caps text-label-caps mb-1">Portal Samples Submitted</p>
+<h3 class="text-3xl font-black text-on-surface">1,284</h3>
+</div>
+<div class="w-10 h-10 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">upload_file</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg flex items-center justify-between">
+<div>
+<p class="text-secondary font-label-caps text-label-caps mb-1">Sent To Request Review</p>
+<h3 class="text-3xl font-black text-on-surface">18</h3>
+</div>
+<div class="w-10 h-10 bg-tertiary-container text-on-tertiary-container rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">rate_review</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg flex items-center justify-between">
+<div>
+<p class="text-secondary font-label-caps text-label-caps mb-1">Waiting For Delivery To Lab</p>
+<h3 class="text-3xl font-black text-on-surface">256</h3>
+</div>
+<div class="w-10 h-10 bg-surface-container-highest text-secondary rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">local_shipping</span>
+</div>
+</div>
+</div>
+<!-- 4. Tabs & 5. Filter Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
+<div class="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-4">
+<div class="flex">
+<button class="px-6 py-3 font-bold text-primary border-b-2 border-primary text-body-sm">Requests</button>
+<button class="px-6 py-3 text-secondary hover:text-primary transition-colors text-body-sm">Received</button>
+</div>
+<div class="flex items-center gap-2 py-2">
+<span class="text-secondary text-[11px] font-bold uppercase tracking-wider">Displaying 1-10 of 128</span>
+</div>
+</div>
+<div class="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-white">
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-secondary">Search Forms</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-secondary text-sm">search</span>
+<input class="w-full text-body-sm border border-outline-variant rounded-lg pl-8 py-1.5 focus:ring-1 focus:ring-primary" placeholder="e.g. F-9021..." type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-secondary">Status</label>
+<select class="w-full text-body-sm border border-outline-variant rounded-lg py-1.5 focus:ring-1 focus:ring-primary">
+<option>All Statuses</option>
+<option>Pending</option>
+<option>In-Transit</option>
+<option>Review</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-secondary">Priority</label>
+<select class="w-full text-body-sm border border-outline-variant rounded-lg py-1.5 focus:ring-1 focus:ring-primary">
+<option>Any Priority</option>
+<option>Urgent</option>
+<option>High</option>
+<option>Normal</option>
+</select>
+</div>
+<div>
+<button class="w-full bg-surface-container-high border border-outline-variant text-on-surface-variant font-semibold py-1.5 rounded-lg text-body-sm hover:bg-surface-variant transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">restart_alt</span>
+                            Reset
+                        </button>
+</div>
+</div>
+</div>
+<!-- 6. Main Panel: Submission Requests -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg flex-1 flex flex-col min-h-[400px] shadow-sm">
+<div class="px-4 py-3 border-b border-outline-variant flex items-center justify-between">
+<h3 class="font-title-sm text-title-sm text-on-surface">Submission requests</h3>
+<div class="flex gap-2">
+<button class="p-1 hover:bg-surface-container-high rounded transition-colors text-secondary">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<button class="p-1 hover:bg-surface-container-high rounded transition-colors text-secondary">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-auto">
+<table class="w-full text-left text-body-sm border-collapse">
+<thead>
+<tr class="bg-surface border-b border-outline-variant text-secondary">
+<th class="p-table-cell-padding w-10"><input class="rounded text-primary focus:ring-primary" type="checkbox"/></th>
+<th class="p-table-cell-padding w-10"></th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">FORM NUMBER</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">CUSTOMER</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">FORM NAME</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">BATCH STATUS</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">BATCHES</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">SAMPLE TYPE</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">TESTS</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">STATUS</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">SUBMITTED</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">DUE DATE</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="p-table-cell-padding"><input class="rounded text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="p-table-cell-padding text-center">
+<span class="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 cursor-pointer">visibility</span>
+</td>
+<td class="p-table-cell-padding font-semibold text-primary">SF-8832-A</td>
+<td class="p-table-cell-padding">BioGenetics Corp</td>
+<td class="p-table-cell-padding">Pathogen Screening v2</td>
+<td class="p-table-cell-padding">
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-green-500"></div>
+<span>Ready</span>
+</div>
+</td>
+<td class="p-table-cell-padding">12/12</td>
+<td class="p-table-cell-padding">Serum</td>
+<td class="p-table-cell-padding">ELISA, PCR</td>
+<td class="p-table-cell-padding">
+<span class="status-chip status-blue">IN-TRANSIT</span>
+</td>
+<td class="p-table-cell-padding text-secondary">Oct 24, 2023</td>
+<td class="p-table-cell-padding font-semibold">Oct 30, 2023</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="p-table-cell-padding"><input class="rounded text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="p-table-cell-padding text-center">
+<span class="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 cursor-pointer">visibility</span>
+</td>
+<td class="p-table-cell-padding font-semibold text-primary">SF-9014-B</td>
+<td class="p-table-cell-padding">Apex Labs</td>
+<td class="p-table-cell-padding">Soil Composition Analysis</td>
+<td class="p-table-cell-padding">
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-yellow-500"></div>
+<span>Incomplete</span>
+</div>
+</td>
+<td class="p-table-cell-padding">04/08</td>
+<td class="p-table-cell-padding">Sediment</td>
+<td class="p-table-cell-padding">Heavy Metals</td>
+<td class="p-table-cell-padding">
+<span class="status-chip status-yellow">PENDING</span>
+</td>
+<td class="p-table-cell-padding text-secondary">Oct 25, 2023</td>
+<td class="p-table-cell-padding font-semibold">Nov 02, 2023</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="p-table-cell-padding"><input class="rounded text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="p-table-cell-padding text-center">
+<span class="material-symbols-outlined text-secondary opacity-0 group-hover:opacity-100 cursor-pointer">visibility</span>
+</td>
+<td class="p-table-cell-padding font-semibold text-primary">SF-9100-C</td>
+<td class="p-table-cell-padding">Global Health Inc</td>
+<td class="p-table-cell-padding">Viral Load Batch 9</td>
+<td class="p-table-cell-padding">
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-red-500"></div>
+<span>Issue</span>
+</div>
+</td>
+<td class="p-table-cell-padding">02/10</td>
+<td class="p-table-cell-padding">Whole Blood</td>
+<td class="p-table-cell-padding">HIV-1/2 Ag/Ab</td>
+<td class="p-table-cell-padding">
+<span class="status-chip status-red">REVIEW</span>
+</td>
+<td class="p-table-cell-padding text-secondary">Oct 26, 2023</td>
+<td class="p-table-cell-padding font-semibold text-error">Oct 28, 2023</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- 7. Portal Submissions Section -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg shadow-sm">
+<div class="px-4 py-3 border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">Spiral</span>
+<h3 class="font-title-sm text-title-sm text-on-surface">Portal Submissions</h3>
+</div>
+</div>
+<div class="p-0 overflow-auto">
+<table class="w-full text-left text-body-sm border-collapse">
+<thead>
+<tr class="bg-surface border-b border-outline-variant text-secondary">
+<th class="p-table-cell-padding w-10"><input class="rounded text-primary focus:ring-primary" type="checkbox"/></th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">CUSTOMER</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">REFERENCE</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">PRIORITY</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">FORM NAME</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">STATUS</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">SUBMITTED DATE</th>
+<th class="p-table-cell-padding font-label-caps text-[11px]">ACTIONS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-table-cell-padding"><input class="rounded text-primary focus:ring-primary" type="checkbox"/></td>
+<td class="p-table-cell-padding font-semibold">Nova Research</td>
+<td class="p-table-cell-padding text-secondary font-code">REF-552-X</td>
+<td class="p-table-cell-padding">
+<span class="text-error font-bold text-[11px]">URGENT</span>
+</td>
+<td class="p-table-cell-padding">Toxicity Screening</td>
+<td class="p-table-cell-padding">
+<span class="status-chip status-green">RECEIVED</span>
+</td>
+<td class="p-table-cell-padding text-secondary">2 hours ago</td>
+<td class="p-table-cell-padding">
+<div class="flex gap-2">
+<button class="bg-primary text-white text-[11px] px-2 py-1 rounded hover:bg-primary-container">IMPORT</button>
+<button class="border border-outline-variant text-secondary text-[11px] px-2 py-1 rounded hover:bg-surface-container-high">REJECT</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Placeholder for empty state mentioned in prompt -->
+<div class="hidden flex flex-col items-center justify-center py-12 text-secondary">
+<span class="material-symbols-outlined text-4xl mb-2">inbox</span>
+<p class="font-body-md">No additional portal submissions present</p>
+<p class="text-[11px] uppercase mt-1">Check again later</p>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="flex justify-between items-center px-gutter py-unit w-full mt-auto bg-surface border-t border-outline-variant">
+<div class="flex items-center gap-4">
+<span class="font-label-caps text-label-caps text-secondary">© 2024 LabOps Systems Inc. All rights reserved.</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="font-body-sm text-body-sm text-secondary hover:text-primary underline transition-colors" href="#">Privacy Policy</a>
+<a class="font-body-sm text-body-sm text-secondary hover:text-primary underline transition-colors" href="#">Terms of Service</a>
+<a class="font-body-sm text-body-sm text-secondary hover:text-primary underline transition-colors" href="#">API Documentation</a>
+</div>
+</footer>
+</main>
+</body></html>

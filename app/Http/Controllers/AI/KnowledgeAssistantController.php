@@ -10,6 +10,8 @@ use App\Services\AI\AiFileIngestionService;
 use App\Services\AI\AiInferenceService;
 use App\Services\AI\ConversationContextBuilder;
 use App\Services\AI\ReferenceResolverService;
+use App\Models\DMS\Document;
+
 use App\Services\AI\Orchestration\AssistantOrchestrator;
 use App\Services\AI\PromptInjectionDetector;
 use App\Services\LiveData\LiveDataQueryService;
@@ -38,9 +40,11 @@ class KnowledgeAssistantController extends Controller
     ];
 
     protected AiInferenceService $inferenceService;
+    protected ReferenceResolverService $resolver;
 
-    public function __construct(AiInferenceService $inferenceService) {
+    public function __construct(AiInferenceService $inferenceService, ReferenceResolverService $resolver) {
         $this->inferenceService = $inferenceService;
+        $this->resolver = $resolver;
     }
 
 
@@ -79,6 +83,12 @@ class KnowledgeAssistantController extends Controller
         ]);
 
         $question = $this->normalizeInput($validated['question']);
+
+        // Resolve manual references if provided
+        if ($request->has('reference_ids') && is_array($request->input('reference_ids'))) {
+            $referenceContext = $this->resolver->resolveReferences($request->input('reference_ids'));
+            $question .= $referenceContext;
+        }
 
         try {
             $response = $this->inferenceService->chat($question);
@@ -128,6 +138,28 @@ class KnowledgeAssistantController extends Controller
     }
 
     /**
+     * Search for documents to be referenced in chat via @mentions.
+     */
+    public function lookupDocuments(Request $request): JsonResponse
+    {
+        $query = $request->query('q');
+
+        $documents = Document::query()
+            ->select(['id', 'title', 'document_number'])
+            ->where('is_kb_indexed', true);
+
+        if ($query) {
+            $documents->where(function($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                  ->orWhere('document_number', 'like', "%{$query}%");
+            });
+        }
+        $results = $documents->limit(10)->get();
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
      * Ask a question and get a streaming SSE response.
      * Delegates initial routing and source discovery to the AssistantOrchestrator.
      */
@@ -142,6 +174,13 @@ class KnowledgeAssistantController extends Controller
         ]);
 
         $question = $this->normalizeInput($validated['question']);
+
+        // Resolve manual references if provided
+        if ($request->has('reference_ids') && is_array($request->input('reference_ids'))) {
+            $referenceContext = $this->resolver->resolveReferences($request->input('reference_ids'));
+            $question .= $referenceContext;
+        }
+
         $sessionId = Str::uuid()->toString();
 
         return response()->stream(function () use ($question, $validated, $sessionId) {

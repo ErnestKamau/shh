@@ -431,6 +431,13 @@
 			detectChange(this);
 		}).trigger('change');
 
+		// Handle tab activation via query parameter
+		var urlParams = new URLSearchParams(window.location.search);
+		var tab = urlParams.get('tab');
+		if (tab) {
+			$('#' + tab + '-tab').tab('show');
+		}
+
 		$('.batch-info-trigger').on('click', function(){
 			$(this).toggleClass('open');
 			if($(this).hasClass('open')){
