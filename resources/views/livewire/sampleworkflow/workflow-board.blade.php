@@ -872,7 +872,7 @@
 														</td>
 														<td>
 															@php
-																$color = match($instance->getStatusBadgeColor()) {
+																$color = match(strtolower($instance->getStatusBadgeColor())) {
 																	'success' => '#28a745',
 																	'warning' => '#ffc107',
 																	'danger' => '#dc3545',
@@ -939,7 +939,7 @@
 													@php
 														$hasBatch = (bool) $request->sample_header_id;
 														$statusText = ucfirst(str_replace(['_', '-'], ' ', $request->status));
-														$color = match($request->status) {
+														$color = match(strtolower($request->status)) {
 															'submitted' => '#28a745',
 															'pending_reception', 'received_at_lab' => '#17a2b8',
 															'booking_date_approved', 'booking_date_rescheduled' => '#ffc107',
