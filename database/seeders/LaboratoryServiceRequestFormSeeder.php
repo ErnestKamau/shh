@@ -73,8 +73,20 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'is_customer_portal_form' => true,
             'form_type' => 'template',
             'placement_slot' => ['customer_portal', 'admin_portal'],
+            'created_by' => '1', // Assign to main admin
         ]);
         $form->save();
+
+        // Ensure visibility by linking to all lab sections and sample types
+        try {
+            $stages = \App\SampleAnalysisStage::pluck('id')->toArray();
+            $form->sampleAnalysisStages()->sync($stages);
+            
+            $sampleTypes = \App\SampleType::pluck('id')->toArray();
+            $form->sampleTypes()->sync($sampleTypes);
+        } catch (\Exception $e) {
+            $this->command->warn('Could not sync stages/types: ' . $e->getMessage());
+        }
 
         // Always recreate sections to ensure the seeded structure is applied
         $this->command->info('Creating sections for Laboratory Service Request Form...');
@@ -89,6 +101,15 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         });
 
         $this->createFormSections($form);
+
+        // Bust the cache to ensure changes appear immediately on the server
+        try {
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+            \Illuminate\Support\Facades\Artisan::call('view:clear');
+            $this->command->info('Server cache cleared successfully.');
+        } catch (\Exception $e) {
+            $this->command->warn('Failed to clear server cache: ' . $e->getMessage());
+        }
 
         $this->command->info('Laboratory Service Request Form seeded/updated successfully.');
     }

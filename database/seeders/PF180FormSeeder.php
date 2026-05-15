@@ -71,8 +71,17 @@ class PF180FormSeeder extends Seeder
             'is_customer_portal_form' => false,
             'form_type' => 'attachment',
             'placement_slot' => ['admin_portal'],
+            'created_by' => '1',
         ]);
         $form->save();
+
+        // Ensure visibility by linking to all lab sections
+        try {
+            $stages = \App\SampleAnalysisStage::pluck('id')->toArray();
+            $form->sampleAnalysisStages()->sync($stages);
+        } catch (\Exception $e) {
+            $this->command->warn('Could not sync stages: ' . $e->getMessage());
+        }
 
         $this->command->info('Creating sections for PF180 Form...');
         
@@ -86,6 +95,15 @@ class PF180FormSeeder extends Seeder
         });
 
         $this->createFormSections($form);
+
+        // Bust the cache
+        try {
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+            \Illuminate\Support\Facades\Artisan::call('view:clear');
+            $this->command->info('Server cache cleared successfully.');
+        } catch (\Exception $e) {
+            $this->command->warn('Failed to clear server cache: ' . $e->getMessage());
+        }
 
         $this->command->info('PF180 Form seeded/updated successfully.');
     }
