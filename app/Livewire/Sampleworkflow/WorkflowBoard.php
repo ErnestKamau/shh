@@ -314,6 +314,7 @@ class WorkflowBoard extends Component
      */
     public function getSubmissionFormsProperty()
     {
+        $driver = DB::connection()->getDriverName();
         $query = SubmissionFormInstance::with([
                 'submissionForm.sampleTypes',
                 'submittedBy',
@@ -326,10 +327,10 @@ class WorkflowBoard extends Component
             ->whereHas('submissionForm', function ($formQuery) {
                 $formQuery->where('form_type', 'template');
             })
-            ->selectSub(function ($subQuery) {
+            ->selectSub(function ($subQuery) use ($driver) {
                 $subQuery->from('submission_form_instances as attachment_instances')
                     ->selectRaw('count(*)')
-                    ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id::text');
+                    ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id' . ($driver === 'pgsql' ? '::text' : ''));
             }, 'attachment_count')
             ->latest();
 
@@ -338,7 +339,7 @@ class WorkflowBoard extends Component
                 $query->where('status', 'submitted');
                 $query->whereDoesntHave('batches');
             } elseif ($this->status === 'Samples Request Review') {
-                $query->where('status', 'in_review');
+                $query->whereIn('status', ['submitted', 'in_review']);
                 $query->whereDoesntHave('batches');
             }
         }
@@ -357,6 +358,10 @@ class WorkflowBoard extends Component
 
         if ($this->submissionFormsPriority) {
             $query->withPriority($this->submissionFormsPriority);
+        }
+
+        if ($this->allFilter['customer_id'] ?? false) {
+            $query->where('crm_customer_id', $this->allFilter['customer_id']);
         }
 
         if ($this->submissionFormsSearch) {

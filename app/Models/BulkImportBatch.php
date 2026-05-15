@@ -57,6 +57,21 @@ class BulkImportBatch extends Model
     public function addError(int $rowNumber, string $message, array $rowData = []): void
     {
         $errors = $this->errors_json ?? [];
+        $this->error_rows++;
+        
+        // Limit the number of detailed errors stored to prevent memory/storage issues
+        if (count($errors) >= 500) {
+            if (count($errors) === 500) {
+                $errors[] = [
+                    'row' => 0,
+                    'message' => 'Further error details suppressed to save memory. Total error count continues to increment.',
+                    'data' => [],
+                ];
+                $this->errors_json = $errors;
+            }
+            return;
+        }
+
         $errors[] = [
             'row' => $rowNumber,
             'message' => $this->cleanDataForJson($message),
@@ -64,7 +79,6 @@ class BulkImportBatch extends Model
         ];
         
         $this->errors_json = $errors;
-        $this->error_rows = count($errors);
     }
 
     /**
@@ -72,24 +86,18 @@ class BulkImportBatch extends Model
      */
     private function cleanDataForJson($data)
     {
-        if (is_string($data)) {
-            // Use iconv to strip invalid UTF-8 characters
-            // This is more reliable than mb_convert_encoding for fixing malformed JSON
-            $cleaned = @iconv('UTF-8', 'UTF-8//IGNORE', $data);
-            if ($cleaned === false) {
-                return mb_convert_encoding($data, 'UTF-8', 'auto');
-            }
-            return $cleaned;
+        // Use PHP's built-in JSON tools to fix UTF-8 issues recursively
+        // JSON_INVALID_UTF8_SUBSTITUTE ensures malformed characters are replaced with 
+        // JSON_PARTIAL_OUTPUT_ON_ERROR allows us to save as much as possible
+        $flags = defined('JSON_INVALID_UTF8_SUBSTITUTE') ? JSON_INVALID_UTF8_SUBSTITUTE : 1048576;
+        $json = json_encode($data, $flags | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        
+        if ($json === false) {
+            // Last resort: if even the partial encoding fails, return a safe fallback
+            return is_array($data) ? [] : (string)$data;
         }
-        if (is_array($data)) {
-            $cleaned = [];
-            foreach ($data as $key => $value) {
-                $cleanedKey = $this->cleanDataForJson($key);
-                $cleaned[$cleanedKey] = $this->cleanDataForJson($value);
-            }
-            return $cleaned;
-        }
-        return $data;
+
+        return json_decode($json, true);
     }
 
     /**
