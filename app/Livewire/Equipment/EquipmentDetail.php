@@ -34,7 +34,9 @@ class EquipmentDetail extends Component
 
     public $equipmentId;
     public $equipment;
-    public $activeTab = 'maintenance';
+    public $activeTab = 'details';
+
+    public string $activeDetailsSection = 'basic';
 
     // Modal States
     public $showEditModal = false;
@@ -240,6 +242,10 @@ class EquipmentDetail extends Component
         }
         $this->loadEquipment();
         $this->loadInitialData();
+
+        if ($this->activeTab === 'details') {
+            $this->ensureActiveDetailsSectionKey();
+        }
     }
 
     public function loadEquipment(): void
@@ -263,6 +269,44 @@ class EquipmentDetail extends Component
     public function setActiveTab($tab): void
     {
         $this->activeTab = $tab;
+
+        if ($tab === 'details') {
+            $this->ensureActiveDetailsSectionKey();
+        }
+    }
+
+    public function setActiveDetailsSection(string $key): void
+    {
+        $this->activeDetailsSection = $key;
+    }
+
+    /**
+     * @return array{key: string, icon: string, title: string, fields: list<array<string, mixed>>}|null
+     */
+    public function getActiveEquipmentDetailSectionProperty(): ?array
+    {
+        foreach ($this->equipmentDetailSections as $section) {
+            if (($section['key'] ?? '') === $this->activeDetailsSection) {
+                return $section;
+            }
+        }
+
+        return $this->equipmentDetailSections[0] ?? null;
+    }
+
+    private function ensureActiveDetailsSectionKey(): void
+    {
+        $keys = collect($this->equipmentDetailSections)
+            ->pluck('key')
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($keys === [] || in_array($this->activeDetailsSection, $keys, true)) {
+            return;
+        }
+
+        $this->activeDetailsSection = (string) $keys[0];
     }
 
     public function updatedNonConformanceFromDate(): void
@@ -1974,7 +2018,7 @@ class EquipmentDetail extends Component
     }
 
     /**
-     * @return list<array{icon: string, title: string, fields: list<array<string, mixed>>}>
+     * @return list<array{key: string, icon: string, title: string, fields: list<array<string, mixed>>}>
      */
     public function getEquipmentDetailSectionsProperty(): array
     {
@@ -2014,6 +2058,7 @@ class EquipmentDetail extends Component
 
         $sections = [
             [
+                'key' => 'basic',
                 'icon' => 'mdi-card-text-outline',
                 'title' => __('equipment.basic_information'),
                 'fields' => [
@@ -2035,6 +2080,7 @@ class EquipmentDetail extends Component
                 ],
             ],
             [
+                'key' => 'specifications',
                 'icon' => 'mdi-cog-outline',
                 'title' => __('equipment.specifications'),
                 'fields' => [
@@ -2049,6 +2095,7 @@ class EquipmentDetail extends Component
                 ],
             ],
             [
+                'key' => 'assignment',
                 'icon' => 'mdi-map-marker-outline',
                 'title' => __('equipment.assignment_location'),
                 'fields' => [
@@ -2059,6 +2106,7 @@ class EquipmentDetail extends Component
                 ],
             ],
             [
+                'key' => 'schedule',
                 'icon' => 'mdi-calendar-clock',
                 'title' => __('equipment.maintenance_calibration_schedule'),
                 'fields' => [
@@ -2076,14 +2124,15 @@ class EquipmentDetail extends Component
 
         if ($verificationDays !== null || $equipment->verification_notification_in_days !== null) {
             $sections[] = [
+                'key' => 'verification',
                 'icon' => 'mdi-clipboard-check-outline',
                 'title' => __('equipment.verification_log'),
                 'fields' => array_filter([
                     $verificationDays !== null
-                        ? ['label' => 'Verification interval (days)', 'value' => $this->formatEquipmentDetailNumber($verificationDays, 'days')]
+                        ? ['label' => __('equipment.verification_interval_days'), 'value' => $this->formatEquipmentDetailNumber($verificationDays, 'days')]
                         : null,
                     $equipment->verification_notification_in_days !== null
-                        ? ['label' => 'Verification notification (days)', 'value' => $this->formatEquipmentDetailNumber($equipment->verification_notification_in_days, 'days')]
+                        ? ['label' => __('equipment.verification_notification_days'), 'value' => $this->formatEquipmentDetailNumber($equipment->verification_notification_in_days, 'days')]
                         : null,
                 ]),
             ];
@@ -2091,6 +2140,7 @@ class EquipmentDetail extends Component
 
         if ($equipment->requires_daily_log) {
             $sections[] = [
+                'key' => 'daily_log',
                 'icon' => 'mdi-notebook-check-outline',
                 'title' => __('equipment.daily_log_config'),
                 'fields' => $this->buildDailyLogDetailFields($equipment),
@@ -2104,6 +2154,7 @@ class EquipmentDetail extends Component
             }
 
             $sections[] = [
+                'key' => 'disposal',
                 'icon' => 'mdi-archive-alert-outline',
                 'title' => __('equipment.disposal_management'),
                 'fields' => [
@@ -2121,11 +2172,12 @@ class EquipmentDetail extends Component
         }
 
         $sections[] = [
+            'key' => 'record',
             'icon' => 'mdi-history',
-            'title' => 'Record',
+            'title' => __('equipment.record_metadata'),
             'fields' => [
-                ['label' => 'Created', 'value' => $this->formatEquipmentDetailDateTime($equipment->created_at)],
-                ['label' => 'Last updated', 'value' => $this->formatEquipmentDetailDateTime($equipment->updated_at)],
+                ['label' => __('equipment.created_at'), 'value' => $this->formatEquipmentDetailDateTime($equipment->created_at)],
+                ['label' => __('equipment.last_updated'), 'value' => $this->formatEquipmentDetailDateTime($equipment->updated_at)],
             ],
         ];
 
