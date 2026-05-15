@@ -336,12 +336,12 @@ class WorkflowBoard extends Component
 
         if ($this->isReceivingFormsTab()) {
             if ($this->isReceivingStage()) {
-                $query->whereIn('status', ['submitted', 'pending_reception', 'received_at_lab']);
+                $query->whereIn('status', ['submitted', 'Submitted', 'pending_reception', 'received_at_lab']);
                 $query->whereDoesntHave('batches', function ($bq) {
                     $bq->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
                 });
             } elseif ($this->status === 'Samples Request Review') {
-                $query->whereIn('status', ['submitted', 'in_review', 'pending_reception', 'received_at_lab']);
+                $query->whereIn('status', ['submitted', 'Submitted', 'in_review', 'In Review', 'pending_reception', 'received_at_lab']);
                 $query->whereDoesntHave('batches');
             }
         }
@@ -690,9 +690,11 @@ class WorkflowBoard extends Component
         });
         $portalRequestQuery->whereIn('status', [
             'submitted',
+            'Submitted',
             'booking_date_approved',
             'booking_date_rescheduled',
             'in_review',
+            'In Review',
             'pending_reception',
             'received_at_lab',
         ]);
@@ -723,10 +725,10 @@ class WorkflowBoard extends Component
                 ->unique()
                 ->count(),
             'portal_submitted' => (clone $portalFormQuery)
-                    ->whereIn('status', ['submitted', 'pending_reception', 'received_at_lab'])
+                    ->whereIn('status', ['submitted', 'Submitted', 'pending_reception', 'received_at_lab'])
                     ->count()
                 + (clone $portalRequestQuery)
-                    ->whereIn('status', ['submitted', 'booking_date_approved', 'booking_date_rescheduled', 'pending_reception', 'received_at_lab'])
+                    ->whereIn('status', ['submitted', 'Submitted', 'booking_date_approved', 'booking_date_rescheduled', 'pending_reception', 'received_at_lab'])
                     ->count(),
             'sent_to_request_review' => (clone $portalFormQuery)
                     ->where('status', 'in_review')
@@ -735,7 +737,7 @@ class WorkflowBoard extends Component
                     ->where('status', 'in_review')
                     ->count(),
             'waiting_for_delivery' => (clone $portalRequestQuery)
-                ->whereIn('status', ['submitted', 'booking_date_approved', 'booking_date_rescheduled', 'pending_reception', 'received_at_lab'])
+                ->whereIn('status', ['submitted', 'Submitted', 'booking_date_approved', 'booking_date_rescheduled', 'pending_reception', 'received_at_lab'])
                 ->count(),
         ];
     }
@@ -759,13 +761,15 @@ class WorkflowBoard extends Component
             ->where(function ($q) {
                 $q->whereIn('status', [
                     'submitted',
+                    'Submitted',
                     'booking_date_approved',
                     'booking_date_rescheduled',
                     'in_review',
+                    'In Review',
                     'pending_reception',
                     'received_at_lab',
                 ])->orWhereHas('supportingDocumentInstances', function ($docQuery) {
-                    $docQuery->whereIn('status', ['submitted', 'in_review', 'approved']);
+                    $docQuery->whereIn('status', ['submitted', 'Submitted', 'in_review', 'In Review', 'approved', 'Approved']);
                 });
             })
             ->where(function ($q) {
