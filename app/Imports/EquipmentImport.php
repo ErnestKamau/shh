@@ -5,335 +5,162 @@ namespace App\Imports;
 use App\Models\Equipments\Equipment;
 use App\Models\Equipments\MaintainanceCalibrationLog;
 use App\InventoryDepartment;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\Importable;
-use Maatwebsite\Excel\Concerns\SkipsOnFailure;
-use Maatwebsite\Excel\Concerns\SkipsFailures;
-use Maatwebsite\Excel\Validators\Failure;
-use Illuminate\Support\Collection;
 use Carbon\Carbon;
 
-class EquipmentImport implements ToCollection, WithHeadingRow, SkipsOnFailure
+class EquipmentImport extends BaseImporter
 {
-    use Importable, SkipsFailures;
-
-    protected $successCount = 0;
-    protected $errorCount = 0;
-    protected $errors = [];
-
-    public function collection(Collection $rows): void
+    public function __construct(?BulkImportBatch $batch = null)
     {
-        foreach ($rows as $index => $row) {
-            $rowNumber = $index + 2; // +2 because of header and 0-index
-            
-            // Skip empty rows
-            if ($row->filter()->isEmpty()) {
-                continue;
-            }
+        parent::__construct($batch);
+        if ($this->batch->module === 'generic') {
+            $this->batch->update(['module' => 'inventory', 'form_type' => 'equipment']);
+        }
+    }
 
-            // WithHeadingRow converts headers to lowercase and replaces spaces with underscores
-            // So "Date Purchased" becomes "date_purchased", "Purchased On" becomes "purchased_on"
-            $name = $this->getValue($row, ['name']);
-            $equipmentNumber = $this->getValue($row, ['equipment_number', 'equipmentnumber']);
-            $make = $this->getValue($row, ['make']);
-            $model = $this->getValue($row, ['model']);
-            $serialNumber = $this->getValue($row, ['serial_number', 'serialnumber']);
-            $manufacturer = $this->getValue($row, ['manufacturer']);
-            $departmentName = $this->getValue($row, ['assigned_department', 'assigneddepartment', 'department']);
-            $datePurchased = $this->getValue($row, ['date_purchased', 'datepurchased', 'purchased_on', 'purchasedon']);
-            $previousCalibrationDate = $this->getValue($row, ['previous_calibration_date', 'previouscalibrationdate']);
-            $calibrationInterval = $this->getValue($row, ['calibration_interval_days', 'calibrationintervaldays', 'calibration_interval', 'calibrationinterval']);
-            $previousMaintainanceDate = $this->getValue($row, ['previous_maintainance_date', 'previousmaintainancedate', 'previous_maintenance_date', 'previousmaintenancedate']);
-            $intermediateChecksInterval = $this->getValue($row, ['intermediate_checks_interval_days', 'intermediatechecksintervaldays', 'intermediate_checks_interval', 'intermediatechecksinterval']);
+    protected function validateRow(array $row): array
+    {
+        $errors = [];
 
-            // Trim all string values (dates might be DateTime objects or numbers)
-            $name = is_string($name) ? trim($name ?? '') : (string)($name ?? '');
-            $equipmentNumber = is_string($equipmentNumber) ? trim($equipmentNumber ?? '') : (string)($equipmentNumber ?? '');
-            $make = is_string($make) ? trim($make ?? '') : (string)($make ?? '');
-            $model = is_string($model) ? trim($model ?? '') : (string)($model ?? '');
-            $serialNumber = is_string($serialNumber) ? trim($serialNumber ?? '') : (string)($serialNumber ?? '');
-            $manufacturer = is_string($manufacturer) ? trim($manufacturer ?? '') : (string)($manufacturer ?? '');
-            $departmentName = is_string($departmentName) ? trim($departmentName ?? '') : (string)($departmentName ?? '');
-            $calibrationInterval = is_string($calibrationInterval) ? trim($calibrationInterval ?? '') : (string)($calibrationInterval ?? '');
-            $previousMaintainanceDate = $previousMaintainanceDate; // Keep as-is for date parsing
-            $intermediateChecksInterval = is_string($intermediateChecksInterval) ? trim($intermediateChecksInterval ?? '') : (string)($intermediateChecksInterval ?? '');
-            // Keep date values as-is (might be DateTime, string, or number)
-            $datePurchased = $datePurchased;
-            $previousCalibrationDate = $previousCalibrationDate;
+        if (empty($this->fuzzyGet($row, ['name', 'equipment_name']))) {
+            $errors[] = 'Equipment Name is required';
+        }
 
-            // Check for duplicate equipment number
-            $existingEquipment = Equipment::where('equipment_number', $equipmentNumber)
-                ->where('company_id', getUserCompany())
-                ->first();
-            
-            if ($existingEquipment) {
-                $this->errorCount++;
-                $this->errors[] = "Row {$rowNumber}: Equipment number '{$equipmentNumber}' already exists.";
-                continue;
-            }
+        if (empty($this->fuzzyGet($row, ['equipment_number', 'equipmentnumber', 'asset_number']))) {
+            $errors[] = 'Equipment Number is required';
+        }
 
-            // Parse and validate date (nullable)
-            $parsedDatePurchased = null;
-            if (!empty($datePurchased)) {
-                $parsedDatePurchased = $this->parseDate($datePurchased);
-                if (!$parsedDatePurchased) {
-                    $this->errorCount++;
-                    $dateValueType = gettype($datePurchased);
-                    $dateValueDisplay = is_object($datePurchased) ? get_class($datePurchased) : (string)$datePurchased;
-                    $this->errors[] = "Row {$rowNumber}: The date purchased is not a valid date. Value: '{$dateValueDisplay}' (type: {$dateValueType})";
-                    continue;
-                }
-            }
+        if (empty($this->fuzzyGet($row, ['make', 'brand']))) {
+            $errors[] = 'Make is required';
+        }
 
-            // Validate row data
-            $validator = Validator::make([
-                'name' => $name,
-                'equipment_number' => $equipmentNumber,
-                'make' => $make,
-                'model' => $model,
-                'department_name' => $departmentName,
-                'calibration_interval' => $calibrationInterval,
-                'intermediate_checks_interval' => $intermediateChecksInterval,
-            ], [
-                'name' => 'required|string|max:255',
-                'equipment_number' => 'required|string|max:255',
-                'make' => 'required|string|max:255',
-                'model' => 'required|string|max:255',
-                'department_name' => 'required|string',
-                'calibration_interval' => 'required|integer|min:0',
-                'intermediate_checks_interval' => 'required|integer|min:0',
+        if (empty($this->fuzzyGet($row, ['model']))) {
+            $errors[] = 'Model is required';
+        }
+
+        $dept = $this->fuzzyGet($row, ['assigned_department', 'assigneddepartment', 'department', 'unit', 'section']);
+        if (empty($dept)) {
+            $errors[] = 'Assigned Department is required';
+        }
+
+        return $errors;
+    }
+
+    protected function transformRow(array $row): mixed
+    {
+        $equipmentNumber = $this->fuzzyGet($row, ['equipment_number', 'equipmentnumber', 'asset_number']);
+        
+        // Check for duplicates
+        $existing = Equipment::where('equipment_number', $equipmentNumber)
+            ->where('company_id', $this->batch->company_id)
+            ->first();
+        
+        if ($existing) {
+            return false; // Skip duplicates or handle accordingly
+        }
+
+        $departmentName = $this->fuzzyGet($row, ['assigned_department', 'assigneddepartment', 'department', 'unit', 'section']);
+        $department = InventoryDepartment::where('module', 'organizational')
+            ->where('name', 'like', "%$departmentName%")
+            ->where('company_id', $this->batch->company_id)
+            ->first();
+
+        if (!$department) {
+            $department = InventoryDepartment::create([
+                'name' => $departmentName,
+                'module' => 'organizational',
+                'company_id' => $this->batch->company_id,
+                'active' => 1,
             ]);
-
-            if ($validator->fails()) {
-                $this->errorCount++;
-                $this->errors[] = "Row {$rowNumber}: " . implode(', ', $validator->errors()->all());
-                continue;
-            }
-
-            try {
-                DB::beginTransaction();
-
-                // Get or create department
-                $department = InventoryDepartment::where('module', 'organizational')
-                    ->where('name', $departmentName)
-                    ->first();
-
-                if (!$department) {
-                    $locationId = null;
-                    if (function_exists('getCurrentUserLocation')) {
-                        $location = getCurrentUserLocation();
-                        $locationId = $location ? $location->id : null;
-                    }
-                    
-                    $department = InventoryDepartment::create([
-                        'name' => $departmentName,
-                        'module' => 'organizational',
-                        'company_id' => getUserCompany(),
-                        'location_id' => $locationId,
-                        'active' => 1,
-                    ]);
-                }
-
-                // Prepare equipment data
-                $equipmentData = [
-                    'name' => $name,
-                    'equipment_number' => $equipmentNumber,
-                    'description' => $name, // Use name as description
-                    'make' => $make,
-                    'model' => $model,
-                    'serial_number' => $serialNumber ?: null,
-                    'manufacturer' => $manufacturer ?: null,
-                    'assigned_department' => $department->id,
-                    'date_purchased' => $parsedDatePurchased ? $parsedDatePurchased->format('Y-m-d') : null,
-                    'calibration_days' => (int)$calibrationInterval,
-                    'calibration_notification_in_days' => (int)$calibrationInterval,
-                    'maintainance_days' => 365, // Default to 365 days
-                    'maintainance_notification_in_days' => (int)$intermediateChecksInterval,
-                    'status' => 'Active',
-                    'condition' => 'Active',
-                    'warranty_date' => null, // Nullable
-                    'picture' => '/images/default-equipment.png', // Default picture for bulk import
-                    'active' => true,
-                    'company_id' => getUserCompany(),
-                    'is_disposal' => 0,
-                ];
-
-                // Create equipment
-                $equipment = Equipment::create($equipmentData);
-
-                // Create calibration log if previous calibration date provided and valid
-                if (!empty($previousCalibrationDate)) {
-                    $calibrationDate = $this->parseDate($previousCalibrationDate);
-                    if ($calibrationDate) {
-                        MaintainanceCalibrationLog::create([
-                            'equipment_id' => $equipment->id,
-                            'type' => 'Calibration',
-                            'date' => $calibrationDate->format('Y-m-d'),
-                            'notes' => 'from the bulk upload',
-                            'overseen_by' => auth()->id(),
-                            'edit_by' => auth()->id(),
-                            'certificate' => 'no-document',
-                        ]);
-                    } else {
-                        // Log warning but don't fail the import
-                        $this->errors[] = "Row {$rowNumber}: Previous calibration date is invalid, skipping calibration log creation.";
-                    }
-                }
-
-                // Create maintenance log if previous maintenance date provided and valid
-                if (!empty($previousMaintainanceDate)) {
-                    $maintenanceDate = $this->parseDate($previousMaintainanceDate);
-                    if ($maintenanceDate) {
-                        MaintainanceCalibrationLog::create([
-                            'equipment_id' => $equipment->id,
-                            'type' => 'Maintainance',
-                            'date' => $maintenanceDate->format('Y-m-d'),
-                            'notes' => 'from the bulk upload',
-                            'overseen_by' => auth()->id(),
-                            'edit_by' => auth()->id(),
-                            'certificate' => 'no-document',
-                        ]);
-                    } else {
-                        // Log warning but don't fail the import
-                        $this->errors[] = "Row {$rowNumber}: Previous maintenance date is invalid, skipping maintenance log creation.";
-                    }
-                }
-
-                DB::commit();
-                $this->successCount++;
-            } catch (\Exception $e) {
-                DB::rollBack();
-                $this->errorCount++;
-                $this->errors[] = "Row {$rowNumber}: " . $e->getMessage();
-            }
         }
+
+        $datePurchased = $this->fuzzyGet($row, ['date_purchased', 'datepurchased', 'purchased_on', 'purchasedon', 'date_of_purchase']);
+        $prevCalDate = $this->fuzzyGet($row, ['previous_calibration_date', 'previouscalibrationdate', 'last_calibration', 'last_cal']);
+        $prevMaintDate = $this->fuzzyGet($row, ['previous_maintainance_date', 'previousmaintainancedate', 'previous_maintenance_date', 'last_maintenance', 'last_maint']);
+
+        return [
+            'name' => $this->fuzzyGet($row, ['name', 'equipment_name']),
+            'equipment_number' => $equipmentNumber,
+            'description' => $this->fuzzyGet($row, ['description', 'name']),
+            'make' => $this->fuzzyGet($row, ['make', 'brand']),
+            'model' => $this->fuzzyGet($row, ['model']),
+            'serial_number' => $this->fuzzyGet($row, ['serial_number', 'serialnumber', 'sn']),
+            'manufacturer' => $this->fuzzyGet($row, ['manufacturer', 'mfr']),
+            'assigned_department' => $department->id,
+            'date_purchased' => $this->parseDate($datePurchased),
+            'calibration_days' => (int) $this->fuzzyGet($row, ['calibration_interval_days', 'calibration_interval'], 365),
+            'maintainance_days' => (int) $this->fuzzyGet($row, ['intermediate_checks_interval_days', 'maintenance_interval'], 365),
+            'status' => 'Active',
+            'condition' => 'Active',
+            'active' => true,
+            'company_id' => $this->batch->company_id,
+            'is_disposal' => 0,
+            'picture' => '/images/default-equipment.png',
+            '_calibration_date' => $this->parseDate($prevCalDate),
+            '_maintenance_date' => $this->parseDate($prevMaintDate),
+        ];
+    }
+
+    protected function importRow(array $transformedData, array $originalRow): bool
+    {
+        $calDate = $transformedData['_calibration_date'] ?? null;
+        $maintDate = $transformedData['_maintenance_date'] ?? null;
+        
+        unset($transformedData['_calibration_date'], $transformedData['_maintenance_date']);
+
+        $equipment = Equipment::create($transformedData);
+
+        if ($calDate) {
+            MaintainanceCalibrationLog::create([
+                'equipment_id' => $equipment->id,
+                'type' => 'Calibration',
+                'date' => $calDate,
+                'notes' => 'Imported from Excel',
+                'overseen_by' => $this->batch->user_id,
+                'edit_by' => $this->batch->user_id,
+                'certificate' => 'no-document',
+            ]);
+        }
+
+        if ($maintDate) {
+            MaintainanceCalibrationLog::create([
+                'equipment_id' => $equipment->id,
+                'type' => 'Maintainance',
+                'date' => $maintDate,
+                'notes' => 'Imported from Excel',
+                'overseen_by' => $this->batch->user_id,
+                'edit_by' => $this->batch->user_id,
+                'certificate' => 'no-document',
+            ]);
+        }
+
+        $this->recordUpsert($equipment->equipment_number, 'inserted');
+        return true;
     }
 
     /**
-     * Get value from row by trying multiple possible column names
-     * WithHeadingRow normalizes headers to lowercase with underscores
+     * Parse date from various formats.
      */
-    protected function getValue(Collection $row, array $possibleKeys)
+    protected function parseDate($dateValue): ?string
     {
-        foreach ($possibleKeys as $key) {
-            // Check if key exists in collection (case-insensitive for safety)
-            $normalizedKey = strtolower(str_replace([' ', '-'], '_', $key));
-            
-            // Try exact match first
-            if ($row->has($key)) {
-                $value = $row->get($key);
-                return $value !== null ? $value : null;
-            }
-            
-            // Try normalized key
-            if ($row->has($normalizedKey)) {
-                $value = $row->get($normalizedKey);
-                return $value !== null ? $value : null;
-            }
-            
-            // Try case-insensitive search
-            foreach ($row->keys() as $rowKey) {
-                if (strtolower(str_replace([' ', '-'], '_', $rowKey)) === $normalizedKey) {
-                    $value = $row->get($rowKey);
-                    return $value !== null ? $value : null;
-                }
-            }
-        }
-        return null;
-    }
+        if (empty($dateValue)) return null;
 
-    /**
-     * Parse date from various formats
-     * Handles DateTime objects, Excel serial dates (numbers), and string dates
-     */
-    protected function parseDate($dateValue): ?Carbon
-    {
-        if (empty($dateValue)) {
-            return null;
-        }
-
-        // If it's already a DateTime or Carbon instance
         if ($dateValue instanceof \DateTime || $dateValue instanceof Carbon) {
-            return Carbon::instance($dateValue);
+            return $dateValue->format('Y-m-d');
         }
 
-        // If it's a numeric value (Excel serial date)
         if (is_numeric($dateValue)) {
             try {
-                // Excel serial date: days since January 1, 1900
-                // PHP timestamp: seconds since January 1, 1970
-                // Excel epoch: 1900-01-01
-                // PHP epoch: 1970-01-01
-                // Difference: 25569 days
-                $excelEpoch = 25569; // Days between 1900-01-01 and 1970-01-01
-                $timestamp = ($dateValue - $excelEpoch) * 86400; // Convert days to seconds
-                return Carbon::createFromTimestamp($timestamp);
+                return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateValue))->format('Y-m-d');
             } catch (\Exception $e) {
-                // If conversion fails, try as regular timestamp
-                try {
-                    return Carbon::createFromTimestamp($dateValue);
-                } catch (\Exception $e2) {
-                    return null;
-                }
+                return null;
             }
         }
 
-        // Convert to string if not already
-        $dateString = (string)$dateValue;
-        if (empty(trim($dateString))) {
-            return null;
-        }
-
-        // Try common date formats (including d/m/y with 2-digit year)
-        $formats = [
-            'Y-m-d',           // 2025-12-15
-            'Y/m/d',           // 2025/12/15
-            'd-m-Y',           // 15-12-2025
-            'd/m/Y',           // 15/12/2025
-            'd/m/y',           // 15/12/25 (2-digit year)
-            'd-m-y',           // 15-12-25 (2-digit year)
-            'm/d/Y',           // 12/15/2025
-            'm/d/y',           // 12/15/25 (2-digit year)
-            'd.m.Y',           // 15.12.2025
-            'd.m.y',           // 15.12.25 (2-digit year)
-            'Y-m-d H:i:s',     // 2025-12-15 00:00:00
-            'Y-m-d H:i:s.u',   // 2025-12-15 00:00:00.000000
-        ];
-
-        foreach ($formats as $format) {
-            try {
-                $date = Carbon::createFromFormat($format, $dateString);
-                if ($date) {
-                    return $date;
-                }
-            } catch (\Exception $e) {
-                continue;
-            }
-        }
-
-        // Try Carbon's flexible parser as last resort
         try {
-            return Carbon::parse($dateString);
+            return Carbon::parse((string)$dateValue)->format('Y-m-d');
         } catch (\Exception $e) {
             return null;
         }
-    }
-
-    public function getSuccessCount(): int
-    {
-        return $this->successCount;
-    }
-
-    public function getErrorCount(): int
-    {
-        return $this->errorCount;
-    }
-
-    public function getErrors(): array
-    {
-        return $this->errors;
     }
 }

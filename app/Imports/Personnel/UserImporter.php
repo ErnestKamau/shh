@@ -11,20 +11,32 @@ use Illuminate\Support\Str;
 
 class UserImporter extends BaseImporter
 {
+    protected ?Zone $defaultZone = null;
+
+    protected function onSheetLoaded(string $title): void
+    {
+        // Try to find a zone that matches the sheet title
+        $this->defaultZone = Zone::where('company_id', $this->batch->company_id)
+            ->where(function($q) use ($title) {
+                $q->where('name', 'like', "%$title%")
+                  ->orWhere('code', 'like', "%$title%");
+            })
+            ->first();
+    }
+
     protected function validateRow(array $row): array
     {
         $errors = [];
         $headerList = implode(', ', array_slice($this->detectedHeaders, 0, 15));
 
-        $hasFirstName = $this->hasFuzzy($row, ['first_name', 'fname', 'given_name', 'first_names', 'names', 'firstname']);
-        $hasLastName = $this->hasFuzzy($row, ['last_name', 'lname', 'surname', 'family_name', 'lastname']);
-        $hasFullName = $this->hasFuzzy($row, ['name', 'full_name', 'employee_name', 'person_name', 'staff_name', 'employee', 'staff', 'user_name', 'user']);
+        $firstName = $this->fuzzyGet($row, ['first_name', 'fname', 'given_name', 'first_names', 'names', 'firstname']);
+        $fullName = $this->fuzzyGet($row, ['name', 'full_name', 'employee_name', 'person_name', 'staff_name', 'employee', 'staff', 'user_name', 'user']);
 
-        if (!$hasFirstName && !$hasFullName) {
+        if (empty($firstName) && empty($fullName)) {
             $errors[] = "First name or Full name is required. (Found headers: {$headerList})";
         }
 
-        if (!$this->hasFuzzy($row, ['email', 'email_address', 'e-mail', 'official_email', 'work_email', 'mail', 'emailaddress', 'user_id', 'login', 'username', 'id_number'])) {
+        if (empty($this->fuzzyGet($row, ['email', 'email_address', 'e-mail', 'official_email', 'work_email', 'mail', 'emailaddress', 'user_id', 'login', 'username', 'id_number']))) {
             $errors[] = "Email is required. (Found headers: {$headerList})";
         }
 
@@ -47,11 +59,15 @@ class UserImporter extends BaseImporter
         $passwordRaw = $this->fuzzyGet($row, ['password', 'pass', 'pwd'], Str::random(12));
 
         $zoneCode = $this->fuzzyGet($row, ['zone_code', 'zone', 'location_code', 'location', 'site', 'branch']);
-        $zone = Zone::where(function($q) use ($zoneCode) {
-                $q->where('code', (string)$zoneCode)->orWhere('name', 'like', "%$zoneCode%");
-            })
-            ->where('company_id', $this->batch->company_id)
-            ->first();
+        $zone = $this->defaultZone;
+
+        if ($zoneCode) {
+            $zone = Zone::where(function($q) use ($zoneCode) {
+                    $q->where('code', (string)$zoneCode)->orWhere('name', 'like', "%$zoneCode%");
+                })
+                ->where('company_id', $this->batch->company_id)
+                ->first() ?: $this->defaultZone;
+        }
 
         $deptCode = $this->fuzzyGet($row, ['department_code', 'department', 'dept', 'unit', 'section']);
         $department = InventoryDepartment::where(function($q) use ($deptCode) {

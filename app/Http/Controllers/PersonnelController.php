@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Excel;
-use App\Imports\StandardsImport;
+use App\Imports\Personnel\UserImporter;
+use App\Models\BulkImportBatch;
 use App\SampleAnalysisStage;
 use App\UserZoneRelation;
 use App\UserDirectorateRelation;
@@ -376,8 +377,19 @@ class PersonnelController extends Controller
   }
 
 	public function importUser(Request $request){
-		Excel::import( new StandardsImport,$request->file);
-		return redirect()->back()->with('success','import successfully');
+		$batch = BulkImportBatch::create([
+			'company_id' => getUserCompany(),
+			'user_id' => auth()->id(),
+			'module' => 'personnel',
+			'form_type' => 'user',
+			'status' => 'started',
+		]);
+
+		Excel::import(new UserImporter($batch), $request->file);
+		
+		$batch->markAsCompleted();
+
+		return redirect()->back()->with('success', "Import completed. {$batch->imported_rows} users processed.");
 	}
 
 	public function user_profile(){

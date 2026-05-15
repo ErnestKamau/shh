@@ -9,11 +9,16 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Validator;
 use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\SkipsUnknownSheets;
+use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\BeforeImport;
+use Maatwebsite\Excel\Events\BeforeSheet;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Validators\Failure;
 
-abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFailure
+abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipleSheets, SkipsUnknownSheets, WithTitle, WithEvents
 {
     use Importable;
 
@@ -21,13 +26,29 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
     protected int $rowNumber = 1;
     protected array $errors = [];
     protected array $detectedHeaders = [];
+    protected int $sheetCount = 1;
+    protected string $sheetTitle = '';
+    protected int $headerRowIndex = -1;
 
     /**
      * Constructor.
      */
-    public function __construct(BulkImportBatch $batch)
+    public function __construct(?BulkImportBatch $batch = null)
     {
-        $this->batch = $batch;
+        if ($batch) {
+            $this->batch = $batch;
+        } else {
+            // Create a dummy batch if none provided (for legacy compatibility)
+            $this->batch = BulkImportBatch::create([
+                'module' => 'generic',
+                'status' => 'started',
+                'company_id' => getUserCompany(),
+                'user_id' => auth()->id(),
+                'imported_rows' => 0,
+                'total_rows' => 0,
+                'error_rows' => 0,
+            ]);
+        }
     }
 
     /**
@@ -44,18 +65,83 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
     }
 
     /**
+     * Multiple Sheets Support
+     */
+    public function sheets(): array
+    {
+        $sheets = [];
+        // We use a range of 100 to support files with many tabs.
+        // SkipsUnknownSheets will handle if there are fewer.
+        for ($i = 0; $i < 100; $i++) {
+            $sheets[$i] = clone $this;
+        }
+        return $sheets;
+    }
+
+    public function onUnknownSheet($sheetName)
+    {
+        // Do nothing
+    }
+
+    public function setTitle(string $title): void
+    {
+        $this->sheetTitle = $title;
+    }
+
+    public function title(): string
+    {
+        return $this->sheetTitle;
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            BeforeImport::class => function(BeforeImport $event) {
+                // This is called on the main instance.
+                $this->sheetCount = $event->reader->getSheetCount();
+            },
+            BeforeSheet::class => function(BeforeSheet $event) {
+                // This is called on each sheet instance.
+                $this->sheetTitle = $event->sheet->getTitle();
+                $this->onSheetLoaded($this->sheetTitle);
+            },
+        ];
+    }
+
+    /**
+     * Hook called when a sheet is loaded. Override in subclass.
+     */
+    protected function onSheetLoaded(string $title): void
+    {
+        // Override in subclass
+    }
+
+    /**
      * Collection callback.
      */
     public function collection(Collection $rows)
     {
-        foreach ($rows as $row) {
-            $this->rowNumber++;
-            $rawRowData = $row instanceof Collection ? $row->toArray() : (array) $row;
-            
-            if (empty($this->detectedHeaders)) {
-                $this->detectedHeaders = array_keys($rawRowData);
+        $headerMap = $this->findHeaderRow($rows);
+        
+        if (empty($headerMap)) {
+            // Fallback to row 0 if no match found
+            $headerMap = $this->mapHeadersFromRow($rows->first() ?? []);
+            $this->headerRowIndex = 0;
+        } else {
+            $this->afterHeaderRowDetected($headerMap, $rows);
+        }
+
+        $this->detectedHeaders = array_values($headerMap);
+
+        foreach ($rows as $index => $row) {
+            // Skip rows before and including the header row
+            if ($index <= $this->headerRowIndex) {
+                continue;
             }
 
+            $this->rowNumber++;
+            $rawRowData = $this->mapRowToHeaders($row, $headerMap);
+            
             $rowData = $this->normalizeRow($rawRowData);
 
             if ($this->shouldSkipRow($rowData)) {
@@ -96,6 +182,161 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
         }
 
         $this->batch->save();
+    }
+
+    /**
+     * Find the best candidate for header row.
+     */
+    protected function findHeaderRow(Collection $rows): array
+    {
+        $template = app(BulkImportTemplateFactory::class)
+            ->getTemplateDefinition($this->batch->module, $this->batch->form_type);
+        
+        $expectedHeaders = $template['headers'] ?? [];
+        if (empty($expectedHeaders)) {
+            return [];
+        }
+
+        $bestMatchRow = -1;
+        $maxMatches = 0;
+        $bestMap = [];
+
+        // Scan first 20 rows
+        foreach ($rows->take(20) as $index => $row) {
+            $row = $row instanceof Collection ? $row->toArray() : (array) $row;
+            $matches = 0;
+            $currentMap = [];
+
+            foreach ($row as $colIndex => $value) {
+                if (empty($value)) continue;
+
+                $normalizedValue = $this->normalizeHeaderName((string)$value);
+                foreach ($expectedHeaders as $expected) {
+                    $normalizedExpected = $this->normalizeHeaderName($expected);
+                    if ($normalizedValue === $normalizedExpected || str_contains($normalizedValue, $normalizedExpected)) {
+                        $matches++;
+                        $currentMap[$colIndex] = $normalizedExpected;
+                        break;
+                    }
+                }
+            }
+
+            if ($matches > $maxMatches) {
+                $maxMatches = $matches;
+                $bestMatchRow = $index;
+                $bestMap = $currentMap;
+            }
+
+            // If we match more than 50% of headers, we assume this is the one
+            if ($matches >= count($expectedHeaders) * 0.5) {
+                break; 
+            }
+        }
+
+        if ($maxMatches > 0) {
+            $this->headerRowIndex = $bestMatchRow;
+            
+            // Re-map the entire row to get all headers, not just expected ones
+            $bestRow = $rows->get($bestMatchRow);
+            $bestRow = $bestRow instanceof Collection ? $bestRow->toArray() : (array)$bestRow;
+            $fullMap = [];
+            foreach ($bestRow as $colIndex => $value) {
+                if (empty($value)) continue;
+                
+                $normalizedValue = $this->normalizeHeaderName((string)$value);
+                
+                // If it was one of our expected headers, use the expected name
+                $matched = false;
+                foreach ($expectedHeaders as $expected) {
+                    $normalizedExpected = $this->normalizeHeaderName($expected);
+                    if ($normalizedValue === $normalizedExpected || str_contains($normalizedValue, $normalizedExpected)) {
+                        $fullMap[$colIndex] = $normalizedExpected;
+                        $matched = true;
+                        break;
+                    }
+                }
+                
+                // Otherwise use the normalized value from the cell
+                if (!$matched) {
+                    $fullMap[$colIndex] = $normalizedValue;
+                }
+            }
+            return $fullMap;
+        }
+
+        return [];
+    }
+
+    /**
+     * Map a numeric row to headers based on detected map.
+     */
+    protected function mapRowToHeaders($row, array $headerMap): array
+    {
+        $row = $row instanceof Collection ? $row->toArray() : (array) $row;
+        $mapped = [];
+
+        foreach ($headerMap as $colIndex => $headerName) {
+            $mapped[$headerName] = $row[$colIndex] ?? null;
+        }
+
+        return $mapped;
+    }
+
+    /**
+     * Get success count (legacy support).
+     */
+    public function getSuccessCount(): int
+    {
+        return $this->batch->imported_rows;
+    }
+
+    /**
+     * Get error count (legacy support).
+     */
+    public function getErrorCount(): int
+    {
+        return $this->batch->error_rows;
+    }
+
+    /**
+     * Get errors (legacy support).
+     */
+    public function getErrors(): array
+    {
+        return array_map(function($e) {
+            return "Row {$e['row']}: {$e['message']}";
+        }, $this->batch->errors_json ?? []);
+    }
+
+    /**
+     * Helper: Map headers from a raw row.
+     */
+    protected function mapHeadersFromRow($row): array
+    {
+        $row = $row instanceof Collection ? $row->toArray() : (array) $row;
+        $map = [];
+        foreach ($row as $index => $value) {
+            if ($value) {
+                $map[$index] = $this->normalizeHeaderName((string)$value);
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Hook called when a single-value row is detected (potential category/header).
+     */
+    protected function onCategoryDetected(string $category): void
+    {
+        // Override in subclass
+    }
+
+    /**
+     * Hook to refine header map after detection. Override in subclass.
+     */
+    protected function afterHeaderRowDetected(array &$headerMap, Collection $rows): void
+    {
+        // Override in subclass
     }
 
     /**
@@ -143,12 +384,9 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
         }
     }
 
-    /**
-     * Record an upserted record.
-     */
-    protected function recordUpsert(string $identifier, string $action = 'inserted'): void
+    protected function recordUpsert(?string $identifier, string $action = 'inserted'): void
     {
-        $this->batch->addUpsertedRecord($identifier, $action);
+        $this->batch->addUpsertedRecord((string)$identifier, $action);
     }
 
     /**
@@ -336,7 +574,11 @@ abstract class BaseImporter implements ToCollection, WithHeadingRow, SkipsOnFail
         });
 
         // Skip rows with only 1 value (usually titles or decorative cells)
-        if (count($nonEmpty) <= 1) {
+        if (count($nonEmpty) === 1) {
+            $categoryValue = reset($nonEmpty);
+            if (is_string($categoryValue)) {
+                $this->onCategoryDetected(trim($categoryValue));
+            }
             return true;
         }
 

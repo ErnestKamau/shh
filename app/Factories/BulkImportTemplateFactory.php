@@ -194,7 +194,7 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'equipment' => [
-                    'headers' => ['equipment_number*', 'make*', 'model*', 'serial_number*', 'asset_type_code*', 'asset_location_code*', 'calibration_days', 'maintenance_days', 'requires_daily_log', 'daily_log_value_type'],
+                    'headers' => ['name*', 'equipment_number*', 'make*', 'model*', 'serial_number*', 'asset_type_code*', 'asset_location_code*', 'calibration_days', 'maintenance_days', 'requires_daily_log', 'daily_log_value_type'],
                     'examples' => [
                         ['EQ-001', 'Shimadzu', 'HPLC-2030', 'SN-12345', 'AT-001', 'LOC-001', '365', '180', 1, 'numeric'],
                     ],
@@ -224,7 +224,7 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'user' => [
-                    'headers' => ['first_name*', 'last_name*', 'email*', 'zone_code', 'department_code', 'password*'],
+                    'headers' => ['first_name*', 'last_name*', 'full_name', 'email*', 'zone_code', 'department_code', 'password*'],
                     'examples' => [
                         ['John', 'Doe', 'john@example.com', 'ZONE-001', 'QA', 'SecurePassword123!'],
                     ],

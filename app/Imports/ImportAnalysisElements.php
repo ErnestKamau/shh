@@ -6,110 +6,105 @@ use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\Analyte;
 use App\ReportingUnit;
-use Illuminate\Support\Str; // Import the Str class to modify strings
-use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\Importable;
+use Illuminate\Support\Str;
+use App\Imports\BaseImporter;
 
-class ImportAnalysisElements implements ToModel, WithHeadingRow
+class ImportAnalysisElements extends BaseImporter
 {
-	use Importable;
-
 	private $analysisType;
 
-	public function __construct($analysis_type)
+	public function __construct($analysisType, $batch = null)
 	{
-		$this->analysisType = $analysis_type;
+        parent::__construct($batch);
+		$this->analysisType = $analysisType;
+        
+        if ($this->batch->module === 'generic') {
+            $this->batch->update(['module' => 'lab', 'form_type' => 'analysis_elements']);
+        }
 	}
 
-	public function model(array $row)
-	{
-		// Modify the 'method' column value by converting it to uppercase
-		$mname = trim(ucwords($row['method']));
-		$method = AnalysisMethod::orWhere('name', $mname)
-			->orWhere('code', $mname)->first();
-		$ltmethodname = trim(ucwords($row['ltmethod']));
-		$elementreporttime = $row['tat'];
-		$ltmethod = AnalysisMethod::where('is_ltm', 1)
-					->where(function ($query) use ($ltmethodname) {
-						$query->where('name', $ltmethodname)
-							->orWhere('code', $ltmethodname);
-					})
-					->first();
-		if(!isset($ltmethod->id)){
-			$name_ltmethod = ucwords($ltmethodname);
-			$ltmethod = AnalysisMethod::create([
-				'name' => $name_ltmethod, 'code' => $name_ltmethod, 'description' => $name_ltmethod, 'company_id' => getUserCompany(), 'active' => 1,'is_ltm' => 1
-			]);
-		}
+    protected function validateRow(array $row): array
+    {
+        $errors = [];
+        if (empty($this->fuzzyGet($row, ['parameter', 'analyte', 'name']))) {
+            $errors[] = 'Parameter name is required';
+        }
+        if (empty($this->fuzzyGet($row, ['method']))) {
+            $errors[] = 'Method is required';
+        }
+        return $errors;
+    }
 
+    protected function transformRow(array $row): mixed
+    {
+        $mname = trim(ucwords($this->fuzzyGet($row, ['method'])));
+        $method = AnalysisMethod::where('name', $mname)->orWhere('code', $mname)->first();
+        if (!$method) {
+            $method = AnalysisMethod::create([
+                'name' => $mname, 'code' => $mname, 'description' => $mname, 
+                'company_id' => getUserCompany(), 'active' => 1
+            ]);
+        }
 
-		if(!isset($method->id)){
-			$method = ucwords($mname);
-			$method = AnalysisMethod::create([
-				'name' => $mname, 'code' => $mname, 'description' => $mname, 'company_id' => getUserCompany(), 'active' => 1
-			]);
-		}
+        $ltmethodname = trim(ucwords($this->fuzzyGet($row, ['ltmethod', 'ltm_method'])));
+        $ltmethod = null;
+        if ($ltmethodname) {
+            $ltmethod = AnalysisMethod::where('is_ltm', 1)
+                        ->where(function ($query) use ($ltmethodname) {
+                            $query->where('name', $ltmethodname)->orWhere('code', $ltmethodname);
+                        })->first();
+            if (!$ltmethod) {
+                $ltmethod = AnalysisMethod::create([
+                    'name' => $ltmethodname, 'code' => $ltmethodname, 'description' => $ltmethodname, 
+                    'company_id' => getUserCompany(), 'active' => 1, 'is_ltm' => 1
+                ]);
+            }
+        }
 
-		$rname = ucwords(trim($row['reporting_unit']));
-		$reporting_unit = ReportingUnit::where('name', strtolower(trim($row['reporting_unit'])))->first();
+        $rname = ucwords(trim($this->fuzzyGet($row, ['reporting_unit', 'unit'])));
+        $reporting_unit = ReportingUnit::where('name', strtolower($rname))->first();
+        if (!$reporting_unit && $rname) {
+            $reporting_unit = ReportingUnit::create(['name' => $rname, 'active' => 1]);
+        }
 
-		if(!isset($reporting_unit->id)){
-			$rname = ucwords($rname);
-			$reporting_unit = ReportingUnit::create(['name'=>$rname, 'active'=>1]);
-		}
+        $parameter = ucwords(trim($this->fuzzyGet($row, ['parameter', 'analyte', 'name'])));
+        $analyte = Analyte::where('name', $parameter)->orWhere('code', $parameter)->first();
+        if (!$analyte) {
+            $analyte = Analyte::create([
+                'code' => $parameter, 
+                'name' => $parameter, 
+                'decimal_places' => 2, 
+                'company_id' => getUserCompany(), 
+                'method' => $method->id, 
+                'reporting_unit' => $reporting_unit->name ?? null, 
+                'non_accredited' => $this->fuzzyGet($row, ['accredited', 'is_accredited'], 0) == 'No' ? 1 : 0
+            ]);
+        }
 
-		// Other columns remain as they are
-		$parameter = ucwords(trim($row['parameter']));
+        return [
+            'method' => $method->id,
+            'reporting_unit' => $reporting_unit->name ?? null,
+            'analyte_id' => $analyte->id,
+            'company_id' => getUserCompany(), 
+            'non_accredited' => $this->fuzzyGet($row, ['accredited', 'is_accredited'], 0) == 'No' ? 1 : 0,
+            'lab_section_id' => $this->analysisType->lab_id ?? $this->analysisType->lab_section_id,
+            'analysis_type_id' => $this->analysisType->id,
+            'ltm_method_id' => $ltmethod->id ?? null,
+            'reporting_time' => $this->fuzzyGet($row, ['tat', 'reporting_time']),
+        ];
+    }
 
-		$analyte = Analyte::orWhere('name', $parameter)->orWhere('code', $parameter)->first();
+    protected function importRow(array $transformedData, array $originalRow): bool
+    {
+        AnalysisElements::updateOrCreate(
+            [
+                'analysis_type_id' => $transformedData['analysis_type_id'],
+                'analyte_id' => $transformedData['analyte_id']
+            ],
+            $transformedData
+        );
 
-		$nonAccredited = $row['accredited'];
-
-		if(!isset($analyte->id)){
-			$analyte = Analyte::create([
-				'code'=>ucwords($parameter), 
-				'name'=>ucwords($parameter), 
-				'decimal_places'=>2, 
-				'company_id' => getUserCompany(), 
-				'method' => $method->id, 
-				'reporting_unit' => $reporting_unit->name, 
-				'non_accredited' => $nonAccredited
-			]);
-		}
-
-		// You can modify other columns similarly if needed
-
-		// Create a new AnalysisElements instance and fill the data
-		$analysisElement = AnalysisElements::where('analysis_type_id', $this->analysisType->id)
-			->where('analyte_id', $analyte->id)->first();
-		if(!isset($analysisElement->id)){
-			$analysisElement = new AnalysisElements([
-				'method' => $method->id,
-				'reporting_unit' => $reporting_unit->name,
-				'analyte_id' => $analyte->id,
-				'company_id' => getUserCompany(), 
-				'non_accredited' => $nonAccredited,
-				'lab_section_id' => $this->analysisType->lab_id,
-				'analysis_type_id' => $this->analysisType->id,
-				'ltm_method_id' =>$ltmethod->id,
-				'reporting_time' => $elementreporttime
-			]);
-		}
-		else{
-			$analysisElement->update([
-				'method' => $method->id,
-				'reporting_unit' => $reporting_unit->name,
-				'analyte_id' => $analyte->id,
-				'non_accredited' => $nonAccredited,
-				'company_id' => getUserCompany(), 
-				'lab_section_id' => $this->analysisType->lab_id,
-				'analysis_type_id' => $this->analysisType->id,
-				'ltm_method_id' =>$ltmethod->id,
-				'reporting_time' => $elementreporttime
-			]);
-		}
-
-		return $analysisElement;
-	}
+        $this->recordUpsert($transformedData['analyte_id'], 'updated');
+        return true;
+    }
 }
