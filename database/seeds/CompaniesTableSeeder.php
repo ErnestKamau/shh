@@ -12,11 +12,9 @@ class CompaniesTableSeeder extends Seeder
      */
     public function run()
     {
+        \App\Company::query()->delete();
         
-
-        \DB::table('companies')->delete();
-        
-        \DB::table('companies')->insert(array (
+        $companies = array (
             0 => 
             array (
                 'id' => '1',
@@ -35,15 +33,16 @@ class CompaniesTableSeeder extends Seeder
                 'name' => 'Kenya Cuttings',
                 'logo' => '/storage/companies/skIbtdQXvTTKGdukLHgfuLRIHWD2kNbXe0MJkHfT.png',
                 'location' => 'Avenue 5 building, Rose Avenue 6th Floor Nairobi  Kenya',
-                'address' => 'P.O Box 30393 - 00100
-Nairobi',
+                'address' => 'P.O Box 30393 - 00100 Nairobi',
                 'country_id' => '110',
                 'website' => 'https://www.syngenta.co.ke/',
                 'created_at' => '2020-07-04 11:03:00.187',
                 'updated_at' => '2020-07-04 11:03:00.187',
             ),
-        ));
-        
-        
+        );
+
+        foreach ($companies as $companyData) {
+            \App\Company::forceCreate($companyData);
+        }
     }
 }

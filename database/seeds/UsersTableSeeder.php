@@ -12,11 +12,9 @@ class UsersTableSeeder extends Seeder
      */
     public function run()
     {
+        \App\User::query()->delete();
         
-
-        \DB::table('users')->delete();
-        
-        \DB::table('users')->insert(array (
+        $users = array (
             0 => 
             array (
                 'id' => '1',
@@ -32,7 +30,6 @@ class UsersTableSeeder extends Seeder
                 'location_id' => '3',
                 'department_id' => '3',
                 'photo' => NULL,
-                '[electronic signature]' => NULL,
                 'position' => '5',
                 'education_level' => NULL,
                 'date_of_birth' => NULL,
@@ -62,7 +59,6 @@ class UsersTableSeeder extends Seeder
                 'location_id' => '3',
                 'department_id' => '1',
                 'photo' => '/storage/personnel/v2648AmXK3YGLBKucg4zgatAupm53hIYZ5PUhfLk.jpeg',
-                '[electronic signature]' => NULL,
                 'position' => '5',
                 'education_level' => NULL,
                 'date_of_birth' => NULL,
@@ -92,7 +88,6 @@ class UsersTableSeeder extends Seeder
                 'location_id' => '3',
                 'department_id' => '1',
                 'photo' => '/storage/personnel/mZJ01mDwgCQcZ5fk7BgIfYTg7r64bazCm6LAzIoP.png',
-                '[electronic signature]' => NULL,
                 'position' => '4',
                 'education_level' => '3',
                 'date_of_birth' => '1987-03-20',
@@ -122,7 +117,6 @@ class UsersTableSeeder extends Seeder
                 'location_id' => '0',
                 'department_id' => NULL,
                 'photo' => NULL,
-                '[electronic signature]' => NULL,
                 'position' => NULL,
                 'education_level' => NULL,
                 'date_of_birth' => NULL,
@@ -152,7 +146,6 @@ class UsersTableSeeder extends Seeder
                 'location_id' => '3',
                 'department_id' => '1',
                 'photo' => '/storage/personnel/vSAGmKksRyRvtzMPZBSPMUDkhfyT2GpkZvMxUJT6.png',
-                '[electronic signature]' => NULL,
                 'position' => '5',
                 'education_level' => '3',
                 'date_of_birth' => '1987-09-22',
@@ -167,8 +160,10 @@ class UsersTableSeeder extends Seeder
                 'electronic_sig' => NULL,
                 'designation' => '7',
             ),
-        ));
-        
-        
+        );
+
+        foreach ($users as $userData) {
+            \App\User::forceCreate($userData);
+        }
     }
 }

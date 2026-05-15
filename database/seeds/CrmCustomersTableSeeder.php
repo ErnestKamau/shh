@@ -12,18 +12,15 @@ class CrmCustomersTableSeeder extends Seeder
      */
     public function run()
     {
+        \App\Models\CRM\CRMCustomer::query()->delete();
         
-
-        \DB::table('crm_customers')->delete();
-        
-        \DB::table('crm_customers')->insert(array (
+        $customers = array (
             0 => 
             array (
                 'id' => '4',
                 'code' => 'CB0007',
                 'name' => 'BlueCore-Global',
-                'postal_address' => '8543
-Ronald Ngala',
+                'postal_address' => '8543 Ronald Ngala',
                 'physical_address' => '8543',
                 'fax' => 'fx-0727500128',
                 'email' => 'david.kimari@outlook.com',
@@ -65,8 +62,7 @@ Ronald Ngala',
                 'id' => '6',
                 'code' => 'CT0001',
                 'name' => 'TenderSoko Ltd',
-                'postal_address' => '8543
-Ronald Ngala',
+                'postal_address' => '8543 Ronald Ngala',
                 'physical_address' => '8543',
                 'fax' => 'ts-something',
                 'email' => 'david@tendersoko.com',
@@ -87,8 +83,7 @@ Ronald Ngala',
                 'id' => '10002',
                 'code' => 'CZ0001',
                 'name' => 'Zenith',
-                'postal_address' => '8543
-Ronald Ngala',
+                'postal_address' => '8543 Ronald Ngala',
                 'physical_address' => '8543',
                 'fax' => 'fx-254727500128',
                 'email' => 'david.kimari@outlook.com',
@@ -146,8 +141,10 @@ Ronald Ngala',
                 'sample_point_configurable_name' => 'Location',
                 'product_configurable_name' => 'Product',
             ),
-        ));
-        
-        
+        );
+
+        foreach ($customers as $customerData) {
+            \App\Models\CRM\CRMCustomer::forceCreate($customerData);
+        }
     }
 }
