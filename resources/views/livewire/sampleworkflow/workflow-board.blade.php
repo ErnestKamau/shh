@@ -510,7 +510,7 @@
 								<i class="mdi mdi-file-document-multiple"></i>
 								@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
 									@if(in_array($status, ['Samples En-Route', 'Samples Receiving']))
-										{{ $workflowSubTab === 'received' ? 'Submission requests' : 'Samples received' }}
+										{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
 									@else
 										{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
 									@endif
@@ -687,7 +687,7 @@
 
 						@if(
 							($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
-							(in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received')
+							(in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'requests')
 						)
 							<!-- Submission Forms Table -->
 							@if($this->submissionForms->count() > 0)

@@ -29,25 +29,44 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
     protected int $sheetCount = 1;
     protected string $sheetTitle = '';
     protected int $headerRowIndex = -1;
+    protected static array $cachedTemplateDefinitions = [];
 
     /**
      * Constructor.
      */
     public function __construct(?BulkImportBatch $batch = null)
     {
+        set_time_limit(600); // 10 minutes for large files
+        ini_set('memory_limit', '1024M'); // 1GB memory
+
         if ($batch) {
             $this->batch = $batch;
         } else {
-            // Create a dummy batch if none provided (for legacy compatibility)
-            $this->batch = BulkImportBatch::create([
+            // Attempt to get company/user safely
+            $companyId = '00000000-0000-0000-0000-000000000000';
+            try {
+                if (function_exists('getUserCompany')) {
+                    $companyId = getUserCompany() ?: $companyId;
+                }
+            } catch (\Throwable $t) {}
+
+            $userId = '00000000-0000-0000-0000-000000000000';
+            try {
+                if (auth()->check()) {
+                    $userId = auth()->id() ?: $userId;
+                }
+            } catch (\Throwable $t) {}
+
+            $this->batch = new BulkImportBatch([
                 'module' => 'generic',
                 'status' => 'started',
-                'company_id' => getUserCompany(),
-                'user_id' => auth()->id(),
+                'company_id' => $companyId,
+                'user_id' => $userId,
                 'imported_rows' => 0,
                 'total_rows' => 0,
                 'error_rows' => 0,
             ]);
+            $this->batch->save();
         }
     }
 
@@ -64,16 +83,24 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
         $this->batch->save();
     }
 
+    protected bool $isSheetInstance = false;
+ 
     /**
      * Multiple Sheets Support
      */
     public function sheets(): array
     {
-        $sheets = [];
-        // We use a range of 100 to support files with many tabs.
-        // SkipsUnknownSheets will handle if there are fewer.
-        for ($i = 0; $i < 100; $i++) {
-            $sheets[$i] = clone $this;
+        // Prevent infinite recursion: if this is already a sheet instance, don't return more sheets.
+        if ($this->isSheetInstance) {
+            return [];
+        }
+
+        // We use a range of 20 to support files with multiple tabs.
+        // Reducing from 50 to 20 to save memory, as each clone carries overhead.
+        for ($i = 0; $i < 20; $i++) {
+            $sheet = clone $this;
+            $sheet->isSheetInstance = true;
+            $sheets[$i] = $sheet;
         }
         return $sheets;
     }
@@ -97,12 +124,12 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
     {
         return [
             BeforeImport::class => function(BeforeImport $event) {
-                // This is called on the main instance.
+                \Log::info("Bulk Import Started", ['module' => $this->batch->module, 'form' => $this->batch->form_type]);
                 $this->sheetCount = $event->reader->getSheetCount();
             },
             BeforeSheet::class => function(BeforeSheet $event) {
-                // This is called on each sheet instance.
                 $this->sheetTitle = $event->sheet->getTitle();
+                \Log::info("Processing Sheet: " . $this->sheetTitle);
                 $this->onSheetLoaded($this->sheetTitle);
             },
         ];
@@ -121,67 +148,79 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
      */
     public function collection(Collection $rows)
     {
-        $headerMap = $this->findHeaderRow($rows);
-        
-        if (empty($headerMap)) {
-            // Fallback to row 0 if no match found
-            $headerMap = $this->mapHeadersFromRow($rows->first() ?? []);
-            $this->headerRowIndex = 0;
-        } else {
-            $this->afterHeaderRowDetected($headerMap, $rows);
-        }
-
-        $this->detectedHeaders = array_values($headerMap);
-
-        foreach ($rows as $index => $row) {
-            // Skip rows before and including the header row
-            if ($index <= $this->headerRowIndex) {
-                continue;
-            }
-
-            $this->rowNumber++;
-            $rawRowData = $this->mapRowToHeaders($row, $headerMap);
+        try {
+            \Log::info("Processing " . count($rows) . " rows in sheet " . $this->sheetTitle);
+            $headerMap = $this->findHeaderRow($rows);
             
-            $rowData = $this->normalizeRow($rawRowData);
-
-            if ($this->shouldSkipRow($rowData)) {
-                continue;
+            if (empty($headerMap)) {
+                \Log::warning("No header row detected in sheet " . $this->sheetTitle . ". Falling back to first row.");
+                $headerMap = $this->mapHeadersFromRow($rows->first() ?? []);
+                $this->headerRowIndex = 0;
+            } else {
+                \Log::info("Header row detected at index " . $this->headerRowIndex);
+                $this->afterHeaderRowDetected($headerMap, $rows);
             }
 
-            $this->batch->total_rows++;
+            $this->detectedHeaders = array_values($headerMap);
 
-            try {
-                DB::transaction(function () use ($rowData) {
-                    $this->beforeImport($rowData);
+            foreach ($rows as $index => $row) {
+                // Skip rows before and including the header row
+                if ($index <= $this->headerRowIndex) {
+                    continue;
+                }
 
-                    $validationErrors = $this->validateRow($rowData);
-                    if (!empty($validationErrors)) {
-                        foreach ($validationErrors as $error) {
-                            $this->batch->addError($this->rowNumber, $error, $rowData);
+                $this->rowNumber++;
+                $rawRowData = $this->mapRowToHeaders($row, $headerMap);
+                
+                $rowData = $this->normalizeRow($rawRowData);
+
+                if ($this->shouldSkipRow($rowData)) {
+                    continue;
+                }
+
+                $this->batch->total_rows++;
+
+                try {
+                    DB::transaction(function () use ($rowData) {
+                        $this->beforeImport($rowData);
+
+                        $validationErrors = $this->validateRow($rowData);
+                        if (!empty($validationErrors)) {
+                            foreach ($validationErrors as $error) {
+                                $this->batch->addError($this->rowNumber, $error, $rowData);
+                            }
+
+                            return;
                         }
 
-                        return;
-                    }
+                        $transformedData = $this->transformRow($rowData);
+                        if ($transformedData === false) {
+                            return;
+                        }
 
-                    $transformedData = $this->transformRow($rowData);
-                    if ($transformedData === false) {
-                        return;
-                    }
+                        $result = $this->importRow($transformedData, $rowData);
 
-                    $result = $this->importRow($transformedData, $rowData);
+                        if ($result) {
+                            $this->batch->imported_rows++;
+                        }
 
-                    if ($result) {
-                        $this->batch->imported_rows++;
-                    }
-
-                    $this->afterImport($rowData, $result);
-                });
-            } catch (\Exception $e) {
-                $this->batch->addError($this->rowNumber, $e->getMessage(), $rowData);
+                        $this->afterImport($rowData, $result);
+                    });
+                } catch (\Throwable $e) {
+                    \Log::error("Error processing row {$this->rowNumber}: " . $e->getMessage());
+                    $this->batch->addError($this->rowNumber, $e->getMessage(), $rowData);
+                }
             }
-        }
 
-        $this->batch->save();
+            $this->batch->save();
+        } catch (\Throwable $e) {
+            \Log::error("Critical Import Error in sheet " . $this->sheetTitle . ": " . $e->getMessage());
+            if ($this->batch) {
+                $this->batch->addError(0, "Sheet " . $this->sheetTitle . " failed: " . $e->getMessage());
+                $this->batch->save();
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -201,8 +240,8 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
         $maxMatches = 0;
         $bestMap = [];
 
-        // Scan first 20 rows
-        foreach ($rows->take(20) as $index => $row) {
+        // Scan first 50 rows
+        foreach ($rows->take(50) as $index => $row) {
             $row = $row instanceof Collection ? $row->toArray() : (array) $row;
             $matches = 0;
             $currentMap = [];
@@ -211,12 +250,25 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
                 if (empty($value)) continue;
 
                 $normalizedValue = $this->normalizeHeaderName((string)$value);
+                $matched = false;
                 foreach ($expectedHeaders as $expected) {
                     $normalizedExpected = $this->normalizeHeaderName($expected);
-                    if ($normalizedValue === $normalizedExpected || str_contains($normalizedValue, $normalizedExpected)) {
+                    if ($normalizedValue === $normalizedExpected) {
                         $matches++;
                         $currentMap[$colIndex] = $normalizedExpected;
+                        $matched = true;
                         break;
+                    }
+                }
+
+                if (!$matched) {
+                    foreach ($expectedHeaders as $expected) {
+                        $normalizedExpected = $this->normalizeHeaderName($expected);
+                        if (strlen($normalizedExpected) >= 4 && str_contains($normalizedValue, $normalizedExpected)) {
+                            $matches++;
+                            $currentMap[$colIndex] = $normalizedExpected;
+                            break;
+                        }
                     }
                 }
             }
@@ -227,9 +279,10 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
                 $bestMap = $currentMap;
             }
 
-            // If we match more than 50% of headers, we assume this is the one
-            if ($matches >= count($expectedHeaders) * 0.5) {
-                break; 
+            // If we match at least 3 headers, we assume this might be the header row.
+            // We keep scanning to find the row with the maximum number of matches.
+            if ($matches >= 3) {
+                // Potential match found
             }
         }
 
@@ -245,14 +298,26 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
                 
                 $normalizedValue = $this->normalizeHeaderName((string)$value);
                 
-                // If it was one of our expected headers, use the expected name
+                // 1. Try exact matches first
                 $matched = false;
                 foreach ($expectedHeaders as $expected) {
                     $normalizedExpected = $this->normalizeHeaderName($expected);
-                    if ($normalizedValue === $normalizedExpected || str_contains($normalizedValue, $normalizedExpected)) {
+                    if ($normalizedValue === $normalizedExpected) {
                         $fullMap[$colIndex] = $normalizedExpected;
                         $matched = true;
                         break;
+                    }
+                }
+                
+                // 2. Try partial matches only if no exact match found and string is long enough
+                if (!$matched) {
+                    foreach ($expectedHeaders as $expected) {
+                        $normalizedExpected = $this->normalizeHeaderName($expected);
+                        if (strlen($normalizedExpected) >= 4 && str_contains($normalizedValue, $normalizedExpected)) {
+                            $fullMap[$colIndex] = $normalizedExpected;
+                            $matched = true;
+                            break;
+                        }
                     }
                 }
                 
@@ -544,6 +609,10 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
 
             if (is_string($value)) {
                 $value = str_replace("\xA0", ' ', $value);
+                $cleaned = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+                if ($cleaned !== false) {
+                    $value = $cleaned;
+                }
                 $value = trim($value);
             }
 
@@ -615,9 +684,14 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
      */
     protected function matchesTemplateExampleRow(array $row): bool
     {
-        $definition = app(BulkImportTemplateFactory::class)
-            ->getTemplateDefinition($this->batch->module, $this->batch->form_type);
-
+        $cacheKey = ($this->batch->module ?? 'gen') . '_' . ($this->batch->form_type ?? 'gen');
+        
+        if (!isset(self::$cachedTemplateDefinitions[$cacheKey])) {
+            self::$cachedTemplateDefinitions[$cacheKey] = app(BulkImportTemplateFactory::class)
+                ->getTemplateDefinition($this->batch->module, $this->batch->form_type);
+        }
+        
+        $definition = self::$cachedTemplateDefinitions[$cacheKey];
         $headers = $definition['headers'] ?? [];
         $examples = $definition['examples'] ?? [];
 

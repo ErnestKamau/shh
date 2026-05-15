@@ -59,12 +59,37 @@ class BulkImportBatch extends Model
         $errors = $this->errors_json ?? [];
         $errors[] = [
             'row' => $rowNumber,
-            'message' => $message,
-            'data' => $rowData,
+            'message' => $this->cleanDataForJson($message),
+            'data' => $this->cleanDataForJson($rowData),
         ];
         
         $this->errors_json = $errors;
         $this->error_rows = count($errors);
+    }
+
+    /**
+     * Recursive helper to ensure data is UTF-8 encoded for JSON storage.
+     */
+    private function cleanDataForJson($data)
+    {
+        if (is_string($data)) {
+            // Use iconv to strip invalid UTF-8 characters
+            // This is more reliable than mb_convert_encoding for fixing malformed JSON
+            $cleaned = @iconv('UTF-8', 'UTF-8//IGNORE', $data);
+            if ($cleaned === false) {
+                return mb_convert_encoding($data, 'UTF-8', 'auto');
+            }
+            return $cleaned;
+        }
+        if (is_array($data)) {
+            $cleaned = [];
+            foreach ($data as $key => $value) {
+                $cleanedKey = $this->cleanDataForJson($key);
+                $cleaned[$cleanedKey] = $this->cleanDataForJson($value);
+            }
+            return $cleaned;
+        }
+        return $data;
     }
 
     /**
@@ -76,7 +101,7 @@ class BulkImportBatch extends Model
         if (!isset($upserted[$action])) {
             $upserted[$action] = [];
         }
-        $upserted[$action][] = $identifier;
+        $upserted[$action][] = $this->cleanDataForJson($identifier);
         
         $this->upserted_summary = $upserted;
     }

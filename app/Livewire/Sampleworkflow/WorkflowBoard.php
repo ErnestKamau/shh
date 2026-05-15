@@ -282,7 +282,7 @@ class WorkflowBoard extends Component
     protected function isReceivingFormsTab(): bool
     {
         if (in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)) {
-            return $this->workflowSubTab === 'received';
+            return $this->workflowSubTab === 'requests';
         }
 
         if ($this->status === 'Samples Request Review') {

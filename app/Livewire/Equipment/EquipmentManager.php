@@ -993,29 +993,38 @@ class EquipmentManager extends Component
         ]);
 
         try {
-            $import = new EquipmentImport();
+            $batch = \App\Models\BulkImportBatch::create([
+                'company_id' => getUserCompany(),
+                'user_id' => auth()->id(),
+                'module' => 'inventory',
+                'form_type' => 'equipment',
+                'status' => 'started',
+                'started_at' => now(),
+            ]);
+
+            $import = new EquipmentImport($batch);
             
             Excel::import($import, $this->bulkFile);
 
-            $successCount = $import->getSuccessCount();
-            $errorCount = $import->getErrorCount();
-            $errors = $import->getErrors();
+            $batch->markAsCompleted();
 
             $this->closeBulkUploadModal();
             
-            if ($errorCount > 0) {
-                $errorMessage = implode(' | ', array_slice($errors, 0, 10));
-                if (count($errors) > 10) {
-                    $errorMessage .= ' ... and ' . (count($errors) - 10) . ' more error(s)';
+            if ($batch->error_rows > 0) {
+                $errors = $batch->getErrorSummary();
+                $errorMessage = implode(' | ', array_map(fn($e) => $e['message'], array_slice($errors, 0, 5)));
+                if (count($errors) > 5) {
+                    $errorMessage .= ' ... and more';
                 }
-                $this->message = "{$successCount} equipment item(s) created successfully. {$errorCount} row(s) failed. Errors: " . $errorMessage;
+                $this->message = "{$batch->imported_rows} equipment item(s) created successfully. {$batch->error_rows} row(s) failed. Errors: " . $errorMessage;
                 $this->messageType = 'warning';
             } else {
-                $this->message = "{$successCount} equipment item(s) created successfully!";
+                $this->message = "{$batch->imported_rows} equipment item(s) created successfully!";
                 $this->messageType = 'success';
             }
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            \Log::error("Bulk Upload Error: " . $e->getMessage());
             $this->message = 'Error processing file: ' . $e->getMessage();
             $this->messageType = 'danger';
         }
