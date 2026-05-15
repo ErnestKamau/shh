@@ -71,7 +71,6 @@ class PF180FormSeeder extends Seeder
             'is_customer_portal_form' => false,
             'form_type' => 'attachment',
             'placement_slot' => ['admin_portal'],
-            'created_by' => \App\User::where('email', 'admin@lab.kra.go.ke')->value('id') ?: '00000000-0000-0000-0000-000000000000',
         ]);
         $form->save();
 
