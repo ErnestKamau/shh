@@ -17,26 +17,69 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
      */
     public function run()
     {
-        // Create or update the form with a distinct name to avoid confusion with existing ones
-        $form = SubmissionForm::updateOrCreate(
-            ['name' => 'Laboratory Service Request Form'],
-            [
-                'document_code' => 'LSR-001',
-                'description' => 'Standard Laboratory Service Request Form for sample submissions.',
-                'naming_convention_prefix' => 'LSR',
-                'naming_convention_format' => 'LSR-{YYYY}{MM}-{0000}',
-                'is_published' => true,
-                'is_active' => true,
-                'is_customer_portal_form' => true,
-                'form_type' => 'template',
-                'placement_slot' => ['customer_portal', 'admin_portal'],
-            ]
-        );
+        // To avoid unique constraint violations and foreign key errors, we check for existing forms.
+        $targetName = 'Laboratory Service Request Form';
+        $targetCode = 'LSR-001';
+
+        $formByName = SubmissionForm::where('name', $targetName)->first();
+        $formByCode = SubmissionForm::where('document_code', $targetCode)->first();
+
+        // Determine if we should use an existing form or create a new one
+        $form = null;
+
+        if ($formByName && $formByCode && $formByName->id !== $formByCode->id) {
+            // Conflict between two records. Archive both if they have data, or delete if they don't.
+            foreach ([$formByName, $formByCode] as $f) {
+                if ($f->instances()->count() > 0) {
+                    $f->update([
+                        'name' => $f->name . ' (Archived ' . now()->timestamp . ')',
+                        'document_code' => $f->document_code . '-OLD-' . now()->timestamp,
+                        'is_active' => false,
+                        'is_published' => false,
+                    ]);
+                } else {
+                    $f->delete();
+                }
+            }
+            $form = new SubmissionForm();
+        } else {
+            $existing = $formByName ?: $formByCode;
+            if ($existing) {
+                if ($existing->instances()->count() > 0) {
+                    // Existing form has data. Archive it and start fresh to avoid FK errors.
+                    $existing->update([
+                        'name' => $existing->name . ' (Archived ' . now()->timestamp . ')',
+                        'document_code' => $existing->document_code . '-OLD-' . now()->timestamp,
+                        'is_active' => false,
+                        'is_published' => false,
+                    ]);
+                    $form = new SubmissionForm();
+                } else {
+                    $form = $existing;
+                }
+            } else {
+                $form = new SubmissionForm();
+            }
+        }
+
+        $form->fill([
+            'name' => $targetName,
+            'document_code' => $targetCode,
+            'description' => 'Standard Laboratory Service Request Form for sample submissions.',
+            'naming_convention_prefix' => 'LSR',
+            'naming_convention_format' => 'LSR-{YYYY}{MM}-{0000}',
+            'is_published' => true,
+            'is_active' => true,
+            'is_customer_portal_form' => true,
+            'form_type' => 'template',
+            'placement_slot' => ['customer_portal', 'admin_portal'],
+        ]);
+        $form->save();
 
         // Always recreate sections to ensure the seeded structure is applied
         $this->command->info('Creating sections for Laboratory Service Request Form...');
         
-        // Clear existing sections if updating
+        // Clear existing sections only if they belong to a fresh or instance-less form
         $form->sections()->each(function($section) {
             $section->elementHolders()->each(function($holder) {
                 $holder->elements()->delete();
@@ -57,6 +100,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
     private function createFormSections($form)
     {
         // Section 1: Head
+        $this->command->info('Creating Head section...');
         $headSection = $form->sections()->create([
             'title' => 'Head',
             'description' => 'General request header information.',
@@ -105,6 +149,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         ]);
 
         // Section 2: Samples (Rows Section)
+        $this->command->info('Creating Samples section...');
         $samplesSection = $form->sections()->create([
             'title' => 'Samples',
             'description' => 'Individual sample details.',
@@ -202,6 +247,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         ]);
 
         // Section 3: Additional Details
+        $this->command->info('Creating Additional Details section...');
         $additionalSection = $form->sections()->create([
             'title' => 'Additional Details',
             'description' => 'Further information about the submission.',

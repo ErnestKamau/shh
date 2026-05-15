@@ -17,25 +17,66 @@ class PF180FormSeeder extends Seeder
      */
     public function run()
     {
-        // Create or update the form
-        $form = SubmissionForm::updateOrCreate(
-            ['name' => 'PF180 Sample Analysis Request Form'],
-            [
-                'document_code' => 'HQ/F/01',
-                'description' => 'SAMPLE ANALYSIS REQUEST FORM (PF 180)',
-                'naming_convention_prefix' => 'PF180',
-                'naming_convention_format' => 'PF180-{YYYY}{MM}-{0000}',
-                'is_published' => true,
-                'is_active' => true,
-                'is_customer_portal_form' => false, // Attachment forms are usually internal
-                'form_type' => 'attachment',
-                'placement_slot' => ['admin_portal'],
-            ]
-        );
+        // To avoid unique constraint violations and foreign key errors, we check for existing forms.
+        $targetName = 'PF180 Sample Analysis Request Form';
+        $targetCode = 'HQ/F/01';
+
+        $formByName = SubmissionForm::where('name', $targetName)->first();
+        $formByCode = SubmissionForm::where('document_code', $targetCode)->first();
+
+        // Determine if we should use an existing form or create a new one
+        $form = null;
+
+        if ($formByName && $formByCode && $formByName->id !== $formByCode->id) {
+            foreach ([$formByName, $formByCode] as $f) {
+                if ($f->instances()->count() > 0) {
+                    $f->update([
+                        'name' => $f->name . ' (Archived ' . now()->timestamp . ')',
+                        'document_code' => $f->document_code . '-OLD-' . now()->timestamp,
+                        'is_active' => false,
+                        'is_published' => false,
+                    ]);
+                } else {
+                    $f->delete();
+                }
+            }
+            $form = new SubmissionForm();
+        } else {
+            $existing = $formByName ?: $formByCode;
+            if ($existing) {
+                if ($existing->instances()->count() > 0) {
+                    $existing->update([
+                        'name' => $existing->name . ' (Archived ' . now()->timestamp . ')',
+                        'document_code' => $existing->document_code . '-OLD-' . now()->timestamp,
+                        'is_active' => false,
+                        'is_published' => false,
+                    ]);
+                    $form = new SubmissionForm();
+                } else {
+                    $form = $existing;
+                }
+            } else {
+                $form = new SubmissionForm();
+            }
+        }
+
+        $form->fill([
+            'name' => $targetName,
+            'document_code' => $targetCode,
+            'description' => 'SAMPLE ANALYSIS REQUEST FORM (PF 180)',
+            'naming_convention_prefix' => 'PF180',
+            'naming_convention_format' => 'PF180-{YYYY}{MM}-{0000}',
+            'is_published' => true,
+            'is_active' => true,
+            'is_customer_portal_form' => false,
+            'form_type' => 'attachment',
+            'placement_slot' => ['admin_portal'],
+        ]);
+        $form->save();
 
         $this->command->info('Creating sections for PF180 Form...');
         
-        // Clear existing sections if updating
+        // Clear existing sections only if they belong to a fresh or instance-less form
         $form->sections()->each(function($section) {
             $section->elementHolders()->each(function($holder) {
                 $holder->elements()->delete();
@@ -55,6 +96,7 @@ class PF180FormSeeder extends Seeder
     private function createFormSections($form)
     {
         // Section 1: RESPONSIBLE OFFICER (SRO SAMPLE RECEIVING DETAILS)
+        $this->command->info('Creating SRO section...');
         $sroSection = $form->sections()->create([
             'title' => 'RESPONSIBLE OFFICER (SRO SAMPLE RECEIVING DETAILS)',
             'description' => 'Details about the sample receiving and responsible officer.',
@@ -99,6 +141,7 @@ class PF180FormSeeder extends Seeder
         }
 
         // Section 2: SAMPLE SUBMISSION TO LAB. MANAGER
+        $this->command->info('Creating Submission section...');
         $submissionSection = $form->sections()->create([
             'title' => 'SAMPLE SUBMISSION TO LAB. MANAGER',
             'section_type' => 'regular',
@@ -128,6 +171,7 @@ class PF180FormSeeder extends Seeder
         }
 
         // Section 3: CHIEF GOVERNMENT CHEMIST\'S INSTRUCTIONS
+        $this->command->info('Creating CGC section...');
         $cgcSection = $form->sections()->create([
             'title' => 'CHIEF GOVERNMENT CHEMIST\'S INSTRUCTIONS',
             'section_type' => 'regular',
@@ -160,6 +204,7 @@ class PF180FormSeeder extends Seeder
         }
 
         // Section 4: DIRECTOR\'S INSTRUCTIONS
+        $this->command->info('Creating Director section...');
         $directorSection = $form->sections()->create([
             'title' => 'DIRECTOR\'S INSTRUCTIONS',
             'section_type' => 'regular',

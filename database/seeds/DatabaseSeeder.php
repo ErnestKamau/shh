@@ -84,5 +84,7 @@ class DatabaseSeeder extends Seeder
         $this->call(UserAlertsTableSeeder::class);
         $this->call(UserRolesTableSeeder::class);
         $this->call(UsersTableSeeder::class);
+        $this->call(\Database\Seeders\LaboratoryServiceRequestFormSeeder::class);
+        $this->call(\Database\Seeders\PF180FormSeeder::class);
     }
 }
