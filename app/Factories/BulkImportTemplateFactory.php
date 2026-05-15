@@ -224,7 +224,7 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'user' => [
-                    'headers' => ['first_name*', 'last_name*', 'full_name', 'email*', 'zone_code', 'department_code', 'password*'],
+                    'headers' => ['first_name*', 'middle_name', 'last_name*', 'full_name', 'email*', 'zone_code', 'department_code', 'password*'],
                     'examples' => [
                         ['John', 'Doe', 'john@example.com', 'ZONE-001', 'QA', 'SecurePassword123!'],
                     ],

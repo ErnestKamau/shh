@@ -45,14 +45,29 @@ class UserImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $firstName = $this->fuzzyGet($row, ['first_name', 'fname', 'given_name', 'first_names', 'names', 'firstname']);
+        $firstName = $this->fuzzyGet($row, ['first_name', 'fname', 'given_name', 'firstname']);
+        $middleName = $this->fuzzyGet($row, ['middle_name', 'mname', 'middlename']);
         $lastName = $this->fuzzyGet($row, ['last_name', 'lname', 'surname', 'family_name', 'lastname']);
         $fullName = $this->fuzzyGet($row, ['name', 'full_name', 'employee_name', 'person_name', 'staff_name', 'employee', 'staff', 'user_name', 'user']);
 
+        // Logic for splitting full name if components are missing
         if (empty($firstName) && !empty($fullName)) {
             $parts = explode(' ', trim((string)$fullName));
-            $firstName = $parts[0];
-            $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+            if (count($parts) === 1) {
+                $firstName = $parts[0];
+            } elseif (count($parts) === 2) {
+                $firstName = $parts[0];
+                $lastName = $parts[1];
+            } else {
+                $firstName = $parts[0];
+                $middleName = $parts[1];
+                $lastName = implode(' ', array_slice($parts, 2));
+            }
+        }
+
+        // Logic for joining components to create a display name if only components are provided
+        if (empty($fullName)) {
+            $fullName = trim(($firstName ?? '') . ' ' . ($middleName ?? '') . ' ' . ($lastName ?? ''));
         }
 
         $email = $this->fuzzyGet($row, ['email', 'email_address', 'e-mail', 'official_email', 'work_email', 'mail', 'emailaddress', 'user_id', 'login', 'username', 'id_number']);
@@ -77,7 +92,10 @@ class UserImporter extends BaseImporter
             ->first();
 
         return [
-            'name' => trim($firstName . ' ' . $lastName),
+            'name' => $fullName,
+            'first_name' => $firstName,
+            'middle_name' => $middleName,
+            'last_name' => $lastName,
             'email' => $email,
             'password' => Hash::make($passwordRaw),
             'zone_id' => $zone?->id,
