@@ -281,7 +281,7 @@ class WorkflowBoard extends Component
 
     protected function isReceivingFormsTab(): bool
     {
-        if (in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)) {
+        if ($this->isReceivingStage()) {
             return $this->workflowSubTab === 'requests';
         }
 
@@ -292,9 +292,9 @@ class WorkflowBoard extends Component
         return false;
     }
 
-    protected function isReceivingStage(): bool
+    public function isReceivingStage(): bool
     {
-        return in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true);
+        return in_array($this->status, ['Samples En-Route', 'Samples Receiving', 'Samples Reception'], true);
     }
 
     /**
@@ -335,7 +335,7 @@ class WorkflowBoard extends Component
             ->latest();
 
         if ($this->isReceivingFormsTab()) {
-            if (in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)) {
+            if ($this->isReceivingStage()) {
                 $query->where('status', 'submitted');
                 $query->whereDoesntHave('batches');
             } elseif ($this->status === 'Samples Request Review') {
@@ -360,8 +360,22 @@ class WorkflowBoard extends Component
             $query->withPriority($this->submissionFormsPriority);
         }
 
-        if (($this->allFilter['customer_id'] ?? false) && $this->allFilter['customer_id'] !== 'All') {
-            $query->where('crm_customer_id', $this->allFilter['customer_id']);
+        if ($this->customerFilter) {
+            $query->where('crm_customer_id', $this->customerFilter);
+        }
+
+        if ($this->sampleTypeFilter) {
+            $query->whereHas('submissionForm.sampleTypes', function ($q) {
+                $q->where('sample_types.id', $this->sampleTypeFilter);
+            });
+        }
+
+        if ($this->receiptDateFrom) {
+            $query->whereDate('submitted_at', '>=', $this->receiptDateFrom);
+        }
+
+        if ($this->receiptDateTo) {
+            $query->whereDate('submitted_at', '<=', $this->receiptDateTo);
         }
 
         if ($this->submissionFormsSearch) {
