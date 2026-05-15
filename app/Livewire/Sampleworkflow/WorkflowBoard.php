@@ -336,10 +336,12 @@ class WorkflowBoard extends Component
 
         if ($this->isReceivingFormsTab()) {
             if ($this->isReceivingStage()) {
-                $query->where('status', 'submitted');
-                $query->whereDoesntHave('batches');
+                $query->whereIn('status', ['submitted', 'pending_reception', 'received_at_lab']);
+                $query->whereDoesntHave('batches', function ($bq) {
+                    $bq->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+                });
             } elseif ($this->status === 'Samples Request Review') {
-                $query->whereIn('status', ['submitted', 'in_review']);
+                $query->whereIn('status', ['submitted', 'in_review', 'pending_reception', 'received_at_lab']);
                 $query->whereDoesntHave('batches');
             }
         }
@@ -680,12 +682,19 @@ class WorkflowBoard extends Component
 
         /** @var \Illuminate\Database\Eloquent\Builder $portalRequestQuery */
         $portalRequestQuery = SampleSubmissionRequest::query();
-        $portalRequestQuery->whereNull('sample_header_id');
+        $portalRequestQuery->where(function ($q) {
+            $q->whereNull('sample_header_id')
+                ->orWhereHas('batch', function ($bq) {
+                    $bq->whereIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+                });
+        });
         $portalRequestQuery->whereIn('status', [
             'submitted',
             'booking_date_approved',
             'booking_date_rescheduled',
             'in_review',
+            'pending_reception',
+            'received_at_lab',
         ]);
 
         /** @var \Illuminate\Database\Eloquent\Builder $portalFormQuery */
@@ -694,7 +703,9 @@ class WorkflowBoard extends Component
         $portalFormQuery->whereHas('submissionForm', function ($formQuery) {
             $formQuery->where('form_type', 'template');
         });
-        $portalFormQuery->whereDoesntHave('batches');
+        $portalFormQuery->whereDoesntHave('batches', function ($bq) {
+            $bq->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+        });
 
         $requestedCustomerIds = (clone $portalRequestQuery)
             ->whereNotNull('crm_customer_id')
@@ -712,10 +723,10 @@ class WorkflowBoard extends Component
                 ->unique()
                 ->count(),
             'portal_submitted' => (clone $portalFormQuery)
-                    ->where('status', 'submitted')
+                    ->whereIn('status', ['submitted', 'pending_reception', 'received_at_lab'])
                     ->count()
                 + (clone $portalRequestQuery)
-                    ->whereIn('status', ['submitted', 'booking_date_approved', 'booking_date_rescheduled'])
+                    ->whereIn('status', ['submitted', 'booking_date_approved', 'booking_date_rescheduled', 'pending_reception', 'received_at_lab'])
                     ->count(),
             'sent_to_request_review' => (clone $portalFormQuery)
                     ->where('status', 'in_review')
@@ -724,7 +735,7 @@ class WorkflowBoard extends Component
                     ->where('status', 'in_review')
                     ->count(),
             'waiting_for_delivery' => (clone $portalRequestQuery)
-                ->whereIn('status', ['submitted', 'booking_date_approved', 'booking_date_rescheduled'])
+                ->whereIn('status', ['submitted', 'booking_date_approved', 'booking_date_rescheduled', 'pending_reception', 'received_at_lab'])
                 ->count(),
         ];
     }
@@ -750,11 +761,19 @@ class WorkflowBoard extends Component
                     'submitted',
                     'booking_date_approved',
                     'booking_date_rescheduled',
+                    'in_review',
+                    'pending_reception',
+                    'received_at_lab',
                 ])->orWhereHas('supportingDocumentInstances', function ($docQuery) {
                     $docQuery->whereIn('status', ['submitted', 'in_review', 'approved']);
                 });
             })
-            ->whereNull('sample_header_id')
+            ->where(function ($q) {
+                $q->whereNull('sample_header_id')
+                    ->orWhereHas('batch', function ($bq) {
+                        $bq->whereIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+                    });
+            })
             ->orderByDesc('submitted_by_date');
 
         if (!empty($this->search)) {
