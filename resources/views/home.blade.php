@@ -12,10 +12,11 @@
         left: 0;
         width: 100%;
         height: 100vh;
+        background-color: #fff;
         background-image: url('/images/bg-il.png');
-        background-size: cover;
-        background-position: center;
         background-repeat: no-repeat;
+        background-size: cover;
+        background-position: 100% 100%;
         overflow: hidden;
         z-index: 1000;
         display: flex;
@@ -23,47 +24,6 @@
         justify-content: center;
         align-items: center;
         padding-top: 140px;
-    }
-
-    .landing-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.6) 0%, rgba(118, 75, 162, 0.6) 100%);
-        z-index: 1;
-    }
-
-    .animated-background {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background:
-            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.08) 0%, transparent 50%);
-        animation: backgroundShift 20s ease-in-out infinite;
-        z-index: 2;
-    }
-
-    @keyframes backgroundShift {
-
-        0%,
-        100% {
-            transform: translateX(0) translateY(0) rotate(0deg);
-        }
-
-        33% {
-            transform: translateX(-30px) translateY(-30px) rotate(1deg);
-        }
-
-        66% {
-            transform: translateX(30px) translateY(30px) rotate(-1deg);
-        }
     }
 
     .floating-particles {
@@ -329,10 +289,11 @@
         left: 0;
         width: 100%;
         height: 100%;
+        background-color: #fff;
         background-image: url('/images/bg-il.png');
-        background-size: cover;
-        background-position: center;
         background-repeat: no-repeat;
+        background-size: cover;
+        background-position: 100% 100%;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -340,20 +301,8 @@
         transition: opacity 0.5s ease;
     }
 
-    .loading-overlay::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.6) 0%, rgba(118, 75, 162, 0.6) 100%);
-        z-index: 1;
-    }
-
     .loading-overlay .text-center {
         position: relative;
-        z-index: 2;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -495,7 +444,6 @@
 </div>
 
 <div class="landing-container" id="landingContainer" style="display: none;">
-    <div class="animated-background"></div>
     <div class="floating-particles" id="particlesContainer"></div>
 
     <div class="user-menu">
