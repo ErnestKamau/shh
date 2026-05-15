@@ -13,7 +13,7 @@ use App\PersonnelWorkHistory;
 use Illuminate\Support\Facades\DB;
 
 // CONFIGURATION
-$dryRun = true; // SET TO FALSE TO DELETE
+$dryRun = false; // SET TO FALSE TO DELETE
 $targetBatchIds = [
     '019e2a71-dce9-7017-b698-9918c3e6c065',
     '019e2a55-b84e-70df-a9fc-8aa8db4797ba'
