@@ -360,7 +360,7 @@ class WorkflowBoard extends Component
             $query->withPriority($this->submissionFormsPriority);
         }
 
-        if ($this->allFilter['customer_id'] ?? false) {
+        if (($this->allFilter['customer_id'] ?? false) && $this->allFilter['customer_id'] !== 'All') {
             $query->where('crm_customer_id', $this->allFilter['customer_id']);
         }
 
