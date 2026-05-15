@@ -129,6 +129,16 @@
   font-family: var(--crm-font-family);
 }
 
+/* Page header inside white card (align with client registry / customer management) */
+.crm-page-header-card .crm-page-title {
+  padding: 0;
+}
+
+.crm-page-header-card .crm-page-subtitle {
+  padding: 0;
+  margin-bottom: 0;
+}
+
 /* Override my-small-text in CRM: use body size/color for readability (no 12px) */
 #main-container-body.crm-main-content .my-small-text {
   font-size: var(--crm-font-body) !important;

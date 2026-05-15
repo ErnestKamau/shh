@@ -17,7 +17,7 @@ return new class extends Migration
             $table->timestamp('last_synced_at')->nullable()->index('idx_complaints_last_synced_at_c8f1009a');
             $table->boolean('sync_failed')->default(false)->index('idx_complaints_sync_failed_e2328909');
             $table->text('sync_error')->nullable();
-            $table->uuid('complaint_id')->index('idx_complaints_complaint_id_cad298a4');
+            $table->string('complaint_id', 64)->index('idx_complaints_complaint_id_cad298a4');
             $table->text('description');
             $table->string('priority');
             $table->string('received_from');
@@ -31,7 +31,7 @@ return new class extends Migration
             $table->integer('reject_workflow')->nullable();
             $table->longText('closure_recipient_emails')->nullable();
             $table->dateTime('closure_sent_at')->nullable();
-            $table->integer('client_id')->default(0);
+            $table->uuid('client_id')->nullable()->index('idx_complaints_client_id');
             $table->string('ticket_no')->nullable()->unique();
             $table->string('developer_ticket_no')->nullable();
             $table->unsignedBigInteger('developer_ticket_id')->nullable()->index('idx_complaints_developer_ticket_id_fd30468a');

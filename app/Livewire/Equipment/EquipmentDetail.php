@@ -24,9 +24,11 @@ use Illuminate\Http\File;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
+use App\Livewire\Equipment\Concerns\InteractsWithEquipmentFormWizard;
 
 class EquipmentDetail extends Component
 {
+    use InteractsWithEquipmentFormWizard;
     use WithPagination;
     use WithFileUploads;
 
@@ -39,16 +41,47 @@ class EquipmentDetail extends Component
     public $showMaintenanceModal = false;
     public bool $showDeleteMaintenanceConfirmModal = false;
     public ?string $pendingDeleteMaintenanceLogId = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    public ?array $pendingDeleteMaintenancePreview = null;
+
     public $showCalibrationModal = false;
     public bool $showDeleteCalibrationConfirmModal = false;
     public ?string $pendingDeleteCalibrationLogId = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    public ?array $pendingDeleteCalibrationPreview = null;
     public $showRepairModal = false;
     public $showVerificationModal = false;
     public bool $showDeleteVerificationConfirmModal = false;
     public ?string $pendingDeleteVerificationLogId = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    public ?array $pendingDeleteVerificationPreview = null;
     public $showOperatorModal = false;
+    public bool $showOperatorDropdown = false;
     public $showAttachmentModal = false;
+    public bool $showDeleteAttachmentConfirmModal = false;
+    public ?string $pendingDeleteAttachmentId = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    public ?array $pendingDeleteAttachmentPreview = null;
     public $showNotificationModal = false;
+    public bool $showDeleteNotificationConfirmModal = false;
+    public ?string $pendingDeleteNotificationId = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    public ?array $pendingDeleteNotificationPreview = null;
     public $showStatusDropdown = false;
     public $showReportingUnitDropdown = false;
     public $showDailyLogFrequencyDropdown = false;
@@ -216,6 +249,7 @@ class EquipmentDetail extends Component
         $this->assetTypes = AssetType::where('is_active', 1)->get();
         $this->assetLocations = AssetLocation::where('is_active', 1)->get();
         $this->reportingUnits = ReportingUnit::orderBy('name')->get();
+        $this->filteredReportingUnits = $this->reportingUnits;
     }
 
     public function setActiveTab($tab): void
@@ -253,77 +287,106 @@ class EquipmentDetail extends Component
     // Equipment Management
     public function showEditEquipmentModal(): void
     {
+        $e = $this->equipment;
         $this->equipmentForm = [
-            'name' => $this->equipment->name,
-            'equipment_number' => $this->equipment->equipment_number,
-            'description' => $this->equipment->description ?? '',
-            'make' => $this->equipment->make,
-            'model' => $this->equipment->model,
-            'serial_number' => $this->equipment->serial_number ?? '',
-            'barcode_number' => $this->equipment->barcode_number ?? '',
-            'manufacturer' => $this->equipment->manufacturer ?? '',
-            'status' => $this->equipment->status ?? 'Active',
-            'condition' => $this->equipment->condition ?? '',
-            'assigned_department' => $this->equipment->assigned_department,
-            'assigned_employee_id' => $this->equipment->assigned_employee_id,
-            'warranty_date' => $this->equipment->warranty_date ?? '',
-            'date_purchased' => $this->equipment->date_purchased,
-            'maintainance_days' => $this->equipment->maintainance_days,
-            'maintainance_notification_in_days' => $this->equipment->maintainance_notification_in_days,
-            'calibration_days' => $this->equipment->calibration_days,
-            'calibration_notification_in_days' => $this->equipment->calibration_notification_in_days,
-            'asset_type_id' => $this->equipment->asset_type_id,
-            'asset_location_id' => $this->equipment->asset_location_id,
-            'active' => $this->equipment->active ?? true,
-            'requires_daily_log' => $this->equipment->requires_daily_log ?? false,
-            'daily_log_value_type' => $this->equipment->daily_log_value_type ?? '',
-            'daily_log_nature' => $this->equipment->daily_log_nature ?? '',
-            'daily_log_tolerance' => $this->equipment->daily_log_tolerance ?? null,
-            'daily_log_expected_value' => $this->equipment->daily_log_expected_value ?? '',
-            'daily_log_expected_min' => $this->equipment->daily_log_expected_min ?? '',
-            'daily_log_expected_max' => $this->equipment->daily_log_expected_max ?? '',
-            'daily_log_reporting_unit' => $this->equipment->daily_log_reporting_unit ?? '',
-            'daily_log_frequency' => $this->equipment->daily_log_frequency ?? 1,
-            'daily_log_time_interval' => $this->equipment->daily_log_time_interval ?? '',
+            'name' => $e->name,
+            'equipment_number' => $e->equipment_number,
+            'description' => $e->description ?? '',
+            'make' => $e->make,
+            'model' => $e->model,
+            'serial_number' => $e->serial_number ?? '',
+            'barcode_number' => $e->barcode_number ?? '',
+            'manufacturer' => $e->manufacturer ?? '',
+            'status' => $e->status ?? 'Active',
+            'condition' => $e->condition ?? '',
+            'assigned_department' => $e->assigned_department,
+            'assigned_employee_id' => $e->assigned_employee_id,
+            'warranty_date' => $e->warranty_date ? Carbon::parse($e->warranty_date)->format('Y-m-d') : '',
+            'date_purchased' => $e->date_purchased ? Carbon::parse($e->date_purchased)->format('Y-m-d') : '',
+            'maintainance_days' => $e->maintainance_days,
+            'maintainance_notification_in_days' => $e->maintainance_notification_in_days,
+            'preventive_maintainance_period' => $e->preventive_maintainance_period ?? null,
+            'preventive_maintainance_notification_days' => $e->preventive_maintainance_notification_days ?? null,
+            'calibration_days' => $e->calibration_days,
+            'calibration_notification_in_days' => $e->calibration_notification_in_days,
+            'asset_type_id' => $e->asset_type_id,
+            'asset_location_id' => $e->asset_location_id,
+            'active' => $e->active ?? true,
+            'requires_daily_log' => $e->requires_daily_log ?? false,
+            'daily_log_value_type' => $e->daily_log_value_type ?? '',
+            'daily_log_nature' => $e->daily_log_nature ?? '',
+            'daily_log_tolerance' => $e->daily_log_tolerance ?? null,
+            'daily_log_expected_value' => $e->daily_log_expected_value ?? '',
+            'daily_log_expected_min' => $e->daily_log_expected_min,
+            'daily_log_expected_max' => $e->daily_log_expected_max,
+            'daily_log_reporting_unit' => $e->daily_log_reporting_unit ?? '',
+            'daily_log_frequency' => $e->daily_log_frequency ?? 1,
+            'daily_log_frequency_labels' => is_array($e->daily_log_frequency_labels ?? null) ? $e->daily_log_frequency_labels : [],
+            'daily_log_monitored_by_another_equipment' => $e->daily_log_monitored_by_another_equipment ?? false,
+            'daily_log_monitored_equipment_id' => $e->daily_log_monitored_equipment_id ?? null,
         ];
 
-        // Set selected names for searchable selects
-        if ($this->equipment->assigned_employee_id) {
-            $employee = User::find($this->equipment->assigned_employee_id);
+        $this->syncDailyLogFrequencyLabels();
+
+        $this->selectedEmployeeName = '';
+        $this->employeeSearch = '';
+        if ($e->assigned_employee_id) {
+            $employee = User::find($e->assigned_employee_id);
             $this->selectedEmployeeName = $employee->name ?? '';
             $this->employeeSearch = $this->selectedEmployeeName;
         }
 
-        if ($this->equipment->assigned_department) {
-            $department = getInventoryDepartmentByid($this->equipment->assigned_department);
+        $this->selectedDepartmentName = '';
+        $this->departmentSearch = '';
+        if ($e->assigned_department) {
+            $department = getInventoryDepartmentByid($e->assigned_department);
             $this->selectedDepartmentName = $department->name ?? '';
             $this->departmentSearch = $this->selectedDepartmentName;
         }
 
-        if (!empty($this->equipmentForm['status'])) {
-            $this->selectedStatusName = (string) $this->equipmentForm['status'];
-        }
+        $this->selectedStatusName = (string) ($this->equipmentForm['status'] ?? '');
 
-        if (!empty($this->equipmentForm['daily_log_reporting_unit'])) {
-            $this->selectedReportingUnitName = (string) $this->equipmentForm['daily_log_reporting_unit'];
-        }
-
-        $this->syncDailyLogTagLabels();
-
-        if ($this->equipment->asset_type_id) {
-            $assetType = AssetType::find($this->equipment->asset_type_id);
+        $this->selectedAssetTypeName = '';
+        $this->assetTypeSearch = '';
+        if ($e->asset_type_id) {
+            $assetType = AssetType::find($e->asset_type_id);
             $this->selectedAssetTypeName = $assetType ? ($assetType->asset_code . ' (' . $assetType->descripton . ')') : '';
             $this->assetTypeSearch = $this->selectedAssetTypeName;
         }
 
-        if ($this->equipment->asset_location_id) {
-            $assetLocation = AssetLocation::find($this->equipment->asset_location_id);
+        $this->selectedAssetLocationName = '';
+        $this->assetLocationSearch = '';
+        if ($e->asset_location_id) {
+            $assetLocation = AssetLocation::find($e->asset_location_id);
             $this->selectedAssetLocationName = $assetLocation->name ?? '';
             $this->assetLocationSearch = $this->selectedAssetLocationName;
         }
 
+        $this->selectedReportingUnitName = '';
+        $this->reportingUnitSearch = '';
+        if (! empty($e->daily_log_reporting_unit)) {
+            $this->selectedReportingUnitName = (string) $e->daily_log_reporting_unit;
+        }
+
+        $this->selectedMonitoredEquipmentLabel = '';
+        $this->monitoredEquipmentSearch = '';
+        if (! empty($e->daily_log_monitored_equipment_id)) {
+            $monitored = Equipment::find($e->daily_log_monitored_equipment_id);
+            $this->selectedMonitoredEquipmentLabel = $monitored
+                ? (($monitored->equipment_number ?? 'N/A') . ' - ' . ($monitored->name ?? ''))
+                : '';
+        }
+
         $this->photo = null;
+        $this->currentStep = 1;
         $this->showEditModal = true;
+    }
+
+    public function closeEditEquipmentModal(): void
+    {
+        $this->showEditModal = false;
+        $this->currentStep = 1;
+        $this->photo = null;
     }
 
     public function updatedEmployeeSearch(): void
@@ -348,123 +411,31 @@ class EquipmentDetail extends Component
 
     public function saveEquipment(): void
     {
-        $this->validate([
-            'equipmentForm.name' => 'required|string|max:255',
-            'equipmentForm.equipment_number' => 'required|string|max:255',
-            'equipmentForm.description' => 'required|string',
-            'equipmentForm.make' => 'required|string|max:255',
-            'equipmentForm.model' => 'required|string|max:255',
-            'equipmentForm.status' => 'required|string',
-            'equipmentForm.condition' => 'required|string|max:255',
-            'equipmentForm.assigned_department' => 'required|integer',
-            'equipmentForm.warranty_date' => 'required|date',
-            'equipmentForm.date_purchased' => 'nullable|date',
-            'equipmentForm.maintainance_days' => 'required|integer|min:0',
-            'equipmentForm.maintainance_notification_in_days' => 'required|integer|min:0',
-            'equipmentForm.calibration_days' => 'required|integer|min:0',
-            'equipmentForm.calibration_notification_in_days' => 'required|integer|min:0',
-            'photo' => 'nullable|image|max:10240',
-        ]);
-
-        // Conditional daily log validation
-        if (!empty($this->equipmentForm['requires_daily_log'])) {
-            $type   = $this->equipmentForm['daily_log_value_type'] ?? '';
-            $nature = $this->equipmentForm['daily_log_nature'] ?? '';
-
-            $this->validate([
-                'equipmentForm.daily_log_value_type' => 'required|in:constant,range',
-                'equipmentForm.daily_log_nature'     => 'required|in:qualitative,quantitative',
-            ]);
-
-            if ($type === 'constant') {
-                $this->validate(['equipmentForm.daily_log_expected_value' => 'required|string|max:255']);
-                if ($nature === 'quantitative') {
-                    $this->validate(['equipmentForm.daily_log_tolerance' => 'required|integer|min:1|max:100']);
-                }
-            }
-
-            if ($type === 'range') {
-                $this->validate([
-                    'equipmentForm.daily_log_expected_min' => 'required|numeric',
-                    'equipmentForm.daily_log_expected_max' => 'required|numeric',
-                    'equipmentForm.daily_log_tolerance'    => 'required|integer|min:1|max:100',
-                ]);
-            }
-
-            $this->validate(['equipmentForm.daily_log_frequency' => 'required|integer|min:1|max:6']);
-            if (($this->equipmentForm['daily_log_frequency'] ?? 1) > 1) {
-                $this->validate(['equipmentForm.daily_log_time_interval' => 'required|integer|min:1']);
-            }
-        }
+        $this->validate($this->getEquipmentFormSaveValidationRules());
 
         try {
             $data = $this->equipmentForm;
+            $data = $this->normalizeEquipmentPayload($data);
             $data['company_id'] = getUserCompany();
 
             if ($this->photo) {
                 $path = $this->photo->store('equipment', 'public');
                 $file = explode('/', $path);
                 $data['picture'] = '/storage/equipment/' . urlencode(end($file));
+            } else {
+                unset($data['picture']);
             }
 
             $this->equipment->update($data);
             $this->loadEquipment();
             $this->message = 'Equipment updated successfully!';
             $this->messageType = 'success';
-            $this->showEditModal = false;
+            $this->closeEditEquipmentModal();
         } catch (\Exception $e) {
             $this->message = 'Error updating equipment: ' . $e->getMessage();
             $this->messageType = 'danger';
         }
     }
-
-    // Maintenance Log Management
-    public function updatedEquipmentFormRequiresDailyLog(): void
-    {
-        if (empty($this->equipmentForm['requires_daily_log'])) {
-            $this->equipmentForm['daily_log_value_type'] = '';
-            $this->equipmentForm['daily_log_nature'] = '';
-            $this->equipmentForm['daily_log_tolerance'] = null;
-            $this->equipmentForm['daily_log_expected_value'] = '';
-            $this->equipmentForm['daily_log_expected_min'] = '';
-            $this->equipmentForm['daily_log_expected_max'] = '';
-            $this->equipmentForm['daily_log_reporting_unit'] = '';
-            $this->equipmentForm['daily_log_frequency'] = 1;
-            $this->equipmentForm['daily_log_time_interval'] = '';
-        }
-    }
-
-    public function updatedEquipmentFormDailyLogFrequency(): void
-    {
-        if (($this->equipmentForm['daily_log_frequency'] ?? 1) <= 1) {
-            $this->equipmentForm['daily_log_time_interval'] = '';
-        }
-    }
-
-    public function updatedEquipmentFormDailyLogValueType(): void
-    {
-        if (($this->equipmentForm['daily_log_value_type'] ?? '') === 'range') {
-            $this->equipmentForm['daily_log_nature'] = 'quantitative';
-            $this->equipmentForm['daily_log_expected_value'] = '';
-            $this->equipmentForm['daily_log_tolerance'] = null;
-        } else {
-            $this->equipmentForm['daily_log_expected_min'] = '';
-            $this->equipmentForm['daily_log_expected_max'] = '';
-        }
-    }
-
-    public function updatedEquipmentFormDailyLogNature(): void
-    {
-        if (($this->equipmentForm['daily_log_nature'] ?? '') !== 'quantitative') {
-            $this->equipmentForm['daily_log_tolerance'] = null;
-            $this->equipmentForm['daily_log_expected_min'] = '';
-            $this->equipmentForm['daily_log_expected_max'] = '';
-        } else {
-            $this->equipmentForm['daily_log_expected_value'] = '';
-        }
-    }
-
-    // Maintenance Log Management
     public function showCreateMaintenanceModal(): void
     {
         $this->resetMaintenanceForm();
@@ -481,15 +452,38 @@ class EquipmentDetail extends Component
         if (! in_array($serviceType, ['in_house', 'external'], true)) {
             $serviceType = 'in_house';
         }
+        $dateRaw = $log->date;
+        $dateFormatted = $dateRaw
+            ? Carbon::parse($dateRaw)->format('Y-m-d')
+            : '';
+
         $this->maintenanceForm = [
-            'date' => $log->date instanceof Carbon ? $log->date->format('Y-m-d') : (string) $log->date,
-            'description' => $log->description ?? '',
-            'reference_number' => $log->reference_number ?? '',
+            'date' => $dateFormatted,
+            'description' => (string) ($log->description ?? ''),
+            'reference_number' => (string) ($log->reference_number ?? ''),
             'maintainance_type' => $serviceType,
             'employee_id' => $log->employee_id,
             'supplier_id' => $log->supplier_id,
-            'notes' => $log->notes,
+            'notes' => (string) ($log->notes ?? ''),
         ];
+
+        $this->selectedEmployeeName = '';
+        $this->employeeSearch = '';
+        $this->showEmployeeDropdown = false;
+        $this->selectedSupplierName = '';
+        $this->supplierSearch = '';
+        $this->showSupplierDropdown = false;
+
+        if ($serviceType === 'in_house' && $log->employee_id) {
+            $employee = User::find($log->employee_id);
+            $this->selectedEmployeeName = $employee->name ?? '';
+        }
+
+        if ($serviceType === 'external' && $log->supplier_id) {
+            $supplier = Supplier::find($log->supplier_id);
+            $this->selectedSupplierName = $supplier->name ?? '';
+        }
+
         $this->certificate = null;
         $this->showMaintenanceModal = true;
     }
@@ -549,7 +543,11 @@ class EquipmentDetail extends Component
 
     public function openDeleteMaintenanceConfirmModal(string $logId): void
     {
+        $log = MaintainanceCalibrationLog::where('equipment_id', $this->equipmentId)
+            ->where('type', 'Maintainance')
+            ->findOrFail($logId);
         $this->pendingDeleteMaintenanceLogId = $logId;
+        $this->pendingDeleteMaintenancePreview = $this->previewFromMaintainanceCalibrationLog($log, includeCalibrationMetrics: false);
         $this->showDeleteMaintenanceConfirmModal = true;
     }
 
@@ -557,6 +555,7 @@ class EquipmentDetail extends Component
     {
         $this->showDeleteMaintenanceConfirmModal = false;
         $this->pendingDeleteMaintenanceLogId = null;
+        $this->pendingDeleteMaintenancePreview = null;
     }
 
     public function confirmDeleteMaintenanceLog(): void
@@ -595,17 +594,40 @@ class EquipmentDetail extends Component
         if (! in_array($serviceType, ['in_house', 'external'], true)) {
             $serviceType = 'in_house';
         }
+        $dateRaw = $log->date;
+        $dateFormatted = $dateRaw
+            ? Carbon::parse($dateRaw)->format('Y-m-d')
+            : '';
+
         $this->calibrationForm = [
-            'date' => $log->date instanceof Carbon ? $log->date->format('Y-m-d') : (string) $log->date,
-            'description' => $log->description ?? '',
-            'reference_number' => $log->reference_number ?? '',
+            'date' => $dateFormatted,
+            'description' => (string) ($log->description ?? ''),
+            'reference_number' => (string) ($log->reference_number ?? ''),
             'correction_factor' => $log->correction_factor ?? '',
             'uncertainty_of_measure' => $log->uncertainty_of_measure ?? '',
             'maintainance_type' => $serviceType,
             'employee_id' => $log->employee_id,
             'supplier_id' => $log->supplier_id,
-            'notes' => $log->notes,
+            'notes' => (string) ($log->notes ?? ''),
         ];
+
+        $this->selectedEmployeeName = '';
+        $this->employeeSearch = '';
+        $this->showEmployeeDropdown = false;
+        $this->selectedSupplierName = '';
+        $this->supplierSearch = '';
+        $this->showSupplierDropdown = false;
+
+        if ($serviceType === 'in_house' && $log->employee_id) {
+            $employee = User::find($log->employee_id);
+            $this->selectedEmployeeName = $employee->name ?? '';
+        }
+
+        if ($serviceType === 'external' && $log->supplier_id) {
+            $supplier = Supplier::find($log->supplier_id);
+            $this->selectedSupplierName = $supplier->name ?? '';
+        }
+
         $this->certificate = null;
         $this->showCalibrationModal = true;
     }
@@ -670,7 +692,11 @@ class EquipmentDetail extends Component
 
     public function openDeleteCalibrationConfirmModal(string $logId): void
     {
+        $log = MaintainanceCalibrationLog::where('equipment_id', $this->equipmentId)
+            ->where('type', 'Calibration')
+            ->findOrFail($logId);
         $this->pendingDeleteCalibrationLogId = $logId;
+        $this->pendingDeleteCalibrationPreview = $this->previewFromMaintainanceCalibrationLog($log, includeCalibrationMetrics: true);
         $this->showDeleteCalibrationConfirmModal = true;
     }
 
@@ -678,6 +704,7 @@ class EquipmentDetail extends Component
     {
         $this->showDeleteCalibrationConfirmModal = false;
         $this->pendingDeleteCalibrationLogId = null;
+        $this->pendingDeleteCalibrationPreview = null;
     }
 
     public function confirmDeleteCalibrationLog(): void
@@ -728,6 +755,24 @@ class EquipmentDetail extends Component
             'operator_id' => $log->operator_id,
             'supplier_id' => $log->supplier_id,
         ];
+
+        $this->selectedEmployeeName = '';
+        $this->employeeSearch = '';
+        $this->showEmployeeDropdown = false;
+        $this->selectedSupplierName = '';
+        $this->supplierSearch = '';
+        $this->showSupplierDropdown = false;
+
+        if ($serviceType === 'in_house' && $log->operator_id) {
+            $operator = User::find($log->operator_id);
+            $this->selectedEmployeeName = $operator->name ?? '';
+        }
+
+        if ($serviceType === 'external' && $log->supplier_id) {
+            $supplier = Supplier::find($log->supplier_id);
+            $this->selectedSupplierName = $supplier->name ?? '';
+        }
+
         $this->showVerificationModal = true;
     }
 
@@ -754,9 +799,11 @@ class EquipmentDetail extends Component
             if ($this->verificationForm['maintainance_type'] === 'external') {
                 $data['maintainance_type'] = 'external';
                 $data['supplier_id'] = $this->verificationForm['supplier_id'];
+                $data['operator_id'] = null;
             } else {
                 $data['maintainance_type'] = 'in-house';
                 $data['operator_id'] = $this->verificationForm['operator_id'];
+                $data['supplier_id'] = null;
             }
 
             if ($this->editingLog) {
@@ -779,7 +826,11 @@ class EquipmentDetail extends Component
 
     public function openDeleteVerificationConfirmModal(string $logId): void
     {
+        $log = VerificationLog::where('equipment_id', $this->equipmentId)
+            ->where('is_delete', 0)
+            ->findOrFail($logId);
         $this->pendingDeleteVerificationLogId = $logId;
+        $this->pendingDeleteVerificationPreview = $this->previewFromVerificationLog($log);
         $this->showDeleteVerificationConfirmModal = true;
     }
 
@@ -787,6 +838,7 @@ class EquipmentDetail extends Component
     {
         $this->showDeleteVerificationConfirmModal = false;
         $this->pendingDeleteVerificationLogId = null;
+        $this->pendingDeleteVerificationPreview = null;
     }
 
     public function confirmDeleteVerificationLog(): void
@@ -809,11 +861,113 @@ class EquipmentDetail extends Component
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function previewFromMaintainanceCalibrationLog(MaintainanceCalibrationLog $log, bool $includeCalibrationMetrics): array
+    {
+        $serviceType = $this->normalizeMaintainanceServiceType($log->maintainance_type);
+        $isExternal = $serviceType === 'external';
+
+        $employeeName = '';
+        if ($log->employee_id) {
+            $employeeName = (string) (User::find($log->employee_id)?->name ?? '');
+        }
+
+        $supplierName = '';
+        if ($log->supplier_id) {
+            $supplierName = (string) (Supplier::find($log->supplier_id)?->name ?? '');
+        }
+
+        $dateRaw = $log->date;
+        $dateFormatted = $dateRaw
+            ? Carbon::parse($dateRaw)->toDateString()
+            : '—';
+
+        $preview = [
+            'date' => $dateFormatted,
+            'is_external' => $isExternal,
+            'service_type' => $isExternal ? __('equipment.external') : __('equipment.in_house'),
+            'employee_name' => $isExternal ? null : ($employeeName !== '' ? $employeeName : null),
+            'supplier_name' => $isExternal ? ($supplierName !== '' ? $supplierName : null) : null,
+            'notes' => (string) ($log->notes ?? ''),
+        ];
+
+        if ($includeCalibrationMetrics) {
+            $preview['correction_factor'] = $this->nullableNumericDisplay($log->correction_factor);
+            $preview['uncertainty_of_measure'] = $this->nullableNumericDisplay($log->uncertainty_of_measure);
+        }
+
+        return $preview;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function previewFromVerificationLog(VerificationLog $log): array
+    {
+        $serviceType = $this->normalizeMaintainanceServiceType($log->maintainance_type);
+        $isExternal = $serviceType === 'external';
+
+        $operatorName = '';
+        if ($log->operator_id) {
+            $operatorName = (string) (User::find($log->operator_id)?->name ?? '');
+        }
+
+        $supplierName = '';
+        if ($log->supplier_id) {
+            $supplierName = (string) (Supplier::find($log->supplier_id)?->name ?? '');
+        }
+
+        $dateRaw = $log->verification_date;
+        $dateFormatted = $dateRaw instanceof Carbon
+            ? $dateRaw->format('Y-m-d')
+            : ($dateRaw ? Carbon::parse($dateRaw)->toDateString() : '—');
+
+        return [
+            'date' => $dateFormatted,
+            'is_external' => $isExternal,
+            'service_type' => $isExternal ? __('equipment.external') : __('equipment.in_house'),
+            'operator_name' => $isExternal ? null : ($operatorName !== '' ? $operatorName : null),
+            'supplier_name' => $isExternal ? ($supplierName !== '' ? $supplierName : null) : null,
+            'remarks' => (string) ($log->remarks ?? ''),
+            'reference_standard' => trim((string) ($log->reference_standard ?? '')),
+        ];
+    }
+
+    private function normalizeMaintainanceServiceType(?string $raw): string
+    {
+        $serviceType = $raw ?? 'in_house';
+        $serviceType = str_replace('-', '_', (string) $serviceType);
+        if (! in_array($serviceType, ['in_house', 'external'], true)) {
+            return 'in_house';
+        }
+
+        return $serviceType;
+    }
+
+    private function nullableNumericDisplay(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return trim((string) $value);
+    }
+
     // Operator Management
-    public function showOperatorModal(): void
+    public function openOperatorModal(): void
     {
         $this->operatorForm = ['operators' => []];
+        $this->showOperatorDropdown = false;
         $this->showOperatorModal = true;
+    }
+
+    public function closeOperatorModal(): void
+    {
+        $this->showOperatorModal = false;
+        $this->showOperatorDropdown = false;
+        $this->operatorForm = ['operators' => []];
     }
 
     public function saveOperators(): void
@@ -832,7 +986,7 @@ class EquipmentDetail extends Component
             $this->message = 'Operators added successfully!';
             $this->messageType = 'success';
             $this->loadEquipment();
-            $this->showOperatorModal = false;
+            $this->closeOperatorModal();
         } catch (\Exception $e) {
             $this->message = 'Error adding operators: ' . $e->getMessage();
             $this->messageType = 'danger';
@@ -916,17 +1070,67 @@ class EquipmentDetail extends Component
         }
     }
 
-    public function deleteAttachment($attachmentId): void
+    public function openDeleteAttachmentConfirmModal(string $attachmentId): void
     {
+        $attachment = EquipmentAttachment::where('equipment_id', $this->equipmentId)
+            ->findOrFail($attachmentId);
+        $this->pendingDeleteAttachmentId = $attachmentId;
+        $this->pendingDeleteAttachmentPreview = $this->previewFromEquipmentAttachment($attachment);
+        $this->showDeleteAttachmentConfirmModal = true;
+    }
+
+    public function closeDeleteAttachmentConfirmModal(): void
+    {
+        $this->showDeleteAttachmentConfirmModal = false;
+        $this->pendingDeleteAttachmentId = null;
+        $this->pendingDeleteAttachmentPreview = null;
+    }
+
+    public function confirmDeleteAttachment(): void
+    {
+        if ($this->pendingDeleteAttachmentId === null) {
+            return;
+        }
+
         try {
-            EquipmentAttachment::findOrFail($attachmentId)->delete();
+            EquipmentAttachment::where('equipment_id', $this->equipmentId)
+                ->findOrFail($this->pendingDeleteAttachmentId)
+                ->delete();
             $this->message = 'Attachment deleted successfully!';
             $this->messageType = 'success';
             $this->loadEquipment();
         } catch (\Exception $e) {
             $this->message = 'Error deleting attachment: ' . $e->getMessage();
             $this->messageType = 'danger';
+        } finally {
+            $this->closeDeleteAttachmentConfirmModal();
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function previewFromEquipmentAttachment(EquipmentAttachment $attachment): array
+    {
+        $uploaderName = '';
+        if ($attachment->upload_by) {
+            $uploaderName = (string) (User::find($attachment->upload_by)?->name ?? '');
+        }
+
+        $uploadedAt = $attachment->created_at
+            ? Carbon::parse($attachment->created_at)->toDateString()
+            : '—';
+
+        $filePath = (string) ($attachment->attachment ?? '');
+        $fileName = $filePath !== '' ? basename(urldecode($filePath)) : null;
+
+        return [
+            'title' => (string) ($attachment->title ?? ''),
+            'uploaded_at' => $uploadedAt,
+            'uploaded_by' => $uploaderName !== '' ? $uploaderName : null,
+            'description' => (string) ($attachment->description ?? ''),
+            'file_name' => $fileName,
+        ];
     }
 
     // Notification Management
@@ -937,15 +1141,33 @@ class EquipmentDetail extends Component
         $this->editingNotification = null;
     }
 
-    public function showEditNotificationModal($notificationId): void
+    public function showEditNotificationModal(string $notificationId): void
     {
-        $notification = EquipmentNotifications::findOrFail($notificationId);
+        $notification = EquipmentNotifications::where('equipment_id', $this->equipmentId)
+            ->findOrFail($notificationId);
         $this->editingNotification = $notification;
         $this->notificationForm = [
             'value' => $notification->value,
             'frequency' => $notification->frequency,
             'notification_type' => $notification->notification_type,
         ];
+
+        $this->selectedNotificationTypeLabel = match ($notification->notification_type) {
+            'calibration' => 'Calibration',
+            'maintanance' => 'Maintenance',
+            'verification' => 'Verification',
+            default => ucwords((string) $notification->notification_type),
+        };
+
+        $this->selectedNotificationFrequencyLabel = match ($notification->frequency) {
+            'days' => 'Days',
+            'weeks' => 'Weeks',
+            'months' => 'Months',
+            default => ucwords((string) $notification->frequency),
+        };
+
+        $this->showNotificationTypeDropdown = false;
+        $this->showNotificationFrequencyDropdown = false;
         $this->showNotificationModal = true;
     }
 
@@ -1029,17 +1251,61 @@ class EquipmentDetail extends Component
         }
     }
 
-    public function deleteNotification($notificationId): void
+    public function openDeleteNotificationConfirmModal(string $notificationId): void
     {
+        $notification = EquipmentNotifications::where('equipment_id', $this->equipmentId)
+            ->findOrFail($notificationId);
+        $this->pendingDeleteNotificationId = $notificationId;
+        $this->pendingDeleteNotificationPreview = $this->previewFromEquipmentNotification($notification);
+        $this->showDeleteNotificationConfirmModal = true;
+    }
+
+    public function closeDeleteNotificationConfirmModal(): void
+    {
+        $this->showDeleteNotificationConfirmModal = false;
+        $this->pendingDeleteNotificationId = null;
+        $this->pendingDeleteNotificationPreview = null;
+    }
+
+    public function confirmDeleteNotification(): void
+    {
+        if ($this->pendingDeleteNotificationId === null) {
+            return;
+        }
+
         try {
-            EquipmentNotifications::findOrFail($notificationId)->delete();
+            EquipmentNotifications::where('equipment_id', $this->equipmentId)
+                ->findOrFail($this->pendingDeleteNotificationId)
+                ->delete();
             $this->message = 'Notification deleted successfully!';
             $this->messageType = 'success';
             $this->loadEquipment();
         } catch (\Exception $e) {
             $this->message = 'Error deleting notification: ' . $e->getMessage();
             $this->messageType = 'danger';
+        } finally {
+            $this->closeDeleteNotificationConfirmModal();
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function previewFromEquipmentNotification(EquipmentNotifications $notification): array
+    {
+        $typeLabel = match ($notification->notification_type) {
+            'calibration' => 'Calibration',
+            'maintanance' => 'Maintenance',
+            'verification' => 'Verification',
+            default => ucwords((string) $notification->notification_type),
+        };
+
+        return [
+            'notification_type' => $typeLabel,
+            'frequency_display' => trim($notification->value . ' ' . $notification->frequency),
+            'next_date' => (string) ($notification->next_date ?? '—'),
+            'status' => $notification->is_sent ? __('equipment.sent') : __('equipment.not_sent'),
+        ];
     }
 
     // Reset Methods
@@ -1057,6 +1323,7 @@ class EquipmentDetail extends Component
         $this->certificate = null;
         $this->editingLog = null;
         $this->showEmployeeDropdown = false;
+        $this->showSupplierDropdown = false;
         $this->selectedEmployeeName = '';
         $this->employeeSearch = '';
         $this->selectedSupplierName = '';
@@ -1079,6 +1346,7 @@ class EquipmentDetail extends Component
         $this->certificate = null;
         $this->editingLog = null;
         $this->showEmployeeDropdown = false;
+        $this->showSupplierDropdown = false;
         $this->selectedEmployeeName = '';
         $this->employeeSearch = '';
         $this->selectedSupplierName = '';
@@ -1099,6 +1367,7 @@ class EquipmentDetail extends Component
         ];
         $this->editingLog = null;
         $this->showEmployeeDropdown = false;
+        $this->showSupplierDropdown = false;
         $this->selectedEmployeeName = '';
         $this->employeeSearch = '';
         $this->selectedSupplierName = '';
@@ -1140,20 +1409,53 @@ class EquipmentDetail extends Component
     {
         $this->showEmployeeDropdown = true;
         $search = $this->employeeSearch;
-        $this->filteredEmployees = User::where('active', 1)
+
+        $this->filteredEmployees = User::query()
+            ->where('active', 1)
+            ->where('company_id', getUserCompany())
+            ->where('is_support_staff', 0)
+            ->where('is_client', 0)
+            ->whereNull('supplier_id')
+            ->where('location_id', getCurrentUserLocation()->id)
             ->where('name', 'like', '%' . $search . '%')
+            ->orderBy('name')
             ->limit(10)
             ->get();
     }
 
-    public function selectEmployee($id, $name): void
+    public function selectEmployee($id, $name = null): void
     {
+        if ($name === null) {
+            $employee = User::find($id);
+            $name = $employee?->name ?? '';
+        }
+
+        if ($this->showEditModal) {
+            $this->equipmentForm['assigned_employee_id'] = $id;
+            $this->selectedEmployeeName = $name;
+            $this->employeeSearch = '';
+            $this->showEmployeeDropdown = false;
+
+            return;
+        }
+
         $this->maintenanceForm['employee_id'] = $id;
         $this->calibrationForm['employee_id'] = $id;
         $this->verificationForm['operator_id'] = $id;
         $this->selectedEmployeeName = $name;
-        $this->employeeSearch = $name;
+        $this->employeeSearch = '';
         $this->showEmployeeDropdown = false;
+    }
+
+    public function clearEmployee(): void
+    {
+        if (! $this->showEditModal) {
+            return;
+        }
+
+        $this->equipmentForm['assigned_employee_id'] = null;
+        $this->selectedEmployeeName = '';
+        $this->employeeSearch = '';
     }
 
     public function searchSuppliers(): void
@@ -1195,12 +1497,37 @@ class EquipmentDetail extends Component
         $this->searchDepartments();
     }
 
-    public function selectDepartment($id, $name): void
+    public function selectDepartment($id, $name = null): void
     {
+        if ($name === null) {
+            $department = InventoryDepartment::find($id);
+            $name = $department?->name ?? '';
+        }
+
+        if ($this->showEditModal) {
+            $this->equipmentForm['assigned_department'] = $id;
+            $this->selectedDepartmentName = $name;
+            $this->departmentSearch = '';
+            $this->showDepartmentDropdown = false;
+
+            return;
+        }
+
         $this->equipmentForm['assigned_department'] = $id;
         $this->selectedDepartmentName = $name;
         $this->departmentSearch = $name;
         $this->showDepartmentDropdown = false;
+    }
+
+    public function clearDepartment(): void
+    {
+        if (! $this->showEditModal) {
+            return;
+        }
+
+        $this->equipmentForm['assigned_department'] = null;
+        $this->selectedDepartmentName = '';
+        $this->departmentSearch = '';
     }
 
     public function selectStatus(string $value): void
@@ -1208,13 +1535,6 @@ class EquipmentDetail extends Component
         $this->equipmentForm['status'] = $value;
         $this->selectedStatusName = $value;
         $this->showStatusDropdown = false;
-    }
-
-    public function selectReportingUnit(string $value): void
-    {
-        $this->equipmentForm['daily_log_reporting_unit'] = $value;
-        $this->selectedReportingUnitName = $value;
-        $this->showReportingUnitDropdown = false;
     }
 
     public function selectDailyLogFrequency(int $value, string $label): void
@@ -1268,32 +1588,6 @@ class EquipmentDetail extends Component
         }
 
         $this->operatorForm['operators'][] = $employeeId;
-    }
-
-    protected function syncDailyLogTagLabels(): void
-    {
-        $frequencyLabels = [
-            1 => __('equipment.once_a_day'),
-            2 => __('equipment.twice_a_day'),
-            3 => __('equipment.three_times_a_day'),
-            4 => __('equipment.four_times_a_day'),
-            5 => __('equipment.five_times_a_day'),
-            6 => __('equipment.six_times_a_day'),
-        ];
-
-        $valueTypeLabels = [
-            'constant' => __('equipment.constant'),
-            'range' => __('equipment.range'),
-        ];
-
-        $natureLabels = [
-            'qualitative' => __('equipment.qualitative'),
-            'quantitative' => __('equipment.quantitative'),
-        ];
-
-        $this->selectedDailyLogFrequencyLabel = $frequencyLabels[(int) ($this->equipmentForm['daily_log_frequency'] ?? 1)] ?? __('equipment.once_a_day');
-        $this->selectedDailyLogValueTypeLabel = $valueTypeLabels[$this->equipmentForm['daily_log_value_type'] ?? ''] ?? '';
-        $this->selectedDailyLogNatureLabel = $natureLabels[$this->equipmentForm['daily_log_nature'] ?? ''] ?? '';
     }
 
     public function render()
@@ -1618,6 +1912,293 @@ class EquipmentDetail extends Component
         return EquipmentNotifications::where('equipment_id', $this->equipmentId)
             ->orderBy('next_date', 'asc')
             ->get();
+    }
+
+    /**
+     * @return list<array{icon: string, title: string, fields: list<array<string, mixed>>}>
+     */
+    public function getEquipmentDetailSectionsProperty(): array
+    {
+        $equipment = $this->equipment;
+        if (! $equipment) {
+            return [];
+        }
+
+        $calibration = $equipment->calibration_date();
+        $maintenance = $equipment->maintainance_date();
+
+        $departmentName = '—';
+        if ($equipment->assigned_department) {
+            $department = getInventoryDepartmentByid($equipment->assigned_department);
+            $departmentName = $department->name ?? '—';
+        }
+
+        $assignedEmployeeName = '—';
+        if ($equipment->assigned_employee_id) {
+            $assignedEmployeeName = (string) (User::find($equipment->assigned_employee_id)?->name ?? '—');
+        }
+
+        $assetTypeLabel = '—';
+        if ($equipment->asset_type_id) {
+            $assetType = AssetType::find($equipment->asset_type_id);
+            $assetTypeLabel = $assetType
+                ? trim(($assetType->asset_code ?? '') . ($assetType->descripton ? ' (' . $assetType->descripton . ')' : ''))
+                : '—';
+        }
+
+        $assetLocationLabel = '—';
+        if ($equipment->asset_location_id) {
+            $assetLocationLabel = (string) (AssetLocation::find($equipment->asset_location_id)?->name ?? '—');
+        }
+
+        $verificationDays = $equipment->verification_days ?? $equipment->verificaction_days ?? null;
+
+        $sections = [
+            [
+                'icon' => 'mdi-card-text-outline',
+                'title' => __('equipment.basic_information'),
+                'fields' => [
+                    ['label' => __('equipment.name'), 'value' => $equipment->name, 'highlight' => true, 'wide' => true],
+                    ['label' => __('equipment.equipment_number'), 'value' => $equipment->equipment_number, 'mono' => true],
+                    ['label' => __('equipment.description'), 'value' => $equipment->description, 'wide' => true, 'multiline' => true],
+                    [
+                        'label' => __('equipment.status'),
+                        'value' => $equipment->status ?? '—',
+                        'badge' => true,
+                        'badge_class' => ($equipment->active ?? false) ? 'eq-details-badge--success' : 'eq-details-badge--muted',
+                    ],
+                    [
+                        'label' => __('equipment.active_status'),
+                        'value' => ($equipment->active ?? false) ? __('equipment.active') : __('equipment.inactive'),
+                        'badge' => true,
+                        'badge_class' => ($equipment->active ?? false) ? 'eq-details-badge--success' : 'eq-details-badge--warning',
+                    ],
+                ],
+            ],
+            [
+                'icon' => 'mdi-cog-outline',
+                'title' => __('equipment.specifications'),
+                'fields' => [
+                    ['label' => __('equipment.make'), 'value' => $equipment->make],
+                    ['label' => __('equipment.model'), 'value' => $equipment->model],
+                    ['label' => __('equipment.serial_number'), 'value' => $equipment->serial_number],
+                    ['label' => __('equipment.barcode_number'), 'value' => $equipment->barcode_number],
+                    ['label' => __('equipment.manufacturer'), 'value' => $equipment->manufacturer],
+                    ['label' => __('equipment.condition'), 'value' => $equipment->condition],
+                    ['label' => __('equipment.warranty_date'), 'value' => $this->formatEquipmentDetailDate($equipment->warranty_date)],
+                    ['label' => __('equipment.date_purchased'), 'value' => $this->formatEquipmentDetailDate($equipment->date_purchased)],
+                ],
+            ],
+            [
+                'icon' => 'mdi-map-marker-outline',
+                'title' => __('equipment.assignment_location'),
+                'fields' => [
+                    ['label' => __('equipment.department'), 'value' => $departmentName],
+                    ['label' => __('equipment.employee'), 'value' => $assignedEmployeeName],
+                    ['label' => __('equipment.asset_types'), 'value' => $assetTypeLabel, 'wide' => true],
+                    ['label' => __('equipment.asset_locations'), 'value' => $assetLocationLabel, 'wide' => true],
+                ],
+            ],
+            [
+                'icon' => 'mdi-calendar-clock',
+                'title' => __('equipment.maintenance_calibration_schedule'),
+                'fields' => [
+                    ['label' => __('equipment.maintenance_after_days'), 'value' => $this->formatEquipmentDetailNumber($equipment->maintainance_days, 'days')],
+                    ['label' => __('equipment.maintenance_notification_days'), 'value' => $this->formatEquipmentDetailNumber($equipment->maintainance_notification_in_days, 'days')],
+                    ['label' => __('equipment.next_maintenance'), 'value' => $maintenance['date']->toDateString(), 'badge' => true, 'badge_class' => $this->mapEquipmentScheduleBadgeClass($maintenance['status'])],
+                    ['label' => __('equipment.calibration_days'), 'value' => $this->formatEquipmentDetailNumber($equipment->calibration_days, 'days')],
+                    ['label' => __('equipment.calibration_notification_days'), 'value' => $this->formatEquipmentDetailNumber($equipment->calibration_notification_in_days, 'days')],
+                    ['label' => __('equipment.next_calibration'), 'value' => $calibration['date']->toDateString(), 'badge' => true, 'badge_class' => $this->mapEquipmentScheduleBadgeClass($calibration['status'])],
+                    ['label' => __('equipment.preventive_maintainance_period'), 'value' => $this->formatEquipmentDetailNumber($equipment->preventive_maintainance_period, 'days')],
+                    ['label' => __('equipment.preventive_maintainance_notification_days'), 'value' => $this->formatEquipmentDetailNumber($equipment->preventive_maintainance_notification_days, 'days')],
+                ],
+            ],
+        ];
+
+        if ($verificationDays !== null || $equipment->verification_notification_in_days !== null) {
+            $sections[] = [
+                'icon' => 'mdi-clipboard-check-outline',
+                'title' => __('equipment.verification_log'),
+                'fields' => array_filter([
+                    $verificationDays !== null
+                        ? ['label' => 'Verification interval (days)', 'value' => $this->formatEquipmentDetailNumber($verificationDays, 'days')]
+                        : null,
+                    $equipment->verification_notification_in_days !== null
+                        ? ['label' => 'Verification notification (days)', 'value' => $this->formatEquipmentDetailNumber($equipment->verification_notification_in_days, 'days')]
+                        : null,
+                ]),
+            ];
+        }
+
+        if ($equipment->requires_daily_log) {
+            $sections[] = [
+                'icon' => 'mdi-notebook-check-outline',
+                'title' => __('equipment.daily_log_config'),
+                'fields' => $this->buildDailyLogDetailFields($equipment),
+            ];
+        }
+
+        if ($equipment->is_disposal || $equipment->dispose_date || $equipment->comment) {
+            $disposeEmployee = '—';
+            if ($equipment->employee_dispose_id) {
+                $disposeEmployee = (string) (User::find($equipment->employee_dispose_id)?->name ?? '—');
+            }
+
+            $sections[] = [
+                'icon' => 'mdi-archive-alert-outline',
+                'title' => __('equipment.disposal_management'),
+                'fields' => [
+                    [
+                        'label' => __('equipment.disposed'),
+                        'value' => $equipment->is_disposal ? __('equipment.yes') : 'No',
+                        'badge' => true,
+                        'badge_class' => $equipment->is_disposal ? 'eq-details-badge--warning' : 'eq-details-badge--muted',
+                    ],
+                    ['label' => __('equipment.dispose_date'), 'value' => $this->formatEquipmentDetailDate($equipment->dispose_date)],
+                    ['label' => __('equipment.requested_by'), 'value' => $disposeEmployee],
+                    ['label' => __('equipment.comment'), 'value' => $equipment->comment, 'wide' => true, 'multiline' => true],
+                ],
+            ];
+        }
+
+        $sections[] = [
+            'icon' => 'mdi-history',
+            'title' => 'Record',
+            'fields' => [
+                ['label' => 'Created', 'value' => $this->formatEquipmentDetailDateTime($equipment->created_at)],
+                ['label' => 'Last updated', 'value' => $this->formatEquipmentDetailDateTime($equipment->updated_at)],
+            ],
+        ];
+
+        return $sections;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function buildDailyLogDetailFields(Equipment $equipment): array
+    {
+        $freqLabels = [
+            1 => __('equipment.once_a_day'),
+            2 => __('equipment.twice_a_day'),
+            3 => __('equipment.three_times_a_day'),
+            4 => __('equipment.four_times_a_day'),
+            5 => __('equipment.five_times_a_day'),
+            6 => __('equipment.six_times_a_day'),
+        ];
+        $equipFreq = (int) ($equipment->daily_log_frequency ?? 1);
+
+        $natureLabel = match ($equipment->daily_log_nature) {
+            'qualitative' => __('equipment.qualitative'),
+            'quantitative' => __('equipment.quantitative'),
+            default => '—',
+        };
+
+        $typeLabel = match ($equipment->daily_log_value_type) {
+            'constant' => __('equipment.constant'),
+            'range' => __('equipment.range'),
+            default => '—',
+        };
+
+        $fields = [
+            [
+                'label' => __('equipment.requires_daily_log'),
+                'value' => __('equipment.yes'),
+                'badge' => true,
+                'badge_class' => 'eq-details-badge--info',
+            ],
+            ['label' => __('equipment.value_type'), 'value' => $typeLabel],
+            ['label' => __('equipment.nature_of_results'), 'value' => $natureLabel],
+            ['label' => __('equipment.reporting_unit'), 'value' => $equipment->daily_log_reporting_unit],
+            ['label' => __('equipment.logging_frequency'), 'value' => $freqLabels[$equipFreq] ?? __('equipment.once_a_day')],
+        ];
+
+        if ($equipFreq >= 2 && $equipment->daily_log_time_interval) {
+            $fields[] = ['label' => __('equipment.time_interval_hours'), 'value' => $equipment->daily_log_time_interval . ' h'];
+        }
+
+        if ($equipment->daily_log_monitored_by_another_equipment) {
+            $monitoredLabel = '—';
+            if ($equipment->daily_log_monitored_equipment_id) {
+                $monitored = Equipment::find($equipment->daily_log_monitored_equipment_id);
+                $monitoredLabel = $monitored
+                    ? (($monitored->equipment_number ?? 'N/A') . ' — ' . ($monitored->name ?? ''))
+                    : '—';
+            }
+            $fields[] = ['label' => 'Monitored by equipment', 'value' => $monitoredLabel, 'wide' => true];
+        }
+
+        if ($equipment->daily_log_value_type === 'constant') {
+            $fields[] = ['label' => __('equipment.expected_value'), 'value' => $equipment->daily_log_expected_value];
+            if ($equipment->daily_log_nature === 'quantitative') {
+                $fields[] = [
+                    'label' => 'Tolerance',
+                    'value' => $equipment->daily_log_tolerance !== null ? '±' . $equipment->daily_log_tolerance . '%' : null,
+                ];
+            }
+        }
+
+        if ($equipment->daily_log_value_type === 'range') {
+            $fields[] = [
+                'label' => __('equipment.acceptable_range'),
+                'value' => $equipment->daily_log_expected_min !== null && $equipment->daily_log_expected_max !== null
+                    ? $equipment->daily_log_expected_min . ' – ' . $equipment->daily_log_expected_max
+                    : null,
+            ];
+            $fields[] = [
+                'label' => 'Tolerance',
+                'value' => $equipment->daily_log_tolerance !== null ? '±' . $equipment->daily_log_tolerance . '%' : null,
+            ];
+        }
+
+        return $fields;
+    }
+
+    private function formatEquipmentDetailDate(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable) {
+            return (string) $value;
+        }
+    }
+
+    private function formatEquipmentDetailDateTime(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        try {
+            return Carbon::parse($value)->format('M j, Y g:i A');
+        } catch (\Throwable) {
+            return (string) $value;
+        }
+    }
+
+    private function formatEquipmentDetailNumber(mixed $value, string $suffix = ''): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        $formatted = is_numeric($value) ? number_format((float) $value, 0) : (string) $value;
+
+        return $suffix !== '' ? trim($formatted . ' ' . $suffix) : $formatted;
+    }
+
+    private function mapEquipmentScheduleBadgeClass(string $status): string
+    {
+        return match ($status) {
+            'badge-success' => 'eq-details-badge--success',
+            'badge-warning' => 'eq-details-badge--warning',
+            'badge-danger' => 'eq-details-badge--danger',
+            default => 'eq-details-badge--muted',
+        };
     }
 }
 

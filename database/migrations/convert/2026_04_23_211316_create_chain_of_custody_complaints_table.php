@@ -16,9 +16,9 @@ return new class extends Migration
             $table->timestamps();
             $table->uuid('complaint_id')->index('idx_chain_of_custody_complaints_complaint_id_612092f6');
             $table->string('action');
-            $table->integer('action_taker_id');
+            $table->uuid('action_taker_id')->nullable()->index('idx_chain_of_custody_action_taker_id');
             $table->string('comments')->nullable();
-            $table->integer('workflow_stage');
+            $table->string('workflow_stage', 191);
             $table->dateTime('move_out_date')->nullable();
 
             $table->primary(['id']);

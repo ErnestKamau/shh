@@ -580,7 +580,7 @@
                                                                                     @endif
                                                                                 </td>
                                                                                 <td>{{ number_format((float) ($item->cost_price ?? 0), 2) }}</td>
-                                                                                <td>{{ number_format((float) ($item->selling_price ?? 0), 2) }}</td>
+                                                                                <td>{{ number_format((float) ($item->display_selling_price ?? $item->selling_price ?? 0), 2) }}</td>
                                                                                 <td>{{ number_format((float) ($item->profit ?? 0), 2) }}</td>
                                                                                 <td>{{ number_format((float) ($item->profit_margin ?? 0), 2) }}%</td>
                                                                                 <td>
@@ -733,7 +733,7 @@
                                                 <tr>
                                                     <th>Analyte</th>
                                                     <th>Cost Price</th>
-                                                    <th>Selling Price</th>
+                                                    <th>Changed Price</th>
                                                     <th>Has VAT</th>
                                                 </tr>
                                             </thead>
@@ -805,7 +805,7 @@
 
                             <div class="item-modal-note mt-3">
                                 <i class="mdi mdi-information-outline"></i>
-                                Keep changed price in sync with your intended revision before applying price changes.
+                                New and updated prices are saved as pending until you use Apply Price Changes on the pricelist items tab.
                             </div>
                         </div>
                         <div class="modal-footer border-0 item-modal-footer">

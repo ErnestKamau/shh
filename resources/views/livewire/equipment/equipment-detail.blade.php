@@ -173,6 +173,12 @@
                     <ul class="nav nav-tabs eq-main-tabs">
                         @if(!$fromEquipmentChecks)
                         <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'details' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('details')" type="button">
+                                <i class="mdi mdi-clipboard-text-outline"></i> {{ __('equipment.details') }}
+                            </button>
+                        </li>
+                        <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'maintenance' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('maintenance')" type="button">
                                 {{ __('equipment.maintenance_log') }}
@@ -220,6 +226,10 @@
                     </ul>
                 </div>
                 <div class="card-body eq-main-body">
+                    @if($activeTab === 'details')
+                        @include('livewire.equipment.partials.equipment-details-tab')
+                    @endif
+
                     <!-- Maintenance Log Tab -->
                     @if($activeTab === 'maintenance')
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -248,8 +258,6 @@
                                         <th>{{ __('equipment.type') }}</th>
                                         <th>{{ __('equipment.service_provider') }}</th>
                                         <th>{{ __('equipment.date') }}</th>
-                                        <th>{{ __('equipment.correction_factor') }}</th>
-                                        <th>{{ __('equipment.uncertainty_of_measure') }}</th>
                                         <th>{{ __('equipment.certificate') }}</th>
                                         <th>{{ __('equipment.overseen_by') }}</th>
                                         <th>{{ __('equipment.notes') }}</th>
@@ -276,8 +284,6 @@
                                                         : (getUserById($log->employee_id)->name ?? '-') }}
                                                 </td>
                                                 <td>{{ $log->date }}</td>
-                                                <td>{{ $log->correction_factor ? number_format($log->correction_factor, 1) : '-' }}</td>
-                                                <td>{{ $log->uncertainty_of_measure ? number_format($log->uncertainty_of_measure, 1) : '-' }}</td>
                                                 <td>
                                                     @if($log->certificate && $log->certificate != 'no-document')
                                                         <a href="{{ $log->certificate }}" target="_blank" class="btn btn-sm btn-success">
@@ -518,7 +524,7 @@
                     @if($activeTab === 'operators')
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="mb-0">{{ __('equipment.operators') }}</h5>
-                            <button wire:click="showOperatorModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
+                            <button wire:click="openOperatorModal" class="btn btn-outline-primary btn-sm equipment-add-btn">
                                 <i class="mdi mdi-plus"></i> {{ __('equipment.add_operator') }}
                             </button>
                         </div>
@@ -530,7 +536,7 @@
                                 <div class="d-inline-block m-2">
                                     <span class="badge badge-primary p-2">
                                         <i class="mdi mdi-account"></i> {{ $operator->operator()->name ?? __('equipment.not_available') }}
-                                        <button wire:click="removeOperator({{ $operator->id }})" 
+                                        <button wire:click="removeOperator('{{ $operator->id }}')"
                                                 class="btn btn-sm btn-link text-white p-0 ms-2"
                                                 onclick="return confirm('Remove this operator?')">
                                             <i class="mdi mdi-close"></i>
@@ -583,20 +589,19 @@
                                         <tr>
                                             <td class="equipment-actions-cell">
                                                 <div class="equipment-actions-group">
-                                                    <button wire:click="showEditAttachmentModal({{ $attachment->id }})"
+                                                    <button wire:click="showEditAttachmentModal('{{ $attachment->id }}')"
                                                             class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn"
                                                             title="{{ __('equipment.edit') }}">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteAttachment({{ $attachment->id }})"
+                                                    <button wire:click="openDeleteAttachmentConfirmModal('{{ $attachment->id }}')"
                                                             class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
-                                                            onclick="return confirm('Are you sure?')"
                                                             title="{{ __('equipment.delete') }}">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>
                                             </td>
-                                            <td>{{ $loop->iteration + ($this->attachments->active() ? ($this->attachments->currentPage() - 1) * $this->attachments->perPage() : 0) }}</td>
+                                            <td>{{ $loop->iteration + ($this->attachments->currentPage() - 1) * $this->attachments->perPage() }}</td>
                                             <td>{{ $attachment->title }}</td>
                                             <td>
                                                 <a href="{{ $attachment->attachment }}" target="_blank" class="btn btn-sm btn-success">
@@ -660,13 +665,12 @@
                                     @foreach($this->notifications as $notification)
                                         <tr>
                                             <td>
-                                                <button wire:click="showEditNotificationModal({{ $notification->id }})"
+                                                <button wire:click="showEditNotificationModal('{{ $notification->id }}')"
                                                     class="btn btn-sm rm-act-btn rm-act-btn--edit equipment-action-btn">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
-                                                <button wire:click="deleteNotification({{ $notification->id }})"
-                                                    class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn"
-                                                        onclick="return confirm('Are you sure?')">
+                                                <button wire:click="openDeleteNotificationConfirmModal('{{ $notification->id }}')"
+                                                    class="btn btn-sm rm-act-btn rm-act-btn--delete equipment-action-btn">
                                                     <i class="mdi mdi-delete"></i>
                                                 </button>
                                             </td>
@@ -908,442 +912,38 @@
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header text-white" style="background-color: #001a41;">
-                        <h5 class="modal-title text-white"><i class="mdi mdi-pencil"></i> Edit Equipment</h5>
-                        <button type="button" class="btn-close btn-close-white" wire:click="$set('showEditModal', false)"></button>
+                        <h5 class="modal-title text-white"><i class="mdi mdi-pencil"></i> {{ __('equipment.edit') }} Equipment</h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeEditEquipmentModal"></button>
                     </div>
-                    <div class="modal-body px-4 py-3">
-                        <form wire:submit.prevent="saveEquipment" class="eq-form">
-                            <div class="eq-section-header">
-                                <i class="mdi mdi-information-outline"></i> Basic Information
-                            </div>
-                            <!-- Similar form fields as EquipmentManager but for editing -->
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Name <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="equipmentForm.name" class="form-control" required>
-                                        @error('equipmentForm.name') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Equipment Number <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="equipmentForm.equipment_number" class="form-control" required>
-                                        @error('equipmentForm.equipment_number') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.description') }} <span class="text-danger">*</span></label>
-                                        <textarea wire:model="equipmentForm.description" class="form-control" rows="2" required></textarea>
-                                        @error('equipmentForm.description') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.photo') }}</label>
-                                        <input type="file" wire:model="photo" class="form-control" accept="image/*">
-                                        @if($equipment->picture)
-                                            <small class="text-muted">Current: <img src="{{ $equipment->picture }}" style="width: 50px;"></small>
-                                        @endif
-                                        @error('photo') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Add more fields similar to EquipmentManager -->
-                            <div class="eq-section-header mt-4">
-                                <i class="mdi mdi-cogs"></i> Specifications
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Make <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="equipmentForm.make" class="form-control" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Model <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="equipmentForm.model" class="form-control" required>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Serial Number</label>
-                                        <input type="text" wire:model="equipmentForm.serial_number" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Barcode Number</label>
-                                        <input type="text" wire:model="equipmentForm.barcode_number" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Manufacturer</label>
-                                        <input type="text" wire:model="equipmentForm.manufacturer" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="eq-section-header mt-4">
-                                <i class="mdi mdi-map-marker"></i> Assignment &amp; Location
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Status <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showStatusDropdown')">
-                                            <div class="tag-select-input modern-filter-tag-input">
-                                                @if($selectedStatusName)
-                                                    <span class="tag-badge">{{ $selectedStatusName }}</span>
-                                                @endif
-                                                <input type="text" class="tag-input" placeholder="{{ $selectedStatusName ? '' : 'Choose Status...' }}" readonly>
-                                            </div>
-                                            @if($showStatusDropdown)
-                                                <div class="tag-dropdown">
-                                                    @foreach($statuses as $status)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectStatus(@js($status))">
-                                                            {{ $status }}
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Condition <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="equipmentForm.condition" class="form-control" required>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Warranty Date <span class="text-danger">*</span></label>
-                                        <input type="date" wire:model="equipmentForm.warranty_date" class="form-control" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Date Purchased</label>
-                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Department <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container equipment-tag-select" wire:click="searchDepartments">
-                                            <div class="tag-select-input modern-filter-tag-input">
-                                                @if($selectedDepartmentName)
-                                                    <span class="tag-badge">{{ $selectedDepartmentName }}</span>
-                                                @endif
-                                                <input type="text"
-                                                       wire:model.live.debounce.200ms="departmentSearch"
-                                                       class="tag-input"
-                                                       placeholder="{{ $selectedDepartmentName ? '' : 'Choose Department...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            @if($showDepartmentDropdown)
-                                                <div class="tag-dropdown">
-                                                    @forelse($filteredDepartments as $department)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectDepartment('{{ $department->id }}')">
-                                                            {{ $department->name }}
-                                                        </div>
-                                                    @empty
-                                                        <div class="tag-dropdown-item text-muted">No departments found</div>
-                                                    @endforelse
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Assigned Employee</label>
-                                        <div class="tag-select-container equipment-tag-select" wire:click="searchEmployees">
-                                            <div class="tag-select-input modern-filter-tag-input">
-                                                @if($selectedEmployeeName)
-                                                    <span class="tag-badge">{{ $selectedEmployeeName }}</span>
-                                                @endif
-                                                <input type="text"
-                                                       wire:model.live.debounce.200ms="employeeSearch"
-                                                       class="tag-input"
-                                                       placeholder="{{ $selectedEmployeeName ? '' : 'Choose Employee...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            @if($showEmployeeDropdown)
-                                                <div class="tag-dropdown">
-                                                    @forelse($filteredEmployees as $employee)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectEmployee('{{ $employee->id }}', '{{ $employee->name }}')">
-                                                            {{ $employee->name }}
-                                                        </div>
-                                                    @empty
-                                                        <div class="tag-dropdown-item text-muted">No employees found</div>
-                                                    @endforelse
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.active') }}</label>
-                                        <div class="d-flex align-items-center" style="height:38px;">
-                                            <div class="form-check">
-                                                <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active">
-                                                <label class="form-check-label" for="equipment_active">{{ __('equipment.mark_this_equipment_as_active') }}</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.requires_daily_log') }}</label>
-                                        <div class="d-flex align-items-center" style="height:38px;">
-                                            <div class="form-check">
-                                                <input type="checkbox" wire:model.live="equipmentForm.requires_daily_log" class="form-check-input" id="equipment_requires_daily_log">
-                                                <label class="form-check-label" for="equipment_requires_daily_log">Equipment appears on the Daily Log page</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            @if(!empty($equipmentForm['requires_daily_log']))
-                            @php $dlType = $equipmentForm['daily_log_value_type'] ?? ''; $dlNature = $equipmentForm['daily_log_nature'] ?? ''; $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
-                            <div class="eq-section-header mt-4">
-                                <i class="mdi mdi-notebook-check-outline"></i> {{ __('equipment.daily_log_configuration') }}
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.logging_frequency') }} <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showDailyLogFrequencyDropdown')">
-                                            <div class="tag-select-input modern-filter-tag-input">
-                                                @if($selectedDailyLogFrequencyLabel)
-                                                    <span class="tag-badge">{{ $selectedDailyLogFrequencyLabel }}</span>
-                                                @endif
-                                                <input type="text" class="tag-input" placeholder="{{ $selectedDailyLogFrequencyLabel ? '' : 'Choose Frequency...' }}" readonly>
-                                            </div>
-                                            @if($showDailyLogFrequencyDropdown)
-                                                <div class="tag-dropdown">
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(1, @js(__('equipment.once_a_day')))">{{ __('equipment.once_a_day') }}</div>
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(2, @js(__('equipment.twice_a_day')))">{{ __('equipment.twice_a_day') }}</div>
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(3, @js(__('equipment.three_times_a_day')))">{{ __('equipment.three_times_a_day') }}</div>
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(4, @js(__('equipment.four_times_a_day')))">{{ __('equipment.four_times_a_day') }}</div>
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(5, @js(__('equipment.five_times_a_day')))">{{ __('equipment.five_times_a_day') }}</div>
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogFrequency(6, @js(__('equipment.six_times_a_day')))">{{ __('equipment.six_times_a_day') }}</div>
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('equipmentForm.daily_log_frequency') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                @if($dlFreq >= 2)
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.time_interval_hours') }} <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_time_interval" class="form-control" min="1" placeholder="{{ __('equipment.daily_log_interval_example') }}">
-                                        @error('equipmentForm.daily_log_time_interval') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">{{ __('equipment.number_of_hours_between_each_reading') }}</small>
-                                    </div>
-                                </div>
-                                @endif
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.value_type') }} <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showDailyLogValueTypeDropdown')">
-                                            <div class="tag-select-input modern-filter-tag-input">
-                                                @if($selectedDailyLogValueTypeLabel)
-                                                    <span class="tag-badge">{{ $selectedDailyLogValueTypeLabel }}</span>
-                                                @endif
-                                                <input type="text" class="tag-input" placeholder="{{ $selectedDailyLogValueTypeLabel ? '' : __('equipment.select_option') }}" readonly>
-                                            </div>
-                                            @if($showDailyLogValueTypeDropdown)
-                                                <div class="tag-dropdown">
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogValueType('constant', @js(__('equipment.constant')))">{{ __('equipment.constant') }}</div>
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogValueType('range', @js(__('equipment.range')))">{{ __('equipment.range') }}</div>
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('equipmentForm.daily_log_value_type') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">{{ __('equipment.expected_value_constant_or_range') }}</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.nature_of_result') }} <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container equipment-tag-select {{ $dlType === 'range' ? 'is-disabled' : '' }}" wire:click="{{ $dlType === 'range' ? '' : '$toggle(\'showDailyLogNatureDropdown\')' }}">
-                                            <div class="tag-select-input modern-filter-tag-input">
-                                                @if($selectedDailyLogNatureLabel)
-                                                    <span class="tag-badge">{{ $selectedDailyLogNatureLabel }}</span>
-                                                @endif
-                                                <input type="text" class="tag-input" placeholder="{{ $selectedDailyLogNatureLabel ? '' : __('equipment.select_option') }}" readonly>
-                                            </div>
-                                            @if($showDailyLogNatureDropdown && $dlType !== 'range')
-                                                <div class="tag-dropdown">
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogNature('qualitative', @js(__('equipment.qualitative')))">{{ __('equipment.qualitative') }}</div>
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectDailyLogNature('quantitative', @js(__('equipment.quantitative')))">{{ __('equipment.quantitative') }}</div>
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('equipmentForm.daily_log_nature') <span class="text-danger">{{ $message }}</span> @enderror
-                                        @if($dlType === 'range')
-                                            <small class="form-text text-muted"><i class="mdi mdi-information-outline"></i> {{ __('equipment.range_values_are_always_quantitative') }}</small>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                            {{-- Constant + Qualitative: text expected value --}}
-                            @if($dlType === 'constant' && $dlNature === 'qualitative')
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.expected_value') }} <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="equipmentForm.daily_log_expected_value" class="form-control" placeholder="{{ __('equipment.daily_log_expected_text_example') }}">
-                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-                            {{-- Constant + Quantitative: numeric expected value + tolerance --}}
-                            @if($dlType === 'constant' && $dlNature === 'quantitative')
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.expected_value') }} <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_value" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_expected_numeric_example') }}">
-                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="{{ __('equipment.daily_log_tolerance_example') }}">
-                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">{{ __('equipment.acceptable_deviation_from_expected_value') }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-                            {{-- Range + Quantitative: min, max and tolerance --}}
-                            @if($dlType === 'range' && $dlNature === 'quantitative')
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_min" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_min_value_example') }}">
-                                        @error('equipmentForm.daily_log_expected_min') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_max_value_example') }}">
-                                        @error('equipmentForm.daily_log_expected_max') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="{{ __('equipment.daily_log_tolerance_example') }}">
-                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">Acceptable deviation (&plusmn;).</small>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-                            {{-- Reporting unit (shown whenever a value type is selected) --}}
-                            @if($dlType !== '')
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.reporting_unit') }}</label>
-                                        <div class="tag-select-container equipment-tag-select" wire:click="$toggle('showReportingUnitDropdown')">
-                                            <div class="tag-select-input modern-filter-tag-input">
-                                                @if($selectedReportingUnitName)
-                                                    <span class="tag-badge">{{ $selectedReportingUnitName }}</span>
-                                                @endif
-                                                <input type="text" class="tag-input" placeholder="{{ $selectedReportingUnitName ? '' : __('equipment.select_unit') }}" readonly>
-                                            </div>
-                                            @if($showReportingUnitDropdown)
-                                                <div class="tag-dropdown">
-                                                    @foreach($reportingUnits as $unit)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit(@js($unit->name))">
-                                                            {{ $unit->name }}
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                        @error('equipmentForm.daily_log_reporting_unit') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">{{ __('equipment.unit_of_measurement_for_recorded_value') }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-                            @endif
-                            <div class="eq-section-header mt-4">
-                                <i class="mdi mdi-calendar-clock"></i> {{ __('equipment.maintenance_calibration_schedule') }}
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.maintenance_after_days') }} <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.maintainance_days" class="form-control" min="0" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.maintenance_notification_days') }} <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.maintainance_notification_in_days" class="form-control" min="0" required>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.calibration_after_days') }} <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.calibration_days" class="form-control" min="0" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.calibration_notification_days') }} <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.calibration_notification_in_days" class="form-control" min="0" required>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
+                    <div class="modal-body px-4 py-3" style="max-height: 70vh; overflow-y: auto;">
+                        @include('livewire.equipment.partials.equipment-form-wizard', [
+                            'wizardPhotoEquipment' => $equipment,
+                            'hidePreventiveMaintenance' => true,
+                        ])
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showEditModal', false)">{{ __('equipment.cancel') }}</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveEquipment">
-                            <i class="mdi mdi-content-save"></i> Save
-                        </button>
+                        <div class="d-flex justify-content-between w-100">
+                            <div>
+                                <button type="button" class="btn btn-secondary" wire:click="closeEditEquipmentModal">{{ __('equipment.cancel') }}</button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary ms-2" wire:click="previousStep" style="display: {{ $currentStep === 1 ? 'none' : 'block' }};">
+                                    <i class="mdi mdi-chevron-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" wire:click="nextStep" style="display: {{ $currentStep === $totalSteps ? 'none' : 'block' }};">
+                                    Next <i class="mdi mdi-chevron-right"></i>
+                                </button>
+                                <button type="button" class="btn btn-primary" wire:click="saveEquipment" style="display: {{ $currentStep === $totalSteps ? 'block' : 'none' }};">
+                                    <i class="mdi mdi-content-save"></i> {{ __('equipment.save') }}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     @endif
+
 
     <!-- Maintenance Modal -->
     @if($showMaintenanceModal)
@@ -1358,7 +958,7 @@
                         <button type="button" class="btn-close" wire:click="$set('showMaintenanceModal', false)"></button>
                     </div>
                     <div class="modal-body">
-                        <form wire:submit.prevent="saveMaintenanceLog">
+                        <form wire:submit.prevent="saveMaintenanceLog" wire:key="maintenance-log-form-{{ $editingLog?->id ?? 'new' }}">
                             <div class="form-group mb-3">
                                 <label class="form-label">Date <span class="text-danger">*</span></label>
                                 <input type="date" wire:model="maintenanceForm.date" class="form-control" required>
@@ -1430,8 +1030,45 @@
                                 </div>
                             @endif
                             <div class="form-group mb-3">
-                                <label class="form-label">Certificate</label>
+                                <label class="form-label">{{ __('equipment.certificate') }}</label>
+                                @if($editingLog && $editingLog->certificate && $editingLog->certificate !== 'no-document')
+                                    @php
+                                        $maintCertPath = parse_url($editingLog->certificate, PHP_URL_PATH) ?? $editingLog->certificate;
+                                        $maintCertIsPdf = str_ends_with(strtolower((string) $maintCertPath), '.pdf');
+                                    @endphp
+                                    <div class="card border-0 shadow-sm mb-3 overflow-hidden equipment-cert-preview">
+                                        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-3 bg-light border-bottom">
+                                            <div class="d-flex align-items-center gap-2 min-w-0">
+                                                <span class="rounded d-flex align-items-center justify-content-center bg-white border text-danger flex-shrink-0" style="width:2.25rem;height:2.25rem;">
+                                                    <i class="mdi mdi-file-pdf-box mdi-24px"></i>
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <div class="fw-semibold text-body small text-uppercase">{{ __('equipment.current_attachment') }}</div>
+                                                    <div class="text-muted text-truncate small" style="max-width: 14rem;" title="{{ basename(parse_url($editingLog->certificate, PHP_URL_PATH) ?: $editingLog->certificate) }}">{{ basename(parse_url($editingLog->certificate, PHP_URL_PATH) ?: $editingLog->certificate) }}</div>
+                                                </div>
+                                            </div>
+                                            <a href="{{ $editingLog->certificate }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary flex-shrink-0">
+                                                <i class="mdi mdi-open-in-new"></i> {{ __('equipment.open_in_new_tab') }}
+                                            </a>
+                                        </div>
+                                        @if($maintCertIsPdf)
+                                            <div class="border-top bg-secondary bg-opacity-10" style="height: clamp(14rem, 48vh, 26rem);">
+                                                <iframe
+                                                    src="{{ $editingLog->certificate }}"
+                                                    class="d-block w-100 border-0"
+                                                    style="height: 100%; min-height: 14rem;"
+                                                    title="{{ __('equipment.certificate_preview') }}"
+                                                ></iframe>
+                                            </div>
+                                        @else
+                                            <div class="card-body py-3 bg-light">
+                                                <p class="mb-0 small text-muted">{{ __('equipment.preview_not_available') }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
                                 <input type="file" wire:model="certificate" class="form-control" accept=".pdf,.doc,.docx">
+                                <small class="form-text text-muted">{{ __('equipment.replace_certificate_hint') }}</small>
                                 @error('certificate') <span class="text-danger">{{ $message }}</span> @enderror
                             </div>
                             <div class="form-group mb-3">
@@ -1453,78 +1090,63 @@
     @endif
 
     @if($showDeleteMaintenanceConfirmModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-md">
-                <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-alert-circle-outline"></i> {{ __('equipment.delete') }}
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteMaintenanceConfirmModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="mb-0">Are you sure you want to delete this maintenance log? This cannot be undone.</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeDeleteMaintenanceConfirmModal">{{ __('equipment.cancel') }}</button>
-                        <button type="button" class="btn btn-danger" wire:click="confirmDeleteMaintenanceLog" wire:loading.attr="disabled" wire:target="confirmDeleteMaintenanceLog">
-                            <span wire:loading.remove wire:target="confirmDeleteMaintenanceLog">{{ __('equipment.delete') }}</span>
-                            <span wire:loading wire:target="confirmDeleteMaintenanceLog">{{ __('equipment.delete') }}…</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        @include('livewire.equipment.partials.delete-log-confirm-modal', [
+            'closeMethod' => 'closeDeleteMaintenanceConfirmModal',
+            'confirmMethod' => 'confirmDeleteMaintenanceLog',
+            'confirmTarget' => 'confirmDeleteMaintenanceLog',
+            'preview' => $pendingDeleteMaintenancePreview,
+            'dateLabel' => __('equipment.maintenance_date'),
+            'warningText' => 'Are you sure you want to delete this maintenance log? This cannot be undone.',
+        ])
     @endif
 
     @if($showDeleteCalibrationConfirmModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-md">
-                <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-alert-circle-outline"></i> {{ __('equipment.delete') }}
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteCalibrationConfirmModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="mb-0">Are you sure you want to delete this calibration log? This cannot be undone.</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeDeleteCalibrationConfirmModal">{{ __('equipment.cancel') }}</button>
-                        <button type="button" class="btn btn-danger" wire:click="confirmDeleteCalibrationLog" wire:loading.attr="disabled" wire:target="confirmDeleteCalibrationLog">
-                            <span wire:loading.remove wire:target="confirmDeleteCalibrationLog">{{ __('equipment.delete') }}</span>
-                            <span wire:loading wire:target="confirmDeleteCalibrationLog">{{ __('equipment.delete') }}…</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        @include('livewire.equipment.partials.delete-log-confirm-modal', [
+            'closeMethod' => 'closeDeleteCalibrationConfirmModal',
+            'confirmMethod' => 'confirmDeleteCalibrationLog',
+            'confirmTarget' => 'confirmDeleteCalibrationLog',
+            'preview' => $pendingDeleteCalibrationPreview,
+            'dateLabel' => __('equipment.calibration_date'),
+            'wide' => true,
+            'scrollable' => true,
+            'showCalibrationMetrics' => true,
+            'warningText' => 'Are you sure you want to delete this calibration log? This cannot be undone.',
+        ])
     @endif
 
     @if($showDeleteVerificationConfirmModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-md">
-                <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-alert-circle-outline"></i> {{ __('equipment.delete') }}
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteVerificationConfirmModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="mb-0">Are you sure you want to remove this verification log from the list? This cannot be undone.</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeDeleteVerificationConfirmModal">{{ __('equipment.cancel') }}</button>
-                        <button type="button" class="btn btn-danger" wire:click="confirmDeleteVerificationLog" wire:loading.attr="disabled" wire:target="confirmDeleteVerificationLog">
-                            <span wire:loading.remove wire:target="confirmDeleteVerificationLog">{{ __('equipment.delete') }}</span>
-                            <span wire:loading wire:target="confirmDeleteVerificationLog">{{ __('equipment.delete') }}…</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        @include('livewire.equipment.partials.delete-log-confirm-modal', [
+            'closeMethod' => 'closeDeleteVerificationConfirmModal',
+            'confirmMethod' => 'confirmDeleteVerificationLog',
+            'confirmTarget' => 'confirmDeleteVerificationLog',
+            'preview' => $pendingDeleteVerificationPreview,
+            'dateLabel' => __('equipment.date'),
+            'useOperatorLabel' => true,
+            'useRemarks' => true,
+            'notesLabel' => __('equipment.remarks'),
+            'showReferenceStandard' => true,
+            'warningText' => 'Are you sure you want to remove this verification log from the list? This cannot be undone.',
+        ])
+    @endif
+
+    @if($showDeleteAttachmentConfirmModal)
+        @include('livewire.equipment.partials.delete-attachment-confirm-modal', [
+            'closeMethod' => 'closeDeleteAttachmentConfirmModal',
+            'confirmMethod' => 'confirmDeleteAttachment',
+            'confirmTarget' => 'confirmDeleteAttachment',
+            'preview' => $pendingDeleteAttachmentPreview,
+            'warningText' => 'Are you sure you want to delete this attachment? This cannot be undone.',
+        ])
+    @endif
+
+    @if($showDeleteNotificationConfirmModal)
+        @include('livewire.equipment.partials.delete-notification-confirm-modal', [
+            'closeMethod' => 'closeDeleteNotificationConfirmModal',
+            'confirmMethod' => 'confirmDeleteNotification',
+            'confirmTarget' => 'confirmDeleteNotification',
+            'preview' => $pendingDeleteNotificationPreview,
+            'warningText' => 'Are you sure you want to delete this notification? This cannot be undone.',
+        ])
     @endif
 
     <!-- Calibration Modal (similar structure to Maintenance) -->
@@ -1761,47 +1383,53 @@
 
     <!-- Operator Modal -->
     @if($showOperatorModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="mdi mdi-plus"></i> {{ __('equipment.add_operators') }}</h5>
-                        <button type="button" class="btn-close" wire:click="$set('showOperatorModal', false)"></button>
+        <div class="modal fade show d-block eq-operator-modal-overlay" tabindex="-1" aria-modal="true" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog eq-operator-modal-dialog">
+                <div class="modal-content border-0 shadow-lg rounded-4 eq-operator-modal-content">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-semibold"><i class="mdi mdi-account-multiple-plus text-primary"></i> {{ __('equipment.add_operators') }}</h5>
+                        <button type="button" class="btn-close" wire:click="closeOperatorModal" aria-label="{{ __('equipment.close') }}"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body pt-2 eq-operator-modal-body">
                         <form wire:submit.prevent="saveOperators">
-                            <div class="form-group mb-3">
-                                <label class="form-label">{{ __('equipment.select_operators') }} <span class="text-danger">*</span></label>
-                                <div class="tag-select-container equipment-tag-select equipment-tag-select--multi" wire:click="$toggle('showOperatorDropdown')">
+                            <div class="form-group mb-0">
+                                <label class="form-label fw-semibold">{{ __('equipment.select_operators') }} <span class="text-danger">*</span></label>
+                                <div class="tag-select-container equipment-tag-select equipment-tag-select--multi eq-operator-tag-select" wire:click="$toggle('showOperatorDropdown')">
                                     <div class="tag-select-input modern-filter-tag-input">
-                                        @forelse($employees->whereIn('id', $operatorForm['operators']) as $employee)
+                                        @php
+                                            $selectedOperatorIds = collect($operatorForm['operators'] ?? [])->map(fn ($id) => (string) $id);
+                                        @endphp
+                                        @forelse($employees->filter(fn ($employee) => $selectedOperatorIds->contains((string) $employee->id)) as $employee)
                                             <span class="tag-badge me-1 mb-1">{{ $employee->name }}</span>
                                         @empty
-                                            <span class="text-muted small">Select operators...</span>
+                                            <span class="text-muted small">{{ __('equipment.select_operators') }}…</span>
                                         @endforelse
                                     </div>
                                     @if($showOperatorDropdown)
                                         <div class="tag-dropdown tag-dropdown--scrollable">
-                                            @foreach($employees as $employee)
+                                            @forelse($employees as $employee)
                                                 <div class="tag-dropdown-item d-flex justify-content-between align-items-center" wire:click.stop="toggleOperatorSelection('{{ $employee->id }}')">
                                                     <span>{{ $employee->name }}</span>
-                                                    @if(in_array($employee->id, $operatorForm['operators']))
+                                                    @if($selectedOperatorIds->contains((string) $employee->id))
                                                         <i class="mdi mdi-check text-primary"></i>
                                                     @endif
                                                 </div>
-                                            @endforeach
+                                            @empty
+                                                <div class="tag-dropdown-item text-muted">No employees found</div>
+                                            @endforelse
                                         </div>
                                     @endif
                                 </div>
-                                <small class="text-muted">Click to select multiple operators</small>
-                                @error('operatorForm.operators') <span class="text-danger">{{ $message }}</span> @enderror
+                                <small class="text-muted d-block mt-2">Click to select multiple operators</small>
+                                @error('operatorForm.operators') <span class="text-danger d-block mt-1">{{ $message }}</span> @enderror
                             </div>
                         </form>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="$set('showOperatorModal', false)">{{ __('equipment.cancel') }}</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveOperators">
-                            <i class="mdi mdi-content-save"></i> Save
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light border" wire:click="closeOperatorModal">{{ __('equipment.cancel') }}</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveOperators" wire:loading.attr="disabled" wire:target="saveOperators">
+                            <span wire:loading.remove wire:target="saveOperators"><i class="mdi mdi-content-save"></i> {{ __('equipment.save') }}</span>
+                            <span wire:loading wire:target="saveOperators"><i class="mdi mdi-loading mdi-spin"></i> {{ __('equipment.save') }}…</span>
                         </button>
                     </div>
                 </div>
@@ -2107,6 +1735,34 @@
     .modal.fade.show.d-block .modal-body {
         overflow-y: auto;
     }
+    .eq-operator-modal-overlay {
+        overscroll-behavior: contain;
+        overflow-y: hidden;
+    }
+    .eq-operator-modal-overlay .eq-operator-modal-dialog {
+        margin: 1.5rem auto;
+        max-width: 520px;
+    }
+    .eq-operator-modal-overlay .eq-operator-modal-content {
+        min-height: 28rem;
+        max-height: min(90vh, 36rem);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .eq-operator-modal-overlay .eq-operator-modal-body {
+        flex: 1 1 auto;
+        min-height: 20rem;
+        overflow: visible;
+    }
+    .eq-operator-modal-overlay .eq-operator-tag-select .tag-dropdown {
+        position: static;
+        top: auto;
+        left: auto;
+        right: auto;
+        margin-top: 0.5rem;
+        max-height: min(18rem, 40vh);
+    }
     body.modal-open {
         overflow: hidden !important;
     }
@@ -2178,6 +1834,443 @@
     }
     .eq-view-page .modal-body .row {
         margin-bottom: 1.5rem;
+    }
+
+    /* ── Delete log confirmation modals ───────────────────────── */
+    .eq-delete-overlay {
+        background: rgba(15, 23, 42, 0.52) !important;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+
+    .eq-delete-dialog {
+        max-width: min(520px, calc(100vw - 1.5rem));
+    }
+
+    .eq-delete-dialog.modal-lg {
+        max-width: min(640px, calc(100vw - 1.5rem));
+    }
+
+    .eq-delete-shell {
+        border-radius: 20px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow:
+            0 24px 48px rgba(15, 23, 42, 0.18),
+            0 0 0 1px rgba(226, 232, 240, 0.9);
+    }
+
+    .eq-delete-body {
+        position: relative;
+        padding: 1.35rem 1.35rem 1.1rem;
+        background: linear-gradient(180deg, #fafbfc 0%, #ffffff 42%);
+    }
+
+    .eq-delete-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        z-index: 2;
+        opacity: 0.45;
+        padding: 0.5rem;
+        border-radius: 10px;
+        transition: opacity 0.15s ease, background-color 0.15s ease;
+    }
+
+    .eq-delete-close:hover {
+        opacity: 0.85;
+        background-color: rgba(15, 23, 42, 0.06);
+    }
+
+    .eq-delete-frame {
+        position: relative;
+        padding: 1.25rem 1.35rem 1.15rem;
+        border-radius: 14px;
+        border: 2px dashed rgba(220, 38, 38, 0.55);
+        background:
+            linear-gradient(145deg, rgba(254, 242, 242, 0.65) 0%, rgba(255, 255, 255, 0.92) 38%, #ffffff 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+
+    .eq-delete-frame--scroll {
+        max-height: min(52vh, 28rem);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+
+    .eq-delete-frame__glow {
+        position: absolute;
+        top: -40%;
+        right: -15%;
+        width: 55%;
+        height: 80%;
+        background: radial-gradient(ellipse at center, rgba(248, 113, 113, 0.12) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .eq-delete-intro {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        margin-bottom: 1.15rem;
+        padding-right: 1.5rem;
+    }
+
+    .eq-delete-intro__icon {
+        flex-shrink: 0;
+        width: 2.75rem;
+        height: 2.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 1.35rem;
+        color: #b91c1c;
+        background: linear-gradient(135deg, #fff 0%, #fef2f2 100%);
+        border: 1px solid rgba(254, 202, 202, 0.9);
+        box-shadow: 0 4px 12px rgba(185, 28, 28, 0.1);
+    }
+
+    .eq-delete-intro__eyebrow {
+        margin: 0 0 0.2rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #b91c1c;
+    }
+
+    .eq-delete-intro__lead {
+        margin: 0;
+        font-size: 0.875rem;
+        line-height: 1.45;
+        color: #64748b;
+    }
+
+    .eq-delete-details {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 480px) {
+        .eq-delete-details {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .eq-delete-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 0;
+    }
+
+    .eq-delete-field--span {
+        grid-column: 1 / -1;
+    }
+
+    .eq-delete-field--full {
+        grid-column: 1 / -1;
+    }
+
+    .eq-delete-field__label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #94a3b8;
+    }
+
+    .eq-delete-field__value {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #1e293b;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+    .eq-delete-field__value--primary {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #0f172a;
+        letter-spacing: -0.01em;
+    }
+
+    .eq-delete-field__value--mono {
+        font-variant-numeric: tabular-nums;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.875rem;
+    }
+
+    .eq-delete-pill {
+        display: inline-block;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #334155;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+    }
+
+    .eq-delete-notes {
+        margin-top: 0.15rem;
+        padding: 0.65rem 0.85rem;
+        border-radius: 10px;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        color: #334155;
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: rgba(248, 250, 252, 0.95);
+        border: 1px solid #e8edf3;
+        max-height: 8rem;
+        overflow-y: auto;
+    }
+
+    .eq-delete-warning {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        margin-top: 0.15rem;
+        padding: 0.75rem 0.9rem;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+        border: 1px solid rgba(254, 202, 202, 0.65);
+    }
+
+    .eq-delete-warning__icon {
+        flex-shrink: 0;
+        font-size: 1.15rem;
+        color: #dc2626;
+        margin-top: 0.05rem;
+    }
+
+    .eq-delete-warning__text {
+        font-size: 0.8125rem;
+        line-height: 1.45;
+        color: #991b1b;
+        font-weight: 500;
+    }
+
+    .eq-delete-footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.85rem 1.35rem 1.25rem;
+        background: #fafbfc;
+        border-top: 1px solid #eef2f6;
+    }
+
+    .eq-delete-btn {
+        border-radius: 10px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        padding: 0.5rem 1.15rem;
+        transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+    }
+
+    .eq-delete-btn--cancel {
+        color: #475569;
+        background: #ffffff;
+        border: 1px solid #d8e0eb;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .eq-delete-btn--cancel:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        color: #334155;
+    }
+
+    .eq-delete-btn--confirm {
+        color: #ffffff;
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        border: none;
+        box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+    }
+
+    .eq-delete-btn--confirm:hover:not(:disabled) {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        box-shadow: 0 6px 18px rgba(220, 38, 38, 0.4);
+        transform: translateY(-1px);
+    }
+
+    .eq-delete-btn--confirm:disabled {
+        opacity: 0.72;
+    }
+
+    /* Equipment details tab */
+    .eq-details {
+        padding: 0.15rem 0 0.5rem;
+    }
+    .eq-details-kicker {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 700;
+    }
+    .eq-details-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.25;
+    }
+    .eq-details-subtitle {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.35rem;
+    }
+    .eq-details-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+    .eq-details-pill--muted {
+        color: #334155;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .eq-details-pill--outline {
+        color: #475569;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+    }
+    .eq-details-edit-btn {
+        border-radius: 10px;
+        font-weight: 600;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+    }
+    .eq-details-card {
+        border-radius: 14px;
+        border: 1px solid #e8edf3;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+        overflow: hidden;
+    }
+    .eq-details-card__header {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.85rem 1rem;
+        background: linear-gradient(120deg, #f8fafc 0%, #eef4fb 100%);
+        border-bottom: 1px solid #e8edf3;
+    }
+    .eq-details-card__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 10px;
+        background: #ffffff;
+        color: #2563eb;
+        border: 1px solid #dbeafe;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+    }
+    .eq-details-card__icon .mdi {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+    .eq-details-card__title {
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: 0.01em;
+    }
+    .eq-details-card__body {
+        padding: 0.85rem 1rem 1rem;
+    }
+    .eq-details-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem 1rem;
+    }
+    @media (max-width: 575.98px) {
+        .eq-details-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .eq-details-item--wide {
+        grid-column: 1 / -1;
+    }
+    .eq-details-item__label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+    }
+    .eq-details-item__value {
+        font-size: 0.9rem;
+        color: #1e293b;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+    .eq-details-item__value--highlight {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .eq-details-item__value--mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.84rem;
+    }
+    .eq-details-notes {
+        padding: 0.65rem 0.8rem;
+        border-radius: 10px;
+        background: #f8fafc;
+        border: 1px solid #e8edf3;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        max-height: 9rem;
+        overflow-y: auto;
+    }
+    .eq-details-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border: 1px solid transparent;
+    }
+    .eq-details-badge--success {
+        color: #166534;
+        background: #ecfdf3;
+        border-color: #bbf7d0;
+    }
+    .eq-details-badge--warning {
+        color: #92400e;
+        background: #fffbeb;
+        border-color: #fde68a;
+    }
+    .eq-details-badge--danger {
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+    .eq-details-badge--info {
+        color: #1d4ed8;
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
+    .eq-details-badge--muted {
+        color: #475569;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
     }
     </style>
 

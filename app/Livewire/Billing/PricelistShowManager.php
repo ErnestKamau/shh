@@ -59,6 +59,13 @@ class PricelistShowManager extends Component
     public $cloneForm = [];
     public string $itemCommitFilter = 'all';
 
+    public bool $showDeleteItemConfirmModal = false;
+
+    public ?string $pendingDeleteItemId = null;
+
+    /** @var array<string, mixed>|null */
+    public ?array $pendingDeleteItemPreview = null;
+
     public function mount(string $pricelistId, $print = null): void
     {
         $this->pricelistId = $pricelistId;
@@ -157,7 +164,9 @@ class PricelistShowManager extends Component
                 $changed = $changedRaw === null || $changedRaw === ''
                     ? $selling
                     : (float) $changedRaw;
-                $profit = $selling - $cost;
+                $hasPendingChange = abs($selling - $changed) > 0.004;
+                $displaySelling = $hasPendingChange ? $changed : $selling;
+                $profit = $displaySelling - $cost;
 
                 $item->sample_type_name = $sampleType->name ?? null;
                 $item->sample_type_code = $sampleType->code ?? null;
@@ -165,9 +174,10 @@ class PricelistShowManager extends Component
                 $item->analysis_type_code = $analysisType->code ?? null;
                 $item->analyte_name = $analyte?->name ?? 'N/A';
                 $item->analyte_code = $analyte?->code;
+                $item->display_selling_price = $displaySelling;
                 $item->profit = $profit;
-                $item->profit_margin = $selling > 0 ? (($profit / $selling) * 100) : 0;
-                $item->has_pending_change = abs($selling - $changed) > 0.004;
+                $item->profit_margin = $displaySelling > 0 ? (($profit / $displaySelling) * 100) : 0;
+                $item->has_pending_change = $hasPendingChange;
 
                 return $item;
             })
@@ -1017,13 +1027,14 @@ class PricelistShowManager extends Component
                         continue;
                     }
 
-                    $payload = [
+                    $proposedPrice = (float) ($row['selling_price'] ?? 0);
+
+                    $sharedPayload = [
                         'analysis_id' => $this->itemForm['analysis_id'],
                         'analysis_element_id' => $analysisElementId,
                         'sample_type_id' => $this->itemForm['sample_type_id'],
                         'cost_price' => (float) ($row['cost_price'] ?? 0),
-                        'selling_price' => (float) ($row['selling_price'] ?? 0),
-                        'changed_price' => (float) ($row['selling_price'] ?? 0),
+                        'changed_price' => $proposedPrice,
                         'vat' => (bool) ($row['vat'] ?? false),
                         'internal_use' => (bool) ($this->itemForm['internal_use'] ?? false),
                         'external_view' => (bool) ($this->itemForm['external_view'] ?? true),
@@ -1041,15 +1052,18 @@ class PricelistShowManager extends Component
                     if ($existing) {
                         PricelistItem::query()
                             ->where('id', $existing->id)
-                            ->update($payload);
+                            ->update($sharedPayload);
 
                         continue;
                     }
 
-                    $payload['id'] = (string) Str::uuid();
-                    $payload['pricelist_id'] = $this->pricelistId;
-                    $payload['level'] = $nextLevel;
-                    $payload['created_at'] = now();
+                    $payload = array_merge($sharedPayload, [
+                        'id' => (string) Str::uuid(),
+                        'pricelist_id' => $this->pricelistId,
+                        'selling_price' => 0,
+                        'level' => $nextLevel,
+                        'created_at' => now(),
+                    ]);
 
                     PricelistItem::query()->create($payload);
                     $nextLevel++;
@@ -1070,14 +1084,64 @@ class PricelistShowManager extends Component
         }
     }
 
-    public function deleteItem(string $itemId): void
+    public function openDeleteItemConfirmModal(string $itemId): void
     {
+        $item = PricelistItem::query()
+            ->with([
+                'sampleType:id,name,code',
+                'analysisType:id,name,code',
+                'analysisElement:id,analyte_id',
+                'analysisElement.analyte:id,name,code',
+            ])
+            ->where('pricelist_id', $this->pricelistId)
+            ->where('id', $itemId)
+            ->first();
+
+        if (! $item) {
+            $this->showMessage('Pricelist item not found.', 'danger');
+
+            return;
+        }
+
+        $this->pendingDeleteItemId = $itemId;
+        $this->pendingDeleteItemPreview = $this->previewFromPricelistItem($item);
+        $this->showDeleteItemConfirmModal = true;
+    }
+
+    public function closeDeleteItemConfirmModal(): void
+    {
+        $this->showDeleteItemConfirmModal = false;
+        $this->pendingDeleteItemId = null;
+        $this->pendingDeleteItemPreview = null;
+    }
+
+    public function confirmDeleteItem(): void
+    {
+        if ($this->pendingDeleteItemId === null) {
+            return;
+        }
+
+        $itemId = $this->pendingDeleteItemId;
+
         try {
-            PricelistItem::query()->where('id', $itemId)->delete();
-            $this->selectedItemIds = array_values(array_filter($this->selectedItemIds, fn ($id) => $id !== $itemId));
-            $this->showMessage('Pricelist item removed.', 'success');
+            $deleted = PricelistItem::query()
+                ->where('pricelist_id', $this->pricelistId)
+                ->where('id', $itemId)
+                ->delete();
+
+            if ($deleted === 0) {
+                $this->showMessage('Pricelist item not found.', 'danger');
+            } else {
+                $this->selectedItemIds = array_values(array_filter(
+                    $this->selectedItemIds,
+                    fn ($id) => $id !== $itemId
+                ));
+                $this->showMessage('Pricelist item removed.', 'success');
+            }
         } catch (\Throwable $e) {
             $this->showMessage('Failed to remove item: ' . $e->getMessage(), 'danger');
+        } finally {
+            $this->closeDeleteItemConfirmModal();
         }
     }
 
@@ -1379,11 +1443,19 @@ class PricelistShowManager extends Component
             $analyteCode = trim((string) ($element->analyte?->code ?? ''));
             $analyteName = trim((string) ($element->analyte?->name ?? ''));
 
+            $proposedPrice = 0.0;
+            if ($existing) {
+                $changedRaw = $existing->changed_price;
+                $proposedPrice = $changedRaw === null || $changedRaw === ''
+                    ? (float) ($existing->selling_price ?? 0)
+                    : (float) $changedRaw;
+            }
+
             return [
                 'analysis_element_id' => (string) $element->id,
                 'analyte_label' => trim($analyteCode !== '' ? ($analyteCode . ' - ' . $analyteName) : $analyteName),
                 'cost_price' => (float) ($existing->cost_price ?? 0),
-                'selling_price' => (float) ($existing->selling_price ?? 0),
+                'selling_price' => $proposedPrice,
                 'vat' => (bool) ($existing->vat ?? false),
             ];
         })->values()->all();

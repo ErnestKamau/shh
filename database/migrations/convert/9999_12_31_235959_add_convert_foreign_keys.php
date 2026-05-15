@@ -321,7 +321,6 @@ return new class extends Migration
             $table->foreign(['escalated_to_user_id'], 'fk_complaints_escalated_to_user_id_71f14b27')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['intake_approved_by'], 'fk_complaints_intake_approved_by_cf863675')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
             $table->foreign(['ticket_category_id'], 'fk_complaints_ticket_category_id_6c44710b')->references(['id'])->on('ticket_categories')->onUpdate('no action')->onDelete('set null');
-            $table->foreign(['complaint_id'], 'fk_complaints_complaint_id_68f339c0')->references(['id'])->on('complaints')->onUpdate('no action')->onDelete('cascade');
         });
 
         $this->safeTable('complaintsresolutions', function (Blueprint $table) {
@@ -3144,7 +3143,6 @@ return new class extends Migration
             $table->dropForeign('fk_complaints_escalated_to_user_id_71f14b27');
             $table->dropForeign('fk_complaints_intake_approved_by_cf863675');
             $table->dropForeign('fk_complaints_ticket_category_id_6c44710b');
-            $table->dropForeign('fk_complaints_complaint_id_68f339c0');
         });
 
         $this->safeTable('complaintnotes', function (Blueprint $table) {
