@@ -1,5 +1,5 @@
 <div class="container-fluid asset-type-manager-page {{ ($showModal || $showDeleteConfirmModal) ? 'modal-active' : '' }}">
-    <!-- Header -->
+    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    <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
