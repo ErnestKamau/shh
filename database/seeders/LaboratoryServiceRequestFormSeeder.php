@@ -73,7 +73,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'is_customer_portal_form' => true,
             'form_type' => 'template',
             'placement_slot' => ['customer_portal', 'admin_portal'],
-            'created_by' => '1', // Assign to main admin
+            'created_by' => \App\User::where('email', 'admin@lab.kra.go.ke')->value('id') ?: '00000000-0000-0000-0000-000000000000',
         ]);
         $form->save();
 
