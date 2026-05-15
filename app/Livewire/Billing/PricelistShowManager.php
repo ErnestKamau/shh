@@ -59,6 +59,13 @@ class PricelistShowManager extends Component
     public $cloneForm = [];
     public string $itemCommitFilter = 'all';
 
+    public bool $showDeleteItemConfirmModal = false;
+
+    public ?string $pendingDeleteItemId = null;
+
+    /** @var array<string, mixed>|null */
+    public ?array $pendingDeleteItemPreview = null;
+
     public function mount(string $pricelistId, $print = null): void
     {
         $this->pricelistId = $pricelistId;
@@ -1022,8 +1029,7 @@ class PricelistShowManager extends Component
                         'analysis_element_id' => $analysisElementId,
                         'sample_type_id' => $this->itemForm['sample_type_id'],
                         'cost_price' => (float) ($row['cost_price'] ?? 0),
-                        'selling_price' => (float) ($row['selling_price'] ?? 0),
-                        'changed_price' => (float) ($row['selling_price'] ?? 0),
+                        'changed_price' => $proposedPrice,
                         'vat' => (bool) ($row['vat'] ?? false),
                         'internal_use' => (bool) ($this->itemForm['internal_use'] ?? false),
                         'external_view' => (bool) ($this->itemForm['external_view'] ?? true),
@@ -1041,15 +1047,18 @@ class PricelistShowManager extends Component
                     if ($existing) {
                         PricelistItem::query()
                             ->where('id', $existing->id)
-                            ->update($payload);
+                            ->update($sharedPayload);
 
                         continue;
                     }
 
-                    $payload['id'] = (string) Str::uuid();
-                    $payload['pricelist_id'] = $this->pricelistId;
-                    $payload['level'] = $nextLevel;
-                    $payload['created_at'] = now();
+                    $payload = array_merge($sharedPayload, [
+                        'id' => (string) Str::uuid(),
+                        'pricelist_id' => $this->pricelistId,
+                        'selling_price' => 0,
+                        'level' => $nextLevel,
+                        'created_at' => now(),
+                    ]);
 
                     PricelistItem::query()->create($payload);
                     $nextLevel++;
@@ -1070,14 +1079,64 @@ class PricelistShowManager extends Component
         }
     }
 
-    public function deleteItem(string $itemId): void
+    public function openDeleteItemConfirmModal(string $itemId): void
     {
+        $item = PricelistItem::query()
+            ->with([
+                'sampleType:id,name,code',
+                'analysisType:id,name,code',
+                'analysisElement:id,analyte_id',
+                'analysisElement.analyte:id,name,code',
+            ])
+            ->where('pricelist_id', $this->pricelistId)
+            ->where('id', $itemId)
+            ->first();
+
+        if (! $item) {
+            $this->showMessage('Pricelist item not found.', 'danger');
+
+            return;
+        }
+
+        $this->pendingDeleteItemId = $itemId;
+        $this->pendingDeleteItemPreview = $this->previewFromPricelistItem($item);
+        $this->showDeleteItemConfirmModal = true;
+    }
+
+    public function closeDeleteItemConfirmModal(): void
+    {
+        $this->showDeleteItemConfirmModal = false;
+        $this->pendingDeleteItemId = null;
+        $this->pendingDeleteItemPreview = null;
+    }
+
+    public function confirmDeleteItem(): void
+    {
+        if ($this->pendingDeleteItemId === null) {
+            return;
+        }
+
+        $itemId = $this->pendingDeleteItemId;
+
         try {
-            PricelistItem::query()->where('id', $itemId)->delete();
-            $this->selectedItemIds = array_values(array_filter($this->selectedItemIds, fn ($id) => $id !== $itemId));
-            $this->showMessage('Pricelist item removed.', 'success');
+            $deleted = PricelistItem::query()
+                ->where('pricelist_id', $this->pricelistId)
+                ->where('id', $itemId)
+                ->delete();
+
+            if ($deleted === 0) {
+                $this->showMessage('Pricelist item not found.', 'danger');
+            } else {
+                $this->selectedItemIds = array_values(array_filter(
+                    $this->selectedItemIds,
+                    fn ($id) => $id !== $itemId
+                ));
+                $this->showMessage('Pricelist item removed.', 'success');
+            }
         } catch (\Throwable $e) {
             $this->showMessage('Failed to remove item: ' . $e->getMessage(), 'danger');
+        } finally {
+            $this->closeDeleteItemConfirmModal();
         }
     }
 
@@ -1379,11 +1438,19 @@ class PricelistShowManager extends Component
             $analyteCode = trim((string) ($element->analyte?->code ?? ''));
             $analyteName = trim((string) ($element->analyte?->name ?? ''));
 
+            $proposedPrice = 0.0;
+            if ($existing) {
+                $changedRaw = $existing->changed_price;
+                $proposedPrice = $changedRaw === null || $changedRaw === ''
+                    ? (float) ($existing->selling_price ?? 0)
+                    : (float) $changedRaw;
+            }
+
             return [
                 'analysis_element_id' => (string) $element->id,
                 'analyte_label' => trim($analyteCode !== '' ? ($analyteCode . ' - ' . $analyteName) : $analyteName),
                 'cost_price' => (float) ($existing->cost_price ?? 0),
-                'selling_price' => (float) ($existing->selling_price ?? 0),
+                'selling_price' => $proposedPrice,
                 'vat' => (bool) ($existing->vat ?? false),
             ];
         })->values()->all();
@@ -1422,6 +1489,44 @@ class PricelistShowManager extends Component
             'PREPAID', 'PRE PAID' => 'Prepaid',
             default => $normalized !== '' ? ucwords(strtolower(str_replace('_', ' ', $normalized))) : 'Not set',
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function previewFromPricelistItem(PricelistItem $item): array
+    {
+        $sampleType = $item->sampleType;
+        $analysisType = $item->analysisType;
+        $analyte = $item->analysisElement?->analyte;
+
+        $analyteCode = trim((string) ($analyte?->code ?? ''));
+        $analyteName = trim((string) ($analyte?->name ?? ''));
+        $analyteLabel = $analyteCode !== ''
+            ? trim($analyteCode . ' - ' . $analyteName)
+            : ($analyteName !== '' ? $analyteName : 'N/A');
+
+        $selling = (float) ($item->selling_price ?? 0);
+        $changedRaw = $item->changed_price;
+        $changed = $changedRaw === null || $changedRaw === ''
+            ? $selling
+            : (float) $changedRaw;
+        $hasPendingChange = abs($selling - $changed) > 0.004;
+
+        return [
+            'analyte' => $analyteLabel,
+            'sample_type' => (string) ($sampleType->name ?? '—'),
+            'sample_type_code' => (string) ($sampleType->code ?? ''),
+            'analysis_type' => (string) ($analysisType->name ?? '—'),
+            'analysis_type_code' => (string) ($analysisType->code ?? ''),
+            'cost_price' => number_format((float) ($item->cost_price ?? 0), 2),
+            'applied_price' => number_format($selling, 2),
+            'changed_price' => number_format($changed, 2),
+            'has_pending_change' => $hasPendingChange,
+            'commit_state' => $hasPendingChange ? 'Pending' : 'Applied',
+            'vat' => (bool) ($item->vat ?? false) ? 'Yes' : 'No',
+            'active' => (bool) ($item->active ?? false) ? 'Active' : 'Inactive',
+        ];
     }
 
     public function render()

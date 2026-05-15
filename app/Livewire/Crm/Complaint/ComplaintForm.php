@@ -677,13 +677,15 @@ class ComplaintForm extends BaseCrmComponent
             $complaint->contact_name = (string) $this->contact_name;
         }
         
-        if ($this->customerId) {
-            $complaint->client_id = $this->customerId;
+        if ($this->received_from_type === 'Customer') {
+            if ($this->customerId) {
+                $complaint->client_id = $this->customerId;
+            } else {
+                $customer = CRMCustomer::where('name', $this->organization_name)->first();
+                $complaint->client_id = $customer?->id;
+            }
         } else {
-             $customer = CRMCustomer::where('name', $this->organization_name)->first();
-             if ($customer) {
-                $complaint->client_id = $customer->id;
-             }
+            $complaint->client_id = null;
         }
         
         $complaint->save();

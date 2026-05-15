@@ -1,4 +1,4 @@
-<div class="container-fluid pricelist-show-page {{ ($showItemModal || $showCloneModal) ? 'modal-active' : '' }}">
+<div class="container-fluid pricelist-show-page {{ ($showItemModal || $showCloneModal || $showDeleteItemConfirmModal) ? 'modal-active' : '' }}">
     @if($message)
         <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show shadow-sm" role="alert">
             {{ $message }}
@@ -568,7 +568,7 @@
                                                                                         <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit" wire:click="showEditItemModal(@js($item->id))" title="Edit item">
                                                                                             <i class="mdi mdi-pencil-outline"></i>
                                                                                         </button>
-                                                                                        <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click="deleteItem(@js($item->id))" title="Delete item" onclick="return confirm('Delete this pricelist item?')">
+                                                                                        <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click="openDeleteItemConfirmModal(@js($item->id))" title="Delete item">
                                                                                             <i class="mdi mdi-delete"></i>
                                                                                         </button>
                                                                                     </div>
@@ -580,7 +580,7 @@
                                                                                     @endif
                                                                                 </td>
                                                                                 <td>{{ number_format((float) ($item->cost_price ?? 0), 2) }}</td>
-                                                                                <td>{{ number_format((float) ($item->selling_price ?? 0), 2) }}</td>
+                                                                                <td>{{ number_format((float) ($item->display_selling_price ?? $item->selling_price ?? 0), 2) }}</td>
                                                                                 <td>{{ number_format((float) ($item->profit ?? 0), 2) }}</td>
                                                                                 <td>{{ number_format((float) ($item->profit_margin ?? 0), 2) }}%</td>
                                                                                 <td>
@@ -733,7 +733,7 @@
                                                 <tr>
                                                     <th>Analyte</th>
                                                     <th>Cost Price</th>
-                                                    <th>Selling Price</th>
+                                                    <th>Changed Price</th>
                                                     <th>Has VAT</th>
                                                 </tr>
                                             </thead>
@@ -805,7 +805,7 @@
 
                             <div class="item-modal-note mt-3">
                                 <i class="mdi mdi-information-outline"></i>
-                                Keep changed price in sync with your intended revision before applying price changes.
+                                New and updated prices are saved as pending until you use Apply Price Changes on the pricelist items tab.
                             </div>
                         </div>
                         <div class="modal-footer border-0 item-modal-footer">
@@ -858,6 +858,12 @@
                     </div>
                 </div>
             </div>
+        @endif
+
+        @if($showDeleteItemConfirmModal)
+            @include('livewire.billing.partials.delete-pricelist-item-confirm-modal', [
+                'preview' => $pendingDeleteItemPreview,
+            ])
         @endif
     @endif
 
@@ -1818,6 +1824,262 @@
             .analysis-collapse-total {
                 text-align: left;
             }
+        }
+
+        /* Delete confirmation modal (matches equipment calibration log style) */
+        .pricelist-show-page .eq-delete-overlay {
+            background: rgba(15, 23, 42, 0.52) !important;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 1060;
+            overflow-x: hidden;
+        }
+
+        .pricelist-show-page .eq-delete-dialog {
+            max-width: min(640px, calc(100vw - 1.5rem));
+        }
+
+        .pricelist-show-page .eq-delete-shell {
+            border-radius: 20px;
+            overflow: hidden;
+            background: #ffffff;
+            box-shadow:
+                0 24px 48px rgba(15, 23, 42, 0.18),
+                0 0 0 1px rgba(226, 232, 240, 0.9);
+        }
+
+        .pricelist-show-page .eq-delete-body {
+            position: relative;
+            padding: 1.35rem 1.35rem 1.1rem;
+            background: linear-gradient(180deg, #fafbfc 0%, #ffffff 42%);
+            overflow-x: hidden;
+        }
+
+        .pricelist-show-page .eq-delete-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2;
+            opacity: 0.45;
+            padding: 0.5rem;
+            border-radius: 10px;
+            transition: opacity 0.15s ease, background-color 0.15s ease;
+        }
+
+        .pricelist-show-page .eq-delete-close:hover {
+            opacity: 0.85;
+            background-color: rgba(15, 23, 42, 0.06);
+        }
+
+        .pricelist-show-page .eq-delete-frame {
+            position: relative;
+            padding: 1.25rem 1.35rem 1.15rem;
+            border-radius: 14px;
+            border: 2px dashed rgba(220, 38, 38, 0.55);
+            background:
+                linear-gradient(145deg, rgba(254, 242, 242, 0.65) 0%, rgba(255, 255, 255, 0.92) 38%, #ffffff 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            overflow: hidden;
+        }
+
+        .pricelist-show-page .eq-delete-frame--scroll {
+            max-height: min(52vh, 28rem);
+            overflow-x: hidden;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .pricelist-show-page .eq-delete-frame__glow {
+            position: absolute;
+            top: -30%;
+            right: 0;
+            width: 45%;
+            height: 70%;
+            background: radial-gradient(ellipse at center, rgba(248, 113, 113, 0.12) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .pricelist-show-page .eq-delete-frame-footer {
+            margin-top: 1rem;
+            padding-top: 0.85rem;
+            border-top: 1px solid rgba(254, 202, 202, 0.5);
+        }
+
+        .pricelist-show-page .eq-delete-intro {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            margin-bottom: 1.15rem;
+            padding-right: 1.5rem;
+        }
+
+        .pricelist-show-page .eq-delete-intro__icon {
+            flex-shrink: 0;
+            width: 2.75rem;
+            height: 2.75rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 1.35rem;
+            color: #b91c1c;
+            background: linear-gradient(135deg, #fff 0%, #fef2f2 100%);
+            border: 1px solid rgba(254, 202, 202, 0.9);
+            box-shadow: 0 4px 12px rgba(185, 28, 28, 0.1);
+        }
+
+        .pricelist-show-page .eq-delete-intro__eyebrow {
+            margin: 0 0 0.2rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #b91c1c;
+        }
+
+        .pricelist-show-page .eq-delete-intro__lead {
+            margin: 0;
+            font-size: 0.875rem;
+            line-height: 1.45;
+            color: #64748b;
+        }
+
+        .pricelist-show-page .eq-delete-details {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 480px) {
+            .pricelist-show-page .eq-delete-details {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pricelist-show-page .eq-delete-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            min-width: 0;
+        }
+
+        .pricelist-show-page .eq-delete-field--span,
+        .pricelist-show-page .eq-delete-field--full {
+            grid-column: 1 / -1;
+        }
+
+        .pricelist-show-page .eq-delete-field__label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        .pricelist-show-page .eq-delete-field__value {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #1e293b;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .pricelist-show-page .eq-delete-field__value--primary {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .pricelist-show-page .eq-delete-field__value--mono {
+            font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.875rem;
+        }
+
+        .pricelist-show-page .eq-delete-pill {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #334155;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+        }
+
+        .pricelist-show-page .eq-delete-warning {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.65rem;
+            margin-top: 0.15rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+            border: 1px solid rgba(254, 202, 202, 0.65);
+        }
+
+        .pricelist-show-page .eq-delete-warning__icon {
+            flex-shrink: 0;
+            font-size: 1.15rem;
+            color: #dc2626;
+            margin-top: 0.05rem;
+        }
+
+        .pricelist-show-page .eq-delete-warning__text {
+            font-size: 0.8125rem;
+            line-height: 1.45;
+            color: #991b1b;
+            font-weight: 500;
+        }
+
+        .pricelist-show-page .eq-delete-footer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            padding: 0.85rem 1.35rem 1.25rem;
+            background: #fafbfc;
+            border-top: 1px solid #eef2f6;
+        }
+
+        .pricelist-show-page .eq-delete-btn {
+            border-radius: 10px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 0.5rem 1.15rem;
+            transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+        }
+
+        .pricelist-show-page .eq-delete-btn--cancel {
+            color: #475569;
+            background: #ffffff;
+            border: 1px solid #d8e0eb;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .pricelist-show-page .eq-delete-btn--cancel:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #334155;
+        }
+
+        .pricelist-show-page .eq-delete-btn--confirm {
+            color: #ffffff;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            border: none;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+        }
+
+        .pricelist-show-page .eq-delete-btn--confirm:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 6px 18px rgba(220, 38, 38, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .pricelist-show-page .eq-delete-btn--confirm:disabled {
+            opacity: 0.72;
         }
 
         @media (max-width: 767.98px) {

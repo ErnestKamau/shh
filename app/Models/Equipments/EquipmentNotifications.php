@@ -15,5 +15,18 @@ class EquipmentNotifications extends Model implements Auditable
     public $incrementing = false;
 
     use \OwenIt\Auditing\Auditable;
-    protected $table = "equipment_notification";
+
+    protected $table = 'equipment_notification';
+
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'equipment_id',
+        'frequency',
+        'value',
+        'next_date',
+        'is_sent',
+        'notification_type',
+    ];
 }

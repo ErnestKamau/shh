@@ -165,7 +165,7 @@ class ElementManager extends Component
         $this->analytes = Analyte::where('active', 1)->get();
         $this->methods = AnalysisMethod::where('active', 1)->get();
         $this->equipment = Equipment::where('active', 1)->get();
-        $this->operators = User::where('active', 1)->get();
+        $this->operators = User::where('active', 1)->where('is_client', 0)->get();
         $this->remedyHeaders = \App\Models\RemedyHeader::all();
         $this->reportingUnits = ReportingUnit::where('active', 1)->get();
         $this->formulars = \App\Models\Formulars\Formula::where('is_active', 1)->get();
@@ -224,7 +224,7 @@ class ElementManager extends Component
         $this->filteredAnalytes = Analyte::where('active', 1)->orderBy('name')->get();
         $this->filteredMethods = AnalysisMethod::where('active', 1)->orderBy('name')->get();
         $this->filteredEquipment = Equipment::where('active', 1)->orderBy('name')->get();
-        $this->filteredOperators = User::where('active', 1)->orderBy('name')->get();
+        $this->filteredOperators = User::where('active', 1)->where('is_client', 0)->orderBy('name')->get();
         $this->filteredReportingUnits = ReportingUnit::orderBy('name')->get();
         $this->showElementModal = true;
         $this->editingElement = null;
@@ -606,6 +606,7 @@ class ElementManager extends Component
         $search = $this->operatorSearch;
         
         $this->filteredOperators = User::where('active', 1)
+            ->where('is_client', 0)
             ->where('name', 'like', '%' . $search . '%')
             ->limit(10)
             ->get();

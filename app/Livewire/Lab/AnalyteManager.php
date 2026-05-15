@@ -170,6 +170,8 @@ class AnalyteManager extends Component
                 'equivalent_weight' => $this->analyteForm['equivalent_weight'],
                 'reporting_symbol' => $this->analyteForm['reporting_symbol'],
                 'reporting_unit' => $this->analyteForm['reporting_unit'],
+                'method' => implode(',', $this->analyteForm['method'] ?? []),
+                'equipment_id' => implode(',', $this->analyteForm['equipment_id'] ?? []),
                 'is_italic' => ($this->analyteForm['is_italic'] ?? false) ? 1 : 0,
                 'non_detectable' => ($this->analyteForm['non_detectable'] ?? false) ? 1 : 0,
                 'non_accredited' => ($this->analyteForm['non_accredited'] ?? false) ? 1 : 0,

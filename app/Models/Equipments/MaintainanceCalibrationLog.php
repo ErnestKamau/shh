@@ -18,6 +18,7 @@ class MaintainanceCalibrationLog extends Model implements Auditable
 
 	protected $fillable = [
 		'equipment_id',
+		'description',
 		'service_provider',
 		'notes',
 		'correction_factor',

@@ -77,23 +77,21 @@
 				</div>
 			</a>
 			<div id="sample-workflow-menu" class="collapse sidebar-submenu">
-				<?php
-				$menuTotals = getComplaintWorkflowStages();
-				$totals = array();
-				// foreach($menuTotals  as $total){
-				// 	$totals['$total'] = getComplaintsInWorkflow($loop->iteration-1);
-				// }
-				?>
 				@foreach (getComplaintWorkflowStages() as $item)
-				<a href="{{route('crm.complaints-manager',['stage'=>$item])}}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ translateComplaintWorkflowStage($item) }}
-						@if ($item == "All Complaints")
-						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getAllComplaints() }}</small>
-						@endif
-						@if($item != "All Complaints")
-						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getComplaintsInWorkflow($loop->iteration-1) ?? 0 }}</small>
-						@endif
-					</span>
+				@php
+					$complaintCountBadge = $item === 'All Complaints'
+						? getAllComplaints()
+						: (getComplaintsInWorkflow($loop->iteration - 1) ?? 0);
+					$complaintBadgeClass = $item === 'Samples Request Review' ? 'badge-danger' : 'badge-dark';
+				@endphp
+				<a href="{{ route('crm.complaints-manager', ['stage' => $item]) }}" class="list-group-item list-group-item-action bg-dark text-white crm-sidebar-complaint-stage-link">
+					<div class="d-flex w-100 align-items-center justify-content-between menu-collapsed" style="gap: 0.5rem;">
+						<span class="text-truncate d-flex align-items-center min-w-0">
+							<i class="mdi mdi-circle-medium flex-shrink-0"></i>
+							<span>{{ translateComplaintWorkflowStage($item) }}</span>
+						</span>
+						<small class="badge badge-pill {{ $complaintBadgeClass }} flex-shrink-0 crm-sidebar-complaint-count">{{ $complaintCountBadge }}</small>
+					</div>
 				</a>
 				@endforeach
 			</div>
