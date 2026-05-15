@@ -232,17 +232,18 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'user' => [
-                    'headers' => ['first_name*', 'middle_name', 'last_name*', 'full_name', 'email*', 'zone_code', 'department_code', 'password*'],
+                    'headers' => ['first_name*', 'last_name*', 'full_name', 'email*', 'zone_code', 'zone_name', 'department_name', 'position'],
                     'examples' => [
-                        ['John', 'Doe', 'john@example.com', 'ZONE-001', 'QA', 'SecurePassword123!'],
+                        ['John', 'Doe', 'John Doe', 'john@example.com', 'ZONE-001', 'Main Zone', 'Quality Assurance', 'Analyst'],
                     ],
                     'rules' => [
                         'first_name' => 'required|string|max:100',
                         'last_name' => 'required|string|max:100',
                         'email' => 'required|email|max:255|unique:users,email',
                         'zone_code' => 'nullable|string|max:100',
-                        'department_code' => 'nullable|string|max:100',
-                        'password' => 'required|string|min:8',
+                        'zone_name' => 'nullable|string|max:255',
+                        'department_name' => 'nullable|string|max:255',
+                        'position' => 'nullable|string|max:255',
                     ],
                 ],
             ],

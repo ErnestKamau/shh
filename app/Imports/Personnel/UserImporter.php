@@ -6,6 +6,7 @@ use App\Imports\BaseImporter;
 use App\User;
 use App\Zone;
 use App\InventoryDepartment;
+use App\ModulePreConfigs;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -16,10 +17,9 @@ class UserImporter extends BaseImporter
     protected function onSheetLoaded(string $title): void
     {
         // Try to find a zone that matches the sheet title
-        $this->defaultZone = Zone::where('company_id', $this->batch->company_id)
-            ->where(function($q) use ($title) {
-                $q->where('name', 'like', "%$title%")
-                  ->orWhere('code', 'like', "%$title%");
+        $this->defaultZone = Zone::where(function($q) use ($title) {
+                $q->where('value', 'like', "%$title%")
+                  ->orWhere('key', 'like', "%$title%");
             })
             ->first();
     }
@@ -71,25 +71,42 @@ class UserImporter extends BaseImporter
         }
 
         $email = $this->fuzzyGet($row, ['email', 'email_address', 'e-mail', 'official_email', 'work_email', 'mail', 'emailaddress', 'user_id', 'login', 'username', 'id_number']);
-        $passwordRaw = $this->fuzzyGet($row, ['password', 'pass', 'pwd'], Str::random(12));
+        $passwordRaw = Str::random(12);
 
         $zoneCode = $this->fuzzyGet($row, ['zone_code', 'zone', 'location_code', 'location', 'site', 'branch']);
+        $zoneName = $this->fuzzyGet($row, ['zone_name']);
         $zone = $this->defaultZone;
 
-        if ($zoneCode) {
-            $zone = Zone::where(function($q) use ($zoneCode) {
-                    $q->where('code', (string)$zoneCode)->orWhere('name', 'like', "%$zoneCode%");
+        if ($zoneCode || $zoneName) {
+            $zone = Zone::where(function($q) use ($zoneCode, $zoneName) {
+                    if ($zoneCode) {
+                        $q->where('key', (string)$zoneCode)->orWhere('value', 'like', "%$zoneCode%");
+                    }
+                    if ($zoneName) {
+                        $q->orWhere('value', (string)$zoneName)->orWhere('value', 'like', "%$zoneName%");
+                    }
                 })
-                ->where('company_id', $this->batch->company_id)
                 ->first() ?: $this->defaultZone;
         }
 
-        $deptCode = $this->fuzzyGet($row, ['department_code', 'department', 'dept', 'unit', 'section']);
-        $department = InventoryDepartment::where(function($q) use ($deptCode) {
-                $q->where('name', (string)$deptCode)->orWhere('name', 'like', "%$deptCode%");
+        $deptName = $this->fuzzyGet($row, ['department_name', 'department', 'dept', 'unit', 'section']);
+        $department = InventoryDepartment::where(function($q) use ($deptName) {
+                $q->where('name', (string)$deptName)->orWhere('name', 'like', "%$deptName%");
             })
+            ->where('company_id', $this->batch->company_id)
             ->where('module', 'organizational')
             ->first();
+
+        $positionName = $this->fuzzyGet($row, ['position', 'job_title', 'designation', 'role_name']);
+        $position = null;
+        if ($positionName) {
+            $position = ModulePreConfigs::where('type', 'Job Description')
+                ->where(function($q) use ($positionName) {
+                    $q->where('name', (string)$positionName)
+                      ->orWhere('name', 'like', "%$positionName%");
+                })
+                ->first();
+        }
 
         return [
             'name' => $fullName,
@@ -100,6 +117,7 @@ class UserImporter extends BaseImporter
             'password' => Hash::make($passwordRaw),
             'zone_id' => $zone?->id,
             'department_id' => $department?->id,
+            'position' => $position?->id,
             'company_id' => $this->batch->company_id,
             'active' => 1,
             'email_verified_at' => now(),

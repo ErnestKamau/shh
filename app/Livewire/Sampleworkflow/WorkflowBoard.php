@@ -399,9 +399,10 @@ class WorkflowBoard extends Component
 
         $results = $query->paginate(10, ['*'], 'forms_page');
 
-        \Illuminate\Support\Facades\Log::info('LIMS submission forms query results:', [
-            'total' => $results->total(),
-            'page' => $results->currentPage(),
+        \Illuminate\Support\Facades\Log::info('LIMS: Samples Reception querying for submission forms.', [
+            'status' => $this->status,
+            'sub_tab' => $this->workflowSubTab,
+            'results_count' => $results->total(),
         ]);
 
         return $results;
@@ -801,11 +802,15 @@ class WorkflowBoard extends Component
             });
         }
 
-        if ($this->customerFilter) {
-            $query->where('crm_customer_id', $this->customerFilter);
-        }
+        $results = $query->paginate($this->batchesPerPage, ['*'], 'portal_submissions_page');
 
-        return $query->paginate($this->batchesPerPage, ['*'], 'portal_submissions_page');
+        \Illuminate\Support\Facades\Log::info('LIMS: Samples Reception querying for portal submissions (Requests).', [
+            'status' => $this->status,
+            'sub_tab' => $this->workflowSubTab,
+            'results_count' => $results->total(),
+        ]);
+
+        return $results;
     }
     
     /**
