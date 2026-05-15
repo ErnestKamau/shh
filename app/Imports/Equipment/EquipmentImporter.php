@@ -13,36 +13,16 @@ class EquipmentImporter extends BaseImporter
     {
         $errors = [];
 
-        if (empty($row['equipment_number'] ?? null)) {
+        if (!$this->hasFuzzy($row, ['equipment_number', 'equipment_no', 's/n', 'id'])) {
             $errors[] = 'Equipment number is required';
         }
 
-        if (empty($row['make'] ?? null)) {
-            $errors[] = 'Make is required';
+        if (!$this->hasFuzzy($row, ['make', 'manufacturer', 'brand'])) {
+            $errors[] = 'Make/Manufacturer is required';
         }
 
-        if (empty($row['model'] ?? null)) {
+        if (!$this->hasFuzzy($row, ['model', 'type'])) {
             $errors[] = 'Model is required';
-        }
-
-        if (empty($row['serial_number'] ?? null)) {
-            $errors[] = 'Serial number is required';
-        }
-
-        if (empty($row['asset_type_code'] ?? null)) {
-            $errors[] = 'Asset type code is required';
-        } else {
-            if (!AssetType::where('asset_code', $row['asset_type_code'])->where('company_id', $this->batch->company_id)->exists()) {
-                $errors[] = "Asset type '{$row['asset_type_code']}' does not exist";
-            }
-        }
-
-        if (empty($row['asset_location_code'] ?? null)) {
-            $errors[] = 'Asset location code is required';
-        } else {
-            if (!AssetLocation::where('location_code', $row['asset_location_code'])->where('company_id', $this->batch->company_id)->exists()) {
-                $errors[] = "Asset location '{$row['asset_location_code']}' does not exist";
-            }
         }
 
         return $errors;
@@ -50,20 +30,37 @@ class EquipmentImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $assetType = AssetType::where('asset_code', $row['asset_type_code'])->where('company_id', $this->batch->company_id)->first();
-        $assetLocation = AssetLocation::where('location_code', $row['asset_location_code'])->where('company_id', $this->batch->company_id)->first();
+        $equipmentNumber = $this->fuzzyGet($row, ['equipment_number', 'equipment_no', 's/n', 'id']);
+        $make = $this->fuzzyGet($row, ['make', 'manufacturer', 'brand']);
+        $model = $this->fuzzyGet($row, ['model', 'type']);
+        $serialNumber = $this->fuzzyGet($row, ['serial_number', 'serial_no', 'sn']);
+        
+        $assetTypeCode = $this->fuzzyGet($row, ['asset_type_code', 'asset_type', 'category']);
+        $assetLocationCode = $this->fuzzyGet($row, ['asset_location_code', 'asset_location', 'location', 'department']);
+
+        $assetType = AssetType::where(function($q) use ($assetTypeCode) {
+                $q->where('asset_code', $assetTypeCode)->orWhere('description', 'like', "%$assetTypeCode%");
+            })
+            ->where('company_id', $this->batch->company_id)
+            ->first();
+
+        $assetLocation = AssetLocation::where(function($q) use ($assetLocationCode) {
+                $q->where('location_code', $assetLocationCode)->orWhere('name', 'like', "%$assetLocationCode%");
+            })
+            ->where('company_id', $this->batch->company_id)
+            ->first();
 
         return [
-            'equipment_number' => $row['equipment_number'],
-            'make' => $row['make'],
-            'model' => $row['model'],
-            'serial_number' => $row['serial_number'],
+            'equipment_number' => $equipmentNumber,
+            'make' => $make,
+            'model' => $model,
+            'serial_number' => $serialNumber,
             'asset_type_id' => $assetType?->id,
             'asset_location_id' => $assetLocation?->id,
-            'calibration_days' => $row['calibration_days'] ?? null,
-            'maintainance_days' => $row['maintenance_days'] ?? null,
-            'requires_daily_log' => $row['requires_daily_log'] ?? 0,
-            'daily_log_value_type' => $row['daily_log_value_type'] ?? null,
+            'calibration_days' => $this->fuzzyGet($row, ['calibration_days', 'calibration_interval', 'cal_days']),
+            'maintainance_days' => $this->fuzzyGet($row, ['maintenance_days', 'maintenance_interval', 'maint_days']),
+            'requires_daily_log' => $this->fuzzyGet($row, ['requires_daily_log', 'daily_log'], 0),
+            'daily_log_value_type' => $this->fuzzyGet($row, ['daily_log_value_type', 'log_type']),
             'company_id' => $this->batch->company_id,
         ];
     }

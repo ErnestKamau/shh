@@ -65,7 +65,6 @@ class BulkImportBatch extends Model
         
         $this->errors_json = $errors;
         $this->error_rows = count($errors);
-        $this->save();
     }
 
     /**
@@ -80,7 +79,6 @@ class BulkImportBatch extends Model
         $upserted[$action][] = $identifier;
         
         $this->upserted_summary = $upserted;
-        $this->save();
     }
 
     /**

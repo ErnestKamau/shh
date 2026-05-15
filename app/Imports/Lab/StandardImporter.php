@@ -13,16 +13,12 @@ class StandardImporter extends BaseImporter
     {
         $errors = [];
 
-        if (empty($row['code'] ?? null)) {
-            $errors[] = 'Code is required';
+        if (!$this->hasFuzzy($row, ['code', 'standard_number', 'tzs_number', 'standard_code'])) {
+            $errors[] = 'Standard code/number is required';
         }
 
-        if (empty($row['main_standard'] ?? null)) {
-            $errors[] = 'Main standard is required';
-        }
-
-        if (empty($row['analyte_codes'] ?? null)) {
-            $errors[] = 'Analyte codes are required (comma-separated)';
+        if (!$this->hasFuzzy($row, ['main_standard', 'title', 'standard_name', 'name'])) {
+            $errors[] = 'Main standard/title is required';
         }
 
         return $errors;
@@ -30,13 +26,22 @@ class StandardImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $analyteCodes = array_map('trim', explode(',', $row['analyte_codes'] ?? ''));
+        $code = $this->fuzzyGet($row, ['code', 'standard_number', 'tzs_number', 'standard_code']);
+        $mainStandard = $this->fuzzyGet($row, ['main_standard', 'title', 'standard_name', 'name']);
+        $isQc = $this->fuzzyGet($row, ['is_qc_standard', 'is_qc', 'qc'], 0);
+        $qcType = $this->fuzzyGet($row, ['qc_type', 'type']);
+        $analyteCodesRaw = $this->fuzzyGet($row, ['analyte_codes', 'analytes', 'parameters']);
+        
+        $analyteCodes = [];
+        if (!empty($analyteCodesRaw)) {
+            $analyteCodes = array_map('trim', explode(',', (string)$analyteCodesRaw));
+        }
 
         return [
-            'code' => $row['code'],
-            'main_standard' => $row['main_standard'],
-            'is_qc_standard' => $row['is_qc_standard'] ?? 0,
-            'qc_type' => $row['qc_type'] ?? null,
+            'code' => $code,
+            'main_standard' => $mainStandard,
+            'is_qc_standard' => (int)$isQc,
+            'qc_type' => $qcType,
             'analyte_codes' => $analyteCodes,
             'company_id' => $this->batch->company_id,
         ];

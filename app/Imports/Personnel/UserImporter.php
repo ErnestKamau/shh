@@ -11,28 +11,33 @@ use Illuminate\Support\Str;
 
 class UserImporter extends BaseImporter
 {
+    protected ?Zone $defaultZone = null;
+
+    protected function onSheetLoaded(string $title): void
+    {
+        // Try to find a zone that matches the sheet title
+        $this->defaultZone = Zone::where('company_id', $this->batch->company_id)
+            ->where(function($q) use ($title) {
+                $q->where('name', 'like', "%$title%")
+                  ->orWhere('code', 'like', "%$title%");
+            })
+            ->first();
+    }
+
     protected function validateRow(array $row): array
     {
         $errors = [];
+        $headerList = implode(', ', array_slice($this->detectedHeaders, 0, 15));
 
-        if (empty($row['first_name'] ?? null)) {
-            $errors[] = 'First name is required';
+        $firstName = $this->fuzzyGet($row, ['first_name', 'fname', 'given_name', 'first_names', 'names', 'firstname']);
+        $fullName = $this->fuzzyGet($row, ['name', 'full_name', 'employee_name', 'person_name', 'staff_name', 'employee', 'staff', 'user_name', 'user']);
+
+        if (empty($firstName) && empty($fullName)) {
+            $errors[] = "First name or Full name is required. (Found headers: {$headerList})";
         }
 
-        if (empty($row['last_name'] ?? null)) {
-            $errors[] = 'Last name is required';
-        }
-
-        if (empty($row['email'] ?? null)) {
-            $errors[] = 'Email is required';
-        } elseif (!filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Email format is invalid';
-        }
-
-        if (empty($row['password'] ?? null)) {
-            $errors[] = 'Password is required';
-        } elseif (strlen($row['password']) < 8) {
-            $errors[] = 'Password must be at least 8 characters';
+        if (empty($this->fuzzyGet($row, ['email', 'email_address', 'e-mail', 'official_email', 'work_email', 'mail', 'emailaddress', 'user_id', 'login', 'username', 'id_number']))) {
+            $errors[] = "Email is required. (Found headers: {$headerList})";
         }
 
         return $errors;
@@ -40,20 +45,59 @@ class UserImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $zone = null;
-        if (!empty($row['zone_code'])) {
-            $zone = Zone::where('code', $row['zone_code'])->where('company_id', $this->batch->company_id)->first();
+        $firstName = $this->fuzzyGet($row, ['first_name', 'fname', 'given_name', 'firstname']);
+        $middleName = $this->fuzzyGet($row, ['middle_name', 'mname', 'middlename']);
+        $lastName = $this->fuzzyGet($row, ['last_name', 'lname', 'surname', 'family_name', 'lastname']);
+        $fullName = $this->fuzzyGet($row, ['name', 'full_name', 'employee_name', 'person_name', 'staff_name', 'employee', 'staff', 'user_name', 'user']);
+
+        // Logic for splitting full name if components are missing
+        if (empty($firstName) && !empty($fullName)) {
+            $parts = explode(' ', trim((string)$fullName));
+            if (count($parts) === 1) {
+                $firstName = $parts[0];
+            } elseif (count($parts) === 2) {
+                $firstName = $parts[0];
+                $lastName = $parts[1];
+            } else {
+                $firstName = $parts[0];
+                $middleName = $parts[1];
+                $lastName = implode(' ', array_slice($parts, 2));
+            }
         }
 
-        $department = null;
-        if (!empty($row['department_code'])) {
-            $department = InventoryDepartment::where('name', $row['department_code'])->where('module', 'organizational')->first();
+        // Logic for joining components to create a display name if only components are provided
+        if (empty($fullName)) {
+            $fullName = trim(($firstName ?? '') . ' ' . ($middleName ?? '') . ' ' . ($lastName ?? ''));
         }
+
+        $email = $this->fuzzyGet($row, ['email', 'email_address', 'e-mail', 'official_email', 'work_email', 'mail', 'emailaddress', 'user_id', 'login', 'username', 'id_number']);
+        $passwordRaw = $this->fuzzyGet($row, ['password', 'pass', 'pwd'], Str::random(12));
+
+        $zoneCode = $this->fuzzyGet($row, ['zone_code', 'zone', 'location_code', 'location', 'site', 'branch']);
+        $zone = $this->defaultZone;
+
+        if ($zoneCode) {
+            $zone = Zone::where(function($q) use ($zoneCode) {
+                    $q->where('code', (string)$zoneCode)->orWhere('name', 'like', "%$zoneCode%");
+                })
+                ->where('company_id', $this->batch->company_id)
+                ->first() ?: $this->defaultZone;
+        }
+
+        $deptCode = $this->fuzzyGet($row, ['department_code', 'department', 'dept', 'unit', 'section']);
+        $department = InventoryDepartment::where(function($q) use ($deptCode) {
+                $q->where('name', (string)$deptCode)->orWhere('name', 'like', "%$deptCode%");
+            })
+            ->where('module', 'organizational')
+            ->first();
 
         return [
-            'name' => trim($row['first_name'] . ' ' . $row['last_name']),
-            'email' => $row['email'],
-            'password' => Hash::make($row['password']),
+            'name' => $fullName,
+            'first_name' => $firstName,
+            'middle_name' => $middleName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'password' => Hash::make($passwordRaw),
             'zone_id' => $zone?->id,
             'department_id' => $department?->id,
             'company_id' => $this->batch->company_id,
