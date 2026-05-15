@@ -3,7 +3,7 @@
 @endphp
 
 <div class="modal fade show d-block eq-delete-overlay" tabindex="-1" aria-modal="true" role="dialog">
-    <motion class="modal-dialog modal-lg modal-dialog-centered eq-delete-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered eq-delete-dialog">
         <div class="modal-content eq-delete-shell border-0">
             <div class="modal-body eq-delete-body">
                 <button
@@ -31,7 +31,7 @@
                             <span class="eq-delete-field__label">Analyte</span>
                             <span class="eq-delete-field__value eq-delete-field__value--primary">{{ $p['analyte'] ?? '—' }}</span>
                         </div>
-                        <motion class="eq-delete-field eq-delete-field--span">
+                        <div class="eq-delete-field eq-delete-field--span">
                             <span class="eq-delete-field__label">Sample Type</span>
                             <span class="eq-delete-field__value">
                                 {{ $p['sample_type'] ?? '—' }}
@@ -81,6 +81,12 @@
                         <i class="mdi mdi-information-outline eq-delete-warning__icon" aria-hidden="true"></i>
                         <p class="eq-delete-warning__text mb-0">Are you sure you want to delete this pricelist item? This cannot be undone.</p>
                     </div>
+
+                    <div class="eq-delete-frame-footer">
+                        <button type="button" class="btn eq-delete-btn eq-delete-btn--cancel w-100" wire:click="closeDeleteItemConfirmModal">
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -104,7 +110,7 @@
                         Delete…
                     </span>
                 </button>
-            </motion>
+            </div>
         </div>
     </div>
 </div>

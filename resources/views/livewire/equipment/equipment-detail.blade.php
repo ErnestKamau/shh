@@ -295,27 +295,12 @@
                                                 </td>
                                                 <td>{{ $log->overseer()->name ?? '-' }}</td>
                                                 <td>
-                                                    <button class="btn btn-sm btn-info" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#notesModal{{ $log->id }}">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-info"
+                                                            wire:click="openMaintenanceNotesModal('{{ $log->id }}')"
+                                                            title="{{ __('equipment.view') }}">
                                                         <i class="mdi mdi-eye"></i> {{ __('equipment.view') }}
                                                     </button>
-                                                    <div class="modal fade" id="notesModal{{ $log->id }}" tabindex="-1">
-                                                        <div class="modal-dialog">
-                                                            <div class="modal-content">
-                                                                <div class="modal-header">
-                                                                    <h5 class="modal-title">{{ __('equipment.maintenance_notes') }}</h5>
-                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                                </div>
-                                                                <div class="modal-body">
-                                                                    <p>{{ $log->notes }}</p>
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('equipment.close') }}</button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
                                                 </td>
                                             </tr>
                                     @endforeach
@@ -356,7 +341,7 @@
                                         <th>{{ __('equipment.service_provider') }}</th>
                                         <th>{{ __('equipment.date') }}</th>
                                         <th>{{ __('equipment.correction_factor') }}</th>
-                                        <th>UM</th>
+                                        <th>{{ __('equipment.uncertainty_of_measure_abbr') }}</th>
                                         <th>{{ __('equipment.certificate') }}</th>
                                         <th>{{ __('equipment.overseen_by') }}</th>
                                         <th>{{ __('equipment.notes') }}</th>
@@ -396,27 +381,12 @@
                                                 </td>
                                                 <td>{{ $log->overseer()->name ?? '-' }}</td>
                                                 <td>
-                                                    <button class="btn btn-sm btn-info" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#calNotesModal{{ $log->id }}">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-info"
+                                                            wire:click="openCalibrationNotesModal('{{ $log->id }}')"
+                                                            title="{{ __('equipment.view') }}">
                                                         <i class="mdi mdi-eye"></i> {{ __('equipment.view') }}
                                                     </button>
-                                                    <div class="modal fade" id="calNotesModal{{ $log->id }}" tabindex="-1">
-                                                        <div class="modal-dialog">
-                                                            <div class="modal-content">
-                                                                <div class="modal-header">
-                                                                    <h5 class="modal-title">{{ __('equipment.calibration_notes') }}</h5>
-                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                                </div>
-                                                                <div class="modal-body">
-                                                                    <p>{{ $log->notes }}</p>
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('equipment.close') }}</button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
                                                 </td>
                                             </tr>
                                     @endforeach
@@ -453,10 +423,10 @@
                                 <thead>
                                     <tr>
                                         <th>{{ __('equipment.actions') }}</th>
-                                        <th>Type</th>
-                                        <th>Reference Standards</th>
-                                        <th>Service Performer</th>
-                                        <th>Verification Date</th>
+                                        <th>{{ __('equipment.type') }}</th>
+                                        <th>{{ __('equipment.reference_standards') }}</th>
+                                        <th>{{ __('equipment.service_performer') }}</th>
+                                        <th>{{ __('equipment.verification_date') }}</th>
                                         <th>{{ __('equipment.description') }}</th>
                                     </tr>
                                 </thead>
@@ -474,7 +444,7 @@
                                                     <i class="mdi mdi-delete"></i>
                                                 </button>
                                             </td>
-                                            <td>{{ $log->maintainance_type == 'in-house' ? 'In House' : 'External' }}</td>
+                                            <td>{{ $log->maintainance_type == 'in-house' ? __('equipment.in_house') : __('equipment.external') }}</td>
                                             <td>{{ $log->reference_standard }}</td>
                                             <td>
                                                 {{ $log->maintainance_type != 'in-house' 
@@ -483,32 +453,12 @@
                                             </td>
                                             <td>{{ $log->verification_date }}</td>
                                             <td>
-                                                <button class="btn btn-sm btn-info" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#verificationModal{{ $log->id }}">
-                                                    <i class="mdi mdi-eye"></i> View Details
+                                                <button type="button"
+                                                        class="btn btn-sm btn-info"
+                                                        wire:click="openVerificationDetailsModal('{{ $log->id }}')"
+                                                        title="{{ __('equipment.view_details') }}">
+                                                    <i class="mdi mdi-eye"></i> {{ __('equipment.view_details') }}
                                                 </button>
-                                                <div class="modal fade" id="verificationModal{{ $log->id }}" tabindex="-1">
-                                                    <div class="modal-dialog modal-lg">
-                                                        <div class="modal-content">
-                                                            <div class="modal-header">
-                                                                <h5 class="modal-title">{{ __('equipment.verification_details') }}</h5>
-                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <h6>Procedure</h6>
-                                                                <p>{{ $log->procedure }}</p>
-                                                                <h6>Responses</h6>
-                                                                <p>{{ $log->response }}</p>
-                                                                <h6>{{ __('equipment.remarks') }}</h6>
-                                                                <p>{{ $log->remarks }}</p>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('equipment.close') }}</button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -1146,6 +1096,13 @@
             'confirmTarget' => 'confirmDeleteNotification',
             'preview' => $pendingDeleteNotificationPreview,
             'warningText' => 'Are you sure you want to delete this notification? This cannot be undone.',
+        ])
+    @endif
+
+    @if($showLogNotesModal)
+        @include('livewire.equipment.partials.equipment-log-notes-modal', [
+            'kind' => $logNotesModalKind,
+            'payload' => $logNotesModalPayload,
         ])
     @endif
 
@@ -1841,6 +1798,7 @@
         background: rgba(15, 23, 42, 0.52) !important;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
+        overflow-x: hidden;
     }
 
     .eq-delete-dialog {
@@ -1864,6 +1822,7 @@
         position: relative;
         padding: 1.35rem 1.35rem 1.1rem;
         background: linear-gradient(180deg, #fafbfc 0%, #ffffff 42%);
+        overflow-x: hidden;
     }
 
     .eq-delete-close {
@@ -1890,10 +1849,12 @@
         background:
             linear-gradient(145deg, rgba(254, 242, 242, 0.65) 0%, rgba(255, 255, 255, 0.92) 38%, #ffffff 100%);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        overflow: hidden;
     }
 
     .eq-delete-frame--scroll {
         max-height: min(52vh, 28rem);
+        overflow-x: hidden;
         overflow-y: auto;
         scrollbar-width: thin;
         scrollbar-color: #cbd5e1 transparent;
@@ -1901,12 +1862,18 @@
 
     .eq-delete-frame__glow {
         position: absolute;
-        top: -40%;
-        right: -15%;
-        width: 55%;
-        height: 80%;
+        top: -30%;
+        right: 0;
+        width: 45%;
+        height: 70%;
         background: radial-gradient(ellipse at center, rgba(248, 113, 113, 0.12) 0%, transparent 70%);
         pointer-events: none;
+    }
+
+    .eq-delete-frame-footer {
+        margin-top: 1rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid rgba(254, 202, 202, 0.5);
     }
 
     .eq-delete-intro {
@@ -2102,6 +2069,119 @@
 
     .eq-delete-btn--confirm:disabled {
         opacity: 0.72;
+    }
+
+    /* Log notes / verification details view modal */
+    .eq-notes-view-overlay {
+        background: rgba(15, 23, 42, 0.52) !important;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        z-index: 1060;
+        overflow-x: hidden;
+    }
+
+    .eq-notes-view-dialog {
+        max-width: min(640px, calc(100vw - 1.5rem));
+    }
+
+    .eq-notes-view-shell {
+        border-radius: 20px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow:
+            0 24px 48px rgba(15, 23, 42, 0.18),
+            0 0 0 1px rgba(226, 232, 240, 0.9);
+    }
+
+    .eq-notes-view-body {
+        position: relative;
+        padding: 1.35rem;
+        background: linear-gradient(180deg, #fafbfc 0%, #ffffff 42%);
+        overflow-x: hidden;
+    }
+
+    .eq-notes-view-frame {
+        position: relative;
+        padding: 1.25rem 1.35rem;
+        border-radius: 14px;
+        border: 2px dashed rgba(37, 99, 235, 0.55);
+        background:
+            linear-gradient(145deg, rgba(239, 246, 255, 0.75) 0%, rgba(255, 255, 255, 0.95) 38%, #ffffff 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        overflow: hidden;
+    }
+
+    .eq-notes-view-frame--scroll {
+        max-height: min(58vh, 32rem);
+        overflow-x: hidden;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+
+    .eq-notes-view-frame__glow {
+        position: absolute;
+        top: -30%;
+        right: 0;
+        width: 45%;
+        height: 70%;
+        background: radial-gradient(ellipse at center, rgba(96, 165, 250, 0.14) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .eq-notes-view-section {
+        margin-bottom: 1rem;
+    }
+
+    .eq-notes-view-section__label {
+        margin: 0 0 0.35rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #3b82f6;
+    }
+
+    .eq-notes-view-content {
+        padding: 0.7rem 0.85rem;
+        border-radius: 10px;
+        font-size: 0.875rem;
+        line-height: 1.55;
+        color: #1e293b;
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: rgba(248, 250, 252, 0.95);
+        border: 1px solid #dbeafe;
+    }
+
+    .eq-notes-view-content--single {
+        min-height: 4.5rem;
+    }
+
+    .eq-notes-view-footer {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 1rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid #dbeafe;
+    }
+
+    .eq-notes-view-btn {
+        border-radius: 10px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        padding: 0.5rem 1.25rem;
+        color: #1d4ed8;
+        background: #ffffff;
+        border: 1px solid #93c5fd;
+        box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .eq-notes-view-btn:hover {
+        background: #eff6ff;
+        border-color: #60a5fa;
+        color: #1e40af;
     }
 
     /* Equipment details tab */

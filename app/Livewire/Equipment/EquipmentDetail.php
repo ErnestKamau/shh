@@ -82,6 +82,14 @@ class EquipmentDetail extends Component
      * @var array<string, mixed>|null
      */
     public ?array $pendingDeleteNotificationPreview = null;
+
+    public bool $showLogNotesModal = false;
+
+    public string $logNotesModalKind = '';
+
+    /** @var array<string, mixed> */
+    public array $logNotesModalPayload = [];
+
     public $showStatusDropdown = false;
     public $showReportingUnitDropdown = false;
     public $showDailyLogFrequencyDropdown = false;
@@ -859,6 +867,57 @@ class EquipmentDetail extends Component
         } finally {
             $this->closeDeleteVerificationConfirmModal();
         }
+    }
+
+    public function openMaintenanceNotesModal(string $logId): void
+    {
+        $log = MaintainanceCalibrationLog::query()
+            ->where('equipment_id', $this->equipmentId)
+            ->where('type', 'Maintainance')
+            ->findOrFail($logId);
+
+        $this->logNotesModalKind = 'maintenance';
+        $this->logNotesModalPayload = [
+            'text' => (string) ($log->notes ?? ''),
+        ];
+        $this->showLogNotesModal = true;
+    }
+
+    public function openCalibrationNotesModal(string $logId): void
+    {
+        $log = MaintainanceCalibrationLog::query()
+            ->where('equipment_id', $this->equipmentId)
+            ->where('type', 'Calibration')
+            ->findOrFail($logId);
+
+        $this->logNotesModalKind = 'calibration';
+        $this->logNotesModalPayload = [
+            'text' => (string) ($log->notes ?? ''),
+        ];
+        $this->showLogNotesModal = true;
+    }
+
+    public function openVerificationDetailsModal(string $logId): void
+    {
+        $log = VerificationLog::query()
+            ->where('equipment_id', $this->equipmentId)
+            ->where('is_delete', 0)
+            ->findOrFail($logId);
+
+        $this->logNotesModalKind = 'verification';
+        $this->logNotesModalPayload = [
+            'procedure' => (string) ($log->procedure ?? ''),
+            'response' => (string) ($log->response ?? ''),
+            'remarks' => (string) ($log->remarks ?? ''),
+        ];
+        $this->showLogNotesModal = true;
+    }
+
+    public function closeLogNotesModal(): void
+    {
+        $this->showLogNotesModal = false;
+        $this->logNotesModalKind = '';
+        $this->logNotesModalPayload = [];
     }
 
     /**

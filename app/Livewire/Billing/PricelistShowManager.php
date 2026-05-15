@@ -164,9 +164,7 @@ class PricelistShowManager extends Component
                 $changed = $changedRaw === null || $changedRaw === ''
                     ? $selling
                     : (float) $changedRaw;
-                $hasPendingChange = abs($selling - $changed) > 0.004;
-                $displaySelling = $hasPendingChange ? $changed : $selling;
-                $profit = $displaySelling - $cost;
+                $profit = $selling - $cost;
 
                 $item->sample_type_name = $sampleType->name ?? null;
                 $item->sample_type_code = $sampleType->code ?? null;
@@ -174,10 +172,9 @@ class PricelistShowManager extends Component
                 $item->analysis_type_code = $analysisType->code ?? null;
                 $item->analyte_name = $analyte?->name ?? 'N/A';
                 $item->analyte_code = $analyte?->code;
-                $item->display_selling_price = $displaySelling;
                 $item->profit = $profit;
-                $item->profit_margin = $displaySelling > 0 ? (($profit / $displaySelling) * 100) : 0;
-                $item->has_pending_change = $hasPendingChange;
+                $item->profit_margin = $selling > 0 ? (($profit / $selling) * 100) : 0;
+                $item->has_pending_change = abs($selling - $changed) > 0.004;
 
                 return $item;
             })
@@ -1027,9 +1024,7 @@ class PricelistShowManager extends Component
                         continue;
                     }
 
-                    $proposedPrice = (float) ($row['selling_price'] ?? 0);
-
-                    $sharedPayload = [
+                    $payload = [
                         'analysis_id' => $this->itemForm['analysis_id'],
                         'analysis_element_id' => $analysisElementId,
                         'sample_type_id' => $this->itemForm['sample_type_id'],
@@ -1494,6 +1489,44 @@ class PricelistShowManager extends Component
             'PREPAID', 'PRE PAID' => 'Prepaid',
             default => $normalized !== '' ? ucwords(strtolower(str_replace('_', ' ', $normalized))) : 'Not set',
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function previewFromPricelistItem(PricelistItem $item): array
+    {
+        $sampleType = $item->sampleType;
+        $analysisType = $item->analysisType;
+        $analyte = $item->analysisElement?->analyte;
+
+        $analyteCode = trim((string) ($analyte?->code ?? ''));
+        $analyteName = trim((string) ($analyte?->name ?? ''));
+        $analyteLabel = $analyteCode !== ''
+            ? trim($analyteCode . ' - ' . $analyteName)
+            : ($analyteName !== '' ? $analyteName : 'N/A');
+
+        $selling = (float) ($item->selling_price ?? 0);
+        $changedRaw = $item->changed_price;
+        $changed = $changedRaw === null || $changedRaw === ''
+            ? $selling
+            : (float) $changedRaw;
+        $hasPendingChange = abs($selling - $changed) > 0.004;
+
+        return [
+            'analyte' => $analyteLabel,
+            'sample_type' => (string) ($sampleType->name ?? '—'),
+            'sample_type_code' => (string) ($sampleType->code ?? ''),
+            'analysis_type' => (string) ($analysisType->name ?? '—'),
+            'analysis_type_code' => (string) ($analysisType->code ?? ''),
+            'cost_price' => number_format((float) ($item->cost_price ?? 0), 2),
+            'applied_price' => number_format($selling, 2),
+            'changed_price' => number_format($changed, 2),
+            'has_pending_change' => $hasPendingChange,
+            'commit_state' => $hasPendingChange ? 'Pending' : 'Applied',
+            'vat' => (bool) ($item->vat ?? false) ? 'Yes' : 'No',
+            'active' => (bool) ($item->active ?? false) ? 'Active' : 'Inactive',
+        ];
     }
 
     public function render()
