@@ -11,8 +11,11 @@ class SampleTypeImporter extends BaseImporter
     {
         $errors = [];
 
-        if (empty($row['code'] ?? null)) {
-            $errors[] = 'Code is required';
+        $code = $this->fuzzyGet($row, ['code', 'id', 'sample_type_code', 'matrix_code']);
+        $name = $this->fuzzyGet($row, ['name', 'title', 'sample_type_name', 'matrix_name', 'matrix', 'description']);
+
+        if (empty($code) && empty($name)) {
+            $errors[] = 'Either Code or Name is required';
         }
 
         return $errors;
@@ -20,12 +23,24 @@ class SampleTypeImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
+        $code = $this->fuzzyGet($row, ['code', 'id', 'sample_type_code', 'matrix_code', 'parameter_code']);
+        $name = $this->fuzzyGet($row, ['name', 'title', 'sample_type_name', 'matrix_name', 'matrix', 'description', 'parameter_name']);
+        $isAttachable = $this->fuzzyGet($row, ['is_results_attachable', 'attachable'], 0);
+        $disposalCount = $this->fuzzyGet($row, ['disposal_count', 'disposal'], 0);
+        $active = $this->fuzzyGet($row, ['active', 'is_active', 'status'], 1);
+        $category = $this->fuzzyGet($row, ['sample_type_category', 'category', 'category_id'], 1);
+
+        // Clean values
+        $code = trim((string)$code);
+        $name = trim((string)$name);
+
         return [
-            'code' => $row['code'],
-            'is_results_attachable' => $row['is_results_attachable'] ?? 0,
-            'disposal_count' => $row['disposal_count'] ?? null,
-            'report_template_id' => null,
-            'default_product_id' => null,
+            'code' => $code ?: ($name ?: 'ST-' . uniqid()),
+            'name' => $name ?: $code,
+            'is_results_attachable' => !in_array(strtolower((string)$isAttachable), ['0', 'no', 'false', 'off', '']),
+            'disposal_count' => is_numeric($disposalCount) ? (int)$disposalCount : 0,
+            'active' => !in_array(strtolower((string)$active), ['0', 'no', 'false', 'off', '']),
+            'sample_type_category' => is_numeric($category) ? (int)$category : 1,
             'company_id' => $this->batch->company_id,
         ];
     }

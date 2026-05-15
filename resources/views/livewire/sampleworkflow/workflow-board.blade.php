@@ -199,7 +199,7 @@
 								<i class="mdi mdi-form-select"></i> Sample Submissions
 							</button>
 							<div class="dropdown-menu dropdown-menu-right">
-								@if ($status == "Samples Reception" || (in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received'))
+								@if ($this->isReceivingStage() || (in_array($status, ['Samples En-Route', 'Samples Receiving', 'Samples Reception']) && $workflowSubTab === 'received'))
 									<button class="dropdown-item" type="button" data-toggle="modal" data-target="#add-submission-form-modal">
 										<i class="mdi mdi-plus mr-2"></i> Capture Samples
 									</button>
@@ -510,7 +510,7 @@
 								<i class="mdi mdi-file-document-multiple"></i>
 								@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
 									@if(in_array($status, ['Samples En-Route', 'Samples Receiving']))
-										{{ $workflowSubTab === 'received' ? 'Submission requests' : 'Samples received' }}
+										{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
 									@else
 										{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
 									@endif
@@ -540,7 +540,7 @@
 										<div class="position-relative">
 											@if(
 												($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
-												(in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received') ||
+												($this->isReceivingStage() && $workflowSubTab === 'requests') ||
 												($status === 'Samples In Lab')
 											)
 												<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Name...">
@@ -559,7 +559,7 @@
 								
 								@if(
 									($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
-									(in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received') ||
+									($this->isReceivingStage() && $workflowSubTab === 'requests') ||
 									($status === 'Samples In Lab')
 								)
 									<div class="col-md-2">
@@ -672,7 +672,7 @@
 									</div>
 								</div>
 							</div>
-						@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
+						@if($this->isReceivingStage() || $status === 'Samples Request Review')
 							<div class="mb-4">
 								<ul class="nav nav-tabs" role="tablist">
 									<li class="nav-item">
@@ -687,7 +687,7 @@
 
 						@if(
 							($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
-							(in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'received')
+							($this->isReceivingStage() && $workflowSubTab === 'requests')
 						)
 							<!-- Submission Forms Table -->
 							@if($this->submissionForms->count() > 0)

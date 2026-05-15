@@ -22,11 +22,11 @@ class EquipmentImport extends BaseImporter
     {
         $errors = [];
 
-        if (empty($this->fuzzyGet($row, ['name', 'equipment_name']))) {
+        if (empty($this->fuzzyGet($row, ['name', 'equipment_name', 'equipment_instrument', 'instrument', 'item', 'description']))) {
             $errors[] = 'Equipment Name is required';
         }
 
-        if (empty($this->fuzzyGet($row, ['equipment_number', 'equipmentnumber', 'asset_number']))) {
+        if (empty($this->fuzzyGet($row, ['equipment_number', 'equipmentnumber', 'asset_number', 'gcla_code', 'code']))) {
             $errors[] = 'Equipment Number is required';
         }
 
@@ -48,7 +48,7 @@ class EquipmentImport extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $equipmentNumber = $this->fuzzyGet($row, ['equipment_number', 'equipmentnumber', 'asset_number']);
+        $equipmentNumber = $this->fuzzyGet($row, ['equipment_number', 'equipmentnumber', 'asset_number', 'gcla_code', 'code']);
         
         // Check for duplicates
         $existing = Equipment::where('equipment_number', $equipmentNumber)
@@ -66,10 +66,19 @@ class EquipmentImport extends BaseImporter
             ->first();
 
         if (!$department) {
+            $locationId = null;
+            try {
+                if (function_exists('getCurrentUserLocation')) {
+                    $loc = getCurrentUserLocation();
+                    $locationId = $loc->id ?? null;
+                }
+            } catch (\Throwable $t) {}
+
             $department = InventoryDepartment::create([
                 'name' => $departmentName,
                 'module' => 'organizational',
                 'company_id' => $this->batch->company_id,
+                'location_id' => $locationId,
                 'active' => 1,
             ]);
         }
@@ -79,7 +88,7 @@ class EquipmentImport extends BaseImporter
         $prevMaintDate = $this->fuzzyGet($row, ['previous_maintainance_date', 'previousmaintainancedate', 'previous_maintenance_date', 'last_maintenance', 'last_maint']);
 
         return [
-            'name' => $this->fuzzyGet($row, ['name', 'equipment_name']),
+            'name' => $this->fuzzyGet($row, ['name', 'equipment_name', 'equipment_instrument', 'instrument', 'item', 'description']),
             'equipment_number' => $equipmentNumber,
             'description' => $this->fuzzyGet($row, ['description', 'name']),
             'make' => $this->fuzzyGet($row, ['make', 'brand']),

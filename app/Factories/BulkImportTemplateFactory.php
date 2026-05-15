@@ -101,12 +101,13 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'sample_type' => [
-                    'headers' => ['code*', 'is_results_attachable', 'disposal_count', 'report_template_code', 'default_product_code'],
+                    'headers' => ['code*', 'name*', 'is_results_attachable', 'disposal_count', 'report_template_code', 'default_product_code', 'active*'],
                     'examples' => [
-                        ['ST-001', 1, 30, '', ''],
+                        ['ST-001', 'Sample Type Name', 1, 30, '', ''],
                     ],
                     'rules' => [
-                        'code' => 'required|string|max:100|unique:sample_types,code',
+                        'code' => 'required|string|max:100',
+                        'name' => 'required|string|max:255',
                         'is_results_attachable' => 'nullable|boolean',
                         'disposal_count' => 'nullable|integer|min:0',
                         'report_template_code' => 'nullable|string|max:100',
@@ -145,7 +146,14 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'standard' => [
-                    'headers' => ['code*', 'main_standard*', 'is_qc_standard', 'qc_type', 'analyte_codes*'],
+                    'headers' => [
+                        'code*', 'standard_code*', 'standard_number*', 'number*', 'standard_id*', 'ref_std*', 'ref_std_tzs_iso*', 'id*', 'tzs*',
+                        'main_standard*', 'title*', 'standard_name*', 'main_standard_title*', 'standard*', 'standard_title*', 'matrix*', 'category*', 'environment*', 'source*',
+                        'is_qc_standard', 'is_qc*', 'qc_standard*',
+                        'qc_type', 'type*', 
+                        'analyte_codes*', 'analytes*', 'parameters*', 'parameter*', 'analyte*', 'chemical_name*', 'parameter_name*',
+                        'standard_value*', 'expected_value*', 'limit*', 'specification*', 'value*', 'max_limit*', 'min_limit*'
+                    ],
                     'examples' => [
                         ['STD-001', 'ISO-17043', 1, 'external', 'ANALYTE-001,ANALYTE-002'],
                     ],
@@ -194,7 +202,7 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'equipment' => [
-                    'headers' => ['name*', 'equipment_number*', 'make*', 'model*', 'serial_number*', 'asset_type_code*', 'asset_location_code*', 'calibration_days', 'maintenance_days', 'requires_daily_log', 'daily_log_value_type'],
+                    'headers' => ['name*', 'equipment_name*', 'equipment_instrument*', 'instrument*', 'equipment*', 'equipment_number*', 'gcla_code*', 'make*', 'model*', 'serial_number*', 'serial_no*', 'serial#', 'asset_tag', 'asset_type_code*', 'asset_location_code*', 'calibration_days', 'maintenance_days', 'requires_daily_log', 'daily_log_value_type'],
                     'examples' => [
                         ['EQ-001', 'Shimadzu', 'HPLC-2030', 'SN-12345', 'AT-001', 'LOC-001', '365', '180', 1, 'numeric'],
                     ],

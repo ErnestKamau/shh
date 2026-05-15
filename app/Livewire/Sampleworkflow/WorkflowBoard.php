@@ -281,8 +281,8 @@ class WorkflowBoard extends Component
 
     protected function isReceivingFormsTab(): bool
     {
-        if (in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)) {
-            return $this->workflowSubTab === 'received';
+        if ($this->isReceivingStage()) {
+            return $this->workflowSubTab === 'requests';
         }
 
         if ($this->status === 'Samples Request Review') {
@@ -292,9 +292,9 @@ class WorkflowBoard extends Component
         return false;
     }
 
-    protected function isReceivingStage(): bool
+    public function isReceivingStage(): bool
     {
-        return in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true);
+        return in_array($this->status, ['Samples En-Route', 'Samples Receiving', 'Samples Reception'], true);
     }
 
     /**
@@ -314,6 +314,7 @@ class WorkflowBoard extends Component
      */
     public function getSubmissionFormsProperty()
     {
+        $driver = DB::connection()->getDriverName();
         $query = SubmissionFormInstance::with([
                 'submissionForm.sampleTypes',
                 'submittedBy',
@@ -326,19 +327,19 @@ class WorkflowBoard extends Component
             ->whereHas('submissionForm', function ($formQuery) {
                 $formQuery->where('form_type', 'template');
             })
-            ->selectSub(function ($subQuery) {
+            ->selectSub(function ($subQuery) use ($driver) {
                 $subQuery->from('submission_form_instances as attachment_instances')
                     ->selectRaw('count(*)')
-                    ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id::text');
+                    ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id' . ($driver === 'pgsql' ? '::text' : ''));
             }, 'attachment_count')
             ->latest();
 
         if ($this->isReceivingFormsTab()) {
-            if (in_array($this->status, ['Samples En-Route', 'Samples Receiving'], true)) {
+            if ($this->isReceivingStage()) {
                 $query->where('status', 'submitted');
                 $query->whereDoesntHave('batches');
             } elseif ($this->status === 'Samples Request Review') {
-                $query->where('status', 'in_review');
+                $query->whereIn('status', ['submitted', 'in_review']);
                 $query->whereDoesntHave('batches');
             }
         }
@@ -357,6 +358,24 @@ class WorkflowBoard extends Component
 
         if ($this->submissionFormsPriority) {
             $query->withPriority($this->submissionFormsPriority);
+        }
+
+        if ($this->customerFilter) {
+            $query->where('crm_customer_id', $this->customerFilter);
+        }
+
+        if ($this->sampleTypeFilter) {
+            $query->whereHas('submissionForm.sampleTypes', function ($q) {
+                $q->where('sample_types.id', $this->sampleTypeFilter);
+            });
+        }
+
+        if ($this->receiptDateFrom) {
+            $query->whereDate('submitted_at', '>=', $this->receiptDateFrom);
+        }
+
+        if ($this->receiptDateTo) {
+            $query->whereDate('submitted_at', '<=', $this->receiptDateTo);
         }
 
         if ($this->submissionFormsSearch) {

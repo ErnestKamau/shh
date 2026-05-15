@@ -57,14 +57,47 @@ class BulkImportBatch extends Model
     public function addError(int $rowNumber, string $message, array $rowData = []): void
     {
         $errors = $this->errors_json ?? [];
+        $this->error_rows++;
+        
+        // Limit the number of detailed errors stored to prevent memory/storage issues
+        if (count($errors) >= 500) {
+            if (count($errors) === 500) {
+                $errors[] = [
+                    'row' => 0,
+                    'message' => 'Further error details suppressed to save memory. Total error count continues to increment.',
+                    'data' => [],
+                ];
+                $this->errors_json = $errors;
+            }
+            return;
+        }
+
         $errors[] = [
             'row' => $rowNumber,
-            'message' => $message,
-            'data' => $rowData,
+            'message' => $this->cleanDataForJson($message),
+            'data' => $this->cleanDataForJson($rowData),
         ];
         
         $this->errors_json = $errors;
-        $this->error_rows = count($errors);
+    }
+
+    /**
+     * Recursive helper to ensure data is UTF-8 encoded for JSON storage.
+     */
+    private function cleanDataForJson($data)
+    {
+        // Use PHP's built-in JSON tools to fix UTF-8 issues recursively
+        // JSON_INVALID_UTF8_SUBSTITUTE ensures malformed characters are replaced with 
+        // JSON_PARTIAL_OUTPUT_ON_ERROR allows us to save as much as possible
+        $flags = defined('JSON_INVALID_UTF8_SUBSTITUTE') ? JSON_INVALID_UTF8_SUBSTITUTE : 1048576;
+        $json = json_encode($data, $flags | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        
+        if ($json === false) {
+            // Last resort: if even the partial encoding fails, return a safe fallback
+            return is_array($data) ? [] : (string)$data;
+        }
+
+        return json_decode($json, true);
     }
 
     /**
@@ -76,7 +109,7 @@ class BulkImportBatch extends Model
         if (!isset($upserted[$action])) {
             $upserted[$action] = [];
         }
-        $upserted[$action][] = $identifier;
+        $upserted[$action][] = $this->cleanDataForJson($identifier);
         
         $this->upserted_summary = $upserted;
     }
