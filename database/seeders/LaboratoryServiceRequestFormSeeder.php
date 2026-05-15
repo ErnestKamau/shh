@@ -56,124 +56,72 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
      */
     private function createFormSections($form)
     {
-        // Section 1: Customer Information
-        $customerSection = $form->sections()->create([
-            'title' => 'Customer Information',
-            'description' => 'Details about the customer submitting the sample.',
+        // Section 1: Head
+        $headSection = $form->sections()->create([
+            'title' => 'Head',
+            'description' => 'General request header information.',
             'section_type' => 'regular',
             'sort_order' => 1,
         ]);
 
-        $customerRow1 = $customerSection->elementHolders()->create([
+        $headHolder = $headSection->elementHolders()->create([
             'holder_type' => 'field',
-            'max_elements' => 2,
+            'max_elements' => 3,
             'sort_order' => 1,
         ]);
 
-        $customerRow1->elements()->create([
-            'element_type' => 'client_select',
-            'label' => 'Customer',
-            'name' => 'crm_customer_id',
+        $headHolder->elements()->create([
+            'element_type' => 'radio',
+            'label' => 'Reporting Language',
+            'name' => 'reporting_language',
+            'options' => [
+                ['value' => 'english', 'label' => 'English'],
+                ['value' => 'swahili', 'label' => 'Swahili']
+            ],
             'is_required' => true,
             'sort_order' => 1,
-            'is_mapped' => true,
-            'mapping_table' => 'sample_headers',
-            'mapping_field' => 'crm_customer_id',
         ]);
 
-        $customerRow1->elements()->create([
-            'element_type' => 'client_contact_select',
-            'label' => 'Contact Person',
-            'name' => 'crm_contact_id',
-            'is_required' => false,
-            'sort_order' => 2,
-            'is_mapped' => true,
-            'mapping_table' => 'sample_headers',
-            'mapping_field' => 'crm_contact_id',
-        ]);
-
-        // Section 2: Sample Header Information
-        $headerSection = $form->sections()->create([
-            'title' => 'Request Details',
-            'description' => 'General information about the sample request.',
-            'section_type' => 'regular',
-            'sort_order' => 2,
-        ]);
-
-        $headerRow1 = $headerSection->elementHolders()->create([
-            'holder_type' => 'field',
-            'max_elements' => 2,
-            'sort_order' => 1,
-        ]);
-
-        $headerRow1->elements()->create([
+        $headHolder->elements()->create([
             'element_type' => 'date',
-            'label' => 'Date Collected',
-            'name' => 'date_collected',
+            'label' => 'Request date of service',
+            'name' => 'request_date_of_service',
             'is_required' => true,
-            'sort_order' => 1,
+            'sort_order' => 2,
             'is_mapped' => true,
             'mapping_table' => 'sample_headers',
             'mapping_field' => 'date_collected',
         ]);
 
-        $headerRow1->elements()->create([
-            'element_type' => 'sample_type_select',
-            'label' => 'Sample Type',
-            'name' => 'sample_type_id',
-            'is_required' => true,
-            'sort_order' => 2,
-            'is_mapped' => true,
-            'mapping_table' => 'sample_headers',
-            'mapping_field' => 'sample_type_id',
-        ]);
-
-        $headerRow2 = $headerSection->elementHolders()->create([
-            'holder_type' => 'field',
-            'max_elements' => 2,
-            'sort_order' => 2,
-        ]);
-
-        $headerRow2->elements()->create([
-            'element_type' => 'text',
-            'label' => 'Reference Number',
-            'name' => 'reference_number',
+        $headHolder->elements()->create([
+            'element_type' => 'select',
+            'label' => 'Lab zone/location',
+            'name' => 'lab_zone_location',
             'is_required' => false,
-            'sort_order' => 1,
-            'is_mapped' => true,
-            'mapping_table' => 'sample_headers',
-            'mapping_field' => 'reference_number',
-        ]);
-
-        $headerRow2->elements()->create([
-            'element_type' => 'textarea',
-            'label' => 'Description / Remarks',
-            'name' => 'description',
-            'is_required' => false,
-            'sort_order' => 2,
-            'is_mapped' => true,
-            'mapping_table' => 'sample_headers',
-            'mapping_field' => 'description',
-        ]);
-
-        // Section 3: Sample Details (Rows Section)
-        $sampleDetailsSection = $form->sections()->create([
-            'title' => 'Sample Details',
-            'description' => 'Individual sample information.',
-            'section_type' => 'rows_section', // Allow adding multiple samples
             'sort_order' => 3,
+            'is_mapped' => true,
+            'mapping_table' => 'sample_headers',
+            'mapping_field' => 'lab_id',
         ]);
 
-        $sampleRowTemplate = $sampleDetailsSection->elementHolders()->create([
+        // Section 2: Samples (Rows Section)
+        $samplesSection = $form->sections()->create([
+            'title' => 'Samples',
+            'description' => 'Individual sample details.',
+            'section_type' => 'rows_section',
+            'sort_order' => 2,
+        ]);
+
+        $samplesHolder = $samplesSection->elementHolders()->create([
             'holder_type' => 'field',
-            'max_elements' => 4,
+            'max_elements' => 8,
             'sort_order' => 1,
         ]);
 
-        $sampleRowTemplate->elements()->create([
+        $samplesHolder->elements()->create([
             'element_type' => 'text',
-            'label' => 'Sample Code / Batch No',
-            'name' => 'sample_code',
+            'label' => 'Sample Id',
+            'name' => 'sample_id',
             'is_required' => true,
             'sort_order' => 1,
             'is_mapped' => true,
@@ -181,37 +129,170 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'mapping_field' => 'sample_code',
         ]);
 
-        $sampleRowTemplate->elements()->create([
-            'element_type' => 'analysis_type_select',
-            'label' => 'Analysis Type',
-            'name' => 'analysis_type_id',
+        $samplesHolder->elements()->create([
+            'element_type' => 'sample_type_select',
+            'label' => 'Type of Sample',
+            'name' => 'sample_type_id',
             'is_required' => true,
             'sort_order' => 2,
             'is_mapped' => true,
             'mapping_table' => 'sample_details',
-            'mapping_field' => 'analysis_type_id',
+            'mapping_field' => 'sample_type_id',
         ]);
 
-        $sampleRowTemplate->elements()->create([
-            'element_type' => 'number',
-            'label' => 'Quantity',
-            'name' => 'quantity',
+        $samplesHolder->elements()->create([
+            'element_type' => 'analysis_type_select',
+            'label' => 'Matrix',
+            'name' => 'analysis_type_id',
             'is_required' => true,
             'sort_order' => 3,
+            'is_mapped' => true,
+            'mapping_table' => 'sample_details',
+            'mapping_field' => 'analysis_type_id',
+            'depends_on_type' => 'sample_type_select',
+            'depends_on_field' => 'sample_type_id',
+        ]);
+
+        $samplesHolder->elements()->create([
+            'element_type' => 'analysis_elements_select',
+            'label' => 'Parameters',
+            'name' => 'parameters',
+            'is_required' => false,
+            'sort_order' => 4,
+            'depends_on_type' => 'analysis_type_select',
+            'depends_on_field' => 'analysis_type_id',
+        ]);
+
+        $samplesHolder->elements()->create([
+            'element_type' => 'number',
+            'label' => 'Number of samples',
+            'name' => 'number_of_samples',
+            'is_required' => true,
+            'sort_order' => 5,
             'is_mapped' => true,
             'mapping_table' => 'sample_details',
             'mapping_field' => 'quantity',
         ]);
 
-        $sampleRowTemplate->elements()->create([
-            'element_type' => 'sample_condition_select',
-            'label' => 'Sample Condition',
-            'name' => 'sample_condition_id',
+        $samplesHolder->elements()->create([
+            'element_type' => 'text',
+            'label' => 'Nature of Sample',
+            'name' => 'nature_of_sample',
+            'is_required' => false,
+            'sort_order' => 6,
+        ]);
+
+        $samplesHolder->elements()->create([
+            'element_type' => 'camera_photo',
+            'label' => 'Picture of sample(s)',
+            'name' => 'picture_of_samples',
+            'is_required' => false,
+            'sort_order' => 7,
+            'is_mapped' => true,
+            'mapping_table' => 'sample_details',
+            'mapping_field' => 'photo_url',
+        ]);
+
+        $samplesHolder->elements()->create([
+            'element_type' => 'checkbox',
+            'label' => 'Request for Sampling',
+            'name' => 'request_for_sampling',
+            'is_required' => false,
+            'sort_order' => 8,
+        ]);
+
+        // Section 3: Additional Details
+        $additionalSection = $form->sections()->create([
+            'title' => 'Additional Details',
+            'description' => 'Further information about the submission.',
+            'section_type' => 'regular',
+            'sort_order' => 3,
+        ]);
+
+        $additionalHolder = $additionalSection->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => 8,
+            'sort_order' => 1,
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'text',
+            'label' => 'Submitting Personnel',
+            'name' => 'submitting_personnel',
+            'is_required' => false,
+            'sort_order' => 1,
+            'is_mapped' => true,
+            'mapping_table' => 'sample_headers',
+            'mapping_field' => 'submit_by',
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'date',
+            'label' => 'Date of submission',
+            'name' => 'date_of_submission',
+            'is_required' => false,
+            'sort_order' => 2,
+            'is_mapped' => true,
+            'mapping_table' => 'sample_headers',
+            'mapping_field' => 'receipt_date',
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'text',
+            'label' => 'Purpose',
+            'name' => 'purpose',
+            'is_required' => false,
+            'sort_order' => 3,
+            'is_mapped' => true,
+            'mapping_table' => 'sample_headers',
+            'mapping_field' => 'reason_for_submission',
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'text',
+            'label' => 'Safety Precautions',
+            'name' => 'safety_precautions',
             'is_required' => false,
             'sort_order' => 4,
             'is_mapped' => true,
-            'mapping_table' => 'sample_details',
-            'mapping_field' => 'sample_condition_id',
+            'mapping_table' => 'sample_headers',
+            'mapping_field' => 'batch_instructions',
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'text',
+            'label' => 'Unique Identification',
+            'name' => 'unique_identification',
+            'is_required' => false,
+            'sort_order' => 5,
+            'is_mapped' => true,
+            'mapping_table' => 'sample_headers',
+            'mapping_field' => 'reference_number',
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'checkbox',
+            'label' => 'Mode of payment',
+            'name' => 'mode_of_payment',
+            'is_required' => false,
+            'sort_order' => 6,
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'text',
+            'label' => 'Further Request',
+            'name' => 'further_request',
+            'is_required' => false,
+            'sort_order' => 7,
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'checkbox',
+            'label' => 'Mode of Service',
+            'name' => 'mode_of_service',
+            'is_required' => false,
+            'sort_order' => 8,
         ]);
     }
+
 }

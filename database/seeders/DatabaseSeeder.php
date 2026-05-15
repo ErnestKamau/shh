@@ -41,6 +41,7 @@ class DatabaseSeeder extends Seeder
             MasLanguageDatabaseSeeder::class,
             AdminGroupPermissionsSeeder::class,
             LaboratoryServiceRequestFormSeeder::class,
+            PF180FormSeeder::class,
         ]);
     }
 }

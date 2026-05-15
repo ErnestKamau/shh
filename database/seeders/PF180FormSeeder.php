@@ -1,0 +1,192 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\SubmissionForm;
+use App\Models\SubmissionFormSection;
+use App\Models\SubmissionFormElementHolder;
+use App\Models\SubmissionFormElement;
+
+class PF180FormSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     *
+     * @return void
+     */
+    public function run()
+    {
+        // Create or update the form
+        $form = SubmissionForm::updateOrCreate(
+            ['name' => 'PF180 Sample Analysis Request Form'],
+            [
+                'document_code' => 'HQ/F/01',
+                'description' => 'SAMPLE ANALYSIS REQUEST FORM (PF 180)',
+                'naming_convention_prefix' => 'PF180',
+                'naming_convention_format' => 'PF180-{YYYY}{MM}-{0000}',
+                'is_published' => true,
+                'is_active' => true,
+                'is_customer_portal_form' => false, // Attachment forms are usually internal
+                'form_type' => 'attachment',
+                'placement_slot' => ['admin_portal'],
+            ]
+        );
+
+        $this->command->info('Creating sections for PF180 Form...');
+        
+        // Clear existing sections if updating
+        $form->sections()->each(function($section) {
+            $section->elementHolders()->each(function($holder) {
+                $holder->elements()->delete();
+                $holder->delete();
+            });
+            $section->delete();
+        });
+
+        $this->createFormSections($form);
+
+        $this->command->info('PF180 Form seeded/updated successfully.');
+    }
+
+    /**
+     * Create sections and elements for the form
+     */
+    private function createFormSections($form)
+    {
+        // Section 1: RESPONSIBLE OFFICER (SRO SAMPLE RECEIVING DETAILS)
+        $sroSection = $form->sections()->create([
+            'title' => 'RESPONSIBLE OFFICER (SRO SAMPLE RECEIVING DETAILS)',
+            'description' => 'Details about the sample receiving and responsible officer.',
+            'section_type' => 'regular',
+            'sort_order' => 1,
+        ]);
+
+        $sroHolder = $sroSection->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => 2,
+            'sort_order' => 1,
+        ]);
+
+        $sroFields = [
+            ['label' => 'S/N', 'name' => 'sn', 'type' => 'text'],
+            ['label' => 'LAB NO.', 'name' => 'lab_no', 'type' => 'text'],
+            ['label' => 'DATE IN', 'name' => 'date_in', 'type' => 'date'],
+            ['label' => 'FILE NO.', 'name' => 'file_no', 'type' => 'text'],
+            ['label' => 'NAME OF CLIENT', 'name' => 'name_of_client', 'type' => 'text'],
+            ['label' => 'NAME OF SUBMITTING OFFICER', 'name' => 'name_of_submitting_officer', 'type' => 'text'],
+            ['label' => 'DESIGNATION OF SUBMITTING OFFICER', 'name' => 'designation_of_submitting_officer', 'type' => 'text'],
+            ['label' => 'PHONE NO. SUBMITTING OFFICER', 'name' => 'phone_no_submitting_officer', 'type' => 'text'],
+            ['label' => 'ADDRESS AND EMAIL SUBMITTING OFFICER', 'name' => 'address_email_submitting_officer', 'type' => 'textarea'],
+            ['label' => 'DESCRIPTION OF SAMPLE(S)', 'name' => 'description_of_samples', 'type' => 'textarea'],
+            ['label' => 'NO. OF SAMPLES RECEIVED', 'name' => 'no_of_samples_received', 'type' => 'number'],
+            ['label' => 'DATE SIGNED BY SUBMITTING OFFICER', 'name' => 'date_signed_by_submitting_officer', 'type' => 'date'],
+            ['label' => 'REF. NO. OF SUBMITTING LETTER', 'name' => 'ref_no_submitting_letter', 'type' => 'text'],
+            ['label' => 'REQUESTED ANALYSIS/SERVICES', 'name' => 'requested_analysis_services', 'type' => 'textarea'],
+            ['label' => 'NAME OF SRO', 'name' => 'name_of_sro', 'type' => 'text'],
+            ['label' => 'DESIGNATION OF SRO', 'name' => 'designation_of_sro', 'type' => 'text'],
+            ['label' => 'SAMPLE RECEIVING DATE', 'name' => 'sample_receiving_date', 'type' => 'date'],
+        ];
+
+        foreach ($sroFields as $index => $field) {
+            $sroHolder->elements()->create([
+                'element_type' => $field['type'],
+                'label' => $field['label'],
+                'name' => $field['name'],
+                'is_required' => false,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        // Section 2: SAMPLE SUBMISSION TO LAB. MANAGER
+        $submissionSection = $form->sections()->create([
+            'title' => 'SAMPLE SUBMISSION TO LAB. MANAGER',
+            'section_type' => 'regular',
+            'sort_order' => 2,
+        ]);
+
+        $submissionHolder = $submissionSection->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => 2,
+            'sort_order' => 1,
+        ]);
+
+        $submissionFields = [
+            ['label' => 'NAME OF SRO SUBMITTING SAMPLE TO MANAGER', 'name' => 'sro_name_submitting_to_manager', 'type' => 'text'],
+            ['label' => 'DATE SRO SUBMITTING SAMPLE TO MANAGER', 'name' => 'sro_date_submitting_to_manager', 'type' => 'date'],
+            ['label' => 'MANAGER TO RECEIVE SAMPLES', 'name' => 'manager_to_receive_samples', 'type' => 'text'],
+        ];
+
+        foreach ($submissionFields as $index => $field) {
+            $submissionHolder->elements()->create([
+                'element_type' => $field['type'],
+                'label' => $field['label'],
+                'name' => $field['name'],
+                'is_required' => false,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        // Section 3: CHIEF GOVERNMENT CHEMIST\'S INSTRUCTIONS
+        $cgcSection = $form->sections()->create([
+            'title' => 'CHIEF GOVERNMENT CHEMIST\'S INSTRUCTIONS',
+            'section_type' => 'regular',
+            'sort_order' => 3,
+        ]);
+
+        $cgcHolder = $cgcSection->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => 2,
+            'sort_order' => 1,
+        ]);
+
+        $cgcFields = [
+            ['label' => 'DATE SRAF RECEIVED BY SECRETARY', 'name' => 'date_sraf_received_by_secretary', 'type' => 'date'],
+            ['label' => 'DATE SRF SUBMITTED TO CGC', 'name' => 'date_srf_submitted_to_cgc', 'type' => 'date'],
+            ['label' => 'NAME OF CGC\'S SECRETARY', 'name' => 'name_of_cgc_secretary', 'type' => 'text'],
+            ['label' => 'INSTRUCTIONS BY CGC', 'name' => 'instructions_by_cgc', 'type' => 'textarea'],
+            ['label' => 'DATE RELEASED BY CGC', 'name' => 'date_released_by_cgc', 'type' => 'date'],
+            ['label' => 'DATE SUBMITTED TO DIRECTOR', 'name' => 'date_submitted_to_director', 'type' => 'date'],
+        ];
+
+        foreach ($cgcFields as $index => $field) {
+            $cgcHolder->elements()->create([
+                'element_type' => $field['type'],
+                'label' => $field['label'],
+                'name' => $field['name'],
+                'is_required' => false,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        // Section 4: DIRECTOR\'S INSTRUCTIONS
+        $directorSection = $form->sections()->create([
+            'title' => 'DIRECTOR\'S INSTRUCTIONS',
+            'section_type' => 'regular',
+            'sort_order' => 4,
+        ]);
+
+        $directorHolder = $directorSection->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => 2,
+            'sort_order' => 1,
+        ]);
+
+        $directorFields = [
+            ['label' => 'NAME OF CGC\'S SECRETARY', 'name' => 'name_of_cgc_secretary_for_director', 'type' => 'text'],
+            ['label' => 'NAME OF MANAGER ASSIGNED BY DIRECTOR', 'name' => 'name_of_manager_assigned_by_director', 'type' => 'text'],
+            ['label' => 'INSTRUCTIONS TO MANAGER', 'name' => 'instructions_to_manager', 'type' => 'textarea'],
+            ['label' => 'DATE INSTRUCTIONS RELEASED BY DIRECTOR', 'name' => 'date_instructions_released_by_director', 'type' => 'date'],
+        ];
+
+        foreach ($directorFields as $index => $field) {
+            $directorHolder->elements()->create([
+                'element_type' => $field['type'],
+                'label' => $field['label'],
+                'name' => $field['name'],
+                'is_required' => false,
+                'sort_order' => $index + 1,
+            ]);
+        }
+    }
+}

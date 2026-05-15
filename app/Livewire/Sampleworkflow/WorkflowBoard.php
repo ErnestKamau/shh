@@ -315,6 +315,12 @@ class WorkflowBoard extends Component
     public function getSubmissionFormsProperty()
     {
         $driver = DB::connection()->getDriverName();
+        \Illuminate\Support\Facades\Log::info('LIMS querying for submission forms.', [
+            'status' => $this->status,
+            'sub_tab' => $this->workflowSubTab,
+            'driver' => $driver,
+        ]);
+
         $query = SubmissionFormInstance::with([
                 'submissionForm.sampleTypes',
                 'submittedBy',
@@ -391,7 +397,14 @@ class WorkflowBoard extends Component
             });
         }
 
-        return $query->paginate(10, ['*'], 'forms_page');
+        $results = $query->paginate(10, ['*'], 'forms_page');
+
+        \Illuminate\Support\Facades\Log::info('LIMS submission forms query results:', [
+            'total' => $results->total(),
+            'page' => $results->currentPage(),
+        ]);
+
+        return $results;
     }
 
     /**
