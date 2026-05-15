@@ -34,4 +34,14 @@ foreach ($formByStatus as $row) {
     echo "  - " . $row->status . ": " . $row->total . "\n";
 }
 
+$formByForm = SubmissionFormInstance::select('submission_form_id', DB::raw('count(*) as total'))
+    ->groupBy('submission_form_id')
+    ->get();
+echo "SubmissionFormInstance by Form ID:\n";
+foreach ($formByForm as $row) {
+    $form = \App\Models\SubmissionForm::find($row->submission_form_id);
+    $formName = $form ? $form->name : "Unknown Form";
+    echo "  - " . $formName . " (" . $row->submission_form_id . "): " . $row->total . "\n";
+}
+
 echo "Done.\n";
