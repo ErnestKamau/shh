@@ -18,7 +18,7 @@ use Livewire\Component;
 class FormulaWorksheet extends Component
 {
     protected $listeners = [
-        'triggerPostResults' => 'openPostResultsModal',
+        'triggerFormulaPostResults' => 'handleTriggerPostResults',
         'closeAllDropdowns' => 'closeAllDropdowns'
     ];
 
@@ -69,6 +69,14 @@ class FormulaWorksheet extends Component
     public $filteredSecondaryStandards = [];
     public $useLookupAsStandard = []; // [sample_id => true/false]
     public $lookupStandardInfo = null; // Info about the lookup table to use
+
+    // Post results UI (analysis dates + preview rows)
+    public ?string $startAnalysisDate = null;
+    public ?string $endAnalysisDate = null;
+    public array $postResultsPreviewRows = [];
+
+    // Lookup modal context (for better UX when none compatible)
+    public ?array $currentLookupTableInfo = null;
 
     public function mount(SampleHeader $batch, Formula $formula): void
     {
@@ -212,7 +220,7 @@ class FormulaWorksheet extends Component
         }
     }
 
-    public function saveWorksheet(int $capturedResultId): void
+    public function saveWorksheet(string $capturedResultId): void
     {
         try {
             DB::beginTransaction();
@@ -277,18 +285,10 @@ class FormulaWorksheet extends Component
             if ($data['final_result']) {
                 $captured->result = $data['final_result'];
 
-                // Set operator_id (becomes analyst_id in tat_captured via observer)
-                // Priority: done_by_user_id, then current user
-                $captured->operator_id = $data['done_by_user_id'] ?? Auth::id();
+                $captured->assignAnalyst($data['done_by_user_id'] ?? Auth::id());
 
-                // Populate from analysis element configuration if not already set
                 if ($captured->analysisElement) {
-                    if (!$captured->reporting_unit_id) {
-                        $captured->reporting_unit_id = $captured->analysisElement->reporting_unit;
-                    }
-                    if (!$captured->method_id) {
-                        $captured->method_id = $captured->analysisElement->method;
-                    }
+                    $captured->applyAnalysisElementDefaults();
                 }
 
                 // remark left null - will be updated later by user
@@ -337,7 +337,6 @@ class FormulaWorksheet extends Component
             }
 
             DB::commit();
-            $this->setMessage('Worksheet auto-saved successfully!', 'success');
         } catch (\Exception $e) {
             DB::rollBack();
             $this->setMessage('Error saving worksheet: ' . $e->getMessage(), 'error');
@@ -362,9 +361,9 @@ class FormulaWorksheet extends Component
 
         // Check if it's a step input field
         if (strpos($propertyName, 'worksheetData.') === 0 && strpos($propertyName, '.steps.') !== false) {
-            preg_match('/worksheetData\\.(\\d+)\\.steps/', $propertyName, $matches);
+            preg_match('/worksheetData\\.([\\w-]+)\\.steps/', $propertyName, $matches);
             if (isset($matches[1])) {
-                $capturedResultId = (int) $matches[1];
+                $capturedResultId = (string) $matches[1];
                 Log::info("Triggering calculation for captured result ID: {$capturedResultId}");
                 $this->calculateFormulaResult($capturedResultId);
             }
@@ -372,9 +371,9 @@ class FormulaWorksheet extends Component
 
         // Check if lookup table override changed
         if (strpos($propertyName, 'worksheetData.') === 0 && strpos($propertyName, '.lookup_overrides.') !== false) {
-            preg_match('/worksheetData\\.(\\d+)\\.lookup_overrides/', $propertyName, $matches);
+            preg_match('/worksheetData\\.([\\w-]+)\\.lookup_overrides/', $propertyName, $matches);
             if (isset($matches[1])) {
-                $capturedResultId = (int) $matches[1];
+                $capturedResultId = (string) $matches[1];
                 Log::info("Lookup override changed for captured result ID: {$capturedResultId}");
                 $this->calculateFormulaResult($capturedResultId);
             }
@@ -382,7 +381,7 @@ class FormulaWorksheet extends Component
     }
 
     // Enhanced method for real-time calculation
-    protected function calculateFormulaResult(int $capturedResultId): void
+    protected function calculateFormulaResult(string $capturedResultId): void
     {
         try {
             $data = $this->worksheetData[$capturedResultId] ?? null;
@@ -419,9 +418,11 @@ class FormulaWorksheet extends Component
             // Get lookup overrides for this worksheet row
             $lookupOverrides = $data['lookup_overrides'] ?? [];
 
-            // Use FormulaEvaluator to calculate
+            $capturedResult = $this->capturedResults->firstWhere('id', $capturedResultId);
+            $sampleId = $capturedResult?->sample_detail_id;
+
             $evaluator = app(\App\Services\Formulars\FormulaEvaluator::class);
-            $result = $evaluator->execute($this->formula->activeVersion, $filledInputs, null, $this->batch->id, $lookupOverrides);
+            $result = $evaluator->execute($this->formula->activeVersion, $filledInputs, $sampleId, $this->batch->id, $lookupOverrides);
 
             Log::info("Formula calculation result for captured result {$capturedResultId}: " . json_encode($result));
 
@@ -438,9 +439,6 @@ class FormulaWorksheet extends Component
             $this->worksheetData[$capturedResultId]['final_result'] = $finalResult;
             Log::info("Updated final result for captured result {$capturedResultId}: '{$finalResult}'");
 
-            // Force Livewire to refresh the component from the server
-            $this->js('$wire.$refresh()');
-
         } catch (\Exception $e) {
             Log::error('Formula calculation error for captured result ' . $capturedResultId . ': ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -448,10 +446,11 @@ class FormulaWorksheet extends Component
     }
 
     // New method for auto-save on field blur
-    public function autoSaveRow(int $capturedResultId): void
+    public function autoSaveRow(string $capturedResultId): void
     {
         try {
             $this->saveWorksheet($capturedResultId);
+            $this->skipRender();
         } catch (\Exception $e) {
             Log::error('Auto-save error: ' . $e->getMessage());
         }
@@ -460,10 +459,11 @@ class FormulaWorksheet extends Component
     /**
      * Auto-save mandatory field when user leaves the field
      */
-    public function autoSaveMandatoryField(int $fieldId): void
+    public function autoSaveMandatoryField(string $fieldId): void
     {
         try {
             $this->saveMandatoryFields();
+            $this->skipRender();
         } catch (\Exception $e) {
             Log::error('Auto-save mandatory field error: ' . $e->getMessage());
         }
@@ -502,6 +502,15 @@ class FormulaWorksheet extends Component
     /**
      * Open Post Results Modal with standards confirmation
      */
+    public function handleTriggerPostResults(?string $formulaId = null): void
+    {
+        if ($formulaId !== null && (string) $this->formula->id !== (string) $formulaId) {
+            return;
+        }
+
+        $this->openPostResultsModal();
+    }
+
     public function openPostResultsModal(): void
     {
         try {
@@ -544,10 +553,132 @@ class FormulaWorksheet extends Component
             $this->showPostResultsModal = true;
             $this->currentStep = 0;
             $this->postingInProgress = false;
+
+            // Defaults for analysis dates (UI only; posting uses these)
+            $today = now()->format('Y-m-d');
+            $this->startAnalysisDate = $this->startAnalysisDate ?: $today;
+            $this->endAnalysisDate = $this->endAnalysisDate ?: $today;
+
+            // Build preview rows for the modal results table
+            $this->postResultsPreviewRows = $this->buildPostResultsPreviewRows();
         } catch (\Exception $e) {
             Log::error('Error opening post results modal: ' . $e->getMessage());
             $this->setMessage('Error loading standards information', 'error');
         }
+    }
+
+    public function updatedUseLookupAsStandard(): void
+    {
+        if (! $this->showPostResultsModal || $this->postingInProgress) {
+            return;
+        }
+
+        $this->postResultsPreviewRows = $this->buildPostResultsPreviewRows();
+    }
+
+    private function buildPostResultsPreviewRows(): array
+    {
+        $rows = [];
+
+        foreach ($this->capturedResults as $captured) {
+            $wsData = $this->worksheetData[$captured->id] ?? [];
+            $finalResult = (string) ($wsData['final_result'] ?? '');
+
+            $reportingSymbol = '';
+            $numericResult = $finalResult;
+            if (preg_match('/^(<=|>=|<|>)\s*(.+)$/', trim($finalResult), $matches)) {
+                $reportingSymbol = $matches[1];
+                $numericResult = trim($matches[2]);
+            }
+
+            $sample = $captured->sample;
+            $analyteName = $captured->analysisElement?->analyte?->name ?? '';
+            $methodName = '';
+            $methodId = $captured->analysisElement?->method;
+            if ($methodId) {
+                $methodName = (string) ($this->methods->firstWhere('id', (int) $methodId)?->name ?? '');
+            }
+
+            $mainStandardName = '';
+            if ($sample?->main_standard) {
+                $std = \App\Standards::find($sample->main_standard);
+                $mainStandardName = $std ? ($std->name ?? '') : '';
+            }
+
+            $standardLimits = $this->getStandardLimitsDisplay($captured, $sample);
+
+            $remarkPreview = '-';
+            if ($numericResult !== '') {
+                if (
+                    $sample &&
+                    isset($this->useLookupAsStandard[$sample->id]) &&
+                    $this->useLookupAsStandard[$sample->id] &&
+                    $this->lookupStandardInfo
+                ) {
+                    $lookupStepId = $this->lookupStandardInfo['step_id'];
+                    $remarkPreview = (string) (($wsData['steps'][$lookupStepId] ?? '') ?: '-');
+                } else {
+                    $remarkPreview = $this->calculateRemark($captured, $sample, $numericResult, $reportingSymbol);
+                }
+            }
+
+            $rows[] = [
+                'captured_result_id' => (string) $captured->id,
+                'sample_code' => (string) ($sample?->sample_code ?? ''),
+                'analyte' => (string) $analyteName,
+                'result' => (string) $numericResult,
+                'reporting_symbol' => (string) $reportingSymbol,
+                'standard' => (string) $mainStandardName,
+                'standard_limits' => (string) $standardLimits,
+                'remark' => (string) $remarkPreview,
+                'method' => (string) $methodName,
+                'reporting_unit' => (string) ($captured->analysisElement?->reporting_unit ?? ''),
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function getStandardLimitsDisplay($captured, $sample): string
+    {
+        if (!$sample || !$sample->main_standard) {
+            return '-';
+        }
+
+        $analyte = \App\Analyte::find($captured->analyte_id);
+        if (!$analyte) {
+            return '-';
+        }
+
+        $analyteGuide = \App\StandardAnalytes::where('analyte_id', $analyte->id)
+            ->where('standard_id', $sample->main_standard)
+            ->first();
+
+        if (!$analyteGuide) {
+            return '-';
+        }
+
+        if (($analyteGuide->standard_value_type ?? null) === 'is_range') {
+            $low = $analyteGuide->low ?? null;
+            $high = $analyteGuide->high ?? null;
+
+            if ($low !== null && $high !== null) {
+                return trim((string) $low) . ' - ' . trim((string) $high);
+            }
+        }
+
+        if ($analyteGuide->standard_is_value !== null && $analyteGuide->standard_is_value !== '') {
+            return (string) $analyteGuide->standard_is_value;
+        }
+
+        if (!empty($analyteGuide->standard_value_id)) {
+            $standardValue = \App\StandardValue::find($analyteGuide->standard_value_id);
+            if ($standardValue && isset($standardValue->code) && $standardValue->code !== '') {
+                return (string) $standardValue->code;
+            }
+        }
+
+        return '-';
     }
 
     /**
@@ -711,6 +842,11 @@ class FormulaWorksheet extends Component
     public function postResults(): void
     {
         try {
+            $this->validate([
+                'startAnalysisDate' => ['required', 'date'],
+                'endAnalysisDate' => ['required', 'date', 'after_or_equal:startAnalysisDate'],
+            ]);
+
             $this->postingInProgress = true;
             $this->totalCount = $this->capturedResults->count();
             $this->processedCount = 0;
@@ -753,16 +889,10 @@ class FormulaWorksheet extends Component
                 // Update captured result with final result and symbol
                 $captured->result = $numericResult;
                 $captured->result_reporting_symbol = $reportingSymbol;
-                $captured->operator_id = $wsData['done_by_user_id'] ?? Auth::id();
+                $captured->assignAnalyst($wsData['done_by_user_id'] ?? Auth::id());
 
-                // Populate other fields if not set
                 if ($captured->analysisElement) {
-                    if (!$captured->reporting_unit_id) {
-                        $captured->reporting_unit_id = $captured->analysisElement->reporting_unit;
-                    }
-                    if (!$captured->method_id) {
-                        $captured->method_id = $captured->analysisElement->method;
-                    }
+                    $captured->applyAnalysisElementDefaults();
                 }
 
                 // Ensure analysis dates exist with proper lab section tracking
@@ -771,6 +901,8 @@ class FormulaWorksheet extends Component
                     ->first() ?? new SampleAnalysisDates();
 
                 $currentDate = $wsData['date'] ?? now()->format('Y-m-d');
+                $startDate = $this->startAnalysisDate;
+                $endDate = $this->endAnalysisDate;
 
                 if (isset($analysis_date->id)) {
                     // Update existing - merge lab section dates
@@ -779,16 +911,8 @@ class FormulaWorksheet extends Component
                         $prev_dates[$captured->lab_section_id] = $currentDate;
                     }
 
-                    // Calculate earliest date across all lab sections
-                    $start_date = '';
-                    foreach ($prev_dates as $key => $val) {
-                        if ($start_date == '') {
-                            $start_date = $val;
-                        } else {
-                            $start_date = $val < $start_date ? $val : $start_date;
-                        }
-                    }
-                    $analysis_date->start_analysis_date = $start_date;
+                    $analysis_date->start_analysis_date = $startDate;
+                    $analysis_date->end_analysis_date = $endDate;
                     $analysis_date->analysis_dates = json_encode($prev_dates);
                 } else {
                     // Create new
@@ -798,7 +922,8 @@ class FormulaWorksheet extends Component
                     }
                     $analysis_date->sample_header_id = $captured->sample_header_id;
                     $analysis_date->sample_detail_id = $captured->sample_detail_id;
-                    $analysis_date->start_analysis_date = $currentDate;
+                    $analysis_date->start_analysis_date = $startDate;
+                    $analysis_date->end_analysis_date = $endDate;
                     $analysis_date->analysis_dates = json_encode($prev_dates);
                 }
 
@@ -1046,11 +1171,12 @@ class FormulaWorksheet extends Component
     /**
      * Open modal to change lookup table for a specific step.
      */
-    public function openChangeLookupModal(int $capturedResultId, int $stepId): void
+    public function openChangeLookupModal(string $capturedResultId, string $stepId): void
     {
         try {
             $this->currentCapturedResultId = $capturedResultId;
             $this->selectedLookupStepId = $stepId;
+            $this->currentLookupTableInfo = null;
 
             // Get the formula step to find current lookup table
             $step = FormulaStep::find($stepId);
@@ -1076,7 +1202,17 @@ class FormulaWorksheet extends Component
             $this->compatibleLookupTables = $currentLookupTable->getCompatibleTables()->toArray();
 
             if (empty($this->compatibleLookupTables)) {
-                $this->setMessage('No compatible lookup tables found for this step', 'warning');
+                $this->currentLookupTableInfo = [
+                    'id' => (string) $currentLookupTable->id,
+                    'name' => (string) $currentLookupTable->name,
+                    'lookup_type' => (string) ($currentLookupTable->lookup_type ?? 'key_value_comparison'),
+                    'key_columns' => (array) ($currentLookupTable->key_columns ?? []),
+                ];
+
+                // Still open the modal so the user sees why nothing is available
+                $this->selectedReplacementLookupTableId = (string) $lookupConfig['lookup_table_id'];
+                $this->showLookupTableModal = true;
+                $this->setMessage('No compatible lookup tables found. Create another active lookup table with the same key columns to enable switching.', 'warning');
                 return;
             }
 
@@ -1168,7 +1304,7 @@ class FormulaWorksheet extends Component
     /**
      * Reset lookup table to formula default.
      */
-    public function resetLookupTable(?int $capturedResultId = null, ?int $stepId = null): void
+    public function resetLookupTable(?string $capturedResultId = null, ?string $stepId = null): void
     {
         try {
             $capturedId = $capturedResultId ?? $this->currentCapturedResultId;
@@ -1219,7 +1355,7 @@ class FormulaWorksheet extends Component
     /**
      * Get the original lookup table for a step.
      */
-    public function getOriginalLookupTable(int $stepId): ?\App\Models\Formulars\LookupTable
+    public function getOriginalLookupTable(string $stepId): ?\App\Models\Formulars\LookupTable
     {
         $step = FormulaStep::find($stepId);
         if (!$step || !$step->isLookup()) {
@@ -1237,7 +1373,7 @@ class FormulaWorksheet extends Component
     /**
      * Get the current (possibly overridden) lookup table for a step in a specific worksheet row.
      */
-    public function getCurrentLookupTable(int $capturedResultId, int $stepId): ?\App\Models\Formulars\LookupTable
+    public function getCurrentLookupTable(string $capturedResultId, string $stepId): ?\App\Models\Formulars\LookupTable
     {
         $override = $this->worksheetData[$capturedResultId]['lookup_overrides'][$stepId] ?? null;
 

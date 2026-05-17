@@ -41,7 +41,7 @@ return new class extends Migration
             $table->uuid('ltm_method_id')->nullable();
             $table->boolean('recommend_remedies')->default(false);
             $table->uuid('remedy_header_id')->nullable()->index('idx_analysis_elements_remedy_header_id_590ed162');
-            $table->unsignedBigInteger('formular_id')->nullable();
+            $table->uuid('formular_id')->nullable();
             $table->boolean('has_method_sequence')->default(false);
             $table->uuid('method_sequence_id')->nullable()->index('idx_analysis_elements_method_sequence_id_86894b32');
 

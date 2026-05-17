@@ -1970,6 +1970,7 @@
     @endif
     @if (isset($select2))
     <link type="text/css" rel="stylesheet" href="/select2/select2.min.css" />
+    <link type="text/css" rel="stylesheet" href="{{ asset('css/method-sequences.css') }}" />
     @endif
     @if (isset($datePicker))
     {{-- <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.css" /> --}}
@@ -2753,6 +2754,7 @@
 
     });
 </script>
+<script src="{{ asset('js/method-sequences.js') }}"></script>
 @yield('script')
 @stack('scripts')
 @livewireScripts

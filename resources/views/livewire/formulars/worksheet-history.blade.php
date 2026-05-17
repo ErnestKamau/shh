@@ -187,10 +187,9 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- Execution Details Modal -->
-@if($showExecutionModal && $selectedExecution)
+    <!-- Execution Details Modal -->
+    @if($showExecutionModal && $selectedExecution)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">

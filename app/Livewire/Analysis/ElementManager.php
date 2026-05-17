@@ -51,7 +51,8 @@ class ElementManager extends Component
         'result_is_calculated' => false,
         'formular_id' => null,
         'has_method_sequence' => false,
-        'method_sequence_id' => null
+        'method_sequence_id' => null,
+        'stage_header_id' => null,
     ];
 
     // Supporting Data
@@ -63,6 +64,8 @@ class ElementManager extends Component
     public $reportingUnits = [];
     public $formulars = [];
     public $methodSequences = [];
+
+    public $stageHeaders = [];
 
     // Searchable Select Properties
     public $analyteSearch = '';
@@ -122,11 +125,12 @@ class ElementManager extends Component
         'elementForm.level' => 'nullable|integer|min:1',
         'elementForm.remark_is_manual' => 'boolean',
         'elementForm.result_is_calculated' => 'boolean',
-        'elementForm.formular_id' => 'nullable|integer',
+        'elementForm.formular_id' => 'nullable|uuid|exists:formulas,id',
         'elementForm.recommend_remedies' => 'boolean',
-        'elementForm.remedy_header_id' => 'nullable|integer',
+        'elementForm.remedy_header_id' => 'nullable|uuid|exists:remedy_headers,id',
         'elementForm.has_method_sequence' => 'boolean',
-        'elementForm.method_sequence_id' => 'nullable|integer',
+        'elementForm.method_sequence_id' => 'nullable',
+        'elementForm.stage_header_id' => 'nullable|exists:stage_headers,id',
     ];
 
     public function getRules()
@@ -135,24 +139,24 @@ class ElementManager extends Component
         
         // Make formular_id required if result_is_calculated is true
         if ($this->elementForm['result_is_calculated']) {
-            $rules['elementForm.formular_id'] = 'required|integer';
+            $rules['elementForm.formular_id'] = 'required|uuid|exists:formulas,id';
         }
         
         // Make remedy_header_id required if recommend_remedies is true
         if ($this->elementForm['recommend_remedies']) {
-            $rules['elementForm.remedy_header_id'] = 'required|integer';
+            $rules['elementForm.remedy_header_id'] = 'required|uuid|exists:remedy_headers,id';
         }
         
-        // Make method_sequence_id required if has_method_sequence is true
         if ($this->elementForm['has_method_sequence']) {
-            $rules['elementForm.method_sequence_id'] = 'required|integer';
+            $rules['elementForm.stage_header_id'] = 'required|exists:stage_headers,id';
         }
-        
+
         return $rules;
     }
 
     protected $messages = [
         'elementForm.analyte_id.required' => 'Analyte selection is required.',
+        'elementForm.stage_header_id.required' => 'A stage header is required when "Use stage header workflow" is enabled.',
     ];
 
     public function mount($analysisTypeId = null)
@@ -171,7 +175,8 @@ class ElementManager extends Component
         $this->remedyHeaders = \App\Models\RemedyHeader::all();
         $this->reportingUnits = ReportingUnit::where('active', 1)->get();
         $this->formulars = \App\Models\Formulars\Formula::where('is_active', 1)->get();
-        $this->methodSequences = collect([]); // Will be loaded dynamically based on analyte
+        $this->methodSequences = collect([]);
+        $this->stageHeaders = collect([]);
     }
 
     public function getAnalysisTypeProperty()
@@ -265,7 +270,8 @@ class ElementManager extends Component
             'result_is_calculated' => $element->result_is_calculated ?? false,
             'formular_id' => $element->formular_id,
             'has_method_sequence' => $element->has_method_sequence ?? false,
-            'method_sequence_id' => $element->method_sequence_id
+            'method_sequence_id' => $element->method_sequence_id,
+            'stage_header_id' => $element->stage_header_id,
         ];
         
         // Set selected names for searchable selects
@@ -290,9 +296,9 @@ class ElementManager extends Component
         $this->selectedMethodSequenceName = $element->methodSequence->name ?? '';
         $this->methodSequenceSearch = $this->selectedMethodSequenceName;
         
-        // Load method sequences for the selected analyte
         $this->loadMethodSequencesForAnalyte();
-        
+        $this->reloadStageHeaderOptions();
+
         $this->showElementModal = true;
         $this->dispatch('element-modal-opened');
     }
@@ -303,6 +309,13 @@ class ElementManager extends Component
         $this->elementForm['decimal_places'] = $this->elementForm['decimal_places'] ?? 2;
         $this->elementForm['significant_figures'] = $this->elementForm['significant_figures'] ?? 3;
         $this->elementForm['level'] = $this->elementForm['level'] ?? 1;
+
+        if (! $this->elementForm['has_method_sequence']) {
+            $this->elementForm['stage_header_id'] = null;
+            $this->elementForm['method_sequence_id'] = null;
+        } else {
+            $this->elementForm['method_sequence_id'] = null;
+        }
 
         $this->validate($this->getRules());
 
@@ -465,14 +478,46 @@ class ElementManager extends Component
 
     public function updatedElementFormHasMethodSequence()
     {
-        if (!$this->elementForm['has_method_sequence']) {
+        if (! $this->elementForm['has_method_sequence']) {
             $this->elementForm['method_sequence_id'] = null;
+            $this->elementForm['stage_header_id'] = null;
         }
     }
 
     public function updatedElementFormAnalyteId()
     {
         $this->loadMethodSequencesForAnalyte();
+        $this->reloadStageHeaderOptions();
+    }
+
+    public function updatedElementFormMethod()
+    {
+        $this->reloadStageHeaderOptions();
+    }
+
+    protected function reloadStageHeaderOptions(): void
+    {
+        $analyteId = $this->elementForm['analyte_id'] ?? null;
+        $methodId = $this->elementForm['method'] ?? null;
+
+        if (! $analyteId) {
+            $this->stageHeaders = collect([]);
+            $this->elementForm['stage_header_id'] = null;
+
+            return;
+        }
+
+        $this->stageHeaders = \App\Models\StageHeader::query()
+            ->where('analyte_id', $analyteId)
+            ->when($methodId, fn ($q) => $q->where('method_id', $methodId))
+            ->orderBy('name')
+            ->get();
+
+        $ids = $this->stageHeaders->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $currentId = $this->elementForm['stage_header_id'] ? (string) $this->elementForm['stage_header_id'] : null;
+        if ($currentId !== null && ! in_array($currentId, $ids, true)) {
+            $this->elementForm['stage_header_id'] = null;
+        }
     }
 
     protected function loadMethodSequencesForAnalyte()
@@ -530,6 +575,7 @@ class ElementManager extends Component
         $this->analyteSearch = $analyte->name;
         $this->showAnalyteDropdown = false;
         $this->loadMethodSequencesForAnalyte();
+        $this->reloadStageHeaderOptions();
     }
 
     public function clearAnalyte()
@@ -538,6 +584,8 @@ class ElementManager extends Component
         $this->selectedAnalyteName = '';
         $this->analyteSearch = '';
         $this->methodSequences = collect([]);
+        $this->stageHeaders = collect([]);
+        $this->elementForm['stage_header_id'] = null;
     }
 
     public function searchMethods()
@@ -677,12 +725,14 @@ class ElementManager extends Component
 
     public function selectFormular($id)
     {
-        $formular = collect($this->formulars)->firstWhere('id', $id);
+        $formular = \App\Models\Formulars\Formula::query()
+            ->where('is_active', 1)
+            ->find($id);
         if (!$formular) {
             return;
         }
 
-        $this->elementForm['formular_id'] = $id;
+        $this->elementForm['formular_id'] = (string) $formular->id;
         $this->selectedFormularName = $formular->name;
         $this->formularSearch = $formular->name;
         $this->showFormularDropdown = false;

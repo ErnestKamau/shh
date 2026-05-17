@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesStageHeaderMethodSequences;
 use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\AnalysisType;
@@ -83,6 +84,8 @@ use App\Http\Requests\StoreSampleSubmissionRequest;
 
 class SampleWorkFlowController extends Controller
 {
+    use HandlesStageHeaderMethodSequences;
+
     /**
      * Display a listing of the resource.
      *
@@ -1176,6 +1179,7 @@ class SampleWorkFlowController extends Controller
                         $captured->remark_is_manual = $analysisType->remark_is_manual;
                         $captured->formular_id = $analysisType->formular_id;
                         $captured->method_sequence_id = $analysisType->method_sequence_id;
+                        $captured->stage_header_id = $analysisType->stage_header_id;
 
                         // Get analysis type for has_no_result_capture
                         $aType = AnalysisType::find($a->id);
@@ -1407,11 +1411,7 @@ class SampleWorkFlowController extends Controller
             }
         }
 
-        $recieving_users = User::role('Sample Reception')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $recieving_users = getActiveUsersByRole('Sample Reception');
 
         $batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
@@ -1559,11 +1559,7 @@ class SampleWorkFlowController extends Controller
             // return response()->json($ammendable,200);
         }
 
-        $analysts = User::role('Laboratory Analyst')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $analysts = getActiveUsersByRole('Laboratory Analyst');
         $labs = Lab::where('active', 1)->get();
 
         // -----------------------------------
@@ -6019,11 +6015,7 @@ class SampleWorkFlowController extends Controller
             $attachments = [];
             // return response()->json($ammendable,200);
         }
-        $analysts = User::role('Laboratory Analyst')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $analysts = getActiveUsersByRole('Laboratory Analyst');
         $labs = Lab::where('active', 1)->get();
 
         // -----------------------------------
@@ -6121,11 +6113,7 @@ class SampleWorkFlowController extends Controller
     {
         $captured_results = CapturedResultView::where('sample_detail_id', $sample_id)->get();
         $equipments = Equipment::where('active', 1)->get();
-        $analysts = User::role('Laboratory Analyst')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $analysts = getActiveUsersByRole('Laboratory Analyst');
         $res = [
             'captured' => $captured_results,
             'equipments' => $equipments,
@@ -6553,11 +6541,7 @@ class SampleWorkFlowController extends Controller
             $data = $data->where('is_complete', 1)->orderBy('created_at', 'ASC')->get();
         }
         $sampletypes = SampleType::where('active', 1)->get();
-        $analysts = User::role('Laboratory Analyst')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $analysts = getActiveUsersByRole('Laboratory Analyst');
         return view('layouts.lab.reports.tat-report', compact('sampletypes', 'analysts', 'filter', 'data'));
     }
     public function getAnalysisTypeAjax($sampletype)

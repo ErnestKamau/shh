@@ -131,7 +131,7 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditFormulaModal({{ $formula->id }})" 
+                                                    <button wire:click="showEditFormulaModal(@js($formula->id))" 
                                                             class="btn btn-sm btn-outline-primary mr-2" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
@@ -141,16 +141,16 @@
                                                             <i class="mdi mdi-cogs"></i>
                                                         </a>
                                                     @endif
-                                                    <button wire:click="showVersionModal({{ $formula->id }})" 
+                                                    <button wire:click="showVersionModal(@js($formula->id))" 
                                                             class="btn btn-sm btn-outline-info mr-2" title="New Version">
                                                         <i class="mdi mdi-plus-circle"></i>
                                                     </button>
-                                                    <button wire:click="toggleFormulaStatus({{ $formula->id }})" 
+                                                    <button wire:click="toggleFormulaStatus(@js($formula->id))" 
                                                             class="btn btn-sm btn-outline-{{ $formula->is_active ? 'warning' : 'success' }} mr-2" 
                                                             title="{{ $formula->is_active ? 'Deactivate' : 'Activate' }}">
                                                         <i class="mdi mdi-{{ $formula->is_active ? 'pause' : 'play' }}"></i>
                                                     </button>
-                                                    <button wire:click="deleteFormula({{ $formula->id }})" 
+                                                    <button wire:click="deleteFormula(@js($formula->id))" 
                                                             class="btn btn-sm btn-outline-danger" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this formula?')">
