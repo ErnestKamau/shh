@@ -545,16 +545,10 @@ class MethodSequenceWorksheet extends Component
                         if ($captured) {
                             $captured->result = $result;
                             $captured->remark = $remark;
-                            $captured->operator_id = $stageData->completed_by_user_id ?? Auth::id();
+                            $captured->assignAnalyst($stageData->completed_by_user_id ?? Auth::id());
 
-                            // Populate from analysis element configuration if not already set
                             if ($captured->analysisElement) {
-                                if (!$captured->reporting_unit_id) {
-                                    $captured->reporting_unit_id = $captured->analysisElement->reporting_unit;
-                                }
-                                if (!$captured->method_id) {
-                                    $captured->method_id = $captured->analysisElement->method;
-                                }
+                                $captured->applyAnalysisElementDefaults();
                             }
 
                             $captured->save();

@@ -1250,6 +1250,38 @@ function getRoles()
 	return App\Models\Auth\Role::orderBy('name')->where('company_id', getUserCompany())->get();
 }
 
+/**
+ * @param  string|array<int, string>  $roleNames
+ * @return \Illuminate\Database\Eloquent\Collection<int, \App\User>
+ */
+function getActiveUsersByRole(string|array $roleNames): \Illuminate\Database\Eloquent\Collection
+{
+	$roleNames = collect(is_array($roleNames) ? $roleNames : [$roleNames])
+		->map(fn ($name) => trim((string) $name))
+		->filter()
+		->unique()
+		->values();
+
+	if ($roleNames->isEmpty()) {
+		return collect();
+	}
+
+	$existingRoleNames = App\Models\Auth\Role::query()
+		->where('guard_name', 'web')
+		->whereIn('name', $roleNames->all())
+		->pluck('name');
+
+	if ($existingRoleNames->isEmpty()) {
+		return collect();
+	}
+
+	return App\User::role($existingRoleNames->all())
+		->where('is_support_staff', 0)
+		->where('active', 1)
+		->orderBy('name')
+		->get();
+}
+
 function getNotifiableUsers()
 {
 	//for now return users. To be changed to users for lab only based on personnel module
@@ -2585,4 +2617,48 @@ function getNCHotspotsByRiskLevel()
 		->limit(10)
 		->pluck('count', 'label')
 		->toArray();
+}
+
+/**
+ * Resolve a reporting_units.id from a unit name or existing UUID value.
+ */
+function resolveReportingUnitIdFromName(?string $unitName): ?string
+{
+	if (empty($unitName)) {
+		return null;
+	}
+
+	if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $unitName)) {
+		return $unitName;
+	}
+
+	return App\ReportingUnit::query()->where('name', $unitName)->value('id');
+}
+
+/**
+ * Resolve reporting_unit_id from analysis_elements.reporting_unit (unit name string).
+ */
+function resolveReportingUnitIdFromAnalyte(?string $analysisTypeId, ?string $analyteId, ?string $existingReportingUnitId): ?string
+{
+	$resolvedExisting = resolveReportingUnitIdFromName($existingReportingUnitId);
+	if ($resolvedExisting) {
+		return $resolvedExisting;
+	}
+
+	$unitName = null;
+	if ($analysisTypeId && $analyteId) {
+		$ae = App\AnalysisElements::query()
+			->where('analysis_type_id', $analysisTypeId)
+			->where('analyte_id', $analyteId)
+			->where('active', 1)
+			->first();
+		$unitName = $ae->reporting_unit ?? null;
+	}
+
+	if (empty($unitName) && $analyteId) {
+		$analyte = App\Analyte::find($analyteId);
+		$unitName = $analyte->reporting_unit ?? null;
+	}
+
+	return resolveReportingUnitIdFromName($unitName);
 }

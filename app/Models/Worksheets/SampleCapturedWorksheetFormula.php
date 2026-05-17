@@ -51,9 +51,6 @@ class SampleCapturedWorksheetFormula extends Model implements Auditable
         'time_in' => 'datetime:H:i',
         'time_out' => 'datetime:H:i',
         'posted_at' => 'datetime',
-        'lab_no' => 'encrypted',
-        'sample_details' => 'encrypted',
-        'final_result' => 'encrypted',
     ];
 
     public function sampleHeader(): BelongsTo

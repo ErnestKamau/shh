@@ -30,9 +30,9 @@
             </div>
         </div>
 
-        <!-- Message Alert -->
-        @if($message)
-            <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+        <!-- Message Alert (page only — modals show their own copy) -->
+        @if($message && !$this->isAnyModalOpen())
+            <div class="alert alert-{{ $this->messageAlertClass() }} alert-dismissible fade show" role="alert">
                 {{ $message }}
                 <button type="button" class="btn-close" wire:click="dismissMessage"></button>
             </div>
@@ -58,7 +58,7 @@
                             <div class="col-md-3">
                                 <div class="form-group mb-3">
                                     <label class="form-label fw-bold">Type</label>
-                                    <select wire:model.live="typeFilter" class="form-select modern-select">
+                                    <select wire:model.live="typeFilter" class="form-select modern-select no-select2">
                                         <option value="">All Types</option>
                                         <option value="input">Input</option>
                                         <option value="derived">Derived</option>
@@ -69,7 +69,7 @@
                             <div class="col-md-3">
                                 <div class="form-group mb-3">
                                     <label class="form-label fw-bold">Show Entries</label>
-                                    <select wire:model.live="perPage" class="form-select modern-select">
+                                    <select wire:model.live="perPage" class="form-select modern-select no-select2">
                                         @foreach($perPageOptions as $option)
                                             <option value="{{ $option }}">{{ $option }}</option>
                                         @endforeach
@@ -159,11 +159,11 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group" role="group">
-                                                        <button wire:click="showEditStepModalInit({{ $step['id'] }})" 
+                                                        <button wire:click="showEditStepModalInit(@js($step['id']))" 
                                                                 class="btn btn-sm btn-outline-primary" title="Edit">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
-                                                        <button wire:click="showDeleteStepModal({{ $step['id'] }})" 
+                                                        <button wire:click="showDeleteStepModal(@js($step['id']))" 
                                                                 class="btn btn-sm btn-outline-danger" 
                                                                 title="Delete">
                                                             <i class="mdi mdi-delete"></i>
@@ -180,7 +180,7 @@
                                 <i class="mdi mdi-cogs fa-3x text-muted mb-3"></i>
                                 <h5 class="text-muted">No steps defined</h5>
                                 <p class="text-muted">Add steps to define your formula workflow.</p>
-                                <button wire:click="showCreateStepModal" class="btn btn-primary">
+                                <button wire:click="showCreateStepModalInit" class="btn btn-primary">
                                     <i class="mdi mdi-plus"></i> Add First Step
                                 </button>
                             </div>
@@ -275,11 +275,11 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group" role="group">
-                                                        <button wire:click="showEditFieldModalInit({{ $field['id'] }})" 
+                                                        <button wire:click="showEditFieldModalInit(@js($field['id']))" 
                                                                 class="btn btn-sm btn-outline-primary" title="Edit">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
-                                                        <button wire:click="showDeleteFieldModal({{ $field['id'] }})" 
+                                                        <button wire:click="showDeleteFieldModal(@js($field['id']))" 
                                                                 class="btn btn-sm btn-outline-danger" 
                                                                 title="Delete">
                                                             <i class="mdi mdi-delete"></i>
@@ -307,7 +307,7 @@
         </div>
 
         @if($showCreateStepModal)
-            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal fade show d-block formula-step-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -318,6 +318,13 @@
                             <button type="button" class="btn-close" wire:click="$set('showCreateStepModal', false)"></button>
                         </div>
                         <div class="modal-body">
+                            @if($message)
+                                <div class="alert alert-{{ $this->messageAlertClass() }} alert-dismissible fade show mb-3" role="alert">
+                                    {{ $message }}
+                                    <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+                                </div>
+                            @endif
+
                             <!-- Error Display -->
                             @if($errors->any())
                                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -334,24 +341,29 @@
                             
                             <form wire:submit.prevent="createStep">
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <div class="mb-3">
                                             <label for="stepNumber" class="form-label">Step Number *</label>
                                             <input type="number" wire:model="stepNumber" class="form-control @error('stepNumber') is-invalid @enderror" id="stepNumber" required min="1">
                                             @error('stepNumber') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-8">
                                         <div class="mb-3">
-                                            <label for="stepType" class="form-label"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
-                                            <select wire:model.live="stepType" class="form-select modern-select @error('stepType') is-invalid @enderror" id="stepType" required>
-                                                <option value="">Select Step Type</option>
-                                                <option value="input">Input</option>
-                                                <option value="derived">Derived</option>
-                                                <option value="lookup">Lookup</option>
-                                                <option value="parameter_result">Parameter Result</option>
-                                            </select>
-                                            @error('stepType') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            <label class="form-label d-block"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
+                                            <div class="step-type-picker @error('stepType') is-invalid @enderror" id="stepType">
+                                                @foreach($this->stepTypeOptions as $value => $label)
+                                                    <label class="step-type-option {{ $stepType === $value ? 'active' : '' }}">
+                                                        <input type="radio"
+                                                               wire:model.live="stepType"
+                                                               value="{{ $value }}"
+                                                               class="step-type-option-input"
+                                                               name="create_step_type">
+                                                        <span>{{ $label }}</span>
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                            @error('stepType') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                         </div>
                                     </div>
                                 </div>
@@ -372,7 +384,8 @@
                                         </div>
                                     </div>
                                 </div>
-        
+
+                                <div class="formula-step-modal-scroll">
                                 @if($stepType === 'derived')
                                     <!-- Derived Step Configuration -->
                                     <div class="card bg-light mb-3">
@@ -456,7 +469,7 @@
                                         <div class="card-body">
                                     <div class="mb-3">
                                         <label for="lookupTableId" class="form-label"><i class="mdi mdi-table-search text-primary"></i> Lookup Table *</label>
-                                        <select wire:model.live="lookupTableId" class="form-select modern-select @error('lookupTableId') is-invalid @enderror" id="lookupTableId" required>
+                                        <select wire:model.live="lookupTableId" class="form-select modern-select no-select2 @error('lookupTableId') is-invalid @enderror" id="lookupTableId" required>
                                             <option value="">Select Lookup Table</option>
                                             @foreach($lookupTables as $table)
                                                 <option value="{{ $table->id }}">{{ $table->name }}</option>
@@ -514,7 +527,7 @@
                                                     
                                                     <div class="mb-3">
                                                         <label class="form-label fw-bold">Variable to Check *</label>
-                                                        <select wire:model="lookupConfig.range_variable" class="form-select modern-select">
+                                                        <select wire:model="lookupConfig.range_variable" class="form-select modern-select no-select2">
                                                             <option value="">Select Variable...</option>
                                                             @foreach($availableVariables as $varName => $varData)
                                                                 <option value="{{ $varName }}">{{ $varData['label'] }} ({{ $varName }})</option>
@@ -616,7 +629,7 @@
                                         <div class="card-body">
                                     <div class="mb-3">
                                         <label for="analyteId" class="form-label"><i class="mdi mdi-flask text-primary"></i> Select Analyte *</label>
-                                        <select wire:model.live="analyteId" class="form-select modern-select @error('analyteId') is-invalid @enderror" id="analyteId" required>
+                                        <select wire:model.live="analyteId" class="form-select modern-select no-select2 @error('analyteId') is-invalid @enderror" id="analyteId" required>
                                             <option value="">Select Analyte</option>
                                             @foreach($analytes as $analyte)
                                                 <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
@@ -632,6 +645,7 @@
                                     <label for="description" class="form-label">Description</label>
                                     <textarea wire:model="description" class="form-control @error('description') is-invalid @enderror" id="description" rows="2"></textarea>
                                     @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
                                 </div>
                             </form>
                         </div>
@@ -649,7 +663,7 @@
 
 <!-- Edit Step Modal -->
 @if($showEditStepModal)
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal fade show d-block formula-step-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -660,6 +674,13 @@
                     <button type="button" class="btn-close" wire:click="$set('showEditStepModal', false)"></button>
                 </div>
                 <div class="modal-body">
+                    @if($message)
+                        <div class="alert alert-{{ $this->messageAlertClass() }} alert-dismissible fade show mb-3" role="alert">
+                            {{ $message }}
+                            <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+                        </div>
+                    @endif
+
                     <!-- Error Display -->
                     @if($errors->any())
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -676,24 +697,29 @@
                     
                     <form wire:submit.prevent="updateStep">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="editStepNumber" class="form-label">Step Number *</label>
                                     <input type="number" wire:model="stepNumber" class="form-control @error('stepNumber') is-invalid @enderror" id="editStepNumber" required min="1">
                                     @error('stepNumber') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-8">
                                 <div class="mb-3">
-                                    <label for="editStepType" class="form-label"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
-                                    <select wire:model.live="stepType" class="form-select modern-select @error('stepType') is-invalid @enderror" id="editStepType" required>
-                                        <option value="">Select Step Type</option>
-                                        <option value="input">Input</option>
-                                        <option value="derived">Derived</option>
-                                        <option value="lookup">Lookup</option>
-                                        <option value="parameter_result">Parameter Result</option>
-                                    </select>
-                                    @error('stepType') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    <label class="form-label d-block"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
+                                    <div class="step-type-picker @error('stepType') is-invalid @enderror" id="editStepType">
+                                        @foreach($this->stepTypeOptions as $value => $label)
+                                            <label class="step-type-option {{ $stepType === $value ? 'active' : '' }}">
+                                                <input type="radio"
+                                                       wire:model.live="stepType"
+                                                       value="{{ $value }}"
+                                                       class="step-type-option-input"
+                                                       name="edit_step_type">
+                                                <span>{{ $label }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('stepType') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                 </div>
                             </div>
                         </div>
@@ -715,6 +741,7 @@
                             </div>
                         </div>
 
+                        <div class="formula-step-modal-scroll">
                         @if($stepType === 'derived')
                             <!-- Derived Step Configuration -->
                             <div class="card bg-light mb-3">
@@ -798,7 +825,7 @@
                                 <div class="card-body">
                                     <div class="mb-3">
                                         <label for="editLookupTableId" class="form-label">Lookup Table *</label>
-                                        <select wire:model.live="lookupTableId" class="form-select modern-select @error('lookupTableId') is-invalid @enderror" id="editLookupTableId" required>
+                                        <select wire:model.live="lookupTableId" class="form-select modern-select no-select2 @error('lookupTableId') is-invalid @enderror" id="editLookupTableId" required>
                                             <option value="">Select a lookup table</option>
                                             @foreach($lookupTables as $table)
                                                 <option value="{{ $table->id }}">{{ $table->name }}</option>
@@ -856,7 +883,7 @@
                                             
                                             <div class="mb-3">
                                                 <label class="form-label fw-bold">Variable to Check *</label>
-                                                <select wire:model="lookupConfig.range_variable" class="form-select modern-select">
+                                                <select wire:model="lookupConfig.range_variable" class="form-select modern-select no-select2">
                                                     <option value="">Select Variable...</option>
                                                     @foreach($availableVariables as $varName => $varData)
                                                         <option value="{{ $varName }}">{{ $varData['label'] }} ({{ $varName }})</option>
@@ -958,7 +985,7 @@
                                 <div class="card-body">
                                     <div class="mb-3">
                                         <label for="editAnalyteId" class="form-label">Select Analyte *</label>
-                                        <select wire:model.live="analyteId" class="form-select modern-select @error('analyteId') is-invalid @enderror" id="editAnalyteId" required>
+                                        <select wire:model.live="analyteId" class="form-select modern-select no-select2 @error('analyteId') is-invalid @enderror" id="editAnalyteId" required>
                                             <option value="">Select Analyte</option>
                                             @foreach($analytes as $analyte)
                                                 <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
@@ -974,6 +1001,7 @@
                             <label for="editDescription" class="form-label">Description</label>
                             <textarea wire:model="description" class="form-control @error('description') is-invalid @enderror" id="editDescription" rows="2"></textarea>
                             @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
                         </div>
                     </form>
                 </div>
@@ -1064,6 +1092,13 @@
                     <button type="button" class="btn-close btn-close-white" wire:click="$set('showTestFormulaModal', false)"></button>
                 </div>
                 <div class="modal-body">
+                    @if($message)
+                        <div class="alert alert-{{ $this->messageAlertClass() }} alert-dismissible fade show mb-3" role="alert">
+                            {{ $message }}
+                            <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+                        </div>
+                    @endif
+
                     @if(count($testInputs) > 0)
                         <div class="row">
                             <!-- Left Column - Inputs -->
@@ -1326,7 +1361,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="fieldType" class="form-label">Field Type *</label>
-                                    <select wire:model.live="fieldType" class="form-select modern-select @error('fieldType') is-invalid @enderror" id="fieldType" required>
+                                    <select wire:model.live="fieldType" class="form-select modern-select no-select2 @error('fieldType') is-invalid @enderror" id="fieldType" required>
                                         <option value="">Select Field Type</option>
                                         <option value="input">Text Input</option>
                                         <option value="datetime">Date & Time</option>
@@ -1348,7 +1383,7 @@
                         @if($fieldType === 'dataset_related')
                             <div class="mb-3">
                                 <label for="fieldModelTiedTo" class="form-label">Dataset Model *</label>
-                                <select wire:model="fieldModelTiedTo" class="form-select modern-select @error('fieldModelTiedTo') is-invalid @enderror" id="fieldModelTiedTo" required>
+                                <select wire:model="fieldModelTiedTo" class="form-select modern-select no-select2 @error('fieldModelTiedTo') is-invalid @enderror" id="fieldModelTiedTo" required>
                                     <option value="">Select Dataset Model</option>
                                     <option value="equipments">Equipments</option>
                                     <option value="users">Users</option>
@@ -1432,7 +1467,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="editFieldType" class="form-label">Field Type *</label>
-                                    <select wire:model.live="fieldType" class="form-select modern-select @error('fieldType') is-invalid @enderror" id="editFieldType" required>
+                                    <select wire:model.live="fieldType" class="form-select modern-select no-select2 @error('fieldType') is-invalid @enderror" id="editFieldType" required>
                                         <option value="">Select Field Type</option>
                                         <option value="input">Text Input</option>
                                         <option value="datetime">Date & Time</option>
@@ -1454,7 +1489,7 @@
                         @if($fieldType === 'dataset_related')
                             <div class="mb-3">
                                 <label for="editFieldModelTiedTo" class="form-label">Dataset Model *</label>
-                                <select wire:model="fieldModelTiedTo" class="form-select modern-select @error('fieldModelTiedTo') is-invalid @enderror" id="editFieldModelTiedTo" required>
+                                <select wire:model="fieldModelTiedTo" class="form-select modern-select no-select2 @error('fieldModelTiedTo') is-invalid @enderror" id="editFieldModelTiedTo" required>
                                     <option value="">Select Dataset Model</option>
                                     <option value="equipments">Equipments</option>
                                     <option value="users">Users</option>
@@ -2043,6 +2078,89 @@
         max-height: 90vh;
         overflow: hidden;
     }
+
+    /* Step modals: keep header fields outside scroll so native select lists are not clipped */
+    .formula-step-modal.modal {
+        overflow-y: auto;
+    }
+
+    .formula-step-modal .modal-dialog {
+        overflow: visible;
+        max-height: none;
+    }
+
+    .formula-step-modal .modal-content {
+        overflow: visible;
+        max-height: none;
+    }
+
+    .formula-step-modal .modal-body {
+        overflow: visible;
+        max-height: none;
+    }
+
+    .step-type-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .step-type-picker.is-invalid {
+        padding: 0.25rem;
+        border-radius: 0.5rem;
+        border: 1px solid #dc3545;
+    }
+
+    .step-type-option {
+        flex: 1 1 calc(50% - 0.5rem);
+        min-width: 7.5rem;
+        margin: 0;
+        padding: 0.5rem 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        background: #fff;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .step-type-option:hover {
+        border-color: #3b82f6;
+        background: #f8fafc;
+    }
+
+    .step-type-option.active {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.1);
+        color: #1d4ed8;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .step-type-option-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    @media (min-width: 576px) {
+        .step-type-option {
+            flex: 1 1 auto;
+        }
+    }
+
+    .formula-step-modal-scroll {
+        overflow-y: auto;
+        max-height: calc(90vh - 320px);
+        padding-right: 0.25rem;
+        margin-right: -0.25rem;
+    }
+
+    .formula-step-modal .modal-body .mb-3:has(.modern-select.no-select2) {
+        overflow: visible;
+    }
     
     .modal-header {
         border-bottom: 1px solid #e5e7eb;
@@ -2120,6 +2238,10 @@
         .modal-body {
             max-height: calc(100vh - 200px);
             padding: 1rem;
+        }
+
+        .formula-step-modal-scroll {
+            max-height: calc(100vh - 340px);
         }
         
         .modal-header {
@@ -2338,6 +2460,10 @@
         function initializeModalScrolling() {
             const modals = document.querySelectorAll('.modal');
             modals.forEach(modal => {
+                if (modal.classList.contains('formula-step-modal')) {
+                    return;
+                }
+
                 const modalBody = modal.querySelector('.modal-body');
                 if (modalBody) {
                     // Ensure modal body is scrollable

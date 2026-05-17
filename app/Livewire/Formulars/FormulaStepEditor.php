@@ -335,12 +335,23 @@ class FormulaStepEditor extends Component
         $this->showTestFormulaModal = true;
     }
 
-    public function testFormula()
+    public function testFormula(): void
     {
+        $missingInputs = $this->getMissingTestInputs();
+        if ($missingInputs !== []) {
+            $this->setMessage(
+                'Please provide values for: ' . implode(', ', $missingInputs),
+                'error'
+            );
+            $this->testResults = [];
+            $this->testExecutionData = [];
+
+            return;
+        }
+
         try {
-            // Convert string inputs to appropriate data types for lookup matching
             $convertedInputs = $this->convertInputTypes($this->testInputs);
-            
+
             $evaluator = app(FormulaEvaluator::class);
             $result = $evaluator->execute($this->formulaVersion, $convertedInputs);
             
@@ -363,11 +374,33 @@ class FormulaStepEditor extends Component
             } else {
                 $this->setMessage('Formula executed successfully!', 'success');
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->setMessage('Error executing formula: ' . $e->getMessage(), 'error');
             $this->testResults = [];
             $this->testExecutionData = [];
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function getMissingTestInputs(): array
+    {
+        $missing = [];
+
+        $inputSteps = $this->formulaVersion->formulaSteps()
+            ->where('step_type', 'input')
+            ->get();
+
+        foreach ($inputSteps as $step) {
+            $value = $this->testInputs[$step->variable_name] ?? null;
+
+            if ($value === null || $value === '') {
+                $missing[] = $step->label ?: $step->variable_name;
+            }
+        }
+
+        return $missing;
     }
 
     protected function convertInputTypes(array $inputs): array
@@ -548,10 +581,44 @@ class FormulaStepEditor extends Component
         $this->testExecutionData = [];
     }
 
-    protected function setMessage(string $message, string $type)
+    protected function setMessage(string $message, string $type): void
     {
         $this->message = $message;
         $this->messageType = $type;
+    }
+
+    public function isAnyModalOpen(): bool
+    {
+        return $this->showCreateStepModal
+            || $this->showEditStepModal
+            || $this->showTestFormulaModal
+            || $this->showDeleteStepModal
+            || $this->showDeletionBlockedModal
+            || $this->showCreateFieldModal
+            || $this->showEditFieldModal
+            || $this->showDeleteFieldModal;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getStepTypeOptionsProperty(): array
+    {
+        return [
+            'input' => 'Input',
+            'derived' => 'Derived',
+            'lookup' => 'Lookup',
+            'parameter_result' => 'Parameter Result',
+        ];
+    }
+
+    public function messageAlertClass(): string
+    {
+        return match ($this->messageType) {
+            'success' => 'success',
+            'warning' => 'warning',
+            default => 'danger',
+        };
     }
 
     public function backToFormulaManagement()

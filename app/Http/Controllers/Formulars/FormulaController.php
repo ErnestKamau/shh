@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Formulars;
 use App\Http\Controllers\Controller;
 use App\Models\Formulars\Formula;
 use App\Models\Formulars\FormulaVersion;
+use App\Models\StageHeader;
 use Illuminate\Http\Request;
 
 class FormulaController extends Controller
@@ -16,7 +17,7 @@ class FormulaController extends Controller
     {
         $stats = [
             'activeFormulas' => \App\Models\Formulars\Formula::where('is_active', true)->count(),
-            'activeMethodSequences' => \App\Models\MethodSequences\MethodSequence::where('is_active', true)->count(),
+            'methodSequences' => StageHeader::count(),
             'executions' => \App\Models\Formulars\WorksheetExecution::where('is_saved', true)->count(),
             'lookupTables' => \App\Models\Formulars\LookupTable::count(),
         ];

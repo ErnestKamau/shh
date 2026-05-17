@@ -53,11 +53,16 @@ class AnalysisElements extends Model implements Auditable
     'formular_id',
     'has_method_sequence',
     'method_sequence_id',
+    'stage_header_id',
     'procedure_worksheet_id'
   ];
   
   protected $casts = [
     'operator_id' => 'string',
+    'formular_id' => 'string',
+    'remedy_header_id' => 'string',
+    'method_sequence_id' => 'string',
+    'stage_header_id' => 'string',
     'lod' => 'float',
     'hod' => 'float',
     'level' => 'integer',
@@ -106,6 +111,11 @@ class AnalysisElements extends Model implements Auditable
 
   public function methodSequence(){
     return $this->belongsTo('App\Models\MethodSequences\MethodSequence', 'method_sequence_id');
+  }
+
+  public function stageHeader()
+  {
+      return $this->belongsTo(\App\Models\StageHeader::class, 'stage_header_id');
   }
 
   public function formular(){

@@ -1,7 +1,7 @@
-<div class="procedure-worksheet-manager lab-panel-theme">
+<div class="procedure-worksheet-manager">
     <div wire:loading wire:target="activeTabs, selectedWorksheetId, save">
         <div class="d-flex justify-content-center align-items-center" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.7); z-index: 9999;">
-            <div class="spinner-border text-primary" role="status">
+            <div class="spinner-border text-success" role="status">
                 <span class="sr-only">Loading...</span>
             </div>
         </div>
@@ -30,7 +30,7 @@
         <div class="alert alert-light border mb-4 procedure-info-banner">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center">
-                    <i class="mdi mdi-file-document-outline mdi-24px text-primary mr-3"></i>
+                    <i class="mdi mdi-file-document-outline mdi-24px text-success mr-3"></i>
                     <div>
                         <strong>Procedure Worksheet:</strong> {{ $this->selectedWorksheet->name }}<br>
                         <small class="text-muted">{{ $this->selectedWorksheet->description ?: 'Enter procedure data for the selected parameter and samples.' }}</small>
@@ -43,7 +43,7 @@
         </div>
         @endif
 
-        <div class="workflow-board-panel procedure-worksheet-card mb-0">
+        <div class="card shadow-sm border-0 procedure-worksheet-card mb-0" style="border-radius: 15px;">
             {{-- Workflow guidance hint --}}
             <div class="alert alert-info alert-sm py-2 px-3 mb-0 rounded-0 border-0 border-bottom" style="font-size:0.85rem;">
                 <i class="mdi mdi-information-outline mr-1"></i>
@@ -54,7 +54,7 @@
             </div>
             {{-- Tabs: one per parameter; worksheet from element below --}}
             <div class="procedure-selector-bar">
-                <ul class="nav batch-nav-tabs mb-0" role="tablist">
+                <ul class="nav nav-pills mb-0 px-3 pt-2" role="tablist">
                     @foreach($this->paramsWithWorksheets as $param)
                     <li class="nav-item" role="presentation">
                         <button type="button"
@@ -82,24 +82,24 @@
                 @endif
             </div>
 
-            <div class="workflow-board-panel-body">
+            <div class="card-body p-0">
                 @if(!empty($activeTabs))
                 @if($selectedWorksheetId)
                 <section class="procedure-section mb-4">
-                    <div class="workflow-board-panel procedure-section-card">
-                        <div class="workflow-board-panel-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="card shadow-sm border-0 procedure-section-card mb-4">
+                        <div class="card-header procedure-section-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h6 class="mb-0">
-                                <i class="mdi mdi-flask-outline text-primary"></i>
+                                <i class="mdi mdi-flask-outline text-success"></i>
                                 Select Samples
                             </h6>
-                            <button type="button" class="btn btn-sm btn-primary btn-action-sm" wire:click="toggleExternalPanel">
+                            <button type="button" class="btn btn-sm btn-success btn-action-sm" wire:click="toggleExternalPanel">
                                 <i class="mdi mdi-plus"></i> Add Samples from Other Batches
                             </button>
                         </div>
-                        <div class="workflow-board-panel-body">
+                        <div class="card-body p-3">
                             @if($showExternalPanel)
-                            <div class="workflow-board-panel mb-3 procedure-inner-card">
-                                <div class="workflow-board-panel-body">
+                            <div class="card mb-3 procedure-inner-card border">
+                                <div class="card-body p-3">
                                     <label class="form-label small text-muted fw-bold">Add samples from other batches</label>
                                     <p class="text-muted small mb-2">Search and select samples, then click Add Selected.</p>
 
@@ -139,7 +139,7 @@
                                         @if(count($externalSelectionItems) > 0)
                                         <span class="text-muted small">{{ count($externalSelectionItems) }} selected</span>
                                         @endif
-                                        <button type="button" class="btn btn-sm btn-primary" wire:click="addSelectedExternalSamples"
+                                        <button type="button" class="btn btn-sm btn-success" wire:click="addSelectedExternalSamples"
                                             @if(empty($externalSelectionItems)) disabled @endif>
                                             <i class="mdi mdi-plus-circle-outline"></i> Add Selected
                                         </button>
@@ -192,11 +192,11 @@
                 $selectedResults = $this->analysisSamples->filter(fn($r) => $r->sample && in_array($r->sample->id, $selectedSamples))->values();
                 @endphp
                 <section class="procedure-section mb-4">
-                    <div class="workflow-board-panel procedure-section-card">
-                        <div class="workflow-board-panel-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="card shadow-sm border-0 procedure-section-card mb-4">
+                        <div class="card-header procedure-section-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h6 class="mb-0 d-flex align-items-center gap-2">
                                 <span>
-                                    <i class="mdi mdi-timeline text-primary"></i>
+                                    <i class="mdi mdi-timeline text-success"></i>
                                     Steps &amp; Measurands
                                 </span>
                                 @if($worksheetAlreadyPosted)
@@ -224,7 +224,7 @@
                                                 'analytes' => $analyteQuery,
                                             ]) }}"
                                         target="_blank"
-                                        class="badge bg-light text-primary border"
+                                        class="badge bg-light text-success border"
                                         title="Preview the currently selected worksheet PDF in a new tab">
                                         <i class="mdi mdi-file-eye"></i> Preview PDF
                                     </a>
@@ -265,13 +265,13 @@
                             Worksheet results for this parameter have already been posted. You can re-post if you make changes.
                         </div>
                         @endif
-                        <div class="workflow-board-panel-body p-0">
+                        <div class="card-body p-0">
                             <div class="alert alert-info rounded-0 border-0 border-bottom mb-0 py-2 px-3" style="font-size: 0.85rem;">
                                 <i class="mdi mdi-information-outline mr-1"></i>
                                 <strong>Tip:</strong> The system automatically records you as the <strong>Analyst</strong> for the steps you type values into or import data for.
                             </div>
                             <div class="table-responsive procedure-steps-table-wrap">
-                                <table class="table table-bordered procedure-steps-table mb-0 workflow-table">
+                                <table class="table table-bordered procedure-steps-table mb-0">
                                     <thead>
                                         <tr>
                                             <th class="step-header-cell">Step</th>
@@ -286,20 +286,12 @@
                                         <tr wire:key="step-{{ $step->id }}-ws-{{ $this->selectedWorksheetId }}-tab-{{ implode('-', $activeTabs) }}-hash-{{ $this->importHash }}">
                                             <td class="step-info-cell">{{ $step->step }}</td>
                                             <td>
-                                                {{-- Measurand multiselect (Select2) --}}
-                                                <div wire:ignore x-data="{
-                                                    init() {
-                                                        let el = $(this.$refs.select);
-                                                        el.select2({ width: '100%', placeholder: 'Select measurand(s)...', allowClear: true });
-                                                        let initial = @js($stepMeasurandOverrides[$step->id] ?? []);
-                                                        if (initial.length) { el.val(initial).trigger('change'); }
-                                                        el.on('change', () => {
-                                                              @this.set('stepMeasurandOverrides.{{ $step->id }}', el.val() || []);
-                                                              @this.call('autosaveStepOverride', {{ $step->id }});
-                                                        });
-                                                    }
-                                                }">
-                                                    <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
+                                                <div wire:ignore
+                                                    class="procedure-select2-wrap"
+                                                    data-select-type="measurand"
+                                                    data-step-id="{{ $step->id }}"
+                                                    data-initial='@json($stepMeasurandOverrides[$step->id] ?? [])'>
+                                                    <select class="form-control form-control-sm procedure-select2 no-select2" multiple="multiple" data-placeholder="Select measurand(s)...">
                                                         @foreach($this->measurandOptions as $opt)
                                                         <option value="{{ $opt->id }}">{{ $opt->label }}</option>
                                                         @endforeach
@@ -307,20 +299,12 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                {{-- Equipment multiselect (Select2) --}}
-                                                <div wire:ignore x-data="{
-                                                    init() {
-                                                        let el = $(this.$refs.select);
-                                                        el.select2({ width: '100%', placeholder: 'Select equipment...', allowClear: true });
-                                                        let initial = @js($stepEquipmentOverrides[$step->id] ?? []);
-                                                        if (initial.length) { el.val(initial).trigger('change'); }
-                                                        el.on('change', () => {
-                                                              @this.set('stepEquipmentOverrides.{{ $step->id }}', el.val() || []);
-                                                              @this.call('autosaveStepOverride', {{ $step->id }});
-                                                        });
-                                                    }
-                                                }">
-                                                    <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
+                                                <div wire:ignore
+                                                    class="procedure-select2-wrap"
+                                                    data-select-type="equipment"
+                                                    data-step-id="{{ $step->id }}"
+                                                    data-initial='@json($stepEquipmentOverrides[$step->id] ?? [])'>
+                                                    <select class="form-control form-control-sm procedure-select2 no-select2" multiple="multiple" data-placeholder="Select equipment...">
                                                         @foreach($this->equipmentOptions as $opt)
                                                         <option value="{{ $opt->id }}">{{ $opt->label }}</option>
                                                         @endforeach
@@ -328,29 +312,12 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                {{-- Analyst multiselect (Select2) --}}
-                                                <div wire:ignore x-data="{
-                                                    init() {
-                                                        let el = $(this.$refs.select);
-                                                        el.select2({ width: '100%', placeholder: 'Select analyst(s)...', allowClear: true });
-                                                        let initial = @js($stepAnalystOverrides[$step->id] ?? []);
-                                                        if (initial.length) { el.val(initial).trigger('change'); }
-                                                        el.on('change', () => {
-                                                              @this.set('stepAnalystOverrides.{{ $step->id }}', el.val() || []);
-                                                              @this.call('autosaveStepOverride', {{ $step->id }});
-                                                        });
-
-                                                        // Keep analyst Select2 in sync when Livewire assigns the current user on autosave.
-                                                        document.addEventListener('syncStepAnalystSelect', (e) => {
-                                                            if (!e.detail) return;
-                                                            if (String(e.detail.stepId) !== String({{ $step->id }})) return;
-                                                            let ids = e.detail.analystIds || [];
-                                                            el.val(ids).trigger('change.select2');
-                                                        });
-
-                                                    }
-                                                }">
-                                                    <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
+                                                <div wire:ignore
+                                                    class="procedure-select2-wrap"
+                                                    data-select-type="analyst"
+                                                    data-step-id="{{ $step->id }}"
+                                                    data-initial='@json($stepAnalystOverrides[$step->id] ?? [])'>
+                                                    <select class="form-control form-control-sm procedure-select2 no-select2" multiple="multiple" data-placeholder="Select analyst(s)...">
                                                         @foreach($this->analystOptions as $opt)
                                                         <option value="{{ $opt->id }}">{{ $opt->label }}</option>
                                                         @endforeach
@@ -413,20 +380,20 @@
 
                 @if($this->getTestKitColumnsProperty()->isNotEmpty())
                 <section class="procedure-section mb-4">
-                    <div class="workflow-board-panel procedure-section-card">
-                        <div class="workflow-board-panel-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="card shadow-sm border-0 procedure-section-card mb-4">
+                        <div class="card-header procedure-section-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h6 class="mb-0">
-                                <i class="mdi mdi-table text-primary"></i>
+                                <i class="mdi mdi-table text-success"></i>
                                 Test Kit
                             </h6>
-                            <button type="button" class="btn btn-sm btn-primary" wire:click="addTestKitRow">
+                            <button type="button" class="btn btn-sm btn-success" wire:click="addTestKitRow">
                                 <i class="mdi mdi-plus"></i> Add row
                             </button>
                         </div>
-                        <div class="workflow-board-panel-body p-0">
+                        <div class="card-body p-0">
                             @if(!empty($this->getOrderedTestKitRowsProperty()))
                             <div class="table-responsive">
-                                <table class="table table-bordered procedure-testkit-table mb-0 workflow-table">
+                                <table class="table table-bordered procedure-testkit-table mb-0">
                                     <thead>
                                         <tr>
                                             <th class="testkit-row-header">#</th>
@@ -489,14 +456,14 @@
 
                 @if($configFields->count() > 0)
                 <section class="procedure-section mb-4">
-                    <div class="workflow-board-panel procedure-section-card">
-                        <div class="workflow-board-panel-header procedure-section-header">
+                    <div class="card shadow-sm border-0 procedure-section-card mb-4">
+                        <div class="card-header procedure-section-header bg-white">
                             <h6 class="mb-0">
-                                <i class="mdi mdi-cog-outline text-primary"></i>
+                                <i class="mdi mdi-cog-outline text-success"></i>
                                 Configurable Fields
                             </h6>
                         </div>
-                        <div class="workflow-board-panel-body">
+                        <div class="card-body p-0">
                             <div class="row g-4">
                                 @foreach($configFields as $field)
                                 <div class="col-xl-4 col-lg-6 mb-0" wire:key="cfg-{{ $field->id }}-ws-{{ $this->selectedWorksheetId }}-cr-{{ $selectedResults->isNotEmpty() ? $selectedResults->first()->id : 'none' }}">
@@ -557,23 +524,14 @@
                                                 wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
                                                 wire:blur="autosaveConfigField({{ $field->id }})">
                                             @elseif($type === 'dataset')
-                                            <div wire:ignore x-data="{
-                                                init() {
-                                                    let el = $(this.$refs.select);
-                                                    el.select2({
-                                                        width: '100%',
-                                                        placeholder: 'Select...',
-                                                        allowClear: true
-                                                    }).on('change', () => {
-                                                        @this.set('configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}', el.val());
-                                                        @this.call('autosaveConfigField', {{ $field->id }});
-                                                    });
-                                                    // Pre-select the value already seeded by the server
-                                                    let preselected = el.find('option[selected]').val();
-                                                    if (preselected) { el.val(preselected).trigger('change.select2'); }
-                                                }
-                                            }">
-                                                <select x-ref="select" class="form-control" data-placeholder="Select...">
+                                            <div wire:ignore
+                                                class="procedure-select2-wrap"
+                                                data-select-type="config"
+                                                data-config-mode="single"
+                                                data-captured-result-id="{{ $selectedResults->first()->id }}"
+                                                data-field-id="{{ $field->id }}"
+                                                data-initial='@json(isset($configFieldValues[$selectedResults->first()->id][$field->id]) && $configFieldValues[$selectedResults->first()->id][$field->id] ? [$configFieldValues[$selectedResults->first()->id][$field->id]] : [])'>
+                                                <select class="form-control procedure-select2 no-select2" data-placeholder="Select...">
                                                     <option value="">Select...</option>
                                                     @foreach($this->getDatasetOptions($field->model_tied_to ?? '', $field) as $option)
                                                     <option value="{{ $option->id }}" @if(isset($configFieldValues[$selectedResults->first()->id][$field->id]) && $configFieldValues[$selectedResults->first()->id][$field->id] == $option->id) selected @endif>{{ $option->label }}</option>
@@ -581,34 +539,14 @@
                                                 </select>
                                             </div>
                                             @elseif($type === 'dataset_multiselect')
-                                            <div wire:ignore x-data="{
-                                                init() {
-                                                    let el = $(this.$refs.select);
-                                                    el.select2({
-                                                        width: '100%',
-                                                        placeholder: 'Select...',
-                                                        allowClear: true
-                                                    }).on('change', () => {
-                                                        @this.set('configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}', el.val() || []);
-                                                        @this.call('autosaveConfigField', {{ $field->id }});
-                                                    });
-
-                                                    // Pre-select values already seeded by the server
-                                                    let preselected = el.find('option[selected]').map(function(){ return $(this).val(); }).get();
-                                                    if (preselected.length) { el.val(preselected).trigger('change.select2'); }
-
-                                                    // Keep Select2 in sync when Livewire updates the underlying values (wire:ignore)
-                                                    document.addEventListener('syncConfigFieldSelect', (e) => {
-                                                        if (!e.detail) return;
-                                                        if (String(e.detail.capturedResultId) !== String({{ $selectedResults->first()->id }})) return;
-                                                        if (String(e.detail.fieldId) !== String({{ $field->id }})) return;
-
-                                                        let vals = e.detail.values || [];
-                                                        el.val(vals).trigger('change.select2');
-                                                    });
-                                                }
-                                            }">
-                                                <select x-ref="select" class="form-control" multiple="multiple" data-placeholder="Select...">
+                                            <div wire:ignore
+                                                class="procedure-select2-wrap"
+                                                data-select-type="config"
+                                                data-config-mode="multiple"
+                                                data-captured-result-id="{{ $selectedResults->first()->id }}"
+                                                data-field-id="{{ $field->id }}"
+                                                data-initial='@json($configFieldValues[$selectedResults->first()->id][$field->id] ?? [])'>
+                                                <select class="form-control procedure-select2 no-select2" multiple="multiple" data-placeholder="Select...">
                                                     @foreach($this->getDatasetOptions($field->model_tied_to ?? '', $field) as $option)
                                                     <option value="{{ $option->id }}" @if(isset($configFieldValues[$selectedResults->first()->id][$field->id]) && is_array($configFieldValues[$selectedResults->first()->id][$field->id]) && in_array($option->id, $configFieldValues[$selectedResults->first()->id][$field->id])) selected @endif>{{ $option->label }}</option>
                                                     @endforeach
@@ -727,13 +665,18 @@
         }
 
         .procedure-tab.active {
-            color: var(--bs-primary);
-            background: rgba(13, 110, 253, 0.06);
+            color: #fff;
+            background: #007bff;
             font-weight: 500;
-            border-left: 3px solid var(--bs-primary);
-            border-right: 3px solid var(--bs-primary);
-            border-top-color: transparent;
-            border-bottom-color: transparent;
+            border: 1px solid #007bff;
+        }
+
+        .procedure-select2-wrap .select2-container {
+            width: 100% !important;
+        }
+
+        .procedure-steps-table .select2-selection--multiple {
+            min-height: 38px;
         }
 
         .procedure-tab-worksheet {
@@ -838,12 +781,12 @@
         }
 
         .worksheet-external-select .tag-select-input:hover {
-            border-color: #007bff;
+            border-color: #28a745;
         }
 
         .worksheet-external-select .tag-select-input:focus-within {
-            border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            border-color: #28a745;
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
             outline: none;
         }
 
@@ -852,7 +795,7 @@
             align-items: center;
             gap: 4px;
             padding: 4px 10px;
-            background-color: #007bff;
+            background-color: #28a745;
             color: white;
             border-radius: 16px;
             font-size: 0.875rem;
@@ -885,7 +828,7 @@
             left: 0;
             right: 0;
             background: white;
-            border: 2px solid #007bff;
+            border: 2px solid #28a745;
             border-top: none;
             border-radius: 0 0 8px 8px;
             max-height: 250px;
@@ -910,6 +853,130 @@
             border-bottom: none;
         }
     </style>
+
+    @script
+    <script>
+    (function () {
+        function initProcedureSelect2(root) {
+            if (!window.jQuery || !$.fn.select2) {
+                return;
+            }
+
+            const $root = root ? $(root) : $('.procedure-worksheet-manager');
+            if (!$root.length) {
+                return;
+            }
+
+            $root.find('select.procedure-select2').each(function () {
+                const $el = $(this);
+                if ($el.hasClass('select2-hidden-accessible')) {
+                    return;
+                }
+
+                const $wrap = $el.closest('.procedure-select2-wrap');
+                const placeholder = $el.data('placeholder') || 'Select...';
+                const isMultiple = $el.prop('multiple');
+
+                $el.select2({
+                    width: '100%',
+                    placeholder: placeholder,
+                    allowClear: true,
+                });
+
+                let initial = [];
+                try {
+                    initial = JSON.parse($wrap.attr('data-initial') || '[]');
+                } catch (e) {
+                    initial = [];
+                }
+                if (!Array.isArray(initial)) {
+                    initial = initial ? [String(initial)] : [];
+                }
+                if (initial.length) {
+                    $el.val(initial.map(String)).trigger('change.select2');
+                } else {
+                    const preselected = $el.find('option[selected]').map(function () {
+                        return $(this).val();
+                    }).get();
+                    if (preselected.length) {
+                        $el.val(preselected).trigger('change.select2');
+                    }
+                }
+
+                $el.off('change.procedureSelect2').on('change.procedureSelect2', function () {
+                    const type = $wrap.data('select-type');
+                    const stepId = $wrap.data('step-id');
+                    const capturedResultId = $wrap.data('captured-result-id');
+                    const fieldId = $wrap.data('field-id');
+                    const configMode = $wrap.data('config-mode');
+                    const vals = isMultiple ? ($el.val() || []) : ($el.val() || '');
+
+                    if (type === 'measurand' && stepId !== undefined) {
+                        $wire.set('stepMeasurandOverrides.' + stepId, vals);
+                        $wire.call('autosaveStepOverride', stepId);
+                    } else if (type === 'equipment' && stepId !== undefined) {
+                        $wire.set('stepEquipmentOverrides.' + stepId, vals);
+                        $wire.call('autosaveStepOverride', stepId);
+                    } else if (type === 'analyst' && stepId !== undefined) {
+                        $wire.set('stepAnalystOverrides.' + stepId, vals);
+                        $wire.call('autosaveStepOverride', stepId);
+                    } else if (type === 'config' && capturedResultId !== undefined && fieldId !== undefined) {
+                        const payload = configMode === 'single' ? (vals || '') : vals;
+                        $wire.set('configFieldValues.' + capturedResultId + '.' + fieldId, payload);
+                        $wire.call('autosaveConfigField', fieldId);
+                    }
+                });
+            });
+        }
+
+        function syncAnalystSelect(detail) {
+            if (!detail || detail.stepId === undefined) {
+                return;
+            }
+            const stepId = String(detail.stepId);
+            const ids = (detail.analystIds || []).map(String);
+            $('.procedure-select2-wrap[data-select-type="analyst"][data-step-id="' + stepId + '"] select.procedure-select2').each(function () {
+                $(this).val(ids).trigger('change.select2');
+            });
+        }
+
+        function syncConfigFieldSelect(detail) {
+            if (!detail) {
+                return;
+            }
+            const crId = String(detail.capturedResultId);
+            const fieldId = String(detail.fieldId);
+            const vals = (detail.values || []).map(String);
+            $('.procedure-select2-wrap[data-select-type="config"][data-captured-result-id="' + crId + '"][data-field-id="' + fieldId + '"] select.procedure-select2').each(function () {
+                $(this).val(vals).trigger('change.select2');
+            });
+        }
+
+        $wire.on('syncStepAnalystSelect', function (payload) {
+            syncAnalystSelect(payload?.detail ?? payload);
+        });
+        $wire.on('syncConfigFieldSelect', function (payload) {
+            syncConfigFieldSelect(payload?.detail ?? payload);
+        });
+
+        function scheduleInit() {
+            setTimeout(function () {
+                initProcedureSelect2(document.querySelector('.procedure-worksheet-manager'));
+            }, 50);
+        }
+
+        scheduleInit();
+
+        Livewire.hook('morph.updated', function () {
+            const mgr = document.querySelector('.procedure-worksheet-manager');
+            if (mgr && mgr.querySelector('select.procedure-select2:not(.select2-hidden-accessible)')) {
+                scheduleInit();
+            }
+        });
+    })();
+    </script>
+    @endscript
+
     <script>
         (function () {
             // Track value at focus time so we only prompt when the value actually changed.

@@ -24,7 +24,7 @@ class FormulaEvaluator
     /**
      * Execute a formula version with given inputs.
      */
-    public function execute(FormulaVersion $formulaVersion, array $inputs = [], ?int $sampleId = null, ?int $batchId = null, ?array $lookupOverrides = null): array
+    public function execute(FormulaVersion $formulaVersion, array $inputs = [], ?string $sampleId = null, ?string $batchId = null, ?array $lookupOverrides = null): array
     {
         $steps = $formulaVersion->formulaSteps;
         $variables = [];
@@ -68,7 +68,7 @@ class FormulaEvaluator
     /**
      * Execute a single formula step.
      */
-    protected function executeStep(FormulaStep $step, array $variables, array $inputs, ?int $sampleId, ?int $batchId, ?array $lookupOverrides = null): mixed
+    protected function executeStep(FormulaStep $step, array $variables, array $inputs, ?string $sampleId, ?string $batchId, ?array $lookupOverrides = null): mixed
     {
         switch ($step->step_type) {
             case 'input':
@@ -93,7 +93,8 @@ class FormulaEvaluator
         try {
             // Merge variables and inputs for expression evaluation
             $context = array_merge($variables, $inputs, $this->getGlobalVariables());
-            
+            $context = $this->normalizeNumericContext($context);
+
             return $this->expressionLanguage->evaluate($expression, $context);
         } catch (SyntaxError $e) {
             throw new Exception("Expression syntax error: " . $e->getMessage());
@@ -105,7 +106,7 @@ class FormulaEvaluator
     /**
      * Execute a lookup step.
      */
-    protected function executeLookup(FormulaStep $step, array $variables, array $inputs, ?int $sampleId, ?int $batchId, ?array $lookupOverrides = null): mixed
+    protected function executeLookup(FormulaStep $step, array $variables, array $inputs, ?string $sampleId, ?string $batchId, ?array $lookupOverrides = null): mixed
     {
         $config = $step->lookup_config;
         
@@ -155,7 +156,7 @@ class FormulaEvaluator
     /**
      * Build lookup keys from configuration.
      */
-    protected function buildLookupKeys(array $config, array $variables, array $inputs, ?int $sampleId, ?int $batchId): array
+    protected function buildLookupKeys(array $config, array $variables, array $inputs, ?string $sampleId, ?string $batchId): array
     {
         $keys = [];
         
@@ -172,6 +173,23 @@ class FormulaEvaluator
         }
 
         return $keys;
+    }
+
+    /**
+     * Cast numeric strings to float so expression math does not fail on UUID-era text inputs.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>
+     */
+    protected function normalizeNumericContext(array $context): array
+    {
+        foreach ($context as $key => $value) {
+            if (is_string($value) && is_numeric($value)) {
+                $context[$key] = str_contains($value, '.') ? (float) $value : (int) $value;
+            }
+        }
+
+        return $context;
     }
 
     /**

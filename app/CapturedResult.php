@@ -62,6 +62,11 @@ class CapturedResult extends Model implements Auditable
 		return $this->belongsTo('App\SampleDetails', 'sample_detail_id');
 	}
 
+	public function sampleHeader()
+	{
+		return $this->belongsTo(SampleHeader::class, 'sample_header_id');
+	}
+
 	public function analysis_type()
 	{
 		return $this->belongsTo('App\AnalysisType');
@@ -159,6 +164,21 @@ class CapturedResult extends Model implements Auditable
 		return $this->belongsTo(\App\Models\MethodSequences\MethodSequence::class, 'method_sequence_id');
 	}
 
+	public function stageHeader()
+	{
+		return $this->belongsTo(\App\Models\StageHeader::class, 'stage_header_id');
+	}
+
+	public function run()
+	{
+		return $this->belongsTo(\App\Models\StageHeaderRun::class, 'run_id');
+	}
+
+	public function testStagesTracks()
+	{
+		return $this->hasMany(\App\Models\SampleCapturedTestStagesTrack::class, 'captured_result_id');
+	}
+
 	public function procedureWorksheet()
 	{
 		return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
@@ -180,5 +200,37 @@ class CapturedResult extends Model implements Auditable
     {
         return $this->belongsTo(BatchAttachment::class, 'batch_attachment_id');
     }
+
+	public function user()
+	{
+		return $this->belongsTo(User::class, 'user_id');
+	}
+
+	public function assignAnalyst(?string $userId): void
+	{
+		if ($userId) {
+			$this->user_id = $userId;
+		}
+	}
+
+	public function applyAnalysisElementDefaults(): void
+	{
+		if (!$this->reporting_unit_id) {
+			$this->reporting_unit_id = resolveReportingUnitIdFromAnalyte(
+				$this->analysis_type_id,
+				$this->analyte_id,
+				$this->analysisElement?->reporting_unit
+			);
+		}
+
+		if (!$this->method_id && $this->analysisElement?->method) {
+			$this->method_id = $this->analysisElement->method;
+		}
+	}
+
+	public function analystIdForTat(): ?string
+	{
+		return $this->user_id;
+	}
 
 }

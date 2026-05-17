@@ -77,8 +77,9 @@ class FormulaManager extends Component
         $this->showCreateModal = true;
     }
 
-    public function showEditFormulaModal(Formula $formula)
+    public function showEditFormulaModal(string $formulaId): void
     {
+        $formula = Formula::findOrFail($formulaId);
         $this->editingFormula = $formula;
         $this->formulaName = $formula->name;
         $this->formulaDescription = $formula->description;
@@ -86,8 +87,9 @@ class FormulaManager extends Component
         $this->showEditModal = true;
     }
 
-    public function showVersionModal(Formula $formula)
+    public function showVersionModal(string $formulaId): void
     {
+        $formula = Formula::findOrFail($formulaId);
         $this->editingFormula = $formula;
         $this->showVersionModal = true;
     }
@@ -193,9 +195,10 @@ class FormulaManager extends Component
         }
     }
 
-    public function deleteFormula(Formula $formula)
+    public function deleteFormula(string $formulaId): void
     {
         try {
+            $formula = Formula::findOrFail($formulaId);
             $formula->delete();
             $this->setMessage('Formula deleted successfully!', 'success');
         } catch (\Exception $e) {
@@ -203,9 +206,10 @@ class FormulaManager extends Component
         }
     }
 
-    public function toggleFormulaStatus(Formula $formula)
+    public function toggleFormulaStatus(string $formulaId): void
     {
         try {
+            $formula = Formula::findOrFail($formulaId);
             $formula->update(['is_active' => !$formula->is_active]);
             $status = $formula->is_active ? 'activated' : 'deactivated';
             $this->setMessage("Formula {$status} successfully!", 'success');

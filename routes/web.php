@@ -517,6 +517,27 @@ Route::get('/sample-workflow/batch/{sample}/approval-checklist', [\App\Http\Cont
 Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')
     ->name('batch-worksheets')
     ->middleware('can:laboratory.components.all samples.view');
+Route::get('/sample-workflow/batch/{batch}/method-sequence', 'SampleWorkFlowController@getMethodSequence')->name('batch-method-sequence')->middleware('auth');
+Route::get('/sample-workflow/batch/{batch}/method-sequences', 'SampleWorkFlowController@methodSequences')->name('batch.method-sequences')->middleware('auth');
+Route::get('/sample-workflow/batch/{batch}/method-sequences-jquery', 'SampleWorkFlowController@methodSequences')->name('batch.method-sequences.jquery')->middleware('auth');
+Route::get('/sample-workflow/batch/{batch}/method-sequences/{stageHeader}/samples', 'SampleWorkFlowController@getMethodSequenceSamples')->name('method-sequences.samples')->middleware('auth');
+Route::post('/sample-workflow/batch/{batch}/method-sequences/auto-create-runs', 'SampleWorkFlowController@autoCreateFirstRunForBatch')->name('method-sequences.auto-create')->middleware('auth');
+Route::get('/method-sequences/{stageHeader}/runs', 'SampleWorkFlowController@getMethodSequenceRuns')->name('method-sequences.runs')->middleware('auth');
+Route::post('/method-sequences/runs', 'SampleWorkFlowController@createMethodSequenceRun')->name('method-sequences.create-run')->middleware('auth');
+Route::delete('/method-sequences/runs/{run}', 'SampleWorkFlowController@deleteMethodSequenceRun')->name('method-sequences.delete-run')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/start', 'SampleWorkFlowController@startMethodSequenceStage')->name('method-sequences.start-stage')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/end', 'SampleWorkFlowController@endMethodSequenceStage')->name('method-sequences.end-stage')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/update', 'SampleWorkFlowController@updateMethodSequenceStageData')->name('method-sequences.update-stage')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/save-results', 'SampleWorkFlowController@saveMethodSequenceResults')->name('method-sequences.save-results')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/result', 'SampleWorkFlowController@updateMethodSequenceStageResult')->name('method-sequences.update-result')->middleware('auth');
+Route::get('/method-sequences/batch/{batch}/tracking-results', 'SampleWorkFlowController@getMethodSequenceTrackingResults')->name('method-sequences.tracking-results')->middleware('auth');
+Route::post('/method-sequences/import-post-results-sheet', 'SampleWorkFlowController@importMethodSequencePostResultsSheet')->name('method-sequences.import-post-results-sheet')->middleware('auth');
+Route::get('/method-sequences/batch/{batch}/track-sample-results', 'SampleWorkFlowController@getTrackSampleResults')->name('method-sequences.track-sample-results')->middleware('auth');
+Route::post('/method-sequences/post-results', 'SampleWorkFlowController@postMethodSequenceResults')->name('method-sequences.post-results')->middleware('auth');
+Route::get('/method-sequences/tracks/{track}/edit-data', 'SampleWorkFlowController@getEditStageData')->name('method-sequences.edit-data')->middleware('auth');
+Route::get('/method-sequence-runs/tracks/{track}/solution-results', 'SampleWorkFlowController@getSolutionResultsForStep6')->name('method-sequence-runs.solution-results')->middleware('auth');
+Route::get('/method-sequence-runs/tracks/{track}/sample-results', 'SampleWorkFlowController@getSampleResultsForStep6')->name('method-sequence-runs.sample-results')->middleware('auth');
+Route::post('/method-sequence-runs/tracks/{track}/step6-remark', 'SampleWorkFlowController@calculateStep6SampleRemark')->name('method-sequence-runs.step6-remark')->middleware('auth');
 // Temporary design route for procedure worksheet PDF template preview.
 Route::get(
     '/sample-workflow/batch/{batch}/worksheets/{worksheet}/procedure-preview',
@@ -2035,6 +2056,21 @@ Route::middleware(['auth'])->prefix('method-sequences')->name('method-sequences.
     Route::get('/manage', 'MethodSequences\MethodSequenceController@manage')->name('manage');
     Route::get('/stages/{methodSequenceVersion}', 'MethodSequences\MethodSequenceController@stages')->name('stages');
     Route::post('/clone/{methodSequence}', 'MethodSequences\MethodSequenceController@clone')->name('clone');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::resource('stage-headers', \App\Http\Controllers\StageHeaderController::class);
+    Route::post('stage-headers/{stageHeader}/add-stage', [\App\Http\Controllers\StageHeaderController::class, 'addStage'])->name('stage-headers.add-stage');
+    Route::put('stage-headers/{stageHeader}/stages/{testStage}', [\App\Http\Controllers\StageHeaderController::class, 'updateStage'])->name('stage-headers.update-stage');
+    Route::delete('stage-headers/remove-stage/{testStage}', [\App\Http\Controllers\StageHeaderController::class, 'removeStage'])->name('stage-headers.remove-stage');
+    Route::post('stage-headers/remove-stage', [\App\Http\Controllers\StageHeaderController::class, 'removeStagePost'])->name('stage-headers.remove-stage-post');
+    Route::post('stage-headers/{stageHeader}/reorder-stages', [\App\Http\Controllers\StageHeaderController::class, 'reorderStages'])->name('stage-headers.reorder-stages');
+    Route::get('/lab/stage-headers/progress', [\App\Http\Controllers\StageHeaderController::class, 'progress'])->name('stage-headers.progress');
+    Route::post('/lab/stage-headers/{stageHeader}/start-test', [\App\Http\Controllers\StageHeaderController::class, 'startTest'])->name('stage-headers.start-test');
+    Route::post('/lab/progress/{progress}/start', [\App\Http\Controllers\StageHeaderController::class, 'startProgress'])->name('stage-headers.start-progress');
+    Route::post('/lab/progress/{progress}/record-result', [\App\Http\Controllers\StageHeaderController::class, 'recordResult'])->name('stage-headers.record-result');
+    Route::post('/lab/progress/{progress}/cancel', [\App\Http\Controllers\StageHeaderController::class, 'cancelTest'])->name('stage-headers.cancel-test');
+    Route::get('/lab/progress/{progress}/view', [\App\Http\Controllers\StageHeaderController::class, 'viewProgress'])->name('stage-headers.view-progress');
 });
 
 // Document Management System (DMS) Routes
