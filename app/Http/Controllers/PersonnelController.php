@@ -385,7 +385,8 @@ class PersonnelController extends Controller
 			'status' => 'started',
 		]);
 
-		Excel::import(new UserImporter($batch), $request->file);
+		$zoneId = $request->input('zone_id');
+		Excel::import(new UserImporter($batch, $zoneId), $request->file);
 		
 		$batch->markAsCompleted();
 

@@ -302,7 +302,20 @@ Route::get('/livewire/labs', [LabAppController::class, 'labManager'])
 
 // Livewire Test Page
 Route::get('/livewire-test', function () {
-    return view('livewire-test');
+    try {
+        $stdVals = \App\StandardValue::limit(5)->get();
+        $standards = \App\Standards::limit(5)->get();
+        $stdAnalytes = \App\StandardAnalytes::limit(5)->get();
+        
+        $output = "DATABASE SAMPLES:\n\n";
+        $output .= "StandardValue (first 5):\n" . $stdVals->toJson(JSON_PRETTY_PRINT) . "\n\n";
+        $output .= "Standards (first 5):\n" . $standards->toJson(JSON_PRETTY_PRINT) . "\n\n";
+        $output .= "StandardAnalytes (first 5):\n" . $stdAnalytes->toJson(JSON_PRETTY_PRINT) . "\n\n";
+        
+        return response($output)->header('Content-Type', 'text/plain');
+    } catch (\Throwable $t) {
+        return "Error: " . $t->getMessage() . "\n" . $t->getTraceAsString();
+    }
 })->name('livewire-test');
 
 

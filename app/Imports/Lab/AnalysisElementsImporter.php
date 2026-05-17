@@ -56,7 +56,7 @@ class AnalysisElementsImporter extends BaseImporter
         return [
             'analysis_type_id' => $analysisType?->id,
             'analyte_id' => $analyte?->id,
-            'lab_section_code' => $row['lab_section_code'],
+            'lab_section_code' => $row['lab_section_code'] ?? 'LS-DEFAULT',
             'equipment_code' => $row['equipment_code'] ?? null,
             'lod' => $row['lod'] ?? null,
             'hod' => $row['hod'] ?? null,

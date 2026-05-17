@@ -332,7 +332,155 @@
                         <hr>
 
                         <form wire:submit.prevent="processBulkUpload">
-                            <div class="form-group mb-3">
+                            <div class="form-group mb-4 text-start">
+                                <label class="form-label fw-bold">Associate with Zone (Optional)</label>
+                                
+                                <!-- Premium Custom Zone Selector -->
+                                <div class="custom-zone-selector-wrapper" 
+                                     x-data="{ 
+                                        open: false, 
+                                        search: '',
+                                        zones: @js($zones),
+                                        selectedId: @entangle('selectedZoneId'),
+                                        get selectedZone() {
+                                            return this.zones.find(z => z.id == this.selectedId) || null;
+                                        },
+                                        get filteredZones() {
+                                            if (!this.search.trim()) return this.zones;
+                                            return this.zones.filter(z => 
+                                                (z.value && z.value.toLowerCase().includes(this.search.toLowerCase())) ||
+                                                (z.key && z.key.toLowerCase().includes(this.search.toLowerCase()))
+                                            );
+                                        },
+                                        selectZone(id) {
+                                            this.selectedId = id;
+                                            this.open = false;
+                                            this.search = '';
+                                        },
+                                        clearSelection() {
+                                            this.selectedId = null;
+                                            this.open = false;
+                                            this.search = '';
+                                        }
+                                     }"
+                                     @click.outside="open = false"
+                                >
+                                    <!-- Trigger Button -->
+                                    <div class="zone-select-trigger" 
+                                         :class="{ 'active': open, 'has-value': selectedZone }" 
+                                         @click="open = !open"
+                                    >
+                                        <div class="d-flex align-items-center justify-content-between w-100">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="zone-trigger-icon-circle">
+                                                    <i class="mdi mdi-map-marker"></i>
+                                                </div>
+                                                <div class="text-start">
+                                                    <div class="zone-trigger-label" x-text="selectedZone ? selectedZone.value : 'No Zone Associated'"></div>
+                                                    <div class="zone-trigger-subtext" x-text="selectedZone ? 'Code: ' + selectedZone.key : 'All imported equipment will be general/global'"></div>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <template x-if="selectedZone">
+                                                    <button type="button" class="btn-clear-zone" @click.stop="clearSelection()">
+                                                        <i class="mdi mdi-close-circle"></i>
+                                                    </button>
+                                                </template>
+                                                <i class="mdi mdi-chevron-down zone-chevron" :class="{ 'rotated': open }"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Dropdown Panel -->
+                                    <div class="zone-dropdown-panel" 
+                                         x-show="open" 
+                                         x-transition:enter="transition ease-out duration-150"
+                                         x-transition:enter-start="opacity-0 transform scale-95"
+                                         x-transition:enter-end="opacity-100 transform scale-100"
+                                         x-transition:leave="transition ease-in duration-100"
+                                         x-transition:leave-start="opacity-100 transform scale-100"
+                                         x-transition:leave-end="opacity-0 transform scale-95"
+                                         style="display: none;"
+                                    >
+                                        <!-- Search Box -->
+                                        <div class="zone-search-wrapper">
+                                            <i class="mdi mdi-magnify zone-search-icon"></i>
+                                            <input type="text" 
+                                                   class="form-control zone-search-input" 
+                                                   placeholder="Search zones by name or code..." 
+                                                   x-model="search"
+                                                   @click.prevent.stop
+                                            >
+                                            <template x-if="search">
+                                                <button type="button" class="zone-search-clear" @click.stop="search = ''">
+                                                    <i class="mdi mdi-close"></i>
+                                                </button>
+                                            </template>
+                                        </div>
+
+                                        <!-- Zones List -->
+                                        <div class="zone-options-list">
+                                            <!-- Global / No Zone option -->
+                                            <div class="zone-option-item" 
+                                                 :class="{ 'selected': !selectedId }" 
+                                                 @click="clearSelection()"
+                                            >
+                                                <div class="d-flex align-items-center justify-content-between w-100">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <div class="zone-option-icon-circle bg-light-gray">
+                                                            <i class="mdi mdi-earth text-muted"></i>
+                                                        </div>
+                                                        <div class="text-start">
+                                                            <span class="zone-option-name fw-bold">No Zone Association</span>
+                                                            <span class="zone-option-description d-block text-muted small">Import as global records (general)</span>
+                                                        </div>
+                                                    </div>
+                                                    <template x-if="!selectedId">
+                                                        <i class="mdi mdi-check text-primary"></i>
+                                                    </template>
+                                                </div>
+                                            </div>
+
+                                            <!-- Loop options -->
+                                            <template x-for="zone in filteredZones" :key="zone.id">
+                                                <div class="zone-option-item" 
+                                                     :class="{ 'selected': selectedId == zone.id }" 
+                                                     @click="selectZone(zone.id)"
+                                                >
+                                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <div class="zone-option-icon-circle">
+                                                                <i class="mdi mdi-map-marker-radius text-primary"></i>
+                                                            </div>
+                                                            <div class="text-start">
+                                                                <span class="zone-option-name fw-bold" x-text="zone.value"></span>
+                                                                <span class="zone-option-code-pill" x-text="zone.key"></span>
+                                                            </div>
+                                                        </div>
+                                                        <template x-if="selectedId == zone.id">
+                                                            <i class="mdi mdi-check text-primary"></i>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                            <!-- No results -->
+                                            <template x-if="filteredZones.length === 0">
+                                                <div class="zone-no-results text-center py-3 text-muted">
+                                                    <i class="mdi mdi-alert-circle-outline mb-2 d-block" style="font-size: 1.25rem;"></i>
+                                                    No zones found matching "<span x-text="search"></span>"
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-text text-muted">
+                                    If selected, all imported equipment will be tied to this Zone.
+                                </div>
+                                @error('selectedZoneId') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="form-group mb-3 text-start">
                                 <label class="form-label fw-bold">{{ __('equipment.upload_excel_file') }} <span class="text-danger">*</span></label>
                                 <input type="file" wire:model="bulkFile" class="form-control" accept=".xlsx,.xls,.csv">
                                 @error('bulkFile') <span class="text-danger">{{ $message }}</span> @enderror
@@ -697,6 +845,263 @@
         .frequency-label-input:focus {
             border-color: #7ca6df;
             box-shadow: 0 0 0 0.2rem rgba(67, 114, 176, 0.12);
+        }
+
+        /* ── Premium Custom Zone Selector ────────────────────────── */
+        .custom-zone-selector-wrapper {
+            position: relative;
+            width: 100%;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        .zone-select-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px 14px;
+            background: #ffffff;
+            border: 1.5px solid #ccd9ea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .zone-select-trigger:hover {
+            border-color: #4372b0;
+            background: #f8fafc;
+        }
+
+        .zone-select-trigger.active {
+            border-color: #4372b0;
+            background: #ffffff;
+            box-shadow: 0 0 0 0.2rem rgba(67, 114, 176, 0.15);
+        }
+
+        .zone-select-trigger.has-value {
+            border-color: #28a745;
+            background: #f4fbf7;
+        }
+
+        .zone-select-trigger.has-value:hover {
+            background: #eafcf1;
+            border-color: #218838;
+        }
+
+        .zone-trigger-icon-circle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: #f1f5f9;
+            color: #64748b;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            transition: all 0.2s ease;
+        }
+
+        .zone-select-trigger.has-value .zone-trigger-icon-circle {
+            background: #d4edda;
+            color: #28a745;
+        }
+
+        .zone-trigger-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #2a3f5f;
+            line-height: 1.2;
+        }
+
+        .zone-trigger-subtext {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 1px;
+            line-height: 1.2;
+        }
+
+        .zone-select-trigger.has-value .zone-trigger-subtext {
+            color: #28a745;
+            font-weight: 500;
+        }
+
+        .btn-clear-zone {
+            background: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 2px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: color 0.15s, transform 0.15s;
+        }
+
+        .btn-clear-zone:hover {
+            color: #dc3545;
+            transform: scale(1.15);
+        }
+
+        .zone-chevron {
+            color: #6c757d;
+            font-size: 1.1rem;
+            transition: transform 0.2s ease;
+        }
+
+        .zone-chevron.rotated {
+            transform: rotate(180deg);
+            color: #4372b0;
+        }
+
+        /* Dropdown Panel */
+        .zone-dropdown-panel {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1.5px solid #ccd9ea;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            z-index: 1050;
+            overflow: hidden;
+            padding: 6px;
+        }
+
+        /* Search Wrapper */
+        .zone-search-wrapper {
+            position: relative;
+            margin-bottom: 6px;
+        }
+
+        .zone-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .zone-search-input {
+            width: 100% !important;
+            height: 36px !important;
+            padding: 8px 30px 8px 32px !important;
+            border: 1px solid #ccd9ea !important;
+            border-radius: 6px !important;
+            font-size: 0.85rem !important;
+            background: #f8fafc !important;
+            color: #2a3f5f !important;
+            transition: all 0.15s ease !important;
+        }
+
+        .zone-search-input:focus {
+            border-color: #7ca6df !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        .zone-search-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+
+        .zone-search-clear:hover {
+            color: #2a3f5f;
+        }
+
+        /* Options List */
+        .zone-options-list {
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .zone-options-list::-webkit-scrollbar {
+            width: 5px;
+        }
+        .zone-options-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .zone-options-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 99px;
+        }
+        .zone-options-list::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .zone-option-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 2px;
+            transition: all 0.15s ease;
+        }
+
+        .zone-option-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .zone-option-item:hover {
+            background: #f1f5f9;
+        }
+
+        .zone-option-item.selected {
+            background: #e7f1ff;
+        }
+
+        .zone-option-icon-circle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: #e7f1ff;
+            border-radius: 6px;
+            font-size: 1.1rem;
+        }
+
+        .zone-option-icon-circle.bg-light-gray {
+            background: #f1f5f9;
+        }
+
+        .zone-option-name {
+            font-size: 0.85rem;
+            color: #2a3f5f;
+        }
+
+        .zone-option-code-pill {
+            display: inline-block;
+            padding: 1px 6px;
+            background: #e2e8f0;
+            color: #475569;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 6px;
+            text-transform: uppercase;
+        }
+
+        .zone-option-item.selected .zone-option-code-pill {
+            background: #cbd5e1;
+            color: #1e293b;
+        }
+
+        .zone-no-results {
+            padding: 15px 10px;
+            font-size: 0.8rem;
         }
     </style>
     

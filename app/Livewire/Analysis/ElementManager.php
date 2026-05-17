@@ -20,6 +20,8 @@ class ElementManager extends Component
 {
     use WithPagination;
 
+    protected $paginationTheme = 'bootstrap';
+
     // Analysis Type ID
     public $analysisTypeId;
 

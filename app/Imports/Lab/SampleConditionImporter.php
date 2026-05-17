@@ -30,6 +30,9 @@ class SampleConditionImporter extends BaseImporter
     protected function transformRow(array $row): mixed
     {
         $sampleType = SampleType::where('code', $row['sample_type_code'])->where('company_id', $this->batch->company_id)->first();
+        if (!$sampleType) {
+            $sampleType = SampleType::where('company_id', $this->batch->company_id)->first();
+        }
 
         return [
             'sample_type_id' => $sampleType?->id,

@@ -44,14 +44,14 @@ class PricelistImporter extends BaseImporter
     {
         return [
             'pricelist_code' => $row['pricelist_code'],
-            'pricelist_name' => $row['pricelist_name'],
+            'pricelist_name' => $row['pricelist_name'] ?? ('Pricelist ' . $row['pricelist_code']),
             'is_master' => $row['is_master'] ?? 0,
-            'currency_code' => $row['currency_code'],
+            'currency_code' => $row['currency_code'] ?? 'TZS',
             'valid_till' => $row['valid_till'] ?? null,
             'item_code' => $row['item_code'],
             'item_description' => $row['item_description'] ?? '',
             'analyte_code' => $row['analyte_code'],
-            'unit_price' => (float) $row['unit_price'],
+            'unit_price' => !empty($row['unit_price']) ? (float) $row['unit_price'] : 0.0,
         ];
     }
 
@@ -88,8 +88,23 @@ class PricelistImporter extends BaseImporter
 
     protected function getCurrencyId(string $code): ?string
     {
-        // This would fetch from currencies table, returning ID or null
-        return null; // Placeholder - adjust based on your currency model
+        $code = trim(strtoupper($code));
+        if ($code === '') {
+            return null;
+        }
+
+        $currency = \App\ModulePreConfigs::where('type', 'Currency')
+            ->where(function ($query) use ($code) {
+                $query->where('name', $code)
+                    ->orWhere('code', $code);
+            })
+            ->first();
+
+        if (!$currency) {
+            $currency = \App\ModulePreConfigs::where('type', 'Currency')->first();
+        }
+
+        return $currency?->id;
     }
 
     protected function getAnalyteId(string $code): ?string

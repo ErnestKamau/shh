@@ -77,7 +77,11 @@ class ImportAnalysisElements extends BaseImporter
                 'company_id' => getUserCompany(), 
                 'method' => $method->id, 
                 'reporting_unit' => $reporting_unit->name ?? null, 
-                'non_accredited' => $this->fuzzyGet($row, ['accredited', 'is_accredited'], 0) == 'No' ? 1 : 0
+                'non_accredited' => $this->fuzzyGet($row, ['accredited', 'is_accredited'], 0) == 'No' ? 1 : 0,
+                'show_on_report' => (
+                    $this->fuzzyGet($row, ['show_on_report', 'show_on_reports']) !== null &&
+                    in_array(strtolower(trim((string)$this->fuzzyGet($row, ['show_on_report', 'show_on_reports']))), ['0', 'no', 'false', 'off'])
+                ) ? 0 : 1,
             ]);
         }
 

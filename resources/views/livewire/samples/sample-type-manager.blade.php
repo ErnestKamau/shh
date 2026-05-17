@@ -158,7 +158,7 @@
                                 </span>
                             </div>
                             <div>
-                                {{ $this->sampleTypes->links('pagination::bootstrap-4') }}
+                                {{ $this->sampleTypes->links() }}
                             </div>
                         </div>
                     @else

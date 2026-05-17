@@ -24,7 +24,17 @@ class AnalysisTypeImporter extends BaseImporter
         if (empty($row['sample_type_code'] ?? null)) {
             $errors[] = 'Sample type code is required';
         } else {
-            if (!SampleType::where('code', $row['sample_type_code'])->where('company_id', $this->batch->company_id)->exists()) {
+            $stCode = trim($row['sample_type_code']);
+            $stExists = SampleType::where('company_id', $this->batch->company_id)
+                ->where(function ($q) use ($stCode) {
+                    $q->where('code', $stCode)
+                      ->orWhere('name', $stCode)
+                      ->orWhere('code', 'like', "%{$stCode}%")
+                      ->orWhere('name', 'like', "%{$stCode}%");
+                })
+                ->exists();
+
+            if (!$stExists) {
                 $errors[] = "Sample type '{$row['sample_type_code']}' does not exist";
             }
         }
@@ -32,7 +42,17 @@ class AnalysisTypeImporter extends BaseImporter
         if (empty($row['lab_code'] ?? null)) {
             $errors[] = 'Lab code is required';
         } else {
-            if (!Lab::where('code', $row['lab_code'])->where('company_id', $this->batch->company_id)->exists()) {
+            $lCode = trim($row['lab_code']);
+            $lExists = Lab::where('company_id', $this->batch->company_id)
+                ->where(function ($q) use ($lCode) {
+                    $q->where('code', $lCode)
+                      ->orWhere('name', $lCode)
+                      ->orWhere('code', 'like', "%{$lCode}%")
+                      ->orWhere('name', 'like', "%{$lCode}%");
+                })
+                ->exists();
+
+            if (!$lExists) {
                 $errors[] = "Lab '{$row['lab_code']}' does not exist";
             }
         }
@@ -42,12 +62,36 @@ class AnalysisTypeImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $sampleType = SampleType::where('code', $row['sample_type_code'])->where('company_id', $this->batch->company_id)->first();
-        $lab = Lab::where('code', $row['lab_code'])->where('company_id', $this->batch->company_id)->first();
+        $stCode = trim($row['sample_type_code'] ?? '');
+        $sampleType = SampleType::where('company_id', $this->batch->company_id)
+            ->where(function ($q) use ($stCode) {
+                $q->where('code', $stCode)
+                  ->orWhere('name', $stCode)
+                  ->orWhere('code', 'like', "%{$stCode}%")
+                  ->orWhere('name', 'like', "%{$stCode}%");
+            })
+            ->first();
+
+        $lCode = trim($row['lab_code'] ?? '');
+        $lab = Lab::where('company_id', $this->batch->company_id)
+            ->where(function ($q) use ($lCode) {
+                $q->where('code', $lCode)
+                  ->orWhere('name', $lCode)
+                  ->orWhere('code', 'like', "%{$lCode}%")
+                  ->orWhere('name', 'like', "%{$lCode}%");
+            })
+            ->first();
+
+        if (!$sampleType) {
+            $sampleType = SampleType::where('company_id', $this->batch->company_id)->first();
+        }
+        if (!$lab) {
+            $lab = Lab::where('company_id', $this->batch->company_id)->first();
+        }
 
         return [
             'code' => $row['code'],
-            'name' => $row['name'],
+            'name' => $row['name'] ?? ('Analysis Type ' . $row['code']),
             'sample_type_id' => $sampleType?->id,
             'lab_id' => $lab?->id,
             'has_no_result' => $row['has_no_result'] ?? 0,

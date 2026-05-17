@@ -26,7 +26,7 @@ class AssetLocationImporter extends BaseImporter
     {
         return [
             'location_code' => $row['code'],
-            'name' => $row['name'],
+            'name' => $row['name'] ?? ('Location ' . $row['code']),
             'is_active' => $row['is_active'] ?? 1,
             'company_id' => $this->batch->company_id,
         ];

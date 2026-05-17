@@ -35,8 +35,14 @@ class Standards extends Model implements Auditable
         return explode(',',$this->qc_scheme_ids);
     }
     public function getQcSchemeNamesAttribute(){
-        $qcIds = explode(',',$this->qc_scheme_ids);
-        return implode(', ',QcSchemes::whereIn('id',$qcIds)->pluck('code')->toArray());
+        if (empty($this->qc_scheme_ids)) {
+            return '';
+        }
+        $qcIds = array_filter(explode(',', $this->qc_scheme_ids));
+        if (empty($qcIds)) {
+            return '';
+        }
+        return implode(', ', QcSchemes::whereIn('id', $qcIds)->pluck('code')->toArray());
     }
 
     public function standardAnalytes(){

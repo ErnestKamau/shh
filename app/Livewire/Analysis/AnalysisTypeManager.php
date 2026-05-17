@@ -21,6 +21,8 @@ class AnalysisTypeManager extends Component
 {
     use WithPagination;
 
+    protected $paginationTheme = 'bootstrap';
+
     // Sample Type ID
     public $sampleTypeId;
 

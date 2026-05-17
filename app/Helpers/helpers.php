@@ -254,7 +254,9 @@ function getInventoryItemClassification($id = false)
 function pendingApprovals()
 {
 	$status = "Pending";
-	return \App\EntityApproval::join('request_entities as re', 're.id', '=', 'entity_approvals.model_id')
+	return \App\EntityApproval::join('request_entities as re', function($join) {
+			$join->on(DB::raw('cast(re.id as text)'), '=', DB::raw('cast(entity_approvals.model_id as text)'));
+		})
 		->join('approvals as a', 'a.id', 'entity_approvals.approval_id')
 		->where('entity_approvals.user_id', \Auth::user()->id)
 		->where('entity_approvals.inventory_location_id', getCurrentUserLocation()->id)

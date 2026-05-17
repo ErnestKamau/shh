@@ -94,7 +94,7 @@ class LabImporter extends BaseImporter
 
         return [
             'code' => $row['lab_code'],
-            'name' => $row['lab_name'],
+            'name' => $row['lab_name'] ?? 'Unnamed Lab',
             'address' => $row['address'] ?? null,
             'phone1' => $row['phone1'] ?? null,
             'zone_id' => $zone?->id,
@@ -126,8 +126,22 @@ class LabImporter extends BaseImporter
         $zoneInput = trim($zoneInput);
         $inventoryLocationId = $this->resolveInventoryLocationId();
 
-        if ($zoneInput === '' || !$inventoryLocationId) {
+        if ($zoneInput === '') {
             return null;
+        }
+
+        if ($inventoryLocationId) {
+            $zone = Zone::query()
+                ->where(function ($query) use ($zoneInput) {
+                    $query->where('value', $zoneInput)
+                        ->orWhere('key', $zoneInput);
+                })
+                ->where('inventory_location_id', $inventoryLocationId)
+                ->first();
+
+            if ($zone) {
+                return $zone;
+            }
         }
 
         return Zone::query()
@@ -135,7 +149,6 @@ class LabImporter extends BaseImporter
                 $query->where('value', $zoneInput)
                     ->orWhere('key', $zoneInput);
             })
-            ->where('inventory_location_id', $inventoryLocationId)
             ->first();
     }
 
@@ -145,6 +158,25 @@ class LabImporter extends BaseImporter
 
         if ($location && !empty($location->id)) {
             return (string) $location->id;
+        }
+
+        if (!empty($this->batch->user_id)) {
+            $user = User::find($this->batch->user_id);
+            if ($user && !empty($user->location_id)) {
+                return (string) $user->location_id;
+            }
+        }
+
+        if (!empty($this->batch->company_id)) {
+            $companyLocation = \App\InventoryLocation::where('company_id', $this->batch->company_id)->first();
+            if ($companyLocation) {
+                return (string) $companyLocation->id;
+            }
+        }
+
+        $anyLocation = \App\InventoryLocation::first();
+        if ($anyLocation) {
+            return (string) $anyLocation->id;
         }
 
         return null;

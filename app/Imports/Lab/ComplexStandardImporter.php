@@ -70,6 +70,10 @@ class ComplexStandardImporter extends BaseImporter
                 'name' => $chemicalName,
                 'code' => $this->normalizeHeaderName($chemicalName),
                 'company_id' => $this->batch->company_id,
+                'show_on_report' => (
+                    $this->fuzzyGet($row, ['show_on_report', 'show_on_reports']) !== null &&
+                    in_array(strtolower(trim((string)$this->fuzzyGet($row, ['show_on_report', 'show_on_reports']))), ['0', 'no', 'false', 'off'])
+                ) ? 0 : 1,
                 'active' => 1,
             ]);
         }
@@ -103,7 +107,8 @@ class ComplexStandardImporter extends BaseImporter
                 'company_id' => $this->batch->company_id,
             ], [
                 'name' => str_replace('_', ' ', $stdKey),
-                'main_standard' => $this->sheetTitle ?: 'Imported Standards',
+                'main_standard' => true,
+                'is_qc_standard' => false,
             ]);
 
             // Update or create StandardAnalytes

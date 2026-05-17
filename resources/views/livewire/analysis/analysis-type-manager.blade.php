@@ -198,7 +198,7 @@
                                 </div>
                             </div>
                             <div>
-                                {{ $this->analysisTypes->links('pagination::bootstrap-4') }}
+                                {{ $this->analysisTypes->links() }}
                             </div>
                         </div>
                     @else

@@ -39,12 +39,12 @@ abstract class ExcelTemplateGenerator implements FromArray, WithHeadings, WithSt
         return [];
     }
 
-    /**
-     * Get headings with required field markers.
-     */
     public function headings(): array
     {
-        return $this->defineHeaders();
+        $headers = $this->defineHeaders();
+        return array_map(function($header) {
+            return str_replace('*', '', $header);
+        }, $headers);
     }
 
     /**
@@ -52,9 +52,12 @@ abstract class ExcelTemplateGenerator implements FromArray, WithHeadings, WithSt
      */
     public function styles($sheet)
     {
-        // Style header row
+        $headers = $this->defineHeaders();
+        $totalColumns = count($headers);
         $headerRow = 1;
-        foreach (range('A', $sheet->getHighestColumn()) as $column) {
+
+        for ($i = 1; $i <= $totalColumns; $i++) {
+            $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
             $cell = $column . $headerRow;
             
             $sheet->getStyle($cell)->applyFromArray([
@@ -73,12 +76,10 @@ abstract class ExcelTemplateGenerator implements FromArray, WithHeadings, WithSt
                     'wrapText' => true,
                 ],
             ]);
-        }
 
-        // Row 2 is intentionally left blank for user data entry.
-        foreach (range('A', $sheet->getHighestColumn()) as $column) {
-            $cell = $column . '2';
-            $sheet->getStyle($cell)->applyFromArray([
+            // Row 2 is intentionally left blank for user data entry.
+            $cell2 = $column . '2';
+            $sheet->getStyle($cell2)->applyFromArray([
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_LEFT,
                     'vertical' => Alignment::VERTICAL_CENTER,
@@ -97,7 +98,8 @@ abstract class ExcelTemplateGenerator implements FromArray, WithHeadings, WithSt
         $headers = $this->defineHeaders();
         $widths = [];
         
-        foreach (range('A', chr(65 + count($headers) - 1)) as $column) {
+        for ($i = 1; $i <= count($headers); $i++) {
+            $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
             $widths[$column] = $this->columnWidthDefault;
         }
         

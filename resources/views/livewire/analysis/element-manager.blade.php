@@ -205,7 +205,7 @@
                         </div>
                         <!-- Pagination -->
                         <div class="d-flex justify-content-center mt-3">
-                            {{ $this->elements->links('pagination::bootstrap-4') }}
+                            {{ $this->elements->links() }}
                         </div>
                     @else
                         <div class="text-center py-4">

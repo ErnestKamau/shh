@@ -23,6 +23,8 @@ class SampleTypeManager extends Component
 {
     use WithPagination, WithFileUploads;
 
+    protected $paginationTheme = 'bootstrap';
+
     // Sample Types Management
     public $selectedSampleType = null;
     public $showAnalysisTypes = false;
