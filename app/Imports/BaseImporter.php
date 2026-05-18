@@ -841,6 +841,7 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
             'department' => ['name'],
             'user' => ['email'],
             'customer' => ['customer_code'],
+            'inventory' => ['name'],
         ];
         return $map[strtolower($formType)] ?? [];
     }

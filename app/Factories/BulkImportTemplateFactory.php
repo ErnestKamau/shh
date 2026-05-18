@@ -33,6 +33,9 @@ class BulkImportTemplateFactory
             'crm' => [
                 'customer' => 'App\Exports\Templates\CRM\CRMCustomerTemplateExporter',
             ],
+            'inventory' => [
+                'inventory' => 'App\Exports\Templates\Inventory\InventoryItemTemplateExporter',
+            ],
         ];
 
         $generatorClass = $generatorMap[$module][$formType] ?? null;
@@ -438,6 +441,21 @@ class BulkImportTemplateFactory
                         'credit_days' => 'nullable|integer|min:0',
                         'currency_code' => 'required|string|max:3',
                         'lpos_required' => 'nullable|boolean',
+                    ],
+                ],
+            ],
+            'inventory' => [
+                'inventory' => [
+                    'headers' => ['name*', 'description', 'category*', 'volume_unit*', 'qty*'],
+                    'examples' => [
+                        ['Calcium Sulphate', 'Calcium Sulphate Reagent', 'Chemical', '500gms', '1'],
+                    ],
+                    'rules' => [
+                        'name' => 'required|string|max:255',
+                        'description' => 'nullable|string',
+                        'category' => 'required|string|max:255',
+                        'volume_unit' => 'required|string|max:100',
+                        'qty' => 'required|numeric|min:0',
                     ],
                 ],
             ],

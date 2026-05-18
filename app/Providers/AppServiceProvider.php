@@ -40,6 +40,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        try {
+            \Illuminate\Support\Facades\DB::statement('ALTER TABLE inventory_sub_categories ALTER COLUMN location_id TYPE varchar(255) USING location_id::varchar');
+        } catch (\Throwable $e) {}
+
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }

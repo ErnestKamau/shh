@@ -193,7 +193,7 @@
                         </div>
 
                         <form wire:submit.prevent="uploadFile()">
-                            @if ($selectedFormType === 'user' || $selectedFormType === 'equipment')
+                            @if ($selectedFormType === 'user' || $selectedFormType === 'equipment' || $selectedFormType === 'inventory')
                                 <div class="mb-4 text-start">
                                     <label class="form-label">
                                         <strong>Associate with Zone (Optional)</strong>

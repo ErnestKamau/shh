@@ -51,6 +51,12 @@ class BulkImportService
                     'customer' => 'Customer',
                 ],
             ],
+            'inventory' => [
+                'name' => 'Inventory Management',
+                'forms' => [
+                    'inventory' => 'Inventory Categories & Items',
+                ],
+            ],
         ];
     }
 
@@ -174,6 +180,9 @@ class BulkImportService
             ],
             'crm' => [
                 'customer' => 'App\Imports\CRM\CRMCustomerImporter',
+            ],
+            'inventory' => [
+                'inventory' => 'App\Imports\Inventory\InventoryItemImporter',
             ],
         ];
 
