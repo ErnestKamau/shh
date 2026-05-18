@@ -577,10 +577,10 @@ function getUserStores($location = false, $includeFrozen = false, $item_id = fal
       }
     })
     ->selectRaw('inventory_stores.id, inventory_stores.name, iss.name as slot_name, iss.id as slot_id, SUM(stock_in) as stock_in, SUM(stock_out) as stock_out, (SUM(stock_in) - SUM(stock_out)) as balance')
-    ->groupBy('inventory_stores.name');
+    ->groupBy('inventory_stores.id', 'inventory_stores.name', 'iss.name', 'iss.id');
 
   if($isRequisition){
-    $stores = $stores->groupBy('iss.name')->orderBy('slot_name', 'asc');
+    $stores = $stores->orderBy('slot_name', 'asc');
   }
 
   $tores = $stores->orderBy('balance', 'desc');

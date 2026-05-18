@@ -346,15 +346,15 @@ class ReportGeneratorController extends Controller
 
 			$items = \App\RequestEntityItem::join('request_entities as re', 're.id', 'request_entity_items.request_id')
 				->join('inventory_sub_categories as isc', 'isc.id', 'request_entity_items.inventory_sub_category_id')
-				->leftJoin('inventory_stores as is', 'is.id', 'request_entity_items.store_id')
-				->leftJoin('inventory_store_slots as iss', 'iss.inventory_store_id', 'is.id');
+				->leftJoin('inventory_stores as ins', 'ins.id', 'request_entity_items.store_id')
+				->leftJoin('inventory_store_slots as iss', 'iss.inventory_store_id', 'ins.id');
 
 			if($reqItemType == "Material Issuance"){
 				$items = $items->join('request_entities as re2', 're2.id', 're.parent_request_id')
 					->leftJoin('entity_approvals as ea', function($join) {
 						$join->on(DB::raw('cast(ea.model_id as text)'), '=', DB::raw('cast(re2.id as text)'));
 					})
-				->selectRaw('request_entity_items.created_at as issued_at, re2.request_type, re2.cost_center, re2.request_code as `Request Code`, isc.sap_code, ea.approved_at, re2.created_at, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, is.name as Store, iss.name as Slot')
+				->selectRaw('request_entity_items.created_at as issued_at, re2.request_type, re2.cost_center, re2.request_code as `Request Code`, isc.sap_code, ea.approved_at, re2.created_at, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, ins.name as Store, iss.name as Slot')
 				->whereIn('request_entity_items.request_id', $ids)->where('request_entity_items.action', 'issued_received')
 				->groupBy('request_entity_items.request_id')->orderBy('isc.name', 'asc')->get()->toArray();
 			}
@@ -362,7 +362,7 @@ class ReportGeneratorController extends Controller
 				$items = 	$items->leftJoin('entity_approvals as ea', function($join) {
 						$join->on(DB::raw('cast(ea.model_id as text)'), '=', DB::raw('cast(re.id as text)'));
 					})
-				->selectRaw('re.request_type, re.cost_center, re.request_code as `Request Code`, isc.sap_code, ea.approved_at, re.created_at, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, is.name as Store, iss.name as Slot')
+				->selectRaw('re.request_type, re.cost_center, re.request_code as `Request Code`, isc.sap_code, ea.approved_at, re.created_at, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, ins.name as Store, iss.name as Slot')
 				->whereIn('request_entity_items.request_id', $ids)->groupBy('request_entity_items.id')->orderBy('isc.name', 'asc')->get()->toArray();
 			}
 

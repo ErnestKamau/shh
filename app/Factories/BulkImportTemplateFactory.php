@@ -52,20 +52,19 @@ class BulkImportTemplateFactory
         $definitionMap = [
             'lab' => [
                 'pricelist' => [
-                    'headers' => ['pricelist_code*', 'pricelist_name*', 'is_master', 'currency_code*', 'valid_till', 'item_code*', 'item_description', 'analyte_code*', 'unit_price*'],
+                    'headers' => ['pricelist_code*', 'pricelist_name*', 'is_master', 'currency_code*', 'valid_till', 'sample_type*', 'parameter*', 'price*'],
                     'examples' => [
-                        ['PL-001', 'Standard Pricelist', 1, 'USD', '2027-12-31', 'ITEM-001', 'Analysis Item 1', 'ANALYTE-001', '100.00'],
+                        ['GCLA/P/7', 'GCLA Price List v6', 'Yes', 'TZS', '2025-08-22', 'Non Alcoholic Beverages', 'Physical examination', '21200'],
                     ],
                     'rules' => [
                         'pricelist_code' => 'required|string|max:100',
                         'pricelist_name' => 'required|string|max:255',
-                        'is_master' => 'nullable|boolean',
+                        'is_master' => 'nullable|string|max:50',
                         'currency_code' => 'required|string|max:3',
                         'valid_till' => 'nullable|date',
-                        'item_code' => 'required|string|max:100',
-                        'item_description' => 'nullable|string|max:500',
-                        'analyte_code' => 'required|string|max:100',
-                        'unit_price' => 'required|numeric|min:0',
+                        'sample_type' => 'required|string|max:255',
+                        'parameter' => 'required|string|max:255',
+                        'price' => 'required|string|max:100',
                     ],
                 ],
                 'analyte' => [

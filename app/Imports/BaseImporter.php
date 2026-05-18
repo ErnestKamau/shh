@@ -190,7 +190,7 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
                 };
 
                 if ($formType === 'pricelist') {
-                    if (!$checkFilled('pricelist_code') || !$checkFilled('item_code') || !$checkFilled('analyte_code')) {
+                    if (!$checkFilled('pricelist_code') || !$checkFilled('sample_type') || !$checkFilled('parameter')) {
                         $hasMissingPrimaryKey = true;
                     }
                 } elseif ($formType === 'sample_condition') {
@@ -826,7 +826,7 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
     protected function getPrimaryKeysForFormType(string $formType): array
     {
         $map = [
-            'pricelist' => ['pricelist_code', 'item_code', 'analyte_code'],
+            'pricelist' => ['pricelist_code', 'sample_type', 'parameter'],
             'analyte' => [],
             'lab' => ['lab_code'],
             'sample_type' => [],

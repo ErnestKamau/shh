@@ -319,6 +319,7 @@ Route::get('/livewire-test', function () {
 })->name('livewire-test');
 
 
+
 // Livewire CRM Management Routes
 Route::get('/crm/dashboard', [CRMAppController::class, 'dashboard'])
     ->name('crm.dashboard')
