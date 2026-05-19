@@ -1,8 +1,8 @@
 {{-- TAT Dashboard Header: Title bar, filters, period switcher, export --}}
 @php
     $sectionOptions = $available_sections ?? [];
-    $selectedSection = collect($sectionOptions)->firstWhere('id', (int) $selectedLabId);
-    $selectedAnalyst = collect($available_analysts ?? [])->firstWhere('analyst_id', (int) $selectedAnalystId);
+    $selectedSection = collect($sectionOptions)->first(fn($item) => (string) ($item['id'] ?? '') === (string) ($selectedLabId ?? ''));
+    $selectedAnalyst = collect($available_analysts ?? [])->first(fn($item) => (string) ($item['analyst_id'] ?? '') === (string) ($selectedAnalystId ?? ''));
 @endphp
 
 <div class="kebs-title-bar">

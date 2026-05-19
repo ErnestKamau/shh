@@ -1982,7 +1982,7 @@ Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth', 'can:ai_analyti
     Route::get('/audit', '\App\Livewire\Mas\Audit')->name('mas.audit');
     Route::get('/ai-monitoring', '\App\Livewire\Mas\AiMonitoring')->name('mas.ai-monitoring');
     Route::get('/export/{module}', 'Mas\MasController@export')->name('mas.export');
-    Route::post('/export/{module}/visuals', 'Mas\MasController@exportWithVisuals')->name('mas.export.visuals');
+    Route::match(['get', 'post'], '/export/{module}/visuals', 'Mas\MasController@exportWithVisuals')->name('mas.export.visuals');
 });
 
 
