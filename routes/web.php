@@ -29,6 +29,15 @@ Route::get('/', function () {
     return redirect()->route('home');
 });
 
+Route::get('/debug-db', function() {
+    $templates = \App\Models\Monitoring\MonitoringTemplate::get(['id', 'name', 'monitoring_category', 'is_active', 'status', 'lab_id']);
+    $labs = \App\Lab::get(['id', 'name']);
+    return response()->json([
+        'templates' => $templates,
+        'labs' => $labs
+    ]);
+});
+
 Auth::routes();
 
 // Force-change password (90-day expiry policy)
@@ -236,6 +245,10 @@ Route::get('/livewire/monitoring', [LabAppController::class, 'monitoring'])
 
 Route::get('/livewire/monitoring/template/create', [LabAppController::class, 'createMonitoringTemplate'])
     ->name('monitoring.template.create')
+    ->middleware('can:laboratory.components.labs.view');
+
+Route::get('/livewire/monitoring/template/{template}/edit', [LabAppController::class, 'editMonitoringTemplate'])
+    ->name('monitoring.template.edit')
     ->middleware('can:laboratory.components.labs.view');
 
 // Remedies Management Routes

@@ -23,11 +23,16 @@ class StoreMonitoringLogAction
         return DB::transaction(function () use ($template, $payload): MonitoringLog {
             $user = Auth::user();
 
+            $equipmentId = Arr::get($payload, 'equipment_id');
+            if (empty($equipmentId)) {
+                $equipmentId = null;
+            }
+
             $log = MonitoringLog::create([
                 'template_id' => $template->id,
                 'template_version' => (int) $template->version,
                 'lab_id' => Arr::get($payload, 'lab_id'),
-                'equipment_id' => Arr::get($payload, 'equipment_id'),
+                'equipment_id' => $equipmentId,
                 'log_date' => Arr::get($payload, 'log_date', now()->toDateString()),
                 'monitoring_scope' => Arr::get($payload, 'monitoring_scope', $template->monitoring_category),
                 'status' => Arr::get($payload, 'status', 'completed'),
@@ -53,7 +58,6 @@ class StoreMonitoringLogAction
                 ]);
             }
 
-            $equipmentId = Arr::get($payload, 'equipment_id');
             if ($equipmentId) {
                 $snapshot = $this->calibrationSnapshotService->latestForEquipment($equipmentId);
                 if ($snapshot !== null) {

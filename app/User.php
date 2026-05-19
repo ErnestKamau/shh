@@ -368,6 +368,21 @@ class User extends Authenticatable implements Auditable
 		$this->verify_code_expires = null;
 		$this->save();
 	}
+
+	/**
+	 * Decrypt the given encrypted string, falling back to raw if invalid or decryption fails.
+	 *
+	 * @param  string  $value
+	 * @return mixed
+	 */
+	public function fromEncryptedString($value)
+	{
+		try {
+			return parent::fromEncryptedString($value);
+		} catch (\Throwable $e) {
+			return $value;
+		}
+	}
 	public function checkApproveLabSampleRole(){
 		return $this->hasRole('Can Approve Samples');
 	}

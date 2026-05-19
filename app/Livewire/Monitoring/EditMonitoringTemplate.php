@@ -9,28 +9,27 @@ use App\Models\Equipments\MaintainanceCalibrationLog;
 use App\Models\Monitoring\MonitoringTemplate;
 use App\Models\Monitoring\MonitoringTemplateField;
 use App\Models\Monitoring\MonitoringVariable;
+use App\Models\Monitoring\MonitoringFormulaRule;
 use App\Services\Monitoring\FormulaEngineService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
-class CreateMonitoringTemplate extends Component
+class EditMonitoringTemplate extends Component
 {
     // Step management
     public int $currentStep = 1;
 
     // Template type
     public string $templateType = 'environmental'; // 'environmental' or 'equipment'
+    
+    public ?MonitoringTemplate $template = null;
 
     // Step 1: Basic Info
     public string $name = '';
-
     public string $documentControlNumber = '';
-
     public string $version = '1';
-
     public string $effectiveDate = '';
-
     public string $status = 'draft';
 
     // Step 2: Lab Selection
@@ -38,12 +37,10 @@ class CreateMonitoringTemplate extends Component
 
     // Step 3: Section/Equipment Selection
     public array $selectedSectionIds = [];
-
     public array $selectedEquipmentIds = [];
 
     // Step 4: Column Structure
     public array $columnStructure = [];
-
 
     // Inline variable definition modal state
     public array $newVariable = [
@@ -56,10 +53,67 @@ class CreateMonitoringTemplate extends Component
 
     public bool $showVariableModal = false;
 
-    public function mount(): void
+    public function mount(MonitoringTemplate $template): void
     {
-        // Initialize with empty column structure
-        $this->columnStructure = [];
+        $this->template = $template;
+        $this->name = $template->name;
+        $this->documentControlNumber = $template->document_control_number ?? '';
+        $this->version = (string) $template->version;
+        $this->effectiveDate = $template->effective_date ? \Carbon\Carbon::parse($template->effective_date)->format('Y-m-d') : '';
+        $this->status = $template->status;
+        $this->templateType = $template->monitoring_category ?? 'environmental';
+        $this->selectedLabIds = $template->lab_id ? [$template->lab_id] : [];
+        
+        $this->loadColumnStructure();
+    }
+    
+    protected function loadColumnStructure()
+    {
+        $fields = MonitoringTemplateField::with('formulaRule')->where('template_id', $this->template->id)->orderBy('sort_order')->get();
+        
+        $structure = [];
+        foreach ($fields as $field) {
+            if ($field->field_key === '__meta_scope_items') {
+                $meta = is_string($field->field_config) ? json_decode($field->field_config, true) : ($field->field_config ?? []);
+                $this->selectedSectionIds = $meta['sections'] ?? [];
+                $this->selectedEquipmentIds = $meta['equipment'] ?? [];
+                continue;
+            }
+
+            $config = is_string($field->field_config) ? json_decode($field->field_config, true) : ($field->field_config ?? []);
+            $colId = $config['column_id'] ?? 'col_' . uniqid();
+            $colName = $config['column_name'] ?? 'Column';
+            $rowId = $config['row_id'] ?? 'row_' . uniqid();
+            $rowLabel = $config['row_label'] ?? $field->label;
+            
+            if (!isset($structure[$colId])) {
+                $structure[$colId] = [
+                    'id' => $colId,
+                    'name' => $colName,
+                    'frequency' => 'daily',
+                    'rows' => []
+                ];
+            }
+            
+            $rowType = $field->field_type === 'formula' ? 'formula' : 'input';
+            $variableSlug = $config['variable_slug'] ?? '';
+            $expression = '';
+            
+            if ($rowType === 'formula' && $field->formulaRule) {
+                $expression = $field->formulaRule->expression;
+            }
+            
+            $structure[$colId]['rows'][] = [
+                'id' => $rowId,
+                'label' => $rowLabel,
+                'field_key' => $field->field_key,
+                'type' => $rowType,
+                'variable_slug' => $variableSlug,
+                'formula_expression' => $expression,
+            ];
+        }
+        
+        $this->columnStructure = array_values($structure);
     }
 
     public function getAssignedLabsProperty()
@@ -494,7 +548,7 @@ class CreateMonitoringTemplate extends Component
             'columnStructure' => 'required|array|min:1',
         ]);
 
-        $template = MonitoringTemplate::create([
+        $this->template->update([
             'name' => $this->name,
             'document_control_number' => $this->documentControlNumber ?: null,
             'version' => (int) $this->version,
@@ -502,11 +556,12 @@ class CreateMonitoringTemplate extends Component
             'monitoring_category' => $this->templateType,
             'status' => $this->status,
             'lab_id' => $this->selectedLabIds[0] ?? null, // Primary lab
-            'company_id' => Auth::user()?->company_id,
-            'created_by' => Auth::id(),
             'updated_by' => Auth::id(),
-            'is_active' => true,
         ]);
+
+        // Delete existing fields and rules before inserting new ones
+        MonitoringTemplateField::where('template_id', $this->template->id)->delete();
+        MonitoringFormulaRule::where('template_id', $this->template->id)->delete();
 
         // Create individual MonitoringTemplateField rows for every column & row cell
         $sortOrder = 1;
@@ -519,7 +574,7 @@ class CreateMonitoringTemplate extends Component
                 // Ensure it is unique in this template
                 $baseKey = $fieldKey;
                 $counter = 1;
-                while (in_array($fieldKey, $usedKeys) || MonitoringTemplateField::where('template_id', $template->id)->where('field_key', $fieldKey)->exists()) {
+                while (in_array($fieldKey, $usedKeys) || MonitoringTemplateField::where('template_id', $this->template->id)->where('field_key', $fieldKey)->exists()) {
                     $fieldKey = $baseKey . '_' . $counter++;
                 }
                 $usedKeys[] = $fieldKey;
@@ -528,8 +583,8 @@ class CreateMonitoringTemplate extends Component
                 $formulaId = null;
 
                 if ($isFormula && !empty($row['formula_expression'])) {
-                    $createdFormula = \App\Models\Monitoring\MonitoringFormulaRule::create([
-                        'template_id' => $template->id,
+                    $createdFormula = MonitoringFormulaRule::create([
+                        'template_id' => $this->template->id,
                         'name' => ($column['name'] ?: 'Column') . ' - ' . ($row['label'] ?: 'Computed'),
                         'output_key' => $fieldKey,
                         'expression' => $row['formula_expression'],
@@ -541,7 +596,7 @@ class CreateMonitoringTemplate extends Component
                 }
 
                 MonitoringTemplateField::create([
-                    'template_id' => $template->id,
+                    'template_id' => $this->template->id,
                     'formula_rule_id' => $formulaId,
                     'field_key' => $fieldKey,
                     'label' => ($column['name'] ?: 'Column') . ' - ' . ($row['label'] ?: 'Row'),
@@ -562,7 +617,7 @@ class CreateMonitoringTemplate extends Component
 
         // Save meta scope items
         MonitoringTemplateField::create([
-            'template_id' => $template->id,
+            'template_id' => $this->template->id,
             'field_key' => '__meta_scope_items',
             'label' => 'System Meta Data',
             'field_type' => 'metadata',
@@ -575,7 +630,7 @@ class CreateMonitoringTemplate extends Component
             ],
         ]);
 
-        session()->flash('success', 'Monitoring template "' . $this->name . '" created successfully.');
+        session()->flash('success', 'Monitoring template "' . $this->name . '" updated successfully.');
 
         return redirect()->route('livewire.monitoring');
     }
@@ -598,8 +653,8 @@ class CreateMonitoringTemplate extends Component
                 'selectedLabIds' => 'required|array|min:1',
             ],
             3 => $this->templateType === 'environmental' ?
-                ['selectedSectionIds' => 'required|array|min:1'] :
-                ['selectedEquipmentIds' => 'required|array|min:1'],
+                ['selectedSectionIds' => 'nullable'] :
+                ['selectedEquipmentIds' => 'nullable'],
             4 => [
                 'columnStructure' => 'required|array|min:1',
             ],
@@ -609,6 +664,6 @@ class CreateMonitoringTemplate extends Component
 
     public function render()
     {
-        return view('livewire.monitoring.create-monitoring-template');
+        return view('livewire.monitoring.edit-monitoring-template');
     }
 }

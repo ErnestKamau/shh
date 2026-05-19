@@ -7,10 +7,10 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h2 class="mb-0">
-                                <i class="mdi mdi-file-document-plus-outline text-primary"></i>
-                                Create Monitoring Template
+                                <i class="mdi mdi-file-document-edit-outline text-primary"></i>
+                                Edit Monitoring Template
                             </h2>
-                            <p class="text-muted mb-0">Set up a new template for environmental or equipment monitoring with dynamic field configuration.</p>
+                            <p class="text-muted mb-0">Edit an existing template for environmental or equipment monitoring with dynamic field configuration.</p>
                         </div>
                     </div>
                 </div>
@@ -642,7 +642,7 @@
                                     Cancel
                                 </button>
                                 <button type="button" class="btn btn-success" wire:click="saveTemplate">
-                                    <i class="mdi mdi-check"></i> Create Template
+                                    <i class="mdi mdi-check"></i> Update Template
                                 </button>
                             </div>
                         @else

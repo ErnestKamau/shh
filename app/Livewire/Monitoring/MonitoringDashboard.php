@@ -71,7 +71,7 @@ class MonitoringDashboard extends Component
 
     public function getTemplatesDueTodayProperty()
     {
-        if (! in_array($this->activeSection, ['environmental', 'equipment'], true)) {
+        if (!in_array($this->activeSection, ['environmental', 'equipment'], true)) {
             return collect();
         }
 
@@ -97,7 +97,7 @@ class MonitoringDashboard extends Component
             ->where('company_id', Auth::user()?->company_id)
             ->first();
 
-        if (! $template) {
+        if (!$template) {
             return;
         }
 
@@ -132,7 +132,7 @@ class MonitoringDashboard extends Component
 
     public function saveTemplateEdit(): void
     {
-        if (! $this->editingTemplateId) {
+        if (!$this->editingTemplateId) {
             return;
         }
 
@@ -150,7 +150,7 @@ class MonitoringDashboard extends Component
             ->where('company_id', Auth::user()?->company_id)
             ->first();
 
-        if (! $template) {
+        if (!$template) {
             $this->addError('templateEditInputs.name', 'Template not found.');
             return;
         }
@@ -179,7 +179,7 @@ class MonitoringDashboard extends Component
             ->where('company_id', Auth::user()?->company_id)
             ->first();
 
-        if (! $template) {
+        if (!$template) {
             return;
         }
 
@@ -201,7 +201,7 @@ class MonitoringDashboard extends Component
             ->where('company_id', Auth::user()?->company_id)
             ->first();
 
-        if (! $template) {
+        if (!$template) {
             return;
         }
 
@@ -227,16 +227,44 @@ class MonitoringDashboard extends Component
             return collect();
         }
 
-        return Equipment::query()
+        $template = $this->activeTemplate;
+        if (!$template) {
+            return collect();
+        }
+
+        $metaField = $template->fields->firstWhere('field_key', '__meta_scope_items');
+        $cfg = $metaField ? ($metaField->field_config ?? []) : [];
+        $equipmentIds = [];
+
+        if ($template->monitoring_category === 'equipment') {
+            $equipmentIds = $cfg['equipment'] ?? [];
+        } else {
+            // For environmental templates, get equipment belonging to configured sections
+            $sectionIds = $cfg['sections'] ?? [];
+            if (!empty($sectionIds)) {
+                $equipmentIds = \Illuminate\Support\Facades\DB::table('lab_sections')
+                    ->whereIn('id', $sectionIds)
+                    ->whereNotNull('equipment_id')
+                    ->pluck('equipment_id')
+                    ->toArray();
+            }
+        }
+
+        $query = Equipment::query()
             ->where('active', true)
-            ->where('lab_id', $this->selectedLabId)
-            ->orderBy('name')
-            ->get(['id', 'name', 'equipment_number']);
+            ->where('lab_id', $this->selectedLabId);
+
+        // Filter by configured equipment list if any are configured in the template metadata
+        if (!empty($equipmentIds)) {
+            $query->whereIn('id', $equipmentIds);
+        }
+
+        return $query->orderBy('name')->get(['id', 'name', 'equipment_number']);
     }
 
     public function getActiveTemplateProperty(): ?MonitoringTemplate
     {
-        if (! $this->activeTemplateId) {
+        if (!$this->activeTemplateId) {
             return null;
         }
 
@@ -308,7 +336,7 @@ class MonitoringDashboard extends Component
     public function switchSection(string $section): void
     {
         $allowed = ['environmental', 'equipment', 'templates'];
-        if (! in_array($section, $allowed, true)) {
+        if (!in_array($section, $allowed, true)) {
             return;
         }
 
@@ -320,10 +348,162 @@ class MonitoringDashboard extends Component
         $this->selectedLabId = $labId;
     }
 
+    public function resolveVariable(string $slug, ?string $equipmentId = null): mixed
+    {
+        if (empty($slug)) {
+            return null;
+        }
+
+        // Handle predefined equipment dynamic variables using the dedicated snapshot service
+        if (in_array($slug, ['correction_factor', 'uncertainty_of_measure'], true)) {
+            if (empty($equipmentId)) {
+                return null;
+            }
+
+            $snapshot = app(\App\Services\Monitoring\CalibrationSnapshotService::class)->latestForEquipment($equipmentId);
+            if (!$snapshot) {
+                return null;
+            }
+
+            if ($slug === 'correction_factor') {
+                return $snapshot->correctionFactor;
+            }
+
+            if ($slug === 'uncertainty_of_measure') {
+                return $snapshot->uncertaintyOfMeasure;
+            }
+
+            return null;
+        }
+
+        // Handle custom global constant variables
+        $dbVar = \App\Models\Monitoring\MonitoringVariable::where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if ($dbVar) {
+            if ($dbVar->variable_type === 'constant') {
+                return Arr::get($dbVar->value ?? [], 'constant_value');
+            }
+        }
+
+        return null;
+    }
+
+    public function updatedExecutionInputsEquipmentId($value): void
+    {
+        $this->resolveDynamicVariables($value);
+        $this->recomputeFormulaFields();
+    }
+
+    public function updatedExecutionInputs($value, $key): void
+    {
+        if ($key === 'equipment_id') {
+            $this->resolveDynamicVariables($value);
+        }
+        // Always re-evaluate computed formula fields when any input changes
+        $this->recomputeFormulaFields();
+    }
+
+    protected function resolveDynamicVariables(?string $equipmentId): void
+    {
+        $template = $this->activeTemplate;
+        if (!$template) {
+            return;
+        }
+
+        foreach ($template->fields as $field) {
+            $variableSlug = Arr::get($field->field_config ?? [], 'variable_slug');
+            if ($variableSlug) {
+                $resolved = $this->resolveVariable($variableSlug, $equipmentId);
+                if ($resolved !== null) {
+                    $this->executionInputs[$field->field_key] = $resolved;
+                }
+            }
+        }
+    }
+
+    /**
+     * Evaluate all active formula rules against current executionInputs
+     * and write results back into executionInputs so computed fields
+     * auto-fill in the modal.
+     */
+    protected function recomputeFormulaFields(): void
+    {
+        $template = $this->activeTemplate;
+        if (!$template) {
+            return;
+        }
+
+        $formulaEngine = app(FormulaEngineService::class);
+        $equipmentId = Arr::get($this->executionInputs, 'equipment_id');
+
+        // 1. Initialize all known dynamic and custom constant variables to safe defaults
+        // so that formulas do not crash when equipment is unselected.
+        $vars = [
+            'correction_factor' => 0.0,
+            'uncertainty_of_measure' => 0.0,
+        ];
+
+        // Fetch custom db-defined variables and set their constant values
+        $dbVars = \App\Models\Monitoring\MonitoringVariable::where('is_active', true)->get();
+        foreach ($dbVars as $dbVar) {
+            if ($dbVar->variable_type === 'constant') {
+                $vars[$dbVar->slug] = (float) Arr::get($dbVar->value ?? [], 'constant_value', 0.0);
+            } else {
+                $vars[$dbVar->slug] = 0.0;
+            }
+        }
+
+        // Resolve equipment dynamic variables if an equipment is selected
+        $resolvedCf = $this->resolveVariable('correction_factor', $equipmentId);
+        if ($resolvedCf !== null) {
+            $vars['correction_factor'] = (float) $resolvedCf;
+        }
+        $resolvedUom = $this->resolveVariable('uncertainty_of_measure', $equipmentId);
+        if ($resolvedUom !== null) {
+            $vars['uncertainty_of_measure'] = (float) $resolvedUom;
+        }
+
+        // 2. Add manual user inputs to vars ONLY if they have been filled.
+        // If they are empty/null, we omit them so the formula engine
+        // gracefully returns null ("waiting for inputs") until all inputs are supplied.
+        foreach ($this->executionInputs as $key => $value) {
+            if ($key === 'equipment_id') {
+                continue;
+            }
+            if (is_numeric($value) && $value !== '') {
+                $vars[$key] = (float) $value;
+            } elseif ($value !== null && $value !== '') {
+                $vars[$key] = $value;
+            }
+        }
+
+        // 3. Evaluate formulas sequentially
+        foreach ($template->formulaRules->where('is_active', true) as $rule) {
+            $computed = $formulaEngine->evaluateSafe($rule->expression, $vars, null);
+            if ($rule->output_key !== null && $rule->output_key !== '') {
+                if ($computed !== null) {
+                    if (is_numeric($computed)) {
+                        $vars[$rule->output_key] = (float) $computed;
+                        $this->executionInputs[$rule->output_key] = (float) $computed;
+                    } else {
+                        $vars[$rule->output_key] = $computed;
+                        $this->executionInputs[$rule->output_key] = $computed;
+                    }
+                } else {
+                    $this->executionInputs[$rule->output_key] = null;
+                }
+            }
+        }
+    }
+
+
+
     public function openExecution(string $templateId): void
     {
         $template = app(MonitoringTemplateRepository::class)->findTemplate($templateId);
-        if (! $template) {
+        if (!$template) {
             return;
         }
 
@@ -331,9 +511,34 @@ class MonitoringDashboard extends Component
         $this->activeTemplateId = $template->id;
         $this->executionInputs = [];
 
+        // Set default equipment_id to blank
+        $this->executionInputs['equipment_id'] = '';
+
         foreach ($template->fields as $field) {
             $this->executionInputs[$field->field_key] = Arr::get($field->field_config ?? [], 'default');
         }
+
+        // Auto-resolve non-equipment (static) custom constant variables immediately
+        foreach ($template->fields as $field) {
+            $variableSlug = Arr::get($field->field_config ?? [], 'variable_slug');
+            if ($variableSlug && !in_array($variableSlug, ['correction_factor', 'uncertainty_of_measure'], true)) {
+                $resolved = $this->resolveVariable($variableSlug);
+                if ($resolved !== null) {
+                    $this->executionInputs[$field->field_key] = $resolved;
+                }
+            }
+        }
+
+        // Auto-preselect equipment if exactly one matching equipment is available
+        $equipments = $this->executionEquipments;
+        if ($equipments->count() === 1) {
+            $singleEqId = $equipments->first()->id;
+            $this->executionInputs['equipment_id'] = $singleEqId;
+            $this->resolveDynamicVariables($singleEqId);
+        }
+
+        // Eagerly evaluate formula rules so computed fields are pre-filled on open
+        $this->recomputeFormulaFields();
 
         $this->showExecutionModal = true;
     }
@@ -352,9 +557,22 @@ class MonitoringDashboard extends Component
             ? app(MonitoringTemplateRepository::class)->findTemplate($this->activeTemplateId)
             : null;
 
-        if (! $template) {
+        if (!$template) {
             $this->addError('execution', 'Unable to load template.');
             return;
+        }
+
+        $equipmentId = Arr::get($this->executionInputs, 'equipment_id');
+
+        // Auto-resolve variable-bound fields before running validation
+        foreach ($template->fields as $field) {
+            $variableSlug = Arr::get($field->field_config ?? [], 'variable_slug');
+            if ($variableSlug && blank(Arr::get($this->executionInputs, $field->field_key))) {
+                $resolved = $this->resolveVariable($variableSlug, $equipmentId);
+                if ($resolved !== null) {
+                    $this->executionInputs[$field->field_key] = $resolved;
+                }
+            }
         }
 
         foreach ($template->fields as $field) {
@@ -413,7 +631,7 @@ class MonitoringDashboard extends Component
             }
 
             $rulePass = null;
-            if (! blank($rule->pass_condition_expression)) {
+            if (!blank($rule->pass_condition_expression)) {
                 $rulePass = $formulaEngine->normalizeBooleanResult(
                     $formulaEngine->evaluateSafe($rule->pass_condition_expression, $formulaVars, false)
                 );

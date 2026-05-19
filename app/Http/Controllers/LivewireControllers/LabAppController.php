@@ -241,4 +241,21 @@ class LabAppController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Display the edit monitoring template page.
+     */
+    public function editMonitoringTemplate(\App\Models\Monitoring\MonitoringTemplate $template)
+    {
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'template-edit',
+            'pageTitle' => 'Edit Monitoring Template',
+            'template' => $template,
+            'breadcrumbItems' => [
+                ['label' => 'Home', 'url' => route('home')],
+                ['label' => 'Monitoring', 'url' => route('livewire.monitoring')],
+                ['label' => 'Edit Template', 'current' => true],
+            ],
+        ]);
+    }
 }
