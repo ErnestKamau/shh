@@ -196,7 +196,7 @@ class HomeController extends Controller
 
 		return $file->path();
 	}
-	public function aiIndex(){
+	public function aiIndex($id = null){
 		$company = getActiveCompany();
 		return view('layouts.ImaraAi.index', compact('company'));
 	}

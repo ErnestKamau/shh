@@ -64,6 +64,9 @@ class TestKeywordRouting:
         ("open complaints", "complaint_count_open"),
         ("top clients", "top_clients_by_volume"),
         ("analyst workload today", "analyst_workload_today"),
+        ("how many samples are verified", "sample_count_verified"),
+        ("how many samples are approved", "sample_count_approved"),
+        ("how many samples request review", "sample_count_request_review"),
     ])
     def test_keyword_routes_to_correct_intent(self, assistant, query, expected_intent):
         result = assistant.process_query(query)

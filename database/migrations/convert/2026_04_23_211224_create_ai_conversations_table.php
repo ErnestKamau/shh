@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ai_conversations', function (Blueprint $table) {
+        Schema::create('ai.ai_conversations', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('user_id');
             $table->string('title')->fulltext();
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ai_conversations');
+        Schema::dropIfExists('ai.ai_conversations');
     }
 };

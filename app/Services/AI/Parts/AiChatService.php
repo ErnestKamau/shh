@@ -321,4 +321,25 @@ class AiChatService extends AiBaseService
             return ['status' => 'error', 'message' => 'AI Service unreachable or request timed out'];
         }
     }
+
+    /**
+     * Cancel running database queries for a given trace ID.
+     */
+    public function cancel(string $traceId): array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(5)
+                ->post("{$this->apiBaseUrl}/v1/chat/cancel", [
+                    'trace_id' => $traceId,
+                ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+            return ['success' => false, 'error' => 'API Error: ' . $response->status()];
+        } catch (\Exception $e) {
+            $this->log('error', 'Cancel request failed', ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'AI Service unreachable'];
+        }
+    }
 }

@@ -5,7 +5,7 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from python.ai_service.schemas.chat import ChatRequest, ChatResponse, ChatStreamRequest
+from python.ai_service.schemas.chat import ChatRequest, ChatResponse, ChatStreamRequest, ChatCancelRequest
 from python.ai_service.services.ollama_service import OllamaService
 from python.ai_service.services.retrieval_service import RetrievalService
 from python.ai_service.services.live_data_service import LiveDataService
@@ -124,3 +124,10 @@ async def chat_stream(
             "X-Accel-Buffering": "no",
         }
     )
+
+@router.post("/chat/cancel")
+async def chat_cancel(request: ChatCancelRequest):
+    """Cancel all active database queries associated with the given trace_id."""
+    logger.warning(f"CHAT_CANCEL: Received cancellation request for trace_id={request.trace_id}")
+    success = live_data_service.cancel_queries(request.trace_id)
+    return {"success": success, "trace_id": request.trace_id}

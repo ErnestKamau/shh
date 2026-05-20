@@ -111,31 +111,73 @@ class Phase6LabInsightsSeeder extends Seeder
             }
 
 
+            // ----------------------------------------------------------------
+            // 2b. Link analysts to lab departments (analyst_ids JSON)
+            // ----------------------------------------------------------------
+            $analystIdValues = array_values($analystIds);
+            DB::connection('pgsql')->table('labs')
+                ->where('active', true)
+                ->update(['analyst_ids' => json_encode($analystIdValues)]);
+
+            $this->command?->info('  ✓ Linked ' . count($analystIdValues) . ' dedicated analysts to all lab departments.');
 
             // ----------------------------------------------------------------
-            // 3. Rename Workflow Stages to Laboratory Testing Sections
+            // 2c. Redistribute specialist_analyst_id on sample_headers
+            //     so every batch is owned by a named forensic analyst.
             // ----------------------------------------------------------------
-            $this->command?->info('Upgrading Workflow Stages to Laboratory Testing Sections...');
+            $headerIds = DB::connection('pgsql')->table('sample_headers')
+                ->orderBy('created_at')
+                ->pluck('id');
+
+            $analystNames  = array_keys($analystIds);
+            $analystCount  = count($analystNames);
+            $reassigned    = 0;
+
+            foreach ($headerIds as $idx => $headerId) {
+                $analystName = $analystNames[$idx % $analystCount];
+                $analystId   = $analystIds[$analystName];
+
+                DB::connection('pgsql')->table('sample_headers')
+                    ->where('id', $headerId)
+                    ->update([
+                        'specialist_analyst_id' => $analystId,
+                        'sampling_officer'      => $analystId,
+                    ]);
+
+                // Also update captured_results for this header so user_id is set
+                DB::connection('pgsql')->table('captured_results')
+                    ->where('sample_header_id', $headerId)
+                    ->update(['user_id' => $analystId]);
+
+                $reassigned++;
+            }
+
+            $this->command?->info("  ✓ Assigned dedicated analysts to {$reassigned} sample batches and their captured results.");
+
+            // ----------------------------------------------------------------
+            // 3. Rename Workflow Stages → Lab Section Names for reporting views
+            // ----------------------------------------------------------------
+            $this->command?->info('Upgrading Workflow Stages to Laboratory Section names...');
 
             DB::connection('pgsql')->table('sample_analysis_stages')
-                ->where('name', 'Sample Reception')
-                ->update(['name' => 'Serology & Hematology']);
+                ->where('name', 'Sample Request & Submission')
+                ->update(['name' => 'Narcotics & Drug Chemistry']);
 
             DB::connection('pgsql')->table('sample_analysis_stages')
-                ->where('name', 'Sample Preparation')
-                ->update(['name' => 'Microbiology']);
+                ->where('name', 'Sample Receipt & Preparation')
+                ->update(['name' => 'Human DNA Profiling']);
 
             DB::connection('pgsql')->table('sample_analysis_stages')
-                ->where('name', 'Testing & Analysis')
-                ->update(['name' => 'Physicochemical']);
+                ->where('name', 'Analysis in Progress')
+                ->update(['name' => 'Wildlife DNA & Genetics']);
 
             DB::connection('pgsql')->table('sample_analysis_stages')
-                ->where('name', 'QC Review')
-                ->update(['name' => 'Toxicology & Env.']);
+                ->where('name', 'Technical Verification')
+                ->update(['name' => 'Forensic Toxicology']);
 
             DB::connection('pgsql')->table('sample_analysis_stages')
-                ->where('name', 'Final Approval')
-                ->update(['name' => 'Organic Chemistry']);
+                ->where('name', 'Report Approved & Released')
+                ->update(['name' => 'Trace Evidence & Arson']);
 
             $stages = DB::connection('pgsql')->table('sample_analysis_stages')
                 ->where('active', 1)
@@ -147,17 +189,17 @@ class Phase6LabInsightsSeeder extends Seeder
                 return;
             }
 
-            $serologyId  = $stages->get('Serology & Hematology')?->id ?? $stages->first()?->id;
-            $microId     = $stages->get('Microbiology')?->id ?? $stages->first()?->id;
-            $physicId    = $stages->get('Physicochemical')?->id ?? $stages->first()?->id;
-            $toxicId     = $stages->get('Toxicology & Env.')?->id ?? $stages->first()?->id;
-            $organicId   = $stages->get('Organic Chemistry')?->id ?? $stages->first()?->id;
+            $narcoticsId   = $stages->get('Narcotics & Drug Chemistry')?->id ?? $stages->first()?->id;
+            $humanDnaId    = $stages->get('Human DNA Profiling')?->id ?? $stages->first()?->id;
+            $wildlifeDnaId = $stages->get('Wildlife DNA & Genetics')?->id ?? $stages->first()?->id;
+            $toxicologyId  = $stages->get('Forensic Toxicology')?->id ?? $stages->first()?->id;
+            $traceId       = $stages->get('Trace Evidence & Arson')?->id ?? $stages->first()?->id;
 
             // Fetch all results to map their lab_section_id based on Sample Types
             $results = DB::connection('pgsql')->table('results')->get();
             $resultsCount = $results->count();
 
-            $this->command?->info("Mapping lab sections for {$resultsCount} analytical results based on scientific analytes...");
+            $this->command?->info("Mapping lab sections for {$resultsCount} analytical results based on forensic analytes...");
 
             $mappedCount = 0;
             foreach ($results as $result) {
@@ -166,19 +208,25 @@ class Phase6LabInsightsSeeder extends Seeder
                     ->where('id', $result->analyte_id)
                     ->value('name');
 
-                // Map logically based on scientific department specialties
-                if ($analyteName === 'Hemoglobin Level') {
-                    $stageId = $serologyId;
-                } elseif ($analyteName === 'Escherichia coli (E. Coli)') {
-                    $stageId = $microId;
-                } elseif ($analyteName === 'Caffeine Concentration' || $analyteName === 'Glyphosate Trace Residue' || $analyteName === 'Aflatoxin B1 Level') {
-                    $stageId = $organicId;
-                } elseif ($analyteName === 'Lead Content (Pb)' || $analyteName === 'Soil pH Level' || $analyteName === 'Nitrogen Content (N)' || $analyteName === 'Phosphorus Content (P)') {
-                    $stageId = $physicId;
-                } elseif ($analyteName === 'Carbon Monoxide (CO)') {
-                    $stageId = $toxicId;
+                // Map logically based on forensic specialties
+                if ($analyteName === 'Human STR DNA Profile Match') {
+                    $stageId = $humanDnaId;
+                } elseif ($analyteName === 'Wildlife DNA Species Similarity') {
+                    $stageId = $wildlifeDnaId;
+                } elseif (in_array($analyteName, [
+                    'Tetrahydrocannabinol (THC)',
+                    'Cathinone Content',
+                    'Cocaine Hydrochloride',
+                    '6-Monoacetylmorphine (Heroin metabolite)',
+                    'Amphetamine Base',
+                    'Methamphetamine Content',
+                    'Fentanyl Trace Concentration'
+                ])) {
+                    $stageId = $narcoticsId;
+                } elseif ($analyteName === 'Cyanide Concentration') {
+                    $stageId = $toxicologyId;
                 } else {
-                    $stageId = $organicId;
+                    $stageId = $traceId;
                 }
 
                 if ($stageId) {
@@ -189,7 +237,7 @@ class Phase6LabInsightsSeeder extends Seeder
                 }
             }
 
-            $this->command?->info("Successfully mapped {$mappedCount} results to active laboratory sections.");
+            $this->command?->info("Successfully mapped {$mappedCount} results to active forensic laboratory sections.");
 
             // ----------------------------------------------------------------
             // 4. Redistribute tat_captured across analysts with statistical variance

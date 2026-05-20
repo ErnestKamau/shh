@@ -4,7 +4,7 @@ namespace App\Models\AiRepository;
 
 class ReportingSampleHeader extends AiRepositoryModel
 {
-    protected $table = 'reporting.sample_headers';
+    protected $table = 'sample_headers';
 
     protected $primaryKey = 'source_id';
 

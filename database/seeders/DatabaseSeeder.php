@@ -42,6 +42,21 @@ class DatabaseSeeder extends Seeder
             AdminGroupPermissionsSeeder::class,
             LaboratoryServiceRequestFormSeeder::class,
             PF180FormSeeder::class,
+            Phase1FoundationSeeder::class,
+            Phase2LaboratoryWorkflowSeeder::class,
+            Phase3AnalyticalResultsSeeder::class,
+            Phase4QualityControlSeeder::class,
+            Phase5QcAnalyticsSeeder::class,
+            Phase6LabInsightsSeeder::class,
+            Phase7TestingParametersSeeder::class,
+            Phase8EquipmentManagementSeeder::class,
+            Phase9InventoryManagementSeeder::class,
         ]);
+
+        // Auto-assign admin role to imported dump users if they exist in the database
+        $dumpEmails = ['dannyagah13+customer1@gmail.com', 'dannyagah13+staff2@gmail.com', 'jacobmwalughs@gmail.com'];
+        \App\User::whereIn('email', $dumpEmails)->get()->each(function ($user) {
+            $user->assignRole('admin');
+        });
     }
 }

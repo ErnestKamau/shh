@@ -29,65 +29,65 @@ class Phase7TestingParametersSeeder extends Seeder
             // Note: HOD values are calibrated below 80.0 to prevent numeric(8,6) overflow on 10^2 limits.
             // ----------------------------------------------------------------
             $specifications = [
-                'ALY-EC' => [ // E. Coli
-                    'lod' => 0.0,
-                    'hod' => 1.0,
+                'ALY-THC' => [ // THC
+                    'lod' => 0.05,
+                    'hod' => 25.0,
                     'sig_figs' => 2,
                     'reporting_time' => 24, // hours
                 ],
-                'ALY-PB' => [ // Lead Content
-                    'lod' => 0.0001,
-                    'hod' => 0.05,
+                'ALY-CTH' => [ // Cathinone
+                    'lod' => 0.01,
+                    'hod' => 5.0,
+                    'sig_figs' => 2,
+                    'reporting_time' => 24,
+                ],
+                'ALY-COC' => [ // Cocaine
+                    'lod' => 0.1,
+                    'hod' => 90.0,
+                    'sig_figs' => 2,
+                    'reporting_time' => 24,
+                ],
+                'ALY-MAM' => [ // 6-MAM
+                    'lod' => 0.05,
+                    'hod' => 75.0,
+                    'sig_figs' => 2,
+                    'reporting_time' => 24,
+                ],
+                'ALY-AMP' => [ // Amphetamine
+                    'lod' => 0.1,
+                    'hod' => 80.0,
+                    'sig_figs' => 2,
+                    'reporting_time' => 24,
+                ],
+                'ALY-METH' => [ // Methamphetamine
+                    'lod' => 0.1,
+                    'hod' => 95.0,
+                    'sig_figs' => 2,
+                    'reporting_time' => 24,
+                ],
+                'ALY-FEN' => [ // Fentanyl
+                    'lod' => 0.01,
+                    'hod' => 10.0,
+                    'sig_figs' => 3,
+                    'reporting_time' => 24,
+                ],
+                'ALY-STR' => [ // STR DNA
+                    'lod' => 50.0,
+                    'hod' => 99.99,
                     'sig_figs' => 4,
                     'reporting_time' => 48,
                 ],
-                'ALY-CAF' => [ // Caffeine
-                    'lod' => 0.01,
-                    'hod' => 5.0,
-                    'sig_figs' => 3,
-                    'reporting_time' => 12,
+                'ALY-WDNA' => [ // Wildlife DNA
+                    'lod' => 90.0,
+                    'hod' => 99.99,
+                    'sig_figs' => 4,
+                    'reporting_time' => 48,
                 ],
-                'ALY-HB' => [ // Hemoglobin
-                    'lod' => 5.0,
-                    'hod' => 22.0,
-                    'sig_figs' => 3,
-                    'reporting_time' => 4,
-                ],
-                'ALY-PH' => [ // Soil pH
-                    'lod' => 3.5,
-                    'hod' => 10.5,
-                    'sig_figs' => 2,
-                    'reporting_time' => 2,
-                ],
-                'ALY-NIT' => [ // Nitrogen
-                    'lod' => 1.0,
-                    'hod' => 60.0,
-                    'sig_figs' => 3,
-                    'reporting_time' => 36,
-                ],
-                'ALY-GLY' => [ // Glyphosate
+                'ALY-CN' => [ // Cyanide
                     'lod' => 0.05,
                     'hod' => 10.0,
                     'sig_figs' => 3,
-                    'reporting_time' => 72,
-                ],
-                'ALY-PHO' => [ // Phosphorus
-                    'lod' => 1.0,
-                    'hod' => 60.0,
-                    'sig_figs' => 3,
-                    'reporting_time' => 36,
-                ],
-                'ALY-AFL' => [ // Aflatoxin B1
-                    'lod' => 0.1,
-                    'hod' => 20.0,
-                    'sig_figs' => 3,
-                    'reporting_time' => 48,
-                ],
-                'ALY-CO' => [ // Carbon Monoxide
-                    'lod' => 0.1,
-                    'hod' => 60.0,
-                    'sig_figs' => 3,
-                    'reporting_time' => 6,
+                    'reporting_time' => 12,
                 ],
             ];
 
@@ -156,10 +156,10 @@ class Phase7TestingParametersSeeder extends Seeder
                         'guide' => $guideStr,
                         'guide_low' => $spec['lod'],
                         'guide_high' => $spec['hod'],
-                        'very_low_guide' => max(0.000000, $spec['lod'] - ($spec['lod'] * 0.1)),
-                        'very_high_guide' => $spec['hod'] + ($spec['hod'] * 0.2),
-                        'correct_target' => ($spec['lod'] + $spec['hod']) / 2.0,
-                        'standard_target' => ($spec['lod'] + $spec['hod']) / 2.0,
+                        'very_low_guide' => min(99.000000, max(0.000000, $spec['lod'] - ($spec['lod'] * 0.1))),
+                        'very_high_guide' => min(99.000000, $spec['hod'] + ($spec['hod'] * 0.2)),
+                        'correct_target' => min(99.000000, ($spec['lod'] + $spec['hod']) / 2.0),
+                        'standard_target' => min(99.000000, ($spec['lod'] + $spec['hod']) / 2.0),
                     ]);
 
                 $retrofittedResults++;
@@ -188,10 +188,10 @@ class Phase7TestingParametersSeeder extends Seeder
                         'guide' => $guideStr,
                         'guide_low' => $spec['lod'],
                         'guide_high' => $spec['hod'],
-                        'very_low_guide' => max(0.000000, $spec['lod'] - ($spec['lod'] * 0.1)),
-                        'very_high_guide' => $spec['hod'] + ($spec['hod'] * 0.2),
-                        'correct_target' => ($spec['lod'] + $spec['hod']) / 2.0,
-                        'standard_target' => ($spec['lod'] + $spec['hod']) / 2.0,
+                        'very_low_guide' => min(99.000000, max(0.000000, $spec['lod'] - ($spec['lod'] * 0.1))),
+                        'very_high_guide' => min(99.000000, $spec['hod'] + ($spec['hod'] * 0.2)),
+                        'correct_target' => min(99.000000, ($spec['lod'] + $spec['hod']) / 2.0),
+                        'standard_target' => min(99.000000, ($spec['lod'] + $spec['hod']) / 2.0),
                     ]);
 
                 $retrofittedQc++;
@@ -199,23 +199,7 @@ class Phase7TestingParametersSeeder extends Seeder
 
             $this->command?->info("Successfully retrofitted guides/bounds for {$retrofittedQc} QC measurement runs.");
 
-            // ----------------------------------------------------------------
-            // 6. Upgraded Parity Syncing to Reporting Schema
-            // ----------------------------------------------------------------
-            $this->command?->info('Syncing upgraded testing parameters to reporting schema...');
 
-            // Update reporting.qc_results directly
-            DB::connection('pgsql')->statement("
-                UPDATE reporting.qc_results qr
-                SET 
-                    guide_low = pr.guide_low,
-                    guide_high = pr.guide_high,
-                    synced_at = now()::text
-                FROM public.qc_results pr
-                WHERE ('x' || substr(replace(pr.id::text, '-', ''), 1, 15))::bit(60)::bigint = qr.source_id;
-            ");
-
-            $this->command?->info('Reporting schema synchronized.');
 
             // ----------------------------------------------------------------
             // 7. Clear Cache for Real-time Dashboard Refresh

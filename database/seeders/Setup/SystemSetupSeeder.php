@@ -238,8 +238,9 @@ class SystemSetupSeeder extends Seeder
                 $countryId = $kenyaRecord->id;
 
                 $company = Company::updateOrCreate(
-                    ['name' => 'Imara'],
+                    ['id' => '019dde3f-07d3-73d0-a0f2-a01ac58346b4'],
                     [
+                        'name'           => 'Imara',
                         'logo'           => '/images/no-logo.png',
                         'report_logo'    => null,
                         'location'       => 'Nairobi, Kenya',
@@ -263,18 +264,22 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info('Step 6: Creating inventory locations...');
 
                 $location = InventoryLocation::firstOrCreate(
-                    ['name' => 'Imara HQ', 'company_id' => $company->id],
+                    ['id' => '019dde3f-07d9-73bf-86f3-d4fd6df2eece'],
                     [
-                        'level'  => 1,
-                        'active' => 1,
+                        'name'       => 'Imara HQ',
+                        'company_id' => $company->id,
+                        'level'      => 1,
+                        'active'     => 1,
                     ]
                 );
 
                 $adminLocation = InventoryLocation::firstOrCreate(
-                    ['name' => 'SystemAdmin', 'company_id' => $company->id],
+                    ['id' => '019dde3f-07dd-739c-9062-165dfd447c1f'],
                     [
-                        'level'  => 1,
-                        'active' => 1,
+                        'name'       => 'SystemAdmin',
+                        'company_id' => $company->id,
+                        'level'      => 1,
+                        'active'     => 1,
                     ]
                 );
 

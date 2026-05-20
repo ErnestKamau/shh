@@ -71,11 +71,11 @@ trait DashboardHelpers
 
     protected function repositoryConnection(): string
     {
-        return config('imara_ai.repository_connection', 'pgsql_ai');
+        return 'pgsql';
     }
 
     protected function reportingSchema(): string
     {
-        return config('imara_ai.schemas.reporting', 'reporting');
+        return 'public';
     }
 }

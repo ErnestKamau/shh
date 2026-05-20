@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ai_messages', function (Blueprint $table) {
+        Schema::create('ai.ai_messages', function (Blueprint $table) {
             $table->uuid('id');
             $table->char('generation_session_id', 36)->nullable()->index()->comment('Links to AiGenerationSession for tracking active generations and stop control');
             $table->uuid('ai_conversation_id')->index('idx_ai_messages_ai_conversation_id_cd1d9aec');
@@ -35,6 +35,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ai_messages');
+        Schema::dropIfExists('ai.ai_messages');
     }
 };

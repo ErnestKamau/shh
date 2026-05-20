@@ -75,10 +75,19 @@ class Phase4QualityControlSeeder extends Seeder
             ];
 
             foreach ($qcTypes as $qt) {
-                DB::connection('pgsql')->table('qc_types')->updateOrInsert(
-                    ['code' => $qt['code']],
-                    [
+                $existing = DB::connection('pgsql')->table('qc_types')->where('code', $qt['code'])->first();
+                if ($existing) {
+                    DB::connection('pgsql')->table('qc_types')->where('code', $qt['code'])->update([
+                        'name' => $qt['name'],
+                        'has_standards' => $qt['has_standards'],
+                        'has_configured_samples' => $qt['has_configured_samples'],
+                        'is_active' => $qt['is_active'],
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    DB::connection('pgsql')->table('qc_types')->insert([
                         'id' => (string) Str::uuid(),
+                        'code' => $qt['code'],
                         'name' => $qt['name'],
                         'has_standards' => $qt['has_standards'],
                         'has_configured_samples' => $qt['has_configured_samples'],
@@ -86,8 +95,8 @@ class Phase4QualityControlSeeder extends Seeder
                         'created_by' => $activeUserId,
                         'created_at' => now(),
                         'updated_at' => now(),
-                    ]
-                );
+                    ]);
+                }
                 $this->command?->info("Seeded QC Type: {$qt['name']} (Code: {$qt['code']})");
             }
 
@@ -95,24 +104,31 @@ class Phase4QualityControlSeeder extends Seeder
             // 2. Seed 5 QC Schemes
             // ----------------------------------------------------------------
             $qcSchemes = [
-                ['name' => 'EPA Water Quality QA Protocol', 'code' => 'EPA-QA'],
+                ['name' => 'UNODC Narcotics Identification Protocol', 'code' => 'UNODC-QA'],
                 ['name' => 'ISO 17025 Core Calibration Guidelines', 'code' => 'ISO-17025'],
-                ['name' => 'FDA Food Chemistry Safety QA Scheme', 'code' => 'FDA-QA'],
-                ['name' => 'SOP Heavy Metals Standard QA Scheme', 'code' => 'SOP-HM'],
-                ['name' => 'Volatile Organic Gas Calibration Protocol', 'code' => 'GAS-CAL'],
+                ['name' => 'SWGDAM Human DNA Interpretation Guidelines', 'code' => 'SWGDAM-QA'],
+                ['name' => 'ENFSI Forensic Science Quality Assurance Protocol', 'code' => 'ENFSI-QA'],
+                ['name' => 'SOFT Forensic Toxicology Standard Calibration', 'code' => 'SOFT-CAL'],
             ];
 
             foreach ($qcSchemes as $qs) {
-                DB::connection('pgsql')->table('qc_scheme')->updateOrInsert(
-                    ['code' => $qs['code']],
-                    [
+                $existing = DB::connection('pgsql')->table('qc_scheme')->where('code', $qs['code'])->first();
+                if ($existing) {
+                    DB::connection('pgsql')->table('qc_scheme')->where('code', $qs['code'])->update([
+                        'name' => $qs['name'],
+                        'is_active' => true,
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    DB::connection('pgsql')->table('qc_scheme')->insert([
                         'id' => (string) Str::uuid(),
+                        'code' => $qs['code'],
                         'name' => $qs['name'],
                         'is_active' => true,
                         'created_at' => now(),
                         'updated_at' => now(),
-                    ]
-                );
+                    ]);
+                }
                 $this->command?->info("Seeded QC Scheme: {$qs['name']} (Code: {$qs['code']})");
             }
 

@@ -128,7 +128,7 @@ class ManifestWorker:
             for intent, tier, filters, conf in matches:
                 params = {"company_id": company_id}
                 params.update(filters or {})
-                futures[executor.submit(self.live_data.execute_step, intent, params=params)] = intent
+                futures[executor.submit(self.live_data.execute_step, intent, params=params, trace_id=trace_id)] = intent
 
             for future in concurrent.futures.as_completed(futures):
                 intent = futures[future]

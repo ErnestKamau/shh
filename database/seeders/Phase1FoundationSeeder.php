@@ -37,7 +37,7 @@ class Phase1FoundationSeeder extends Seeder
             // ----------------------------------------------------------------
             // 1. Retrieve or Create Base Company
             // ----------------------------------------------------------------
-            $company = Company::where('name', 'Imara')->first();
+            $company = Company::first();
             if (!$company) {
                 $kenya = \App\Country::where('name', 'like', '%Kenya%')->first();
                 $company = Company::create([
@@ -72,12 +72,12 @@ class Phase1FoundationSeeder extends Seeder
             }
 
             // ----------------------------------------------------------------
-            // 3. Seed 3 Labs (Microbiology, Chemistry, Toxicology)
+            // 3. Seed 3 Labs (Forensic Chemistry, Forensic DNA, Forensic Toxicology)
             // ----------------------------------------------------------------
             $labsData = [
-                ['code' => 'LAB-MCB', 'name' => 'Microbiology Department'],
-                ['code' => 'LAB-CHM', 'name' => 'Chemistry Department'],
-                ['code' => 'LAB-Tox', 'name' => 'Toxicology Department'],
+                ['code' => 'LAB-CHM', 'name' => 'Forensic Chemistry Department'],
+                ['code' => 'LAB-DNA', 'name' => 'Forensic DNA Department'],
+                ['code' => 'LAB-TOX', 'name' => 'Forensic Toxicology Department'],
             ];
 
             $labs = [];
@@ -104,16 +104,16 @@ class Phase1FoundationSeeder extends Seeder
             // 4. Seed 10 CRM Customers
             // ----------------------------------------------------------------
             $customersData = [
-                'National Health Authority',
-                'Evergreen Environmental Solutions',
-                'City Water Treatment Corp',
-                'Standard Food Safety Agency',
-                'Alpha Toxicology Labs',
-                'Nairobi Medical Center',
-                'East Africa Agri-Testing',
-                'Coastal Marine Research',
-                'Apex Industrial Quality',
-                'Universal Reagents & Diagnostics',
+                'Directorate of Criminal Investigations (DCI)',
+                'National Police Service (NPS)',
+                'Kenya Wildlife Service (KWS)',
+                'Anti-Narcotics Unit (ANU)',
+                'Office of the Director of Public Prosecutions (ODPP)',
+                'National Transport and Safety Authority (NTSA)',
+                'State Coroner\'s Office',
+                'Independent Policing Oversight Authority (IPOA)',
+                'Special Crimes Unit (SCU)',
+                'Military Intelligence Division',
             ];
 
             $kenya = \App\Country::where('name', 'like', '%Kenya%')->first();
@@ -130,6 +130,7 @@ class Phase1FoundationSeeder extends Seeder
                         'physical_address' => 'Industrial Area, Street ' . rand(1, 10),
                         'email'            => 'contact@' . strtolower(str_replace(' ', '', $custName)) . '.com',
                         'telephone1'       => '+2547' . rand(10000000, 99999999),
+                        'telephone2'       => '+2547' . rand(10000000, 99999999),
                         'active'           => 1,
                         'is_internal'      => false,
                         'country_id'       => $countryId,
@@ -173,14 +174,43 @@ class Phase1FoundationSeeder extends Seeder
             $this->command?->info('Seeded 20 CRM Customer Contacts and 5 Company Units.');
 
             // ----------------------------------------------------------------
-            // 5. Seed 5 Sample Types
+            // 5. Seed 29 Sample Types (Forensic Evidence Categories)
             // ----------------------------------------------------------------
             $sampleTypesData = [
-                ['name' => 'Drinking Water', 'code' => 'SMP-H2O', 'desc' => 'Potable, tap, or borehole liquid samples'],
-                ['name' => 'Blood Plasma', 'code' => 'SMP-BLD', 'desc' => 'Human or animal biological fluid specimen'],
-                ['name' => 'Agricultural Soil', 'code' => 'SMP-SOL', 'desc' => 'Soil, compost, or substrate earth core specimen'],
-                ['name' => 'Processed Food', 'code' => 'SMP-FOD', 'desc' => 'Finished edible items or packaging materials'],
-                ['name' => 'Volatile Gas', 'code' => 'SMP-GAS', 'desc' => 'Atmospheric or pressurized exhaust emission canister'],
+                // Forensic Chemistry
+                ['name' => 'Cannabis', 'code' => 'SMP-CAN', 'desc' => 'Cannabis sativa plant material, hash oil, resin'],
+                ['name' => 'Catha edulis', 'code' => 'SMP-CAT', 'desc' => 'Catha edulis fresh twigs, leaves, active alkaloids'],
+                ['name' => 'Cocaine', 'code' => 'SMP-COC', 'desc' => 'Hydrochloride powder, crack isolates, adulterants'],
+                ['name' => 'Heroin', 'code' => 'SMP-HER', 'desc' => 'Brown/white powder, acetylated morphine derivatives'],
+                ['name' => 'Amphetamine', 'code' => 'SMP-AMP', 'desc' => 'Synthetic psychostimulants, tablets'],
+                ['name' => 'Methamphetamine', 'code' => 'SMP-MET', 'desc' => 'Crystal methamphetamine, ice'],
+                ['name' => 'Fentanyl', 'code' => 'SMP-FEN', 'desc' => 'Synthetic opioids, patches, trace precursors'],
+                ['name' => 'Foods containing drugs', 'code' => 'SMP-FDD', 'desc' => 'Edibles, candies, spiked food specimens'],
+                ['name' => 'Drinks containing drugs', 'code' => 'SMP-DKD', 'desc' => 'Spiked drinks, alcoholic cocktails with sedatives'],
+                ['name' => 'Forensic Blood', 'code' => 'SMP-FBL', 'desc' => 'Whole blood from crime scenes / drivers'],
+                ['name' => 'Forensic Urine', 'code' => 'SMP-FUR', 'desc' => 'Urine specimens from biological screening'],
+                ['name' => 'Miscellaneous Chemistry', 'code' => 'SMP-MCH', 'desc' => 'Unknown chemical powders, fire debris, trace items'],
+                ['name' => 'Forensic Chem Others', 'code' => 'SMP-FCO', 'desc' => 'Other chemical investigations'],
+
+                // Forensic DNA (Human & Non-Human)
+                ['name' => 'Rape Cases (Human DNA)', 'code' => 'SMP-RAP', 'desc' => 'Sexual assault kits, vaginal/cervical swabs'],
+                ['name' => 'Murder Cases (Human DNA)', 'code' => 'SMP-MDN', 'desc' => 'Bloodstains on weapons, forensic trace touch DNA'],
+                ['name' => 'Armed Robbery (Human DNA)', 'code' => 'SMP-RDN', 'desc' => 'DNA extracted from clothing, masks, discarded items'],
+                ['name' => 'Attempted Murder (Human DNA)', 'code' => 'SMP-AMDN', 'desc' => 'Biological matter from assault struggles'],
+                ['name' => 'Attempted Homicide (Human DNA)', 'code' => 'SMP-AHDN', 'desc' => 'Straggle evidence, fingernail scrapings'],
+                ['name' => 'Disaster Victims ID (Human DNA)', 'code' => 'SMP-DVI', 'desc' => 'Skeletonized remains, bone, teeth, deep tissue'],
+                ['name' => 'Wildlife Poaching (Non-Human DNA)', 'code' => 'SMP-WLP', 'desc' => 'Elephant ivory, rhino horn, skins, illicit bushmeat'],
+                ['name' => 'Wildlife Trafficking (Non-Human DNA)', 'code' => 'SMP-WLT', 'desc' => 'Illegal animal trading, birds, reptiles, exotic hides'],
+                ['name' => 'Animal Attacks (Non-Human DNA)', 'code' => 'SMP-AAT', 'desc' => 'Predator/canine saliva swabs, hair, claws'],
+                ['name' => 'Misc DNA Investigation', 'code' => 'SMP-MDNA', 'desc' => 'Trace epithelial cells, suspected touch surfaces, hair'],
+                ['name' => 'Forensic DNA Others', 'code' => 'SMP-FDO', 'desc' => 'Other genetic identifications'],
+
+                // Forensic Toxicology
+                ['name' => 'Murder Cases (Tox)', 'code' => 'SMP-MTO', 'desc' => 'Post-mortem viscera, stomach contents, vitreous humor'],
+                ['name' => 'Attempted Murder (Tox)', 'code' => 'SMP-AMTO', 'desc' => 'Suspected poisoned food, clinical toxic blood panels'],
+                ['name' => 'Attempted Homicide (Tox)', 'code' => 'SMP-AHTO', 'desc' => 'Clinical toxic screens for biological agents'],
+                ['name' => 'Misc Tox Investigation', 'code' => 'SMP-MTOX', 'desc' => 'Ingestion of unknown organic/inorganic toxins'],
+                ['name' => 'Forensic Tox Others', 'code' => 'SMP-FTO', 'desc' => 'Other toxicological profiles'],
             ];
 
             $sampleTypes = [];
@@ -199,19 +229,19 @@ class Phase1FoundationSeeder extends Seeder
             }
 
             // ----------------------------------------------------------------
-            // 6. Seed 10 Analysis Types
+            // 6. Seed 10 Forensic Analysis Types
             // ----------------------------------------------------------------
             $analysisTypesData = [
-                ['name' => 'Bacteriology Culture', 'code' => 'ANA-BAC', 'st_index' => 0, 'lab_index' => 0], // Drink Water -> Micro
-                ['name' => 'Heavy Metal Scan', 'code' => 'ANA-HM', 'st_index' => 0, 'lab_index' => 1],     // Drink Water -> Chem
-                ['name' => 'Chemical Composition', 'code' => 'ANA-COMP', 'st_index' => 3, 'lab_index' => 1], // Food -> Chem
-                ['name' => 'Toxicological Screen', 'code' => 'ANA-TOX', 'st_index' => 1, 'lab_index' => 2],  // Blood Plasma -> Tox
-                ['name' => 'pH Level Measurement', 'code' => 'ANA-PH', 'st_index' => 0, 'lab_index' => 1],  // Drink Water -> Chem
-                ['name' => 'Mineral Profiling', 'code' => 'ANA-MIN', 'st_index' => 2, 'lab_index' => 1],     // Soil -> Chem
-                ['name' => 'Pesticide Trace Scan', 'code' => 'ANA-PEST', 'st_index' => 2, 'lab_index' => 2], // Soil -> Tox
-                ['name' => 'Soil Nutrient Assay', 'code' => 'ANA-NUTR', 'st_index' => 2, 'lab_index' => 1], // Soil -> Chem
-                ['name' => 'Mycotoxin Level Check', 'code' => 'ANA-MYCO', 'st_index' => 3, 'lab_index' => 0], // Food -> Micro
-                ['name' => 'Volatile Organic Scan', 'code' => 'ANA-VOC', 'st_index' => 4, 'lab_index' => 1],  // Gas -> Chem
+                ['name' => 'Cannabis Potency Screen', 'code' => 'ANA-CAN', 'st_index' => 0, 'lab_index' => 0],
+                ['name' => 'Catha edulis active agent assay', 'code' => 'ANA-CAT', 'st_index' => 1, 'lab_index' => 0],
+                ['name' => 'Cocaine GC-MS Quantitation', 'code' => 'ANA-COC', 'st_index' => 2, 'lab_index' => 0],
+                ['name' => 'Heroin Purity Screening', 'code' => 'ANA-HER', 'st_index' => 3, 'lab_index' => 0],
+                ['name' => 'Amphetamine HPLC Check', 'code' => 'ANA-AMP', 'st_index' => 4, 'lab_index' => 0],
+                ['name' => 'Methamphetamine GC-MS Scan', 'code' => 'ANA-MET', 'st_index' => 5, 'lab_index' => 0],
+                ['name' => 'Fentanyl LC-MS/MS Assay', 'code' => 'ANA-FEN', 'st_index' => 6, 'lab_index' => 0],
+                ['name' => 'STR DNA Profiling (Human)', 'code' => 'ANA-STR', 'st_index' => 13, 'lab_index' => 1],
+                ['name' => 'Wildlife Species DNA ID', 'code' => 'ANA-WLD', 'st_index' => 19, 'lab_index' => 1],
+                ['name' => 'Post-Mortem Poison Screen', 'code' => 'ANA-TOX', 'st_index' => 24, 'lab_index' => 2],
             ];
 
             foreach ($analysisTypesData as $at) {

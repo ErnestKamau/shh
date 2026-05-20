@@ -3,12 +3,17 @@ import logging
 import time
 import hashlib
 import json
+import threading
 from typing import Dict, Any, List, Optional
 import pandas as pd
 from sqlalchemy import text
 from python.py_pipeline.core.database import db_manager
 
 logger = logging.getLogger(__name__)
+
+# Global registry to track query execution PIDs per trace_id for cancellation support
+query_registry = {}
+registry_lock = threading.Lock()
 
 class LiveDataService:
     """
@@ -46,10 +51,13 @@ class LiveDataService:
         hash_digest = hashlib.md5(param_str.encode()).hexdigest()
         return f"{intent}:{hash_digest}"
 
-    def execute_step(self, intent: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def execute_step(self, intent: str, params: Optional[Dict[str, Any]] = None, trace_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Main entry point for executing an aggregate fact step safely.
         """
+        if not trace_id and params and "trace_id" in params:
+            trace_id = params["trace_id"]
+
         # 1. Circuit Breaker Check
         if self._circuit_open:
             if time.time() > self._circuit_reset_time:
@@ -84,20 +92,40 @@ class LiveDataService:
         start_time = time.time()
         try:
             sql = template["sql"]
-            self._assert_read_only_sql(sql)
-
+            
             # Enforce Limit at application layer if the template forgot it to prevent OOM
             if "LIMIT" not in sql.upper():
-                 sql += " LIMIT 50"
+                 sql_to_run = sql + " LIMIT 50"
+            else:
+                 sql_to_run = sql
 
+            self._assert_read_only_sql(sql_to_run)
+
+            df = None
             with db_manager.postgres_connection() as conn:
-                # Enforce server-side query timeout for postgres
+                pid = None
+                try:
+                    pid = conn.execute(text("SELECT pg_backend_pid()")).scalar()
+                    if trace_id and pid:
+                        with registry_lock:
+                            query_registry.setdefault(trace_id, set()).add(pid)
+                except Exception as pe:
+                    logger.warning(f"Failed to fetch or register pg_backend_pid: {pe}")
+
                 try:
                     conn.execute(text("SET LOCAL statement_timeout = '5000ms'"))
                 except Exception:
                     pass
                 
-                df = pd.read_sql(text(sql), conn, params=params or {})
+                try:
+                    df = pd.read_sql(text(sql_to_run), conn, params=params or {})
+                finally:
+                    if trace_id and pid:
+                        with registry_lock:
+                            if trace_id in query_registry:
+                                query_registry[trace_id].discard(pid)
+                                if not query_registry[trace_id]:
+                                    del query_registry[trace_id]
 
             # 5. Success Reset
             self._consecutive_failures = 0
@@ -108,11 +136,11 @@ class LiveDataService:
             
             response = {
                 "intent": intent,
-                "data": df.fillna("").to_dict(orient="records"),
+                "data": df.fillna("").to_dict(orient="records") if df is not None else [],
                 "summary": formatted,
                 "success": True,
                 "value": scalar_value,
-                "sql": sql,
+                "sql": sql_to_run,
                 "execution_latency_ms": round((time.time() - start_time) * 1000)
             }
             
@@ -209,3 +237,32 @@ class LiveDataService:
         if output_format not in {"count", "percentage"}:
             return None
         return df.iloc[0, 0]
+
+    def cancel_queries(self, trace_id: str) -> bool:
+        """
+        Immediately cancel all running PostgreSQL queries associated with the given trace_id.
+        """
+        with registry_lock:
+            pids = list(query_registry.get(trace_id, []))
+            
+        if not pids:
+            logger.info(f"Cancel request for trace_id={trace_id}: No active backend PIDs found.")
+            return False
+
+        logger.warning(f"Cancel request received for trace_id={trace_id}. Terminating active PIDs: {pids}")
+        success = True
+        
+        try:
+            with db_manager.postgres_connection() as conn:
+                for pid in pids:
+                    try:
+                        logger.info(f"Cancelling backend process pid={pid} via pg_cancel_backend")
+                        conn.execute(text("SELECT pg_cancel_backend(:pid)"), {"pid": pid})
+                    except Exception as pe:
+                        logger.error(f"Error executing pg_cancel_backend for pid={pid}: {pe}")
+                        success = False
+        except Exception as e:
+            logger.error(f"Failed to establish cancellation connection: {e}")
+            success = False
+
+        return success

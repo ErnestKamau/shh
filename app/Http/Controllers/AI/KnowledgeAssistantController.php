@@ -167,10 +167,11 @@ class KnowledgeAssistantController extends Controller
     {
         $validated = $request->validate([
             'question'         => 'required|string|max:1000',
-            'conversation_id'  => 'sometimes|integer|exists:ai_conversations,id',
+            'conversation_id'  => 'nullable|string|exists:pgsql_ai.ai_conversations,id',
             'use_visuals'      => 'nullable|boolean',
             'model'            => 'nullable|string',
             'module_context'   => 'nullable|string',
+            'mode'             => 'nullable|string',
         ]);
 
         $question = $this->normalizeInput($validated['question']);
@@ -191,6 +192,7 @@ class KnowledgeAssistantController extends Controller
                 'use_visuals' => (bool) ($validated['use_visuals'] ?? true),
                 'model' => $validated['model'] ?? null,
                 'module_context' => $validated['module_context'] ?? null,
+                'mode' => $validated['mode'] ?? null,
             ];
 
             foreach ($this->inferenceService->streamChat($question, $options) as $chunk) {
@@ -317,7 +319,7 @@ class KnowledgeAssistantController extends Controller
             'role'              => 'required|in:user,bot',
             'content'           => 'required|string',
             'sources'           => 'nullable|array',
-            'parent_message_id' => 'nullable|integer|exists:ai_messages,id',
+            'parent_message_id' => 'nullable|string|exists:pgsql_ai.ai_messages,id',
             'is_edited'         => 'nullable|boolean',
             'metadata'          => 'nullable|array',
         ]);
@@ -382,7 +384,7 @@ class KnowledgeAssistantController extends Controller
 
     public function bulkDeleteConversations(Request $request): JsonResponse
     {
-        $validated = $request->validate(['ids' => 'required|array|min:1|max:50', 'ids.*' => 'integer']);
+        $validated = $request->validate(['ids' => 'required|array|min:1|max:50', 'ids.*' => 'string|uuid']);
 
         AiConversation::whereIn('id', $validated['ids'])
             ->where('user_id', Auth::id())
@@ -659,5 +661,23 @@ class KnowledgeAssistantController extends Controller
             'notes' => [],
             'verified_at' => now()
         ]);
+    }
+
+    /**
+     * Cancel running database queries for a given trace ID.
+     */
+    public function cancel(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'trace_id' => 'required|string',
+        ]);
+
+        try {
+            $result = $this->inferenceService->cancel($validated['trace_id']);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            Log::error('KnowledgeAssistantController: cancel failed', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'error' => 'Failed to execute cancel request'], 500);
+        }
     }
 }

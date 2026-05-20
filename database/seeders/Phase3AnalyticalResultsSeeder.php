@@ -47,19 +47,19 @@ class Phase3AnalyticalResultsSeeder extends Seeder
             $activeUserId = $activeUser ? $activeUser->id : null;
 
             // ----------------------------------------------------------------
-            // 2. Seed 10 Standard Analytes
+            // 2. Seed 10 Forensic Analytes
             // ----------------------------------------------------------------
             $analytesData = [
-                ['code' => 'ALY-EC', 'name' => 'Escherichia coli (E. Coli)', 'symbol' => 'E. coli', 'unit' => 'CFU/100mL'],
-                ['code' => 'ALY-PB', 'name' => 'Lead Content (Pb)', 'symbol' => 'Pb', 'unit' => 'mg/L'],
-                ['code' => 'ALY-CAF', 'name' => 'Caffeine Concentration', 'symbol' => 'Caffeine', 'unit' => '% w/w'],
-                ['code' => 'ALY-HB', 'name' => 'Hemoglobin Level', 'symbol' => 'Hb', 'unit' => 'g/dL'],
-                ['code' => 'ALY-PH', 'name' => 'Soil pH Level', 'symbol' => 'pH', 'unit' => 'pH Units'],
-                ['code' => 'ALY-NIT', 'name' => 'Nitrogen Content (N)', 'symbol' => 'N', 'unit' => 'mg/kg'],
-                ['code' => 'ALY-GLY', 'name' => 'Glyphosate Trace Residue', 'symbol' => 'Glyphosate', 'unit' => 'ppb'],
-                ['code' => 'ALY-PHO', 'name' => 'Phosphorus Content (P)', 'symbol' => 'P', 'unit' => 'mg/kg'],
-                ['code' => 'ALY-AFL', 'name' => 'Aflatoxin B1 Level', 'symbol' => 'Aflatoxin', 'unit' => 'µg/kg'],
-                ['code' => 'ALY-CO', 'name' => 'Carbon Monoxide (CO)', 'symbol' => 'CO', 'unit' => 'ppm'],
+                ['code' => 'ALY-THC', 'name' => 'Tetrahydrocannabinol (THC)', 'symbol' => 'THC', 'unit' => '% w/w'],
+                ['code' => 'ALY-CTH', 'name' => 'Cathinone Content', 'symbol' => 'Cathinone', 'unit' => '% w/w'],
+                ['code' => 'ALY-COC', 'name' => 'Cocaine Hydrochloride', 'symbol' => 'Cocaine', 'unit' => '% w/w'],
+                ['code' => 'ALY-MAM', 'name' => '6-Monoacetylmorphine (Heroin metabolite)', 'symbol' => '6-MAM', 'unit' => '% w/w'],
+                ['code' => 'ALY-AMP', 'name' => 'Amphetamine Base', 'symbol' => 'Amphetamine', 'unit' => '% w/w'],
+                ['code' => 'ALY-METH', 'name' => 'Methamphetamine Content', 'symbol' => 'Methamphetamine', 'unit' => '% w/w'],
+                ['code' => 'ALY-FEN', 'name' => 'Fentanyl Trace Concentration', 'symbol' => 'Fentanyl', 'unit' => 'ppb'],
+                ['code' => 'ALY-STR', 'name' => 'Human STR DNA Profile Match', 'symbol' => 'STR-Match', 'unit' => '% Match'],
+                ['code' => 'ALY-WDNA', 'name' => 'Wildlife DNA Species Similarity', 'symbol' => 'Wildlife-DNA', 'unit' => '% Similarity'],
+                ['code' => 'ALY-CN', 'name' => 'Cyanide Concentration', 'symbol' => 'Cyanide', 'unit' => 'mg/L'],
             ];
 
             $analytesMap = [];
@@ -83,19 +83,19 @@ class Phase3AnalyticalResultsSeeder extends Seeder
             }
 
             // ----------------------------------------------------------------
-            // 3. Map Analytes to 10 Analysis Types (AnalysisElements)
+            // 3. Map Analytes to 10 Forensic Analysis Types (AnalysisElements)
             // ----------------------------------------------------------------
             $mapping = [
-                'ANA-BAC'  => 'ALY-EC',
-                'ANA-HM'   => 'ALY-PB',
-                'ANA-COMP' => 'ALY-CAF',
-                'ANA-TOX'  => 'ALY-HB',
-                'ANA-PH'   => 'ALY-PH',
-                'ANA-MIN'  => 'ALY-NIT',
-                'ANA-PEST' => 'ALY-GLY',
-                'ANA-NUTR' => 'ALY-PHO',
-                'ANA-MYCO' => 'ALY-AFL',
-                'ANA-VOC'  => 'ALY-CO',
+                'ANA-CAN' => 'ALY-THC',
+                'ANA-CAT' => 'ALY-CTH',
+                'ANA-COC' => 'ALY-COC',
+                'ANA-HER' => 'ALY-MAM',
+                'ANA-AMP' => 'ALY-AMP',
+                'ANA-MET' => 'ALY-METH',
+                'ANA-FEN' => 'ALY-FEN',
+                'ANA-STR' => 'ALY-STR',
+                'ANA-WLD' => 'ALY-WDNA',
+                'ANA-TOX' => 'ALY-CN',
             ];
 
             $elementsMap = [];
@@ -133,8 +133,8 @@ class Phase3AnalyticalResultsSeeder extends Seeder
                 $header = $sd->getSampleHeader();
                 if (!$header) continue;
 
-                // Skip Draft batches (they do not have testing results yet)
-                if ($header->status === 'Draft') continue;
+                // Skip Samples Reception batches (they do not have testing results yet)
+                if ($header->status === 'Samples Reception') continue;
 
                 // Retrieve mapped analyte & element
                 $element = $elementsMap[$sd->analysis_type_id] ?? null;
@@ -146,49 +146,51 @@ class Phase3AnalyticalResultsSeeder extends Seeder
                 $analyte = Analyte::find($element->analyte_id);
                 if (!$analyte) continue;
 
-                // Generate a realistic mock result depending on the analyte (clamped strictly under 99.0 for numeric(8,6))
+                // Generate a realistic mock result depending on the forensic analyte
                 $resultVal = '0.00';
                 $numericVal = 0.00;
                 switch ($analyte->code) {
-                    case 'ALY-EC':
-                        $resultVal = rand(0, 5) === 0 ? 'Positive (12 CFU)' : 'Negative';
-                        $numericVal = rand(0, 5) === 0 ? 12.0 : 0.0;
+                    case 'ALY-THC':
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 5.0 + (rand(0, 2000) / 100); // 5% to 25%
+                        $resultVal = $numericVal > 0 ? "Positive - {$numericVal}% THC Detected" : 'Negative (Under LOD)';
                         break;
-                    case 'ALY-PB':
-                        $numericVal = rand(0, 100) / 10000; // e.g. 0.0045
-                        $resultVal = $numericVal . ' mg/L';
+                    case 'ALY-CTH':
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 0.5 + (rand(0, 450) / 100); // 0.5% to 5.0%
+                        $resultVal = $numericVal > 0 ? "Positive - {$numericVal}% Cathinone Detected" : 'Negative (Under LOD)';
                         break;
-                    case 'ALY-CAF':
-                        $numericVal = 2.0 + (rand(0, 200) / 100); // 2.0 to 4.0
-                        $resultVal = $numericVal . ' % w/w';
+                    case 'ALY-COC':
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 10.0 + (rand(0, 8000) / 100); // 10% to 90%
+                        $resultVal = $numericVal > 0 ? "Positive - {$numericVal}% Cocaine HCl" : 'Negative (Under LOD)';
                         break;
-                    case 'ALY-HB':
-                        $numericVal = 11.5 + (rand(0, 60) / 10); // 11.5 to 17.5
-                        $resultVal = $numericVal . ' g/dL';
+                    case 'ALY-MAM':
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 5.0 + (rand(0, 7000) / 100); // 5% to 75%
+                        $resultVal = $numericVal > 0 ? "Positive - {$numericVal}% 6-MAM Detected" : 'Negative (Under LOD)';
                         break;
-                    case 'ALY-PH':
-                        $numericVal = 5.5 + (rand(0, 30) / 10); // 5.5 to 8.5
-                        $resultVal = $numericVal . ' pH';
+                    case 'ALY-AMP':
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 5.0 + (rand(0, 7500) / 100); // 5% to 80%
+                        $resultVal = $numericVal > 0 ? "Positive - {$numericVal}% Amphetamine" : 'Negative (Under LOD)';
                         break;
-                    case 'ALY-NIT':
-                        $numericVal = 10.0 + (rand(0, 800) / 10); // 10.0 to 90.0 (safe under 99.0)
-                        $resultVal = $numericVal . ' mg/kg';
+                    case 'ALY-METH':
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 10.0 + (rand(0, 8500) / 100); // 10% to 95%
+                        $resultVal = $numericVal > 0 ? "Positive - {$numericVal}% Crystal Meth" : 'Negative (Under LOD)';
                         break;
-                    case 'ALY-GLY':
-                        $numericVal = rand(0, 15) / 10; // 0 to 1.5
-                        $resultVal = $numericVal . ' ppb';
+                    case 'ALY-FEN':
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 0.1 + (rand(0, 990) / 100); // 0.1 to 10.0 ppb
+                        $resultVal = $numericVal > 0 ? "Positive - {$numericVal} ppb Fentanyl Detected" : 'Negative (Under LOD)';
                         break;
-                    case 'ALY-PHO':
-                        $numericVal = 15.0 + (rand(0, 700) / 10); // 15.0 to 85.0 (safe under 99.0)
-                        $resultVal = $numericVal . ' mg/kg';
+                    case 'ALY-STR':
+                        $numericVal = rand(0, 4) === 0 ? 0.00 : 99.99;
+                        $resultVal = $numericVal > 0 ? "STR DNA Profile Match: {$numericVal}% Probability" : 'No Match (Exclusion)';
                         break;
-                    case 'ALY-AFL':
-                        $numericVal = rand(0, 80) / 10; // 0 to 8.0
-                        $resultVal = $numericVal . ' µg/kg';
+                    case 'ALY-WDNA':
+                        $species = ['Loxodonta africana (African Elephant)', 'Ceratotherium simum (White Rhino)', 'Panthera leo (Lion)'];
+                        $selectedSpecies = $species[rand(0, 2)];
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 98.0 + (rand(0, 199) / 100); // 98.0% to 99.99% similarity
+                        $resultVal = $numericVal > 0 ? "Positive - {$numericVal}% Match to {$selectedSpecies}" : 'Inconclusive / No Animal DNA Match';
                         break;
-                    case 'ALY-CO':
-                        $numericVal = rand(0, 50); // 0 to 50
-                        $resultVal = $numericVal . ' ppm';
+                    case 'ALY-CN':
+                        $numericVal = rand(0, 3) === 0 ? 0.00 : 0.5 + (rand(0, 950) / 100); // 0.5 to 10.0 mg/L
+                        $resultVal = $numericVal > 0 ? "Toxic - {$numericVal} mg/L Cyanide Detected" : 'Normal / Not Detected';
                         break;
                 }
 

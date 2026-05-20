@@ -58,7 +58,7 @@ class Phase5QcAnalyticsSeeder extends Seeder
             $spkType = $qcTypes->where('code', 'SPK')->first() ?? $qcTypes->first();
             $crmType = $qcTypes->where('code', 'CRM')->first() ?? $qcTypes->first();
 
-            $epaScheme = $qcSchemes->where('code', 'EPA-QA')->first() ?? $qcSchemes->first();
+            $unodcScheme = $qcSchemes->where('code', 'UNODC-QA')->first() ?? $qcSchemes->first();
             $isoScheme = $qcSchemes->where('code', 'ISO-17025')->first() ?? $qcSchemes->first();
 
             // ----------------------------------------------------------------
@@ -94,20 +94,20 @@ class Phase5QcAnalyticsSeeder extends Seeder
             $this->command?->info('Seeded QC Standard Value: Baseline Target Value');
 
             // ----------------------------------------------------------------
-            // 3. Define Scientific Robust Means & SD for each Analyte
+            // 3. Define Scientific Robust Means & SD for each Forensic Analyte
             // ----------------------------------------------------------------
             $analytes = Analyte::all();
             $qcBenchmarks = [
-                'ALY-EC' => ['mean' => 0.00, 'sd' => 0.01, 'low' => 0.00, 'high' => 0.00], // E. Coli
-                'ALY-PB' => ['mean' => 0.0050, 'sd' => 0.0004, 'low' => 0.0001, 'high' => 0.0100], // Lead Content
-                'ALY-CAF' => ['mean' => 3.00, 'sd' => 0.08, 'low' => 1.50, 'high' => 5.00], // Caffeine
-                'ALY-HB' => ['mean' => 14.20, 'sd' => 0.35, 'low' => 10.00, 'high' => 18.00], // Hemoglobin
-                'ALY-PH' => ['mean' => 6.50, 'sd' => 0.15, 'low' => 4.00, 'high' => 9.00], // Soil pH
-                'ALY-NIT' => ['mean' => 50.00, 'sd' => 2.50, 'low' => 10.00, 'high' => 90.00], // Nitrogen
-                'ALY-GLY' => ['mean' => 0.80, 'sd' => 0.05, 'low' => 0.01, 'high' => 2.00], // Glyphosate
-                'ALY-PHO' => ['mean' => 40.00, 'sd' => 1.80, 'low' => 10.00, 'high' => 85.00], // Phosphorus
-                'ALY-AFL' => ['mean' => 4.00, 'sd' => 0.22, 'low' => 0.05, 'high' => 10.00], // Aflatoxin B1
-                'ALY-CO' => ['mean' => 25.00, 'sd' => 1.20, 'low' => 0.10, 'high' => 50.00], // CO
+                'ALY-THC'  => ['mean' => 15.00, 'sd' => 0.50, 'low' => 0.10, 'high' => 25.00],
+                'ALY-CTH'  => ['mean' => 2.50,  'sd' => 0.10, 'low' => 0.10, 'high' => 5.00],
+                'ALY-COC'  => ['mean' => 75.00, 'sd' => 2.00, 'low' => 0.10, 'high' => 90.00],
+                'ALY-MAM'  => ['mean' => 60.00, 'sd' => 1.50, 'low' => 0.10, 'high' => 75.00],
+                'ALY-AMP'  => ['mean' => 50.00, 'sd' => 1.20, 'low' => 0.10, 'high' => 80.00],
+                'ALY-METH' => ['mean' => 80.00, 'sd' => 1.80, 'low' => 0.10, 'high' => 95.00],
+                'ALY-FEN'  => ['mean' => 4.00,  'sd' => 0.15, 'low' => 0.05, 'high' => 10.00],
+                'ALY-STR'  => ['mean' => 99.99, 'sd' => 0.01, 'low' => 50.00, 'high' => 99.99],
+                'ALY-WDNA' => ['mean' => 99.50, 'sd' => 0.10, 'low' => 95.00, 'high' => 99.99],
+                'ALY-CN'   => ['mean' => 5.00,  'sd' => 0.20, 'low' => 0.10, 'high' => 10.00],
             ];
 
             // ----------------------------------------------------------------
@@ -233,8 +233,8 @@ class Phase5QcAnalyticsSeeder extends Seeder
                         'recommendations' => $statusCode === 'PASSED' ? 'None' : 'Recalibrate sensors.',
                         'initial_result' => $numericVal,
                         'initial_reporting_symbol' => $analyte->reporting_symbol,
-                        'very_low_guide' => max(0, $benchmark['mean'] - 4 * $benchmark['sd']),
-                        'very_high_guide' => $benchmark['mean'] + 4 * $benchmark['sd'],
+                        'very_low_guide' => min(99.000000, max(0.000000, $benchmark['mean'] - 4 * $benchmark['sd'])),
+                        'very_high_guide' => min(99.000000, $benchmark['mean'] + 4 * $benchmark['sd']),
                         'created_at' => $timestamp,
                         'updated_at' => $timestamp,
                         'analysis_type_id' => $sdLine->analysis_type_id,
@@ -254,82 +254,7 @@ class Phase5QcAnalyticsSeeder extends Seeder
 
             $this->command?->info("Successfully seeded {$totalQcResults} historical QC measurement logs in public operational schema.");
 
-            // ----------------------------------------------------------------
-            // 6. Dual-Schema Syncing (Direct insertion into reporting schema)
-            // ----------------------------------------------------------------
-            $this->command?->info('Syncing seeded QC entries to reporting schema for AI Analytics module...');
 
-            // A. Sync reporting.analytes (cast UUID to Bigint)
-            DB::connection('pgsql')->statement("
-                INSERT INTO reporting.analytes (source_id, code, name, reporting_unit, decimal_places, is_active, source_created_at, source_updated_at, synced_at, payload)
-                SELECT 
-                    ('x' || substr(replace(a.id::text, '-', ''), 1, 15))::bit(60)::bigint as source_id,
-                    a.code,
-                    a.name,
-                    a.reporting_symbol as reporting_unit,
-                    a.decimal_places,
-                    a.active as is_active,
-                    a.created_at::text,
-                    a.updated_at::text,
-                    now()::text,
-                    '{}'::jsonb
-                FROM public.analytes a
-                ON CONFLICT (source_id) DO UPDATE 
-                SET code = EXCLUDED.code, name = EXCLUDED.name, reporting_unit = EXCLUDED.reporting_unit;
-            ");
-            $this->command?->info('Synchronized reporting.analytes table.');
-
-            // B. Sync reporting.qc_processed_results
-            DB::connection('pgsql')->statement("TRUNCATE TABLE reporting.qc_processed_results CASCADE");
-            DB::connection('pgsql')->statement("
-                INSERT INTO reporting.qc_processed_results (source_id, sample_type_id, analysis_type_id, analyte_id, method_id, standard_id, standard_value_id, robust_standard_deviation, robust_mean, robust_median, robust_cv, robust_cv_percentage, source_created_at, source_updated_at, synced_at, payload)
-                SELECT 
-                    ('x' || substr(replace(id::text, '-', ''), 1, 15))::bit(60)::bigint as source_id,
-                    ('x' || substr(replace(sample_type_id::text, '-', ''), 1, 15))::bit(60)::bigint as sample_type_id,
-                    ('x' || substr(replace(analysis_type_id::text, '-', ''), 1, 15))::bit(60)::bigint as analysis_type_id,
-                    ('x' || substr(replace(analyte_id::text, '-', ''), 1, 15))::bit(60)::bigint as analyte_id,
-                    method_id,
-                    ('x' || substr(replace(standard_id::text, '-', ''), 1, 15))::bit(60)::bigint as standard_id,
-                    ('x' || substr(replace(standard_value_id::text, '-', ''), 1, 15))::bit(60)::bigint as standard_value_id,
-                    robust_standard_deviation,
-                    robust_mean,
-                    robust_median,
-                    robust_cv,
-                    robust_cv_percentage,
-                    created_at::text,
-                    updated_at::text,
-                    now()::text,
-                    '{}'::jsonb
-                FROM public.qc_processed_result;
-            ");
-            $this->command?->info('Synchronized reporting.qc_processed_results table.');
-
-            // C. Sync reporting.qc_results
-            DB::connection('pgsql')->statement("TRUNCATE TABLE reporting.qc_results CASCADE");
-            DB::connection('pgsql')->statement("
-                INSERT INTO reporting.qc_results (source_id, analyte_id, analyte_code, analyte_processed_id, sample_header_id, sample_detail_id, sample_detail_code, result, status_code, guide_low, guide_high, unit_code, is_qc_processed, source_created_at, source_updated_at, synced_at, payload)
-                SELECT 
-                    ('x' || substr(replace(qr.id::text, '-', ''), 1, 15))::bit(60)::bigint as source_id,
-                    ('x' || substr(replace(qr.analyte_id::text, '-', ''), 1, 15))::bit(60)::bigint as analyte_id,
-                    qr.analyte_code,
-                    ('x' || substr(replace(pr.id::text, '-', ''), 1, 15))::bit(60)::bigint as analyte_processed_id,
-                    ('x' || substr(replace(qr.sample_header_id::text, '-', ''), 1, 15))::bit(60)::bigint as sample_header_id,
-                    ('x' || substr(replace(qr.sample_detail_id::text, '-', ''), 1, 15))::bit(60)::bigint as sample_detail_id,
-                    qr.sample_detail_code,
-                    qr.result,
-                    qr.status_code,
-                    qr.guide_low,
-                    qr.guide_high,
-                    qr.unit_code,
-                    qr.is_qc_processed,
-                    qr.created_at::text,
-                    qr.updated_at::text,
-                    now()::text,
-                    '{}'::jsonb
-                FROM public.qc_results qr
-                JOIN public.qc_processed_result pr ON pr.analyte_id = qr.analyte_id;
-            ");
-            $this->command?->info('Synchronized reporting.qc_results table.');
 
             $this->command?->info('====================================================');
             $this->command?->info('PHASE 5 SEEDING COMPLETED SUCCESSFULLY!');
