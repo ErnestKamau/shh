@@ -44,6 +44,8 @@ class EquipmentManager extends Component
 
     // Bulk Upload
     public $bulkFile = null;
+    public $selectedZoneId = null;
+    public $zones = [];
 
     // Equipment Form
     public $equipmentForm = [
@@ -141,6 +143,7 @@ class EquipmentManager extends Component
         $this->assetLocations = AssetLocation::where('is_active', 1)->get();
         $this->reportingUnits = ReportingUnit::orderBy('name')->get();
         $this->filteredReportingUnits = $this->reportingUnits;
+        $this->zones = \App\Zone::orderBy('value')->get();
     }
 
     public function getEquipmentProperty()
@@ -498,6 +501,7 @@ class EquipmentManager extends Component
     {
         $this->showBulkUploadModal = true;
         $this->bulkFile = null;
+        $this->selectedZoneId = null;
         $this->dispatch('bulk-upload-modal-opened');
     }
 
@@ -505,6 +509,7 @@ class EquipmentManager extends Component
     {
         $this->showBulkUploadModal = false;
         $this->bulkFile = null;
+        $this->selectedZoneId = null;
     }
 
     public function downloadTemplate()
@@ -559,7 +564,7 @@ class EquipmentManager extends Component
                 'started_at' => now(),
             ]);
 
-            $import = new EquipmentImport($batch);
+            $import = new EquipmentImport($batch, $this->selectedZoneId);
             
             Excel::import($import, $this->bulkFile);
 

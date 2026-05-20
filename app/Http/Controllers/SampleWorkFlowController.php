@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesStageHeaderMethodSequences;
 use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\AnalysisType;
@@ -83,6 +84,8 @@ use App\Http\Requests\StoreSampleSubmissionRequest;
 
 class SampleWorkFlowController extends Controller
 {
+    use HandlesStageHeaderMethodSequences;
+
     /**
      * Display a listing of the resource.
      *
@@ -1176,6 +1179,7 @@ class SampleWorkFlowController extends Controller
                         $captured->remark_is_manual = $analysisType->remark_is_manual;
                         $captured->formular_id = $analysisType->formular_id;
                         $captured->method_sequence_id = $analysisType->method_sequence_id;
+                        $captured->stage_header_id = $analysisType->stage_header_id;
 
                         // Get analysis type for has_no_result_capture
                         $aType = AnalysisType::find($a->id);
@@ -1383,6 +1387,189 @@ class SampleWorkFlowController extends Controller
     {
         $batchID = $batch;
 
+        // Automatically configure and seed required report formats in the database if they do not exist
+        try {
+            // Ensure samples_by_category view exists in PostgreSQL
+            try {
+                \Illuminate\Support\Facades\DB::table('samples_by_category')->first();
+            } catch (\Exception $e) {
+                try {
+                    \Illuminate\Support\Facades\DB::statement("
+                        CREATE OR REPLACE VIEW samples_by_category AS
+                        SELECT 
+                            sh.batch_code AS batch_code,
+                            sh.receipt_date AS receipt_date,
+                            sh.date_collected AS date_collected,
+                            sh.crm_customer_id AS crm_customer_id,
+                            sh.sample_type_id AS sample_type_id,
+                            sh.reference_number AS reference_number,
+                            sh.status AS workflow_stage,
+                            sh.is_routine AS is_routine,
+                            sh.priority AS priority,
+                            sh.batch_scope AS batch_scope,
+                            sh.customer_survey AS customer_survey,
+                            sh.approval_date AS approval_date,
+                            sh.submit_by AS submit_by,
+                            sh.sampled_by_company_personnel AS sampled_by_company_personnel,
+                            sh.radio_active_levels AS batch_no,
+                            sh.description AS product_description,
+                            sh.batch_instructions AS batch_instructions,
+                            sh.sampling_officer_name AS sampling_officer_name,
+                            sh.retention_date AS retention_date,
+                            sh.kra_office_ref AS kra_office_ref,
+                            cc.code AS crm_code,
+                            cc.name AS crm_name,
+                            cc.postal_address AS postal_address,
+                            cc.physical_address AS physical_address,
+                            sh.crm_unit_name AS crm_unit_name,
+                            st.code AS sample_type_code,
+                            st.name AS sample_type_name,
+                            sd.id AS id,
+                            sd.sample_code AS sample_code,
+                            sd.analysis_type_id AS analysis_type_id,
+                            sd.sample_condition_id AS sample_condition_id,
+                            sd.barcode AS barcode,
+                            sd.comments AS comments,
+                            sd.gps AS gps,
+                            sd.photo_url AS photo_url,
+                            sd.created_at AS created_at,
+                            sd.updated_at AS updated_at,
+                            sd.sample_header_id AS sample_header_id,
+                            sd.sample_point_id AS sample_point_id,
+                            sd.company_product_id AS company_product_id,
+                            sd.main_body AS main_body,
+                            sd.header_body AS header_body,
+                            sd.is_ammendment AS is_ammendment,
+                            sd.ammendment_number AS ammendment_number,
+                            sd.main_standard AS main_standard,
+                            sd.secondary_standard AS secondary_standard,
+                            sd.short_code AS short_code,
+                            sd.material_status AS material_status,
+                            sd.third_standard_id AS third_standard_id,
+                            sd.sample_no AS sample_no,
+                            sd.no_of_samples AS no_of_samples,
+                            sd.no_of_pots_plants AS no_of_pots_plants,
+                            sd.standard_tests AS standard_tests,
+                            sd.compartiment_lot AS compartiment_lot,
+                            sd.coa_number AS coa_number,
+                            sd.results AS results,
+                            sd.lab_sub_no AS lab_sub_no,
+                            sd.store_id AS store_id,
+                            sd.store_slot_id AS store_slot_id,
+                            sd.quantity AS quantity,
+                            sd.reporting_unit_id AS reporting_unit_id,
+                            sd.mfg_date AS mfg_date,
+                            sd.expiry_date AS expiry_date,
+                            sd.batch_lot_no AS batch_lot_no,
+                            sd.coa_number_target AS coa_number_target,
+                            sd.disposal_date AS disposal_date,
+                            sd.is_disposed AS is_disposed,
+                            sd.notes_body AS notes_body,
+                            sd.report_number AS report_number,
+                            cp.name AS product_name,
+                            sp.name AS sample_point_name,
+                            NULL AS sample_point_area_name,
+                            sc.name AS sample_condition_name,
+                            smain.code AS main_standard_code,
+                            ssec.code AS sec_standard_code,
+                            sthird.code AS third_standard_code,
+                            iss.name AS store_slot_name,
+                            is2.name AS store_name,
+                            ru.name AS reporting_unit_name,
+                            ci.invoice_number AS invoice_number,
+                            am.name AS sampling_method_name,
+                            am.code AS sampling_method_code,
+                            l.code AS main_lab_code,
+                            l.name AS main_lab_name,
+                            l.id AS main_lab_id,
+                            ccu.name AS customer_crm_unit
+                        FROM sample_headers sh
+                        JOIN sample_details sd ON sh.id = sd.sample_header_id
+                        JOIN crm_customers cc ON sh.crm_customer_id = cc.id
+                        JOIN sample_types st ON sh.sample_type_id = st.id
+                        LEFT JOIN company_products cp ON sd.company_product_id = cp.id
+                        LEFT JOIN sample_conditions sc ON sd.sample_condition_id = sc.id
+                        LEFT JOIN sample_points sp ON sd.sample_point_id = sp.id
+                        LEFT JOIN crm_company_units ccu ON sh.crm_unit_id = ccu.id
+                        LEFT JOIN standards smain ON sd.main_standard = smain.id
+                        LEFT JOIN standards ssec ON sd.secondary_standard = ssec.id
+                        LEFT JOIN standards sthird ON sd.third_standard_id = sthird.id
+                        LEFT JOIN inventory_stores is2 ON sd.store_id = is2.id
+                        LEFT JOIN inventory_store_slots iss ON sd.store_slot_id = iss.id
+                        LEFT JOIN reporting_units ru ON sd.reporting_unit_id = ru.id
+                        LEFT JOIN customer_invoice ci ON sh.invoice_id = ci.id
+                        LEFT JOIN analysis_methods am ON sh.sampling_method_id = am.id
+                        LEFT JOIN labs l ON sd.lab_id = l.id
+                    ");
+                } catch (\Exception $inner) {
+                    \Illuminate\Support\Facades\Log::error("Failed to create samples_by_category view: " . $inner->getMessage());
+                }
+            }
+
+            $companyId = null;
+            $activeCompanyConfig = \Illuminate\Support\Facades\DB::table('system_configurations')->where('key', 'active_company')->first();
+            if ($activeCompanyConfig) {
+                $companyId = $activeCompanyConfig->value;
+            }
+            if (!$companyId) {
+                $company = \Illuminate\Support\Facades\DB::table('companies')->first();
+                if ($company) {
+                    $companyId = $company->id;
+                }
+            }
+            if (!$companyId) {
+                $companyId = \Illuminate\Support\Str::uuid()->toString();
+            }
+
+            $defaultFormats = [
+                ['name' => 'Final Results', 'code' => 'FINAL_RESULTS', 'display' => 'grid'],
+                ['name' => 'Microbiology', 'code' => '1', 'display' => 'grid'],
+                ['name' => 'Hygiene Swabs', 'code' => '2', 'display' => 'grid'],
+                ['name' => 'Serology', 'code' => 'SER-COA', 'display' => 'grid'],
+                ['name' => 'Water Report', 'code' => 'water_report', 'display' => 'grid'],
+            ];
+
+            foreach ($defaultFormats as $df) {
+                $format = \App\ReportFormat::where('report_code', $df['code'])->first();
+                if (!$format) {
+                    $format = new \App\ReportFormat();
+                    $format->report_name = $df['name'];
+                    $format->report_code = $df['code'];
+                    $format->results_display_type = $df['display'];
+                    $format->is_active = true;
+                    $format->company_id = $companyId;
+                    $format->save();
+                } else if (!$format->is_active) {
+                    $format->is_active = true;
+                    $format->save();
+                }
+
+                // Link to all active lab sections
+                if (\Illuminate\Support\Facades\Schema::hasColumn('sample_analysis_stages', 'active')) {
+                    $stages = \App\SampleAnalysisStage::where('active', 1)->get();
+                } else {
+                    $stages = \App\SampleAnalysisStage::all();
+                }
+                foreach ($stages as $stage) {
+                    $configExists = \App\Models\LabSectionReportConfig::where('sample_analysis_stage_id', $stage->id)
+                        ->where('report_format_id', $format->id)
+                        ->exists();
+                    if (!$configExists) {
+                        $config = new \App\Models\LabSectionReportConfig();
+                        $config->sample_analysis_stage_id = $stage->id;
+                        $config->report_format_id = $format->id;
+                        $config->document_code = 'DOC-' . ($stage->code ?: 'GEN');
+                        $config->issue_date = now();
+                        $config->revision_number = '1';
+                        $config->is_default = ($df['code'] === 'FINAL_RESULTS');
+                        $config->save();
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error("Failed to dynamically configure report formats: " . $e->getMessage());
+        }
+
         $batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample', 'stagingDetails', 'sample_type', 'sampleSubmissionRequest.suspects', 'sampleSubmissionRequest.exhibits', 'sampleSubmissionRequest.requestedAnalyses')->find($batchID);
         if (isset($batch->id) && $batch->crm_unit_id < 1) {
             $crm_unit = CRMCompanyUnit::where('crm_customer_id', $batch->crm_customer_id)->where('name', $batch->crm_unit_name)->first();
@@ -1407,11 +1594,7 @@ class SampleWorkFlowController extends Controller
             }
         }
 
-        $recieving_users = User::role('Sample Reception')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $recieving_users = getActiveUsersByRole('Sample Reception');
 
         $batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
@@ -1469,7 +1652,7 @@ class SampleWorkFlowController extends Controller
                 // return response()->json(['raw'=>$raw_results,'processed' => $processed_results]);
             }
             $workflowstages = getWorkflowStage_Stages($batch->status);
-            if (in_array($batch->status, ['Sample Verification', 'Sample Approval'])) {
+            if (in_array($batch->status, ['Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports In Payment', 'Reports for Collection'])) {
                 // Fetch report formats configured for this batch's lab sections (report_format_sample_analysis_stage)
                 $labSectionIds = array_filter(explode(',', $batch->lab_section_ids ?? ''));
 
@@ -1485,10 +1668,10 @@ class SampleWorkFlowController extends Controller
                         foreach ($report_formats as $format) {
                             $format->is_default = $configuredFormatIds->where('report_format_id', $format->id)->where('is_default', true)->isNotEmpty();
                         }
-                    } else {
-                        $report_formats = \App\ReportFormat::active()->get();
                     }
-                } else {
+                }
+
+                if (empty($report_formats) || (is_object($report_formats) && method_exists($report_formats, 'isEmpty') && $report_formats->isEmpty())) {
                     $report_formats = \App\ReportFormat::active()->get();
                 }
             }
@@ -1559,11 +1742,7 @@ class SampleWorkFlowController extends Controller
             // return response()->json($ammendable,200);
         }
 
-        $analysts = User::role('Laboratory Analyst')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $analysts = getActiveUsersByRole('Laboratory Analyst');
         $labs = Lab::where('active', 1)->get();
 
         // -----------------------------------
@@ -6022,11 +6201,7 @@ class SampleWorkFlowController extends Controller
             $attachments = [];
             // return response()->json($ammendable,200);
         }
-        $analysts = User::role('Laboratory Analyst')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $analysts = getActiveUsersByRole('Laboratory Analyst');
         $labs = Lab::where('active', 1)->get();
 
         // -----------------------------------
@@ -6124,11 +6299,7 @@ class SampleWorkFlowController extends Controller
     {
         $captured_results = CapturedResultView::where('sample_detail_id', $sample_id)->get();
         $equipments = Equipment::where('active', 1)->get();
-        $analysts = User::role('Laboratory Analyst')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $analysts = getActiveUsersByRole('Laboratory Analyst');
         $res = [
             'captured' => $captured_results,
             'equipments' => $equipments,
@@ -6556,11 +6727,7 @@ class SampleWorkFlowController extends Controller
             $data = $data->where('is_complete', 1)->orderBy('created_at', 'ASC')->get();
         }
         $sampletypes = SampleType::where('active', 1)->get();
-        $analysts = User::role('Laboratory Analyst')
-            ->where('is_support_staff', 0)
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        $analysts = getActiveUsersByRole('Laboratory Analyst');
         return view('layouts.lab.reports.tat-report', compact('sampletypes', 'analysts', 'filter', 'data'));
     }
     public function getAnalysisTypeAjax($sampletype)

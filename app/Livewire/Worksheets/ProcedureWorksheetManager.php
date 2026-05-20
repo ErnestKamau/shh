@@ -32,10 +32,6 @@ use Illuminate\Support\Str;
 
 class ProcedureWorksheetManager extends Component
 {
-    protected $listeners = [
-        // Triggered by the parent WorksheetManager "Post Results" button.
-        'triggerPostResults' => 'postResults',
-    ];
     public $batchId;
     public $activeTabs = []; // This will hold an array of active Analyte IDs
     public $selectedWorksheetId = null;
@@ -47,7 +43,7 @@ class ProcedureWorksheetManager extends Component
     public array $stepEquipmentOverrides = []; // [step_id => [equipment_id, ...]]
     public array $stepMeasurandOverrides = []; // [step_id => [measurand_id, ...]]
     public array $stepAnalystOverrides = []; // [step_id => [user_id, ...]]
-    public ?int $lastLoadedWorksheetId = null;
+    public ?string $lastLoadedWorksheetId = null;
     public bool $worksheetAlreadyPosted = false;
     /**
      * Hash used in Blade wire:key attributes to force step rows
@@ -113,14 +109,14 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        /** @var array<int, array<int, int>> $idsByTargetWorksheetId */
+        /** @var array<string, array<int, string>> $idsByTargetWorksheetId */
         $idsByTargetWorksheetId = [];
 
         foreach ($rows as $row) {
-            $targetWorksheetId = (int) $row->target_procedure_worksheet_id;
-            $currentWorksheetId = $row->current_procedure_worksheet_id !== null ? (int) $row->current_procedure_worksheet_id : null;
+            $targetWorksheetId = (string) $row->target_procedure_worksheet_id;
+            $currentWorksheetId = $row->current_procedure_worksheet_id !== null ? (string) $row->current_procedure_worksheet_id : null;
 
-            $currentPwId = $row->current_pw_id !== null ? (int) $row->current_pw_id : null;
+            $currentPwId = $row->current_pw_id !== null ? (string) $row->current_pw_id : null;
             $currentPwIsActive = $row->current_pw_is_active !== null ? (bool) $row->current_pw_is_active : null;
 
             // Update only if the currently referenced worksheet is missing or inactive.
@@ -132,7 +128,7 @@ class ProcedureWorksheetManager extends Component
                 continue;
             }
 
-            $idsByTargetWorksheetId[$targetWorksheetId][] = (int) $row->captured_result_id;
+            $idsByTargetWorksheetId[$targetWorksheetId][] = (string) $row->captured_result_id;
         }
 
         foreach ($idsByTargetWorksheetId as $targetWorksheetId => $ids) {
@@ -267,14 +263,14 @@ class ProcedureWorksheetManager extends Component
         }
 
         // Persist external samples per (batch, worksheet, analyte, user) so they survive reloads.
-        $activeAnalyteIdForExternal = count($this->activeTabs) > 0 ? (int) $this->activeTabs[0] : null;
+        $activeAnalyteIdForExternal = count($this->activeTabs) > 0 ? $this->activeTabs[0] : null;
         $externalCacheKey = $activeAnalyteIdForExternal
             ? "worksheet_external_cr_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteIdForExternal}_" . \Illuminate\Support\Facades\Auth::id()
             : null;
 
         if ($externalCacheKey && $this->externalSelectionCacheKeyLoaded !== $externalCacheKey) {
             $cachedExternal = \Illuminate\Support\Facades\Cache::get($externalCacheKey);
-            $cachedExternalIds = is_array($cachedExternal) ? array_values(array_filter(array_map('intval', $cachedExternal))) : [];
+            $cachedExternalIds = is_array($cachedExternal) ? array_values(array_filter(array_map('strval', $cachedExternal))) : [];
 
             $this->externalCapturedResultIds = $cachedExternalIds;
             $this->externalSelectionCacheKeyLoaded = $externalCacheKey;
@@ -283,11 +279,11 @@ class ProcedureWorksheetManager extends Component
         // When switching to a different worksheet tab, always start from a clean
         // in-memory slate and then repopulate only from persisted data for that
         // specific worksheet.
-        if ($this->lastLoadedWorksheetId !== (int) $this->selectedWorksheetId) {
+        if ($this->lastLoadedWorksheetId !== $this->selectedWorksheetId) {
             Log::info('ProcedureWorksheetManager worksheet switch detected, resetting in-memory state', [
                 'batch_id' => $this->batchId,
                 'from_worksheet_id' => $this->lastLoadedWorksheetId,
-                'to_worksheet_id' => (int) $this->selectedWorksheetId,
+                'to_worksheet_id' => $this->selectedWorksheetId,
                 'active_tabs' => $this->activeTabs,
             ]);
 
@@ -317,7 +313,7 @@ class ProcedureWorksheetManager extends Component
 
         $capturedResults = $query->with('sample')->get();
 
-        $this->lastLoadedWorksheetId = (int) $this->selectedWorksheetId;
+        $this->lastLoadedWorksheetId = $this->selectedWorksheetId;
 
         // Get samples for this analyte and worksheet (current + external)
         $samples = $capturedResults
@@ -515,15 +511,15 @@ class ProcedureWorksheetManager extends Component
         $instanceByCell = [];
 
         foreach ($tkValues as $val) {
-            $rowId = (int) $val->procedure_test_kit_row_id;
-            $colId = (int) $val->procedure_test_kit_column_id;
+            $rowId = (string) $val->procedure_test_kit_row_id;
+            $colId = (string) $val->procedure_test_kit_column_id;
 
             if ($val->captured_result_id === null) {
                 $defaultsByCell[$rowId][$colId] = $val->value;
                 continue;
             }
 
-            if ($firstCapturedResultId !== null && (int) $val->captured_result_id === (int) $firstCapturedResultId) {
+            if ($firstCapturedResultId !== null && (string) $val->captured_result_id === (string) $firstCapturedResultId) {
                 $instanceByCell[$rowId][$colId] = $val->value;
             }
         }
@@ -534,11 +530,11 @@ class ProcedureWorksheetManager extends Component
         $this->testKitData = [];
 
         foreach ($rows as $row) {
-            $rowId = (int) $row->id;
+            $rowId = (string) $row->id;
             $hasAnyNonEmptyValue = false;
 
             foreach ($columns as $col) {
-                $colId = (int) $col->id;
+                $colId = (string) $col->id;
 
                 $val = '';
                 if (array_key_exists($rowId, $instanceByCell) && array_key_exists($colId, $instanceByCell[$rowId] ?? [])) {
@@ -641,12 +637,12 @@ class ProcedureWorksheetManager extends Component
     {
         $parts = explode('.', (string) $key);
         if (count($parts) >= 2) {
-            $stepId = (int) $parts[1];
+            $stepId = (string) $parts[1];
             $this->autosaveStepValue($stepId);
         }
     }
 
-    public function autosaveStepValue(int $stepId): void
+    public function autosaveStepValue(string $stepId): void
     {
         if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             return;
@@ -657,7 +653,7 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        $firstId = (int) $selectedIds[0];
+        $firstId = $selectedIds[0];
         if (! isset($this->inputValues[$firstId][$stepId])) {
             return;
         }
@@ -675,7 +671,6 @@ class ProcedureWorksheetManager extends Component
         // Mirror existing "shared value" behaviour: copy first sample's value to the rest.
         if (count($selectedIds) > 1) {
             foreach ($selectedIds as $id) {
-                $id = (int) $id;
                 if ($id === $firstId) {
                     continue;
                 }
@@ -688,7 +683,6 @@ class ProcedureWorksheetManager extends Component
 
         // Persist the value only for the selected captured results for this single step.
         foreach ($selectedIds as $capturedResultId) {
-            $capturedResultId = (int) $capturedResultId;
             $val = $this->inputValues[$capturedResultId][$stepId] ?? '';
             $valueToStore = is_array($val) ? json_encode($val) : ($val ?? '');
 
@@ -746,12 +740,12 @@ class ProcedureWorksheetManager extends Component
     {
         $parts = explode('.', (string) $key);
         if (count($parts) >= 2) {
-            $fieldId = (int) $parts[1];
+            $fieldId = (string) $parts[1];
             $this->autosaveConfigField($fieldId);
         }
     }
 
-    public function autosaveConfigField(int $fieldId): void
+    public function autosaveConfigField(string $fieldId): void
     {
         if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             return;
@@ -762,7 +756,7 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        $firstId = (int) $selectedIds[0];
+        $firstId = $selectedIds[0];
         if (! isset($this->configFieldValues[$firstId][$fieldId])) {
             return;
         }
@@ -780,7 +774,6 @@ class ProcedureWorksheetManager extends Component
         // Mirror existing "shared value" behaviour for config fields.
         if (count($selectedIds) > 1) {
             foreach ($selectedIds as $id) {
-                $id = (int) $id;
                 if ($id === $firstId) {
                     continue;
                 }
@@ -792,7 +785,6 @@ class ProcedureWorksheetManager extends Component
         }
 
         foreach ($selectedIds as $capturedResultId) {
-            $capturedResultId = (int) $capturedResultId;
             $val = $this->configFieldValues[$capturedResultId][$fieldId] ?? '';
             $valueToStore = is_array($val) ? implode(',', $val) : ($val ?? '');
 
@@ -818,7 +810,7 @@ class ProcedureWorksheetManager extends Component
         $activeAnalyteId = count($this->activeTabs) > 0 ? $this->activeTabs[0] : null;
         if ($activeAnalyteId) {
             $cacheKey = "worksheet_selection_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id();
-            \Illuminate\Support\Facades\Cache::put($cacheKey, array_map('intval', $this->selectedSamples), now()->addDays(7));
+            \Illuminate\Support\Facades\Cache::put($cacheKey, array_map('strval', $this->selectedSamples), now()->addDays(7));
         }
 
         // Only sync when there are selected samples; otherwise do nothing and let the UI warn.
@@ -1006,7 +998,7 @@ class ProcedureWorksheetManager extends Component
     /**
      * Test kit rows in row_index order for display.
      *
-     * @return array<int, array{id: int, row_index: int}>
+     * @return array<int, array{id: string, row_index: int}>
      */
     public function getOrderedTestKitRowsProperty(): array
     {
@@ -1015,7 +1007,7 @@ class ProcedureWorksheetManager extends Component
         }
         $out = [];
         foreach ($this->testKitRows as $id => $meta) {
-            $out[] = ['id' => (int) $id, 'row_index' => (int) ($meta['row_index'] ?? 0)];
+            $out[] = ['id' => (string) $id, 'row_index' => (int) ($meta['row_index'] ?? 0)];
         }
         usort($out, fn($a, $b) => $a['row_index'] <=> $b['row_index']);
 
@@ -1033,7 +1025,7 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        $firstCapturedResultId = (int) $selectedCapturedResultIds[0];
+        $firstCapturedResultId = $selectedCapturedResultIds[0];
 
         $maxIndex = 0;
         foreach ($this->testKitRows as $meta) {
@@ -1046,8 +1038,6 @@ class ProcedureWorksheetManager extends Component
 
         $displayRow = null;
         foreach ($selectedCapturedResultIds as $capturedResultId) {
-            $capturedResultId = (int) $capturedResultId;
-
             $instanceRow = ProcedureTestKitRow::firstOrCreate(
                 [
                     'procedure_worksheet_id' => $this->selectedWorksheetId,
@@ -1082,11 +1072,11 @@ class ProcedureWorksheetManager extends Component
         if (count($parts) !== 2) {
             return;
         }
-        $rowId = (int) $parts[0];
+        $rowId = (string) $parts[0];
         $this->autosaveTestKitRow($rowId);
     }
 
-    protected function autosaveTestKitRow(int $rowId): void
+    protected function autosaveTestKitRow(string $rowId): void
     {
         if (! $this->selectedWorksheetId) {
             return;
@@ -1119,8 +1109,6 @@ class ProcedureWorksheetManager extends Component
         $rowIndex = (int) ($meta['row_index'] ?? 0);
 
         foreach ($selectedCapturedResultIds as $capturedResultId) {
-            $capturedResultId = (int) $capturedResultId;
-
             // Ensure the row exists for this instance.
             $instanceRow = ProcedureTestKitRow::firstOrCreate(
                 [
@@ -1138,7 +1126,7 @@ class ProcedureWorksheetManager extends Component
                     [
                         'captured_result_id' => $capturedResultId,
                         'procedure_test_kit_row_id' => $instanceRow->id,
-                        'procedure_test_kit_column_id' => (int) $columnId,
+                        'procedure_test_kit_column_id' => $columnId,
                     ],
                     [
                         'value' => $val,
@@ -1152,7 +1140,7 @@ class ProcedureWorksheetManager extends Component
         $this->worksheetAlreadyPosted = true;
     }
 
-    public function removeTestKitRow(int $rowId): void
+    public function removeTestKitRow(string $rowId): void
     {
         $rowMeta = $this->testKitRows[$rowId] ?? null;
         $rowIndex = $rowMeta['row_index'] ?? null;
@@ -1165,14 +1153,13 @@ class ProcedureWorksheetManager extends Component
         // Remove values for selected instances.
         if (! empty($selectedCapturedResultIds)) {
             ProcedureTestKitValue::where('procedure_test_kit_row_id', $rowId)
-                ->whereIn('captured_result_id', array_map('intval', $selectedCapturedResultIds))
+                ->whereIn('captured_result_id', $selectedCapturedResultIds)
                 ->delete();
         }
 
         // Also remove instance rows if they were created for selected captured results.
         if ($rowIndex !== null) {
             foreach ($selectedCapturedResultIds as $capturedResultId) {
-                $capturedResultId = (int) $capturedResultId;
                 $instanceRow = ProcedureTestKitRow::where('procedure_worksheet_id', $this->selectedWorksheetId)
                     ->where('captured_result_id', $capturedResultId)
                     ->where('row_index', (int) $rowIndex)
@@ -1357,7 +1344,7 @@ class ProcedureWorksheetManager extends Component
             $this->externalCapturedResultIds,
             array_column($this->externalSelectionItems, 'id')
         );
-        $alreadySelectedIds = array_values(array_unique(array_map('intval', $alreadySelectedIds)));
+        $alreadySelectedIds = array_values(array_unique(array_map('strval', $alreadySelectedIds)));
 
         $query = DB::table('captured_results as cr')
             ->join('sample_details as sd', 'sd.id', '=', 'cr.sample_detail_id')
@@ -1397,16 +1384,15 @@ class ProcedureWorksheetManager extends Component
      * Add one external sample to the multiselect selection (before "Add Selected").
      * Looks up batch_code and sample_code from current search results.
      */
-    public function addExternalSampleToSelection(int $id): void
+    public function addExternalSampleToSelection(string $id): void
     {
-        $id = (int) $id;
         foreach ($this->externalSelectionItems as $item) {
-            if ((int) $item['id'] === $id) {
+            if ((string) $item['id'] === $id) {
                 return;
             }
         }
         foreach ($this->externalSearchResults as $row) {
-            if ((int) $row['captured_result_id'] === $id) {
+            if ((string) $row['captured_result_id'] === $id) {
                 $this->externalSelectionItems[] = [
                     'id' => $id,
                     'batch_code' => $row['batch_code'] ?? '',
@@ -1420,12 +1406,11 @@ class ProcedureWorksheetManager extends Component
     /**
      * Remove one external sample from the multiselect selection.
      */
-    public function removeExternalSampleFromSelection(int $id): void
+    public function removeExternalSampleFromSelection(string $id): void
     {
-        $id = (int) $id;
         $this->externalSelectionItems = array_values(array_filter(
             $this->externalSelectionItems,
-            fn($item) => (int) $item['id'] !== $id
+            fn($item) => (string) $item['id'] !== $id
         ));
     }
 
@@ -1438,7 +1423,7 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        $ids = array_map(fn($item) => (int) $item['id'], $this->externalSelectionItems);
+        $ids = array_map(fn($item) => (string) $item['id'], $this->externalSelectionItems);
         $this->externalCapturedResultIds = array_values(array_unique(array_merge(
             $this->externalCapturedResultIds,
             $ids
@@ -1461,14 +1446,14 @@ class ProcedureWorksheetManager extends Component
             $additionalSampleIds
         )));
 
-        $activeAnalyteId = count($this->activeTabs) > 0 ? (int) $this->activeTabs[0] : null;
+        $activeAnalyteId = count($this->activeTabs) > 0 ? $this->activeTabs[0] : null;
         if ($activeAnalyteId && $this->selectedWorksheetId) {
             $cacheKey = "worksheet_selection_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id();
-            \Illuminate\Support\Facades\Cache::put($cacheKey, array_map('intval', $this->selectedSamples), now()->addDays(7));
+            \Illuminate\Support\Facades\Cache::put($cacheKey, array_map('strval', $this->selectedSamples), now()->addDays(7));
 
             // Persist external captured results selection too (so it survives reload).
             $externalKey = "worksheet_external_cr_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id();
-            \Illuminate\Support\Facades\Cache::put($externalKey, array_map('intval', $this->externalCapturedResultIds), now()->addDays(7));
+            \Illuminate\Support\Facades\Cache::put($externalKey, array_map('strval', $this->externalCapturedResultIds), now()->addDays(7));
             $this->externalSelectionCacheKeyLoaded = $externalKey;
         }
 
@@ -1580,11 +1565,10 @@ class ProcedureWorksheetManager extends Component
         // When multiple samples are selected, one shared value applies to all: copy first result's values to the rest
         $selectedIds = $this->getSelectedCapturedResultIds();
         if (count($selectedIds) > 1) {
-            $firstId = (int) $selectedIds[0];
+            $firstId = $selectedIds[0];
             foreach ($this->getStepsProperty() as $step) {
                 $value = $this->inputValues[$firstId][$step->id] ?? '';
                 foreach ($selectedIds as $id) {
-                    $id = (int) $id;
                     if ($id === $firstId) {
                         continue;
                     }
@@ -1597,7 +1581,6 @@ class ProcedureWorksheetManager extends Component
             foreach ($this->getConfigFieldsProperty() as $field) {
                 $value = $this->configFieldValues[$firstId][$field->id] ?? '';
                 foreach ($selectedIds as $id) {
-                    $id = (int) $id;
                     if ($id === $firstId) {
                         continue;
                     }
@@ -1610,12 +1593,10 @@ class ProcedureWorksheetManager extends Component
         }
 
         foreach ($this->inputValues as $capturedResultId => $steps) {
-            $capturedResultId = (int) $capturedResultId;
             if (! in_array($capturedResultId, $selectedIds) || ! is_array($steps)) {
                 continue;
             }
             foreach ($steps as $stepId => $value) {
-                $stepId = (int) $stepId;
                 $valueToStore = is_array($value) ? json_encode($value) : ($value ?? '');
                 CapturedProcedureValue::updateOrCreate(
                     [
@@ -1630,12 +1611,10 @@ class ProcedureWorksheetManager extends Component
         }
 
         foreach ($this->configFieldValues as $capturedResultId => $fields) {
-            $capturedResultId = (int) $capturedResultId;
             if (! in_array($capturedResultId, $selectedIds) || ! is_array($fields)) {
                 continue;
             }
             foreach ($fields as $fieldId => $value) {
-                $fieldId = (int) $fieldId;
                 $valueToStore = is_array($value) ? implode(',', $value) : ($value ?? '');
                 CapturedProcedureConfigValue::updateOrCreate(
                     [
@@ -1669,7 +1648,6 @@ class ProcedureWorksheetManager extends Component
             $rowIndex = (int) ($rowMeta['row_index'] ?? 0);
 
             foreach ($selectedIds as $capturedResultId) {
-                $capturedResultId = (int) $capturedResultId;
                 $instanceRow = ProcedureTestKitRow::firstOrCreate(
                     [
                         'procedure_worksheet_id' => $this->selectedWorksheetId,
@@ -1686,7 +1664,7 @@ class ProcedureWorksheetManager extends Component
                         [
                             'captured_result_id' => $capturedResultId,
                             'procedure_test_kit_row_id' => $instanceRow->id,
-                            'procedure_test_kit_column_id' => (int) $columnId,
+                            'procedure_test_kit_column_id' => $columnId,
                         ],
                         [
                             'value' => $value,
@@ -1722,7 +1700,7 @@ class ProcedureWorksheetManager extends Component
         $this->flashMessage = 'Worksheet values saved successfully.';
     }
 
-    public function autosaveStepOverride(int $stepId): void
+    public function autosaveStepOverride(string $stepId): void
     {
         if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             return;
@@ -1938,109 +1916,6 @@ class ProcedureWorksheetManager extends Component
         }
     }
 
-    /**
-     * Post results for the current procedure worksheet:
-     * - Set analyst (operator) and method on captured results from shared config fields.
-     * - Persist captured results (which triggers TAT creation/updates via CapturedObserver).
-     * - Generate a Procedure Worksheet PDF and store it as a batch attachment.
-     */
-    public function postResults(): void
-    {
-        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
-            $this->flashType = 'warning';
-            $this->flashMessage = 'Select at least one parameter and a procedure worksheet before posting results.';
-            return;
-        }
-
-        $selectedIds = $this->getSelectedCapturedResultIds();
-        if (empty($selectedIds)) {
-            $this->flashType = 'warning';
-            $this->flashMessage = 'Select at least one sample before posting results.';
-            return;
-        }
-
-        $configFields = $this->getConfigFieldsProperty();
-        $firstId = (int) $selectedIds[0];
-
-        // Resolve analyst and method config fields (if configured on this worksheet)
-        $analystField = $configFields->first(function (ProcedureConfigField $field) {
-            return $field->model_tied_to === 'users';
-        });
-
-        $methodField = $configFields->first(function (ProcedureConfigField $field) {
-            return $field->model_tied_to === 'methods';
-        });
-
-        $analystId = null;
-        if ($analystField) {
-            $analystValue = $this->configFieldValues[$firstId][$analystField->id] ?? null;
-            // Dataset fields store a single scalar value; multiselect would store array.
-            if (is_array($analystValue)) {
-                $analystId = count($analystValue) > 0 ? (int) $analystValue[0] : null;
-            } elseif ($analystValue !== null && $analystValue !== '') {
-                $analystId = (int) $analystValue;
-            }
-        }
-
-        $methodId = null;
-        if ($methodField) {
-            $methodValue = $this->configFieldValues[$firstId][$methodField->id] ?? null;
-            if (is_array($methodValue)) {
-                $methodId = count($methodValue) > 0 ? (int) $methodValue[0] : null;
-            } elseif ($methodValue !== null && $methodValue !== '') {
-                $methodId = (int) $methodValue;
-            }
-        }
-
-        if (! $analystId && ! $methodId) {
-            // Nothing to update; avoid touching captured results.
-            $this->flashType = 'warning';
-            $this->flashMessage = 'No analyst or method selected for this procedure worksheet.';
-            return;
-        }
-
-        DB::beginTransaction();
-
-        try {
-            // Update captured results for the selected samples / analyte / worksheet.
-            $capturedResults = CapturedResult::whereIn('id', $selectedIds)->get();
-
-            foreach ($capturedResults as $captured) {
-                if ($analystId) {
-                    $captured->operator_id = $analystId;
-                }
-
-                if ($methodId) {
-                    $captured->method_id = $methodId;
-                }
-
-                // Saving will trigger CapturedObserver::updated(), which handles TAT.
-                $captured->save();
-            }
-
-            // Flag these captured results as having their worksheet posted.
-            CapturedResult::whereIn('id', $selectedIds)
-                ->update(['worksheet_posted' => true]);
-
-            DB::commit();
-
-            $this->worksheetAlreadyPosted = true;
-            $this->flashType = 'success';
-            $this->flashMessage = 'Procedure worksheet results posted successfully.';
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            Log::error('Error posting procedure worksheet results', [
-                'batch_id' => $this->batchId,
-                'worksheet_id' => $this->selectedWorksheetId,
-                'error' => $e->getMessage(),
-            ]);
-
-            $this->flashType = 'error';
-            $this->flashMessage = 'Error posting procedure worksheet results: ' . $e->getMessage();
-        }
-    }
-
     private function seedDefaultStepValuesForSelectedResults(\Illuminate\Support\Collection $steps, array $selectedResultIds): void
     {
         if (empty($selectedResultIds)) {
@@ -2054,7 +1929,7 @@ class ProcedureWorksheetManager extends Component
         }
     }
 
-    private function seedDefaultStepValuesForStepId(int $stepId, array $selectedResultIds): void
+    private function seedDefaultStepValuesForStepId(string $stepId, array $selectedResultIds): void
     {
         if (empty($selectedResultIds)) {
             return;
@@ -2070,7 +1945,7 @@ class ProcedureWorksheetManager extends Component
 
     private function seedDefaultStepValuesForStepModel(ProcedureWorksheetStep $step, array $selectedResultIds): void
     {
-        $stepId = (int) $step->id;
+        $stepId = (string) $step->id;
         $valueType = (string) ($step->value_type ?: 'text');
 
         $stepDefaultNormalized = $this->normalizeStepValueForInput(
@@ -2109,8 +1984,6 @@ class ProcedureWorksheetManager extends Component
         $measurandIds = $this->stepMeasurandOverrides[$stepId] ?? [];
 
         foreach ($selectedResultIds as $capturedResultId) {
-            $capturedResultId = (int) $capturedResultId;
-
             $current = $this->inputValues[$capturedResultId][$stepId] ?? null;
             $changed = false;
 

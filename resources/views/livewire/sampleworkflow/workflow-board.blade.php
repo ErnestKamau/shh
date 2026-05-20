@@ -2336,6 +2336,7 @@
 										<tbody>
 											@foreach ($batches as $item)
 												<?php
+												$now = \Carbon\Carbon::now();
 												if (isset($item->get_target_date->id)) {
 													$target_date = date('Y-m-d', strtotime($item->get_target_date['date']));
 													$target_date = Carbon\Carbon::parse($target_date);

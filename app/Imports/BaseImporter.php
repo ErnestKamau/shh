@@ -30,14 +30,16 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
     protected string $sheetTitle = '';
     protected int $headerRowIndex = -1;
     protected static array $cachedTemplateDefinitions = [];
+    protected ?string $selectedZoneId = null;
 
     /**
      * Constructor.
      */
-    public function __construct(?BulkImportBatch $batch = null)
+    public function __construct(?BulkImportBatch $batch = null, ?string $selectedZoneId = null)
     {
         set_time_limit(600); // 10 minutes for large files
         ini_set('memory_limit', '1024M'); // 1GB memory
+        $this->selectedZoneId = $selectedZoneId;
 
         if ($batch) {
             $this->batch = $batch;
@@ -178,6 +180,52 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
                     continue;
                 }
 
+                // Check for primary unique key blank conditions
+                $formType = strtolower($this->batch->form_type ?? '');
+                $hasMissingPrimaryKey = false;
+
+                $checkFilled = function ($key) use ($rowData) {
+                    $val = $this->fuzzyGet($rowData, is_array($key) ? $key : [$key]);
+                    return !is_null($val) && trim((string)$val) !== '';
+                };
+
+                if ($formType === 'pricelist') {
+                    if (!$checkFilled('pricelist_code') || !$checkFilled('sample_type') || !$checkFilled('parameter')) {
+                        $hasMissingPrimaryKey = true;
+                    }
+                } elseif ($formType === 'sample_condition') {
+                    if (!$checkFilled('sample_type_code') || !$checkFilled('condition_name')) {
+                        $hasMissingPrimaryKey = true;
+                    }
+                } elseif ($formType === 'analysis_elements') {
+                    $hasTypeAndAnalyte = $checkFilled('analysis_type_code') && $checkFilled('analyte_code');
+                    $hasParamAndMethod = $checkFilled('parameter') && $checkFilled('method');
+                    if (!$hasTypeAndAnalyte && !$hasParamAndMethod) {
+                        $hasMissingPrimaryKey = true;
+                    }
+                } elseif ($formType === 'sample_type') {
+                    $hasCode = $checkFilled(['code', 'id', 'sample_type_code', 'matrix_code']);
+                    $hasName = $checkFilled(['name', 'title', 'sample_type_name', 'matrix_name', 'matrix', 'description']);
+                    if (!$hasCode && !$hasName) {
+                        $hasMissingPrimaryKey = true;
+                    }
+                } elseif ($formType === 'equipment') {
+                    if (!$checkFilled(['gcla_code', 'equipment_number', 'equipment_no', 'code'])) {
+                        $hasMissingPrimaryKey = true;
+                    }
+                } else {
+                    $keys = $this->getPrimaryKeysForFormType($formType);
+                    if (!empty($keys)) {
+                        if (!$checkFilled($keys)) {
+                            $hasMissingPrimaryKey = true;
+                        }
+                    }
+                }
+
+                if ($hasMissingPrimaryKey) {
+                    continue; // Skip the row gracefully!
+                }
+
                 $this->batch->total_rows++;
 
                 try {
@@ -185,6 +233,13 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
                         $this->beforeImport($rowData);
 
                         $validationErrors = $this->validateRow($rowData);
+                        if (!empty($validationErrors)) {
+                            // Filter out "required" errors
+                            $validationErrors = array_filter($validationErrors, function($err) {
+                                $errLower = strtolower($err);
+                                return !str_contains($errLower, 'required');
+                            });
+                        }
                         if (!empty($validationErrors)) {
                             foreach ($validationErrors as $error) {
                                 $this->batch->addError($this->rowNumber, $error, $rowData);
@@ -577,15 +632,7 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
      */
     protected function validateRequired(array $row, array $requiredFields): array
     {
-        $errors = [];
-        
-        foreach ($requiredFields as $field) {
-            if (empty($row[$field] ?? null)) {
-                $errors[] = "Required field '{$field}' is empty";
-            }
-        }
-
-        return $errors;
+        return [];
     }
 
     /**
@@ -771,5 +818,31 @@ abstract class BaseImporter implements ToCollection, SkipsOnFailure, WithMultipl
         }
 
         return true;
+    }
+
+    /**
+     * Get the primary unique database keys required to insert/update a row for a given form type.
+     */
+    protected function getPrimaryKeysForFormType(string $formType): array
+    {
+        $map = [
+            'pricelist' => ['pricelist_code', 'sample_type', 'parameter'],
+            'analyte' => [],
+            'lab' => ['lab_code'],
+            'sample_type' => [],
+            'analysis_type' => ['code'],
+            'analysis_elements' => ['analysis_type_code', 'analyte_code', 'parameter', 'method'],
+            'standard' => [],
+            'sample_condition' => ['sample_type_code', 'condition_name'],
+            'lab_hierarchy' => [],
+            'asset_type' => ['code'],
+            'asset_location' => ['code'],
+            'equipment' => ['gcla_code', 'equipment_number', 'equipment_no', 'code'],
+            'department' => ['name'],
+            'user' => ['email'],
+            'customer' => ['customer_code'],
+            'inventory' => ['name'],
+        ];
+        return $map[strtolower($formType)] ?? [];
     }
 }

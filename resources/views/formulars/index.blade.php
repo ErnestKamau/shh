@@ -130,8 +130,8 @@
 			<div class="col-6 col-lg-3 mb-3">
 				<div class="workflow-board-panel formulars-stat-panel formulars-accent-purple">
 					<div class="workflow-board-panel-body text-center">
-						<div class="formulars-stat-number">{{ $stats['activeMethodSequences'] }}</div>
-						<div class="formulars-stat-label">Active sequences</div>
+						<div class="formulars-stat-number">{{ $stats['methodSequences'] }}</div>
+						<div class="formulars-stat-label">Method sequences</div>
 						<i class="mdi mdi-chart-timeline formulars-stat-icon"></i>
 					</div>
 				</div>
@@ -187,7 +187,7 @@
 						</a>
 					</div>
 					<div class="col-md-4 col-lg-3 mb-3">
-						<a href="{{ route('method-sequences.manage') }}" class="formulars-module-tile tile-accent-purple">
+						<a href="{{ route('stage-headers.index') }}" class="formulars-module-tile tile-accent-purple">
 							<i class="mdi mdi-chart-timeline tile-icon"></i>
 							<div class="tile-title">Method sequences</div>
 							<p class="tile-desc">Workflow stages and sequences</p>

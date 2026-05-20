@@ -40,4 +40,20 @@ class FormulaEngineService
 
         return in_array(strtolower((string) $value), ['true', 'pass', 'ok', 'in_range'], true);
     }
+
+    public function validateExpression(string $expression, array $availableVariableNames = []): array
+    {
+        try {
+            $this->expressionLanguage->parse($expression, $availableVariableNames);
+            return [
+                'valid' => true,
+                'message' => 'Expression is valid.'
+            ];
+        } catch (Throwable $e) {
+            return [
+                'valid' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
 }

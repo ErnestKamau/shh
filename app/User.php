@@ -49,7 +49,7 @@ class User extends Authenticatable implements Auditable
 	 */
 	protected $fillable = [
 		'name', 'first_name', 'middle_name', 'last_name', 'email', 'password', 'zone_id', 'verify_code', 'verify_code_expires',
-		'company_id', 'department_id', 'location_id', 'active',
+		'company_id', 'department_id', 'location_id', 'active', 'position',
 		'failed_login_attempts', 'login_locked_by_admin_reset',
 	];
 	protected $appends = ['labsectionname','labsectionids'];
@@ -60,7 +60,7 @@ class User extends Authenticatable implements Auditable
 	 * @var array
 	 */
 	protected $hidden = [
-		'password', 'remember_token',
+		'password', 'remember_token', 'phone', 'gender', 'designation', 'date_of_birth', 'id_number', 'first_name', 'middle_name', 'last_name', 'two_factor_secret', 'two_factor_recovery_codes',
 	];
 
 	/**
@@ -367,6 +367,21 @@ class User extends Authenticatable implements Auditable
 		$this->verify_code = null;
 		$this->verify_code_expires = null;
 		$this->save();
+	}
+
+	/**
+	 * Decrypt the given encrypted string, falling back to raw if invalid or decryption fails.
+	 *
+	 * @param  string  $value
+	 * @return mixed
+	 */
+	public function fromEncryptedString($value)
+	{
+		try {
+			return parent::fromEncryptedString($value);
+		} catch (\Throwable $e) {
+			return $value;
+		}
 	}
 	public function checkApproveLabSampleRole(){
 		return $this->hasRole('Can Approve Samples');

@@ -22,10 +22,13 @@ class BulkImportWizard extends Component
     public array $importResults = [];
     public string $message = '';
     public string $messageType = 'success';
+    public ?string $selectedZoneId = null;
+    public array $zones = [];
 
     public function mount()
     {
         $this->availableModules = $this->bulkImportService()->getAvailableModules();
+        $this->zones = \App\Zone::orderBy('value')->get()->toArray();
 
         // Check if user has permission
         if (!Auth::user()->isSystemAdmin()) {
@@ -87,7 +90,8 @@ class BulkImportWizard extends Component
 
             $results = $this->bulkImportService()->processImport(
                 $this->currentBatch,
-                $this->uploadedFile
+                $this->uploadedFile,
+                $this->selectedZoneId
             );
 
             if ($results['success']) {
@@ -121,6 +125,7 @@ class BulkImportWizard extends Component
         $this->currentBatch = null;
         $this->uploadedFile = null;
         $this->importResults = [];
+        $this->selectedZoneId = null;
         $this->message = '';
         $this->formTypes = [];
     }

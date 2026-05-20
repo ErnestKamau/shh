@@ -107,12 +107,12 @@
 												<div class="form-group">
 													<label class="control-label">Password</label>
 
-													<input type="password" id="pass"  placeholder="Type Password..." class="form-control" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}" name="password" onchange="form.pwd2.pattern = RegExp.escape(this.value);">
+													<input type="password" id="pass-{{$item->id}}"  placeholder="Type Password..." class="form-control" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}" name="password" onchange="this.form.elements['con_password'].pattern = RegExp.escape(this.value);">
 												</div>
 												<div class="form-group">
 													<label class="control-label">Confirm Password</label>
 
-													<input type="password" id="passcon" class="form-control" placeholder="Confirm Password..." required onkeyup="activecheck()" name="con_password">
+													<input type="password" id="passcon-{{$item->id}}" class="form-control" placeholder="Confirm Password..." required onkeyup="activecheck(this)" name="con_password">
 												</div>
 											</div>
 											<div class="modal-footer">
@@ -217,11 +217,11 @@
 											<div class="modal-body">
 												<div class="form-group">
 													<label class="control-label">Password</label>
-													<input type="password" id="pass"  placeholder="Type Password..." class="form-control" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}" name="password" onchange="form.pwd2.pattern = RegExp.escape(this.value);">
+													<input type="password" id="pass-deactive-{{$item->id}}"  placeholder="Type Password..." class="form-control" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}" name="password" onchange="this.form.elements['con_password'].pattern = RegExp.escape(this.value);">
 												</div>
 												<div class="form-group">
 													<label class="control-label">Confirm Password</label>
-													<input type="password" id="passcon" class="form-control" placeholder="Confirm Password..." required onkeyup="activecheck()" name="con_password">
+													<input type="password" id="passcon-deactive-{{$item->id}}" class="form-control" placeholder="Confirm Password..." required onkeyup="activecheck(this)" name="con_password">
 												</div>
 											</div>
 											<div class="modal-footer">
@@ -403,25 +403,23 @@
 			return String(s).replace(/[\\^$*+?.()|[\]{}]/g, '\\$&');
 		};
 		}
-		function activecheck(){
-
-			var text2 = document.getElementById('passcon')
-			var passwd_1 = document.querySelector('#pass')
-			var passwd_2 = document.querySelector('#passcon')
-			var pass = passwd_1.value
-			var passcd = passwd_2.value
-			console.log(passcd)
-			for (i=0;i<passcd.length;i++){
-				if(passcd[i]!= pass[i]){
-					text2.style.boxShadow = '2px 3px 3px 2px red'
-					break
+		function activecheck(el){
+			var form = el.form;
+			var passwd_1 = form.elements['password'];
+			var passwd_2 = el;
+			var pass = passwd_1.value;
+			var passcd = passwd_2.value;
+			console.log(passcd);
+			for (var i = 0; i < passcd.length; i++){
+				if(passcd[i] != pass[i]){
+					passwd_2.style.boxShadow = '2px 3px 3px 2px red';
+					break;
 				}else if(pass == passcd){
-					text2.style.boxShadow = '2px 3px 3px 2px green'
-				}else{
-					text2.style.boxShadow = '2px 3px 3px 2px skyblue'
+					passwd_2.style.boxShadow = '2px 3px 3px 2px green';
+				}else {
+					passwd_2.style.boxShadow = '2px 3px 3px 2px skyblue';
 				}
 			}
-
 		}
 
 		$(function(){

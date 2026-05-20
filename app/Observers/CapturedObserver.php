@@ -86,14 +86,14 @@ class CapturedObserver
 
         if(isset($tat_exist->id) && $tat_exist->result != $captured->result){
            $tat_exist->result = $captured->result;
-           $tat_exist->analyst_id = $captured->operator_id;
+           $tat_exist->analyst_id = $captured->analystIdForTat();
            $tat_exist->start_date_analysis = $analysis_date->start_analysis_date;
 
            $batch = SampleHeader::find($captured->sample_header_id);
            $sample_date = SampleDate::where('sample_header_id',$batch->id)->where('name','Target Date')->first();
            $date_sample = \Carbon\Carbon::parse($sample_date->date);
            $now = \Carbon\Carbon::now();
-           $diff = $date_sample->diffInDays($now);
+           $diff = (int) $date_sample->diffInDays($now);
            $tat_remark_counter = $date_sample > $now ? 1 : 0;
 
            $tat_exist->finished_date = date('Y-m-d H:i:s');
@@ -125,7 +125,7 @@ class CapturedObserver
             $sample_date = SampleDate::where('sample_header_id',$batch->id)->where('name','Target Date')->first();
             $date_sample = \Carbon\Carbon::parse($sample_date->date);
             $now = \Carbon\Carbon::now();
-            $diff = $date_sample->diffInDays($now);
+            $diff = (int) $date_sample->diffInDays($now);
             $tat_remark_counter = $date_sample > $now ? 1 : 0;
 
             $tat = new TatCaptured();
@@ -135,7 +135,7 @@ class CapturedObserver
             $tat->sample_type_id = $batch->sample_type_id;
             $tat->sample_detail_id = $captured->sample_detail_id;
             $tat->result = $captured->result;
-            $tat->analyst_id = $captured->operator_id;
+            $tat->analyst_id = $captured->analystIdForTat();
             $tat->tat_date = $sample_date->date;
             $tat->sample_header_id = $batch->id;
             $tat->finished_date = date('Y-m-d H:i:s');
@@ -167,7 +167,7 @@ class CapturedObserver
             $sample_date = SampleDate::where('sample_header_id',$batch->id)->where('name','Target Date')->first();
             $date_sample = \Carbon\Carbon::parse($sample_date->date);
             $now = \Carbon\Carbon::now();
-            $diff = $date_sample->diffInDays($now);
+            $diff = (int) $date_sample->diffInDays($now);
             $tat_remark_counter = $date_sample > $now ? 1 : 0;
 
             $tat = new TatCaptured();
@@ -177,7 +177,7 @@ class CapturedObserver
             $tat->sample_type_id = $batch->sample_type_id;
             $tat->sample_detail_id = $captured->sample_detail_id;
             $tat->result = $captured->result;
-            $tat->analyst_id = $captured->operator_id;
+            $tat->analyst_id = $captured->analystIdForTat();
             $tat->tat_date = $sample_date->date;
             $tat->sample_header_id = $batch->id;
             $tat->finished_date = date('Y-m-d H:i:s');

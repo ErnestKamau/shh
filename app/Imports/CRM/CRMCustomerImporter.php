@@ -47,21 +47,27 @@ class CRMCustomerImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        $country = Country::where('iso_3166_1_alpha_2', $row['country_code'])->first();
+        $countryCode = $row['country_code'] ?? 'TZ';
+        $country = Country::where('iso_3166_1_alpha_2', $countryCode)->first();
+        if (!$country) {
+            $country = Country::first();
+        }
+
+        $currencyCode = $row['currency_code'] ?? 'TZS';
 
         return [
-            'name' => $row['name'],
+            'name' => $row['name'] ?? ('Customer ' . $row['customer_code']),
             'code' => encrypt($row['customer_code']),
             'physical_address' => $row['physical_address'] ?? null,
             'postal_address' => $row['physical_address'] ?? null,
-            'email' => encrypt($row['email']),
-            'phone1' => encrypt($row['phone1']),
+            'email' => encrypt($row['email'] ?? ($row['customer_code'] . '@example.com')),
+            'phone1' => encrypt($row['phone1'] ?? '0000000000'),
             'phone2' => !empty($row['phone2']) ? encrypt($row['phone2']) : null,
             'country_id' => $country?->id,
             'vat_no' => $row['vat_no'] ?? null,
             'credit_day' => $row['credit_days'] ?? 0,
             'lpos_required' => $row['lpos_required'] ?? 0,
-            'currency_id' => $this->getCurrencyId($row['currency_code']),
+            'currency_id' => $this->getCurrencyId($currencyCode),
             'company_id' => $this->batch->company_id,
             'active' => 1,
         ];

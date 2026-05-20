@@ -11,7 +11,7 @@
     @if(!$isRunCreated)
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4>{{ $analysisTypeName }} Worksheet</h4>
-            <button class="btn btn-primary" wire:click="createRun">
+            <button class="btn btn-success" wire:click="createRun">
                 <i class="mdi mdi-plus"></i> Create New Run
             </button>
         </div>
@@ -22,16 +22,16 @@
                 <div class="row">
                     @foreach($availableRuns as $run)
                         <div class="col-md-4 mb-3">
-                            <div class="card border-primary shadow-sm h-100">
+                            <div class="card border-success shadow-sm h-100">
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="text-primary mb-0">Run for {{ $run->sample->sample_code }}</h6>
+                                        <h6 class="text-success mb-0">Run for {{ $run->sample->sample_code }}</h6>
                                         <span class="badge badge-success">Created</span>
                                     </div>
                                     <p class="small text-muted mb-3">
                                         <i class="mdi mdi-calendar"></i> {{ $run->date_tested ? $run->date_tested->format('M d, Y') : 'No date' }}
                                     </p>
-                                    <button class="btn btn-sm btn-outline-primary btn-block" wire:click="selectRun({{ $run->id }})">
+                                    <button class="btn btn-sm btn-outline-success btn-block" wire:click="selectRun({{ $run->id }})">
                                         <i class="mdi mdi-pencil"></i> View / Edit Details
                                     </button>
                                 </div>
@@ -304,7 +304,7 @@
                     <!-- Test Kit Information Table -->
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="mb-0">Test Kit Information</h5>
-                        <button type="button" class="btn btn-sm btn-outline-primary" wire:click="addTestKit">
+                        <button type="button" class="btn btn-sm btn-outline-success" wire:click="addTestKit">
                             <i class="mdi mdi-plus"></i> Add Row
                         </button>
                     </div>

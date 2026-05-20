@@ -24,8 +24,8 @@ class WorksheetService
         array $inputs,
         User $executedBy,
         string $executionMode = 'standalone',
-        ?int $sampleId = null,
-        ?int $batchId = null,
+        ?string $sampleId = null,
+        ?string $batchId = null,
         bool $save = false
     ): array {
         // Execute the formula

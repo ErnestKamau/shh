@@ -4,43 +4,60 @@ namespace App\Livewire\Worksheets;
 
 use App\CapturedResult;
 use App\Models\Formulars\Formula;
-use App\Models\MethodSequences\MethodSequence;
-use App\Models\Worksheets\SampleCapturedWorksheetFormula;
 use App\SampleHeader;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
 class WorksheetManager extends Component
 {
     public SampleHeader $batch;
-    public $activeTab = 'formulas';
 
-    // Formulas and Method Sequences for this batch
-    public $formulas = [];
+    /** @var Collection<int, \App\Models\StageHeader> */
+    public Collection $stageHeaders;
 
-    public $methodSequences = [];
-    public $noCaptureSamples = [];
+    public string $activeTab = 'formulas';
+
+    public $formulas;
+
+    public $activeFormulaId = null;
+
     public $hasNoCaptureSamples = false;
+
     public $groupedNoCaptureSamples = [];
 
-    public function mount(SampleHeader $batch): void
+    protected $queryString = [
+        'activeTab' => ['except' => 'formulas', 'as' => 'tab'],
+    ];
+
+    public function mount(SampleHeader $batch, Collection $stageHeaders): void
     {
         $this->batch = $batch;
+        $this->stageHeaders = $stageHeaders;
         $this->loadWorksheetData();
+
+        $requestedTab = request()->query('tab', 'formulas');
+        if (in_array($requestedTab, ['method-sequences', 'procedures', 'ser'], true)) {
+            $this->activeTab = $requestedTab;
+            if ($requestedTab === 'method-sequences') {
+                $this->queueMethodSequencesInit();
+            }
+        }
+
+        $requestedFormulaId = request()->query('formula');
+        if ($requestedFormulaId) {
+            $this->activeTab = 'formulas';
+            $this->activeFormulaId = $requestedFormulaId;
+        }
     }
 
     public function loadWorksheetData(): void
     {
-        // Get all captured results for this batch that have formular_id or method_sequence_id
         $capturedResults = CapturedResult::where('sample_header_id', $this->batch->id)
-            ->where(function ($query) {
-                $query->whereNotNull('formular_id')
-                    ->orWhereNotNull('method_sequence_id');
-            })
-            ->with(['analysisElement', 'formular', 'methodSequence', 'sample'])
+            ->whereNotNull('formular_id')
+            ->with(['analysisElement', 'formular', 'sample'])
             ->get();
 
-        // Group by formular_id
         $formulaIds = $capturedResults->whereNotNull('formular_id')
             ->pluck('formular_id')
             ->unique()
@@ -50,61 +67,104 @@ class WorksheetManager extends Component
             ->with('activeVersion')
             ->get();
 
-        // Group by method_sequence_id
-        $sequenceIds = $capturedResults->whereNotNull('method_sequence_id')
-            ->pluck('method_sequence_id')
-            ->unique()
-            ->values();
-
-        $this->methodSequences = MethodSequence::whereIn('id', $sequenceIds)
-            ->with('activeVersion.stages')
-            ->get();
-
-        // Check for samples with no result capture
-        // We look for CapturedResults for this batch that have 'has_no_result_capture' = 1
-        $noCaptureResults = CapturedResult::where('sample_header_id', $this->batch->id)
-            ->where('has_no_result_capture', 1)
-            ->with(['sample', 'analysis_type'])
-            ->get();
-
-        $this->groupedNoCaptureSamples = [];
-
-        foreach ($noCaptureResults as $result) {
-            $analysisId = $result->analysis_type_id;
-
-            // Initialize group if not exists
-            if (!isset($this->groupedNoCaptureSamples[$analysisId])) {
-                $this->groupedNoCaptureSamples[$analysisId] = [
-                    'name' => $result->analysis_type->name ?? 'Unknown Analysis',
-                    'samples' => []
-                ];
-            }
-
-            // Check if sample is already added to this group
-            $existingSampleIds = array_map(function ($s) {
-                return $s->id; }, $this->groupedNoCaptureSamples[$analysisId]['samples']);
-
-            if (!in_array($result->sample->id, $existingSampleIds)) {
-                $this->groupedNoCaptureSamples[$analysisId]['samples'][] = $result->sample;
-            }
+        if ($this->activeFormulaId === null && $this->formulas->isNotEmpty()) {
+            $this->activeFormulaId = $this->formulas->first()->id;
         }
 
-        $this->hasNoCaptureSamples = count($this->groupedNoCaptureSamples) > 0;
+        if (Schema::hasColumn('captured_results', 'has_no_result_capture')) {
+            $noCaptureResults = CapturedResult::where('sample_header_id', $this->batch->id)
+                ->where('has_no_result_capture', 1)
+                ->with(['sample', 'analysis_type'])
+                ->get();
+
+            $this->groupedNoCaptureSamples = [];
+
+            foreach ($noCaptureResults as $result) {
+                $analysisId = $result->analysis_type_id;
+
+                if (! isset($this->groupedNoCaptureSamples[$analysisId])) {
+                    $this->groupedNoCaptureSamples[$analysisId] = [
+                        'name' => $result->analysis_type->name ?? 'Unknown Analysis',
+                        'samples' => [],
+                    ];
+                }
+
+                $existingSampleIds = array_map(fn ($s) => $s->id, $this->groupedNoCaptureSamples[$analysisId]['samples']);
+
+                if ($result->sample && ! in_array($result->sample->id, $existingSampleIds, true)) {
+                    $this->groupedNoCaptureSamples[$analysisId]['samples'][] = $result->sample;
+                }
+            }
+
+            $this->hasNoCaptureSamples = count($this->groupedNoCaptureSamples) > 0;
+        } else {
+            $this->groupedNoCaptureSamples = [];
+            $this->hasNoCaptureSamples = false;
+        }
     }
 
     public function switchTab(string $tab): void
     {
+        if (! in_array($tab, ['formulas', 'method-sequences', 'procedures', 'ser'], true)) {
+            return;
+        }
+
         $this->activeTab = $tab;
+
+        if ($tab === 'method-sequences') {
+            $this->queueMethodSequencesInit();
+        }
+    }
+
+    public function updatedActiveTab(string $tab): void
+    {
+        if ($tab === 'method-sequences') {
+            $this->queueMethodSequencesInit();
+        }
+    }
+
+    protected function queueMethodSequencesInit(): void
+    {
+        $this->dispatch('init-method-sequences');
+        $this->js('setTimeout(function () { window.scheduleMethodSequencesInit && window.scheduleMethodSequencesInit(15); }, 100)');
     }
 
     public function postAllResults(): void
     {
-        // Dispatch event to trigger post results modal on the active formula worksheet
-        $this->dispatch('triggerPostResults');
+        if ($this->activeTab === 'formulas') {
+            $this->dispatch('triggerFormulaPostResults', formulaId: $this->activeFormulaId)
+                ->to(FormulaWorksheet::class);
+        }
+    }
+
+    public function updatedActiveFormulaId($formulaId): void
+    {
+        $this->activeTab = 'formulas';
+        $this->activeFormulaId = $formulaId;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function stageHeadersPayload(): array
+    {
+        return $this->stageHeaders->map(function ($stageHeader) {
+            return [
+                'id' => $stageHeader->id,
+                'name' => $stageHeader->name,
+                'method_name' => $stageHeader->method ? $stageHeader->method->name : 'N/A',
+                'analyte_name' => $stageHeader->analyte ? $stageHeader->analyte->name : 'N/A',
+                'sample_type_name' => $stageHeader->sampleType ? $stageHeader->sampleType->name : 'All',
+                'total_days' => $stageHeader->total_days,
+                'stages_count' => $stageHeader->testStages->count(),
+            ];
+        })->values()->all();
     }
 
     public function render()
     {
-        return view('livewire.worksheets.worksheet-manager');
+        return view('livewire.worksheets.worksheet-manager', [
+            'stageHeadersPayload' => $this->stageHeadersPayload(),
+        ]);
     }
 }

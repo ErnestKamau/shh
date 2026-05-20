@@ -74,9 +74,9 @@ class InventoryCategoriesController extends Controller
 	}
 
 	public function show($id){
-		$category = InventoryCategories::leftJoin('inventory_stores as is', 'is.id', 'inventory_categories.default_store_id')
-		->leftJoin('inventory_store_slots as iss', 'iss.inventory_store_id', 'is.id')
-		->selectRaw('inventory_categories.*, is.name as store, iss.name as slot')->where('inventory_categories.id', $id)->first();
+		$category = InventoryCategories::leftJoin('inventory_stores as ins', 'ins.id', 'inventory_categories.default_store_id')
+		->leftJoin('inventory_store_slots as iss', 'iss.inventory_store_id', 'ins.id')
+		->selectRaw('inventory_categories.*, ins.name as store, iss.name as slot')->where('inventory_categories.id', $id)->first();
 
 		// return response()->json($category, 200);
 

@@ -205,7 +205,7 @@
                         </div>
                         <!-- Pagination -->
                         <div class="d-flex justify-content-center mt-3">
-                            {{ $this->elements->links('pagination::bootstrap-4') }}
+                            {{ $this->elements->links() }}
                         </div>
                     @else
                         <div class="text-center py-4">
@@ -554,80 +554,43 @@
                                 </div>
                             </div>
                             
-                            <!-- Method Sequence Stages Section -->
+                            <!-- Stage header workflow -->
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="card bg-light">
                                         <div class="card-body">
                                             <h6 class="card-title text-primary">
-                                                <i class="mdi mdi-timeline-check"></i> Method Sequence Stages
+                                                <i class="mdi mdi-timeline-check"></i> Stage Headers
                                             </h6>
                                             <div class="form-group mb-3">
                                                 <div class="form-check">
-                                                    <input type="checkbox" 
-                                                           wire:model.live="elementForm.has_method_sequence" 
-                                                           class="form-check-input" 
+                                                    <input type="checkbox"
+                                                           wire:model.live="elementForm.has_method_sequence"
+                                                           class="form-check-input"
                                                            id="has_method_sequence">
                                                     <label class="form-check-label" for="has_method_sequence">
-                                                        Has Method Sequence
+                                                        Use stage header workflow
                                                     </label>
                                                 </div>
                                             </div>
-                                            
+
                                             @if($elementForm['has_method_sequence'] ?? false)
                                                 <div class="form-group mb-3">
-                                                    <label class="form-label">
-                                                        <i class="mdi mdi-timeline-check text-success"></i> Method Sequence
-                                                    </label>
-                                                    <div class="tag-select-container" wire:click="$set('showMethodSequenceDropdown', true)">
-                                                        <div class="tag-select-input">
-                                                            <!-- Display selected method sequence -->
-                                                            @if($selectedMethodSequenceName)
-                                                                <span class="tag-badge">
-                                                                    {{ $selectedMethodSequenceName }}
-                                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearMethodSequence"></i>
-                                                                </span>
-                                                            @endif
-                                                            
-                                                            <!-- Search Input -->
-                                                            <input type="text" 
-                                                                   wire:model.live="methodSequenceSearch" 
-                                                                   wire:keyup="searchMethodSequences"
-                                                                   class="tag-input" 
-                                                                   placeholder="{{ $selectedMethodSequenceName ? '' : 'Search method sequences...' }}"
-                                                                   autocomplete="off">
-                                                        </div>
-                                                        
-                                                        <!-- Dropdown -->
-                                                        @if($showMethodSequenceDropdown && count($filteredMethodSequences) > 0)
-                                                            <div class="tag-dropdown">
-                                                                @foreach($filteredMethodSequences as $methodSequence)
-                                                                    @php
-                                                                        $activeVer = $methodSequence->activeVersion->first();
-                                                                        $latestVer = $methodSequence->latestVersion->first();
-                                                                        $versionInfo = '';
-                                                                        if ($activeVer) {
-                                                                            $versionInfo = ' (v' . $activeVer->version_number . ' - Active)';
-                                                                        } elseif ($latestVer) {
-                                                                            $versionInfo = ' (v' . $latestVer->version_number . ' - Latest)';
-                                                                        }
-                                                                    @endphp
-                                                                    <div class="tag-dropdown-item" wire:click.stop="selectMethodSequence('{{ $methodSequence->id }}')">
-                                                                        {{ $methodSequence->name }}{{ $versionInfo }}
-                                                                    </div>
-                                                                @endforeach
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                    @error('elementForm.method_sequence_id') 
-                                                        <span class="text-danger">{{ $message }}</span> 
+                                                    <label class="form-label" for="element-stage-header-select">Stage header</label>
+                                                    <select id="element-stage-header-select"
+                                                            class="form-control form-select no-select2"
+                                                            wire:key="stage-headers-{{ $elementForm['analyte_id'] ?? '0' }}-{{ $elementForm['method'] ?? '0' }}-{{ count($stageHeaders ?? []) }}"
+                                                            wire:model.live="elementForm.stage_header_id">
+                                                        <option value="">Select stage header...</option>
+                                                        @foreach($stageHeaders as $stageHeader)
+                                                            <option value="{{ $stageHeader->id }}">{{ $stageHeader->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    @error('elementForm.stage_header_id')
+                                                        <span class="text-danger d-block">{{ $message }}</span>
                                                     @enderror
                                                     <small class="form-text text-muted">
-                                                        @if($elementForm['analyte_id'])
-                                                            Select the method sequence for this element. Only active sequences for the selected analyte are shown. The active/latest version will be automatically used.
-                                                        @else
-                                                            Please select an analyte first to see available method sequences.
-                                                        @endif
+                                                        Available stage headers for the selected analyte and method.
                                                     </small>
                                                 </div>
                                             @endif
@@ -635,6 +598,7 @@
                                     </div>
                                 </div>
                             </div>
+
                         </form>
                     </div>
                     <div class="modal-footer">

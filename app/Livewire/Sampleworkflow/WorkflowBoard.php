@@ -1194,11 +1194,15 @@ class WorkflowBoard extends Component
             });
         }
 
-        if ($this->customerFilter) {
-            $query->where('crm_customer_id', $this->customerFilter);
-        }
+        $results = $query->paginate($this->batchesPerPage, ['*'], 'portal_submissions_page');
 
-        return $query->paginate($this->batchesPerPage, ['*'], 'portal_submissions_page');
+        \Illuminate\Support\Facades\Log::info('LIMS: Samples Reception querying for portal submissions (Requests).', [
+            'status' => $this->status,
+            'sub_tab' => $this->workflowSubTab,
+            'results_count' => $results->total(),
+        ]);
+
+        return $results;
     }
     
     /**

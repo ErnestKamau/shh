@@ -35,12 +35,12 @@ class InventoryItemController extends Controller
 			->leftJoin('request_entities as re', 're.request_code', 'inventory_items.po_number')
 			->leftJoin('request_entities as re2', 're2.id', 're.parent_material_requisition')
 			->leftJoin('request_entity_items as rei', 're.id', 'rei.request_id')
-			->join('inventory_stores as is', 'is.id', 'inventory_items.inventory_store_id')
+			->join('inventory_stores as ins', 'ins.id', 'inventory_items.inventory_store_id')
 			->join('inventory_store_slots as iss', 'iss.id', 'inventory_items.inventory_store_slot_id')
 			->join('users as u', 'u.id', '=', 'inventory_items.created_by')
 			->join('inventory_departments as id', 'id.id', '=', 'inventory_items.inventory_department_id')
 			->where('ic.inventory_location_id', getCurrentUserLocation()->id)
-			->selectRaw('isc.code, inventory_items.created_at, re2.created_at as req_date, inventory_items.stock_in, id.name as department, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, COALESCE(ib.name, "Non-Specific") as brand, is.name as store, iss.name as slot, u.name as creator, u.email as creator_email, po_number as entity_code, rei.comments, re2.description, re.cost_center');
+			->selectRaw("isc.code, inventory_items.created_at, re2.created_at as req_date, inventory_items.stock_in, id.name as department, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, COALESCE(ib.name, 'Non-Specific') as brand, ins.name as store, iss.name as slot, u.name as creator, u.email as creator_email, po_number as entity_code, rei.comments, re2.description, re.cost_center");
 
 		$termOBJ = ['classification' => '', 'range' => [], 'category' => '', 'department' => ''];
 		$typeParts = explode(',', $type);

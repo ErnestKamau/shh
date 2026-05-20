@@ -429,8 +429,14 @@ class LabDashboardController extends Controller
                   ->orWhere(function ($sub) {
                       $sub->where('status', 'Sample Verification')
                           ->whereHas('approvers', function ($approverQuery) {
-                              $approverQuery->where('user_id', Auth::id())
-                                            ->whereIn('status', [0, 2]); 
+                              $approverQuery->where('user_id', Auth::id());
+                              if (\Illuminate\Support\Facades\DB::getDriverName() === 'pgsql') {
+                                  $approverQuery->where(function($q) {
+                                      $q->where('status', false)->orWhereNull('status');
+                                  });
+                              } else {
+                                  $approverQuery->whereIn('status', [0, 2]);
+                              }
                           });
                   });
             })->orderBy('id', 'desc');

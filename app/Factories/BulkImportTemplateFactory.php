@@ -12,13 +12,14 @@ class BulkImportTemplateFactory
         $generatorMap = [
             'lab' => [
                 'pricelist' => 'App\Exports\Templates\Lab\PricelistTemplateExporter',
-                'analyte' => 'App\Exports\Templates\Lab\AnalyteTemplateExporter',
+                'analyte' => 'App\Exports\Templates\Lab\UnifiedLabHierarchyTemplateExporter',
                 'lab' => 'App\Exports\Templates\Lab\LabTemplateExporter',
-                'sample_type' => 'App\Exports\Templates\Lab\SampleTypeTemplateExporter',
+                'sample_type' => 'App\Exports\Templates\Lab\UnifiedLabHierarchyTemplateExporter',
                 'analysis_type' => 'App\Exports\Templates\Lab\AnalysisTypeTemplateExporter',
                 'analysis_elements' => 'App\Exports\Templates\Lab\AnalysisElementsTemplateExporter',
-                'standard' => 'App\Exports\Templates\Lab\StandardTemplateExporter',
+                'standard' => 'App\Exports\Templates\Lab\UnifiedLabHierarchyTemplateExporter',
                 'sample_condition' => 'App\Exports\Templates\Lab\SampleConditionTemplateExporter',
+                'lab_hierarchy' => 'App\Exports\Templates\Lab\UnifiedLabHierarchyTemplateExporter',
             ],
             'equipment' => [
                 'asset_type' => 'App\Exports\Templates\Equipment\AssetTypeTemplateExporter',
@@ -31,6 +32,9 @@ class BulkImportTemplateFactory
             ],
             'crm' => [
                 'customer' => 'App\Exports\Templates\CRM\CRMCustomerTemplateExporter',
+            ],
+            'inventory' => [
+                'inventory' => 'App\Exports\Templates\Inventory\InventoryItemTemplateExporter',
             ],
         ];
 
@@ -51,36 +55,76 @@ class BulkImportTemplateFactory
         $definitionMap = [
             'lab' => [
                 'pricelist' => [
-                    'headers' => ['pricelist_code*', 'pricelist_name*', 'is_master', 'currency_code*', 'valid_till', 'item_code*', 'item_description', 'analyte_code*', 'unit_price*'],
+                    'headers' => ['pricelist_code*', 'pricelist_name*', 'is_master', 'currency_code*', 'valid_till', 'sample_type*', 'parameter*', 'price*'],
                     'examples' => [
-                        ['PL-001', 'Standard Pricelist', 1, 'USD', '2027-12-31', 'ITEM-001', 'Analysis Item 1', 'ANALYTE-001', '100.00'],
+                        ['GCLA/P/7', 'GCLA Price List v6', 'Yes', 'TZS', '2025-08-22', 'Non Alcoholic Beverages', 'Physical examination', '21200'],
                     ],
                     'rules' => [
                         'pricelist_code' => 'required|string|max:100',
                         'pricelist_name' => 'required|string|max:255',
-                        'is_master' => 'nullable|boolean',
+                        'is_master' => 'nullable|string|max:50',
                         'currency_code' => 'required|string|max:3',
                         'valid_till' => 'nullable|date',
-                        'item_code' => 'required|string|max:100',
-                        'item_description' => 'nullable|string|max:500',
-                        'analyte_code' => 'required|string|max:100',
-                        'unit_price' => 'required|numeric|min:0',
+                        'sample_type' => 'required|string|max:255',
+                        'parameter' => 'required|string|max:255',
+                        'price' => 'required|string|max:100',
                     ],
                 ],
                 'analyte' => [
-                    'headers' => ['code*', 'name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'equipment_code', 'non_detectable', 'non_accredited'],
+                    'headers' => [
+                        'sample_type_code*', 'sample_type_name*', 'is_results_attachable', 'disposal_count',
+                        'analysis_type_code*', 'analysis_type_name*', 'lab_code*', 'has_no_result', 'reporting_time',
+                        'lab_section_code*', 'equipment_code', 'lod', 'hod', 'level', 'method_sequence_name', 'procedure_worksheet_name',
+                        'analyte_code*', 'analyte_name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'non_detectable', 'non_accredited',
+                        'standard_code', 'standard_name', 'is_qc_standard', 'qc_type',
+                        'standard_value_code', 'standard_value_name', 'standard_value_type',
+                        'standard_low', 'standard_high', 'standard_matrix_operator', 'standard_value'
+                    ],
                     'examples' => [
-                        ['ANALYTE-001', 'Calcium', 2, 'Ca', 'mg/L', 'EQ-001', 0, 0],
+                        [
+                            'ST-WATER', 'Water Material', '1', '30',
+                            'AT-POTABLE', 'Potable Water Analysis', 'LAB-01', '0', '2',
+                            'LS-PHYSCHEM', 'EQ-PH01', '0.01', '14.0', 'high', 'SEQ-PH', 'PROC-PH',
+                            'AN-PH', 'pH Level', '2', 'pH', 'units', '0', '0',
+                            'STD-TBS-WATER', 'TBS Potable Water Standard', '0', 'chemical',
+                            'VAL-PH', 'pH Limit', 'range', '6.5', '8.5', '', ''
+                        ],
                     ],
                     'rules' => [
-                        'code' => 'required|string|max:100|unique:analytes,code',
-                        'name' => 'required|string|max:255',
+                        'sample_type_code' => 'required|string|max:100',
+                        'sample_type_name' => 'required|string|max:255',
+                        'is_results_attachable' => 'nullable|boolean',
+                        'disposal_count' => 'nullable|integer|min:0',
+                        'analysis_type_code' => 'required|string|max:100',
+                        'analysis_type_name' => 'required|string|max:255',
+                        'lab_code' => 'required|string|max:100',
+                        'has_no_result' => 'nullable|boolean',
+                        'reporting_time' => 'nullable|string|max:50',
+                        'lab_section_code' => 'required|string|max:100',
+                        'equipment_code' => 'nullable|string|max:100',
+                        'lod' => 'nullable|numeric|min:0',
+                        'hod' => 'nullable|numeric|min:0',
+                        'level' => 'nullable|string|max:50',
+                        'method_sequence_name' => 'nullable|string|max:255',
+                        'procedure_worksheet_name' => 'nullable|string|max:255',
+                        'analyte_code' => 'required|string|max:100',
+                        'analyte_name' => 'required|string|max:255',
                         'decimal_places' => 'nullable|integer|min:0|max:10',
                         'reporting_symbol' => 'nullable|string|max:50',
                         'reporting_unit' => 'nullable|string|max:100',
-                        'equipment_code' => 'nullable|string|max:100',
                         'non_detectable' => 'nullable|boolean',
                         'non_accredited' => 'nullable|boolean',
+                        'standard_code' => 'nullable|string|max:100',
+                        'standard_name' => 'nullable|string|max:255',
+                        'is_qc_standard' => 'nullable|boolean',
+                        'qc_type' => 'nullable|string|max:100',
+                        'standard_value_code' => 'nullable|string|max:100',
+                        'standard_value_name' => 'nullable|string|max:255',
+                        'standard_value_type' => 'nullable|string|max:100',
+                        'standard_low' => 'nullable|string|max:100',
+                        'standard_high' => 'nullable|string|max:100',
+                        'standard_matrix_operator' => 'nullable|string|max:100',
+                        'standard_value' => 'nullable|string|max:100',
                     ],
                 ],
                 'lab' => [
@@ -101,17 +145,60 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'sample_type' => [
-                    'headers' => ['code*', 'name*', 'is_results_attachable', 'disposal_count', 'report_template_code', 'default_product_code', 'active*'],
+                    'headers' => [
+                        'sample_type_code*', 'sample_type_name*', 'is_results_attachable', 'disposal_count',
+                        'analysis_type_code*', 'analysis_type_name*', 'lab_code*', 'has_no_result', 'reporting_time',
+                        'lab_section_code*', 'equipment_code', 'lod', 'hod', 'level', 'method_sequence_name', 'procedure_worksheet_name',
+                        'analyte_code*', 'analyte_name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'non_detectable', 'non_accredited',
+                        'standard_code', 'standard_name', 'is_qc_standard', 'qc_type',
+                        'standard_value_code', 'standard_value_name', 'standard_value_type',
+                        'standard_low', 'standard_high', 'standard_matrix_operator', 'standard_value'
+                    ],
                     'examples' => [
-                        ['ST-001', 'Sample Type Name', 1, 30, '', ''],
+                        [
+                            'ST-WATER', 'Water Material', '1', '30',
+                            'AT-POTABLE', 'Potable Water Analysis', 'LAB-01', '0', '2',
+                            'LS-PHYSCHEM', 'EQ-PH01', '0.01', '14.0', 'high', 'SEQ-PH', 'PROC-PH',
+                            'AN-PH', 'pH Level', '2', 'pH', 'units', '0', '0',
+                            'STD-TBS-WATER', 'TBS Potable Water Standard', '0', 'chemical',
+                            'VAL-PH', 'pH Limit', 'range', '6.5', '8.5', '', ''
+                        ],
                     ],
                     'rules' => [
-                        'code' => 'required|string|max:100',
-                        'name' => 'required|string|max:255',
+                        'sample_type_code' => 'required|string|max:100',
+                        'sample_type_name' => 'required|string|max:255',
                         'is_results_attachable' => 'nullable|boolean',
                         'disposal_count' => 'nullable|integer|min:0',
-                        'report_template_code' => 'nullable|string|max:100',
-                        'default_product_code' => 'nullable|string|max:100',
+                        'analysis_type_code' => 'required|string|max:100',
+                        'analysis_type_name' => 'required|string|max:255',
+                        'lab_code' => 'required|string|max:100',
+                        'has_no_result' => 'nullable|boolean',
+                        'reporting_time' => 'nullable|string|max:50',
+                        'lab_section_code' => 'required|string|max:100',
+                        'equipment_code' => 'nullable|string|max:100',
+                        'lod' => 'nullable|numeric|min:0',
+                        'hod' => 'nullable|numeric|min:0',
+                        'level' => 'nullable|string|max:50',
+                        'method_sequence_name' => 'nullable|string|max:255',
+                        'procedure_worksheet_name' => 'nullable|string|max:255',
+                        'analyte_code' => 'required|string|max:100',
+                        'analyte_name' => 'required|string|max:255',
+                        'decimal_places' => 'nullable|integer|min:0|max:10',
+                        'reporting_symbol' => 'nullable|string|max:50',
+                        'reporting_unit' => 'nullable|string|max:100',
+                        'non_detectable' => 'nullable|boolean',
+                        'non_accredited' => 'nullable|boolean',
+                        'standard_code' => 'nullable|string|max:100',
+                        'standard_name' => 'nullable|string|max:255',
+                        'is_qc_standard' => 'nullable|boolean',
+                        'qc_type' => 'nullable|string|max:100',
+                        'standard_value_code' => 'nullable|string|max:100',
+                        'standard_value_name' => 'nullable|string|max:255',
+                        'standard_value_type' => 'nullable|string|max:100',
+                        'standard_low' => 'nullable|string|max:100',
+                        'standard_high' => 'nullable|string|max:100',
+                        'standard_matrix_operator' => 'nullable|string|max:100',
+                        'standard_value' => 'nullable|string|max:100',
                     ],
                 ],
                 'analysis_type' => [
@@ -147,22 +234,59 @@ class BulkImportTemplateFactory
                 ],
                 'standard' => [
                     'headers' => [
-                        'code*', 'standard_code*', 'standard_number*', 'number*', 'standard_id*', 'ref_std*', 'ref_std_tzs_iso*', 'id*', 'tzs*',
-                        'main_standard*', 'title*', 'standard_name*', 'main_standard_title*', 'standard*', 'standard_title*', 'matrix*', 'category*', 'environment*', 'source*',
-                        'is_qc_standard', 'is_qc*', 'qc_standard*',
-                        'qc_type', 'type*', 
-                        'analyte_codes*', 'analytes*', 'parameters*', 'parameter*', 'analyte*', 'chemical_name*', 'parameter_name*',
-                        'standard_value*', 'expected_value*', 'limit*', 'specification*', 'value*', 'max_limit*', 'min_limit*'
+                        'sample_type_code*', 'sample_type_name*', 'is_results_attachable', 'disposal_count',
+                        'analysis_type_code*', 'analysis_type_name*', 'lab_code*', 'has_no_result', 'reporting_time',
+                        'lab_section_code*', 'equipment_code', 'lod', 'hod', 'level', 'method_sequence_name', 'procedure_worksheet_name',
+                        'analyte_code*', 'analyte_name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'non_detectable', 'non_accredited',
+                        'standard_code', 'standard_name', 'is_qc_standard', 'qc_type',
+                        'standard_value_code', 'standard_value_name', 'standard_value_type',
+                        'standard_low', 'standard_high', 'standard_matrix_operator', 'standard_value'
                     ],
                     'examples' => [
-                        ['STD-001', 'ISO-17043', 1, 'external', 'ANALYTE-001,ANALYTE-002'],
+                        [
+                            'ST-WATER', 'Water Material', '1', '30',
+                            'AT-POTABLE', 'Potable Water Analysis', 'LAB-01', '0', '2',
+                            'LS-PHYSCHEM', 'EQ-PH01', '0.01', '14.0', 'high', 'SEQ-PH', 'PROC-PH',
+                            'AN-PH', 'pH Level', '2', 'pH', 'units', '0', '0',
+                            'STD-TBS-WATER', 'TBS Potable Water Standard', '0', 'chemical',
+                            'VAL-PH', 'pH Limit', 'range', '6.5', '8.5', '', ''
+                        ],
                     ],
                     'rules' => [
-                        'code' => 'required|string|max:100|unique:standards,code',
-                        'main_standard' => 'required|string|max:255',
+                        'sample_type_code' => 'required|string|max:100',
+                        'sample_type_name' => 'required|string|max:255',
+                        'is_results_attachable' => 'nullable|boolean',
+                        'disposal_count' => 'nullable|integer|min:0',
+                        'analysis_type_code' => 'required|string|max:100',
+                        'analysis_type_name' => 'required|string|max:255',
+                        'lab_code' => 'required|string|max:100',
+                        'has_no_result' => 'nullable|boolean',
+                        'reporting_time' => 'nullable|string|max:50',
+                        'lab_section_code' => 'required|string|max:100',
+                        'equipment_code' => 'nullable|string|max:100',
+                        'lod' => 'nullable|numeric|min:0',
+                        'hod' => 'nullable|numeric|min:0',
+                        'level' => 'nullable|string|max:50',
+                        'method_sequence_name' => 'nullable|string|max:255',
+                        'procedure_worksheet_name' => 'nullable|string|max:255',
+                        'analyte_code' => 'required|string|max:100',
+                        'analyte_name' => 'required|string|max:255',
+                        'decimal_places' => 'nullable|integer|min:0|max:10',
+                        'reporting_symbol' => 'nullable|string|max:50',
+                        'reporting_unit' => 'nullable|string|max:100',
+                        'non_detectable' => 'nullable|boolean',
+                        'non_accredited' => 'nullable|boolean',
+                        'standard_code' => 'nullable|string|max:100',
+                        'standard_name' => 'nullable|string|max:255',
                         'is_qc_standard' => 'nullable|boolean',
-                        'qc_type' => 'nullable|string|max:50',
-                        'analyte_codes' => 'required|string',
+                        'qc_type' => 'nullable|string|max:100',
+                        'standard_value_code' => 'nullable|string|max:100',
+                        'standard_value_name' => 'nullable|string|max:255',
+                        'standard_value_type' => 'nullable|string|max:100',
+                        'standard_low' => 'nullable|string|max:100',
+                        'standard_high' => 'nullable|string|max:100',
+                        'standard_matrix_operator' => 'nullable|string|max:100',
+                        'standard_value' => 'nullable|string|max:100',
                     ],
                 ],
                 'sample_condition' => [
@@ -175,6 +299,63 @@ class BulkImportTemplateFactory
                         'condition_name' => 'required|string|max:255',
                         'short_name' => 'nullable|string|max:50',
                         'reporting_time' => 'nullable|string|max:50',
+                    ],
+                ],
+                'lab_hierarchy' => [
+                    'headers' => [
+                        'sample_type_code*', 'sample_type_name*', 'is_results_attachable', 'disposal_count',
+                        'analysis_type_code*', 'analysis_type_name*', 'lab_code*', 'has_no_result', 'reporting_time',
+                        'lab_section_code*', 'equipment_code', 'lod', 'hod', 'level', 'method_sequence_name', 'procedure_worksheet_name',
+                        'analyte_code*', 'analyte_name*', 'decimal_places', 'reporting_symbol', 'reporting_unit', 'non_detectable', 'non_accredited',
+                        'standard_code', 'standard_name', 'is_qc_standard', 'qc_type',
+                        'standard_value_code', 'standard_value_name', 'standard_value_type',
+                        'standard_low', 'standard_high', 'standard_matrix_operator', 'standard_value'
+                    ],
+                    'examples' => [
+                        [
+                            'ST-WATER', 'Water Material', '1', '30',
+                            'AT-POTABLE', 'Potable Water Analysis', 'LAB-01', '0', '2',
+                            'LS-PHYSCHEM', 'EQ-PH01', '0.01', '14.0', 'high', 'SEQ-PH', 'PROC-PH',
+                            'AN-PH', 'pH Level', '2', 'pH', 'units', '0', '0',
+                            'STD-TBS-WATER', 'TBS Potable Water Standard', '0', 'chemical',
+                            'VAL-PH', 'pH Limit', 'range', '6.5', '8.5', '', ''
+                        ],
+                    ],
+                    'rules' => [
+                        'sample_type_code' => 'required|string|max:100',
+                        'sample_type_name' => 'required|string|max:255',
+                        'is_results_attachable' => 'nullable|boolean',
+                        'disposal_count' => 'nullable|integer|min:0',
+                        'analysis_type_code' => 'required|string|max:100',
+                        'analysis_type_name' => 'required|string|max:255',
+                        'lab_code' => 'required|string|max:100',
+                        'has_no_result' => 'nullable|boolean',
+                        'reporting_time' => 'nullable|string|max:50',
+                        'lab_section_code' => 'required|string|max:100',
+                        'equipment_code' => 'nullable|string|max:100',
+                        'lod' => 'nullable|numeric|min:0',
+                        'hod' => 'nullable|numeric|min:0',
+                        'level' => 'nullable|string|max:50',
+                        'method_sequence_name' => 'nullable|string|max:255',
+                        'procedure_worksheet_name' => 'nullable|string|max:255',
+                        'analyte_code' => 'required|string|max:100',
+                        'analyte_name' => 'required|string|max:255',
+                        'decimal_places' => 'nullable|integer|min:0|max:10',
+                        'reporting_symbol' => 'nullable|string|max:50',
+                        'reporting_unit' => 'nullable|string|max:100',
+                        'non_detectable' => 'nullable|boolean',
+                        'non_accredited' => 'nullable|boolean',
+                        'standard_code' => 'nullable|string|max:100',
+                        'standard_name' => 'nullable|string|max:255',
+                        'is_qc_standard' => 'nullable|boolean',
+                        'qc_type' => 'nullable|string|max:100',
+                        'standard_value_code' => 'nullable|string|max:100',
+                        'standard_value_name' => 'nullable|string|max:255',
+                        'standard_value_type' => 'nullable|string|max:100',
+                        'standard_low' => 'nullable|string|max:100',
+                        'standard_high' => 'nullable|string|max:100',
+                        'standard_matrix_operator' => 'nullable|string|max:100',
+                        'standard_value' => 'nullable|string|max:100',
                     ],
                 ],
             ],
@@ -202,21 +383,16 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'equipment' => [
-                    'headers' => ['name*', 'equipment_name*', 'equipment_instrument*', 'instrument*', 'equipment*', 'equipment_number*', 'gcla_code*', 'make*', 'model*', 'serial_number*', 'serial_no*', 'serial#', 'asset_tag', 'asset_type_code*', 'asset_location_code*', 'calibration_days', 'maintenance_days', 'requires_daily_log', 'daily_log_value_type'],
+                    'headers' => ['equipment_instrument*', 'instrument*', 'equipment*', 'model*', 'serial_number*', 'serial_no*', 'operating_software', 'gcla_code*', 'equipment_number*', 'lab_office_name*', 'lab_name*', 'country_of_origin', 'installation_year', 'power_requirement', 'manual_availability', 'status*'],
                     'examples' => [
-                        ['EQ-001', 'Shimadzu', 'HPLC-2030', 'SN-12345', 'AT-001', 'LOC-001', '365', '180', 1, 'numeric'],
+                        ['3500xl Genetic Analyzer', 'Applied Biosystems(622-0015)', '31397-071', '3500 Series Data Collection Software', 'TR242*0002028', 'DNA Lab', 'Japan', '2019', '100-240V', 'NO', 'Working'],
                     ],
                     'rules' => [
-                        'equipment_number' => 'required|string|max:100|unique:equipment,equipment_number',
-                        'make' => 'required|string|max:100',
+                        'equipment_instrument' => 'required|string|max:255',
                         'model' => 'required|string|max:100',
-                        'serial_number' => 'required|string|max:100',
-                        'asset_type_code' => 'required|string|max:100',
-                        'asset_location_code' => 'required|string|max:100',
-                        'calibration_days' => 'nullable|integer|min:0',
-                        'maintenance_days' => 'nullable|integer|min:0',
-                        'requires_daily_log' => 'nullable|boolean',
-                        'daily_log_value_type' => 'nullable|string|max:50',
+                        'gcla_code' => 'required|string|max:100|unique:equipment,equipment_number',
+                        'lab_office_name' => 'required|string|max:255',
+                        'status' => 'required|string|max:100',
                     ],
                 ],
             ],
@@ -232,17 +408,18 @@ class BulkImportTemplateFactory
                     ],
                 ],
                 'user' => [
-                    'headers' => ['first_name*', 'middle_name', 'last_name*', 'full_name', 'email*', 'zone_code', 'department_code', 'password*'],
+                    'headers' => ['first_name*', 'last_name*', 'full_name', 'email*', 'zone_code', 'zone_name', 'department_name', 'position'],
                     'examples' => [
-                        ['John', 'Doe', 'john@example.com', 'ZONE-001', 'QA', 'SecurePassword123!'],
+                        ['John', 'Doe', 'John Doe', 'john@example.com', 'ZONE-001', 'Main Zone', 'Quality Assurance', 'Analyst'],
                     ],
                     'rules' => [
                         'first_name' => 'required|string|max:100',
                         'last_name' => 'required|string|max:100',
                         'email' => 'required|email|max:255|unique:users,email',
                         'zone_code' => 'nullable|string|max:100',
-                        'department_code' => 'nullable|string|max:100',
-                        'password' => 'required|string|min:8',
+                        'zone_name' => 'nullable|string|max:255',
+                        'department_name' => 'nullable|string|max:255',
+                        'position' => 'nullable|string|max:255',
                     ],
                 ],
             ],
@@ -267,8 +444,41 @@ class BulkImportTemplateFactory
                     ],
                 ],
             ],
+            'inventory' => [
+                'inventory' => [
+                    'headers' => ['name*', 'description', 'category*', 'volume_unit*', 'qty*'],
+                    'examples' => [
+                        ['Calcium Sulphate', 'Calcium Sulphate Reagent', 'Chemical', '500gms', '1'],
+                    ],
+                    'rules' => [
+                        'name' => 'required|string|max:255',
+                        'description' => 'nullable|string',
+                        'category' => 'required|string|max:255',
+                        'volume_unit' => 'required|string|max:100',
+                        'qty' => 'required|numeric|min:0',
+                    ],
+                ],
+            ],
         ];
 
-        return $definitionMap[$module][$formType] ?? [];
+        $definition = $definitionMap[$module][$formType] ?? [];
+        if (!empty($definition)) {
+            // Remove asterisk from headers
+            if (isset($definition['headers'])) {
+                $definition['headers'] = array_map(function($header) {
+                    return str_replace('*', '', $header);
+                }, $definition['headers']);
+            }
+            // Make all rules nullable
+            if (isset($definition['rules'])) {
+                $definition['rules'] = array_map(function($rule) {
+                    if (is_string($rule)) {
+                        $rule = str_replace('required', 'nullable', $rule);
+                    }
+                    return $rule;
+                }, $definition['rules']);
+            }
+        }
+        return $definition;
     }
 }

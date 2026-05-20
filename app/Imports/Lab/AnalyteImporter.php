@@ -32,13 +32,16 @@ class AnalyteImporter extends BaseImporter
     {
         return [
             'code' => $row['code'],
-            'name' => $row['name'],
+            'name' => $row['name'] ?? ('Analyte ' . $row['code']),
             'decimal_places' => $row['decimal_places'] ?? 2,
             'reporting_symbol' => $row['reporting_symbol'] ?? null,
             'reporting_unit' => $row['reporting_unit'] ?? null,
             'equipment_id' => null, // Would resolve from equipment_code
             'non_detectable' => $row['non_detectable'] ?? 0,
             'non_accredited' => $row['non_accredited'] ?? 0,
+            'show_on_report' => (isset($row['show_on_report']) && in_array(strtolower(trim((string)$row['show_on_report'])), ['0', 'no', 'false', 'off'])) ? 0 : (
+                (isset($row['show_on_reports']) && in_array(strtolower(trim((string)$row['show_on_reports'])), ['0', 'no', 'false', 'off'])) ? 0 : 1
+            ),
             'company_id' => $this->batch->company_id,
         ];
     }

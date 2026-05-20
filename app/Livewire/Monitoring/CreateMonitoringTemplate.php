@@ -7,6 +7,9 @@ use App\LabSection;
 use App\Models\Equipments\Equipment;
 use App\Models\Equipments\MaintainanceCalibrationLog;
 use App\Models\Monitoring\MonitoringTemplate;
+use App\Models\Monitoring\MonitoringTemplateField;
+use App\Models\Monitoring\MonitoringVariable;
+use App\Services\Monitoring\FormulaEngineService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -40,6 +43,18 @@ class CreateMonitoringTemplate extends Component
 
     // Step 4: Column Structure
     public array $columnStructure = [];
+
+
+    // Inline variable definition modal state
+    public array $newVariable = [
+        'name' => '',
+        'slug' => '',
+        'variable_type' => 'constant',
+        'constant_value' => '',
+        'description' => '',
+    ];
+
+    public bool $showVariableModal = false;
 
     public function mount(): void
     {
@@ -168,6 +183,88 @@ class CreateMonitoringTemplate extends Component
         }
     }
 
+    public function getAvailableVariablesProperty()
+    {
+        $dbVars = MonitoringVariable::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['slug', 'name', 'variable_type']);
+
+        $predefined = collect([
+            [
+                'slug' => 'correction_factor',
+                'name' => 'Equipment Correction Factor (Dynamic)',
+                'variable_type' => 'dynamic',
+            ],
+            [
+                'slug' => 'uncertainty_of_measure',
+                'name' => 'Equipment Uncertainty of Measure (Dynamic)',
+                'variable_type' => 'dynamic',
+            ],
+        ]);
+
+        return $predefined->concat($dbVars);
+    }
+
+    public function openVariableModal(): void
+    {
+        $this->newVariable = [
+            'name' => '',
+            'slug' => '',
+            'variable_type' => 'constant',
+            'constant_value' => '',
+            'description' => '',
+        ];
+        $this->resetErrorBag(['newVariable.name', 'newVariable.slug', 'newVariable.constant_value']);
+        $this->showVariableModal = true;
+    }
+
+    public function closeVariableModal(): void
+    {
+        $this->showVariableModal = false;
+    }
+
+    public function createCustomVariable(): void
+    {
+        $this->validate([
+            'newVariable.name' => 'required|string|max:255',
+            'newVariable.slug' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[a-z0-9_]+$/',
+                function ($attribute, $value, $fail) {
+                    if (in_array($value, ['correction_factor', 'uncertainty_of_measure'], true)) {
+                        $fail('The slug matches a predefined system variable.');
+                    }
+                    $exists = MonitoringVariable::where('slug', $value)->exists();
+                    if ($exists) {
+                        $fail('The variable slug has already been taken.');
+                    }
+                }
+            ],
+            'newVariable.constant_value' => 'required|string|max:255',
+            'newVariable.description' => 'nullable|string|max:1000',
+        ], [], [
+            'newVariable.name' => 'variable name',
+            'newVariable.slug' => 'variable slug',
+            'newVariable.constant_value' => 'value',
+        ]);
+
+        MonitoringVariable::create([
+            'name' => $this->newVariable['name'],
+            'slug' => $this->newVariable['slug'],
+            'variable_type' => 'constant',
+            'value' => ['constant_value' => $this->newVariable['constant_value']],
+            'description' => $this->newVariable['description'] ?: null,
+            'is_active' => true,
+            'company_id' => Auth::user()?->company_id,
+        ]);
+
+        $this->showVariableModal = false;
+        $this->dispatch('notify', ['type' => 'success', 'message' => 'Custom variable "' . $this->newVariable['name'] . '" defined successfully!']);
+    }
+
     public function addColumn(): void
     {
         $newColumn = [
@@ -178,12 +275,18 @@ class CreateMonitoringTemplate extends Component
                 [
                     'id' => 'row_' . uniqid(),
                     'label' => 'Initial Value',
-                    'type' => 'numeric',
+                    'field_key' => 'initial_value',
+                    'type' => 'input',
+                    'variable_slug' => '',
+                    'formula_expression' => '',
                 ],
                 [
                     'id' => 'row_' . uniqid(),
                     'label' => 'Final Value',
-                    'type' => 'numeric',
+                    'field_key' => 'final_value',
+                    'type' => 'input',
+                    'variable_slug' => '',
+                    'formula_expression' => '',
                 ],
             ],
         ];
@@ -216,7 +319,10 @@ class CreateMonitoringTemplate extends Component
                 $col['rows'][] = [
                     'id' => 'row_' . uniqid(),
                     'label' => '',
-                    'type' => 'numeric',
+                    'field_key' => '',
+                    'type' => 'input',
+                    'variable_slug' => '',
+                    'formula_expression' => '',
                 ];
                 break;
             }
@@ -243,6 +349,130 @@ class CreateMonitoringTemplate extends Component
                 foreach ($col['rows'] as &$row) {
                     if ($row['id'] === $rowId) {
                         $row['label'] = $label;
+                        if (empty($row['field_key'])) {
+                            $colClean = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', str_replace(' ', '_', $col['name'])));
+                            $rowClean = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', str_replace(' ', '_', $label)));
+                            $row['field_key'] = trim($colClean . '_' . $rowClean, '_');
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    public function updateRowType(string $columnId, string $rowId, string $type): void
+    {
+        foreach ($this->columnStructure as &$col) {
+            if ($col['id'] === $columnId) {
+                foreach ($col['rows'] as &$row) {
+                    if ($row['id'] === $rowId) {
+                        $row['type'] = $type;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    public function updateRowFormulaExpression(string $columnId, string $rowId, string $expression): void
+    {
+        foreach ($this->columnStructure as &$col) {
+            if ($col['id'] === $columnId) {
+                foreach ($col['rows'] as &$row) {
+                    if ($row['id'] === $rowId) {
+                        $row['formula_expression'] = $expression;
+                        // Reset validation state when expression changes
+                        unset($row['expression_valid']);
+                        unset($row['expression_message']);
+                        $this->columnStructure = $this->columnStructure; // Force re-render
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    public function getAvailableRowVariables(string $columnId, string $rowId): array
+    {
+        $variables = [];
+        
+        // Add predefined and dynamic variables
+        foreach ($this->availableVariables as $var) {
+            $variables[] = [
+                'name' => $var['slug'],
+                'label' => $var['name'],
+                'type' => $var['variable_type'],
+            ];
+        }
+
+        // Add variables from previous rows in the matrix
+        foreach ($this->columnStructure as $col) {
+            foreach ($col['rows'] as $row) {
+                // Skip the current row being edited
+                if ($row['id'] === $rowId) continue;
+                
+                if (!empty($row['field_key'])) {
+                    $variables[] = [
+                        'name' => $row['field_key'],
+                        'label' => ($col['name'] ?: 'Column') . ' - ' . $row['label'],
+                        'type' => $row['type'] ?? 'input',
+                    ];
+                }
+            }
+        }
+
+        return $variables;
+    }
+
+    public function validateRowExpression(string $columnId, string $rowId, FormulaEngineService $formulaEngine): void
+    {
+        $expression = '';
+        $rowRef = null;
+
+        foreach ($this->columnStructure as &$col) {
+            if ($col['id'] === $columnId) {
+                foreach ($col['rows'] as &$row) {
+                    if ($row['id'] === $rowId) {
+                        $expression = $row['formula_expression'] ?? '';
+                        $rowRef = &$row;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!$rowRef || empty($expression)) {
+            return;
+        }
+
+        $availableVars = $this->getAvailableRowVariables($columnId, $rowId);
+        $availableVarNames = array_column($availableVars, 'name');
+
+        $result = $formulaEngine->validateExpression($expression, $availableVarNames);
+
+        $rowRef['expression_valid'] = $result['valid'];
+        $rowRef['expression_message'] = $result['message'];
+        
+        $this->columnStructure = $this->columnStructure; // Force Livewire to detect deep array changes
+
+        if ($result['valid']) {
+            $this->dispatch('notify', ['type' => 'success', 'message' => 'Expression is valid!']);
+        } else {
+            $this->dispatch('notify', ['type' => 'error', 'message' => 'Expression invalid. See details below.']);
+        }
+    }
+
+    public function updateRowVariable(string $columnId, string $rowId, string $variableSlug): void
+    {
+        foreach ($this->columnStructure as &$col) {
+            if ($col['id'] === $columnId) {
+                foreach ($col['rows'] as &$row) {
+                    if ($row['id'] === $rowId) {
+                        $row['variable_slug'] = $variableSlug;
                         break;
                     }
                 }
@@ -278,25 +508,81 @@ class CreateMonitoringTemplate extends Component
             'is_active' => true,
         ]);
 
-        // Store column structure metadata
-        $metadata = [
-            'column_structure' => $this->columnStructure,
-            'selected_labs' => $this->selectedLabIds,
-            'selected_sections' => $this->selectedSectionIds,
-            'selected_equipments' => $this->selectedEquipmentIds,
-        ];
+        // Create individual MonitoringTemplateField rows for every column & row cell
+        $sortOrder = 1;
+        $usedKeys = [];
+        foreach ($this->columnStructure as $column) {
+            foreach ($column['rows'] as $row) {
+                // Use explicit field_key or fallback
+                $fieldKey = !empty($row['field_key']) ? $row['field_key'] : ('col_' . $sortOrder);
 
-        // For now, store in template data - can be extended to create actual fields
-        // This would be processed by a separate action to create MonitoringTemplateFields
+                // Ensure it is unique in this template
+                $baseKey = $fieldKey;
+                $counter = 1;
+                while (in_array($fieldKey, $usedKeys) || MonitoringTemplateField::where('template_id', $template->id)->where('field_key', $fieldKey)->exists()) {
+                    $fieldKey = $baseKey . '_' . $counter++;
+                }
+                $usedKeys[] = $fieldKey;
 
-        session()->flash('success', 'Monitoring template "' . $this->name . '" created successfully. You can now add fields and formula rules.');
+                $isFormula = ($row['type'] ?? 'input') === 'formula';
+                $formulaId = null;
 
-        redirect()->route('livewire.monitoring');
+                if ($isFormula && !empty($row['formula_expression'])) {
+                    $createdFormula = \App\Models\Monitoring\MonitoringFormulaRule::create([
+                        'template_id' => $template->id,
+                        'name' => ($column['name'] ?: 'Column') . ' - ' . ($row['label'] ?: 'Computed'),
+                        'output_key' => $fieldKey,
+                        'expression' => $row['formula_expression'],
+                        'pass_condition_expression' => null, // Kept simple per row UI requirements
+                        'is_active' => true,
+                        'company_id' => Auth::user()?->company_id,
+                    ]);
+                    $formulaId = $createdFormula->id;
+                }
+
+                MonitoringTemplateField::create([
+                    'template_id' => $template->id,
+                    'formula_rule_id' => $formulaId,
+                    'field_key' => $fieldKey,
+                    'label' => ($column['name'] ?: 'Column') . ' - ' . ($row['label'] ?: 'Row'),
+                    'field_type' => $isFormula ? 'formula' : 'number',
+                    'is_required' => !$isFormula, // Formula fields are auto-calculated, so they are generally not required to be manually input
+                    'is_readonly' => $isFormula,
+                    'sort_order' => $sortOrder++,
+                    'field_config' => [
+                        'column_id' => $column['id'],
+                        'column_name' => $column['name'],
+                        'row_id' => $row['id'],
+                        'row_label' => $row['label'],
+                        'variable_slug' => $isFormula ? '' : ($row['variable_slug'] ?? ''),
+                    ],
+                ]);
+            }
+        }
+
+        // Save meta scope items
+        MonitoringTemplateField::create([
+            'template_id' => $template->id,
+            'field_key' => '__meta_scope_items',
+            'label' => 'System Meta Data',
+            'field_type' => 'metadata',
+            'is_required' => false,
+            'is_readonly' => true,
+            'sort_order' => 9999,
+            'field_config' => [
+                'sections' => $this->selectedSectionIds,
+                'equipment' => $this->selectedEquipmentIds,
+            ],
+        ]);
+
+        session()->flash('success', 'Monitoring template "' . $this->name . '" created successfully.');
+
+        return redirect()->route('livewire.monitoring');
     }
 
     public function cancel()
     {
-        redirect()->route('livewire.monitoring');
+        return redirect()->route('livewire.monitoring');
     }
 
     protected function getStepValidationRules(): array

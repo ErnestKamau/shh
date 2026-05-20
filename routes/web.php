@@ -29,6 +29,10 @@ Route::get('/', function () {
     return redirect()->route('home');
 });
 
+
+
+
+
 Auth::routes();
 
 // Force-change password (90-day expiry policy)
@@ -242,6 +246,10 @@ Route::get('/livewire/monitoring/template/create', [LabAppController::class, 'cr
     ->name('monitoring.template.create')
     ->middleware('can:laboratory.components.labs.view');
 
+Route::get('/livewire/monitoring/template/{template}/edit', [LabAppController::class, 'editMonitoringTemplate'])
+    ->name('monitoring.template.edit')
+    ->middleware('can:laboratory.components.labs.view');
+
 // Remedies Management Routes
 Route::get('/remedies', [LabAppController::class, 'remedies'])
     ->name('remedies.index')
@@ -306,8 +314,22 @@ Route::get('/livewire/labs', [LabAppController::class, 'labManager'])
 
 // Livewire Test Page
 Route::get('/livewire-test', function () {
-    return view('livewire-test');
+    try {
+        $stdVals = \App\StandardValue::limit(5)->get();
+        $standards = \App\Standards::limit(5)->get();
+        $stdAnalytes = \App\StandardAnalytes::limit(5)->get();
+        
+        $output = "DATABASE SAMPLES:\n\n";
+        $output .= "StandardValue (first 5):\n" . $stdVals->toJson(JSON_PRETTY_PRINT) . "\n\n";
+        $output .= "Standards (first 5):\n" . $standards->toJson(JSON_PRETTY_PRINT) . "\n\n";
+        $output .= "StandardAnalytes (first 5):\n" . $stdAnalytes->toJson(JSON_PRETTY_PRINT) . "\n\n";
+        
+        return response($output)->header('Content-Type', 'text/plain');
+    } catch (\Throwable $t) {
+        return "Error: " . $t->getMessage() . "\n" . $t->getTraceAsString();
+    }
 })->name('livewire-test');
+
 
 
 // Livewire CRM Management Routes
@@ -521,6 +543,27 @@ Route::get('/sample-workflow/batch/{sample}/approval-checklist', [\App\Http\Cont
 Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')
     ->name('batch-worksheets')
     ->middleware('can:laboratory.components.all samples.view');
+Route::get('/sample-workflow/batch/{batch}/method-sequence', 'SampleWorkFlowController@getMethodSequence')->name('batch-method-sequence')->middleware('auth');
+Route::get('/sample-workflow/batch/{batch}/method-sequences', 'SampleWorkFlowController@methodSequences')->name('batch.method-sequences')->middleware('auth');
+Route::get('/sample-workflow/batch/{batch}/method-sequences-jquery', 'SampleWorkFlowController@methodSequences')->name('batch.method-sequences.jquery')->middleware('auth');
+Route::get('/sample-workflow/batch/{batch}/method-sequences/{stageHeader}/samples', 'SampleWorkFlowController@getMethodSequenceSamples')->name('method-sequences.samples')->middleware('auth');
+Route::post('/sample-workflow/batch/{batch}/method-sequences/auto-create-runs', 'SampleWorkFlowController@autoCreateFirstRunForBatch')->name('method-sequences.auto-create')->middleware('auth');
+Route::get('/method-sequences/{stageHeader}/runs', 'SampleWorkFlowController@getMethodSequenceRuns')->name('method-sequences.runs')->middleware('auth');
+Route::post('/method-sequences/runs', 'SampleWorkFlowController@createMethodSequenceRun')->name('method-sequences.create-run')->middleware('auth');
+Route::delete('/method-sequences/runs/{run}', 'SampleWorkFlowController@deleteMethodSequenceRun')->name('method-sequences.delete-run')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/start', 'SampleWorkFlowController@startMethodSequenceStage')->name('method-sequences.start-stage')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/end', 'SampleWorkFlowController@endMethodSequenceStage')->name('method-sequences.end-stage')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/update', 'SampleWorkFlowController@updateMethodSequenceStageData')->name('method-sequences.update-stage')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/save-results', 'SampleWorkFlowController@saveMethodSequenceResults')->name('method-sequences.save-results')->middleware('auth');
+Route::post('/method-sequences/tracks/{track}/result', 'SampleWorkFlowController@updateMethodSequenceStageResult')->name('method-sequences.update-result')->middleware('auth');
+Route::get('/method-sequences/batch/{batch}/tracking-results', 'SampleWorkFlowController@getMethodSequenceTrackingResults')->name('method-sequences.tracking-results')->middleware('auth');
+Route::post('/method-sequences/import-post-results-sheet', 'SampleWorkFlowController@importMethodSequencePostResultsSheet')->name('method-sequences.import-post-results-sheet')->middleware('auth');
+Route::get('/method-sequences/batch/{batch}/track-sample-results', 'SampleWorkFlowController@getTrackSampleResults')->name('method-sequences.track-sample-results')->middleware('auth');
+Route::post('/method-sequences/post-results', 'SampleWorkFlowController@postMethodSequenceResults')->name('method-sequences.post-results')->middleware('auth');
+Route::get('/method-sequences/tracks/{track}/edit-data', 'SampleWorkFlowController@getEditStageData')->name('method-sequences.edit-data')->middleware('auth');
+Route::get('/method-sequence-runs/tracks/{track}/solution-results', 'SampleWorkFlowController@getSolutionResultsForStep6')->name('method-sequence-runs.solution-results')->middleware('auth');
+Route::get('/method-sequence-runs/tracks/{track}/sample-results', 'SampleWorkFlowController@getSampleResultsForStep6')->name('method-sequence-runs.sample-results')->middleware('auth');
+Route::post('/method-sequence-runs/tracks/{track}/step6-remark', 'SampleWorkFlowController@calculateStep6SampleRemark')->name('method-sequence-runs.step6-remark')->middleware('auth');
 // Temporary design route for procedure worksheet PDF template preview.
 Route::get(
     '/sample-workflow/batch/{batch}/worksheets/{worksheet}/procedure-preview',
@@ -1577,6 +1620,9 @@ Route::get('/billing/tax-regime', function () {
 //#################################LAB REPORTS#######################################
 Route::get('/lab/reports-home', 'Lab\Reports\SamplesReportsController@index')->name('lab-reports-home')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/lab/report/show', 'Lab\Reports\SamplesReportsController@show')->name('lab-report-show')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/module-reports', 'Lab\Reports\ModuleReportsController@index')->name('module-reports.index')->middleware('auth');
+Route::post('/module-reports/view', 'Lab\Reports\ModuleReportsController@viewReport')->name('module-reports.view')->middleware('auth');
+Route::get('/module-reports/print', 'Lab\Reports\ModuleReportsController@printReport')->name('module-reports.print')->middleware('auth');
 
 Route::get('/lab/sample-generate/certificate-analysis/{id}', 'SampleWorkFlowController@certificate_analysis')->name('certificate-analysis')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/getAnalysisTypeBySampleTypeAjax/{type_id}', 'Lab\Reports\SamplesReportsController@getAnalysisTypeBySampleTypeAjax')->name('getAnalysisTypeBySampleTypeAjax')->middleware('can:laboratory.components.lab-reports.view');
@@ -2039,6 +2085,21 @@ Route::middleware(['auth'])->prefix('method-sequences')->name('method-sequences.
     Route::get('/manage', 'MethodSequences\MethodSequenceController@manage')->name('manage');
     Route::get('/stages/{methodSequenceVersion}', 'MethodSequences\MethodSequenceController@stages')->name('stages');
     Route::post('/clone/{methodSequence}', 'MethodSequences\MethodSequenceController@clone')->name('clone');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::resource('stage-headers', \App\Http\Controllers\StageHeaderController::class);
+    Route::post('stage-headers/{stageHeader}/add-stage', [\App\Http\Controllers\StageHeaderController::class, 'addStage'])->name('stage-headers.add-stage');
+    Route::put('stage-headers/{stageHeader}/stages/{testStage}', [\App\Http\Controllers\StageHeaderController::class, 'updateStage'])->name('stage-headers.update-stage');
+    Route::delete('stage-headers/remove-stage/{testStage}', [\App\Http\Controllers\StageHeaderController::class, 'removeStage'])->name('stage-headers.remove-stage');
+    Route::post('stage-headers/remove-stage', [\App\Http\Controllers\StageHeaderController::class, 'removeStagePost'])->name('stage-headers.remove-stage-post');
+    Route::post('stage-headers/{stageHeader}/reorder-stages', [\App\Http\Controllers\StageHeaderController::class, 'reorderStages'])->name('stage-headers.reorder-stages');
+    Route::get('/lab/stage-headers/progress', [\App\Http\Controllers\StageHeaderController::class, 'progress'])->name('stage-headers.progress');
+    Route::post('/lab/stage-headers/{stageHeader}/start-test', [\App\Http\Controllers\StageHeaderController::class, 'startTest'])->name('stage-headers.start-test');
+    Route::post('/lab/progress/{progress}/start', [\App\Http\Controllers\StageHeaderController::class, 'startProgress'])->name('stage-headers.start-progress');
+    Route::post('/lab/progress/{progress}/record-result', [\App\Http\Controllers\StageHeaderController::class, 'recordResult'])->name('stage-headers.record-result');
+    Route::post('/lab/progress/{progress}/cancel', [\App\Http\Controllers\StageHeaderController::class, 'cancelTest'])->name('stage-headers.cancel-test');
+    Route::get('/lab/progress/{progress}/view', [\App\Http\Controllers\StageHeaderController::class, 'viewProgress'])->name('stage-headers.view-progress');
 });
 
 // Document Management System (DMS) Routes

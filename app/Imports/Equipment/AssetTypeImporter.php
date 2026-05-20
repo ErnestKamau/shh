@@ -26,7 +26,7 @@ class AssetTypeImporter extends BaseImporter
     {
         return [
             'asset_code' => $row['code'],
-            'description' => $row['description'],
+            'description' => $row['description'] ?? ('Asset Type: ' . $row['code']),
             'is_active' => $row['is_active'] ?? 1,
             'company_id' => $this->batch->company_id,
         ];

@@ -27,6 +27,7 @@ class BulkImportService
                     'analysis_elements' => 'Analysis Elements',
                     'standard' => 'Standard & Analytes',
                     'sample_condition' => 'Sample Condition',
+                    'lab_hierarchy' => 'Unified Lab Hierarchy (Sample Type -> Analysis Type -> Analysis Elements -> Analytes & Standards)',
                 ],
             ],
             'equipment' => [
@@ -48,6 +49,12 @@ class BulkImportService
                 'name' => 'CRM Management',
                 'forms' => [
                     'customer' => 'Customer',
+                ],
+            ],
+            'inventory' => [
+                'name' => 'Inventory Management',
+                'forms' => [
+                    'inventory' => 'Inventory Categories & Items',
                 ],
             ],
         ];
@@ -85,7 +92,7 @@ class BulkImportService
     /**
      * Process an uploaded file for a given batch.
      */
-    public function processImport(BulkImportBatch $batch, $uploadedFile)
+    public function processImport(BulkImportBatch $batch, $uploadedFile, ?string $zoneId = null)
     {
         set_time_limit(0);
         ini_set('memory_limit', '1024M');
@@ -101,7 +108,7 @@ class BulkImportService
                 throw new \Exception("Importer class {$importerClass} not found");
             }
 
-            $importer = new $importerClass($batch);
+            $importer = new $importerClass($batch, $zoneId);
             
             // Reset counters before starting multi-sheet import
             if (method_exists($importer, 'resetBatchCounters')) {
@@ -153,13 +160,14 @@ class BulkImportService
         $formTypeMap = [
             'lab' => [
                 'pricelist' => 'App\Imports\Lab\PricelistImporter',
-                'analyte' => 'App\Imports\Lab\AnalyteImporter',
+                'analyte' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
                 'lab' => 'App\Imports\Lab\LabImporter',
-                'sample_type' => 'App\Imports\Lab\SampleTypeImporter',
+                'sample_type' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
                 'analysis_type' => 'App\Imports\Lab\AnalysisTypeImporter',
                 'analysis_elements' => 'App\Imports\Lab\AnalysisElementsImporter',
-                'standard' => 'App\Imports\Lab\StandardImporter',
+                'standard' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
                 'sample_condition' => 'App\Imports\Lab\SampleConditionImporter',
+                'lab_hierarchy' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
             ],
             'equipment' => [
                 'asset_type' => 'App\Imports\Equipment\AssetTypeImporter',
@@ -172,6 +180,9 @@ class BulkImportService
             ],
             'crm' => [
                 'customer' => 'App\Imports\CRM\CRMCustomerImporter',
+            ],
+            'inventory' => [
+                'inventory' => 'App\Imports\Inventory\InventoryItemImporter',
             ],
         ];
 

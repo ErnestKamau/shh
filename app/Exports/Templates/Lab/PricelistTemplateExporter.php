@@ -14,10 +14,9 @@ class PricelistTemplateExporter extends ExcelTemplateGenerator
             'is_master',
             'currency_code*',
             'valid_till',
-            'item_code*',
-            'item_description',
-            'analyte_code*',
-            'unit_price*',
+            'sample_type*',
+            'parameter*',
+            'price*',
         ];
     }
 
@@ -25,26 +24,24 @@ class PricelistTemplateExporter extends ExcelTemplateGenerator
     {
         return [
             [
-                'PL-001',
-                'Standard Pricelist',
-                '1',
-                'USD',
-                '2027-12-31',
-                'ITEM-001',
-                'Water Analysis Item',
-                'ANALYTE-001',
-                '100.00',
+                'GCLA/P/7',
+                'GCLA Price List v6',
+                'Yes',
+                'TZS',
+                '2025-08-22',
+                'Non Alcoholic Beverages',
+                'Physical examination',
+                '21200',
             ],
             [
-                'PL-001',
-                'Standard Pricelist',
-                '1',
-                'USD',
-                '2027-12-31',
-                'ITEM-002',
-                'Soil Analysis Item',
-                'ANALYTE-002',
-                '150.00',
+                'GCLA/P/7',
+                'GCLA Price List v6',
+                'Yes',
+                'TZS',
+                '2025-08-22',
+                'Non Alcoholic Beverages',
+                'pH',
+                '21200',
             ],
         ];
     }

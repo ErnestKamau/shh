@@ -13,16 +13,17 @@ class UserTemplateExporter extends ExcelTemplateGenerator
             'last_name*',
             'email*',
             'zone_code',
-            'department_code',
-            'password*',
+            'zone_name',
+            'department_name',
+            'position',
         ];
     }
 
     protected function defineExamples(): array
     {
         return [
-            ['John', 'Doe', 'john@example.com', 'ZONE-001', 'QA', 'SecurePassword123!'],
-            ['Jane', 'Smith', 'jane@example.com', 'ZONE-002', 'LAB-OPS', 'SecurePassword456!'],
+            ['John', 'Doe', 'john@example.com', 'ZONE-001', 'Main Zone', 'Quality Assurance', 'Analyst'],
+            ['Jane', 'Smith', 'jane@example.com', 'ZONE-002', 'Secondary Zone', 'Lab Operations', 'Manager'],
         ];
     }
 }
