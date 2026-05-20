@@ -25,6 +25,11 @@ use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use App\Livewire\Equipment\Concerns\InteractsWithEquipmentFormWizard;
+use App\Models\Equipments\EquipmentAccessory;
+use App\Models\Equipments\EquipmentSparePart;
+use App\Models\Equipments\EquipmentAnnualMaintenance;
+use App\Models\Equipments\EquipmentPreventiveMaintenance;
+use App\Models\Equipments\EquipmentMaintenanceRegister;
 
 class EquipmentDetail extends Component
 {
@@ -37,6 +42,38 @@ class EquipmentDetail extends Component
     public $activeTab = 'details';
 
     public string $activeDetailsSection = 'basic';
+
+    // New Tabs Properties
+    public bool $showAccessoryModal = false;
+    public bool $showSparePartModal = false;
+    public array $accessoryForm = ['id' => '', 'name' => '', 'description' => '', 'serial_number' => '', 'part_number' => ''];
+    public array $sparePartForm = ['id' => '', 'name' => '', 'description' => '', 'serial_number' => '', 'part_number' => ''];
+
+    // Equipment Maintenance properties
+    public bool $fromEquipmentMaintenance = false;
+
+    // Annual Maintenance Form Properties (TSU/F/06)
+    public bool $showAnnualModal = false;
+    public $annualId;
+    public $annual_serviced_date = '';
+    public $annual_status = '';
+    public $annual_next_service = '';
+    public $annual_remark = '';
+
+    // Preventive Maintenance Form Properties (TSU/F/05)
+    public bool $showPreventiveModal = false;
+    public $preventiveId;
+    public $preventive_date = '';
+    public $preventive_notes = '';
+
+    // Maintenance Register Form Properties
+    public bool $showRegisterModal = false;
+    public $registerId;
+    public $register_year = '';
+    public $register_service_provider = '';
+    public $register_service_type = '';
+    public $register_cost_usd = '';
+    public $register_cost_tzs = '';
 
     // Modal States
     public $showEditModal = false;
@@ -233,12 +270,16 @@ class EquipmentDetail extends Component
     public $nonConformancePerPage = 10;
     public $nonConformancePage = 1;
 
-    public function mount($equipmentId, bool $fromEquipmentChecks = false): void
+    public function mount($equipmentId, bool $fromEquipmentChecks = false, bool $fromEquipmentMaintenance = false): void
     {
         $this->equipmentId = $equipmentId;
         $this->fromEquipmentChecks = $fromEquipmentChecks;
+        $this->fromEquipmentMaintenance = $fromEquipmentMaintenance;
         if ($fromEquipmentChecks) {
             $this->activeTab = 'equipment-checks';
+        }
+        if ($fromEquipmentMaintenance) {
+            $this->activeTab = 'annual-maintenance';
         }
         $this->loadEquipment();
         $this->loadInitialData();
@@ -2095,6 +2136,23 @@ class EquipmentDetail extends Component
                 ],
             ],
             [
+                'key' => 'procurement_technical',
+                'icon' => 'mdi-cash-multiple',
+                'title' => 'Procurement & Technical Specs',
+                'fields' => [
+                    ['label' => 'Purchase Price', 'value' => $equipment->purchase_price ? number_format($equipment->purchase_price, 2) : '—'],
+                    ['label' => 'Installation Date', 'value' => $this->formatEquipmentDetailDate($equipment->installation_date)],
+                    ['label' => 'Commissioning Date', 'value' => $this->formatEquipmentDetailDate($equipment->commissioning_date)],
+                    ['label' => 'Detection Limit', 'value' => $equipment->detection_limit ?? '—'],
+                    ['label' => 'Tolerance Limit', 'value' => $equipment->tolerance_limit ?? '—'],
+                    ['label' => 'Supplier Name', 'value' => $equipment->supplier_name ?? '—'],
+                    ['label' => 'Warranty Duration', 'value' => $equipment->warranty ?? '—'],
+                    ['label' => 'Operating Environment', 'value' => $equipment->environment ?? '—'],
+                    ['label' => 'End of Life Date', 'value' => $this->formatEquipmentDetailDate($equipment->end_of_life)],
+                    ['label' => 'End of Service Date', 'value' => $this->formatEquipmentDetailDate($equipment->end_of_service)],
+                ],
+            ],
+            [
                 'key' => 'assignment',
                 'icon' => 'mdi-map-marker-outline',
                 'title' => __('equipment.assignment_location'),
@@ -2310,6 +2368,349 @@ class EquipmentDetail extends Component
             'badge-danger' => 'eq-details-badge--danger',
             default => 'eq-details-badge--muted',
         };
+    }
+
+    // Accessory CRUD
+    public function showAddAccessoryModal(): void
+    {
+        $this->accessoryForm = [
+            'id' => '',
+            'name' => '',
+            'description' => '',
+            'serial_number' => '',
+            'part_number' => '',
+        ];
+        $this->showAccessoryModal = true;
+    }
+
+    public function editAccessory(string $id): void
+    {
+        $accessory = EquipmentAccessory::findOrFail($id);
+        $this->accessoryForm = [
+            'id' => $accessory->id,
+            'name' => $accessory->name,
+            'description' => $accessory->description ?? '',
+            'serial_number' => $accessory->serial_number ?? '',
+            'part_number' => $accessory->part_number ?? '',
+        ];
+        $this->showAccessoryModal = true;
+    }
+
+    public function saveAccessory(): void
+    {
+        $this->validate([
+            'accessoryForm.name' => 'required|string|max:255',
+            'accessoryForm.description' => 'nullable|string',
+            'accessoryForm.serial_number' => 'nullable|string|max:255',
+            'accessoryForm.part_number' => 'nullable|string|max:255',
+        ]);
+
+        $payload = [
+            'equipment_id' => $this->equipmentId,
+            'name' => $this->accessoryForm['name'],
+            'description' => $this->accessoryForm['description'],
+            'serial_number' => $this->accessoryForm['serial_number'],
+            'part_number' => $this->accessoryForm['part_number'],
+        ];
+
+        if (!empty($this->accessoryForm['id'])) {
+            EquipmentAccessory::findOrFail($this->accessoryForm['id'])->update($payload);
+            session()->flash('message', 'Accessory updated successfully.');
+        } else {
+            EquipmentAccessory::create($payload);
+            session()->flash('message', 'Accessory added successfully.');
+        }
+
+        $this->showAccessoryModal = false;
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    public function deleteAccessory(string $id): void
+    {
+        EquipmentAccessory::findOrFail($id)->delete();
+        session()->flash('message', 'Accessory deleted successfully.');
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    // Spare Part CRUD
+    public function showAddSparePartModal(): void
+    {
+        $this->sparePartForm = [
+            'id' => '',
+            'name' => '',
+            'description' => '',
+            'serial_number' => '',
+            'part_number' => '',
+        ];
+        $this->showSparePartModal = true;
+    }
+
+    public function editSparePart(string $id): void
+    {
+        $sparePart = EquipmentSparePart::findOrFail($id);
+        $this->sparePartForm = [
+            'id' => $sparePart->id,
+            'name' => $sparePart->name,
+            'description' => $sparePart->description ?? '',
+            'serial_number' => $sparePart->serial_number ?? '',
+            'part_number' => $sparePart->part_number ?? '',
+        ];
+        $this->showSparePartModal = true;
+    }
+
+    public function saveSparePart(): void
+    {
+        $this->validate([
+            'sparePartForm.name' => 'required|string|max:255',
+            'sparePartForm.description' => 'nullable|string',
+            'sparePartForm.serial_number' => 'nullable|string|max:255',
+            'sparePartForm.part_number' => 'nullable|string|max:255',
+        ]);
+
+        $payload = [
+            'equipment_id' => $this->equipmentId,
+            'name' => $this->sparePartForm['name'],
+            'description' => $this->sparePartForm['description'],
+            'serial_number' => $this->sparePartForm['serial_number'],
+            'part_number' => $this->sparePartForm['part_number'],
+        ];
+
+        if (!empty($this->sparePartForm['id'])) {
+            EquipmentSparePart::findOrFail($this->sparePartForm['id'])->update($payload);
+            session()->flash('message', 'Spare part updated successfully.');
+        } else {
+            EquipmentSparePart::create($payload);
+            session()->flash('message', 'Spare part added successfully.');
+        }
+
+        $this->showSparePartModal = false;
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    public function deleteSparePart(string $id): void
+    {
+        EquipmentSparePart::findOrFail($id)->delete();
+        session()->flash('message', 'Spare part deleted successfully.');
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    // --- ANNUAL MAINTENANCE CRUD (TSU/F/06) ---
+    public function openAnnualModal($id = null)
+    {
+        $this->resetAnnualFields();
+        if ($id) {
+            $record = EquipmentAnnualMaintenance::findOrFail($id);
+            $this->annualId = $record->id;
+            $this->annual_serviced_date = $record->serviced_date ? $record->serviced_date->format('Y-m-d') : '';
+            $this->annual_status = $record->status;
+            $this->annual_next_service = $record->next_service ? $record->next_service->format('Y-m-d') : '';
+            $this->annual_remark = $record->remark;
+        }
+        $this->showAnnualModal = true;
+    }
+
+    public function saveAnnual()
+    {
+        $this->validate([
+            'annual_serviced_date' => 'nullable|date',
+            'annual_status' => 'nullable|string|max:255',
+            'annual_next_service' => 'nullable|date',
+            'annual_remark' => 'nullable|string',
+        ]);
+
+        $payload = [
+            'equipment_id' => $this->equipmentId,
+            'serviced_date' => $this->annual_serviced_date ?: null,
+            'status' => $this->annual_status,
+            'next_service' => $this->annual_next_service ?: null,
+            'remark' => $this->annual_remark,
+        ];
+
+        if ($this->annualId) {
+            EquipmentAnnualMaintenance::findOrFail($this->annualId)->update($payload);
+            session()->flash('message', 'Annual Maintenance record updated successfully.');
+        } else {
+            EquipmentAnnualMaintenance::create($payload);
+            session()->flash('message', 'Annual Maintenance record added successfully.');
+        }
+
+        $this->showAnnualModal = false;
+        $this->resetAnnualFields();
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    public function deleteAnnual($id)
+    {
+        EquipmentAnnualMaintenance::findOrFail($id)->delete();
+        session()->flash('message', 'Annual Maintenance record deleted successfully.');
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    private function resetAnnualFields()
+    {
+        $this->annualId = null;
+        $this->annual_serviced_date = '';
+        $this->annual_status = '';
+        $this->annual_next_service = '';
+        $this->annual_remark = '';
+    }
+
+    // --- PREVENTIVE MAINTENANCE CRUD (TSU/F/05) ---
+    public function openPreventiveModal($id = null)
+    {
+        $this->resetPreventiveFields();
+        if ($id) {
+            $record = EquipmentPreventiveMaintenance::findOrFail($id);
+            $this->preventiveId = $record->id;
+            
+            if ($record->is_serviced) {
+                $this->preventive_date = $record->serviced_date ? $record->serviced_date->format('Y-m-d') : '';
+            } else {
+                $company = \App\Company::where('active', 1)->first();
+                $y = $company->maintenance_start_year ?? date('Y');
+                $m = str_pad($record->scheduled_month ?? 1, 2, '0', STR_PAD_LEFT);
+                $this->preventive_date = "{$y}-{$m}-01";
+            }
+            $this->preventive_notes = $record->notes;
+        } else {
+            $company = \App\Company::where('active', 1)->first();
+            $y = $company->maintenance_start_year ?? date('Y');
+            $m = str_pad($company->maintenance_start_month ?? 1, 2, '0', STR_PAD_LEFT);
+            $this->preventive_date = "{$y}-{$m}-01";
+            $this->preventive_notes = '';
+        }
+        $this->showPreventiveModal = true;
+    }
+
+    public function savePreventive()
+    {
+        $this->validate([
+            'preventive_date' => 'required|date',
+            'preventive_notes' => 'nullable|string',
+        ]);
+
+        $date = Carbon::parse($this->preventive_date);
+        $isFuture = $date->isFuture();
+
+        $payload = [
+            'equipment_id' => $this->equipmentId,
+            'scheduled_month' => $date->month,
+            'is_serviced' => !$isFuture,
+            'serviced_date' => $isFuture ? null : $date->format('Y-m-d'),
+            'notes' => $this->preventive_notes,
+        ];
+
+        if ($this->preventiveId) {
+            EquipmentPreventiveMaintenance::findOrFail($this->preventiveId)->update($payload);
+            session()->flash('message', 'Preventive Maintenance record updated successfully.');
+        } else {
+            EquipmentPreventiveMaintenance::create($payload);
+            session()->flash('message', 'Preventive Maintenance record added successfully.');
+        }
+
+        $this->showPreventiveModal = false;
+        $this->resetPreventiveFields();
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    public function deletePreventive($id)
+    {
+        EquipmentPreventiveMaintenance::findOrFail($id)->delete();
+        session()->flash('message', 'Preventive Maintenance record deleted successfully.');
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    private function resetPreventiveFields()
+    {
+        $this->preventiveId = null;
+        $this->preventive_date = '';
+        $this->preventive_notes = '';
+    }
+
+    // --- MAINTENANCE REGISTER CRUD ---
+    public function openRegisterModal($id = null)
+    {
+        $this->resetRegisterFields();
+        if ($id) {
+            $record = EquipmentMaintenanceRegister::findOrFail($id);
+            $this->registerId = $record->id;
+            $this->register_year = $record->year;
+            $this->register_service_provider = $record->service_provider;
+            $this->register_service_type = $record->service_type;
+            $this->register_cost_usd = $record->cost_usd;
+            $this->register_cost_tzs = $record->cost_tzs;
+        } else {
+            $this->register_year = date('Y') . '/' . (date('Y') + 1);
+        }
+        $this->showRegisterModal = true;
+    }
+
+    public function saveRegister()
+    {
+        $this->validate([
+            'register_year' => 'nullable|string|max:255',
+            'register_service_provider' => 'nullable|string|max:255',
+            'register_service_type' => 'nullable|string|max:255',
+            'register_cost_usd' => 'nullable|numeric',
+            'register_cost_tzs' => 'nullable|numeric',
+        ]);
+
+        $payload = [
+            'equipment_id' => $this->equipmentId,
+            'year' => $this->register_year ?: null,
+            'service_provider' => $this->register_service_provider,
+            'service_type' => $this->register_service_type,
+            'cost_usd' => $this->register_cost_usd !== '' ? $this->register_cost_usd : 0,
+            'cost_tzs' => $this->register_cost_tzs !== '' ? $this->register_cost_tzs : 0,
+        ];
+
+        if ($this->registerId) {
+            EquipmentMaintenanceRegister::findOrFail($this->registerId)->update($payload);
+            session()->flash('message', 'Maintenance Register record updated successfully.');
+        } else {
+            EquipmentMaintenanceRegister::create($payload);
+            session()->flash('message', 'Maintenance Register record added successfully.');
+        }
+
+        $this->showRegisterModal = false;
+        $this->resetRegisterFields();
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    public function deleteRegister($id)
+    {
+        EquipmentMaintenanceRegister::findOrFail($id)->delete();
+        session()->flash('message', 'Maintenance Register record deleted successfully.');
+        $this->equipment = Equipment::find($this->equipmentId);
+    }
+
+    private function resetRegisterFields()
+    {
+        $this->registerId = null;
+        $this->register_year = '';
+        $this->register_service_provider = '';
+        $this->register_service_type = '';
+        $this->register_cost_usd = '';
+        $this->register_cost_tzs = '';
+    }
+
+    /**
+     * Helper to compute dynamic quarters from the start date.
+     */
+    public function calculateQuarters($yearStart): array
+    {
+        if (!$yearStart) {
+            return ['1st Quarter', '2nd Quarter', '3rd Quarter', '4th Quarter'];
+        }
+
+        $start = Carbon::parse($yearStart);
+        
+        $q1 = $start->format('M Y') . ' - ' . $start->copy()->addMonths(2)->format('M Y');
+        $q2 = $start->copy()->addMonths(3)->format('M Y') . ' - ' . $start->copy()->addMonths(5)->format('M Y');
+        $q3 = $start->copy()->addMonths(6)->format('M Y') . ' - ' . $start->copy()->addMonths(8)->format('M Y');
+        $q4 = $start->copy()->addMonths(9)->format('M Y') . ' - ' . $start->copy()->addMonths(11)->format('M Y');
+
+        return [$q1, $q2, $q3, $q4];
     }
 }
 

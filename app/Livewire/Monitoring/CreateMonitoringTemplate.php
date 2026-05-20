@@ -22,6 +22,8 @@ class CreateMonitoringTemplate extends Component
     // Template type
     public string $templateType = 'environmental'; // 'environmental' or 'equipment'
 
+    public string $module = 'lab';
+
     // Step 1: Basic Info
     public string $name = '';
 
@@ -56,8 +58,14 @@ class CreateMonitoringTemplate extends Component
 
     public bool $showVariableModal = false;
 
-    public function mount(): void
+    public function mount(?string $module = null, ?string $templateType = null): void
     {
+        if ($module !== null) {
+            $this->module = $module;
+        }
+        if ($templateType !== null) {
+            $this->templateType = $templateType;
+        }
         // Initialize with empty column structure
         $this->columnStructure = [];
     }
@@ -577,12 +585,12 @@ class CreateMonitoringTemplate extends Component
 
         session()->flash('success', 'Monitoring template "' . $this->name . '" created successfully.');
 
-        return redirect()->route('livewire.monitoring');
+        return redirect()->route($this->module === 'equipment' ? 'equipment.monitoring' : 'livewire.monitoring');
     }
 
     public function cancel()
     {
-        return redirect()->route('livewire.monitoring');
+        return redirect()->route($this->module === 'equipment' ? 'equipment.monitoring' : 'livewire.monitoring');
     }
 
     protected function getStepValidationRules(): array

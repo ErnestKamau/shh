@@ -264,12 +264,12 @@
                         </div>
                     </div>
 
-                    @if($activeSection === 'environmental')
-                        <!-- Environmental Optimum Levels and Trends Chart -->
+                    @if(in_array($activeSection, ['environmental', 'equipment'], true))
+                        <!-- Optimum Levels and Trends Chart -->
                         <div class="card mt-4" style="border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); overflow: hidden;">
                             <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border: none; padding: 15px 20px;">
                                 <h5 class="mb-0 font-weight-bold" style="font-size: 1.1rem; color: white;">
-                                    <i class="mdi mdi-chart-line-variant mr-1"></i> Environmental Logs vs. Optimum Level
+                                    <i class="mdi mdi-chart-line-variant mr-1"></i> {{ ucfirst($activeSection) }} Logs vs. Optimum Level
                                 </h5>
                                 <span class="badge badge-pill badge-light text-primary px-3 py-1 font-weight-bold" style="background-color: white; color: #1e3c72 !important;">
                                     Real-time Analysis
@@ -278,7 +278,7 @@
                             <div class="card-body bg-white" style="padding: 24px;">
                                 @if($this->environmentalGraphData['hasData'])
                                     <div style="height: 320px; position: relative;">
-                                        <canvas id="environmentalTrendsChart"></canvas>
+                                        <canvas id="environmentalTrendsChart" data-chart-data="{{ json_encode($this->environmentalGraphData) }}"></canvas>
                                     </div>
                                     <div class="mt-4 pt-3 border-top d-flex justify-content-around flex-wrap text-center" style="gap: 15px;">
                                         <div class="px-3">
@@ -312,8 +312,8 @@
                                 @else
                                     <div class="text-center py-5 text-muted">
                                         <i class="mdi mdi-chart-bubble" style="font-size: 3rem; color: #cbd5e1;"></i>
-                                        <h6 class="mt-3 font-weight-bold text-dark">No environmental logs captured yet</h6>
-                                        <p class="text-muted mb-0 small">Execute and save an environmental monitoring template to view the live trend analysis against optimum levels.</p>
+                                        <h6 class="mt-3 font-weight-bold text-dark">No {{ $activeSection }} logs captured yet</h6>
+                                        <p class="text-muted mb-0 small">Execute and save an {{ $activeSection }} monitoring template to view the live trend analysis against optimum levels.</p>
                                     </div>
                                 @endif
                             </div>
@@ -327,7 +327,7 @@
                         <p class="text-muted mb-0">Create versioned templates and dynamic logic without overwriting
                             historical definitions.</p>
                     </div>
-                    <a href="{{ route('monitoring.template.create') }}" class="btn btn-primary">
+                    <a href="{{ $module === 'equipment' ? route('equipment.monitoring.template.create') : route('monitoring.template.create') }}" class="btn btn-primary">
                         <i class="mdi mdi-plus"></i> New Template
                     </a>
                 </div>
@@ -351,7 +351,7 @@
                             @forelse($this->templateEngineTemplates as $tpl)
                                 <tr>
                                     <td class="text-right">
-                                        <a href="{{ route('monitoring.template.edit', $tpl->id) }}"
+                                        <a href="{{ $module === 'equipment' ? route('equipment.monitoring.template.edit', $tpl->id) : route('monitoring.template.edit', $tpl->id) }}"
                                             class="rm-act-btn rm-act-btn--edit" title="Edit template">
                                             <i class="mdi mdi-pencil"></i>
                                         </a>
@@ -946,7 +946,9 @@
                 envTrendChart.destroy();
             }
 
-            const rawData = @json($this->environmentalGraphData);
+            const dataStr = ctx.getAttribute('data-chart-data');
+            if (!dataStr) return;
+            const rawData = JSON.parse(dataStr);
             if (!rawData || !rawData.hasData) return;
 
             envTrendChart = new Chart(ctx, {
@@ -1059,6 +1061,10 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            initEnvTrendChart();
+        });
+
+        document.addEventListener('livewire:navigated', function() {
             initEnvTrendChart();
         });
 

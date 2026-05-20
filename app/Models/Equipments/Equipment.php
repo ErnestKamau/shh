@@ -60,6 +60,16 @@ class Equipment extends Model implements Auditable
 		'daily_log_frequency',
 		'daily_log_monitored_by_another_equipment',
 		'daily_log_monitored_equipment_id',
+		'purchase_price',
+		'installation_date',
+		'commissioning_date',
+		'detection_limit',
+		'tolerance_limit',
+		'supplier_name',
+		'warranty',
+		'environment',
+		'end_of_life',
+		'end_of_service',
 	];
 
 	protected $casts = [
@@ -69,6 +79,11 @@ class Equipment extends Model implements Auditable
 		'daily_log_expected_max' => 'float',
 		'daily_log_frequency' => 'integer',
 		'daily_log_monitored_by_another_equipment' => 'boolean',
+		'installation_date' => 'date',
+		'commissioning_date' => 'date',
+		'end_of_life' => 'date',
+		'end_of_service' => 'date',
+		'purchase_price' => 'decimal:2',
 	];
 
   public function calibration_date(){
@@ -333,5 +348,65 @@ class Equipment extends Model implements Auditable
 				];
 			})
 			->toArray();
+	}
+
+	/**
+	 * Get accessories for this equipment.
+	 */
+	public function accessories()
+	{
+		return $this->hasMany(EquipmentAccessory::class, 'equipment_id');
+	}
+
+	/**
+	 * Get spare parts for this equipment.
+	 */
+	public function spareParts()
+	{
+		return $this->hasMany(EquipmentSparePart::class, 'equipment_id');
+	}
+
+	/**
+	 * Get annual maintenance records.
+	 */
+	public function annualMaintenances()
+	{
+		return $this->hasMany(EquipmentAnnualMaintenance::class, 'equipment_id');
+	}
+
+	/**
+	 * Get preventive maintenance records.
+	 */
+	public function preventiveMaintenances()
+	{
+		return $this->hasMany(EquipmentPreventiveMaintenance::class, 'equipment_id');
+	}
+
+	/**
+	 * Get maintenance register records.
+	 */
+	public function maintenanceRegisters()
+	{
+		return $this->hasMany(EquipmentMaintenanceRegister::class, 'equipment_id');
+	}
+
+	/**
+	 * Get the asset location record.
+	 */
+	public function assetLocation()
+	{
+		return $this->belongsTo(\App\Models\Assets\AssetLocation::class, 'asset_location_id');
+	}
+
+	/**
+	 * Get the zone name of this equipment.
+	 */
+	public function getZoneNameAttribute(): string
+	{
+		$location = $this->assetLocation;
+		if ($location && $location->lab && $location->lab->zone) {
+			return $location->lab->zone->name ?? '—';
+		}
+		return '—';
 	}
 }

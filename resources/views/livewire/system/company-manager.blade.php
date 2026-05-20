@@ -286,6 +286,53 @@
                                 @error('address') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
+                            {{-- Equipment Maintenance Period --}}
+                            <hr class="my-3">
+                            <h6 class="text-primary font-weight-bold mb-3">
+                                <i class="mdi mdi-calendar-clock mr-1"></i> Equipment Maintenance Period
+                            </h6>
+                            <p class="text-muted small mb-3">Set the global maintenance year range used across all Equipment Maintenance reports.</p>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Start Month</label>
+                                        <select wire:model="maintenanceStartMonth" class="form-control @error('maintenanceStartMonth') is-invalid @enderror">
+                                            <option value="">-- Month --</option>
+                                            @foreach(range(1, 12) as $m)
+                                                <option value="{{ $m }}">{{ \Carbon\Carbon::create()->month($m)->format('F') }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('maintenanceStartMonth') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Start Year</label>
+                                        <input type="number" wire:model="maintenanceStartYear" class="form-control @error('maintenanceStartYear') is-invalid @enderror" placeholder="e.g. 2025" min="2000" max="2100">
+                                        @error('maintenanceStartYear') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">End Month</label>
+                                        <select wire:model="maintenanceEndMonth" class="form-control @error('maintenanceEndMonth') is-invalid @enderror">
+                                            <option value="">-- Month --</option>
+                                            @foreach(range(1, 12) as $m)
+                                                <option value="{{ $m }}">{{ \Carbon\Carbon::create()->month($m)->format('F') }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('maintenanceEndMonth') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">End Year</label>
+                                        <input type="number" wire:model="maintenanceEndYear" class="form-control @error('maintenanceEndYear') is-invalid @enderror" placeholder="e.g. 2026" min="2000" max="2100">
+                                        @error('maintenanceEndYear') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="d-flex justify-content-end">
                                 <button type="button" class="btn btn-light mr-2" wire:click="closeCompanyModal">{{ __('system.close') }}</button>
                                 <button type="submit" class="btn btn-primary">

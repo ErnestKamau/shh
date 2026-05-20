@@ -50,6 +50,7 @@ class EquipmentAppController extends Controller
             'equipment' => $equipment,
             'equipmentId' => $equipmentId,
             'fromEquipmentChecks' => request()->query('from') === 'equipment-checks',
+            'fromEquipmentMaintenance' => request()->query('from') === 'equipment-maintenance',
         ]);
     }
 
@@ -141,6 +142,61 @@ class EquipmentAppController extends Controller
         return view('livewire.layout.equipment-app', [
             'componentType' => 'equipment-daily-log',
             'pageTitle' => 'Equipment Daily Log',
+        ]);
+    }
+
+    /**
+     * Display the Equipment Monitoring module dashboard.
+     */
+    public function monitoring()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'monitoring',
+            'pageTitle' => 'Equipment Monitoring',
+        ]);
+    }
+
+    /**
+     * Display the Equipment Maintenance page.
+     */
+    public function equipmentMaintenance()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'equipment-maintenance',
+            'pageTitle' => 'Equipment Maintenance',
+        ]);
+    }
+
+    /**
+     * Display the create equipment monitoring template page.
+     */
+    public function createMonitoringTemplate()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'template-create',
+            'pageTitle' => 'Create Equipment Monitoring Template',
+            'breadcrumbItems' => [
+                ['label' => 'Home', 'url' => route('home')],
+                ['label' => 'Equipment Monitoring', 'url' => route('equipment.monitoring')],
+                ['label' => 'Create Template', 'current' => true],
+            ],
+        ]);
+    }
+
+    /**
+     * Display the edit equipment monitoring template page.
+     */
+    public function editMonitoringTemplate(\App\Models\Monitoring\MonitoringTemplate $template)
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'template-edit',
+            'pageTitle' => 'Edit Equipment Monitoring Template',
+            'template' => $template,
+            'breadcrumbItems' => [
+                ['label' => 'Home', 'url' => route('home')],
+                ['label' => 'Equipment Monitoring', 'url' => route('equipment.monitoring')],
+                ['label' => 'Edit Template', 'current' => true],
+            ],
         ]);
     }
 

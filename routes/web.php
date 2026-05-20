@@ -993,10 +993,27 @@ Route::get('/equipment/asset-types', [EquipmentAppController::class, 'assetTypeM
 Route::get('/equipment/asset-locations', [EquipmentAppController::class, 'assetLocationManager'])->name('equipment.asset-locations.index')->middleware(['auth', 'can:equipment.components.asset-location.view']);
 
 //############################################EQUIPMENT##########################################################
+// Equipment Monitoring Routes
+Route::get('/equipment/monitoring', [EquipmentAppController::class, 'monitoring'])
+    ->name('equipment.monitoring')
+    ->middleware('can:equipment.permission');
+
+Route::get('/equipment/maintenance', [EquipmentAppController::class, 'equipmentMaintenance'])
+    ->name('equipment.maintenance')
+    ->middleware('can:equipment.permission');
+
+Route::get('/equipment/monitoring/template/create', [EquipmentAppController::class, 'createMonitoringTemplate'])
+    ->name('equipment.monitoring.template.create')
+    ->middleware('can:equipment.permission');
+
+Route::get('/equipment/monitoring/template/{template}/edit', [EquipmentAppController::class, 'editMonitoringTemplate'])
+    ->name('equipment.monitoring.template.edit')
+    ->middleware('can:equipment.permission');
+
 Route::get('/equipment-home', [EquipmentAppController::class, 'equipmentManager'])->name('equipment-home')->middleware('can:equipment.permission');
 Route::get('/equipment-dashboard', [EquipmentAppController::class, 'equipmentDashboard'])->name('equipment-dashboard')->middleware('can:equipment.module.access');
-Route::get('/equipment-checks', [EquipmentAppController::class, 'checksIndex'])->name('equipment-checks')->middleware('can:equipment.permission');
-Route::get('/equipment-daily-log', [EquipmentAppController::class, 'dailyLogIndex'])->name('equipment-daily-log')->middleware('can:equipment.permission');
+// Route::get('/equipment-checks', [EquipmentAppController::class, 'checksIndex'])->name('equipment-checks')->middleware('can:equipment.permission');
+// Route::get('/equipment-daily-log', [EquipmentAppController::class, 'dailyLogIndex'])->name('equipment-daily-log')->middleware('can:equipment.permission');
 Route::post('/equipment', 'Equipment\EquipmentController@add')->name('add-equipment')->middleware('can:equipment.components.equipment-list.add');
 Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])->name('view-equipment')->middleware('can:equipment.components.equipment-list.view');
 Route::post('/equipment/{id}', 'Equipment\EquipmentController@edit')->name('edit-equipment')->middleware('can:equipment.components.equipment-list.edit');

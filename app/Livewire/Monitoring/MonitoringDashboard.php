@@ -19,6 +19,8 @@ class MonitoringDashboard extends Component
 {
     public string $activeSection = 'environmental';
 
+    public string $module = 'lab';
+
     public ?string $selectedLabId = null;
 
     public bool $showExecutionModal = false;
@@ -45,8 +47,14 @@ class MonitoringDashboard extends Component
         'equipment' => 'equipment',
     ];
 
-    public function mount(): void
+    public function mount(?string $activeSection = null, ?string $module = null): void
     {
+        if ($activeSection !== null) {
+            $this->activeSection = $activeSection;
+        }
+        if ($module !== null) {
+            $this->module = $module;
+        }
         $firstLab = $this->assignedLabs->first();
         $this->selectedLabId = $firstLab?->id;
     }
@@ -71,7 +79,7 @@ class MonitoringDashboard extends Component
 
     public function getEnvironmentalGraphDataProperty(): array
     {
-        if ($this->activeSection !== 'environmental') {
+        if (!in_array($this->activeSection, ['environmental', 'equipment'], true)) {
             return [
                 'labels' => [],
                 'actual' => [],
@@ -82,10 +90,12 @@ class MonitoringDashboard extends Component
             ];
         }
 
-        // Fetch all environmental logs for this lab over the last 30 days
+        $scope = $this->activeSection;
+
+        // Fetch all logs for this lab and scope over the last 30 days
         $logs = \App\Models\Monitoring\MonitoringLog::query()
             ->with(['template.fields', 'entries'])
-            ->where('monitoring_scope', 'environmental')
+            ->where('monitoring_scope', $scope)
             ->where('lab_id', $this->selectedLabId)
             ->where('status', 'completed')
             ->orderBy('executed_at', 'asc')

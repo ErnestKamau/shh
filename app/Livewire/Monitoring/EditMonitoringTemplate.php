@@ -25,6 +25,8 @@ class EditMonitoringTemplate extends Component
     
     public ?MonitoringTemplate $template = null;
 
+    public string $module = 'lab';
+
     // Step 1: Basic Info
     public string $name = '';
     public string $documentControlNumber = '';
@@ -53,8 +55,11 @@ class EditMonitoringTemplate extends Component
 
     public bool $showVariableModal = false;
 
-    public function mount(MonitoringTemplate $template): void
+    public function mount(MonitoringTemplate $template, ?string $module = null): void
     {
+        if ($module !== null) {
+            $this->module = $module;
+        }
         $this->template = $template;
         $this->name = $template->name;
         $this->documentControlNumber = $template->document_control_number ?? '';
@@ -632,12 +637,12 @@ class EditMonitoringTemplate extends Component
 
         session()->flash('success', 'Monitoring template "' . $this->name . '" updated successfully.');
 
-        return redirect()->route('livewire.monitoring');
+        return redirect()->route($this->module === 'equipment' ? 'equipment.monitoring' : 'livewire.monitoring');
     }
 
     public function cancel()
     {
-        return redirect()->route('livewire.monitoring');
+        return redirect()->route($this->module === 'equipment' ? 'equipment.monitoring' : 'livewire.monitoring');
     }
 
     protected function getStepValidationRules(): array
