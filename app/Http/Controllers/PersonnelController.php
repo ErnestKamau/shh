@@ -79,6 +79,10 @@ class PersonnelController extends Controller
 
 	public function reset_personnel_password(Request $request, $id){
 		$user = getUserById($id);
+		if (!$user) {
+			return redirect()->back()->with('error', 'No user with specified ID');
+		}
+
 		if ($request->has('password','con_password')){
 			if ($request->password != $request->con_password){
 				return redirect()->back()->with('error' , 'Password did not match.');
@@ -94,15 +98,15 @@ class PersonnelController extends Controller
 				$mailData = array(
 					'body'=>$body,
 					'subject'=> '[Imara-Lims Password Reset - '.$user->first_name.']',
-
+					'contacts'=>[$user->email],
 				);
 				$mailer = new  Mailers;
 				$sendmail = $mailer->html_email($mailData,'default');
 
-				return redirect()->back()->with('sucess','Password reset successfully');
+				return redirect()->back()->with('success','Password reset successfully');
 			}
 		}else{
-			return redirect()->back()->with('error','No user with specified ID');
+			return redirect()->back()->with('error','Password inputs not provided');
 		}
 	}
 	public function deactivate_personnel(Request $request,$id){
@@ -116,7 +120,7 @@ class PersonnelController extends Controller
 			}
 			$personel->save();
 
-			return redirect()->back()->with('sucess','Personel state updated successfully');
+			return redirect()->back()->with('success','Personel state updated successfully');
 		}else{
 			return redirect()->back()->with('error','No personel with specified ID');
 		}

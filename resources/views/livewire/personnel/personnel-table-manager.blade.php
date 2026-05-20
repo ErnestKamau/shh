@@ -618,26 +618,35 @@
     @endif
 
     @if($showResetPasswordModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog ptm-modern-modal-shell">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 class="modal-title"><i class="mdi mdi-key-change"></i> {{ __('personnel.reset_password_of', ['name' => $selectedPersonnelName]) }}</h3>
+                    <div class="modal-header ptm-modern-modal-header">
+                        <h4 class="modal-title"><i class="mdi mdi-key-change"></i> {{ __('personnel.reset_password_of', ['name' => $selectedPersonnelName]) }}</h4>
                         <button type="button" class="close" wire:click="closeResetPasswordModal"><span>&times;</span></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body ptm-modern-modal-body">
                         <div class="form-group">
-                            <label class="control-label">{{ __('personnel.password') }}</label>
-                            <input type="password" class="form-control" wire:model="newPassword">
+                            <label class="control-label"><strong>{{ __('personnel.new_password') }}</strong></label>
+                            <input type="password" class="form-control @error('newPassword') is-invalid @enderror" placeholder="{{ __('personnel.enter_new_password') }}" wire:model="newPassword">
+                            @error('newPassword')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                            <small class="form-text text-muted">Minimum 6 characters required.</small>
                         </div>
-                        <div class="form-group">
-                            <label class="control-label">{{ __('personnel.confirm_password') }}</label>
-                            <input type="password" class="form-control" wire:model="confirmPassword">
+                        <div class="form-group mb-0">
+                            <label class="control-label"><strong>{{ __('personnel.confirm_password') }}</strong></label>
+                            <input type="password" class="form-control @error('confirmPassword') is-invalid @enderror" placeholder="{{ __('personnel.confirm_password_placeholder') }}" wire:model="confirmPassword">
+                            @error('confirmPassword')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" wire:click="resetPersonnelPassword"><i class="mdi mdi-content-save"></i> {{ __('personnel.save') }}</button>
-                        <button type="button" class="btn btn-default" wire:click="closeResetPasswordModal">{{ __('personnel.close') }}</button>
+                    <div class="modal-footer ptm-modern-modal-footer">
+                        <button type="button" class="btn btn-primary" wire:click="resetPersonnelPassword">
+                            <i class="mdi mdi-content-save"></i> {{ __('personnel.save') }}
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" wire:click="closeResetPasswordModal">{{ __('personnel.close') }}</button>
                     </div>
                 </div>
             </div>
