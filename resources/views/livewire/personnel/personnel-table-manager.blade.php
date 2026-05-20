@@ -147,12 +147,12 @@
                                         </a>
 
                                         @if(auth()->user()->CheckDeactivatePersonnel())
-                                            <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click='openStateModal(@js($item->id))' title="{{ (int) $item->active === 1 ? __('personnel.deactivate_personnel') : __('personnel.activate_personnel') }}">
+                                            <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click="openStateModal('{{ $item->id }}')" title="{{ (int) $item->active === 1 ? __('personnel.deactivate_personnel') : __('personnel.activate_personnel') }}">
                                                 <i class="mdi {{ (int) $item->active === 1 ? 'mdi-account-lock' : 'mdi-lock-open-variant' }}"></i>
                                             </button>
                                         @endif
 
-                                        <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit" wire:click='openResetPasswordModal(@js($item->id))' title="{{ __('personnel.reset_password') }}">
+                                        <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit" wire:click="openResetPasswordModal('{{ $item->id }}')" title="{{ __('personnel.reset_password') }}">
                                             <i class="mdi mdi-key-change"></i>
                                         </button>
                                     </div>
