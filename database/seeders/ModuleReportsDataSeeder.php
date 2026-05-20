@@ -400,7 +400,20 @@ class ModuleReportsDataSeeder extends Seeder
                 continue;
             }
             
-            $batchCode = 'GCLA-B-' . $targetDate->format('Y') . '-' . sprintf('%04d', $i + 1);
+            $zoneCodes = ['HQO', 'LZO', 'NZO', 'SHZO', 'CZO', 'EZO'];
+            $zoneNames = [
+                'HQ Dodoma & Dar es-Salaam Full laboratory capacity',
+                'Lake Zone Office',
+                'Northern Zone Office',
+                'Southern Highlands Zone Office',
+                'Central Zone Office',
+                'Eastern Zone Office'
+            ];
+            $zoneIndex = $i % 6;
+            $zoneCode = $zoneCodes[$zoneIndex];
+            $crmUnitName = $zoneNames[$zoneIndex];
+            
+            $batchCode = $zoneCode . $targetDate->format('y') . '-' . sprintf('%05d', 1 + intval($i / 6));
             
             // Insert Sample Header
             \DB::table('sample_headers')->insert([
@@ -409,7 +422,7 @@ class ModuleReportsDataSeeder extends Seeder
                 'receipt_date' => $targetDate->format('Y-m-d H:i:s'),
                 'date_collected' => $targetDate->copy()->subDays(2)->format('Y-m-d'),
                 'crm_customer_id' => ($i % 2 == 0) ? $custId1 : $custId2,
-                'crm_unit_name' => 'GCLA Head Office',
+                'crm_unit_name' => $crmUnitName,
                 'sample_type_id' => ($i % 2 == 0) ? $sampleTypeId1 : $sampleTypeId2,
                 'reference_number' => 'REF-' . $targetDate->format('Y') . '-' . sprintf('%03d', $i + 1),
                 'status' => ($i % 2 == 0) ? 'Samples In Lab' : 'Reports',
