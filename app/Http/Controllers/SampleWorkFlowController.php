@@ -2234,23 +2234,12 @@ class SampleWorkFlowController extends Controller
                     ->whereIn('id', $submissionFormInstanceIds)
                     ->get();
 
-                foreach ($submissionFormInstances as $submissionFormInstance) {
-                    if ($submissionFormInstance->status === 'submitted') {
-                        $submissionFormInstance->status = 'in_review';
-                        if (!$submissionFormInstance->reviewed_at) {
-                            $submissionFormInstance->reviewed_at = now();
-                        }
-                        $submissionFormInstance->save();
-                    }
+                $reviewActor = auth()->user();
+                $reviewComment = $request->input('comment');
 
-                    foreach ($submissionFormInstance->attachmentInstances as $attachmentInstance) {
-                        if ($attachmentInstance->status === 'submitted') {
-                            $attachmentInstance->status = 'in_review';
-                            if (!$attachmentInstance->reviewed_at) {
-                                $attachmentInstance->reviewed_at = now();
-                            }
-                            $attachmentInstance->save();
-                        }
+                foreach ($submissionFormInstances as $submissionFormInstance) {
+                    if ($reviewActor instanceof \App\User) {
+                        $submissionFormInstance->markAsInReview($reviewActor, is_string($reviewComment) ? $reviewComment : null);
                     }
 
                     foreach ($submissionFormInstance->batches as $linkedBatch) {
@@ -2265,9 +2254,23 @@ class SampleWorkFlowController extends Controller
             $previousStatus = 'Samples En-Route';
             $returnStatus = (string) $request->input('return_status', $previousStatus);
             $returnTab = (string) $request->input('return_tab', 'requests');
+            $allowedTabs = match ($returnStatus) {
+                'Samples Receiving' => array_keys(\App\Livewire\Sampleworkflow\WorkflowBoard::receivingRequestTabs()),
+                'Samples Request Review' => array_keys(\App\Livewire\Sampleworkflow\WorkflowBoard::requestReviewTabs()),
+                default => ['requests', 'received'],
+            };
+            $legacyReviewTabMap = ['requests' => 'in_review', 'received' => 'accepted'];
+            if ($returnStatus === 'Samples Request Review' && isset($legacyReviewTabMap[$returnTab])) {
+                $returnTab = $legacyReviewTabMap[$returnTab];
+            }
+            $defaultTab = match ($returnStatus) {
+                'Samples Receiving' => 'submitted',
+                'Samples Request Review' => 'in_review',
+                default => 'requests',
+            };
             $returnRedirect = [
                 'status' => $returnStatus !== '' ? $returnStatus : $previousStatus,
-                'tab' => in_array($returnTab, ['requests', 'received'], true) ? $returnTab : 'requests',
+                'tab' => in_array($returnTab, $allowedTabs, true) ? $returnTab : $defaultTab,
             ];
 
             $responsibility = SystemConfiguration::where('key', 'Samples En-Route')->first();

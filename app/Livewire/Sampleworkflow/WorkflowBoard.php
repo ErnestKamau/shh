@@ -13,11 +13,12 @@ use App\Models\System\SystemConfiguration;
 use App\User;
 use App\Models\SubmissionFormInstance;
 use App\Models\SampleSubmissionRequest;
+use App\Services\SubmissionForm\SubmissionFormIntrayService;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -29,6 +30,36 @@ class WorkflowBoard extends Component
     use WithPagination;
 
     protected string $paginationTheme = 'bootstrap';
+
+    /**
+     * Samples Receiving request status tabs (workflowSubTab keys).
+     *
+     * @return array<string, string>
+     */
+    public static function receivingRequestTabs(): array
+    {
+        return [
+            'submitted' => 'Submitted Requests',
+            'received' => 'Received Request',
+            'in_review' => 'In Review',
+            'in_additional_info' => 'Request Additional Info',
+            'complete' => 'Complete Requests',
+            'interzone_transfers' => 'Interzone Transfers',
+        ];
+    }
+
+    /**
+     * Samples Request Review sub-tabs (workflowSubTab keys).
+     *
+     * @return array<string, string>
+     */
+    public static function requestReviewTabs(): array
+    {
+        return [
+            'in_review' => 'In review',
+            'accepted' => 'Accepted',
+        ];
+    }
     /**
      * Current workflow status tab.
      */
@@ -62,6 +93,13 @@ class WorkflowBoard extends Component
     public array $batchesPerPageOptions = [10, 20, 50, 100, 200, 500];
 
     /**
+     * Pagination for submission form instance tables.
+     */
+    public int $submissionFormsPerPage = 25;
+
+    public array $submissionFormsPerPageOptions = [10, 25, 50, 100, 200, 500];
+
+    /**
      * Livewire search and filters for all statuses.
      */
     public string $search = '';
@@ -78,6 +116,11 @@ class WorkflowBoard extends Component
     public string $submissionFormsPriority = '';
     
     /**
+     * Expandable advanced filters (Samples Receiving layout).
+     */
+    public bool $showAdvancedFilters = false;
+
+    /**
      * Customer dropdown state.
      */
     public bool $showCustomerDropdown = false;
@@ -85,23 +128,49 @@ class WorkflowBoard extends Component
     public int $customerPage = 1;
     public int $customerPerPage = 50;
     
-    /**
-     * Track if component has finished initial load.
-     */
-    public bool $initialLoadComplete = false;
-
     public ?int $submissionFormAttachmentTypeId = null;
 
     /**
-     * Shared datasets required by the legacy modals/forms.
+     * Selected submission form instances (receive, move to tray, request review).
+     *
+     * @var array<int, string>
      */
-    public Collection $labsections;
-    public Collection $analysts;
-    public Collection $users;
-    public Collection $zohoItems;
-    public Collection $clients;
-    public Collection $sampletypes;
-    public Collection $customers;
+    public array $selectedFormInstanceIds = [];
+
+    /**
+     * Display metadata for the receive-sample modal.
+     *
+     * @var array<int, array{id: string, label: string, customer: string}>
+     */
+    public array $receiveFormSummaries = [];
+
+
+    /**
+     * @var array<int, array{id: string, label: string, customer: string}>
+     */
+    public array $intrayFormSummaries = [];
+
+    /**
+     * Selected instances that already have a pending intray (for reassignment UI).
+     *
+     * @var array<int, array{id: string, label: string, assignee_name: string}>
+     */
+    public array $pendingIntrayAssignments = [];
+
+    public bool $showMyIntrayPanel = true;
+
+    /**
+     * Reference datasets for dropdowns/selects.
+     * Kept protected so Livewire never serialises them into the snapshot.
+     * Populated once per request inside render().
+     */
+    protected Collection $labsections;
+    protected Collection $analysts;
+    protected Collection $users;
+    protected Collection $zohoItems;
+    protected Collection $clients;
+    protected Collection $sampletypes;
+    protected Collection $customers;
 
     /**
      * Mount the component with the requested status and filters.
@@ -113,17 +182,26 @@ class WorkflowBoard extends Component
         $this->initialFilters = $initialFilters;
 
         $requestedTab = strtolower((string) ($this->initialFilters['tab'] ?? request()->query('tab', 'requests')));
-        $this->workflowSubTab = in_array($requestedTab, ['requests', 'received'], true) ? $requestedTab : 'requests';
+        if ($this->status === 'Samples Receiving') {
+            $defaultTab = 'submitted';
+            $this->workflowSubTab = in_array($requestedTab, array_keys(self::receivingRequestTabs()), true)
+                ? $requestedTab
+                : $defaultTab;
+        } elseif ($this->status === 'Samples Request Review') {
+            $legacyTabMap = ['requests' => 'in_review', 'received' => 'accepted'];
+            $requestedTab = $legacyTabMap[$requestedTab] ?? $requestedTab;
+            $this->workflowSubTab = in_array($requestedTab, array_keys(self::requestReviewTabs()), true)
+                ? $requestedTab
+                : 'in_review';
+        } else {
+            $this->workflowSubTab = in_array($requestedTab, ['requests', 'received'], true) ? $requestedTab : 'requests';
+        }
 
         $this->allFilter = $this->defaultAllSamplesFilter();
         $this->finishedFilter = $this->defaultFinishedSamplesFilter();
 
         $this->hydrateFiltersFromRequest();
-        $this->loadReferenceData();
         $this->submissionFormAttachmentTypeId = $this->resolveSubmissionFormAttachmentTypeId();
-        
-        // Mark initial load as complete after a short delay
-        $this->dispatch('initial-load-complete');
     }
 
     /**
@@ -143,64 +221,82 @@ class WorkflowBoard extends Component
     {
         $this->resetPage('forms_page');
     }
+
+    public function updatingSubmissionFormsPerPage(): void
+    {
+        $this->resetPage('forms_page');
+    }
     
     /**
-     * Mark initial load as complete.
-     */
-    public function markInitialLoadComplete(): void
-    {
-        $this->initialLoadComplete = true;
-    }
-
-    /**
      * Load shared datasets used across the workflow UI.
+     * Called once per render(), not in mount(), so the collections are never
+     * included in Livewire's serialised snapshot.
+     *
+     * Heavy batch-stage data (labsections, analysts, zohoItems) is skipped for
+     * form-centric stages (Samples Receiving, Samples Request Review) where those
+     * dropdowns are never rendered, saving 3 queries per request.
      */
     protected function loadReferenceData(): void
     {
-        $this->labsections = SampleAnalysisStage::where('active', 1)->orderBy('name')->get();
-        $this->zohoItems = InventorySubCategories::orderBy('name', 'asc')->get();
+        $isFormOnlyStage = $this->isSamplesReceiving() || $this->isSamplesRequestReview();
 
-        $analystRoleNames = ['laboratory analyst', 'analyst'];
-        $driver = DB::connection()->getDriverName();
-        $userIdColumn = $driver === 'pgsql' ? DB::raw('id::text') : 'id';
+        if ($isFormOnlyStage) {
+            $this->labsections = collect();
+            $this->zohoItems = collect();
+            $this->analysts = collect();
+        } else {
+            $this->labsections = SampleAnalysisStage::where('active', 1)->orderBy('name')->get();
+            $this->zohoItems = InventorySubCategories::orderBy('name', 'asc')->get();
 
-        $analystUserIds = DB::table('spatie_model_has_roles as smr')
-            ->join('spatie_roles as sr', 'sr.id', '=', 'smr.role_id')
-            ->where('smr.model_type', User::class)
-            ->where('sr.guard_name', 'web')
-            ->where(function ($query) use ($analystRoleNames) {
-                foreach ($analystRoleNames as $roleName) {
-                    $query->orWhereRaw('LOWER(sr.name) = ?', [$roleName]);
-                }
-            })
-            ->pluck('smr.model_id')
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+            $analystRoleNames = ['laboratory analyst', 'analyst'];
+            $driver = DB::connection()->getDriverName();
+            $userIdColumn = $driver === 'pgsql' ? DB::raw('id::text') : 'id';
 
-        $this->analysts = empty($analystUserIds)
-            ? collect()
-            : User::query()
-                ->where('active', 1)
-                ->where('is_support_staff', 0)
-                ->whereIn($userIdColumn, $analystUserIds)
-                ->orderBy('name')
-                ->get();
+            $analystUserIds = DB::table('spatie_model_has_roles as smr')
+                ->join('spatie_roles as sr', 'sr.id', '=', 'smr.role_id')
+                ->where('smr.model_type', User::class)
+                ->where('sr.guard_name', 'web')
+                ->where(function ($query) use ($analystRoleNames) {
+                    foreach ($analystRoleNames as $roleName) {
+                        $query->orWhereRaw('LOWER(sr.name) = ?', [$roleName]);
+                    }
+                })
+                ->pluck('smr.model_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
 
-        $usersQuery = User::query()
+            $this->analysts = empty($analystUserIds)
+                ? collect()
+                : User::query()
+                    ->where('active', 1)
+                    ->where('is_support_staff', 0)
+                    ->whereIn($userIdColumn, $analystUserIds)
+                    ->orderBy('name')
+                    ->get();
+        }
+
+        $this->users = User::query()
             ->where('is_client', 0)
-            ->where('active', 1);
-
-        $usersQuery->whereNull('supplier_id');
-
-        $this->users = $usersQuery
+            ->where('active', 1)
+            ->whereNull('supplier_id')
             ->orderBy('name')
             ->get();
 
         $this->clients = CRMCustomer::where('active', 1)->orderBy('name')->get();
+        $this->customers = $this->clients;
         $this->sampletypes = SampleType::where('active', 1)->orderBy('name')->get();
-        $this->customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
+    }
+
+    /**
+     * Reference collections are populated in render(); action methods may need them earlier.
+     */
+    protected function ensureReferenceDataLoaded(): void
+    {
+        if (! isset($this->users)) {
+            $this->loadReferenceData();
+        }
     }
 
     /**
@@ -281,15 +377,194 @@ class WorkflowBoard extends Component
 
     protected function isReceivingFormsTab(): bool
     {
+        if ($this->status === 'Samples Receiving') {
+            return true;
+        }
+
         if ($this->isReceivingStage()) {
             return $this->workflowSubTab === 'requests';
         }
 
         if ($this->status === 'Samples Request Review') {
-            return $this->workflowSubTab === 'requests';
+            return $this->workflowSubTab === 'in_review';
         }
 
         return false;
+    }
+
+    public function isSamplesReceiving(): bool
+    {
+        return $this->status === 'Samples Receiving';
+    }
+
+    public function isSamplesRequestReview(): bool
+    {
+        return $this->status === 'Samples Request Review';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function requestReviewTabKeys(): array
+    {
+        return array_keys(self::requestReviewTabs());
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function receivingRequestTabKeys(): array
+    {
+        return array_keys(self::receivingRequestTabs());
+    }
+
+    protected function receivingSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return SubmissionFormInstance::query()
+            ->whereHas('submissionForm', function ($formQuery) {
+                $formQuery->where('form_type', 'template');
+            })
+            ->whereDoesntHave('batches', function ($bq) {
+                $bq->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+            })
+            ->whereIn('status', $this->receivingRequestTabKeys());
+    }
+
+    protected function applyReceivingSubmissionFormFilters(\Illuminate\Database\Eloquent\Builder $query): void
+    {
+        if ($this->submissionFormsPriority) {
+            $query->withPriority($this->submissionFormsPriority);
+        }
+
+        if ($this->customerFilter) {
+            $query->where('crm_customer_id', $this->customerFilter);
+        }
+
+        if ($this->sampleTypeFilter) {
+            $query->whereHas('submissionForm.sampleTypes', function ($q) {
+                $q->where('sample_types.id', $this->sampleTypeFilter);
+            });
+        }
+
+        if ($this->receiptDateFrom) {
+            $query->whereDate('submitted_at', '>=', $this->receiptDateFrom);
+        }
+
+        if ($this->receiptDateTo) {
+            $query->whereDate('submitted_at', '<=', $this->receiptDateTo);
+        }
+
+        if ($this->submissionFormsSearch) {
+            $search = $this->submissionFormsSearch;
+            $query->where(function ($q) use ($search) {
+                $q->where('form_number', 'like', "%{$search}%")
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhereHas('submissionForm', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+    }
+
+    /**
+     * Per-tab record counts for Samples Receiving status tabs.
+     *
+     * @return array<string, int>
+     */
+    public function getReceivingRequestTabCountsProperty(): array
+    {
+        if (! $this->isSamplesReceiving()) {
+            return [];
+        }
+
+        $query = $this->receivingSubmissionFormsBaseQuery();
+        $this->applyReceivingSubmissionFormFilters($query);
+
+        $rows = $query->selectRaw('status, COUNT(*) as cnt')
+            ->groupBy('status')
+            ->pluck('cnt', 'status')
+            ->all();
+
+        $counts = [];
+        foreach ($this->receivingRequestTabKeys() as $tabKey) {
+            if ($tabKey === 'interzone_transfers') {
+                $counts[$tabKey] = \App\Models\Sampleworkflow\InterzoneTransfer::query()->count();
+                continue;
+            }
+            $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Per-tab record counts for Samples Request Review.
+     *
+     * @return array<string, int>
+     */
+    public function getRequestReviewTabCountsProperty(): array
+    {
+        if (! $this->isSamplesRequestReview()) {
+            return [];
+        }
+
+        $inReviewQuery = $this->requestReviewSubmissionFormsBaseQuery();
+        $this->applyRequestReviewSubmissionFormFilters($inReviewQuery);
+        $inReviewQuery->requestReviewInReview();
+
+        $acceptedQuery = $this->requestReviewSubmissionFormsBaseQuery();
+        $this->applyRequestReviewSubmissionFormFilters($acceptedQuery);
+        $acceptedQuery->requestReviewAccepted();
+
+        return [
+            'in_review' => $inReviewQuery->count(),
+            'accepted'  => $acceptedQuery->count(),
+        ];
+    }
+
+    protected function requestReviewSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return SubmissionFormInstance::query()->inRequestReviewQueue();
+    }
+
+    protected function applyRequestReviewSubmissionFormFilters(\Illuminate\Database\Eloquent\Builder $query): void
+    {
+        if ($this->submissionFormsPriority) {
+            $query->withPriority($this->submissionFormsPriority);
+        }
+
+        if ($this->customerFilter) {
+            $query->where('crm_customer_id', $this->customerFilter);
+        }
+
+        if ($this->sampleTypeFilter) {
+            $query->whereHas('submissionForm.sampleTypes', function ($q) {
+                $q->where('sample_types.id', $this->sampleTypeFilter);
+            });
+        }
+
+        if ($this->receiptDateFrom) {
+            $query->whereDate('submitted_at', '>=', $this->receiptDateFrom);
+        }
+
+        if ($this->receiptDateTo) {
+            $query->whereDate('submitted_at', '<=', $this->receiptDateTo);
+        }
+
+        if ($this->submissionFormsStatus) {
+            $query->where('status', $this->submissionFormsStatus);
+        }
+
+        if ($this->submissionFormsSearch) {
+            $search = $this->submissionFormsSearch;
+            $query->where(function ($q) use ($search) {
+                $q->where('form_number', 'like', "%{$search}%")
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhereHas('submissionForm', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
     }
 
     public function isReceivingStage(): bool
@@ -315,6 +590,72 @@ class WorkflowBoard extends Component
     public function getSubmissionFormsProperty()
     {
         $driver = DB::connection()->getDriverName();
+
+        if ($this->isSamplesReceiving()) {
+            $tabStatus = in_array($this->workflowSubTab, $this->receivingRequestTabKeys(), true)
+                ? $this->workflowSubTab
+                : 'submitted';
+
+            $query = $this->receivingSubmissionFormsBaseQuery()
+                ->with([
+                    'submissionForm.sampleTypes',
+                    'submittedBy',
+                    'batches',
+                    'crmCustomer',
+                    'values.element',
+                    'latestIntray.toUser',
+                    'latestIntray.fromUser',
+                    'activePendingIntray',
+                ])
+                ->select('submission_form_instances.*')
+                ->where('status', $tabStatus)
+                ->selectSub(function ($subQuery) use ($driver) {
+                    $subQuery->from('submission_form_instances as attachment_instances')
+                        ->selectRaw('count(*)')
+                        ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id' . ($driver === 'pgsql' ? '::text' : ''));
+                }, 'attachment_count')
+                ->latest();
+
+            $this->applyReceivingSubmissionFormFilters($query);
+
+            return $query->paginate($this->submissionFormsPerPage, ['*'], 'forms_page');
+        }
+
+        if ($this->isSamplesRequestReview()) {
+            $driver = DB::connection()->getDriverName();
+
+            $query = $this->requestReviewSubmissionFormsBaseQuery()
+                ->with([
+                    'submissionForm.sampleTypes',
+                    'submittedBy',
+                    'batches.batch_attachments',
+                    'crmCustomer',
+                    'values.element',
+                    'workflowForms',
+                    'analysisAcceptanceForms',
+                    'latestIntray.toUser',
+                    'latestIntray.fromUser',
+                    'activePendingIntray',
+                ])
+                ->select('submission_form_instances.*')
+                ->selectSub(function ($subQuery) use ($driver) {
+                    $subQuery->from('submission_form_instances as attachment_instances')
+                        ->selectRaw('count(*)')
+                        ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id' . ($driver === 'pgsql' ? '::text' : ''));
+                }, 'attachment_count')
+                ->latest();
+
+            if ($this->workflowSubTab === 'accepted') {
+                $query->requestReviewAccepted();
+            } else {
+                $query->requestReviewInReview();
+            }
+
+            $this->applyRequestReviewSubmissionFormFilters($query);
+
+            return $query->paginate($this->submissionFormsPerPage, ['*'], 'forms_page');
+        }
+
         $query = SubmissionFormInstance::with([
                 'submissionForm.sampleTypes',
                 'submittedBy',
@@ -344,10 +685,6 @@ class WorkflowBoard extends Component
                 $query->whereIn('status', ['submitted', 'Submitted', 'in_review', 'In Review', 'pending_reception', 'received_at_lab']);
                 $query->whereDoesntHave('batches');
             }
-        }
-
-        if ($this->status === 'Samples Request Review' && $this->workflowSubTab === 'received') {
-            $query->whereIn('status', ['approved', 'rejected']);
         }
 
         if ($this->status === 'Samples In Lab') {
@@ -391,7 +728,7 @@ class WorkflowBoard extends Component
             });
         }
 
-        return $query->paginate(10, ['*'], 'forms_page');
+        return $query->paginate($this->submissionFormsPerPage, ['*'], 'forms_page');
     }
 
     /**
@@ -557,10 +894,17 @@ class WorkflowBoard extends Component
                     ->orWhere('prelim_batch_status', 'Samples Request Review');
             });
 
-            if ($this->workflowSubTab === 'received') {
-                $query->whereNotNull('in_lab_date');
+            if ($this->workflowSubTab === 'accepted') {
+                $query->whereHas('submissionFormInstance', function ($formQuery) {
+                    $formQuery->requestReviewAccepted();
+                });
             } else {
-                $query->whereNull('in_lab_date');
+                $query->where(function ($inner) {
+                    $inner->whereDoesntHave('submissionFormInstance')
+                        ->orWhereHas('submissionFormInstance', function ($formQuery) {
+                            $formQuery->requestReviewInReview();
+                        });
+                });
             }
         } else {
             $query->where(function ($inner) {
@@ -658,12 +1002,74 @@ class WorkflowBoard extends Component
         $this->submissionFormsPriority = '';
     }
 
+    public function toggleAdvancedFilters(): void
+    {
+        $this->showAdvancedFilters = ! $this->showAdvancedFilters;
+    }
+
     public function setWorkflowSubTab(string $tab): void
     {
         $tab = strtolower(trim($tab));
-        $this->workflowSubTab = in_array($tab, ['requests', 'received'], true) ? $tab : 'requests';
-        $this->resetPage('batches_page');
-        $this->resetPage('portal_submissions_page');
+
+        if ($this->isSamplesReceiving()) {
+            $this->workflowSubTab = in_array($tab, $this->receivingRequestTabKeys(), true) ? $tab : 'submitted';
+            $this->selectedFormInstanceIds = [];
+            $this->resetPage('forms_page');
+        } elseif ($this->isSamplesRequestReview()) {
+            $this->workflowSubTab = in_array($tab, $this->requestReviewTabKeys(), true) ? $tab : 'in_review';
+            $this->selectedFormInstanceIds = [];
+            $this->resetPage('forms_page');
+        } else {
+            $this->workflowSubTab = in_array($tab, ['requests', 'received'], true) ? $tab : 'requests';
+            $this->resetPage('batches_page');
+            $this->resetPage('portal_submissions_page');
+        }
+
+        $this->showAdvancedFilters = false;
+    }
+
+    /**
+     * Batches at or past target date (due today or overdue) for the TAT Today modal.
+     *
+     * @return Collection<int, object{id: int|string, batch_code: string, status: string, tat_date: string, is_late: bool, is_today: bool}>
+     */
+    public function getTatTodayBatchesProperty(): Collection
+    {
+        $today = Carbon::today();
+        $cutoff = Carbon::now()->addDay();
+
+        return SampleDate::query()
+            ->join('sample_headers as s', 's.id', '=', 'sample_dates.sample_header_id')
+            ->where('sample_dates.date', '<=', $cutoff)
+            ->whereIn('s.status', [
+                'Samples En-Route',
+                'Samples Reception',
+                'Samples Request Review',
+                'Samples In Lab',
+                'Sample Verification',
+                'Sample Approval',
+            ])
+            ->where('sample_dates.name', 'Target Date')
+            ->selectRaw('s.id, s.batch_code, s.status, sample_dates.date as tat_date')
+            ->orderByDesc('sample_dates.date')
+            ->get()
+            ->map(function ($row) use ($today) {
+                $tatDate = Carbon::parse($row->tat_date);
+
+                return (object) [
+                    'id' => $row->id,
+                    'batch_code' => $row->batch_code,
+                    'status' => $row->status,
+                    'tat_date' => $tatDate->format('Y-m-d'),
+                    'is_late' => $tatDate->lt($today),
+                    'is_today' => $tatDate->isSameDay($today),
+                ];
+            });
+    }
+
+    public function getTatTodayCountProperty(): int
+    {
+        return $this->tatTodayBatches->count();
     }
 
     /**
@@ -748,7 +1154,7 @@ class WorkflowBoard extends Component
      */
     public function getPortalSubmissionsProperty()
     {
-        if (! $this->isReceivingFormsTab()) {
+        if ($this->isSamplesReceiving() || ! $this->isReceivingFormsTab()) {
             return null;
         }
 
@@ -873,8 +1279,273 @@ class WorkflowBoard extends Component
         $this->customerPage = 1; // Reset to first page when searching
     }
 
+    /**
+     * @param  array<int, string>  $ids  Checked instance IDs from the browser (deferred wire:model may not be synced yet).
+     */
+    public function openReceiveModal(array $ids = []): void
+    {
+        $this->syncSelectedFormInstanceIds($ids);
+
+        if ($this->selectedFormInstanceIds === []) {
+            return;
+        }
+
+        $summaries = $this->buildReceiveFormSummaries($this->selectedFormInstanceIds);
+        $this->receiveFormSummaries = $summaries;
+
+        // Dispatch into the already-mounted child so it updates state and then
+        // shows the modal itself — avoids the remount race condition.
+        $this->dispatch('receive-modal-open',
+            instanceIds: $this->selectedFormInstanceIds,
+            summaries: $summaries,
+        );
+    }
+
+    public function onReceiveCompleted(): void
+    {
+        $this->selectedFormInstanceIds = [];
+        $this->receiveFormSummaries = [];
+        $this->dispatch('hide-receive-sample-modal');
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     * @return array<int, array{id: string, label: string, customer: string}>
+     */
+    protected function buildReceiveFormSummaries(array $ids): array
+    {
+        return SubmissionFormInstance::query()
+            ->with(['crmCustomer', 'submittedBy', 'submissionForm'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->map(function (SubmissionFormInstance $instance): array {
+                return [
+                    'id' => $instance->id,
+                    'label' => (string) ($instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending'),
+                    'customer' => (string) (
+                        $instance->crmCustomer->name
+                        ?? $instance->submittedBy->name
+                        ?? ''
+                    ),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     * @return array<int, array{id: string, label: string, assignee_name: string}>
+     */
+    protected function buildPendingIntrayAssignments(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return SubmissionFormInstance::query()
+            ->with(['activePendingIntray.toUser'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->filter(fn (SubmissionFormInstance $instance) => $instance->activePendingIntray !== null)
+            ->map(function (SubmissionFormInstance $instance): array {
+                return [
+                    'id' => (string) $instance->id,
+                    'label' => (string) ($instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending'),
+                    'assignee_name' => (string) ($instance->activePendingIntray?->toUser?->name ?? ''),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>|string  $ids
+     */
+    public function openMoveToIntrayModal(array|string $ids = []): void
+    {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids);
+
+        if ($this->selectedFormInstanceIds === []) {
+            return;
+        }
+
+        $summaries = $this->buildReceiveFormSummaries($this->selectedFormInstanceIds);
+        $pending = $this->buildPendingIntrayAssignments($this->selectedFormInstanceIds);
+        $this->intrayFormSummaries = $summaries;
+        $this->pendingIntrayAssignments = $pending;
+
+        $this->dispatch('intray-modal-open',
+            instanceIds: $this->selectedFormInstanceIds,
+            summaries: $summaries,
+            assignableUsers: $this->assignableUsersForIntray,
+            pendingIntrayAssignments: $pending,
+        );
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    /**
+     * @param  array<int, string>|string  $ids
+     */
+    public function openRequestReviewModal(array|string $ids = []): void
+    {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids);
+
+        if ($this->selectedFormInstanceIds === []) {
+            return;
+        }
+
+        $summaries = $this->buildReceiveFormSummaries($this->selectedFormInstanceIds);
+
+        $this->dispatch('analyst-review-modal-open',
+            instanceIds: $this->selectedFormInstanceIds,
+            summaries: $summaries,
+        );
+    }
+
+    public function onAnalystReviewCompleted(): void
+    {
+        $this->selectedFormInstanceIds = [];
+        $this->dispatch('hide-analyst-review-modal');
+    }
+
+    /**
+     * @param  array<int, string>|string  $ids
+     */
+    public function openRequestAdditionalInfoModal(array|string $ids = []): void
+    {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids);
+
+        if ($this->selectedFormInstanceIds === []) {
+            return;
+        }
+
+        $summaries = $this->buildReceiveFormSummaries($this->selectedFormInstanceIds);
+
+        $this->dispatch('request-additional-info-modal-open',
+            instanceIds: $this->selectedFormInstanceIds,
+            summaries: $summaries,
+        );
+    }
+
+    public function onRequestAdditionalInfoCompleted(): void
+    {
+        $this->selectedFormInstanceIds = [];
+        $this->dispatch('hide-request-additional-info-modal');
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    protected function syncSelectedFormInstanceIds(array $ids): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $this->selectedFormInstanceIds = array_values(array_unique(array_filter(
+            array_map(static fn ($id): string => trim((string) $id), $ids),
+            static fn (string $id): bool => $id !== '',
+        )));
+    }
+
+    public function onIntrayMoveCompleted(): void
+    {
+        $this->selectedFormInstanceIds = [];
+        $this->intrayFormSummaries = [];
+        $this->pendingIntrayAssignments = [];
+        $this->dispatch('hide-move-to-intray-modal');
+    }
+
+    public function completeIntray(string $instanceId): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            session()->flash('error', 'You must be signed in to complete intray tasks.');
+
+            return;
+        }
+
+        try {
+            app(SubmissionFormIntrayService::class)->completePending($instanceId, $user);
+            session()->flash('success', 'Intray task marked as complete.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            session()->flash('error', collect($exception->errors())->flatten()->first() ?? 'Unable to complete intray task.');
+        }
+    }
+
+    public function toggleMyIntrayPanel(): void
+    {
+        $this->showMyIntrayPanel = ! $this->showMyIntrayPanel;
+    }
+
+    public function getMyPendingIntrayFormsProperty(): \Illuminate\Support\Collection
+    {
+        if ((! $this->isSamplesReceiving() && ! $this->isSamplesRequestReview()) || ! Auth::check()) {
+            return collect();
+        }
+
+        return app(SubmissionFormIntrayService::class)->getPendingForUser((string) Auth::id());
+    }
+
+    public function getMyPendingIntrayCountProperty(): int
+    {
+        return $this->myPendingIntrayForms->count();
+    }
+
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
+    public function getAssignableUsersForIntrayProperty(): array
+    {
+        $this->ensureReferenceDataLoaded();
+
+        $currentUserId = Auth::id();
+
+        return $this->users
+            ->filter(fn ($user) => (string) $user->id !== (string) $currentUserId)
+            ->map(fn ($user) => [
+                'id' => (string) $user->id,
+                'name' => (string) $user->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    protected function getListeners(): array
+    {
+        return [
+            'receive-completed' => 'onReceiveCompleted',
+            'intray-move-completed' => 'onIntrayMoveCompleted',
+            'request-additional-info-completed' => 'onRequestAdditionalInfoCompleted',
+            'analyst-review-completed' => 'onAnalystReviewCompleted',
+            'interzone-transfer-completed' => '$refresh',
+        ];
+    }
+
     public function render()
     {
+        // Reference data is loaded here (not in mount) so it is never written into
+        // the Livewire encrypted snapshot, which would bloat every request/response.
+        $this->loadReferenceData();
+
+        // Compute once to avoid running the query twice (tatTodayCount calls tatTodayBatches).
+        $tatTodayBatches = $this->tatTodayBatches;
+
         return view('livewire.sampleworkflow.workflow-board', [
             'batches' => $this->batches,
             'labsections' => $this->labsections,
@@ -887,6 +1558,15 @@ class WorkflowBoard extends Component
             'submissionFormAttachmentTypeId' => $this->submissionFormAttachmentTypeId,
             'portalSubmissions' => $this->portalSubmissions,
             'samplesReceptionStats' => $this->samplesReceptionStats,
+            'receivingRequestTabs' => self::receivingRequestTabs(),
+            'receivingRequestTabCounts' => $this->receivingRequestTabCounts,
+            'requestReviewTabs' => self::requestReviewTabs(),
+            'requestReviewTabCounts' => $this->requestReviewTabCounts,
+            'myPendingIntrayForms' => $this->myPendingIntrayForms,
+            'myPendingIntrayCount' => $this->myPendingIntrayCount,
+            'assignableUsersForIntray' => $this->assignableUsersForIntray,
+            'tatTodayBatches' => $tatTodayBatches,
+            'tatTodayCount' => $tatTodayBatches->count(),
         ]);
     }
 }

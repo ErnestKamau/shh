@@ -16,7 +16,7 @@ return new class extends Migration
             $table->timestamps();
             $table->uuid('sample_header_id')->index('idx_invoice_details_sample_header_id_90e43167');
             $table->uuid('sample_detail_id')->index('idx_invoice_details_sample_detail_id_dae56b2a');
-            $table->integer('invoice_id');
+            $table->uuid('invoice_id')->index('idx_invoice_details_invoice_id');
             $table->uuid('invoicable_item_id')->nullable()->index('idx_invoice_details_invoicable_item_id_836f1c3c');
             $table->double('cost_price');
             $table->double('selling_price');

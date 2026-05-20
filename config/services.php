@@ -35,6 +35,10 @@ return [
         'auth_api_base_url' => env('PORTAL_AUTH_API_BASE_URL'),
     ],
 
+    'portal_gateway' => [
+        'api_key' => env('PORTAL_GATEWAY_API_KEY'),
+    ],
+
     'africastalking' => [
         'username' => env('AFRICASTALKING_USERNAME'),
         'api_key' => env('AFRICASTALKING_API_KEY'),

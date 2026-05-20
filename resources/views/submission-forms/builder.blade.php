@@ -31,24 +31,41 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    
-    <div class="d-flex justify-content-between align-items-center p-4">
-      <div>
-        <h3>
-          <i class="mdi mdi-cog"></i> Form Builder
-          <small class="text-muted">{{ $submissionForm->name }}</small>
-        </h3>
-      </div>
-      <div>
-        <button class="btn btn-success" id="save-form">
-          <i class="mdi mdi-content-save"></i> Save Changes
-        </button>
-        <a href="{{ route('submission-forms.preview', $submissionForm) }}" class="btn btn-outline-info" target="_blank">
-          <i class="mdi mdi-eye-outline"></i> Preview
-        </a>
-        <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary">
-          <i class="mdi mdi-arrow-left"></i> Back to Form
-        </a>
+
+    @include('submission-forms.partials.horizontal-gutter-styles')
+    <div class="submission-forms-horizontal-gutter">
+
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-sm border-0 bg-white" style="border-radius: 15px;">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
+              <div>
+                <h2 class="mb-1">
+                  <i class="mdi mdi-cog text-primary"></i> Form Builder
+                </h2>
+                <p class="text-muted mb-0">
+                  <strong>{{ $submissionForm->name }}</strong>
+                  @if($submissionForm->version)
+                    <span class="font-weight-normal"> · v{{ $submissionForm->version }}</span>
+                  @endif
+                </p>
+                <small class="text-muted d-block mt-2">Design sections and fields for this submission form.</small>
+              </div>
+              <div class="d-flex align-items-center flex-wrap justify-content-lg-end" style="gap: 8px;">
+                <button type="button" class="btn btn-outline-success" id="save-form" style="border-radius: 9px;">
+                  <i class="mdi mdi-content-save"></i> Save Changes
+                </button>
+                <a href="{{ route('submission-forms.preview', $submissionForm) }}" class="btn btn-outline-info" target="_blank" style="border-radius: 9px;">
+                  <i class="mdi mdi-eye-outline"></i> Preview
+                </a>
+                <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary" style="border-radius: 9px;">
+                  <i class="mdi mdi-arrow-left"></i> Back to Form
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -110,6 +127,9 @@
                   <div class="element-type" data-type="camera_photo">
                     <i class="mdi mdi-camera"></i> Camera Photo
                   </div>
+                  <div class="element-type" data-type="image_upload">
+                    <i class="mdi mdi-image-plus"></i> Image upload
+                  </div>
                   <div class="element-type" data-type="signature">
                     <i class="mdi mdi-draw"></i> Signature
                   </div>
@@ -137,6 +157,9 @@
                   </div>
                   <div class="element-type" data-type="analysis_elements_select">
                     <i class="mdi mdi-flask-empty-outline"></i> Analysis Elements Select
+                  </div>
+                  <div class="element-type" data-type="zone_select">
+                    <i class="mdi mdi-map-marker-radius"></i> Zone select
                   </div>
                   <div class="element-type" data-type="store_select">
                     <i class="mdi mdi-store"></i> Store Select
@@ -226,6 +249,8 @@
           </div>
         </div>
       </div>
+    </div>
+
     </div>
   </main>
 
@@ -356,8 +381,10 @@
                     <option value="checkbox">Checkbox</option>
                     <option value="file">File Upload</option>
                     <option value="camera_photo">Camera Photo</option>
+                    <option value="image_upload">Image upload</option>
                     <option value="signature">Signature</option>
                     <option value="contact_signature">Contact Signature</option>
+                    <option value="zone_select">Zone select</option>
                     <option value="client_select">Client Select</option>
                     <option value="sample_type_select">Sample Type Select</option>
                     <option value="client_unit_select">Client Unit Select</option>
@@ -1235,7 +1262,7 @@ const FormBuilder = {
     handleElementTypeChange() {
         const elementType = $('#element-type').val();
         const needsOptions = ['select', 'radio', 'checkbox'].includes(elementType);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'contact_signature', 'depended_field'].includes(elementType);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'contact_signature', 'depended_field', 'zone_select'].includes(elementType);
         
         // Show/hide depends configuration for user_signature and contact_signature
         if (elementType === 'user_signature') {
@@ -1361,7 +1388,7 @@ const FormBuilder = {
         
         // Collect options if needed
         const needsOptions = ['select', 'radio', 'checkbox'].includes(formData.element_type);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'depended_field'].includes(formData.element_type);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'depended_field', 'zone_select'].includes(formData.element_type);
         
         // Handle user_signature and contact_signature - save depends in options
         if (formData.element_type === 'user_signature' || formData.element_type === 'contact_signature') {

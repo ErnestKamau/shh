@@ -115,11 +115,6 @@
 					pointer-events: none;
 				}
 
-				.password-toggle-btn .mdi::before {
-					line-height: 1;
-					vertical-align: middle;
-				}
-
 				.password-toggle-btn:hover,
 				.password-toggle-btn:focus {
 					color: #232323;

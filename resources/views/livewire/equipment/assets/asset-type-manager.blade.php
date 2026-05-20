@@ -1,5 +1,5 @@
-<div class="container-fluid asset-type-manager-page {{ ($showModal || $showDeleteConfirmModal) ? 'modal-active' : '' }}">
-    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    <!-- Header -->
+<div class="container-fluid">
+    <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
@@ -58,7 +58,7 @@
                                     <th class="text-start" style="width: 120px;">{{ __('equipment.actions') }}</th>
                                     <th style="width: 180px;">{{ __('equipment.asset_code') }}</th>
                                     <th>{{ __('equipment.description') }}</th>
-                                    <th style="width: 160px;" class="text-center">{{ __('equipment.active_equipments') }}</th>
+                                    <th style="width: 160px;" class="text-center">Active Equipments</th>
                                     <th style="width: 140px;">{{ __('equipment.status') }}</th>
                                 </tr>
                             </thead>
@@ -67,11 +67,11 @@
                                     <tr>
                                         <td class="equipment-actions-cell text-start">
                                             <div class="equipment-actions-group">
-                                                <button type="button" wire:click="edit('{{ $type->id }}')" class="btn btn-sm rm-act-btn rm-act-btn--edit" title="{{ __('equipment.edit') }}">
+                                                <button wire:click="edit({{ $type->id }})" class="btn btn-sm rm-act-btn rm-act-btn--edit" title="{{ __('equipment.edit') }}">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
-                                                <button type="button"
-                                                        wire:click="openDeleteAssetTypeConfirmModal('{{ $type->id }}')"
+                                                <button wire:click="delete({{ $type->id }})"
+                                                        wire:confirm="Are you sure you want to delete this asset type?"
                                                         class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                         title="{{ __('equipment.delete') }}">
                                                     <i class="mdi mdi-trash-can"></i>
@@ -83,18 +83,18 @@
                                         </td>
                                         <td class="asset-type-description-cell">{{ $type->descripton }}</td>
                                         <td class="text-center">
-                                            <span class="badge rounded-pill asset-type-count-badge">
-                                                {{ (int) ($type->active_equipments_count ?? 0) }}
+                                            <span class="badge rounded-pill bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-1 fw-bold fs-6 shadow-sm">
+                                                {{ $type->active_equipments_count ?? 0 }}
                                             </span>
                                         </td>
                                         <td>
                                             @if($type->is_active)
-                                                <span class="badge rounded-pill asset-type-status-badge asset-type-status-badge--active">
-                                                    <i class="mdi mdi-check-circle-outline me-1"></i>{{ __('equipment.active') }}
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3 py-2 fw-medium shadow-sm">
+                                                    <i class="mdi mdi-check-circle-outline me-1"></i> {{ __('equipment.active') }}
                                                 </span>
                                             @else
-                                                <span class="badge rounded-pill asset-type-status-badge asset-type-status-badge--inactive">
-                                                    <i class="mdi mdi-minus-circle-outline me-1"></i>{{ __('equipment.inactive') }}
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill px-3 py-2 fw-medium shadow-sm">
+                                                    <i class="mdi mdi-minus-circle-outline me-1"></i> {{ __('equipment.inactive') }}
                                                 </span>
                                             @endif
                                         </td>
@@ -167,16 +167,7 @@
         </div>
     @endif
 
-    @if($showDeleteConfirmModal)
-        @include('livewire.equipment.partials.delete-asset-type-confirm-modal', [
-            'preview' => $pendingDeleteAssetTypePreview,
-        ])
-    @endif
-
     <style>
-        body:has(.asset-type-manager-page.modal-active) {
-            overflow: hidden;
-        }
         .equipment-table {
             table-layout: fixed;
             width: 100%;
@@ -194,183 +185,6 @@
             white-space: normal;
             overflow-wrap: anywhere;
             word-break: break-word;
-        }
-        .asset-type-count-badge {
-            display: inline-block;
-            min-width: 2.25rem;
-            padding: 0.35rem 0.75rem;
-            font-size: 0.875rem;
-            font-weight: 700;
-            color: #ffffff;
-            background-color: #0ea5e9;
-            border: 1px solid #0284c7;
-        }
-        .asset-type-status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.4rem 0.85rem;
-            font-size: 0.8125rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .asset-type-status-badge--active {
-            color: #ffffff;
-            background-color: #16a34a;
-            border: 1px solid #15803d;
-        }
-        .asset-type-status-badge--inactive {
-            color: #ffffff;
-            background-color: #64748b;
-            border: 1px solid #475569;
-        }
-
-        .asset-type-manager-page .eq-delete-overlay {
-            background: rgba(15, 23, 42, 0.52) !important;
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            z-index: 1060;
-            overflow-x: hidden;
-        }
-        .asset-type-manager-page .eq-delete-dialog { max-width: min(520px, calc(100vw - 1.5rem)); }
-        .asset-type-manager-page .eq-delete-shell {
-            border-radius: 20px;
-            overflow: hidden;
-            background: #fff;
-            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(226, 232, 240, 0.9);
-        }
-        .asset-type-manager-page .eq-delete-body {
-            position: relative;
-            padding: 1.35rem;
-            background: linear-gradient(180deg, #fafbfc 0%, #fff 42%);
-            overflow-x: hidden;
-        }
-        .asset-type-manager-page .eq-delete-close {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            z-index: 2;
-            opacity: 0.45;
-        }
-        .asset-type-manager-page .eq-delete-frame {
-            position: relative;
-            padding: 1.25rem 1.35rem;
-            border-radius: 14px;
-            border: 2px dashed rgba(220, 38, 38, 0.55);
-            background: linear-gradient(145deg, rgba(254, 242, 242, 0.65) 0%, rgba(255, 255, 255, 0.92) 38%, #fff 100%);
-            overflow: hidden;
-        }
-        .asset-type-manager-page .eq-delete-frame__glow {
-            position: absolute;
-            top: -30%;
-            right: 0;
-            width: 45%;
-            height: 70%;
-            background: radial-gradient(ellipse at center, rgba(248, 113, 113, 0.12) 0%, transparent 70%);
-            pointer-events: none;
-        }
-        .asset-type-manager-page .eq-delete-intro {
-            display: flex;
-            gap: 0.85rem;
-            margin-bottom: 1.15rem;
-            padding-right: 1.5rem;
-        }
-        .asset-type-manager-page .eq-delete-intro__icon {
-            width: 2.75rem;
-            height: 2.75rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            font-size: 1.35rem;
-            color: #b91c1c;
-            background: linear-gradient(135deg, #fff 0%, #fef2f2 100%);
-            border: 1px solid rgba(254, 202, 202, 0.9);
-        }
-        .asset-type-manager-page .eq-delete-intro__eyebrow {
-            margin: 0 0 0.2rem;
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: #b91c1c;
-        }
-        .asset-type-manager-page .eq-delete-intro__lead {
-            margin: 0;
-            font-size: 0.875rem;
-            color: #64748b;
-        }
-        .asset-type-manager-page .eq-delete-details {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.85rem 1.25rem;
-            margin-bottom: 1rem;
-        }
-        .asset-type-manager-page .eq-delete-field--full { grid-column: 1 / -1; }
-        .asset-type-manager-page .eq-delete-field__label {
-            font-size: 0.68rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: #94a3b8;
-        }
-        .asset-type-manager-page .eq-delete-field__value {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #1e293b;
-            word-break: break-word;
-        }
-        .asset-type-manager-page .eq-delete-field__value--primary {
-            font-size: 1rem;
-            font-weight: 600;
-        }
-        .asset-type-manager-page .eq-delete-pill {
-            display: inline-block;
-            padding: 0.2rem 0.55rem;
-            border-radius: 999px;
-            font-size: 0.78rem;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-        }
-        .asset-type-manager-page .eq-delete-warning {
-            display: flex;
-            gap: 0.65rem;
-            padding: 0.75rem 0.9rem;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
-            border: 1px solid rgba(254, 202, 202, 0.65);
-        }
-        .asset-type-manager-page .eq-delete-warning__icon { color: #dc2626; font-size: 1.15rem; }
-        .asset-type-manager-page .eq-delete-warning__text {
-            font-size: 0.8125rem;
-            color: #991b1b;
-            font-weight: 500;
-        }
-        .asset-type-manager-page .eq-delete-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.5rem;
-            padding: 0.85rem 1.35rem 1.25rem;
-            background: #fafbfc;
-            border-top: 1px solid #eef2f6;
-        }
-        .asset-type-manager-page .eq-delete-btn {
-            border-radius: 10px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            padding: 0.5rem 1.15rem;
-        }
-        .asset-type-manager-page .eq-delete-btn--cancel {
-            color: #475569;
-            background: #fff;
-            border: 1px solid #d8e0eb;
-        }
-        .asset-type-manager-page .eq-delete-btn--confirm {
-            color: #fff;
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            border: none;
-        }
-        .asset-type-manager-page .eq-delete-btn--confirm:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
         }
     </style>
 </div>

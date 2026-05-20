@@ -75,9 +75,10 @@ class SubmissionFormElement extends Model implements Auditable
     {
         return in_array($this->element_type, [
             'text', 'number', 'email', 'date', 'datetime', 
-            'textarea', 'select', 'radio', 'checkbox', 'file', 'camera_photo', 'signature',
+            'textarea', 'select', 'radio', 'checkbox', 'file', 'camera_photo', 'image_upload', 'signature',
             'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select',
             'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select',
+            'zone_select',
             'depended_field',
         ]);
     }
@@ -287,7 +288,7 @@ class SubmissionFormElement extends Model implements Auditable
     {
         return in_array($this->element_type, [
             'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select',
-            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature'
+            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'zone_select',
         ]);
     }
 
@@ -319,6 +320,8 @@ class SubmissionFormElement extends Model implements Auditable
                 return $this->getSamplePointOptions($clientId);
             case 'user_select':
                 return $this->getUserOptions();
+            case 'zone_select':
+                return $this->getZoneOptions();
             default:
                 return [];
         }
@@ -542,6 +545,32 @@ class SubmissionFormElement extends Model implements Auditable
             $options[] = [
                 'value' => $user->id,
                 'label' => $label
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function getZoneOptions(): array
+    {
+        $zones = \App\Zone::query()->orderBy('value')->get();
+
+        $options = [];
+        foreach ($zones as $zone) {
+            $label = (string) $zone->value;
+            if (! empty($zone->key)) {
+                $label = $zone->key . ' — ' . $label;
+            }
+            if (! empty($zone->description)) {
+                $label .= ' (' . \Illuminate\Support\Str::limit((string) $zone->description, 80) . ')';
+            }
+
+            $options[] = [
+                'value' => $zone->id,
+                'label' => $label,
             ];
         }
 

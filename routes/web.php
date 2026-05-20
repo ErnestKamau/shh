@@ -206,6 +206,10 @@ Route::get('/getCustomerSampleTypes', 'Lab\LabDashboardController@getCustomerSam
 Route::get('/lab-home', 'LabController@index')->name('lab-home')->middleware('can:laboratory.components.dashboard.view');
 Route::get('/lab-dashboard', 'Lab\LabDashboardController@index')->name('dashboard-lab')->middleware('can:laboratory.module.access');
 
+Route::get('/lab/equipment-requests', function () {
+    return view('layouts.lab.equipment-requests.index');
+})->name('lab.equipment-requests.index')->middleware('can:laboratory.components.equipment-requests.view');
+
 Route::get('/labs', 'LabController@index')->name('labs')->middleware('can:laboratory.components.labs.view');
 Route::get('/lab/{labid?}/analysis-types', 'AnalysisTypeController@index')->name('show-lab-analysis-types')->middleware('can:laboratory.components.analysis types.view');
 Route::post('/labs', 'LabController@add')->name('add-labs')->middleware('can:laboratory.components.labs.add');
@@ -2106,4 +2110,31 @@ Route::prefix('documents')->name('documents.')->middleware('can:documents.permis
     // Show document (keep last)
     Route::get('/{id}', 'Documents\DocumentController@show')->name('show')->middleware('can:documents.components.document management.view');
 });
+
+//###################################REGISTRY / CORPORATE SERVICES#######################################
+Route::prefix('registry')->name('registry.')->middleware(['auth', 'can:registry.module.access'])->group(function () {
+    Route::get('/', 'Registry\RegistryDashboardController@index')->name('dashboard')->middleware('can:registry.components.dashboard.view');
+
+    Route::prefix('requests')->name('requests.')->group(function () {
+        Route::get('/', 'Registry\RegistryRequestController@index')->name('index')->middleware('can:registry.components.requests.view');
+        Route::get('/create', 'Registry\RegistryRequestController@create')->name('create')->middleware('can:registry.components.requests.add');
+        Route::post('/', 'Registry\RegistryRequestController@store')->name('store')->middleware('can:registry.components.requests.add');
+        Route::get('/{id}', 'Registry\RegistryRequestController@show')->name('show')->middleware('can:registry.components.requests.view');
+        Route::post('/{id}/approve', 'Registry\RegistryRequestController@approve')->name('approve')->middleware('can:registry.components.approval queue.edit');
+        Route::post('/{id}/reject', 'Registry\RegistryRequestController@reject')->name('reject')->middleware('can:registry.components.approval queue.edit');
+        Route::post('/{id}/assign', 'Registry\RegistryRequestController@assign')->name('assign')->middleware('can:registry.components.assignments.edit');
+        Route::post('/{id}/close', 'Registry\RegistryRequestController@close')->name('close')->middleware('can:registry.components.requests.edit');
+        Route::post('/{id}/escalate', 'Registry\RegistryRequestController@escalate')->name('escalate')->middleware('can:registry.components.requests.edit');
+        Route::post('/{id}/documents', 'Registry\RegistryDocumentController@store')->name('documents.store')->middleware('can:registry.components.documents.add');
+    });
+
+    Route::get('/documents/{documentId}/download', 'Registry\RegistryDocumentController@download')->name('documents.download')->middleware('can:registry.components.documents.view');
+
+    Route::get('/approved', 'Registry\RegistryApprovedRequestController@index')->name('approved.index')->middleware('can:registry.components.requests.view');
+    Route::get('/approvals', 'Registry\RegistryApprovalController@index')->name('approvals.index')->middleware('can:registry.components.approval queue.view');
+    Route::get('/correspondence', 'Registry\RegistryCorrespondenceController@index')->name('correspondence.index')->middleware('can:registry.components.correspondence register.view');
+    Route::get('/workflows', 'Registry\RegistryWorkflowController@index')->name('workflows.index')->middleware('can:registry.components.workflow configuration.view');
+    Route::get('/reports/export/{format}', 'Registry\RegistryReportController@export')->name('reports.export')->middleware('can:registry.components.reports.view');
+});
+//###################################REGISTRY / CORPORATE SERVICES#######################################
 

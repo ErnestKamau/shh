@@ -1,0 +1,240 @@
+<?php
+
+namespace App\Services\Sampleworkflow;
+
+use App\ChainOfCustody;
+use App\Models\CRM\CustomerNotification;
+use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
+use App\Models\Sampleworkflow\AnalysisAcceptanceFormLine;
+use App\Models\SubmissionFormInstance;
+use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
+use App\Models\Billing\Pricelist;
+use App\SampleAnalysisStage;
+use App\SampleHeader;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class AcceptanceFormService
+{
+    public const CUSTOMER_CERTIFICATION_TEXT = 'I certify that the above request is correct.';
+
+    public const MANAGER_CERTIFICATION_TEXT = 'I certify that the laboratory has capability and resources to meet customer requirements.';
+
+    public function __construct(
+        private readonly AcceptanceFormPricingService $pricingService,
+    ) {}
+
+    /**
+     * @param  array<string, mixed>  $header
+     * @param  list<array<string, mixed>>  $lines
+     */
+    public function createFromStep1(
+        ?string $submissionFormInstanceId,
+        ?string $submissionRequestId,
+        array $header,
+        array $lines,
+        string $createdBy
+    ): AnalysisAcceptanceForm {
+        return DB::transaction(function () use ($submissionFormInstanceId, $submissionRequestId, $header, $lines, $createdBy) {
+            $prefill = $this->pricingService->buildPrefillFromSelection($submissionRequestId, $submissionFormInstanceId);
+            $customerId = (string) ($header['crm_customer_id'] ?? $prefill['customer_id'] ?? '');
+            $pricelist = $prefill['pricelist'] ?? $this->pricingService->resolvePricelist($customerId);
+
+            $form = AnalysisAcceptanceForm::query()->create([
+                'status' => AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN,
+                'submission_form_instance_id' => $submissionFormInstanceId,
+                'sample_submission_request_id' => $submissionRequestId,
+                'crm_customer_id' => $customerId,
+                'pricelist_id' => $pricelist?->id,
+                'currency_id' => $pricelist?->currency_id,
+                'customer_name' => (string) ($header['customer_name'] ?? $prefill['customer_name'] ?? ''),
+                'request_date' => $header['request_date'] ?? $prefill['request_date'],
+                'number_of_samples' => (int) ($header['number_of_samples'] ?? $prefill['number_of_samples'] ?? 1),
+                'mode_of_work' => (string) ($header['mode_of_work'] ?? $prefill['mode_of_work'] ?? 'Normal'),
+                'date_of_sampling' => $header['date_of_sampling'] ?? $prefill['date_of_sampling'],
+                'customer_certification_text' => self::CUSTOMER_CERTIFICATION_TEXT,
+                'created_by' => $createdBy,
+            ]);
+
+            $this->syncLines($form, $lines, $pricelist);
+            $form->recalculateTotal();
+
+            $this->notifyCustomer($form);
+
+            return $form->load('lines');
+        });
+    }
+
+    public function recordCustomerSignature(
+        AnalysisAcceptanceForm $form,
+        string $signerName,
+        string $signature,
+        ?string $signedAt = null
+    ): AnalysisAcceptanceForm {
+        if ($form->status !== AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN) {
+            throw new \InvalidArgumentException('Acceptance form is not awaiting customer signature.');
+        }
+
+        $form->update([
+            'customer_signer_name' => $signerName,
+            'customer_signature' => $signature,
+            'customer_signed_at' => $signedAt ?? now(),
+            'status' => AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
+            'processing_error' => null,
+        ]);
+
+        $this->dispatchSampleCreationJob((string) $form->id);
+
+        return $form->fresh(['lines']);
+    }
+
+    private function dispatchSampleCreationJob(string $acceptanceFormId): void
+    {
+        $runSync = (bool) config('sampleworkflow.acceptance_form.dispatch_sample_creation_sync', true);
+
+        if ($runSync) {
+            CreateSamplesFromAcceptanceFormJob::dispatchSync($acceptanceFormId);
+        } else {
+            CreateSamplesFromAcceptanceFormJob::dispatch($acceptanceFormId);
+        }
+    }
+
+    public function recordManagerSignature(
+        AnalysisAcceptanceForm $form,
+        string $signerName,
+        string $signature,
+        ?string $signedAt = null,
+        ?string $leadAnalystId = null,
+        ?string $technicalSignatoryId = null,
+    ): AnalysisAcceptanceForm {
+        if ($form->status !== AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
+            throw new \InvalidArgumentException('Acceptance form is not awaiting laboratory manager signature.');
+        }
+
+        if (!$form->sample_header_id) {
+            throw new \RuntimeException('Sample batch has not been created yet. Ask the customer to sign the acceptance form first.');
+        }
+
+        return DB::transaction(function () use ($form, $signerName, $signature, $signedAt, $leadAnalystId, $technicalSignatoryId) {
+            $form->update([
+                'manager_signer_name' => $signerName,
+                'manager_signature' => $signature,
+                'manager_signed_at' => $signedAt ?? now(),
+                'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
+            ]);
+
+            $this->transitionBatchToSamplesInLab($form, $leadAnalystId, $technicalSignatoryId);
+
+            return $form->fresh(['lines', 'sampleHeader']);
+        });
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function syncLines(AnalysisAcceptanceForm $form, array $lines, ?Pricelist $pricelist): void
+    {
+        $form->lines()->delete();
+
+        foreach (array_values($lines) as $index => $line) {
+            $sampleTypeId = $line['sample_type_id'] ?? null;
+            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+            $analysisElementId = $line['analysis_element_id'] ?? null;
+
+            $unitAmount = isset($line['unit_amount'])
+                ? (float) $line['unit_amount']
+                : $this->pricingService->resolveLinePrice($pricelist, $sampleTypeId, $analysisTypeId, $analysisElementId);
+
+            AnalysisAcceptanceFormLine::query()->create([
+                'analysis_acceptance_form_id' => $form->id,
+                'line_no' => (int) ($line['line_no'] ?? $index + 1),
+                'sample_type_id' => $sampleTypeId,
+                'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
+                'analysis_element_id' => $analysisElementId,
+                'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
+                'unit_amount' => $unitAmount,
+                'number_of_samples' => max(1, (int) ($line['number_of_samples'] ?? 1)),
+                'is_approved' => (bool) ($line['is_approved'] ?? true),
+                'sort_order' => (int) ($line['sort_order'] ?? $index),
+            ]);
+        }
+    }
+
+    private function notifyCustomer(AnalysisAcceptanceForm $form): void
+    {
+        CustomerNotification::query()->create([
+            'customer_id' => $form->crm_customer_id,
+            'entity_type' => AnalysisAcceptanceForm::class,
+            'entity_id' => $form->id,
+            'notification_type' => CustomerNotification::TYPE_ACCEPTANCE_FORM_SIGNING,
+            'notification_description' => 'Please review the analysis prices for your request and approve the analysis acceptance form. '
+                . 'Your approval will create a laboratory control number and invoice for the agreed work.',
+        ]);
+    }
+
+    private function transitionBatchToSamplesInLab(
+        AnalysisAcceptanceForm $form,
+        ?string $leadAnalystId = null,
+        ?string $technicalSignatoryId = null,
+    ): void {
+        $batch = SampleHeader::query()->find((string) $form->sample_header_id);
+        if (!$batch) {
+            throw new \RuntimeException('Sample batch not found for this acceptance form.');
+        }
+
+        $targetStatus = 'Samples In Lab';
+        $targetTrackingStage = null;
+        $stages = $batch->stages($targetStatus);
+
+        if (isset($stages[0]->id)) {
+            $targetTrackingStage = $stages[0]->id;
+        } else {
+            $targetTrackingStage = SampleAnalysisStage::query()
+                ->where('sample_workflow', $targetStatus)
+                ->orderBy('level')
+                ->value('id');
+        }
+
+        $previousStatus = $batch->status;
+        $batch->status = $targetStatus;
+        $batch->in_lab_date = now()->format('Y-m-d');
+        $batch->sample_tracking_stage = $targetTrackingStage;
+        $batch->priority = $form->mode_of_work;
+
+        if ($leadAnalystId !== null && $leadAnalystId !== '' && Str::isUuid($leadAnalystId)) {
+            $batch->specialist_analyst_id = $leadAnalystId;
+        }
+
+        if ($technicalSignatoryId !== null && $technicalSignatoryId !== '' && Str::isUuid($technicalSignatoryId)) {
+            $batch->approve_user_id = $technicalSignatoryId;
+        }
+
+        $batch->save();
+
+        $custody = new ChainOfCustody();
+        $custody->sample_header_id = $batch->id;
+        $custody->workflow_stage = $targetStatus;
+        $custody->tracking_stage_id = $batch->sample_tracking_stage;
+        $custody->moved_in_by = auth()->id();
+        $custody->comments = sprintf(
+            'Analysis acceptance form completed by manager (from %s).',
+            $previousStatus ?: 'unknown'
+        );
+        $custody->save();
+
+        $instanceIds = collect([
+            $form->submission_form_instance_id,
+            $batch->submission_form_instance_id,
+        ])
+            ->filter(fn ($id) => $id !== null && (string) $id !== '')
+            ->unique()
+            ->values();
+
+        if ($instanceIds->isNotEmpty()) {
+            SubmissionFormInstance::query()
+                ->whereIn('id', $instanceIds->all())
+                ->whereIn('status', ['in_review', 'In Review', 'submitted', 'Submitted'])
+                ->update(['status' => 'approved']);
+        }
+    }
+}

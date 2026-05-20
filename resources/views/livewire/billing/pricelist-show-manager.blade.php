@@ -513,6 +513,36 @@
                                         </div>
                                     </div>
 
+                                    @include('livewire.billing.partials.pricelist-items-filter-bar')
+
+                                    @if($filteredItemsCount > 0)
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pricelist-items-pagination-meta" style="gap: 8px;">
+                                            <span class="text-muted small">
+                                                Showing {{ $itemPaginator->firstItem() ?? 0 }} to {{ $itemPaginator->lastItem() ?? 0 }} of {{ $itemPaginator->total() }} items
+                                                @if($hasActiveItemFilters)
+                                                    <span class="text-muted">(filtered from {{ $items->count() }} total)</span>
+                                                @endif
+                                            </span>
+                                            @if($itemPaginator->hasPages())
+                                                <nav aria-label="Pricelist items pagination">
+                                                    <ul class="pagination pagination-sm mb-0">
+                                                        <li class="page-item {{ $itemPaginator->onFirstPage() ? 'disabled' : '' }}">
+                                                            <button type="button" class="page-link" wire:click="previousItemsPage" @disabled($itemPaginator->onFirstPage())>Previous</button>
+                                                        </li>
+                                                        @foreach($itemPaginator->getUrlRange(1, $itemPaginator->lastPage()) as $page => $url)
+                                                            <li class="page-item {{ $page === $itemPaginator->currentPage() ? 'active' : '' }}">
+                                                                <button type="button" class="page-link" wire:click="goToItemsPage({{ $page }})">{{ $page }}</button>
+                                                            </li>
+                                                        @endforeach
+                                                        <li class="page-item {{ $itemPaginator->onLastPage() ? 'disabled' : '' }}">
+                                                            <button type="button" class="page-link" wire:click="nextItemsPage" @disabled($itemPaginator->onLastPage())>Next</button>
+                                                        </li>
+                                                    </ul>
+                                                </nav>
+                                            @endif
+                                        </div>
+                                    @endif
+
                                     @if($groupedItems->count() > 0)
                                     <div class="grouped-items-layout">
                                         @foreach($groupedItems as $sampleGroup)
@@ -606,13 +636,38 @@
                                     @else
                                         <div class="compact-empty pricelist-filter-empty">
                                             <i class="mdi mdi-filter-variant"></i>
-                                            @if($itemCommitFilter === 'pending')
+                                            @if($hasActiveItemFilters)
+                                                <p class="mb-2"><strong>No items match your filters.</strong> Try adjusting search or filter criteria.</p>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="clearItemFilters">
+                                                    <i class="mdi mdi-filter-off-outline"></i> Clear filters
+                                                </button>
+                                            @elseif($itemCommitFilter === 'pending')
                                                 <p class="mb-0"><strong>No pending items.</strong> Nothing has an uncommitted price change, or adjust prices and save before applying.</p>
                                             @elseif($itemCommitFilter === 'applied')
                                                 <p class="mb-0"><strong>No applied-only rows.</strong> All items may still show as pending until you apply price changes.</p>
                                             @else
                                                 <p class="mb-0">No line items match the current view.</p>
                                             @endif
+                                        </div>
+                                    @endif
+
+                                    @if($groupedItems->count() > 0 && $itemPaginator->hasPages())
+                                        <div class="d-flex justify-content-center mt-3">
+                                            <nav aria-label="Pricelist items pagination bottom">
+                                                <ul class="pagination pagination-sm mb-0">
+                                                    <li class="page-item {{ $itemPaginator->onFirstPage() ? 'disabled' : '' }}">
+                                                        <button type="button" class="page-link" wire:click="previousItemsPage" @disabled($itemPaginator->onFirstPage())>Previous</button>
+                                                    </li>
+                                                    @foreach($itemPaginator->getUrlRange(1, $itemPaginator->lastPage()) as $page => $url)
+                                                        <li class="page-item {{ $page === $itemPaginator->currentPage() ? 'active' : '' }}">
+                                                            <button type="button" class="page-link" wire:click="goToItemsPage({{ $page }})">{{ $page }}</button>
+                                                        </li>
+                                                    @endforeach
+                                                    <li class="page-item {{ $itemPaginator->onLastPage() ? 'disabled' : '' }}">
+                                                        <button type="button" class="page-link" wire:click="nextItemsPage" @disabled($itemPaginator->onLastPage())>Next</button>
+                                                    </li>
+                                                </ul>
+                                            </nav>
                                         </div>
                                     @endif
                                 @else
@@ -1693,6 +1748,221 @@
 
         .pricelist-items-toolbar {
             flex-shrink: 0;
+        }
+
+        .pricelist-items-filter-bar {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px;
+            background: #ffffff;
+        }
+
+        .pricelist-items-filter-advanced {
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .pricelist-items-filter-bar .item-tag-select.tag-select-container {
+            position: relative;
+            cursor: text;
+        }
+
+        .pricelist-items-filter-bar .tag-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            min-height: 38px;
+            padding: 6px 10px;
+            background: #fff;
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+        }
+
+        .pricelist-items-filter-bar .tag-select-input:focus-within {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 0.18rem rgba(59, 130, 246, 0.12);
+        }
+
+        .pricelist-items-filter-bar .tag-input {
+            flex: 1;
+            min-width: 80px;
+            border: none;
+            outline: none;
+            padding: 2px 4px;
+            font-size: 13px;
+            background: transparent;
+        }
+
+        .pricelist-items-filter-bar .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: #2563eb;
+            color: #fff;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pricelist-items-filter-bar .tag-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            background: #fff;
+            border: 1px solid #93c5fd;
+            border-radius: 0 0 10px 10px;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+        }
+
+        .pricelist-items-filter-bar .tag-dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .pricelist-items-filter-bar .tag-dropdown-item:hover {
+            background: #f8fafc;
+        }
+
+        .pricelist-more-filters-btn {
+            min-height: 38px;
+            font-weight: 600;
+        }
+
+        .pricelist-items-pagination-meta .pagination .page-link {
+            border-radius: 8px;
+            margin: 0 2px;
+        }
+
+        .tag-dropdown-item--selected {
+            background: #eff6ff;
+        }
+
+        .pricelist-filter-hierarchy-hint {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+        }
+
+        .pricelist-filter-hierarchy-step {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+        }
+
+        .pricelist-filter-hierarchy-step.is-active {
+            color: #1d4ed8;
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .pricelist-filter-hierarchy-step.is-complete {
+            color: #047857;
+            border-color: #6ee7b7;
+            background: #ecfdf5;
+        }
+
+        .pricelist-filter-hierarchy-step.is-disabled {
+            opacity: 0.55;
+        }
+
+        .pricelist-filter-hierarchy-arrow {
+            color: #94a3b8;
+            font-size: 16px;
+        }
+
+        .pricelist-filter-tag-select.is-locked {
+            cursor: not-allowed;
+        }
+
+        .pricelist-items-filter-bar .item-tag-select-input--disabled {
+            background: #f1f5f9;
+            cursor: not-allowed;
+        }
+
+        .pricelist-items-filter-bar .tag-input-placeholder {
+            font-size: 13px;
+            padding: 4px 2px;
+            display: block;
+            width: 100%;
+        }
+
+        .pricelist-filter-fields-panel {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+            padding: 14px 16px;
+        }
+
+        .pricelist-filter-fields-panel__header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .pricelist-filter-fields-panel__hint {
+            font-size: 12px;
+        }
+
+        .pricelist-filter-fields-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        @media (max-width: 991.98px) {
+            .pricelist-filter-fields-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .pricelist-filter-fields-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pricelist-filter-field-tile {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .pricelist-filter-field-tile__label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .pricelist-filter-field-tile select {
+            min-height: 38px;
         }
 
         .pricelist-item-row--uncommitted {

@@ -1,0 +1,40 @@
+---
+description: Never run PHPUnit/artisan tests against the dev database; only allow SQLite-isolated runs
+alwaysApply: true
+---
+
+# Do not run tests (protect dev database)
+
+**Default: never run tests.** In this project, `php artisan test`, `vendor/bin/phpunit`, and similar commands have **wiped or corrupted the development database** when PHPUnit did not use an isolated SQLite database (e.g. `.env` overrides, `RefreshDatabase` migrations touching `pgsql` / `pgsql_ai`).
+
+## Forbidden unless SQLite is proven
+
+Do **not** run any of the following unless **all** preconditions in the next section are met:
+
+- `php artisan test` (any flags)
+- `vendor/bin/phpunit`
+- `composer test` / test scripts that execute PHPUnit
+- Parallel test runners or CI commands that hit this app's database
+
+## Only run tests when ALL of these are true
+
+1. The **user explicitly asked** you to run tests in this conversation, **or** running tests is strictly required and there is no safer alternative (rare).
+2. You have **verified** the test run uses **SQLite only**, not the dev PostgreSQL/MySQL connection:
+   - `phpunit.xml` sets `DB_CONNECTION=sqlite` and `DB_DATABASE=:memory:` (or a dedicated `database/database.sqlite` file used **only** for tests).
+   - No `.env` / `.env.testing` value overrides `DB_CONNECTION` to `pgsql`, `mysql`, or another live connection for the testing environment.
+   - If unsure, **read** `phpunit.xml`, `.env.testing` (if present), and `config/database.php` — do not guess.
+3. You understand that some migrations or seeders may still open **secondary** connections (e.g. `pgsql_ai`). If any migration connects outside SQLite during tests, **do not run tests**; tell the user to run them locally after fixing isolation.
+
+If any precondition fails: **do not run tests.** Describe what you changed and ask the user to run tests themselves when their environment is safe.
+
+## What to do instead
+
+- **Write or update** tests when appropriate (`php artisan make:test`, etc.) but **do not execute** them.
+- **Verify** behavior with static analysis, reading code, or manual steps the user can perform.
+- After code changes, say clearly: *"Tests were not run (dev DB protection). Run locally when your test DB is SQLite-only: `php artisan test --filter=...`"*
+
+## Writing tests
+
+- Still follow PHPUnit conventions in `laravel-boost.mdc` (PHPUnit classes, factories, happy/failure paths).
+- Prefer tests that do not require `RefreshDatabase` unless the suite is confirmed SQLite-isolated.
+- Never remove existing tests without user approval.

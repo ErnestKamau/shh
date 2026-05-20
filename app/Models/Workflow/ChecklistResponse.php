@@ -21,6 +21,7 @@ class ChecklistResponse extends Model
 
     protected $fillable = [
         'sample_id',
+        'submission_form_instance_id',
         'approval_id',
         'checklist_item_id',
         'value',
@@ -44,6 +45,11 @@ class ChecklistResponse extends Model
     public function sample()
     {
         return $this->belongsTo(SampleHeader::class, 'sample_id');
+    }
+
+    public function submissionFormInstance()
+    {
+        return $this->belongsTo(\App\Models\SubmissionFormInstance::class, 'submission_form_instance_id');
     }
 
     public function user()

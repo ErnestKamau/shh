@@ -300,6 +300,14 @@
                   <small class="form-text text-muted">If checked, this form can only be submitted via customer portal and will route to LIMS destination page(s).</small>
                 </div>
 
+                <div class="form-group ml-4" id="customer-request-form-wrapper" style="display:none;">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="is_customer_request_form" name="is_customer_request_form" value="1" {{ old('is_customer_request_form', $submissionForm->is_customer_request_form) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_customer_request_form">Mark as customer request form</label>
+                  </div>
+                  <small class="form-text text-muted">When multiple forms are marked, the portal API returns the most recently updated one as the default customer request form.</small>
+                </div>
+
                 <div class="form-group" id="target-pages-wrapper">
                   <label for="target_pages">Target Pages</label>
                   <select class="form-control select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
@@ -632,6 +640,7 @@
     const $placementMode = $('#placement-mode-wrapper');
     const $displayMode = $('#display-mode-wrapper');
     const $advancedPlacement = $('#advanced-placement-section');
+    const $customerRequestWrapper = $('#customer-request-form-wrapper');
 
     if (isPortal) {
       $targetPages.hide();
@@ -639,9 +648,12 @@
       $displayMode.hide();
       $advancedPlacement.addClass('d-none');
       $('#lims-destination-wrapper').show();
+      $customerRequestWrapper.show();
       return;
     }
 
+    $customerRequestWrapper.hide();
+    $('#is_customer_request_form').prop('checked', false);
     $targetPages.show();
     $placementMode.show();
     $displayMode.show();

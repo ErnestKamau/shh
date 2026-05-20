@@ -184,6 +184,7 @@ class SampleCreationService
             case 'store_select':
             case 'store_slot_select':
             case 'standard_select':
+            case 'zone_select':
                 // For custom select fields, return the selected value (ID)
                 return $instanceValue->value;
 
@@ -199,6 +200,7 @@ class SampleCreationService
                 return $instanceValue->file_path;
 
             case 'camera_photo':
+            case 'image_upload':
                 return $instanceValue->file_path;
 
             default:

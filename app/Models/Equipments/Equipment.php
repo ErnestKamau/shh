@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use Carbon\Carbon;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Equipment extends Model implements Auditable
@@ -188,6 +190,31 @@ class Equipment extends Model implements Auditable
 			'maintainance' => $lastMaintainanceLog,
 			'calibration' => $lastCalibrationLog
 		);
+	}
+
+	public function assetLocation(): BelongsTo
+	{
+		return $this->belongsTo(\App\Models\Assets\AssetLocation::class, 'asset_location_id');
+	}
+
+	public function lab(): BelongsTo
+	{
+		return $this->belongsTo(\App\Lab::class, 'lab_id');
+	}
+
+	/**
+	 * @param  array<int, string>  $zoneIds
+	 */
+	public function scopeInZones(Builder $query, array $zoneIds): Builder
+	{
+		if ($zoneIds === []) {
+			return $query->whereRaw('1 = 0');
+		}
+
+		return $query->where(function (Builder $q) use ($zoneIds): void {
+			$q->whereHas('lab', fn (Builder $lab) => $lab->whereIn('zone_id', $zoneIds))
+				->orWhereHas('assetLocation.lab', fn (Builder $lab) => $lab->whereIn('zone_id', $zoneIds));
+		});
 	}
 
 	/**

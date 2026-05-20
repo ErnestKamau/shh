@@ -24,6 +24,10 @@ if (!function_exists('getElementIcon')) {
                 return 'file-upload-outline';
             case 'camera_photo':
                 return 'camera';
+            case 'image_upload':
+                return 'image-plus';
+            case 'zone_select':
+                return 'map-marker-radius';
             case 'signature':
                 return 'draw';
             case 'client_select':

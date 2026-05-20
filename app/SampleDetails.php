@@ -28,7 +28,8 @@ class SampleDetails extends Model implements Auditable
         'secondary_standard' => 'string',
         'third_standard_id' => 'string',
         'store_id' => 'string',
-        'store_slot_id' => 'string'
+        'store_slot_id' => 'string',
+        'sample_type_id' => 'string',
     ];
 
 	use \OwenIt\Auditing\Auditable;

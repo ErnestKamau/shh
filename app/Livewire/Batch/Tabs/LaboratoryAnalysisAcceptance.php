@@ -6,7 +6,9 @@ use App\AnalysisType;
 use App\BatchAttachment;
 use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -50,6 +52,13 @@ class LaboratoryAnalysisAcceptance extends Component
 
     public ?string $attachmentUrl = null;
 
+    /**
+     * @var array<string, mixed>
+     */
+    public array $receiptForm = [];
+
+    public ?string $receiptAttachmentUrl = null;
+
     public function mount(SampleHeader $batch): void
     {
         $this->batch = $batch;
@@ -58,15 +67,39 @@ class LaboratoryAnalysisAcceptance extends Component
         $this->loadRequestedParameters();
         $this->loadExistingDraft();
         $this->loadExistingAttachment();
+        $this->receiptForm = app(SampleReceiptNotificationService::class)->resolveFormStateForBatch($this->batch);
+        $this->loadReceiptAttachment();
 
         if (Auth::user() && (int) Auth::user()->is_client === 1) {
             $this->readOnly = true;
         }
+
+        $this->applyLabAcceptanceTabHash();
+    }
+
+    public function updatedCurrentPart(): void
+    {
+        $this->applyLabAcceptanceTabHash();
+    }
+
+    /**
+     * Support deep links such as `#laboratory-acceptance` and `#laboratory-acceptance-part-5`.
+     */
+    private function applyLabAcceptanceTabHash(): void
+    {
+        $this->dispatch('lab-acceptance-part-changed', part: $this->currentPart);
     }
 
     public function setPart(int $part): void
     {
-        $this->currentPart = max(1, min(4, $part));
+        $this->currentPart = max(1, min(5, $part));
+        $this->applyLabAcceptanceTabHash();
+    }
+
+    #[On('batch-open-laboratory-acceptance-part')]
+    public function openLaboratoryAcceptancePart(int $part): void
+    {
+        $this->setPart($part);
     }
 
     public function nextPart(): void
@@ -148,6 +181,72 @@ class LaboratoryAnalysisAcceptance extends Component
         $this->dispatch('attachmentsUpdated');
 
         session()->flash('success', 'Laboratory Analysis Acceptance form submitted and attached to this batch.');
+    }
+
+    public function saveReceiptDraft(): void
+    {
+        if ($this->readOnly) {
+            return;
+        }
+
+        $service = app(SampleReceiptNotificationService::class);
+        $acceptance = $service->findAcceptanceFormForBatch($this->batch);
+        $service->persistForBatchLinkedAcceptance($acceptance, $this->batch, $this->receiptForm);
+
+        session()->flash('success', 'Sample Receipt Notification draft saved.');
+    }
+
+    /**
+     * @return array<string, array<int, string|string>>
+     */
+    private function receiptValidationRules(): array
+    {
+        $rules = app(SampleReceiptNotificationService::class)->fullValidationRules();
+
+        $out = [];
+        foreach ($rules as $key => $rule) {
+            $out[preg_replace('/^form\./', 'receiptForm.', (string) $key)] = $rule;
+        }
+
+        return $out;
+    }
+
+    public function submitReceiptNotification(): void
+    {
+        if ($this->readOnly) {
+            return;
+        }
+
+        $messages = [
+            'receiptForm.submitter_signature.required' => 'Submitting person signature is required.',
+            'receiptForm.receiver_signature.required' => 'Receiving person signature is required.',
+        ];
+
+        $this->validate($this->receiptValidationRules(), $messages);
+
+        $service = app(SampleReceiptNotificationService::class);
+        $acceptance = $service->findAcceptanceFormForBatch($this->batch);
+        $service->persistForBatchLinkedAcceptance($acceptance, $this->batch, $this->receiptForm);
+
+        $this->receiptAttachmentUrl = $service->generatePdfAndStoreAttachment(
+            $this->batch,
+            $this->receiptForm,
+            Auth::id()
+        );
+
+        $this->dispatch('attachmentsUpdated');
+
+        session()->flash('success', 'Sample Receipt Notification submitted and attached to this batch.');
+    }
+
+    public function loadReceiptAttachment(): void
+    {
+        $existing = BatchAttachment::where('batch_id', $this->batch->id)
+            ->where('title', SampleReceiptNotificationService::ATTACHMENT_TITLE)
+            ->orderByDesc('created_at')
+            ->first();
+
+        $this->receiptAttachmentUrl = $existing?->attachment_url;
     }
 
     public function getAcceptedTotalProperty(): float

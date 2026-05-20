@@ -53,6 +53,7 @@ class PageLayoutRegistry
             ],
             'buttons' => [
                 ['trigger_id' => 'workflow-receive-sample', 'label' => 'Receive Sample button'],
+                ['trigger_id' => 'workflow-move-to-intray', 'label' => 'Move to tray button'],
                 ['trigger_id' => 'workflow-add-sample',     'label' => 'Add Sample button'],
                 ['trigger_id' => 'workflow-verify',         'label' => 'Verify button'],
                 ['trigger_id' => 'workflow-approve',        'label' => 'Approve button'],

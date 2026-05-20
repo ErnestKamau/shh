@@ -19,6 +19,12 @@ class SubmissionFormInstanceValue extends Model implements Auditable
 
     use \OwenIt\Auditing\Auditable;
 
+    /**
+     * @var array<int, string>
+     */
+    protected $auditExclude = [
+        'value',
+    ];
 
     protected $fillable = [
         'submission_form_instance_id',
@@ -69,6 +75,7 @@ class SubmissionFormInstanceValue extends Model implements Auditable
             case 'file':
                 return $this->file_path;
             case 'camera_photo':
+            case 'image_upload':
                 return $this->file_path;
             
             case 'checkbox':
@@ -82,6 +89,19 @@ class SubmissionFormInstanceValue extends Model implements Auditable
                     return $options[$this->value] ?? $this->value;
                 }
                 return $this->value;
+
+            case 'zone_select':
+                if (! $this->value) {
+                    return null;
+                }
+
+                $zone = \App\Zone::query()->find($this->value);
+
+                if (! $zone) {
+                    return $this->value;
+                }
+
+                return $zone->key ? ($zone->key . ' — ' . $zone->value) : $zone->value;
             
             case 'number':
                 return is_numeric($this->value) ? (float) $this->value : $this->value;
@@ -111,7 +131,7 @@ class SubmissionFormInstanceValue extends Model implements Auditable
         }
         
         // Handle file uploads
-        if ($this->element && in_array($this->element->element_type, ['file', 'camera_photo'], true) && $this->file_path) {
+        if ($this->element && in_array($this->element->element_type, ['file', 'camera_photo', 'image_upload'], true) && $this->file_path) {
             return basename($this->file_path);
         }
         
@@ -125,7 +145,7 @@ class SubmissionFormInstanceValue extends Model implements Auditable
     {
         return $this->value === null || 
                $this->value === '' || 
-               ($this->element && in_array($this->element->element_type, ['file', 'camera_photo'], true) && empty($this->file_path));
+               ($this->element && in_array($this->element->element_type, ['file', 'camera_photo', 'image_upload'], true) && empty($this->file_path));
     }
 
     /**

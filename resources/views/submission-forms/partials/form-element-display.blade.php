@@ -201,13 +201,16 @@
         </select>
         <div class="field-display-value">{{ $displayValue }}</div>
 
-    @elseif(in_array($element->element_type, ['file', 'camera_photo'], true))
+    @elseif($element->element_type === 'zone_select')
+        <div class="field-display-value">{{ $displayValue }}</div>
+
+    @elseif(in_array($element->element_type, ['file', 'camera_photo', 'image_upload'], true))
         @if($existingValue && $existingValue->file_path)
             <div class="file-display">
                 <a href="{{ Storage::url($existingValue->file_path) }}" 
                    target="_blank" 
                    class="btn btn-sm btn-outline-primary">
-                    <i class="mdi mdi-eye"></i> View {{ $element->element_type === 'camera_photo' ? 'Photo' : 'File' }}
+                    <i class="mdi mdi-eye"></i> View {{ in_array($element->element_type, ['camera_photo', 'image_upload'], true) ? 'Photo' : 'File' }}
                 </a>
                 <small class="text-muted d-block mt-1">
                     {{ basename($existingValue->file_path) }}
@@ -215,7 +218,7 @@
             </div>
         @else
             <div class="file-display">
-                <span class="text-muted">No {{ $element->element_type === 'camera_photo' ? 'photo' : 'file' }} uploaded</span>
+                <span class="text-muted">No {{ in_array($element->element_type, ['camera_photo', 'image_upload'], true) ? 'photo' : 'file' }} uploaded</span>
             </div>
         @endif
 

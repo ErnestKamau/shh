@@ -129,16 +129,6 @@
   font-family: var(--crm-font-family);
 }
 
-/* Page header inside white card (align with client registry / customer management) */
-.crm-page-header-card .crm-page-title {
-  padding: 0;
-}
-
-.crm-page-header-card .crm-page-subtitle {
-  padding: 0;
-  margin-bottom: 0;
-}
-
 /* Override my-small-text in CRM: use body size/color for readability (no 12px) */
 #main-container-body.crm-main-content .my-small-text {
   font-size: var(--crm-font-body) !important;
@@ -537,66 +527,6 @@
 
 .crm-table tbody tr:last-child td {
   border-bottom: none;
-}
-
-/* White tbody rows (no striping) — complaint workflow & aligned list views */
-.crm-table-wrap.crm-table-wrap--plain-rows .crm-table tbody tr {
-  background: #fff !important;
-}
-
-.crm-table-wrap.crm-table-wrap--plain-rows .crm-table tbody tr:hover {
-  background: var(--crm-neutral-100) !important;
-}
-
-/* Small rounded outline buttons (system-style lists) */
-.crm-outline-btn-sm {
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-/* Registry-style row actions (rm-act-btn) */
-.rm-act-btn {
-  border-radius: 7px;
-  padding: 4px 8px;
-  margin-right: 3px;
-  font-size: 12px;
-}
-
-.rm-act-btn:last-child {
-  margin-right: 0;
-}
-
-.rm-act-btn--edit {
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-  background: #eff6ff;
-}
-
-.rm-act-btn--edit:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
-}
-
-.rm-act-btn--delete {
-  border: 1px solid #fecaca;
-  color: #b91c1c;
-  background: #fef2f2;
-}
-
-.rm-act-btn--delete:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-}
-
-.rm-act-btn--view {
-  border: 1px solid #bbf7d0;
-  color: #15803d;
-  background: #f0fdf4;
-}
-
-.rm-act-btn--view:hover {
-  background: #dcfce7;
-  border-color: #86efac;
 }
 
 /* Visible columns: subtle vertical separators (rows + columns clear) */

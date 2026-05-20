@@ -21,6 +21,7 @@ class ApprovalLog extends Model
 
     protected $fillable = [
         'sample_id',
+        'submission_form_instance_id',
         'approval_id',
         'stage_name',
         'status',
@@ -41,6 +42,11 @@ class ApprovalLog extends Model
     public function sample()
     {
         return $this->belongsTo(SampleHeader::class, 'sample_id');
+    }
+
+    public function submissionFormInstance()
+    {
+        return $this->belongsTo(\App\Models\SubmissionFormInstance::class, 'submission_form_instance_id');
     }
 
     public function approvedByUser()

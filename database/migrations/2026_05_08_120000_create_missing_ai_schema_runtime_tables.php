@@ -30,8 +30,8 @@ return new class extends Migration
                 confidence DOUBLE PRECISION DEFAULT 0,
                 success BOOLEAN DEFAULT TRUE,
                 error_message TEXT,
-                company_id VARCHAR(128),
-                user_id VARCHAR(128),
+                company_id BIGINT,
+                user_id BIGINT,
                 session_id VARCHAR(128),
                 response_preview TEXT,
                 source_count INTEGER DEFAULT 0,
@@ -46,7 +46,7 @@ return new class extends Migration
 
         DB::statement(<<<'SQL'
             CREATE TABLE IF NOT EXISTS ai.ai_feature_snapshots (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id BIGSERIAL PRIMARY KEY,
                 snapshot_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 description TEXT,
                 metadata JSONB,
@@ -85,7 +85,7 @@ return new class extends Migration
                 indexing_status VARCHAR(50) DEFAULT 'pending',
                 last_indexed_at TIMESTAMPTZ,
                 expires_at TIMESTAMPTZ,
-                created_by VARCHAR(128),
+                created_by BIGINT,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
@@ -95,7 +95,7 @@ return new class extends Migration
             CREATE TABLE IF NOT EXISTS ai.ai_sample_features (
                 id BIGSERIAL PRIMARY KEY,
                 sample_id BIGINT NOT NULL,
-                snapshot_id UUID NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
+                snapshot_id BIGINT NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
                 tat_days DOUBLE PRECISION,
                 stage_count INTEGER DEFAULT 0,
                 priority_score INTEGER DEFAULT 0,
@@ -115,7 +115,7 @@ return new class extends Migration
             CREATE TABLE IF NOT EXISTS ai.ai_equipment_features (
                 id BIGSERIAL PRIMARY KEY,
                 equipment_id BIGINT NOT NULL,
-                snapshot_id UUID NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
+                snapshot_id BIGINT NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
                 days_since_service DOUBLE PRECISION,
                 days_until_due DOUBLE PRECISION,
                 failure_rate DOUBLE PRECISION DEFAULT 0,
@@ -135,7 +135,7 @@ return new class extends Migration
             CREATE TABLE IF NOT EXISTS ai.ai_qc_features (
                 id BIGSERIAL PRIMARY KEY,
                 qc_result_id BIGINT NOT NULL,
-                snapshot_id UUID NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
+                snapshot_id BIGINT NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
                 cv_percent DOUBLE PRECISION,
                 z_score DOUBLE PRECISION,
                 moving_avg_10 DOUBLE PRECISION,
@@ -192,7 +192,7 @@ return new class extends Migration
                 absolute_error DOUBLE PRECISION,
                 user_feedback TEXT,
                 feedback_type VARCHAR(50),
-                user_id VARCHAR(128),
+                user_id BIGINT,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
@@ -225,7 +225,7 @@ return new class extends Migration
                 version VARCHAR(100) NOT NULL DEFAULT '1.0.0',
                 framework VARCHAR(100),
                 artifact_path TEXT,
-                feature_snapshot_id UUID,
+                feature_snapshot_id BIGINT,
                 training_rows INTEGER DEFAULT 0,
                 training_duration_seconds DOUBLE PRECISION,
                 hyperparameters JSONB,
@@ -281,7 +281,7 @@ return new class extends Migration
                     embedding vector(1536),
                     metadata JSONB,
                     required_permission VARCHAR(150),
-                    company_id VARCHAR(128),
+                    company_id BIGINT,
                     expires_at TIMESTAMPTZ,
                     source_lineage_url TEXT,
                     tsvector_content TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', COALESCE(content, ''))) STORED,

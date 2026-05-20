@@ -12,6 +12,8 @@ use App\Models\Billing\PricelistItem;
 use App\Models\Currency;
 use App\Models\System\SystemConfiguration;
 use App\SampleType;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -58,6 +60,46 @@ class PricelistShowManager extends Component
     public $showCloneModal = false;
     public $cloneForm = [];
     public string $itemCommitFilter = 'all';
+
+    public string $itemSearch = '';
+
+    /** @var array<int, string> */
+    public array $itemSampleTypeFilterIds = [];
+
+    /** @var array<int, string> */
+    public array $itemAnalysisTypeFilterIds = [];
+
+    /** @var array<int, string> */
+    public array $itemAnalysisElementFilterIds = [];
+
+    public string $itemActiveFilter = '';
+
+    public string $itemVatFilter = '';
+
+    public string $itemInternalUseFilter = '';
+
+    public string $itemExternalViewFilter = '';
+
+    public int $itemsPerPage = 25;
+
+    public int $itemsPage = 1;
+
+    /** @var array<int, int> */
+    public array $itemsPerPageOptions = [25, 50, 75, 100];
+
+    public bool $showItemAdvancedFilters = false;
+
+    public string $itemFilterSampleTypeSearch = '';
+
+    public bool $showItemFilterSampleTypeDropdown = false;
+
+    public string $itemFilterAnalysisTypeSearch = '';
+
+    public bool $showItemFilterAnalysisTypeDropdown = false;
+
+    public string $itemFilterAnalysisElementSearch = '';
+
+    public bool $showItemFilterAnalysisElementDropdown = false;
 
     public bool $showDeleteItemConfirmModal = false;
 
@@ -187,62 +229,239 @@ class PricelistShowManager extends Component
             ->values();
     }
 
-    public function getGroupedItemsProperty()
+    public function getFilteredItemsProperty(): Collection
     {
-        return $this->items
-            ->filter(function ($item) {
-                if ($this->itemCommitFilter === 'pending') {
-                    return (bool) ($item->has_pending_change ?? false);
+        return $this->items->filter(function ($item): bool {
+            if ($this->itemCommitFilter === 'pending') {
+                if (!(bool) ($item->has_pending_change ?? false)) {
+                    return false;
                 }
-
-                if ($this->itemCommitFilter === 'applied') {
-                    return !(bool) ($item->has_pending_change ?? false);
+            } elseif ($this->itemCommitFilter === 'applied') {
+                if ((bool) ($item->has_pending_change ?? false)) {
+                    return false;
                 }
+            }
 
-                return true;
-            })
-            ->groupBy(function ($item) {
-                return (string) ($item->sample_type_id ?? '');
-            })
-            ->map(function ($sampleItems) {
-                $firstSampleItem = $sampleItems->first();
+            if (! $this->itemMatchesSearch($item)) {
+                return false;
+            }
 
-                $analysisGroups = $sampleItems
-                    ->groupBy(function ($item) {
-                        return (string) ($item->analysis_id ?? '');
-                    })
-                    ->map(function ($analysisItems) {
-                        $firstAnalysisItem = $analysisItems->first();
+            if ($this->itemSampleTypeFilterIds !== []
+                && ! in_array((string) ($item->sample_type_id ?? ''), $this->itemSampleTypeFilterIds, true)) {
+                return false;
+            }
 
-                        return (object) [
-                            'analysis_id' => (string) ($firstAnalysisItem->analysis_id ?? ''),
-                            'analysis_type_name' => $firstAnalysisItem->analysis_type_name ?? 'Unassigned Analysis',
-                            'analysis_type_code' => $firstAnalysisItem->analysis_type_code,
-                            'total_amount' => (float) $analysisItems->sum(function ($item) {
-                                return (float) ($item->selling_price ?? 0);
-                            }),
-                            'rows' => $analysisItems,
-                        ];
-                    })
-                    ->sortBy(function ($group) {
-                        return mb_strtolower((string) ($group->analysis_type_name ?? ''));
-                    })
-                    ->values();
+            if ($this->itemAnalysisTypeFilterIds !== []
+                && ! in_array((string) ($item->analysis_id ?? ''), $this->itemAnalysisTypeFilterIds, true)) {
+                return false;
+            }
+
+            if ($this->itemAnalysisElementFilterIds !== []
+                && ! in_array((string) ($item->analysis_element_id ?? ''), $this->itemAnalysisElementFilterIds, true)) {
+                return false;
+            }
+
+            if (! $this->itemMatchesFlagFilter($item, $this->itemActiveFilter, 'active')) {
+                return false;
+            }
+
+            if (! $this->itemMatchesFlagFilter($item, $this->itemVatFilter, 'vat')) {
+                return false;
+            }
+
+            if (! $this->itemMatchesFlagFilter($item, $this->itemInternalUseFilter, 'internal_use')) {
+                return false;
+            }
+
+            if (! $this->itemMatchesFlagFilter($item, $this->itemExternalViewFilter, 'external_view')) {
+                return false;
+            }
+
+            return true;
+        })->values();
+    }
+
+    public function getPaginatedFilteredItemsProperty(): Collection
+    {
+        $filtered = $this->filteredItems;
+        $perPage = max(1, $this->itemsPerPage);
+        $page = $this->resolvedItemsPage($filtered->count(), $perPage);
+
+        return $filtered->forPage($page, $perPage)->values();
+    }
+
+    public function getItemPaginatorProperty(): LengthAwarePaginator
+    {
+        $filtered = $this->filteredItems;
+        $perPage = max(1, $this->itemsPerPage);
+        $total = $filtered->count();
+        $page = $this->resolvedItemsPage($total, $perPage);
+
+        return new LengthAwarePaginator(
+            $this->paginatedFilteredItems->all(),
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'pageName' => 'itemsPage',
+            ]
+        );
+    }
+
+    public function getHasActiveItemFiltersProperty(): bool
+    {
+        return $this->itemSearch !== ''
+            || $this->itemSampleTypeFilterIds !== []
+            || $this->itemAnalysisTypeFilterIds !== []
+            || $this->itemAnalysisElementFilterIds !== []
+            || $this->itemActiveFilter !== ''
+            || $this->itemVatFilter !== ''
+            || $this->itemInternalUseFilter !== ''
+            || $this->itemExternalViewFilter !== '';
+    }
+
+    public function getItemFilterSampleTypesProperty(): Collection
+    {
+        $sampleTypeIds = $this->items
+            ->pluck('sample_type_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($sampleTypeIds === []) {
+            return collect();
+        }
+
+        return SampleType::query()
+            ->select('id', 'code', 'name')
+            ->whereIn('id', $sampleTypeIds)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getFilteredItemFilterSampleTypesProperty(): Collection
+    {
+        $types = $this->itemFilterSampleTypes;
+        $query = mb_strtolower(trim($this->itemFilterSampleTypeSearch));
+        if ($query === '') {
+            return $types;
+        }
+
+        return $types->filter(function ($sampleType) use ($query): bool {
+            return str_contains(mb_strtolower((string) ($sampleType->name ?? '')), $query)
+                || str_contains(mb_strtolower((string) ($sampleType->code ?? '')), $query);
+        })->values();
+    }
+
+    public function getCanFilterByAnalysisTypeProperty(): bool
+    {
+        return $this->itemSampleTypeFilterIds !== [];
+    }
+
+    public function getCanFilterByParameterProperty(): bool
+    {
+        return $this->itemAnalysisTypeFilterIds !== [];
+    }
+
+    public function getItemFilterAnalysisTypesProperty(): Collection
+    {
+        if ($this->itemSampleTypeFilterIds === []) {
+            return collect();
+        }
+
+        $analysisIds = $this->items
+            ->filter(fn ($item) => in_array((string) ($item->sample_type_id ?? ''), $this->itemSampleTypeFilterIds, true))
+            ->pluck('analysis_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($analysisIds === []) {
+            return collect();
+        }
+
+        return AnalysisType::query()
+            ->select('id', 'code', 'name', 'sample_type_id')
+            ->whereIn('id', $analysisIds)
+            ->whereIn('sample_type_id', $this->itemSampleTypeFilterIds)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function getFilteredItemFilterAnalysisTypesProperty(): Collection
+    {
+        $types = $this->itemFilterAnalysisTypes;
+        $query = mb_strtolower(trim($this->itemFilterAnalysisTypeSearch));
+        if ($query === '') {
+            return $types;
+        }
+
+        return $types->filter(function ($analysisType) use ($query): bool {
+            return str_contains(mb_strtolower((string) ($analysisType->name ?? '')), $query)
+                || str_contains(mb_strtolower((string) ($analysisType->code ?? '')), $query);
+        })->values();
+    }
+
+    public function getItemFilterAnalysisElementsProperty(): Collection
+    {
+        if ($this->itemSampleTypeFilterIds === [] || $this->itemAnalysisTypeFilterIds === []) {
+            return collect();
+        }
+
+        $itemsQuery = $this->items
+            ->filter(fn ($item) => in_array((string) ($item->sample_type_id ?? ''), $this->itemSampleTypeFilterIds, true))
+            ->filter(fn ($item) => in_array((string) ($item->analysis_id ?? ''), $this->itemAnalysisTypeFilterIds, true));
+
+        $elementIds = $itemsQuery
+            ->pluck('analysis_element_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($elementIds === []) {
+            return collect();
+        }
+
+        return AnalysisElements::query()
+            ->with(['analyte:id,name,code'])
+            ->whereIn('id', $elementIds)
+            ->orderBy('level')
+            ->get()
+            ->map(function (AnalysisElements $element): object {
+                $code = trim((string) ($element->analyte?->code ?? ''));
+                $name = trim((string) ($element->analyte?->name ?? ''));
 
                 return (object) [
-                    'sample_type_id' => (string) ($firstSampleItem->sample_type_id ?? ''),
-                    'sample_type_name' => $firstSampleItem->sample_type_name ?? 'Unassigned Sample Type',
-                    'sample_type_code' => $firstSampleItem->sample_type_code,
-                    'analysis_groups' => $analysisGroups,
+                    'id' => (string) $element->id,
+                    'label' => $code !== '' ? ($code . ' - ' . $name) : ($name !== '' ? $name : 'Element'),
                 ];
             })
-            ->filter(function ($group) {
-                return $group->analysis_groups->count() > 0;
-            })
-            ->sortBy(function ($group) {
-                return mb_strtolower((string) ($group->sample_type_name ?? ''));
-            })
             ->values();
+    }
+
+    public function getFilteredItemFilterAnalysisElementsProperty(): Collection
+    {
+        $elements = $this->itemFilterAnalysisElements;
+        $query = mb_strtolower(trim($this->itemFilterAnalysisElementSearch));
+        if ($query === '') {
+            return $elements;
+        }
+
+        return $elements->filter(function ($element) use ($query): bool {
+            return str_contains(mb_strtolower((string) ($element->label ?? '')), $query);
+        })->values();
+    }
+
+    public function getGroupedItemsProperty(): Collection
+    {
+        return $this->groupItems($this->paginatedFilteredItems);
     }
 
     public function setItemCommitFilter(string $filter): void
@@ -252,6 +471,188 @@ class PricelistShowManager extends Component
         }
 
         $this->itemCommitFilter = $filter;
+        $this->resetItemsPage();
+    }
+
+    public function toggleItemAdvancedFilters(): void
+    {
+        $this->showItemAdvancedFilters = ! $this->showItemAdvancedFilters;
+    }
+
+    public function clearItemFilters(): void
+    {
+        $this->itemSearch = '';
+        $this->itemSampleTypeFilterIds = [];
+        $this->itemAnalysisTypeFilterIds = [];
+        $this->itemAnalysisElementFilterIds = [];
+        $this->itemActiveFilter = '';
+        $this->itemVatFilter = '';
+        $this->itemInternalUseFilter = '';
+        $this->itemExternalViewFilter = '';
+        $this->itemFilterSampleTypeSearch = '';
+        $this->itemFilterAnalysisTypeSearch = '';
+        $this->itemFilterAnalysisElementSearch = '';
+        $this->showItemFilterSampleTypeDropdown = false;
+        $this->showItemFilterAnalysisTypeDropdown = false;
+        $this->showItemFilterAnalysisElementDropdown = false;
+        $this->resetItemsPage();
+    }
+
+    public function resetItemsPage(): void
+    {
+        $this->itemsPage = 1;
+    }
+
+    public function goToItemsPage(int $page): void
+    {
+        $perPage = max(1, $this->itemsPerPage);
+        $total = $this->filteredItems->count();
+        $lastPage = max(1, (int) ceil($total / $perPage) ?: 1);
+        $this->itemsPage = max(1, min($page, $lastPage));
+    }
+
+    public function previousItemsPage(): void
+    {
+        $this->goToItemsPage($this->itemsPage - 1);
+    }
+
+    public function nextItemsPage(): void
+    {
+        $this->goToItemsPage($this->itemsPage + 1);
+    }
+
+    public function toggleItemFilterSampleType(string $id): void
+    {
+        $id = (string) $id;
+        if (in_array($id, $this->itemSampleTypeFilterIds, true)) {
+            $this->itemSampleTypeFilterIds = array_values(array_filter(
+                $this->itemSampleTypeFilterIds,
+                fn (string $selectedId): bool => $selectedId !== $id
+            ));
+        } else {
+            $this->itemSampleTypeFilterIds[] = $id;
+        }
+
+        $this->syncDependentItemFilters();
+        $this->resetItemsPage();
+    }
+
+    public function removeItemFilterSampleType(string $id): void
+    {
+        $id = (string) $id;
+        $this->itemSampleTypeFilterIds = array_values(array_filter(
+            $this->itemSampleTypeFilterIds,
+            fn (string $selectedId): bool => $selectedId !== $id
+        ));
+        $this->syncDependentItemFilters();
+        $this->resetItemsPage();
+    }
+
+    public function toggleItemFilterAnalysisType(string $id): void
+    {
+        if (! $this->canFilterByAnalysisType) {
+            return;
+        }
+
+        $id = (string) $id;
+        if (in_array($id, $this->itemAnalysisTypeFilterIds, true)) {
+            $this->itemAnalysisTypeFilterIds = array_values(array_filter(
+                $this->itemAnalysisTypeFilterIds,
+                fn (string $selectedId): bool => $selectedId !== $id
+            ));
+        } else {
+            $this->itemAnalysisTypeFilterIds[] = $id;
+        }
+
+        $this->syncParameterFiltersAfterAnalysisTypeChange();
+        $this->resetItemsPage();
+    }
+
+    public function removeItemFilterAnalysisType(string $id): void
+    {
+        $id = (string) $id;
+        $this->itemAnalysisTypeFilterIds = array_values(array_filter(
+            $this->itemAnalysisTypeFilterIds,
+            fn (string $selectedId): bool => $selectedId !== $id
+        ));
+        $this->syncParameterFiltersAfterAnalysisTypeChange();
+        $this->resetItemsPage();
+    }
+
+    public function toggleItemFilterAnalysisElement(string $id): void
+    {
+        if (! $this->canFilterByParameter) {
+            return;
+        }
+
+        $id = (string) $id;
+        if (in_array($id, $this->itemAnalysisElementFilterIds, true)) {
+            $this->itemAnalysisElementFilterIds = array_values(array_filter(
+                $this->itemAnalysisElementFilterIds,
+                fn (string $selectedId): bool => $selectedId !== $id
+            ));
+        } else {
+            $this->itemAnalysisElementFilterIds[] = $id;
+        }
+
+        $this->resetItemsPage();
+    }
+
+    public function removeItemFilterAnalysisElement(string $id): void
+    {
+        $id = (string) $id;
+        $this->itemAnalysisElementFilterIds = array_values(array_filter(
+            $this->itemAnalysisElementFilterIds,
+            fn (string $selectedId): bool => $selectedId !== $id
+        ));
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemSearch(): void
+    {
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemSampleTypeFilterIds(): void
+    {
+        $this->syncDependentItemFilters();
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemAnalysisTypeFilterIds(): void
+    {
+        $this->syncParameterFiltersAfterAnalysisTypeChange();
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemAnalysisElementFilterIds(): void
+    {
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemActiveFilter(): void
+    {
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemVatFilter(): void
+    {
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemInternalUseFilter(): void
+    {
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemExternalViewFilter(): void
+    {
+        $this->resetItemsPage();
+    }
+
+    public function updatedItemsPerPage(): void
+    {
+        $this->resetItemsPage();
     }
 
     public function getAssignedCustomersProperty()
@@ -1024,6 +1425,8 @@ class PricelistShowManager extends Component
                         continue;
                     }
 
+                    $proposedPrice = (float) ($row['selling_price'] ?? 0);
+
                     $payload = [
                         'analysis_id' => $this->itemForm['analysis_id'],
                         'analysis_element_id' => $analysisElementId,
@@ -1047,12 +1450,12 @@ class PricelistShowManager extends Component
                     if ($existing) {
                         PricelistItem::query()
                             ->where('id', $existing->id)
-                            ->update($sharedPayload);
+                            ->update($payload);
 
                         continue;
                     }
 
-                    $payload = array_merge($sharedPayload, [
+                    $payload = array_merge($payload, [
                         'id' => (string) Str::uuid(),
                         'pricelist_id' => $this->pricelistId,
                         'selling_price' => 0,
@@ -1491,6 +1894,138 @@ class PricelistShowManager extends Component
         };
     }
 
+    private function groupItems(Collection $items): Collection
+    {
+        return $items
+            ->groupBy(function ($item) {
+                return (string) ($item->sample_type_id ?? '');
+            })
+            ->map(function ($sampleItems) {
+                $firstSampleItem = $sampleItems->first();
+
+                $analysisGroups = $sampleItems
+                    ->groupBy(function ($item) {
+                        return (string) ($item->analysis_id ?? '');
+                    })
+                    ->map(function ($analysisItems) {
+                        $firstAnalysisItem = $analysisItems->first();
+
+                        return (object) [
+                            'analysis_id' => (string) ($firstAnalysisItem->analysis_id ?? ''),
+                            'analysis_type_name' => $firstAnalysisItem->analysis_type_name ?? 'Unassigned Analysis',
+                            'analysis_type_code' => $firstAnalysisItem->analysis_type_code,
+                            'total_amount' => (float) $analysisItems->sum(function ($item) {
+                                return (float) ($item->selling_price ?? 0);
+                            }),
+                            'rows' => $analysisItems,
+                        ];
+                    })
+                    ->sortBy(function ($group) {
+                        return mb_strtolower((string) ($group->analysis_type_name ?? ''));
+                    })
+                    ->values();
+
+                return (object) [
+                    'sample_type_id' => (string) ($firstSampleItem->sample_type_id ?? ''),
+                    'sample_type_name' => $firstSampleItem->sample_type_name ?? 'Unassigned Sample Type',
+                    'sample_type_code' => $firstSampleItem->sample_type_code,
+                    'analysis_groups' => $analysisGroups,
+                ];
+            })
+            ->filter(function ($group) {
+                return $group->analysis_groups->count() > 0;
+            })
+            ->sortBy(function ($group) {
+                return mb_strtolower((string) ($group->sample_type_name ?? ''));
+            })
+            ->values();
+    }
+
+    private function itemMatchesSearch(mixed $item): bool
+    {
+        $query = mb_strtolower(trim($this->itemSearch));
+        if ($query === '') {
+            return true;
+        }
+
+        $haystacks = [
+            (string) ($item->analyte_name ?? ''),
+            (string) ($item->analyte_code ?? ''),
+            (string) ($item->analysis_type_name ?? ''),
+            (string) ($item->analysis_type_code ?? ''),
+            (string) ($item->sample_type_name ?? ''),
+            (string) ($item->sample_type_code ?? ''),
+        ];
+
+        foreach ($haystacks as $haystack) {
+            if ($haystack !== '' && str_contains(mb_strtolower($haystack), $query)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function itemMatchesFlagFilter(mixed $item, string $filter, string $field): bool
+    {
+        if ($filter === '') {
+            return true;
+        }
+
+        return (bool) ($item->{$field} ?? false) === ($filter === '1');
+    }
+
+    private function resolvedItemsPage(int $total, int $perPage): int
+    {
+        $lastPage = max(1, (int) ceil($total / $perPage) ?: 1);
+
+        return max(1, min($this->itemsPage, $lastPage));
+    }
+
+    private function syncDependentItemFilters(): void
+    {
+        if ($this->itemSampleTypeFilterIds === []) {
+            $this->itemAnalysisTypeFilterIds = [];
+            $this->itemAnalysisElementFilterIds = [];
+            $this->showItemFilterAnalysisTypeDropdown = false;
+            $this->showItemFilterAnalysisElementDropdown = false;
+
+            return;
+        }
+
+        $validAnalysisIds = $this->itemFilterAnalysisTypes
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        $this->itemAnalysisTypeFilterIds = array_values(array_filter(
+            $this->itemAnalysisTypeFilterIds,
+            fn (string $selectedId): bool => in_array($selectedId, $validAnalysisIds, true)
+        ));
+
+        $this->syncParameterFiltersAfterAnalysisTypeChange();
+    }
+
+    private function syncParameterFiltersAfterAnalysisTypeChange(): void
+    {
+        if ($this->itemAnalysisTypeFilterIds === []) {
+            $this->itemAnalysisElementFilterIds = [];
+            $this->showItemFilterAnalysisElementDropdown = false;
+
+            return;
+        }
+
+        $validElementIds = $this->itemFilterAnalysisElements
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        $this->itemAnalysisElementFilterIds = array_values(array_filter(
+            $this->itemAnalysisElementFilterIds,
+            fn (string $selectedId): bool => in_array($selectedId, $validElementIds, true)
+        ));
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -1534,7 +2069,18 @@ class PricelistShowManager extends Component
         return view('livewire.billing.pricelist-show-manager', [
             'pricelist' => $this->pricelist,
             'items' => $this->items,
+            'filteredItemsCount' => $this->filteredItems->count(),
             'groupedItems' => $this->groupedItems,
+            'itemPaginator' => $this->itemPaginator,
+            'hasActiveItemFilters' => $this->hasActiveItemFilters,
+            'itemFilterSampleTypes' => $this->itemFilterSampleTypes,
+            'filteredItemFilterSampleTypes' => $this->filteredItemFilterSampleTypes,
+            'itemFilterAnalysisTypes' => $this->itemFilterAnalysisTypes,
+            'filteredItemFilterAnalysisTypes' => $this->filteredItemFilterAnalysisTypes,
+            'itemFilterAnalysisElements' => $this->itemFilterAnalysisElements,
+            'filteredItemFilterAnalysisElements' => $this->filteredItemFilterAnalysisElements,
+            'canFilterByAnalysisType' => $this->canFilterByAnalysisType,
+            'canFilterByParameter' => $this->canFilterByParameter,
             'summary' => $this->summary,
             'assignedCustomers' => $this->assignedCustomers,
             'availableCustomers' => $this->availableCustomers,

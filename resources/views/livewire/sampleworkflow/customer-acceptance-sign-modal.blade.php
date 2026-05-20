@@ -1,0 +1,391 @@
+<div class="acc-wizard-root">
+    @if($showModal && $acceptanceForm)
+        <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg acc-wizard-dialog" role="document">
+                <div class="modal-content acc-wizard-modal">
+                    <div class="acc-wizard-header">
+                        <div class="acc-wizard-header-text">
+                            <span class="acc-wizard-eyebrow">Customer acceptance</span>
+                            <h4 class="acc-wizard-title">
+                                <i class="mdi mdi-draw"></i>
+                                Sign acceptance form
+                            </h4>
+                            <p class="acc-wizard-hint mb-0 mt-1">
+                                {{ $acceptanceForm->customer_name }}
+                                @if($acceptanceForm->submissionFormInstance?->getDocumentControlNumber())
+                                    · {{ $acceptanceForm->submissionFormInstance->getDocumentControlNumber() }}
+                                @endif
+                            </p>
+                        </div>
+                        <button type="button" class="acc-wizard-close" wire:click="closeModal" aria-label="Close">
+                            <i class="mdi mdi-close"></i>
+                        </button>
+                    </div>
+
+                    <div class="acc-wizard-steps acc-wizard-steps--two" role="tablist">
+                        @foreach([
+                            1 => ['label' => 'Verify identity', 'icon' => 'mdi-account-key-outline'],
+                            2 => ['label' => 'Sign & submit', 'icon' => 'mdi-draw'],
+                        ] as $step => $meta)
+                            @php
+                                $isActive = $currentStep === $step;
+                                $isDone = $currentStep > $step;
+                                $stepDisabled = $step === 2 && !$verifiedContactId;
+                            @endphp
+                            <button
+                                type="button"
+                                class="acc-wizard-step {{ $isActive ? 'is-active' : '' }} {{ $isDone ? 'is-done' : '' }}"
+                                wire:click="goToStep({{ $step }})"
+                                @disabled($stepDisabled)
+                            >
+                                <span class="acc-wizard-step-index">
+                                    @if($isDone)
+                                        <i class="mdi mdi-check"></i>
+                                    @else
+                                        {{ $step }}
+                                    @endif
+                                </span>
+                                <span class="acc-wizard-step-label">{{ $meta['label'] }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+
+                    <div class="acc-wizard-body">
+                        @if($currentStep === 1)
+                            <section class="acc-wizard-section">
+                                <h6 class="acc-wizard-section-title">Verify customer contact</h6>
+                                <p class="acc-wizard-hint">
+                                    The customer must select their portal contact and enter their portal password before signing.
+                                </p>
+                                <div class="row acc-wizard-fields">
+                                    <div class="col-md-12 form-group">
+                                        <label class="acc-label" for="customer-sign-contact">Contact</label>
+                                        <select
+                                            id="customer-sign-contact"
+                                            class="form-control acc-input"
+                                            wire:model="selectedContactId"
+                                        >
+                                            <option value="">Select contact…</option>
+                                            @foreach($contactOptions as $option)
+                                                <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('selectedContactId') <small class="text-danger d-block">{{ $message }}</small> @enderror
+                                    </div>
+                                    <div class="col-md-12 form-group mb-0">
+                                        <label class="acc-label" for="customer-sign-password">Portal password</label>
+                                        <div class="password-input-wrap">
+                                            <input
+                                                type="password"
+                                                id="customer-sign-password"
+                                                class="form-control acc-input"
+                                                wire:model="password"
+                                                autocomplete="current-password"
+                                                placeholder="Enter portal password"
+                                            >
+                                            <button
+                                                type="button"
+                                                class="password-toggle-btn"
+                                                id="customer-sign-password-toggle"
+                                                aria-label="Show password"
+                                                aria-pressed="false"
+                                            >
+                                                <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                        @error('password') <small class="text-danger d-block">{{ $message }}</small> @enderror
+                                    </div>
+                                </div>
+                            </section>
+                        @else
+                            <section class="acc-wizard-section">
+                                <h6 class="acc-wizard-section-title">Request summary</h6>
+                                <div class="row acc-wizard-fields mb-0">
+                                    <div class="col-md-4">
+                                        <span class="acc-label d-block">Request date</span>
+                                        <span class="acc-summary-value">{{ optional($acceptanceForm->request_date)->format('Y-m-d') ?? '—' }}</span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <span class="acc-label d-block">Mode of work</span>
+                                        <span class="acc-summary-value">{{ $acceptanceForm->mode_of_work }}</span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <span class="acc-label d-block">Samples</span>
+                                        <span class="acc-summary-value">{{ $acceptanceForm->number_of_samples }}</span>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="acc-wizard-section acc-pricing-section">
+                                <h6 class="acc-wizard-section-title mb-2">Parameters &amp; pricing</h6>
+                                <div class="acc-pricing-table-wrap">
+                                    <table class="table acc-pricing-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="col-no">No</th>
+                                                <th>Parameter</th>
+                                                <th>Sample type</th>
+                                                <th>Analysis</th>
+                                                <th class="text-right col-amount">Unit</th>
+                                                <th class="col-samples">Qty</th>
+                                                <th class="text-right col-amount">Line total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($acceptanceForm->lines->where('is_approved', true) as $line)
+                                                @php
+                                                    $lineTotal = (float) $line->unit_amount * max(1, (int) $line->number_of_samples);
+                                                @endphp
+                                                <tr class="acc-row-parameter" wire:key="sign-line-{{ $line->id }}">
+                                                    <td>{{ $line->line_no }}</td>
+                                                    <td class="acc-param-name">{{ $line->parameter_label }}</td>
+                                                    <td>{{ $line->sampleType?->name ?? '—' }}</td>
+                                                    <td>{{ $line->analysisType?->name ?? '—' }}</td>
+                                                    <td class="text-right acc-amount">{{ number_format((float) $line->unit_amount, 2) }}</td>
+                                                    <td>{{ $line->number_of_samples }}</td>
+                                                    <td class="text-right acc-amount">{{ number_format($lineTotal, 2) }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan="6" class="text-right font-weight-bold">Total</td>
+                                                <td class="text-right acc-amount font-weight-bold">{{ number_format((float) $acceptanceForm->total_amount, 2) }}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </section>
+
+                            <section class="acc-wizard-section">
+                                <div class="acc-cert-card">
+                                    <p class="acc-cert-quote">{{ \App\Services\Sampleworkflow\AcceptanceFormService::CUSTOMER_CERTIFICATION_TEXT }}</p>
+                                    <p class="acc-wizard-hint mb-0">
+                                        Signing as: <strong>{{ $customerSignerName }}</strong>
+                                    </p>
+                                </div>
+                                <label class="acc-label d-block mt-3">Customer signature</label>
+                                <div class="acc-signature-pad" wire:ignore>
+                                    <canvas id="customer-acceptance-signature-canvas"></canvas>
+                                    <div class="acc-signature-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="customer-acceptance-sign-clear">Clear</button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="customer-acceptance-signature-input" wire:model="customerSignature">
+                                @error('customerSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                            </section>
+                        @endif
+                    </div>
+
+                    <div class="acc-wizard-footer">
+                        <button type="button" class="btn btn-light acc-btn-ghost" wire:click="closeModal">Cancel</button>
+                        @if($currentStep === 1)
+                            <button
+                                type="button"
+                                class="btn acc-btn-primary"
+                                wire:click="verifyIdentity"
+                                wire:loading.attr="disabled"
+                            >
+                                <span wire:loading.remove wire:target="verifyIdentity">Continue</span>
+                                <span wire:loading wire:target="verifyIdentity">Verifying…</span>
+                            </button>
+                        @else
+                            <button type="button" class="btn btn-light acc-btn-ghost" wire:click="goToStep(1)">Back</button>
+                            <button
+                                type="button"
+                                class="btn acc-btn-success"
+                                id="customer-acceptance-sign-submit"
+                                wire:loading.attr="disabled"
+                            >
+                                <span wire:loading.remove wire:target="submitCustomerSign">Sign &amp; submit</span>
+                                <span wire:loading wire:target="submitCustomerSign">Submitting…</span>
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <style>
+        .acc-wizard-steps--two {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .acc-summary-value {
+            font-weight: 600;
+            color: var(--acc-text, #0f172a);
+            font-size: 0.9rem;
+        }
+
+        .acc-cert-card {
+            background: #f8fafc;
+            border: 1px solid var(--acc-border, #e2e8f0);
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+        }
+
+        .acc-cert-quote {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--acc-text, #0f172a);
+            margin-bottom: 0.5rem;
+        }
+
+        .acc-signature-pad {
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            background: #fff;
+            padding: 0.5rem;
+        }
+
+        .acc-signature-pad canvas {
+            width: 100%;
+            height: 160px;
+            display: block;
+            touch-action: none;
+        }
+
+        .acc-signature-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 0.5rem;
+        }
+
+        .password-input-wrap {
+            position: relative;
+        }
+
+        .password-input-wrap .form-control {
+            padding-right: 2.75rem;
+        }
+
+        .password-input-wrap .password-toggle-btn {
+            position: absolute;
+            top: 50%;
+            right: 0.35rem;
+            transform: translateY(-50%);
+            width: 2.25rem;
+            height: 2.25rem;
+            margin: 0;
+            padding: 0;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+
+        .password-input-wrap .password-toggle-btn:hover,
+        .password-input-wrap .password-toggle-btn:focus {
+            color: #1e293b;
+            background: #f1f5f9;
+        }
+
+        .password-input-wrap .password-toggle-btn:focus {
+            outline: none;
+        }
+
+        .password-input-wrap .password-toggle-btn:focus-visible {
+            outline: 2px solid var(--acc-accent, #3b5fc0);
+            outline-offset: 2px;
+        }
+
+        .password-input-wrap .password-toggle-btn .mdi {
+            font-size: 1.2rem;
+            line-height: 1;
+            pointer-events: none;
+        }
+    </style>
+</div>
+
+@push('scripts')
+<script>
+    (function () {
+        let customerSignaturePad = null;
+
+        function initCustomerSignPasswordToggle() {
+            const input = document.getElementById('customer-sign-password');
+            const btn = document.getElementById('customer-sign-password-toggle');
+            if (!input || !btn || btn.dataset.bound === '1') {
+                return;
+            }
+
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function () {
+                const show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('mdi-eye-outline', !show);
+                    icon.classList.toggle('mdi-eye-off-outline', show);
+                }
+                btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+            });
+        }
+
+        function initCustomerSignaturePad() {
+            const canvas = document.getElementById('customer-acceptance-signature-canvas');
+            if (!canvas || typeof SignaturePad === 'undefined') {
+                return;
+            }
+
+            // Bail out if this exact canvas element is already set up.
+            // The canvas is freshly rendered each time step 2 becomes active, so
+            // this flag is naturally absent then and only skips spurious re-inits
+            // triggered by morph.updated while the user is already on step 2.
+            if (canvas.dataset.signatureReady === '1') {
+                return;
+            }
+
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+
+            customerSignaturePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+            canvas.dataset.signatureReady = '1';
+
+            $('#customer-acceptance-sign-clear').off('click.customerSign').on('click.customerSign', function () {
+                customerSignaturePad?.clear();
+            });
+
+            $('#customer-acceptance-sign-submit').off('click.customerSign').on('click.customerSign', function () {
+                if (!customerSignaturePad || customerSignaturePad.isEmpty()) {
+                    alert('Please provide a customer signature.');
+                    return;
+                }
+                @this.set('customerSignature', customerSignaturePad.toDataURL('image/png'));
+                @this.call('submitCustomerSign');
+            });
+        }
+
+        document.addEventListener('livewire:init', function () {
+            Livewire.on('customer-acceptance-sign-opened', function () {
+                setTimeout(function () {
+                    initCustomerSignPasswordToggle();
+                    initCustomerSignaturePad();
+                }, 400);
+            });
+
+            Livewire.on('customer-acceptance-sign-step2', function () {
+                setTimeout(initCustomerSignaturePad, 300);
+            });
+
+            Livewire.hook('morph.updated', function () {
+                if (document.getElementById('customer-sign-password')) {
+                    setTimeout(initCustomerSignPasswordToggle, 50);
+                }
+                if (document.getElementById('customer-acceptance-signature-canvas')) {
+                    setTimeout(initCustomerSignaturePad, 200);
+                }
+            });
+        });
+    })();
+</script>
+@endpush
