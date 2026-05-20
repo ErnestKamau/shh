@@ -20,7 +20,7 @@ class SampleHeadersTableSeeder extends Seeder
             0 => 
             array (
                 'id' => '30016',
-                'batch_code' => 'BCCB00070020',
+                'batch_code' => 'CZO26-00004',
                 'receipt_date' => '2020-07-13',
                 'date_collected' => '2020-07-12',
                 'crm_customer_id' => '4',
@@ -317,7 +317,7 @@ Ronald Ngala',
             8 => 
             array (
                 'id' => '30026',
-                'batch_code' => 'BCCB00070034',
+                'batch_code' => 'HQO26-00004',
                 'receipt_date' => '2020-07-31',
                 'date_collected' => '2020-08-05',
                 'crm_customer_id' => '4',
