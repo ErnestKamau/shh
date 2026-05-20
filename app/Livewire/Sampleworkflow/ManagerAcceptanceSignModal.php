@@ -4,6 +4,7 @@ namespace App\Livewire\Sampleworkflow;
 
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use App\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +36,9 @@ class ManagerAcceptanceSignModal extends Component
 
     /** @var list<array{id: string, name: string}> */
     public array $signatoryOptions = [];
+
+    /** @var array<string, mixed> */
+    public array $receiptNotificationForm = [];
 
     #[On('open-manager-acceptance-sign')]
     public function openModal(string $acceptanceFormId): void
@@ -72,6 +76,8 @@ class ManagerAcceptanceSignModal extends Component
         $this->technicalSignatoryId = (string) ($form->sampleHeader?->approve_user_id ?? '');
         $this->analystOptions = $this->loadAnalystOptions();
         $this->signatoryOptions = $this->loadSignatoryOptions();
+        $this->receiptNotificationForm = app(SampleReceiptNotificationService::class)
+            ->resolveFormStateForAcceptanceForm($form);
         $this->showModal = true;
         $this->dispatch('manager-acceptance-sign-opened');
     }
@@ -106,6 +112,29 @@ class ManagerAcceptanceSignModal extends Component
             'technicalSignatoryId.required' => 'Please assign a technical signatory.',
         ]);
 
+        $receiptService = app(SampleReceiptNotificationService::class);
+        $receiptService->mergePayloadIntoAcceptanceForm($form, $this->receiptNotificationForm);
+
+        $batchHeader = $form->sampleHeader;
+        if ($batchHeader === null && $form->sample_header_id) {
+            $batchHeader = \App\SampleHeader::query()->find((string) $form->sample_header_id);
+        }
+        if ($batchHeader !== null) {
+            $receiptService->persistForBatchLinkedAcceptance($form, $batchHeader, $this->receiptNotificationForm);
+            $receiptWarn = '';
+            $receiptService->tryFinalizePdfAttachment(
+                $batchHeader,
+                $this->receiptNotificationForm,
+                Auth::id(),
+                function (string $msg, array $errors) use (&$receiptWarn): void {
+                    $receiptWarn = $msg;
+                }
+            );
+            if ($receiptWarn !== '') {
+                session()->flash('warning', 'Acceptance approved. Complete Sample Receipt Notification (GCLA 01) in Lab Acceptance tab (Part E)—required fields or signatures are missing.');
+            }
+        }
+
         $completedForm = $acceptanceFormService->recordManagerSignature(
             $form,
             $this->managerSignerName,
@@ -122,7 +151,7 @@ class ManagerAcceptanceSignModal extends Component
                 'client' => 0,
                 'portal' => 0,
                 'status' => 'Samples In Lab',
-            ]) . '#sample-receipt-notification'
+            ]) . '#laboratory-acceptance-part-5'
             : route('sample-workflow', ['status' => 'Samples In Lab']);
 
         session()->flash('success', 'Acceptance approved. Batch moved to Samples In Lab.');
@@ -284,5 +313,6 @@ class ManagerAcceptanceSignModal extends Component
         $this->technicalSignatoryId = '';
         $this->analystOptions = [];
         $this->signatoryOptions = [];
+        $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
     }
 }

@@ -8,6 +8,7 @@ use App\Http\Resources\Portal\AcceptanceFormResource;
 use App\Models\CRM\CustomerNotification;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -57,6 +58,14 @@ class AcceptanceFormController extends Controller
 
         $validated = $request->validated();
 
+        $receiptService = app(SampleReceiptNotificationService::class);
+        if (! empty($validated['receipt_notification']) && is_array($validated['receipt_notification'])) {
+            $patch = $receiptService->sanitizePortalPatch($validated['receipt_notification']);
+            if ($patch !== []) {
+                $receiptService->mergePayloadIntoAcceptanceForm($acceptanceForm, $patch);
+            }
+        }
+
         $form = $acceptanceFormService->recordCustomerSignature(
             $acceptanceForm,
             (string) $validated['customer_signer_name'],
@@ -64,10 +73,12 @@ class AcceptanceFormController extends Controller
             $validated['customer_signed_at'] ?? null
         );
 
+        $receiptService->applyBatchDefaultsAfterCustomerSign($form);
+
         CustomerNotification::query()
-            ->where('customer_id', $acceptanceForm->crm_customer_id)
+            ->where('customer_id', $form->crm_customer_id)
             ->where('entity_type', AnalysisAcceptanceForm::class)
-            ->where('entity_id', $acceptanceForm->id)
+            ->where('entity_id', $form->id)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 

@@ -2,11 +2,12 @@
     $wirePrefix = $wirePrefix ?? 'receiptForm.';
     $canvasPrefix = $canvasPrefix ?? 'lab-receipt';
     $readOnly = $readOnly ?? false;
+    $partLabel = $partLabel ?? null;
 @endphp
 
 <div class="card border-0" style="background: #f8fafc;">
     <div class="card-body">
-        <h6 class="mb-3">Sample Receipt Notification (GCLA 01)</h6>
+        <h6 class="mb-3">{{ ($partLabel ?? null) ?: 'Sample Receipt Notification (GCLA 01)' }}</h6>
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Name of the client or submitting authority</label>

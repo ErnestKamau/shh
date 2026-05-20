@@ -196,7 +196,7 @@ class WorkflowActionRulesManager extends Component
             'error_message' => $this->error_message,
             'is_active' => $this->is_active,
             'order_index' => $this->order_index ?? 0,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ];
 
         if ($this->isEdit) {

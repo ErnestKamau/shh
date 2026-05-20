@@ -5,6 +5,7 @@ namespace App\Livewire\Sampleworkflow;
 use App\Models\CRM\CustomerNotification;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use App\Services\Sampleworkflow\CustomerContactVerificationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -29,6 +30,9 @@ class CustomerAcceptanceSignModal extends Component
     public string $customerSignerName = '';
 
     public string $customerSignature = '';
+
+    /** @var array<string, mixed> */
+    public array $receiptNotificationForm = [];
 
     /** @var list<array{id: string, label: string}> */
     public array $contactOptions = [];
@@ -75,6 +79,8 @@ class CustomerAcceptanceSignModal extends Component
 
         $this->showModal = true;
         $this->currentStep = 1;
+        $this->receiptNotificationForm = app(SampleReceiptNotificationService::class)
+            ->resolveFormStateForAcceptanceForm($form);
         $this->dispatch('customer-acceptance-sign-opened');
     }
 
@@ -138,6 +144,9 @@ class CustomerAcceptanceSignModal extends Component
 
         $form = $this->loadAcceptanceForm();
 
+        $receiptService = app(SampleReceiptNotificationService::class);
+        $receiptService->mergePayloadIntoAcceptanceForm($form, $this->receiptNotificationForm);
+
         if ($form->status !== AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN) {
             $this->dispatch('notify', type: 'error', message: 'This acceptance form is no longer awaiting customer signature.');
             $this->closeModal();
@@ -156,6 +165,12 @@ class CustomerAcceptanceSignModal extends Component
             $this->customerSignature,
             now()->format('Y-m-d H:i:s')
         );
+
+        app(SampleReceiptNotificationService::class)->applyBatchDefaultsAfterCustomerSign($signedForm);
+        $fresh = AnalysisAcceptanceForm::query()->find($signedForm->id);
+        if ($fresh !== null) {
+            $receiptService->mergePayloadIntoAcceptanceForm($fresh, $this->receiptNotificationForm);
+        }
 
         CustomerNotification::query()
             ->where('customer_id', $form->crm_customer_id)
@@ -233,6 +248,7 @@ class CustomerAcceptanceSignModal extends Component
         $this->verifiedContactId = null;
         $this->customerSignerName = '';
         $this->customerSignature = '';
+        $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
         $this->contactOptions = [];
     }
 }

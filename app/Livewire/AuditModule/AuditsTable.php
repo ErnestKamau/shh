@@ -274,10 +274,7 @@ class AuditsTable extends Component
                 
                 // Get the status record to update both status_id and status_name
                 $targetStatus = \App\Models\AuditModule\AuditStatus::where('name', $newStatusName)
-                    ->where(function($q) {
-                        $companyId = getUserCompany() ?? 0;
-                        $q->where('company_id', $companyId)->orWhere('company_id', 0);
-                    })
+                    ->forCompany()
                     ->first();
                 
                 if ($targetStatus) {
@@ -471,10 +468,7 @@ class AuditsTable extends Component
                             } elseif ($this->selectedWorkflowActionRule->target_status_name) {
                                 // Fallback: find status by name
                                 $targetStatus = \App\Models\AuditModule\AuditStatus::where('name', $this->selectedWorkflowActionRule->target_status_name)
-                                    ->where(function($q) {
-                                        $companyId = getUserCompany() ?? 0;
-                                        $q->where('company_id', $companyId)->orWhere('company_id', 0);
-                                    })
+                                    ->forCompany()
                                     ->first();
                                 if ($targetStatus) {
                                     $this->workflowTargetStatusId = $targetStatus->id;
@@ -505,12 +499,9 @@ class AuditsTable extends Component
                             $currentStep = $audit->getCurrentWorkflowStep();
                             if ($currentStep && $currentStep > 1) {
                                 $previousStep = $currentStep - 1;
-                                $companyId = getUserCompany() ?? 0;
                                 $previousStatus = \App\Models\AuditModule\AuditStatus::active()
+                                    ->forCompany()
                                     ->where('workflow_step', $previousStep)
-                                    ->where(function($q) use ($companyId) {
-                                        $q->where('company_id', $companyId)->orWhere('company_id', 0);
-                                    })
                                     ->ordered()
                                     ->first();
                                 

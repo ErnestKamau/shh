@@ -91,6 +91,16 @@
                                 </div>
                             </section>
 
+                        <section class="acc-wizard-section">
+                            <h6 class="acc-wizard-section-title mb-2">Sample Receipt Notification (GCLA 01)</h6>
+                            @include('livewire.partials.receipt-notification-wire-fields', [
+                                'wirePrefix' => 'receiptNotificationForm.',
+                                'canvasPrefix' => 'mgr-acc-receipt',
+                                'readOnly' => false,
+                                'partLabel' => null,
+                            ])
+                        </section>
+
                             <section class="acc-wizard-section">
                                 <div class="acc-cert-card">
                                     <p class="acc-cert-quote">{{ \App\Services\Sampleworkflow\AcceptanceFormService::MANAGER_CERTIFICATION_TEXT }}</p>
@@ -243,6 +253,54 @@
 <script>
     (function () {
         let managerSignaturePad = null;
+        let managerReceiptSubmitterPad = null;
+        let managerReceiptReceiverPad = null;
+
+        function initManagerReceiptPads() {
+            function setup(canvasId, inputId, clearBtnId, existingVal) {
+                const canvas = document.getElementById(canvasId);
+                const input = document.getElementById(inputId);
+                const clearBtn = document.getElementById(clearBtnId);
+                if (!canvas || !input || typeof SignaturePad === 'undefined') {
+                    return null;
+                }
+                if (canvas.dataset.mgrRecReady === '1') {
+                    return null;
+                }
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+                const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+                canvas.dataset.mgrRecReady = '1';
+                if (existingVal && existingVal.startsWith('data:image')) {
+                    pad.fromDataURL(existingVal);
+                }
+                pad.addEventListener('endStroke', function () {
+                    input.value = pad.isEmpty() ? '' : pad.toDataURL('image/png');
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                if (clearBtn) {
+                    clearBtn.onclick = function () {
+                        pad.clear();
+                        input.value = '';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    };
+                }
+                return pad;
+            }
+            const si = document.getElementById('mgr-acc-receipt-submitter-input');
+            const ri = document.getElementById('mgr-acc-receipt-receiver-input');
+            ['mgr-acc-receipt-submitter-canvas', 'mgr-acc-receipt-receiver-canvas'].forEach(function (cid) {
+                const c = document.getElementById(cid);
+                if (c) {
+                    c.removeAttribute('data-mgr-rec-ready');
+                }
+            });
+            managerReceiptSubmitterPad = setup('mgr-acc-receipt-submitter-canvas', 'mgr-acc-receipt-submitter-input', 'mgr-acc-receipt-submitter-clear', si ? si.value : '');
+            managerReceiptReceiverPad = setup('mgr-acc-receipt-receiver-canvas', 'mgr-acc-receipt-receiver-input', 'mgr-acc-receipt-receiver-clear', ri ? ri.value : '');
+        }
 
         function initManagerSignaturePad() {
             const canvas = document.getElementById('manager-acceptance-signature-canvas');
@@ -279,11 +337,15 @@
         document.addEventListener('livewire:init', function () {
             Livewire.on('manager-acceptance-sign-opened', function () {
                 setTimeout(initManagerSignaturePad, 300);
+                setTimeout(initManagerReceiptPads, 360);
             });
 
             Livewire.hook('morph.updated', function () {
                 if (document.getElementById('manager-acceptance-signature-canvas')) {
                     setTimeout(initManagerSignaturePad, 200);
+                }
+                if (document.getElementById('mgr-acc-receipt-submitter-canvas')) {
+                    setTimeout(initManagerReceiptPads, 220);
                 }
             });
         });

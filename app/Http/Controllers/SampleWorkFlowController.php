@@ -2343,8 +2343,8 @@ class SampleWorkFlowController extends Controller
 
             if ($processedBatch) {
                 return redirect()
-                    ->to(route('view-batch-details', ['batch' => $processedBatch->id, 'client' => 0, 'portal' => 0, 'status' => 'Samples In Lab']) . '#sample-receipt-notification')
-                    ->with('success', 'Lab acceptance approved. Please complete the Sample Receipt Notification (GCLA 01) below.');
+                    ->to(route('view-batch-details', ['batch' => $processedBatch->id, 'client' => 0, 'portal' => 0, 'status' => 'Samples In Lab']) . '#laboratory-acceptance-part-5')
+                    ->with('success', 'Lab acceptance approved. Complete Sample Receipt Notification (GCLA 01) under Lab Acceptance tab (Part E) if still required.');
             }
 
             return redirect()->route('sample-workflow', ['status' => 'Samples Request Review'])

@@ -98,10 +98,7 @@ class AuditConfigController extends Controller
 
     public function getVerificationResult($id)
     {
-        $result = \App\Models\AuditModule\VerificationResult::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $result = \App\Models\AuditModule\VerificationResult::forCompany()->findOrFail($id);
 
         return response()->json([
             'id' => $result->id,
@@ -117,10 +114,7 @@ class AuditConfigController extends Controller
 
     public function updateVerificationResult(Request $request, $id)
     {
-        $result = \App\Models\AuditModule\VerificationResult::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $result = \App\Models\AuditModule\VerificationResult::forCompany()->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',

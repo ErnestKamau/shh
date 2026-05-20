@@ -3405,22 +3405,12 @@
 							<input type="hidden" name="tracking_stage" value="20008" />
 							<input type="hidden" name="customer_id" value=0>
 
-							<ul class="nav nav-tabs nav-tabs-custom nav-justified px-3 pt-3 bg-white" role="tablist" style="border-bottom: 1px solid #dee2e6;">
-								<li class="nav-item">
-									<a class="nav-link active" data-toggle="tab" href="#review-lab-acceptance" role="tab">
-										<i class="mdi mdi-file-document-edit-outline mr-1"></i> Laboratory Acceptance Form
-									</a>
-								</li>
-								<li class="nav-item">
-									<a class="nav-link" data-toggle="tab" href="#review-receipt-notification" role="tab">
-										<i class="mdi mdi-file-document-outline mr-1"></i> Receipt Notification
-									</a>
-								</li>
-							</ul>
+							<div class="px-3 pt-3 bg-white border-bottom">
+								<strong class="text-dark"><i class="mdi mdi-file-document-edit-outline mr-1"></i> Laboratory acceptance (GCLA/F/03 &amp; GCLA 01)</strong>
+							</div>
 
-							<div class="tab-content px-4 py-3">
-								<!-- Lab Acceptance Form Tab -->
-								<div class="tab-pane active" id="review-lab-acceptance" role="tabpanel">
+							<div class="px-4 py-3">
+								<div id="review-lab-acceptance">
 									<div class="workflow-board-panel mb-0 border-0 shadow-sm">
 										<div class="workflow-board-panel-header d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
 											<h5><i class="mdi mdi-file-document-edit-outline"></i> Laboratory Analysis Acceptance Form (GCLA/F/03)</h5>
@@ -3431,6 +3421,7 @@
 												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="2">Part B</button>
 												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="3">Part C</button>
 												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="4">Part D</button>
+												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="5">Part E</button>
 											</div>
 
 											<!-- Part A -->
@@ -3590,19 +3581,10 @@
 													<input type="hidden" id="review-manager-signature-input" name="lab_acceptance[manager_signature]">
 												</div>
 											</div>
-										</div>
-									</div>
-								</div>
-
-								<!-- Receipt Notification Tab -->
-								<div class="tab-pane" id="review-receipt-notification" role="tabpanel">
-									<div class="workflow-board-panel mb-0 border-0 shadow-sm">
-										<div class="workflow-board-panel-header d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
-											<h5><i class="mdi mdi-file-document-outline"></i> Sample Receipt Notification (GCLA 01)</h5>
-										</div>
-										<div class="workflow-board-panel-body">
-											<div class="card border-0" style="background: #f8fafc;">
+											<!-- Part E: Sample Receipt Notification -->
+											<div class="card border-0 lab-acc-part d-none" id="lab-acc-part-5" style="background: #f8fafc;">
 												<div class="card-body">
+													<h6 class="mb-3">Part E: Sample Receipt Notification (GCLA 01)</h6>
 													<div class="row">
 														<div class="col-md-6 mb-3">
 															<label class="form-label">Name of the client or submitting authority</label>
@@ -3678,8 +3660,6 @@
 									</div>
 								</div>
 							</div>
-
-							<div class="px-4 pb-3">
 								<div class="card border-0 bg-white">
 									<div class="card-body">
 										<h6 class="mb-3">Other Settings & Confirmations</h6>
@@ -3732,7 +3712,7 @@
 					partBtns.forEach(btn => {
 						btn.addEventListener('click', function() {
 							const targetPart = this.getAttribute('data-part');
-							
+
 							// Update buttons
 							partBtns.forEach(b => {
 								b.classList.remove('btn-primary');
@@ -3740,10 +3720,24 @@
 							});
 							this.classList.remove('btn-outline-primary');
 							this.classList.add('btn-primary');
-							
+
 							// Update parts
 							parts.forEach(p => p.classList.add('d-none'));
 							document.getElementById('lab-acc-part-' + targetPart).classList.remove('d-none');
+
+							if (targetPart === '5' && !reviewReceiptPadsReady) {
+								const s = setupPad('review-submitter-signature-canvas', 'review-submitter-signature-input', 'review-submitter-sign-clear');
+								const r = setupPad('review-receiver-signature-canvas', 'review-receiver-signature-input', 'review-receiver-sign-clear');
+								if (s) {
+									pads.push(s);
+								}
+								if (r) {
+									pads.push(r);
+								}
+								reviewReceiptPadsReady = true;
+							}
+
+							window.dispatchEvent(new Event('resize'));
 						});
 					});
 
@@ -3779,21 +3773,23 @@
 
 					let padsInitialized = false;
 					let pads = [];
-					
+					let reviewReceiptPadsReady = false;
+
 					$('#dispatch-to-labs-modal-review').on('shown.bs.modal', function () {
 						if (!padsInitialized) {
 							pads.push(setupPad('review-customer-signature-canvas', 'review-customer-signature-input', 'review-customer-sign-clear'));
 							pads.push(setupPad('review-manager-signature-canvas', 'review-manager-signature-input', 'review-manager-sign-clear'));
-							pads.push(setupPad('review-submitter-signature-canvas', 'review-submitter-signature-input', 'review-submitter-sign-clear'));
-							pads.push(setupPad('review-receiver-signature-canvas', 'review-receiver-signature-input', 'review-receiver-sign-clear'));
 							padsInitialized = true;
+							reviewReceiptPadsReady = false;
 						} else {
-						    window.dispatchEvent(new Event('resize'));
+							window.dispatchEvent(new Event('resize'));
 						}
 					});
-					
-					$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-						window.dispatchEvent(new Event('resize'));
+
+					$('#dispatch-to-labs-modal-review').on('hidden.bs.modal', function () {
+						padsInitialized = false;
+						reviewReceiptPadsReady = false;
+						pads = [];
 					});
 				});
 			</script>

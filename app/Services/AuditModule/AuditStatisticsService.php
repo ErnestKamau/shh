@@ -127,7 +127,7 @@ class AuditStatisticsService
         }
         
         $trends = $query
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, root_cause_description, count(*) as count")
+            ->selectRaw(auditSqlMonthExpression('created_at') . ' as month, root_cause_description, count(*) as count')
             ->groupBy('month', 'root_cause_description')
             ->orderBy('month')
             ->orderBy('count', 'desc')
@@ -157,7 +157,7 @@ class AuditStatisticsService
         }
         
         $monthlyCounts = $query
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, count(*) as count")
+            ->selectRaw(auditSqlMonthExpression('created_at') . ' as month, count(*) as count')
             ->groupBy('month')
             ->orderBy('month')
             ->pluck('count', 'month')

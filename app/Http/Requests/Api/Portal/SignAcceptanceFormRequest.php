@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Portal;
 
+use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SignAcceptanceFormRequest extends FormRequest
@@ -16,10 +17,10 @@ class SignAcceptanceFormRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'customer_signer_name' => ['required', 'string', 'max:255'],
             'customer_signature' => ['required', 'string'],
             'customer_signed_at' => ['nullable', 'date'],
-        ];
+        ], app(SampleReceiptNotificationService::class)->portalPartialValidationRules());
     }
 }

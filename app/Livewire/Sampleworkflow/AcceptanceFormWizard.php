@@ -5,6 +5,7 @@ namespace App\Livewire\Sampleworkflow;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -65,6 +66,9 @@ class AcceptanceFormWizard extends Component
 
     public bool $addLineCanAddWholeAnalysisType = false;
 
+    /** @var array<string, mixed> */
+    public array $receiptNotificationForm = [];
+
     public function mount(): void
     {
         $this->managerSignerName = (string) (Auth::user()->name ?? '');
@@ -116,6 +120,48 @@ class AcceptanceFormWizard extends Component
 
         $this->showModal = true;
         $this->currentStep = 1;
+        $this->refreshReceiptNotificationFormState();
+    }
+
+    public function refreshReceiptNotificationFormState(): void
+    {
+        $service = app(SampleReceiptNotificationService::class);
+
+        if ($this->acceptanceFormId) {
+            $form = AnalysisAcceptanceForm::query()->find($this->acceptanceFormId);
+            if ($form !== null) {
+                $this->receiptNotificationForm = $service->resolveFormStateForAcceptanceForm($form);
+
+                return;
+            }
+        }
+
+        $pending = $service->loadPendingDraft($this->submissionFormInstanceId, $this->submissionRequestId);
+        $this->receiptNotificationForm = $service->mergeFormPayloads($pending, [
+            'client_or_authority_name' => $this->customerName,
+            'number_of_samples' => $this->numberOfSamples,
+        ]);
+    }
+
+    public function saveReceiptNotificationDraft(): void
+    {
+        $service = app(SampleReceiptNotificationService::class);
+
+        if ($this->acceptanceFormId) {
+            $form = AnalysisAcceptanceForm::query()->find($this->acceptanceFormId);
+            if ($form !== null) {
+                $service->mergePayloadIntoAcceptanceForm($form, $this->receiptNotificationForm);
+                $this->dispatch('notify', type: 'success', message: 'Receipt notification draft saved.');
+                return;
+            }
+        }
+
+        $service->savePendingDraft(
+            $this->submissionFormInstanceId,
+            $this->submissionRequestId,
+            $this->receiptNotificationForm
+        );
+        $this->dispatch('notify', type: 'success', message: 'Receipt notification draft saved.');
     }
 
     public function closeWizard(): void
@@ -168,6 +214,14 @@ class AcceptanceFormWizard extends Component
         $this->status = $form->status;
         $this->currentStep = 2;
 
+        app(SampleReceiptNotificationService::class)->persistAfterAcceptanceCreated(
+            $form->fresh(),
+            $this->receiptNotificationForm,
+            $this->submissionFormInstanceId,
+            $this->submissionRequestId
+        );
+        $this->refreshReceiptNotificationFormState();
+
         $this->dispatch('acceptance-form-created');
         session()->flash('success', 'Acceptance form sent to the customer for signing.');
     }
@@ -198,7 +252,7 @@ class AcceptanceFormWizard extends Component
                 'client' => 0,
                 'portal' => 0,
                 'status' => 'Samples In Lab',
-            ]) . '#sample-receipt-notification'
+            ]) . '#laboratory-acceptance-part-5'
             : route('sample-workflow', ['status' => 'Samples In Lab']);
 
         $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
@@ -460,6 +514,8 @@ class AcceptanceFormWizard extends Component
         if ($form->status === AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
             $this->currentStep = 3;
         }
+
+        $this->refreshReceiptNotificationFormState();
     }
 
     public function render()
@@ -599,5 +655,6 @@ class AcceptanceFormWizard extends Component
         $this->showAddLineModal = false;
         $this->managerSignature = '';
         $this->managerSignedAt = now()->format('Y-m-d');
+        $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
     }
 }

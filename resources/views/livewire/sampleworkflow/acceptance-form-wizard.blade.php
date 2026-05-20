@@ -243,9 +243,25 @@
                                 @error('managerSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
                             </section>
                         @endif
-                    </div>
 
-                    <div class="acc-wizard-footer">
+                        <section class="acc-wizard-section">
+                            <div class="acc-pricing-toolbar mb-3">
+                                <div>
+                                    <h6 class="acc-wizard-section-title mb-1">Sample Receipt Notification (GCLA 01)</h6>
+                                    <p class="acc-wizard-hint mb-0">Lab batch number fills in after customer signs.</p>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="saveReceiptNotificationDraft">
+                                    Save receipt draft
+                                </button>
+                            </div>
+                            @include('livewire.partials.receipt-notification-wire-fields', [
+                                'wirePrefix' => 'receiptNotificationForm.',
+                                'canvasPrefix' => 'acc-wizard-receipt',
+                                'readOnly' => false,
+                                'partLabel' => null,
+                            ])
+                        </section>
+                    </div>
                         <button type="button" class="btn btn-light acc-btn-ghost" wire:click="closeWizard">Close</button>
                         @if($currentStep === 1)
                             <button type="button" class="btn acc-btn-primary" wire:click="submitStep1" wire:loading.attr="disabled">
@@ -895,6 +911,72 @@
 <script>
     (function () {
         let managerSignaturePad = null;
+        let wizardReceiptSubmitterPad = null;
+        let wizardReceiptReceiverPad = null;
+
+        function initWizardReceiptPads() {
+            function setup(canvasId, inputId, clearBtnId, existingVal) {
+                const canvas = document.getElementById(canvasId);
+                const input = document.getElementById(inputId);
+                const clearBtn = document.getElementById(clearBtnId);
+                if (!canvas || !input || typeof SignaturePad === 'undefined') {
+                    return null;
+                }
+                if (canvas.dataset.signatureReadyWizard === '1') {
+                    return null;
+                }
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+
+                const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+                canvas.dataset.signatureReadyWizard = '1';
+
+                if (existingVal && existingVal.startsWith('data:image')) {
+                    pad.fromDataURL(existingVal);
+                }
+
+                pad.addEventListener('endStroke', function () {
+                    input.value = pad.isEmpty() ? '' : pad.toDataURL('image/png');
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                if (clearBtn) {
+                    clearBtn.onclick = function () {
+                        pad.clear();
+                        input.value = '';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    };
+                }
+                return pad;
+            }
+
+            const subIn = document.getElementById('acc-wizard-receipt-submitter-input');
+            const recIn = document.getElementById('acc-wizard-receipt-receiver-input');
+            wizardReceiptSubmitterPad = setup(
+                'acc-wizard-receipt-submitter-canvas',
+                'acc-wizard-receipt-submitter-input',
+                'acc-wizard-receipt-submitter-clear',
+                subIn ? subIn.value : ''
+            );
+            wizardReceiptReceiverPad = setup(
+                'acc-wizard-receipt-receiver-canvas',
+                'acc-wizard-receipt-receiver-input',
+                'acc-wizard-receipt-receiver-clear',
+                recIn ? recIn.value : ''
+            );
+        }
+
+        function resetWizardReceiptCanvasFlags() {
+            ['acc-wizard-receipt-submitter-canvas', 'acc-wizard-receipt-receiver-canvas'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.removeAttribute('data-signature-ready-wizard');
+                }
+            });
+        }
 
         function initManagerSignaturePad() {
             const canvas = document.getElementById('acceptance-manager-signature-canvas');
@@ -925,12 +1007,18 @@
 
         document.addEventListener('livewire:init', function () {
             Livewire.on('open-acceptance-wizard', function () {
+                resetWizardReceiptCanvasFlags();
                 setTimeout(initManagerSignaturePad, 400);
+                setTimeout(initWizardReceiptPads, 460);
             });
 
             Livewire.hook('morph.updated', function () {
                 if (document.getElementById('acceptance-manager-signature-canvas')) {
                     setTimeout(initManagerSignaturePad, 200);
+                }
+                if (document.getElementById('acc-wizard-receipt-submitter-canvas')) {
+                    resetWizardReceiptCanvasFlags();
+                    setTimeout(initWizardReceiptPads, 200);
                 }
             });
         });

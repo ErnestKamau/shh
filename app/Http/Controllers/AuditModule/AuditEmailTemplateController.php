@@ -32,10 +32,7 @@ class AuditEmailTemplateController extends Controller
     public function create()
     {
         $notificationTypes = AuditNotificationType::active()
-            ->where(function($q) {
-                $companyId = getUserCompany() ?? 0;
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
+            ->forCompany()
             ->orderBy('name')
             ->get();
 
@@ -54,7 +51,7 @@ class AuditEmailTemplateController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $validated['company_id'] = getUserCompany() ?? 0;
+        $validated['company_id'] = getUserCompany();
         $validated['is_active'] = $request->has('is_active');
 
         AuditEmailTemplate::create($validated);
@@ -68,10 +65,7 @@ class AuditEmailTemplateController extends Controller
         $template = AuditEmailTemplate::forCompany()->findOrFail($id);
         
         $notificationTypes = AuditNotificationType::active()
-            ->where(function($q) {
-                $companyId = getUserCompany() ?? 0;
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
+            ->forCompany()
             ->orderBy('name')
             ->get();
 

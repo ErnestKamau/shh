@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Portal;
 
+use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,6 +30,10 @@ class AcceptanceFormResource extends JsonResource
             'invoice_id' => $this->invoice_id,
             'processing_error' => $this->when($this->processing_error, $this->processing_error),
             'lines' => AcceptanceFormLineResource::collection($this->whenLoaded('lines')),
+            'receipt_notification' => array_merge(
+                SampleReceiptNotificationService::emptyForm(),
+                is_array($this->resource->receipt_notification_payload) ? $this->resource->receipt_notification_payload : []
+            ),
             'created_at' => optional($this->created_at)?->toIso8601String(),
         ];
     }

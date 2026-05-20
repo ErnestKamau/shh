@@ -189,6 +189,8 @@ class AnalysisAcceptanceFormTest extends TestCase
     public function test_portal_sign_endpoint_requires_gateway_and_customer_header(): void
     {
         config(['services.portal_gateway.api_key' => self::GATEWAY_KEY]);
+        config(['sampleworkflow.acceptance_form.dispatch_sample_creation_sync' => false]);
+        Bus::fake();
 
         $customer = CRMCustomer::query()->create([
             'name' => 'Portal Customer',
@@ -207,10 +209,22 @@ class AnalysisAcceptanceFormTest extends TestCase
         $this->postJson('/api/v1/portal/submissions/acceptance-forms/' . $acceptanceForm->id . '/sign', [
             'customer_signer_name' => 'Portal Customer',
             'customer_signature' => 'data:image/png;base64,abc',
+            'receipt_notification' => [
+                'client_or_authority_name' => 'Authority Co',
+                'sample_description' => 'Drinking water',
+            ],
         ], [
             'Authorization' => 'Bearer ' . self::GATEWAY_KEY,
             'X-CRM-Customer-Id' => $customer->id,
         ])->assertOk()
             ->assertJsonPath('data.status', AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN);
+
+        $acceptanceForm->refresh();
+        $this->assertSame('Authority Co', $acceptanceForm->receipt_notification_payload['client_or_authority_name'] ?? null);
+        $this->assertSame('Drinking water', $acceptanceForm->receipt_notification_payload['sample_description'] ?? null);
+
+        Bus::assertDispatched(CreateSamplesFromAcceptanceFormJob::class, function ($job) use ($acceptanceForm) {
+            return $job->acceptanceFormId === $acceptanceForm->id;
+        });
     }
 }

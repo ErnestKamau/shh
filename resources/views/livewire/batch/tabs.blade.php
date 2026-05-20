@@ -28,12 +28,7 @@
         </li>
         <li class="nav-item">
             <a class="nav-link" id="laboratory-acceptance-tab" data-toggle="tab" href="#laboratory-acceptance" role="tab" aria-controls="laboratory-acceptance" aria-selected="false">
-                <i class="mdi mdi-file-document-edit-outline"></i> Lab Acceptance (GCLA/F/03)
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" id="sample-receipt-notification-tab" data-toggle="tab" href="#sample-receipt-notification" role="tab" aria-controls="sample-receipt-notification" aria-selected="false">
-                <i class="mdi mdi-file-document-outline"></i> Sample Receipt Notification (GCLA 01)
+                <i class="mdi mdi-file-document-edit-outline"></i> Lab Acceptance (GCLA/F/03 + GCLA 01)
             </a>
         </li>
         <li class="nav-item">
@@ -102,11 +97,6 @@
             @livewire('batch.tabs.laboratory-analysis-acceptance', ['batch' => $batch], 'laboratory-acceptance-tab-'.$batch->id)
         </div>
 
-        {{-- Sample Receipt Notification Tab --}}
-        <div class="tab-pane fade" id="sample-receipt-notification" role="tabpanel" aria-labelledby="sample-receipt-notification-tab">
-            @livewire('batch.tabs.sample-receipt-notification', ['batch' => $batch], 'sample-receipt-notification-tab-'.$batch->id)
-        </div>
-
         {{-- Notes Tab --}}
         <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
             @livewire('batch.tabs.notes', ['batch' => $batch], 'notes-tab-'.$batch->id)
@@ -168,7 +158,24 @@
         var hash = window.location.hash;
         if (!hash) return;
         var tabId = hash.replace('#', '');
-        var $tabLink = $('#' + tabId + '-tab, [href="' + hash + '"]').first();
+
+        if (tabId === 'sample-receipt-notification') {
+            tabId = 'laboratory-acceptance';
+        }
+
+        var part = null;
+        if (tabId === 'laboratory-acceptance-part-5') {
+            tabId = 'laboratory-acceptance';
+            part = 5;
+        } else if (tabId.indexOf('laboratory-acceptance-part-') === 0) {
+            var p = parseInt(tabId.replace('laboratory-acceptance-part-', ''), 10);
+            if (!isNaN(p)) {
+                tabId = 'laboratory-acceptance';
+                part = p;
+            }
+        }
+
+        var $tabLink = $('#' + tabId + '-tab, [href="#' + tabId + '"]').first();
 
         if (!$tabLink.length) {
             if (tabActivationAttempts < 12) {
@@ -180,6 +187,13 @@
 
         tabActivationAttempts = 0;
         $tabLink.tab('show');
+
+        if (typeof Livewire !== 'undefined' && typeof part === 'number') {
+            setTimeout(function () {
+                Livewire.dispatch('batch-open-laboratory-acceptance-part', { part: part });
+            }, 250);
+        }
+
         setTimeout(function () {
             $tabLink[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 300);

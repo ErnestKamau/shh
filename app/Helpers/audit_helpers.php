@@ -98,6 +98,20 @@ if (!function_exists('getWorkflowStepName')) {
     }
 }
 
+if (!function_exists('auditSqlMonthExpression')) {
+    /**
+     * SQL expression for grouping timestamps/dates by year-month (driver-aware).
+     */
+    function auditSqlMonthExpression(string $column): string
+    {
+        return match (\Illuminate\Support\Facades\DB::connection()->getDriverName()) {
+            'pgsql' => "TO_CHAR({$column}, 'YYYY-MM')",
+            'sqlite' => "strftime('%Y-%m', {$column})",
+            default => "DATE_FORMAT({$column}, '%Y-%m')",
+        };
+    }
+}
+
 if (!function_exists('getActiveAuditStatuses')) {
     /**
      * Get all active audit statuses for the current company.
