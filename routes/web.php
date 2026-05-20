@@ -29,14 +29,9 @@ Route::get('/', function () {
     return redirect()->route('home');
 });
 
-Route::get('/debug-db', function() {
-    $templates = \App\Models\Monitoring\MonitoringTemplate::get(['id', 'name', 'monitoring_category', 'is_active', 'status', 'lab_id']);
-    $labs = \App\Lab::get(['id', 'name']);
-    return response()->json([
-        'templates' => $templates,
-        'labs' => $labs
-    ]);
-});
+
+
+
 
 Auth::routes();
 
@@ -1621,6 +1616,9 @@ Route::get('/billing/tax-regime', function () {
 //#################################LAB REPORTS#######################################
 Route::get('/lab/reports-home', 'Lab\Reports\SamplesReportsController@index')->name('lab-reports-home')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/lab/report/show', 'Lab\Reports\SamplesReportsController@show')->name('lab-report-show')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/module-reports', 'Lab\Reports\ModuleReportsController@index')->name('module-reports.index')->middleware('auth');
+Route::post('/module-reports/view', 'Lab\Reports\ModuleReportsController@viewReport')->name('module-reports.view')->middleware('auth');
+Route::get('/module-reports/print', 'Lab\Reports\ModuleReportsController@printReport')->name('module-reports.print')->middleware('auth');
 
 Route::get('/lab/sample-generate/certificate-analysis/{id}', 'SampleWorkFlowController@certificate_analysis')->name('certificate-analysis')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/getAnalysisTypeBySampleTypeAjax/{type_id}', 'Lab\Reports\SamplesReportsController@getAnalysisTypeBySampleTypeAjax')->name('getAnalysisTypeBySampleTypeAjax')->middleware('can:laboratory.components.lab-reports.view');

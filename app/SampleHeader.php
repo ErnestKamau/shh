@@ -415,9 +415,25 @@ class SampleHeader extends Model implements Auditable
 		return InvoiceDetails::where('invoice_id',$this->invoice_id)->sum('total');
 	}
 	public function getVerificationApprovalStatus(){
+		if (\Illuminate\Support\Facades\DB::getDriverName() === 'pgsql') {
+			return BatchLabSectionApprover::where('batch_id',$this->id)
+				->where('batch_status','Sample Verification')
+				->where(function($q) {
+					$q->where('status', false)->orWhereNull('status');
+				})
+				->count();
+		}
 		return BatchLabSectionApprover::where('batch_id',$this->id)->where('batch_status','Sample Verification')->whereIn('status',[2,0])->get()->count();
 	}
 	public function getApprovalStageStatus(){
+		if (\Illuminate\Support\Facades\DB::getDriverName() === 'pgsql') {
+			return BatchLabSectionApprover::where('batch_id',$this->id)
+				->where('batch_status','Sample Approval')
+				->where(function($q) {
+					$q->where('status', false)->orWhereNull('status');
+				})
+				->count();
+		}
 		return BatchLabSectionApprover::where('batch_id',$this->id)->where('batch_status','Sample Approval')->whereIn('status',[2,0])->get()->count();
 	}
 	public function getContactPersonDetail(){

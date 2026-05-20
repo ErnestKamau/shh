@@ -455,6 +455,10 @@
 	</a>
 	<div id="report-menu" class="collapse sidebar-submenu">
 
+		<a href="{{ route('module-reports.index') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Centralized Module Reports
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
 		<a href="{{ route('lab-reports-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Lab Reports
 				<small class="float-right badge badge-pill"></small></span>

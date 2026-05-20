@@ -2979,7 +2979,7 @@
 					</div>
 					<div class="form-group">
 						<label for="" class="control-label">Report Format</label>
-						<select name="report_format" id="report_format_select" class="form-control" required>
+						<select name="report_format" id="report_format_select" class="form-control no-select2" required>
 							<option value="">Select Report Format</option>
 							<option value="0">Aspergillus Report (MB 821/25-3)</option>
 							<option value="1">Microbiology Report (MB 826/25)</option>
@@ -3238,7 +3238,7 @@
 				</div>
 				<div class="form-group">
 					<label for="" class="control-label">Report Format</label>
-					<select name="report_format" id="report_format" class="form-control">
+					<select name="report_format" id="report_format" class="form-control no-select2">
 						<option value="">Choose Report Format</option>
 						<option value="0">Aspergillus Report</option>
 						<option value="1">Microbiology Report</option>

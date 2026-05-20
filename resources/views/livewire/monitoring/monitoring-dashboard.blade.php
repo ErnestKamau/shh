@@ -73,14 +73,6 @@
         </div>
     </div>
 
-    <div class="alert alert-warning">
-        DEBUG INFO:
-        Active Section: {{ $activeSection }} |
-        Selected Lab ID: {{ $selectedLabId }} |
-        Templates Due Today Count: {{ $this->templatesDueToday->count() }} |
-        Assigned Labs Count: {{ $this->assignedLabs->count() }}
-    </div>
-
     <div class="card monitoring-main-card">
         <div class="card-body">
             @if(in_array($activeSection, ['environmental', 'equipment'], true))
@@ -271,6 +263,62 @@
                             </table>
                         </div>
                     </div>
+
+                    @if($activeSection === 'environmental')
+                        <!-- Environmental Optimum Levels and Trends Chart -->
+                        <div class="card mt-4" style="border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); overflow: hidden;">
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border: none; padding: 15px 20px;">
+                                <h5 class="mb-0 font-weight-bold" style="font-size: 1.1rem; color: white;">
+                                    <i class="mdi mdi-chart-line-variant mr-1"></i> Environmental Logs vs. Optimum Level
+                                </h5>
+                                <span class="badge badge-pill badge-light text-primary px-3 py-1 font-weight-bold" style="background-color: white; color: #1e3c72 !important;">
+                                    Real-time Analysis
+                                </span>
+                            </div>
+                            <div class="card-body bg-white" style="padding: 24px;">
+                                @if($this->environmentalGraphData['hasData'])
+                                    <div style="height: 320px; position: relative;">
+                                        <canvas id="environmentalTrendsChart"></canvas>
+                                    </div>
+                                    <div class="mt-4 pt-3 border-top d-flex justify-content-around flex-wrap text-center" style="gap: 15px;">
+                                        <div class="px-3">
+                                            <div class="text-muted small uppercase font-weight-bold mb-1">Expected Minimum</div>
+                                            <h4 class="font-weight-bold text-warning mb-0">
+                                                @php
+                                                    $minVal = collect($this->environmentalGraphData['min'])->filter()->first();
+                                                @endphp
+                                                {{ $minVal ?? 'N/A' }}{{ $minVal !== null ? ' ' . $this->environmentalGraphData['unit'] : '' }}
+                                            </h4>
+                                        </div>
+                                        <div class="px-3" style="border-left: 1px solid #f1f2f5; border-right: 1px solid #f1f2f5;">
+                                            <div class="text-muted small uppercase font-weight-bold mb-1">Optimum Target Level</div>
+                                            <h4 class="font-weight-bold text-success mb-0">
+                                                @php
+                                                    $optVal = collect($this->environmentalGraphData['optimum'])->filter()->first();
+                                                @endphp
+                                                {{ $optVal ?? 'N/A' }}{{ $optVal !== null ? ' ' . $this->environmentalGraphData['unit'] : '' }}
+                                            </h4>
+                                        </div>
+                                        <div class="px-3">
+                                            <div class="text-muted small uppercase font-weight-bold mb-1">Expected Maximum</div>
+                                            <h4 class="font-weight-bold text-danger mb-0">
+                                                @php
+                                                    $maxVal = collect($this->environmentalGraphData['max'])->filter()->first();
+                                                @endphp
+                                                {{ $maxVal ?? 'N/A' }}{{ $maxVal !== null ? ' ' . $this->environmentalGraphData['unit'] : '' }}
+                                            </h4>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="text-center py-5 text-muted">
+                                        <i class="mdi mdi-chart-bubble" style="font-size: 3rem; color: #cbd5e1;"></i>
+                                        <h6 class="mt-3 font-weight-bold text-dark">No environmental logs captured yet</h6>
+                                        <p class="text-muted mb-0 small">Execute and save an environmental monitoring template to view the live trend analysis against optimum levels.</p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                 @endif
             @else
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -451,6 +499,9 @@
 
                             <div class="row">
                                 @foreach($activeTemplate->fields as $field)
+                                    @if($field->field_type === 'metadata' || $field->field_key === '__meta_scope_items')
+                                        @continue
+                                    @endif
                                     @php
                                         $type = $field->field_type;
                                         $cfg = $field->field_config ?? [];
@@ -882,6 +933,139 @@
             }
         }
     </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let envTrendChart = null;
+
+        function initEnvTrendChart() {
+            const ctx = document.getElementById('environmentalTrendsChart');
+            if (!ctx) return;
+
+            if (envTrendChart) {
+                envTrendChart.destroy();
+            }
+
+            const rawData = @json($this->environmentalGraphData);
+            if (!rawData || !rawData.hasData) return;
+
+            envTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: rawData.labels,
+                    datasets: [
+                        {
+                            label: 'Logged Value',
+                            data: rawData.actual,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#2563eb',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Optimum Target',
+                            data: rawData.optimum,
+                            borderColor: '#10b981',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Expected Min',
+                            data: rawData.min,
+                            borderColor: '#f59e0b',
+                            borderWidth: 1.5,
+                            borderDash: [8, 4],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Expected Max',
+                            data: rawData.max,
+                            borderColor: '#ef4444',
+                            borderWidth: 1.5,
+                            borderDash: [8, 4],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: "'Outfit', 'Inter', 'Roboto', sans-serif",
+                                    size: 12
+                                },
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleFont: {
+                                family: "'Outfit', 'Inter', 'Roboto', sans-serif",
+                                size: 13,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                family: "'Outfit', 'Inter', 'Roboto', sans-serif",
+                                size: 12
+                            },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: true
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'Outfit', 'Inter', sans-serif",
+                                    size: 11
+                                },
+                                color: '#64748b'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: '#f1f5f9'
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'Outfit', 'Inter', sans-serif",
+                                    size: 11
+                                },
+                                color: '#64748b'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initEnvTrendChart();
+        });
+
+        document.addEventListener('livewire:updated', function() {
+            setTimeout(initEnvTrendChart, 100);
+        });
+    </script>
 </div>
 </style>
 </div>

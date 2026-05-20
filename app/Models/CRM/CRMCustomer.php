@@ -22,12 +22,12 @@ class CRMCustomer extends Model implements Auditable
 	protected $casts = [
 		'report_columns_config' => 'array',
 		'is_internal' => 'boolean',
-		'code' => 'encrypted',
-		'postal_address' => 'encrypted',
-		'physical_address' => 'encrypted',
-		'email' => 'encrypted',
-		'telephone1' => 'encrypted',
-		'telephone2' => 'encrypted',
+		'code' => \App\Casts\SafeEncrypted::class,
+		'postal_address' => \App\Casts\SafeEncrypted::class,
+		'physical_address' => \App\Casts\SafeEncrypted::class,
+		'email' => \App\Casts\SafeEncrypted::class,
+		'telephone1' => \App\Casts\SafeEncrypted::class,
+		'telephone2' => \App\Casts\SafeEncrypted::class,
 	];
 
 	public function country(){

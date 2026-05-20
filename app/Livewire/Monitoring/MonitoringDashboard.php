@@ -69,6 +69,112 @@ class MonitoringDashboard extends Component
         );
     }
 
+    public function getEnvironmentalGraphDataProperty(): array
+    {
+        if ($this->activeSection !== 'environmental') {
+            return [
+                'labels' => [],
+                'actual' => [],
+                'optimum' => [],
+                'min' => [],
+                'max' => [],
+                'hasData' => false,
+            ];
+        }
+
+        // Fetch all environmental logs for this lab over the last 30 days
+        $logs = \App\Models\Monitoring\MonitoringLog::query()
+            ->with(['template.fields', 'entries'])
+            ->where('monitoring_scope', 'environmental')
+            ->where('lab_id', $this->selectedLabId)
+            ->where('status', 'completed')
+            ->orderBy('executed_at', 'asc')
+            ->limit(15)
+            ->get();
+
+        // Fetch active lab sections for the selected lab with reportingUnit
+        $sections = \App\LabSection::with('reportingUnit')
+            ->where('lab_id', $this->selectedLabId)
+            ->where('active', true)
+            ->get()
+            ->keyBy('id');
+
+        $labels = [];
+        $actualValues = [];
+        $optimumLevels = [];
+        $minLevels = [];
+        $maxLevels = [];
+        $unitName = '';
+
+        foreach ($logs as $log) {
+            // Find the metadata field on the template to get the section
+            $metaField = $log->template->fields->firstWhere('field_type', 'metadata');
+            $sectionIds = Arr::get($metaField->field_config ?? [], 'sections', []);
+            
+            $section = null;
+            foreach ($sectionIds as $sid) {
+                if (isset($sections[$sid])) {
+                    $section = $sections[$sid];
+                    break;
+                }
+            }
+
+            // Extract numeric value from entry fields
+            $numericVal = null;
+            // Prioritize final_value or value-related keys
+            foreach ($log->entries as $entry) {
+                if (str_contains(strtolower($entry->field_key), 'final') || str_contains(strtolower($entry->field_key), 'value') || str_contains(strtolower($entry->field_key), 'result')) {
+                    $val = $entry->computed_value !== null ? $entry->computed_value : $entry->raw_value;
+                    if (is_numeric($val)) {
+                        $numericVal = (float) $val;
+                        break;
+                    }
+                }
+            }
+            // Fallback to first numeric entry
+            if ($numericVal === null) {
+                foreach ($log->entries as $entry) {
+                    if ($entry->field_key === '__meta_scope_items') {
+                        continue;
+                    }
+                    $val = $entry->computed_value !== null ? $entry->computed_value : $entry->raw_value;
+                    if (is_numeric($val)) {
+                        $numericVal = (float) $val;
+                        break;
+                    }
+                }
+            }
+
+            if ($numericVal !== null) {
+                $labels[] = optional($log->executed_at)->format('M d H:i') ?? $log->created_at->format('M d H:i');
+                $actualValues[] = $numericVal;
+
+                if ($section) {
+                    $optimumLevels[] = is_numeric($section->optimum_level) ? (float) $section->optimum_level : null;
+                    $minLevels[] = $section->expected_min !== null ? (float) $section->expected_min : null;
+                    $maxLevels[] = $section->expected_max !== null ? (float) $section->expected_max : null;
+                    if ($section->reportingUnit && empty($unitName)) {
+                        $unitName = $section->reportingUnit->name;
+                    }
+                } else {
+                    $optimumLevels[] = null;
+                    $minLevels[] = null;
+                    $maxLevels[] = null;
+                }
+            }
+        }
+
+        return [
+            'labels' => $labels,
+            'actual' => $actualValues,
+            'optimum' => $optimumLevels,
+            'min' => $minLevels,
+            'max' => $maxLevels,
+            'unit' => $unitName,
+            'hasData' => count($labels) > 0,
+        ];
+    }
+
     public function getTemplatesDueTodayProperty()
     {
         if (!in_array($this->activeSection, ['environmental', 'equipment'], true)) {
@@ -233,7 +339,13 @@ class MonitoringDashboard extends Component
         }
 
         $metaField = $template->fields->firstWhere('field_key', '__meta_scope_items');
-        $cfg = $metaField ? ($metaField->field_config ?? []) : [];
+        $cfg = [];
+        if ($metaField) {
+            $cfg = $metaField->field_config;
+            if (is_string($cfg)) {
+                $cfg = json_decode($cfg, true) ?: [];
+            }
+        }
         $equipmentIds = [];
 
         if ($template->monitoring_category === 'equipment') {
@@ -251,12 +363,18 @@ class MonitoringDashboard extends Component
         }
 
         $query = Equipment::query()
-            ->where('active', true)
-            ->where('lab_id', $this->selectedLabId);
+            ->where('active', true);
 
         // Filter by configured equipment list if any are configured in the template metadata
         if (!empty($equipmentIds)) {
-            $query->whereIn('id', $equipmentIds);
+            $equipmentIds = array_filter((array) $equipmentIds);
+            if (!empty($equipmentIds)) {
+                $query->whereIn('id', $equipmentIds);
+            } else {
+                $query->where('lab_id', $this->selectedLabId);
+            }
+        } else {
+            $query->where('lab_id', $this->selectedLabId);
         }
 
         return $query->orderBy('name')->get(['id', 'name', 'equipment_number']);
@@ -428,14 +546,13 @@ class MonitoringDashboard extends Component
      * and write results back into executionInputs so computed fields
      * auto-fill in the modal.
      */
-    protected function recomputeFormulaFields(): void
+    protected function getFormulaVariables(): array
     {
         $template = $this->activeTemplate;
         if (!$template) {
-            return;
+            return [];
         }
 
-        $formulaEngine = app(FormulaEngineService::class);
         $equipmentId = Arr::get($this->executionInputs, 'equipment_id');
 
         // 1. Initialize all known dynamic and custom constant variables to safe defaults
@@ -479,7 +596,33 @@ class MonitoringDashboard extends Component
             }
         }
 
-        // 3. Evaluate formulas sequentially
+        // 3. Map any field values to their configured variable slugs in $vars
+        foreach ($template->fields as $field) {
+            $variableSlug = Arr::get($field->field_config ?? [], 'variable_slug');
+            if ($variableSlug && $variableSlug !== '') {
+                $fieldVal = Arr::get($this->executionInputs, $field->field_key);
+                if (is_numeric($fieldVal) && $fieldVal !== '') {
+                    $vars[$variableSlug] = (float) $fieldVal;
+                } elseif ($fieldVal !== null && $fieldVal !== '') {
+                    $vars[$variableSlug] = $fieldVal;
+                }
+            }
+        }
+
+        return $vars;
+    }
+
+    protected function recomputeFormulaFields(): void
+    {
+        $template = $this->activeTemplate;
+        if (!$template) {
+            return;
+        }
+
+        $formulaEngine = app(FormulaEngineService::class);
+        $vars = $this->getFormulaVariables();
+
+        // Evaluate formulas sequentially
         foreach ($template->formulaRules->where('is_active', true) as $rule) {
             $computed = $formulaEngine->evaluateSafe($rule->expression, $vars, null);
             if ($rule->output_key !== null && $rule->output_key !== '') {
@@ -492,6 +635,7 @@ class MonitoringDashboard extends Component
                         $this->executionInputs[$rule->output_key] = $computed;
                     }
                 } else {
+                    $vars[$rule->output_key] = null;
                     $this->executionInputs[$rule->output_key] = null;
                 }
             }
@@ -590,7 +734,7 @@ class MonitoringDashboard extends Component
 
         $entries = [];
         $aggregatedStatuses = [];
-        $formulaVars = $this->executionInputs;
+        $formulaVars = $this->getFormulaVariables();
 
         foreach ($template->fields as $field) {
             $rawValue = Arr::get($this->executionInputs, $field->field_key);
@@ -658,7 +802,7 @@ class MonitoringDashboard extends Component
 
         app(StoreMonitoringLogAction::class)->execute($template, [
             'lab_id' => $this->selectedLabId,
-            'equipment_id' => Arr::get($this->executionInputs, 'equipment_id'),
+            'equipment_id' => blank(Arr::get($this->executionInputs, 'equipment_id')) ? null : Arr::get($this->executionInputs, 'equipment_id'),
             'monitoring_scope' => $this->activeScope,
             'status' => $logStatus,
             'overall_result' => $overallResult,

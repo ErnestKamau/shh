@@ -48,6 +48,12 @@ class ReportHeaderDetailController extends Controller
 	public function sample_interpretations(Request $request, $sample_id)
 	{
 		$detail = SampleDetails::find($sample_id);
+		if ($detail) {
+			$batch = \App\SampleHeader::find($detail->sample_header_id);
+			if ($batch && $batch->status === 'Sample Approval') {
+				return redirect()->back()->with('error', 'This report is locked in the Sample Approval lifecycle and cannot be modified.');
+			}
+		}
 
 		$detail->main_body = $request->main_body;
 		$detail->header_body = $request->header_body;
@@ -61,6 +67,9 @@ class ReportHeaderDetailController extends Controller
 	{
 		$detailType = array("App\SampleHeader", "App\CRMCustomer");
 		$batch = \App\SampleHeader::find($batch_id);
+		if ($batch && $batch->status === 'Sample Approval') {
+			return redirect()->back()->with('error', 'This report is locked in the Sample Approval lifecycle and cannot be modified.');
+		}
 
 		$batch->declared_amount = $request->declared_amount;
 		$batch->final_declared_amount = $request->final_declared_amount;
@@ -142,6 +151,123 @@ class ReportHeaderDetailController extends Controller
 			'merge_with_attachments' => request()->boolean('merge_with_attachments'),
 			'attachment_ids' => request('attachment_ids', ''),
 		]);
+
+		// Ensure samples_by_category view exists in PostgreSQL
+		try {
+			\Illuminate\Support\Facades\DB::table('samples_by_category')->first();
+		} catch (\Exception $e) {
+			try {
+				\Illuminate\Support\Facades\DB::statement("
+					CREATE OR REPLACE VIEW samples_by_category AS
+					SELECT 
+						sh.batch_code AS batch_code,
+						sh.receipt_date AS receipt_date,
+						sh.date_collected AS date_collected,
+						sh.crm_customer_id AS crm_customer_id,
+						sh.sample_type_id AS sample_type_id,
+						sh.reference_number AS reference_number,
+						sh.status AS workflow_stage,
+						sh.is_routine AS is_routine,
+						sh.priority AS priority,
+						sh.batch_scope AS batch_scope,
+						sh.customer_survey AS customer_survey,
+						sh.approval_date AS approval_date,
+						sh.submit_by AS submit_by,
+						sh.sampled_by_company_personnel AS sampled_by_company_personnel,
+						sh.radio_active_levels AS batch_no,
+						sh.description AS product_description,
+						sh.batch_instructions AS batch_instructions,
+						sh.sampling_officer_name AS sampling_officer_name,
+						sh.retention_date AS retention_date,
+						sh.kra_office_ref AS kra_office_ref,
+						cc.code AS crm_code,
+						cc.name AS crm_name,
+						cc.postal_address AS postal_address,
+						cc.physical_address AS physical_address,
+						sh.crm_unit_name AS crm_unit_name,
+						st.code AS sample_type_code,
+						st.name AS sample_type_name,
+						sd.id AS id,
+						sd.sample_code AS sample_code,
+						sd.analysis_type_id AS analysis_type_id,
+						sd.sample_condition_id AS sample_condition_id,
+						sd.barcode AS barcode,
+						sd.comments AS comments,
+						sd.gps AS gps,
+						sd.photo_url AS photo_url,
+						sd.created_at AS created_at,
+						sd.updated_at AS updated_at,
+						sd.sample_header_id AS sample_header_id,
+						sd.sample_point_id AS sample_point_id,
+						sd.company_product_id AS company_product_id,
+						sd.main_body AS main_body,
+						sd.header_body AS header_body,
+						sd.is_ammendment AS is_ammendment,
+						sd.ammendment_number AS ammendment_number,
+						sd.main_standard AS main_standard,
+						sd.secondary_standard AS secondary_standard,
+						sd.short_code AS short_code,
+						sd.material_status AS material_status,
+						sd.third_standard_id AS third_standard_id,
+						sd.sample_no AS sample_no,
+						sd.no_of_samples AS no_of_samples,
+						sd.no_of_pots_plants AS no_of_pots_plants,
+						sd.standard_tests AS standard_tests,
+						sd.compartiment_lot AS compartiment_lot,
+						sd.coa_number AS coa_number,
+						sd.results AS results,
+						sd.lab_sub_no AS lab_sub_no,
+						sd.store_id AS store_id,
+						sd.store_slot_id AS store_slot_id,
+						sd.quantity AS quantity,
+						sd.reporting_unit_id AS reporting_unit_id,
+						sd.mfg_date AS mfg_date,
+						sd.expiry_date AS expiry_date,
+						sd.batch_lot_no AS batch_lot_no,
+						sd.coa_number_target AS coa_number_target,
+						sd.disposal_date AS disposal_date,
+						sd.is_disposed AS is_disposed,
+						sd.notes_body AS notes_body,
+						sd.report_number AS report_number,
+						cp.name AS product_name,
+						sp.name AS sample_point_name,
+						NULL AS sample_point_area_name,
+						sc.name AS sample_condition_name,
+						smain.code AS main_standard_code,
+						ssec.code AS sec_standard_code,
+						sthird.code AS third_standard_code,
+						iss.name AS store_slot_name,
+						is2.name AS store_name,
+						ru.name AS reporting_unit_name,
+						ci.invoice_number AS invoice_number,
+						am.name AS sampling_method_name,
+						am.code AS sampling_method_code,
+						l.code AS main_lab_code,
+						l.name AS main_lab_name,
+						l.id AS main_lab_id,
+						ccu.name AS customer_crm_unit
+					FROM sample_headers sh
+					JOIN sample_details sd ON sh.id = sd.sample_header_id
+					JOIN crm_customers cc ON sh.crm_customer_id = cc.id
+					JOIN sample_types st ON sh.sample_type_id = st.id
+					LEFT JOIN company_products cp ON sd.company_product_id = cp.id
+					LEFT JOIN sample_conditions sc ON sd.sample_condition_id = sc.id
+					LEFT JOIN sample_points sp ON sd.sample_point_id = sp.id
+					LEFT JOIN crm_company_units ccu ON sh.crm_unit_id = ccu.id
+					LEFT JOIN standards smain ON sd.main_standard = smain.id
+					LEFT JOIN standards ssec ON sd.secondary_standard = ssec.id
+					LEFT JOIN standards sthird ON sd.third_standard_id = sthird.id
+					LEFT JOIN inventory_stores is2 ON sd.store_id = is2.id
+					LEFT JOIN inventory_store_slots iss ON sd.store_slot_id = iss.id
+					LEFT JOIN reporting_units ru ON sd.reporting_unit_id = ru.id
+					LEFT JOIN customer_invoice ci ON sh.invoice_id = ci.id
+					LEFT JOIN analysis_methods am ON sh.sampling_method_id = am.id
+					LEFT JOIN labs l ON sd.lab_id = l.id
+				");
+			} catch (\Exception $inner) {
+				Log::error("Failed to create samples_by_category view in PDF report processor: " . $inner->getMessage());
+			}
+		}
 		// Load logos as base64 data URIs so DomPDF can render them
 		// without chroot restrictions or HTTP deadlocks.
 		$report_logo = $this->resolveImageAsDataUri($this->resolveCompanyLogoPath());
@@ -199,7 +325,7 @@ class ReportHeaderDetailController extends Controller
 		if ($report_format === 'water_report' || (string) $report_format === 'water_report') {
 			$reportCode = 'water_report';
 		} else {
-			$formatModel = ReportFormat::find((int) $report_format);
+			$formatModel = ReportFormat::find($report_format);
 
 			if (!$formatModel) {
 				// Legacy hardcoded params passed '0', '1', '2', '3' which match these report_codes or specific formats
@@ -855,13 +981,70 @@ class ReportHeaderDetailController extends Controller
 		$data['ungrouped_samples'] = $ungroupedSamples;
 		$data['sample_type_name'] = $sampleTypeName;
 
+		// Resolve GCLA logos for forensic DNA report templates
+		$tanzaniaCandidates = [
+			public_path('images/forms/tanzanialogo.jpeg'),
+			public_path('images/forms/tanzanialogo.jpg'),
+			'/home/kaarr/Downloads/tanzanialogo.jpeg',
+		];
+		$tanzaniaLogo = null;
+		foreach ($tanzaniaCandidates as $candidate) {
+			if (is_file($candidate)) {
+				$tanzaniaLogo = $this->resolveImageAsDataUri($candidate);
+				break;
+			}
+		}
+
+		$gclaCandidates = [
+			public_path('images/forms/gclalogo.png'),
+			public_path('images/forms/gclalogo.jpg'),
+			'/home/kaarr/Downloads/gclalogo.png',
+		];
+		$gclaLogo = null;
+		foreach ($gclaCandidates as $candidate) {
+			if (is_file($candidate)) {
+				$gclaLogo = $this->resolveImageAsDataUri($candidate);
+				break;
+			}
+		}
+
+		$data['logos'] = [
+			'tanzania' => $tanzaniaLogo,
+			'gcla' => $gclaLogo,
+		];
+
+		// Resolve signatures dynamically from custody flow
+		$approvedByUser = \App\ChainOfCustody::join('users as u', 'u.id', '=', 'chain_of_custodies.moved_out_by')
+			->where('sample_header_id', $batch->id)
+			->select('u.*')
+			->where('workflow_stage', "Sample Approval")->orderBy('chain_of_custodies.created_at', 'desc')->first();
+
+		$verifiedByUser = \App\ChainOfCustody::join('users as u', 'u.id', '=', 'chain_of_custodies.moved_out_by')
+			->where('sample_header_id', $batch->id)
+			->select('u.*')
+			->where('workflow_stage', "Sample Verification")->orderBy('chain_of_custodies.created_at', 'desc')->first();
+
+		$data['analystName'] = $batch->specialist_analyst?->name ?? 'Dkt. John Doe';
+		$data['verifierName'] = $verifiedByUser?->name ?? 'Prof. Jane Smith';
+		$data['approverName'] = $approvedByUser?->name ?? 'Dkt. John Doe';
+
 		ini_set('max_execution_time', 300);
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
 		$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
 		$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
 
-		$pdf = PDF::loadView('layouts.lab.reports.dynamic_report', $data);
+		$isGclaForensic = false;
+		if ($batch->status === 'Sample Approval' || 
+			(isset($batch->sample_type) && ($batch->sample_type->code === 'ST-DNA' || stripos($batch->sample_type->name, 'DNA') !== false))) {
+			$isGclaForensic = true;
+		}
+
+		if ($isGclaForensic) {
+			$pdf = PDF::loadView('layouts.lab.reports.gcla-forensic-report', $data);
+		} else {
+			$pdf = PDF::loadView('layouts.lab.reports.dynamic_report', $data);
+		}
 
 		$filename = $filename ?? ($customer_name . '-' . preg_replace('/[^A-Za-z0-9]/', '', $batch->batch_code) . '-' . date('d-M-Y-H-i-s') . '.pdf');
 		$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;

@@ -81,8 +81,12 @@ function getBatchAmmendmentsById($id)
 
 	foreach ($ammendments as $a) {
 		$s = json_decode($a->samples, true);
-		$p = array_keys($s);
-		$a->sample_name = implode(',', $p);
+		if (is_array($s)) {
+			$p = array_keys($s);
+			$a->sample_name = implode(',', $p);
+		} else {
+			$a->sample_name = '';
+		}
 	}
 	return $ammendments;
 }
