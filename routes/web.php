@@ -488,6 +488,13 @@ Route::get('/solutions-movement', 'Lab\BufferStockMovementController@livewire_in
 Route::get('/solutions-movement/show/{id}', 'Lab\BufferStockMovementController@livewire_show')->name('solution-movement-show')->middleware('can:laboratory.components.stock-monitoring.view');
 Route::post('/solutions-movement/add', 'Lab\BufferStockMovementController@add')->name('solution-movement-add')->middleware('can:laboratory.components.stock-monitoring.add');
 
+Route::get('/solutions-preparation', 'Lab\SolutionPreparationController@index')->name('solutions-preparation-index')->middleware('can:laboratory.components.stock-monitoring.view');
+Route::get('/solutions-preparation/create', 'Lab\SolutionPreparationController@create')->name('solutions-preparation-create')->middleware('can:laboratory.components.stock-monitoring.add');
+Route::get('/solutions-preparation/show/{id}', 'Lab\SolutionPreparationController@show')->name('solutions-preparation-show')->middleware('can:laboratory.components.stock-monitoring.view');
+Route::get('/solutions-preparation/analysis-types/{sampleTypeId}', 'Lab\SolutionPreparationAjaxController@analysisTypes')->name('solutions-preparation-analysis-types')->middleware('can:laboratory.components.stock-monitoring.view');
+Route::get('/solutions-preparation/analytes/{analysisTypeId}', 'Lab\SolutionPreparationAjaxController@analytes')->name('solutions-preparation-analytes')->middleware('can:laboratory.components.stock-monitoring.view');
+Route::get('/solutions-preparation/standard-limits/{analyteId}/{standardId}', 'Lab\SolutionPreparationAjaxController@standardLimits')->name('solutions-preparation-standard-limits')->middleware('can:laboratory.components.stock-monitoring.view');
+
 Route::post('/stock-taking-counter/{id}/add', 'StockTakingCounterController@add')->name('add-stock-taking-counter')->middleware('can:inventory.components.stock-taking.edit');
 Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@remove')->name('remove-stock-taking-counter')->middleware('can:inventory.components.stock-taking.edit');
 

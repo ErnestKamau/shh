@@ -1,4 +1,4 @@
-<div class="acc-wizard-root">
+<div class="acc-wizard-root acc-wizard-root--acceptance">
     @if($showModal)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-lg acc-wizard-dialog" role="document">
@@ -273,28 +273,40 @@
                             </section>
                         @endif
 
-                        <section class="acc-wizard-section">
-                            <div class="acc-pricing-toolbar mb-3">
-                                <div>
-                                    <h6 class="acc-wizard-section-title mb-1">Sample Receipt Notification (GCLA 01)</h6>
-                                    <p class="acc-wizard-hint mb-0">Lab batch number fills in after customer signs.</p>
+                        @if($activeStep === 'receipt')
+                            <section class="acc-wizard-section">
+                                <div class="acc-pricing-toolbar mb-3">
+                                    <div>
+                                        <h6 class="acc-wizard-section-title mb-1">Sample Receipt Notification (GCLA 01)</h6>
+                                        <p class="acc-wizard-hint mb-0">Pre-filled from the selected request. Receiving person is the currently signed-in user; the lab batch number is assigned after the customer signs.</p>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="saveReceiptNotificationDraft">
+                                        Save receipt draft
+                                    </button>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="saveReceiptNotificationDraft">
-                                    Save receipt draft
-                                </button>
-                            </div>
-                            @include('livewire.partials.receipt-notification-wire-fields', [
-                                'wirePrefix' => 'receiptNotificationForm.',
-                                'canvasPrefix' => 'acc-wizard-receipt',
-                                'readOnly' => false,
-                                'partLabel' => null,
-                            ])
-                        </section>
+                                @include('livewire.partials.receipt-notification-wire-fields', [
+                                    'wirePrefix' => 'receiptNotificationForm.',
+                                    'canvasPrefix' => 'acc-wizard-receipt',
+                                    'readOnly' => false,
+                                    'partLabel' => null,
+                                    'showSubmitterSection' => false,
+                                    'showSubmitterSigningNotice' => true,
+                                    'showLabNumberPendingNote' => true,
+                                    'labNumberPlaceholder' => 'Request no. — lab batch no. after customer signs',
+                                ])
+                            </section>
+                        @endif
                     </div>
 
                     <div class="acc-wizard-footer">
                         <button type="button" class="btn btn-light acc-btn-ghost" wire:click="closeWizard">Close</button>
                         @if($activeStep === 'request')
+                            <button type="button" class="btn acc-btn-primary" wire:click="continueToReceiptStep" wire:loading.attr="disabled">
+                                <span wire:loading wire:target="continueToReceiptStep" class="spinner-border spinner-border-sm mr-1"></span>
+                                Continue
+                            </button>
+                        @elseif($activeStep === 'receipt' && !$acceptanceFormId)
+                            <button type="button" class="btn btn-light" wire:click="backFromReceiptStep">Back</button>
                             <button type="button" class="btn acc-btn-primary" wire:click="submitStep1" wire:loading.attr="disabled">
                                 <span wire:loading wire:target="submitStep1" class="spinner-border spinner-border-sm mr-1"></span>
                                 @if($raiseSampleDisclaimer)
@@ -363,7 +375,7 @@
                                     @disabled(!$addLineAnalysisTypeId || ($addLineParameters === [] && !$addLineCanAddWholeAnalysisType))
                                 >
                                     @if($addLineCanAddWholeAnalysisType)
-                                        <option value="">Whole analysis type (no element)</option>
+                                        <option value="">All parameters for this analysis type</option>
                                     @endif
                                     @foreach($addLineParameters as $param)
                                         <option value="{{ $param['id'] }}">{{ $param['label'] }} — {{ number_format($param['unit_amount'], 2) }}</option>
@@ -502,9 +514,21 @@
             color: var(--acc-muted);
         }
 
+        .acc-wizard-root--acceptance .acc-wizard-header,
+        .acc-wizard-root--acceptance .acc-wizard-header--compact {
+            background: #fff !important;
+            color: var(--acc-text) !important;
+        }
+
+        .acc-wizard-root--acceptance .acc-wizard-header .acc-wizard-close,
+        .acc-wizard-root--acceptance .acc-wizard-header--compact .acc-wizard-close {
+            background: #f1f5f9 !important;
+            color: var(--acc-muted) !important;
+        }
+
         .acc-wizard-steps {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 0;
             padding: 0;
             background: #f8fafc;
@@ -1195,6 +1219,11 @@
                 setTimeout(initManagerSignaturePad, 400);
                 setTimeout(initWizardReceiptPads, 460);
                 setTimeout(initDisclaimerSignaturePads, 500);
+            });
+
+            Livewire.on('acceptance-receipt-step-opened', function () {
+                resetWizardReceiptCanvasFlags();
+                setTimeout(initWizardReceiptPads, 300);
             });
 
             Livewire.on('acceptance-disclaimer-step-opened', function () {

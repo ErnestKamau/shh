@@ -238,6 +238,8 @@
                     'canvasPrefix' => 'lab-receipt-batch',
                     'readOnly' => $readOnly,
                     'partLabel' => 'Part E: Sample Receipt Notification (GCLA 01)',
+                    'showSubmitterSection' => $readOnly,
+                    'showSubmitterSigningNotice' => ! $readOnly,
                 ])
             @endif
 

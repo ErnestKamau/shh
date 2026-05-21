@@ -166,6 +166,8 @@
                                     'canvasPrefix' => 'cust-acc-receipt',
                                     'readOnly' => false,
                                     'partLabel' => null,
+                                    'showSubmitterSection' => true,
+                                    'showSubmitterSigningNotice' => false,
                                 ])
                             </section>
 

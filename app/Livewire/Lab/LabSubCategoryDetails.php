@@ -7,6 +7,7 @@ use App\LabCategoryItems;
 use App\LabInventoryCategory;
 use App\LabSubCategory;
 use App\ReportingUnit;
+use App\Services\Preparation\PreparationTemplateService;
 use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -67,6 +68,8 @@ class LabSubCategoryDetails extends Component
     public $showReagentDropdown = false;
 
     public $showItemUnitDropdown = false;
+
+    public string $activeTab = 'reagents';
 
     protected function getSubCategoryRules(): array
     {
@@ -318,6 +321,13 @@ class LabSubCategoryDetails extends Component
     public function deleteItem(string $itemId): void
     {
         try {
+            if (app(PreparationTemplateService::class)->isIngredientUsedInTemplates($itemId)) {
+                $this->message = 'Cannot delete: reagent is used in preparation step templates.';
+                $this->messageType = 'danger';
+
+                return;
+            }
+
             LabCategoryItems::findOrFail($itemId)->delete();
 
             $this->message = 'Reagent item deleted successfully!';

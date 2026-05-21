@@ -98,6 +98,9 @@
                                 'canvasPrefix' => 'mgr-acc-receipt',
                                 'readOnly' => false,
                                 'partLabel' => null,
+                                'showSubmitterSection' => true,
+                                'submitterReadOnly' => true,
+                                'showSubmitterSigningNotice' => false,
                             ])
                         </section>
 

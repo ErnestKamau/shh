@@ -133,6 +133,11 @@
                                                        title="View Details">
                                                         <i class="mdi mdi-eye"></i>
                                                     </a>
+                                                    <a href="{{ route('solutions-preparation-index', ['solutionFilter' => $subCategory->id]) }}"
+                                                       class="btn btn-sm rm-act-btn rm-act-btn--muted"
+                                                       title="Preparations">
+                                                        <i class="mdi mdi-clipboard-list-outline"></i>
+                                                    </a>
                                                     <button wire:click="cloneSubCategory('{{ $subCategory->id }}')"
                                                             class="btn btn-sm rm-act-btn rm-act-btn--muted"
                                                             title="Clone"
@@ -158,7 +163,7 @@
                                             </td>
                                             <td><strong>{{ $subCategory->name }}</strong></td>
                                             <td>{{ $subCategory->category->name ?? 'N/A' }}</td>
-                                            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                <td>{{ $subCategory->rate }}</td>
+                                            <td>{{ $subCategory->rate }}</td>
                                             <td>{{ $subCategory->reportingUnit->name ?? 'N/A' }}</td>
                                             <td>
                                                 @if($subCategory->active)

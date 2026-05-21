@@ -383,6 +383,10 @@
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Solutions Movement
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
+			<a href="{{route('solutions-preparation-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Preparation Tracking
+					<small class="float-right badge badge-pill"></small></span>
+			</a>
 
 
 	</div>

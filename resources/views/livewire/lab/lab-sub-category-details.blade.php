@@ -45,8 +45,35 @@
         </div>
     @endif
 
+    <ul class="nav nav-tabs scd-tabs mb-3" role="tablist">
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link {{ $activeTab === 'configuration' ? 'active' : '' }}"
+                    wire:click="$set('activeTab', 'configuration')">
+                <i class="mdi mdi-tune-variant"></i> Configuration
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link {{ $activeTab === 'reagents' ? 'active' : '' }}"
+                    wire:click="$set('activeTab', 'reagents')">
+                <i class="mdi mdi-flask-outline"></i> Reagents
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link {{ $activeTab === 'templates' ? 'active' : '' }}"
+                    wire:click="$set('activeTab', 'templates')">
+                <i class="mdi mdi-format-list-numbered"></i> Preparation templates
+            </button>
+        </li>
+    </ul>
+
+    @if($activeTab === 'templates')
+        @livewire('lab.solution-preparation-templates', ['subCategoryId' => $subCategoryId], key('templates-'.$subCategoryId))
+    @else
     <div class="row g-4">
-        {{-- Left: details form --}}
+        @if($activeTab === 'configuration')
         <div class="col-xl-4 col-lg-5">
             <div class="scd-panel card border-0 shadow-sm h-100">
                 <div class="scd-panel__head">
@@ -201,9 +228,29 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        {{-- Right: reagent items --}}
-        <div class="col-xl-8 col-lg-7">
+    <ul class="nav nav-tabs scd-tabs mb-3" role="tablist">
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link {{ $activeTab === 'reagents' ? 'active' : '' }}"
+                    wire:click="$set('activeTab', 'reagents')">
+                <i class="mdi mdi-flask-outline"></i> Reagents
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link {{ $activeTab === 'templates' ? 'active' : '' }}"
+                    wire:click="$set('activeTab', 'templates')">
+                <i class="mdi mdi-format-list-numbered"></i> Preparation templates
+            </button>
+        </li>
+    </ul>
+
+    @if($activeTab === 'templates')
+        @livewire('lab.solution-preparation-templates', ['subCategoryId' => $subCategoryId], key('templates-'.$subCategoryId))
+    @else
+        <div class="col-12">
             <div class="scd-panel card border-0 shadow-sm h-100">
                 <div class="scd-panel__head scd-panel__head--split">
                     <div class="d-flex align-items-center gap-2">
@@ -274,7 +321,9 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
+    @endif
 
     {{-- Reagent modal --}}
     @if($showItemModal)

@@ -148,6 +148,10 @@ class AcceptanceFormWizard extends Component
             ['key' => 'request', 'label' => 'Request & pricing', 'icon' => 'mdi-clipboard-list-outline'],
         ];
 
+        if ($this->acceptanceFormId === null) {
+            $steps[] = ['key' => 'receipt', 'label' => 'Sample receipt (GCLA 01)', 'icon' => 'mdi-file-document-outline'];
+        }
+
         if ($this->requiresDisclaimerStep || ($this->acceptanceFormId && $this->hasDisclaimerOnForm())) {
             $steps[] = ['key' => 'disclaimer', 'label' => 'Sample disclaimer', 'icon' => 'mdi-file-alert-outline'];
         }
@@ -188,10 +192,18 @@ class AcceptanceFormWizard extends Component
         }
 
         $pending = $service->loadPendingDraft($this->submissionFormInstanceId, $this->submissionRequestId);
-        $this->receiptNotificationForm = $service->mergeFormPayloads($pending, [
-            'client_or_authority_name' => $this->customerName,
-            'number_of_samples' => $this->numberOfSamples,
-        ]);
+        $fromSelection = $service->hydrateDefaultsFromWizardSelection(
+            $this->submissionFormInstanceId,
+            $this->submissionRequestId,
+            [
+                'client_or_authority_name' => $this->customerName,
+                'number_of_samples' => $this->numberOfSamples,
+            ]
+        );
+
+        $this->receiptNotificationForm = $service->applyReceivingPersonFromAuth(
+            $service->mergePrefillWithUserDraft($fromSelection, $pending)
+        );
     }
 
     public function saveReceiptNotificationDraft(): void
@@ -246,6 +258,11 @@ class AcceptanceFormWizard extends Component
 
         $this->activeStep = $stepKey;
 
+        if ($stepKey === 'receipt' && $this->acceptanceFormId === null) {
+            $this->refreshReceiptNotificationFormState();
+            $this->dispatch('acceptance-receipt-step-opened');
+        }
+
         if ($stepKey === 'disclaimer' && $this->acceptanceFormId) {
             $form = AnalysisAcceptanceForm::query()->find($this->acceptanceFormId);
             if ($form !== null) {
@@ -253,6 +270,27 @@ class AcceptanceFormWizard extends Component
                     ->resolveFormStateForAcceptanceForm($form);
             }
         }
+    }
+
+    public function continueToReceiptStep(): void
+    {
+        $this->validate([
+            'customerName' => 'required|string|max:255',
+            'requestDate' => 'required|date',
+            'numberOfSamples' => 'required|integer|min:1',
+            'modeOfWork' => 'required|in:Normal,Express',
+            'dateOfSampling' => 'nullable|date',
+            'lines' => 'required|array|min:1',
+        ]);
+
+        $this->refreshReceiptNotificationFormState();
+        $this->activeStep = 'receipt';
+        $this->dispatch('acceptance-receipt-step-opened');
+    }
+
+    public function backFromReceiptStep(): void
+    {
+        $this->activeStep = 'request';
     }
 
     public function submitStep1(): void
@@ -303,7 +341,7 @@ class AcceptanceFormWizard extends Component
 
     public function backFromDisclaimerStep(): void
     {
-        $this->activeStep = 'request';
+        $this->activeStep = $this->acceptanceFormId === null ? 'receipt' : 'request';
     }
 
     /**
@@ -402,7 +440,7 @@ class AcceptanceFormWizard extends Component
         }
 
         $pricing = app(AcceptanceFormPricingService::class);
-        $this->addLineSampleTypes = $pricing->pricelistSampleTypesForCustomer($this->crmCustomerId);
+        $this->addLineSampleTypes = $pricing->sampleTypesForAddLinePicker($this->crmCustomerId, $this->lines);
         $this->addLineAnalysisTypes = [];
         $this->addLineParameters = [];
         $this->addLineSampleTypeId = null;
@@ -423,7 +461,7 @@ class AcceptanceFormWizard extends Component
         }
 
         $this->addLineAnalysisTypes = app(AcceptanceFormPricingService::class)
-            ->pricelistAnalysisTypesForCustomer($this->crmCustomerId, $this->addLineSampleTypeId);
+            ->analysisTypesForAddLinePicker($this->crmCustomerId, $this->addLineSampleTypeId, $this->lines);
         $this->addLineAnalysisTypeId = null;
         $this->addLineParameters = [];
         $this->addLineAllParametersSelected = false;
@@ -449,34 +487,24 @@ class AcceptanceFormWizard extends Component
 
         $isWholeAnalysisType = $this->addLineParameterKey === null || $this->addLineParameterKey === '';
 
-        if ($isWholeAnalysisType && !$this->addLineCanAddWholeAnalysisType) {
-            $this->dispatch(
-                'notify',
-                type: 'warning',
-                message: 'This analysis type is already represented in the list below.'
-            );
+        if ($isWholeAnalysisType) {
+            if (!$this->addLineCanAddWholeAnalysisType) {
+                $this->dispatch(
+                    'notify',
+                    type: 'warning',
+                    message: 'This analysis type is already represented in the list below.'
+                );
+
+                return;
+            }
+
+            $this->appendAllParametersForAnalysisSelection();
+            $this->showAddLineModal = false;
 
             return;
         }
 
         $parameter = collect($this->addLineParameters)->firstWhere('id', $this->addLineParameterKey);
-        if (!$parameter && $this->addLineAnalysisTypeId && $isWholeAnalysisType) {
-            $analysis = \App\AnalysisType::query()->find($this->addLineAnalysisTypeId);
-            $parameter = [
-                'sample_type_id' => $this->addLineSampleTypeId,
-                'sample_type_name' => optional(\App\SampleType::find($this->addLineSampleTypeId))->name,
-                'analysis_type_id' => $this->addLineAnalysisTypeId,
-                'analysis_type_name' => $analysis?->name,
-                'analysis_element_id' => null,
-                'label' => $analysis?->name ?? 'Analysis',
-                'unit_amount' => app(AcceptanceFormPricingService::class)->resolveLinePrice(
-                    app(AcceptanceFormPricingService::class)->resolvePricelist($this->crmCustomerId),
-                    $this->addLineSampleTypeId,
-                    $this->addLineAnalysisTypeId
-                ),
-            ];
-        }
-
         if (!$parameter) {
             return;
         }
@@ -484,7 +512,7 @@ class AcceptanceFormWizard extends Component
         if ($this->isParameterAlreadyInTable(
             $this->addLineSampleTypeId,
             $this->addLineAnalysisTypeId,
-            $isWholeAnalysisType ? null : (string) $this->addLineParameterKey,
+            (string) $this->addLineParameterKey,
             $parameter['analysis_element_id'] ?? null
         )) {
             $this->dispatch(
@@ -497,23 +525,7 @@ class AcceptanceFormWizard extends Component
             return;
         }
 
-        $this->lines[] = [
-            'line_no' => count($this->lines) + 1,
-            'sample_type_id' => $parameter['sample_type_id'] ?? $this->addLineSampleTypeId,
-            'sample_type_name' => $parameter['sample_type_name'] ?? '',
-            'analysis_type_id' => $parameter['analysis_type_id'] ?? $this->addLineAnalysisTypeId,
-            'analysis_type_name' => $parameter['analysis_type_name'] ?? '',
-            'analysis_element_id' => $parameter['analysis_element_id'] ?? null,
-            'parameter_label' => $parameter['label'] ?? '',
-            'unit_amount' => (float) ($parameter['unit_amount'] ?? 0),
-            'number_of_samples' => 1,
-            'is_approved' => true,
-            'sort_order' => count($this->lines),
-        ];
-
-        $this->lines = app(AcceptanceFormPricingService::class)
-            ->deduplicateRedundantAnalysisTypeLines($this->lines);
-        $this->reindexLines();
+        $this->appendLineFromParameter($parameter);
         $this->refreshAddLineParameterOptions();
 
         if ($this->addLineAllParametersSelected) {
@@ -669,7 +681,7 @@ class AcceptanceFormWizard extends Component
             return;
         }
 
-        $allParameters = app(AcceptanceFormPricingService::class)->pricelistParametersForCustomer(
+        $allParameters = app(AcceptanceFormPricingService::class)->parametersForAddLineSelection(
             $this->crmCustomerId,
             $this->addLineSampleTypeId,
             $this->addLineAnalysisTypeId
@@ -821,5 +833,66 @@ class AcceptanceFormWizard extends Component
             ->values();
 
         return $names->isNotEmpty() ? $names->implode(', ') : '';
+    }
+
+    private function appendAllParametersForAnalysisSelection(): void
+    {
+        if (!$this->crmCustomerId || !$this->addLineSampleTypeId || !$this->addLineAnalysisTypeId) {
+            return;
+        }
+
+        $parameters = app(AcceptanceFormPricingService::class)->parametersForAddLineSelection(
+            $this->crmCustomerId,
+            $this->addLineSampleTypeId,
+            $this->addLineAnalysisTypeId
+        );
+
+        $toAdd = $this->filterParametersNotInTable(
+            $parameters,
+            $this->addLineSampleTypeId,
+            $this->addLineAnalysisTypeId
+        );
+
+        if ($toAdd === []) {
+            $this->dispatch(
+                'notify',
+                type: 'warning',
+                message: 'All parameters for this sample type and analysis type are already in the list below.'
+            );
+
+            return;
+        }
+
+        foreach ($toAdd as $parameter) {
+            $this->appendLineFromParameter($parameter);
+        }
+
+        $this->lines = app(AcceptanceFormPricingService::class)
+            ->deduplicateRedundantAnalysisTypeLines($this->lines);
+        $this->reindexLines();
+    }
+
+    /**
+     * @param  array<string, mixed>  $parameter
+     */
+    private function appendLineFromParameter(array $parameter): void
+    {
+        $this->lines[] = [
+            'line_no' => count($this->lines) + 1,
+            'sample_type_id' => $parameter['sample_type_id'] ?? $this->addLineSampleTypeId,
+            'sample_type_name' => $parameter['sample_type_name'] ?? optional(\App\SampleType::find($this->addLineSampleTypeId))->name ?? '',
+            'analysis_type_id' => $parameter['analysis_type_id'] ?? $this->addLineAnalysisTypeId,
+            'analysis_type_name' => $parameter['analysis_type_name'] ?? optional(\App\AnalysisType::find($this->addLineAnalysisTypeId))->name ?? '',
+            'analysis_element_id' => $parameter['analysis_element_id'] ?? null,
+            'parameter_label' => $parameter['label'] ?? '',
+            'unit_amount' => (float) ($parameter['unit_amount'] ?? 0),
+            'number_of_samples' => 1,
+            'is_approved' => true,
+            'sort_order' => count($this->lines),
+        ];
+
+        $this->lines = app(AcceptanceFormPricingService::class)
+            ->deduplicateRedundantAnalysisTypeLines($this->lines);
+        $this->reindexLines();
     }
 }
