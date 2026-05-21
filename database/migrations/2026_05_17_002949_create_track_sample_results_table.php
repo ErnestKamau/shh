@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('track_sample_results')) {
+            return;
+        }
+
         Schema::create('track_sample_results', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('track_id');

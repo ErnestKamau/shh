@@ -161,7 +161,7 @@ User Question: "{message}"
 
 STRICT RULES:
 1. Output ONLY a single raw SQL SELECT statement — no explanation, no markdown, no comments.
-2. ONLY use tables listed above in the 'reporting' schema. Prefix every table with 'reporting.'.
+2. ONLY use tables listed above in the 'public' schema. Prefix every table with 'public.'.
 3. Always include LIMIT {_MAX_ROWS} at the end.
 4. Do NOT use INSERT, UPDATE, DELETE, DROP, TRUNCATE, CREATE, GRANT, or any write operation.
 5. Do NOT access columns marked as sensitive (e.g. passwords, tokens).
@@ -310,7 +310,7 @@ Summary:"""
         except Exception:
             explanation = f"Query returned {row_count} records."
 
-        source_note = f"\n\n_Source: dynamic query · {row_count} records · `reporting` schema_"
+        source_note = f"\n\n_Source: dynamic query · {row_count} records · `public` schema_"
         return f"{table_md}\n\n{explanation}{source_note}"
 
     # ── Utilities ─────────────────────────────────────────────────────────────

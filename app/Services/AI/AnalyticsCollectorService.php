@@ -70,7 +70,7 @@ class AnalyticsCollectorService
 
         // Persist to DB
         try {
-            DB::connection('pgsql_ai')->table('ai_request_logs')->insert([
+            DB::connection('pgsql_ai')->table('ai.ai_request_logs')->insert([
                 'route_name' => $intent,
                 'mode' => $selectedModel,
                 'confidence' => $confidence,
@@ -148,7 +148,7 @@ class AnalyticsCollectorService
 
         // Persist to DB
         try {
-            DB::connection('pgsql_ai')->table('ai_request_logs')->insert([
+            DB::connection('pgsql_ai')->table('ai.ai_request_logs')->insert([
                 'mode' => $model,
                 'latency_ms' => $latencyMs,
                 'source_count' => $tokensUsed,
@@ -307,7 +307,7 @@ class AnalyticsCollectorService
         // 1. Fetch from database (Persistent logs from Python AI Service)
         try {
             $dbLogs = DB::connection('pgsql_ai')
-                ->table('ai_request_logs')
+                ->table('ai.ai_request_logs')
                 ->select('route_name as intent', DB::raw('count(*) as count'), DB::raw('avg(latency_ms) as avg_latency'))
                 ->where('created_at', '>=', now()->subDays(30))
                 ->whereNotNull('route_name')
@@ -475,7 +475,7 @@ class AnalyticsCollectorService
 
         // 2. Fetch historical scores from DB (last 7 days)
         $dbStats = DB::connection('pgsql_ai')
-            ->table('ai_request_logs')
+            ->table('ai.ai_request_logs')
             ->where('created_at', '>=', now()->subDays(7))
             ->selectRaw('count(*) as total, sum(case when success then 1 else 0 end) as success_count')
             ->first();
@@ -572,7 +572,7 @@ class AnalyticsCollectorService
     {
         try {
             return DB::connection('pgsql_ai')
-                ->table('ai_request_logs')
+                ->table('ai.ai_request_logs')
                 ->select([
                     'id', 'trace_id', 'query', 'mode', 'route_name', 
                     'latency_ms', 'confidence', 'success', 'created_at',

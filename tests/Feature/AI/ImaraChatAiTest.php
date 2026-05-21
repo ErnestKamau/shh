@@ -18,8 +18,12 @@ class ImaraChatAiTest extends TestCase
     {
         parent::setUp();
         // Create a user and a company for tests
-        $this->user = User::factory()->create([
-            'company_id' => 1
+        $this->user = User::create([
+            'name' => 'Test User',
+            'email' => 'test.user.' . uniqid() . '@example.com',
+            'password' => bcrypt('password'),
+            'company_id' => 1,
+            'active' => 1
         ]);
     }
 
@@ -41,7 +45,7 @@ class ImaraChatAiTest extends TestCase
             ]);
 
         $response->assertStatus(201);
-        $this->assertDatabaseHas('ai_messages', [
+        $this->assertDatabaseHas('ai.ai_messages', [
             'ai_conversation_id' => $convo->id,
             'role' => 'user',
             'content' => 'Hello'

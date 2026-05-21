@@ -13,7 +13,7 @@ use Carbon\Carbon;
 
 class LabTatDashboardController extends Controller
 {
-    protected $pgsqlConnection = 'pgsql_ai';
+    protected $pgsqlConnection = 'pgsql';
 
     public function __construct()
     {
@@ -80,7 +80,7 @@ class LabTatDashboardController extends Controller
     {
         try {
             $breaches = DB::connection($this->pgsqlConnection)
-                ->table('reporting.lab_tat_stage_summary')
+                ->table('public.v_lab_tat_stage_summary')
                 ->where('days_until_due', '<', 0)
                 ->selectRaw('
                     analyst_name,
@@ -116,7 +116,7 @@ class LabTatDashboardController extends Controller
     {
         try {
             $cycleTime = DB::connection($this->pgsqlConnection)
-                ->table('reporting.lab_tat_stage_summary')
+                ->table('public.v_lab_tat_stage_summary')
                 ->whereNotNull('stage_name')
                 ->selectRaw('
                     stage_name,
@@ -187,7 +187,7 @@ class LabTatDashboardController extends Controller
     {
         try {
             $metrics = DB::connection($this->pgsqlConnection)
-                ->table('reporting.lab_tat_stage_summary')
+                ->table('public.v_lab_tat_stage_summary')
                 ->selectRaw('
                     COUNT(DISTINCT batch_id) as total_batches,
                     COUNT(DISTINCT CASE WHEN days_until_due < 0 THEN batch_id END) as breached_batches,

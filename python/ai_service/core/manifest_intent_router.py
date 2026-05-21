@@ -63,17 +63,28 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
           "sample review", "approval pending", "pending approval",
           "samples awaiting approval"],
          "sample_count_pending_review"),
+        (["samples request review", "request review", "review request",
+          "samples requesting review", "sample request review", "request review stage",
+          "how many samples request review", "how many samples are request review"],
+         "sample_count_request_review"),
+        (["samples approved", "approved samples", "how many approved",
+          "how many samples are approved", "samples are approved",
+          "approval count", "approved batches", "batches approved"],
+         "sample_count_approved"),
+        (["samples verified", "verified samples", "how many verified",
+          "how many samples are verified", "samples are verified",
+          "verification count", "verified batches", "batches verified"],
+         "sample_count_verified"),
         (["samples by status", "sample status breakdown", "status breakdown",
           "sample distribution", "status distribution"],
          "samples_by_status"),
-        (["total samples", "sample count total", "how many samples",
-          "total sample count", "number of samples", "all samples"],
+        (["total samples", "sample count total", "total sample count",
+          "number of samples", "all samples"],
          "sample_count_total"),
         (["individual sample count", "individual samples", "aliquots",
           "sample items count", "total individual"],
          "individual_sample_count"),
-        (["total batches", "batch count", "how many batches",
-          "number of batches", "all batches"],
+        (["total batches", "batch count", "number of batches", "all batches"],
          "batch_count_total"),
         (["latest batch", "latest received", "recent batch",
           "last received batch", "newest batch", "recently received"],
@@ -113,9 +124,21 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
         (["equipment downtime", "equipment down", "non-operational",
           "overdue equipment", "broken equipment", "equipment overdue"],
          "equipment_downtime_summary"),
-        (["active equipment", "active instruments", "equipment count",
-          "how many instruments", "total equipment"],
+        (["active equipment", "active instruments", "active equipment count",
+          "active instruments count", "how many active instruments", "how many active equipment",
+          "how many active equipments", "number of active equipment", "number of active equipments",
+          "total active equipment", "total active equipments"],
          "equipment_count_active"),
+        (["total equipment", "total equipments", "total equipment count",
+          "number of equipment", "number of equipments", "equipment count",
+          "how many equipment", "how many equipments", "how many instruments",
+          "total instruments", "all equipment", "all equipments", "all instruments"],
+         "equipment_count_total"),
+        (["inactive equipment", "inactive equipments", "inactive equipment count",
+          "decommissioned equipment", "how many inactive equipment", "how many inactive equipments",
+          "number of inactive equipment", "number of inactive equipments", "total inactive equipment",
+          "total inactive equipments", "decommissioned instruments", "inactive instruments"],
+         "equipment_count_inactive"),
         (["maintenance health", "maintenance status", "instrument maintenance state",
           "equipment maintenance state"],
          "equipment_maintenance_health"),
@@ -280,13 +303,13 @@ class ManifestIntentRouter:
         
         a_active, b_active = self._get_active_rules(domain_whitelist)
         
-        # 1. Exact Match Pass (Fastest)
+        # 1. Exact Match Pass (Fastest with Word Boundaries)
         for patterns, intent in a_active:
-            if any(p in q for p in patterns):
+            if any(re.search(rf"\b{re.escape(p)}\b", q) for p in patterns):
                 matches.append((intent, "keyword", 1.0))
                 
         for patterns, intent in b_active:
-            if any(p in q for p in patterns):
+            if any(re.search(rf"\b{re.escape(p)}\b", q) for p in patterns):
                 if not any(m[0] == intent for m in matches):
                     matches.append((intent, "keyword_loose", 0.8))
 
@@ -304,6 +327,10 @@ class ManifestIntentRouter:
                             window = " ".join(words[i:i+n])
                             # 0.85 ratio allows for 1-2 typos in a medium string
                             if difflib.SequenceMatcher(None, p, window).ratio() >= 0.85:
+                                # Word-by-word safety check: reject if any word is completely different (ratio < 0.7)
+                                w_words = window.split()
+                                if any(difflib.SequenceMatcher(None, pw, ww).ratio() < 0.7 for pw, ww in zip(p_words, w_words)):
+                                    continue
                                 # Only add if this intent hasn't been added yet
                                 if not any(m[0] == intent for m in matches):
                                     tier = "keyword_fuzzy" if patterns in [r[0] for r in a_active] else "keyword_loose_fuzzy"
@@ -324,21 +351,36 @@ class ManifestIntentRouter:
         q = query.lower().strip()
         a_active, b_active = self._get_active_rules(domain_whitelist)
 
-        # Group A: deterministic, high confidence
+        # Find best match in Group A (based on longest matching pattern)
+        best_intent = None
+        best_pattern_len = 0
+
         for patterns, intent in a_active:
-            if any(p in q for p in patterns):
-                logger.info(
-                    f"ManifestIntentRouter: MATCHED '{intent}' via keyword (Group A)"
-                )
-                return intent, "keyword", 1.0
+            for p in patterns:
+                if p in q:
+                    if len(p) > best_pattern_len:
+                        best_pattern_len = len(p)
+                        best_intent = intent
+
+        if best_intent:
+            logger.info(
+                f"ManifestIntentRouter: MATCHED '{best_intent}' via keyword (Group A, len={best_pattern_len})"
+            )
+            return best_intent, "keyword", 1.0
 
         # Group B: looser rules, medium confidence
         for patterns, intent in b_active:
-            if any(p in q for p in patterns):
-                logger.info(
-                    f"ManifestIntentRouter: MATCHED '{intent}' via keyword_loose (Group B)"
-                )
-                return intent, "keyword_loose", 0.8
+            for p in patterns:
+                if p in q:
+                    if len(p) > best_pattern_len:
+                        best_pattern_len = len(p)
+                        best_intent = intent
+
+        if best_intent:
+            logger.info(
+                f"ManifestIntentRouter: MATCHED '{best_intent}' via keyword_loose (Group B, len={best_pattern_len})"
+            )
+            return best_intent, "keyword_loose", 0.8
 
         return None, None, 0.0
 

@@ -419,7 +419,7 @@ class MasController extends Controller
                 $stats['sections'] = $tatService->getLabSectionTatStats();
                 $stats['analyst_performance'] = $tatService->getAnalystPerformanceStats($period);
                 $stats['smart_grid'] = $tatService->getSmartActionGridData('urgent');
-                $stats['detailed_logs'] = $tatService->getDetailedAnalyteTatLogs($period, 100);
+                $stats['detailed_logs'] = $tatService->getDetailedAnalyteTatLogsPage($period, [], 1, 100)['rows'] ?? [];
                 $pdf = Pdf::loadView('layouts.mas.pdf.lab_pdf', compact('stats', 'chartImage'))
 
 

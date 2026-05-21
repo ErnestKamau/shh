@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class QCStabilityDashboardController extends Controller
 {
-    protected string $pg = 'pgsql_ai';
+    protected string $pg = 'pgsql';
     protected int    $cacheTtl = 600; // seconds
 
     public function __construct()
@@ -94,7 +94,7 @@ class QCStabilityDashboardController extends Controller
     {
         try {
             $row = DB::connection($this->pg)
-                ->table('reporting.v_qc_stability_metrics')
+                ->table('public.v_qc_stability_metrics')
                 ->selectRaw('
                     SUM(total_tests)   AS total_tests,
                     SUM(passed_tests)  AS passed_tests,
@@ -113,7 +113,7 @@ class QCStabilityDashboardController extends Controller
 
             // Count analytes whose robust_cv_pct exceeds warning threshold (15 %)
             $drifting = DB::connection($this->pg)
-                ->table('reporting.v_qc_stability_metrics')
+                ->table('public.v_qc_stability_metrics')
                 ->where('robust_cv_pct', '>', 15)
                 ->count();
 
@@ -135,7 +135,7 @@ class QCStabilityDashboardController extends Controller
             $since = now()->subDays($days)->toDateString();
 
             $rows = DB::connection($this->pg)
-                ->table('reporting.v_qc_drift_trends')
+                ->table('public.v_qc_drift_trends')
                 ->where('test_date', '>=', $since)
                 ->orderBy('analyte_name')
                 ->orderBy('test_date')
@@ -170,7 +170,7 @@ class QCStabilityDashboardController extends Controller
     {
         try {
             return DB::connection($this->pg)
-                ->table('reporting.v_qc_pareto_analysis')
+                ->table('public.v_qc_pareto_analysis')
                 ->orderByDesc('failure_count')
                 ->limit(20)
                 ->get()
@@ -200,7 +200,7 @@ class QCStabilityDashboardController extends Controller
             $since = now()->subDays($days)->toDateString();
 
             return DB::connection($this->pg)
-                ->table('reporting.v_qc_ooc_events')
+                ->table('public.v_qc_ooc_events')
                 ->where('occurred_at', '>=', $since)
                 ->orderByDesc('occurred_at')
                 ->limit(100)
@@ -219,7 +219,7 @@ class QCStabilityDashboardController extends Controller
     {
         try {
             return DB::connection($this->pg)
-                ->table('reporting.v_qc_stability_metrics')
+                ->table('public.v_qc_stability_metrics')
                 ->orderBy('analyte_name')
                 ->get()
                 ->map(fn ($r) => [

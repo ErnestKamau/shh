@@ -8,8 +8,8 @@ class LabTat extends BaseMasPage
 {
     private const FIXED_PERIOD = 'active';
 
-    public ?int $selectedLabId = null;
-    public ?int $selectedAnalystId = null;
+    public string|int|null $selectedLabId = null;
+    public string|int|null $selectedAnalystId = null;
     public ?string $startDate = null;
     public ?string $endDate = null;
 
@@ -99,7 +99,7 @@ class LabTat extends BaseMasPage
     public function export(string $type, bool $preview = false): void
     {
         $params = [
-            'module' => 'lab-tat',
+            'module' => 'lab',
             'lab_id' => $this->selectedLabId,
             'analyst_id' => $this->selectedAnalystId,
             'start_date' => $this->startDate,
@@ -108,7 +108,11 @@ class LabTat extends BaseMasPage
             'preview' => $preview ? 'true' : 'false',
         ];
 
-        $url = route('mas.export', $params);
+        if ($type === 'pdf') {
+            $url = route('mas.export.visuals', ['module' => 'lab', 'preview' => $preview ? 'true' : 'false'] + $params);
+        } else {
+            $url = route('mas.export', $params);
+        }
 
         if ($preview) {
             $this->dispatch('open-new-tab', ['url' => $url]);

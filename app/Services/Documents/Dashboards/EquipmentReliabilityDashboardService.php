@@ -9,7 +9,7 @@ use Carbon\Carbon;
 class EquipmentReliabilityDashboardService
 {
     protected $companyId;
-    protected $cacheExpiry = 300; // 5 minutes
+    protected $cacheExpiry = 60; // 1 minute
 
     public function __construct()
     {
@@ -21,7 +21,7 @@ class EquipmentReliabilityDashboardService
      */
     public function getMetrics()
     {
-        $cacheKey = "equipment_reliability_metrics_{$this->companyId}";
+        $cacheKey = "equipment_reliability_metrics_v2_{$this->companyId}";
 
         return Cache::remember($cacheKey, $this->cacheExpiry, function () {
             return [
@@ -52,7 +52,10 @@ class EquipmentReliabilityDashboardService
      */
     protected function calculateReliabilityScore(): int
     {
-        return rand(85, 98);
+        $total = DB::table('v_equipment_reliability')->count();
+        if ($total === 0) return 100;
+        $overdue = DB::table('v_equipment_reliability')->where('is_overdue', 1)->count();
+        return (int) round((($total - $overdue) / $total) * 100);
     }
 
     /**
@@ -60,7 +63,9 @@ class EquipmentReliabilityDashboardService
      */
     protected function countCalibrationOverdue(): int
     {
-        return rand(1, 4);
+        return DB::table('v_equipment_reliability')
+            ->where('calibration_status', 'overdue')
+            ->count();
     }
 
     /**
@@ -68,7 +73,9 @@ class EquipmentReliabilityDashboardService
      */
     protected function countMaintenanceDue(): int
     {
-        return rand(2, 6);
+        return DB::table('v_equipment_reliability')
+            ->where('maintenance_status', 'overdue')
+            ->count();
     }
 
     /**
@@ -77,9 +84,8 @@ class EquipmentReliabilityDashboardService
     protected function countTotalEquipment(): int
     {
         return DB::table('equipment')
-            ->where('company_id', $this->companyId)
             ->where('active', true)
-            ->count() ?: 25;
+            ->count() ?: 5;
     }
 
     /**
@@ -87,7 +93,8 @@ class EquipmentReliabilityDashboardService
      */
     protected function calculateMTBF(): float
     {
-        return round(rand(450, 720) + mt_rand(0, 1000) / 1000, 2); // hours
+        $avgFreq = DB::table('equipment')->where('active', true)->avg('maintainance_days') ?: 180;
+        return round($avgFreq * 24 * 0.9, 2);
     }
 
     /**
@@ -95,7 +102,10 @@ class EquipmentReliabilityDashboardService
      */
     protected function calculateCalibrationCompliance(): int
     {
-        return rand(88, 99);
+        $total = DB::table('v_equipment_reliability')->count();
+        if ($total === 0) return 100;
+        $nonCompliant = DB::table('v_equipment_reliability')->where('calibration_status', 'overdue')->count();
+        return (int) round((($total - $nonCompliant) / $total) * 100);
     }
 
     /**
@@ -103,20 +113,33 @@ class EquipmentReliabilityDashboardService
      */
     protected function getCalibrationByType(): array
     {
-        $types = ['Analyzer', 'Balance', 'Incubator', 'Centrifuge', 'Pipette'];
-        
-        return array_map(function ($type) {
-            $total = rand(3, 8);
-            $compliant = rand($total - 2, $total);
+        $rows = DB::table('v_equipment_reliability')->get();
+        $grouped = $rows->groupBy(function ($item) {
+            if (stripos($item->equipment_name, 'Analyzer') !== false || stripos($item->equipment_name, 'Spectrometer') !== false || stripos($item->equipment_name, 'GC-MS') !== false) {
+                return 'Analyzer';
+            }
+            if (stripos($item->equipment_name, 'Balance') !== false) {
+                return 'Balance';
+            }
+            if (stripos($item->equipment_name, 'Autoclave') !== false || stripos($item->equipment_name, 'Sterilizer') !== false) {
+                return 'Sterilizer';
+            }
+            return 'Meter';
+        });
+
+        return $grouped->map(function ($items, $type) {
+            $total = $items->count();
+            $compliant = $items->where('calibration_status', 'stable')->count();
+            $nextDue = $items->min('next_calibration_due');
             
             return [
                 'type' => $type,
                 'total' => $total,
                 'compliant' => $compliant,
-                'dueDate' => Carbon::now()->addMonths(rand(1, 6))->format('M d, Y'),
+                'dueDate' => $nextDue ? Carbon::parse($nextDue)->format('M d, Y') : 'N/A',
                 'compliance' => round(($compliant / $total) * 100),
             ];
-        }, $types);
+        })->values()->all();
     }
 
     /**
@@ -124,26 +147,23 @@ class EquipmentReliabilityDashboardService
      */
     protected function getOverdueEquipment(): array
     {
-        return [
-            [
-                'id' => 'EQ-001',
-                'name' => 'Hematology Analyzer',
-                'type' => 'Analyzer',
-                'calibrationDue' => Carbon::now()->subDays(15)->format('Y-m-d'),
-                'daysOverdue' => 15,
-                'nextMaintenance' => Carbon::now()->addDays(10)->format('Y-m-d'),
-                'priority' => 'Critical',
-            ],
-            [
-                'id' => 'EQ-007',
-                'name' => 'Analytical Balance',
-                'type' => 'Balance',
-                'calibrationDue' => Carbon::now()->subDays(8)->format('Y-m-d'),
-                'daysOverdue' => 8,
-                'nextMaintenance' => Carbon::now()->addDays(20)->format('Y-m-d'),
-                'priority' => 'High',
-            ],
-        ];
+        $rows = DB::table('v_equipment_reliability')
+            ->where('calibration_status', 'overdue')
+            ->orWhere('maintenance_status', 'overdue')
+            ->get();
+
+        return $rows->map(function ($row) {
+            $daysOverdue = max(0, (int) $row->calibration_overdue_days, (int) $row->maintenance_overdue_days);
+            return [
+                'id' => $row->asset_code ?: 'EQ-' . $row->equipment_id,
+                'name' => $row->equipment_name,
+                'type' => stripos($row->equipment_name, 'pH') !== false ? 'Meter' : (stripos($row->equipment_name, 'Autoclave') !== false ? 'Sterilizer' : 'Analyzer'),
+                'calibrationDue' => $row->last_calibration_date,
+                'daysOverdue' => (int) $daysOverdue,
+                'nextMaintenance' => $row->next_maintenance_due,
+                'priority' => $daysOverdue > 30 ? 'Critical' : 'High',
+            ];
+        })->all();
     }
 
     /**
@@ -151,23 +171,24 @@ class EquipmentReliabilityDashboardService
      */
     protected function getMaintenanceSchedule(): array
     {
-        $schedule = [];
-        for ($i = 1; $i <= 10; $i++) {
-            $daysFromNow = rand(1, 30);
-            $schedule[] = [
-                'equipmentId' => 'EQ-' . str_pad($i, 3, '0', STR_PAD_LEFT),
-                'equipmentName' => 'Equipment ' . $i,
-                'maintenanceDate' => Carbon::now()->addDays($daysFromNow)->format('M d, Y'),
+        $rows = DB::table('v_equipment_reliability')->get();
+        
+        $schedule = $rows->map(function ($row, $index) {
+            $nextDate = Carbon::parse(min($row->next_maintenance_due, $row->next_calibration_due));
+            $daysFromNow = (int) Carbon::now()->diffInDays($nextDate, false);
+            
+            return [
+                'equipmentId' => $row->asset_code ?: 'EQ-' . ($index + 1),
+                'equipmentName' => $row->equipment_name,
+                'maintenanceDate' => $nextDate->format('M d, Y'),
                 'daysFromNow' => $daysFromNow,
-                'type' => ['Preventive', 'Corrective', 'Calibration'][rand(0, 2)],
-                'estimatedHours' => rand(1, 6),
+                'type' => $row->next_maintenance_due < $row->next_calibration_due ? 'Preventive' : 'Calibration',
+                'estimatedHours' => 2,
                 'status' => 'Scheduled',
             ];
-        }
-        usort($schedule, function ($a, $b) {
-            return $a['daysFromNow'] - $b['daysFromNow'];
         });
-        return array_slice($schedule, 0, 10);
+
+        return $schedule->sortBy('daysFromNow')->take(10)->values()->all();
     }
 
     /**
@@ -175,26 +196,19 @@ class EquipmentReliabilityDashboardService
      */
     protected function getEquipmentRanking(): array
     {
-        $equipments = [
-            'Hematology Analyzer',
-            'Chemistry Analyzer',
-            'Coagulation Analyzer',
-            'Analytical Balance',
-            'Centrifuge',
-        ];
-
-        return array_map(function ($name, $idx) {
-            $reliability = 95 - ($idx * 5);
-            $mtbf = 650 - ($idx * 75);
-            
+        $rows = DB::table('v_equipment_reliability')->get();
+        
+        return $rows->map(function ($row, $idx) {
+            $reliability = $row->is_overdue ? 85 : 98;
+            $mtbf = $row->is_overdue ? 400 : 720;
             return [
                 'rank' => $idx + 1,
-                'name' => $name,
+                'name' => $row->equipment_name,
                 'reliability' => $reliability,
                 'mtbf' => $mtbf,
-                'failures' => rand(0, 3),
+                'failures' => $row->is_overdue ? 1 : 0,
             ];
-        }, $equipments, array_keys($equipments));
+        })->sortByDesc('reliability')->values()->all();
     }
 
     /**
@@ -203,12 +217,12 @@ class EquipmentReliabilityDashboardService
     protected function getReliabilityTrend(): array
     {
         $trend = [];
+        $baseScore = $this->calculateReliabilityScore();
         for ($i = 29; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
-            $reliability = rand(84, 98);
             $trend[] = [
                 'date' => $date->format('M d'),
-                'reliability' => $reliability,
+                'reliability' => $baseScore,
             ];
         }
         return $trend;
@@ -219,69 +233,44 @@ class EquipmentReliabilityDashboardService
      */
     protected function getAllEquipment(): array
     {
-        $equipments = [
-            'Hematology Analyzer',
-            'Chemistry Analyzer',
-            'Coagulation Analyzer',
-            'Bitewash Analyzer',
-            'Centrifuge',
-            'Analytical Balance',
-            'pH Meter',
-            'Incubator',
-            'Refrigerator',
-            'Deep Freezer',
-        ];
-
-        return array_map(function ($name) {
-            $daysLastCalibrated = rand(5, 90);
-            $nextCalibrationDue = rand(5, 180);
-            $isOverdue = $nextCalibrationDue < 0;
-            
+        $rows = DB::table('v_equipment_reliability')->get();
+        
+        return $rows->map(function ($row) {
             return [
-                'name' => $name,
-                'status' => $isOverdue ? 'Overdue' : 'Compliant',
-                'lastCalibrated' => Carbon::now()->subDays($daysLastCalibrated)->format('M d, Y'),
-                'nextCalibratedDue' => Carbon::now()->addDays($nextCalibrationDue)->format('M d, Y'),
-                'reliability' => rand(85, 99),
-                'mtbf' => rand(300, 800),
+                'name' => $row->equipment_name,
+                'status' => $row->is_overdue ? 'Overdue' : 'Compliant',
+                'lastCalibrated' => $row->last_calibration_date ? Carbon::parse($row->last_calibration_date)->format('M d, Y') : 'N/A',
+                'nextCalibratedDue' => $row->next_calibration_due ? Carbon::parse($row->next_calibration_due)->format('M d, Y') : 'N/A',
+                'reliability' => $row->is_overdue ? 85 : 98,
+                'mtbf' => $row->is_overdue ? 400 : 720,
             ];
-        }, $equipments);
+        })->all();
     }
 
-    /**
+     /**
      * Get recent maintenance actions
      */
     protected function getRecentMaintenance(): array
     {
-        return [
-            [
-                'date' => Carbon::now()->subDays(5)->format('Y-m-d'),
-                'equipment' => 'Hematology Analyzer',
-                'type' => 'Preventive',
-                'description' => 'Routine calibration and cleaning',
-                'completedBy' => 'John Smith',
+        $logs = DB::table('public.maintainance_calibration_logs as l')
+            ->join('public.equipment as e', 'e.id', '=', 'l.equipment_id')
+            ->select('l.*', 'e.name as equipment_name')
+            ->orderBy('l.date', 'desc')
+            ->take(5)
+            ->get();
+
+        return $logs->map(function ($log) {
+            $cost = $log->type === 'calibration' ? 150 : 100;
+            return [
+                'date' => $log->date,
+                'equipment' => $log->equipment_name,
+                'type' => ucfirst($log->type),
+                'description' => $log->description ?: 'Routine Maintenance',
+                'completedBy' => $log->overseen_by ?? 'Technician',
                 'hoursSpent' => 2,
-                'cost' => 150,
-            ],
-            [
-                'date' => Carbon::now()->subDays(12)->format('Y-m-d'),
-                'equipment' => 'Centrifuge',
-                'type' => 'Corrective',
-                'description' => 'Bearing replacement',
-                'completedBy' => 'Jane Doe',
-                'hoursSpent' => 4,
-                'cost' => 450,
-            ],
-            [
-                'date' => Carbon::now()->subDays(20)->format('Y-m-d'),
-                'equipment' => 'Incubator',
-                'type' => 'Preventive',
-                'description' => 'Temperature sensor verification',
-                'completedBy' => 'John Smith',
-                'hoursSpent' => 1.5,
-                'cost' => 100,
-            ],
-        ];
+                'cost' => $cost,
+            ];
+        })->all();
     }
 
     /**
@@ -289,29 +278,17 @@ class EquipmentReliabilityDashboardService
      */
     protected function getDowntimeAnalysis(): array
     {
-        return [
-            [
-                'equipment' => 'Hematology Analyzer',
-                'incidents' => 2,
-                'totalDowntimeHours' => 8,
-                'averageDowntimeHours' => 4,
-                'availability' => 99.9,
-            ],
-            [
-                'equipment' => 'Chemistry Analyzer',
-                'incidents' => 1,
-                'totalDowntimeHours' => 3,
-                'averageDowntimeHours' => 3,
-                'availability' => 99.96,
-            ],
-            [
-                'equipment' => 'Centrifuge',
-                'incidents' => 3,
-                'totalDowntimeHours' => 12,
-                'averageDowntimeHours' => 4,
-                'availability' => 99.87,
-            ],
-        ];
+        $rows = DB::table('v_equipment_reliability')->get();
+        
+        return $rows->map(function ($row) {
+            return [
+                'equipment' => $row->equipment_name,
+                'incidents' => $row->is_overdue ? 1 : 0,
+                'totalDowntimeHours' => $row->is_overdue ? 4 : 0,
+                'averageDowntimeHours' => $row->is_overdue ? 4 : 0,
+                'availability' => $row->is_overdue ? 99.5 : 100.0,
+            ];
+        })->all();
     }
 
     /**
@@ -319,29 +296,25 @@ class EquipmentReliabilityDashboardService
      */
     protected function getCostAnalysis(): array
     {
-        $total = 0;
-        $data = [];
-        
-        $equipments = [
-            'Hematology Analyzer' => 1200,
-            'Chemistry Analyzer' => 950,
-            'Coagulation Analyzer' => 750,
-            'Centrifuge' => 600,
-            'Incubator' => 450,
-        ];
+        $logs = DB::table('public.maintainance_calibration_logs as l')
+            ->join('public.equipment as e', 'e.id', '=', 'l.equipment_id')
+            ->select('e.name', 'l.type')
+            ->get();
 
-        foreach ($equipments as $name => $cost) {
-            $total += $cost;
-            $data[] = [
+        $breakdown = $logs->groupBy('name')->map(function ($items, $name) {
+            $cost = $items->sum(fn ($item) => $item->type === 'calibration' ? 150 : 100);
+            return [
                 'equipment' => $name,
-                'cost' => $cost,
+                'cost' => (float) $cost,
             ];
-        }
+        })->values()->all();
+
+        $total = collect($breakdown)->sum('cost') ?: 1200;
 
         return [
             'ytdTotal' => $total,
             'monthly' => round($total / 12),
-            'breakdown' => $data,
+            'breakdown' => $breakdown,
         ];
     }
 
@@ -350,21 +323,23 @@ class EquipmentReliabilityDashboardService
      */
     protected function getPreventiveVsCorrective(): array
     {
-        $preventive = rand(65, 85);
-        $corrective = 100 - $preventive;
+        $logs = DB::table('public.maintainance_calibration_logs')->get();
+        $total = $logs->count() ?: 1;
+        $maint = $logs->whereIn('type', ['maintenance', 'maintainance'])->count();
+        $calib = $logs->where('type', 'calibration')->count();
         
         return [
             [
                 'type' => 'Preventive',
-                'percentage' => $preventive,
-                'hours' => rand(80, 120),
-                'cost' => rand(2000, 4000),
+                'percentage' => round(($maint / $total) * 100),
+                'hours' => $maint * 2,
+                'cost' => $maint * 100,
             ],
             [
-                'type' => 'Corrective',
-                'percentage' => $corrective,
-                'hours' => rand(30, 60),
-                'cost' => rand(1000, 2500),
+                'type' => 'Calibration',
+                'percentage' => round(($calib / $total) * 100),
+                'hours' => $calib * 2,
+                'cost' => $calib * 150,
             ],
         ];
     }
@@ -374,7 +349,7 @@ class EquipmentReliabilityDashboardService
      */
     protected function getCalibrationMatrix(): array
     {
-        $types = ['Analyzer', 'Balance', 'Incubator', 'Centrifuge', 'Pipette'];
+        $types = ['Analyzer', 'Balance', 'Sterilizer', 'Meter'];
         $months = [];
         
         for ($i = 11; $i >= 0; $i--) {
@@ -385,7 +360,7 @@ class EquipmentReliabilityDashboardService
         foreach ($types as $type) {
             $row = ['type' => $type];
             foreach ($months as $month) {
-                $row[$month] = rand(85, 100);
+                $row[$month] = 100;
             }
             $matrix[] = $row;
         }
@@ -398,26 +373,19 @@ class EquipmentReliabilityDashboardService
      */
     protected function getDueSoonItems(): array
     {
-        return [
-            [
-                'equipment' => 'Chemistry Analyzer',
-                'dueDate' => Carbon::now()->addDays(5)->format('M d, Y'),
-                'daysRemaining' => 5,
-                'type' => 'Calibration',
-            ],
-            [
-                'equipment' => 'Incubator',
-                'dueDate' => Carbon::now()->addDays(10)->format('M d, Y'),
-                'daysRemaining' => 10,
-                'type' => 'Preventive Maintenance',
-            ],
-            [
-                'equipment' => 'Centrifuge',
-                'dueDate' => Carbon::now()->addDays(15)->format('M d, Y'),
-                'daysRemaining' => 15,
-                'type' => 'Calibration',
-            ],
-        ];
+        $rows = DB::table('v_equipment_reliability')->get();
+        
+        return $rows->map(function ($row) {
+            $nextDate = Carbon::parse(min($row->next_maintenance_due, $row->next_calibration_due));
+            $daysRemaining = (int) Carbon::now()->diffInDays($nextDate, false);
+            
+            return [
+                'equipment' => $row->equipment_name,
+                'dueDate' => $nextDate->format('M d, Y'),
+                'daysRemaining' => $daysRemaining,
+                'type' => $row->next_maintenance_due < $row->next_calibration_due ? 'Preventive Maintenance' : 'Calibration',
+            ];
+        })->filter(fn ($item) => $item['daysRemaining'] >= 0)->sortBy('daysRemaining')->take(3)->values()->all();
     }
 
     /**
@@ -425,6 +393,6 @@ class EquipmentReliabilityDashboardService
      */
     public function clearCache()
     {
-        Cache::forget("equipment_reliability_metrics_{$this->companyId}");
+        Cache::forget("equipment_reliability_metrics_v2_{$this->companyId}");
     }
 }

@@ -1923,6 +1923,9 @@ Route::post('/imara-ai/ask', 'AI\KnowledgeAssistantController@ask')
 Route::post('/imara-ai/ask-stream', 'AI\KnowledgeAssistantController@askStream')
   ->middleware(['auth', 'twofactor', 'throttle:20,1'])
   ->name('ai.knowledge.ask-stream');
+Route::post('/imara-ai/cancel', 'AI\KnowledgeAssistantController@cancel')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.cancel');
 
 Route::get('/imara-ai/lookup-documents', 'AI\KnowledgeAssistantController@lookupDocuments')
   ->middleware(['auth', 'twofactor'])
@@ -2001,6 +2004,11 @@ Route::post('/imara-ai/conversations/{convoId}/messages/{messageId}/feedback', '
 Route::post('/imara-ai/conversations/{id}/attachments', 'AI\KnowledgeAssistantController@uploadAttachment')
   ->middleware(['auth', 'twofactor'])->name('ai.conversations.upload-attachment');
 
+Route::get('/imara-ai/{id}', 'HomeController@aiIndex')
+  ->middleware(['auth', 'twofactor', 'can:ai.module.access'])
+  ->where('id', '[0-9a-fA-F\-]{36}')
+  ->name('imara-ai.view');
+
 
 
 ########################################### AI ANALYTICS #######################################
@@ -2021,7 +2029,7 @@ Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth', 'can:ai_analyti
     Route::get('/audit', '\App\Livewire\Mas\Audit')->name('mas.audit');
     Route::get('/ai-monitoring', '\App\Livewire\Mas\AiMonitoring')->name('mas.ai-monitoring');
     Route::get('/export/{module}', 'Mas\MasController@export')->name('mas.export');
-    Route::post('/export/{module}/visuals', 'Mas\MasController@exportWithVisuals')->name('mas.export.visuals');
+    Route::match(['get', 'post'], '/export/{module}/visuals', 'Mas\MasController@exportWithVisuals')->name('mas.export.visuals');
 });
 
 

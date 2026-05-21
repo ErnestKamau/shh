@@ -124,6 +124,97 @@ class LabTatDashboardService
         }
     }
 
+    public function getLabSectionTatStats(): array
+    {
+        try {
+            $sections = DB::table('sample_analysis_stages')
+                ->where('active', 1)
+                ->get();
+
+            $leaderboard = [];
+            foreach ($sections as $section) {
+                // Count total completed and overdue
+                $total = DB::table('tat_captured_view')
+                    ->join('results', function ($join) {
+                        $join->on('results.sample_header_id', '=', 'tat_captured_view.sample_header_id')
+                            ->on('results.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
+                            ->on('results.analyte_id', '=', 'tat_captured_view.analyte_id');
+                    })
+                    ->where('results.lab_section_id', $section->id)
+                    ->count();
+
+                $overdue = DB::table('tat_captured_view')
+                    ->join('results', function ($join) {
+                        $join->on('results.sample_header_id', '=', 'tat_captured_view.sample_header_id')
+                            ->on('results.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
+                            ->on('results.analyte_id', '=', 'tat_captured_view.analyte_id');
+                    })
+                    ->where('results.lab_section_id', $section->id)
+                    ->where('tat_captured_view.tat_overdue_days', '>', 0)
+                    ->count();
+
+                $avgTat = DB::table('tat_captured_view')
+                    ->join('results', function ($join) {
+                        $join->on('results.sample_header_id', '=', 'tat_captured_view.sample_header_id')
+                            ->on('results.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
+                            ->on('results.analyte_id', '=', 'tat_captured_view.analyte_id');
+                    })
+                    ->where('results.lab_section_id', $section->id)
+                    ->avg('tat_captured_view.actual_tat_days');
+
+                $leaderboard[] = [
+                    'name' => $section->name,
+                    'code' => substr(strtoupper(str_replace(' ', '', $section->name)), 0, 5) . '-' . substr($section->id, 0, 4),
+                    'total' => $total,
+                    'avg_tat' => $avgTat ? round($avgTat, 1) : 0.0,
+                    'overdue' => $overdue,
+                ];
+            }
+
+            // Generate trends for past 6 months
+            $labels = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $labels[] = now()->subMonths($i)->format('M Y');
+            }
+
+            $series = [];
+            foreach ($sections as $section) {
+                $data = [];
+                foreach ($labels as $label) {
+                    $count = DB::table('tat_captured_view')
+                        ->join('results', function ($join) {
+                            $join->on('results.sample_header_id', '=', 'tat_captured_view.sample_header_id')
+                                ->on('results.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
+                                ->on('results.analyte_id', '=', 'tat_captured_view.analyte_id');
+                        })
+                        ->where('results.lab_section_id', $section->id)
+                        ->where(DB::raw("TO_CHAR(tat_captured_view.finished_date, 'Mon YYYY')"), $label)
+                        ->count();
+                    $data[] = $count;
+                }
+
+                $series[] = [
+                    'name' => $section->name,
+                    'data' => $data,
+                ];
+            }
+
+            return [
+                'leaderboard' => $leaderboard,
+                'trends' => [
+                    'labels' => $labels,
+                    'series' => $series,
+                ]
+            ];
+        } catch (Throwable $e) {
+            Log::error("Failed to generate Lab Section TAT Stats: " . $e->getMessage());
+            return [
+                'leaderboard' => [],
+                'trends' => ['labels' => [], 'series' => []]
+            ];
+        }
+    }
+
     public function getLabSectionOptions(): array
     {
         return DB::table('sample_analysis_stages')
@@ -135,7 +226,7 @@ class LabTatDashboardService
             ->all();
     }
 
-    public function getAvailableAnalysts(?int $labId = null, string $period = 'active', array $filters = []): array
+    public function getAvailableAnalysts(string|int|null $labId = null, string $period = 'active', array $filters = []): array
     {
         $query = DB::table('tat_captured_view')
             ->select('analyst_id', 'analyst_name')
@@ -448,7 +539,7 @@ class LabTatDashboardService
                 'sample_header_id',
                 'sample_detail_id',
                 'analyte_id',
-                DB::raw('MAX(lab_section_id) as lab_section_id')
+                DB::raw('MAX(lab_section_id::text) as lab_section_id')
             )
             ->groupBy('sample_header_id', 'sample_detail_id', 'analyte_id');
 
@@ -491,9 +582,19 @@ class LabTatDashboardService
 
     protected function normalizeFilters(array $filters): array
     {
+        $labId = null;
+        if (!empty($filters['lab_id'])) {
+            $labId = is_numeric($filters['lab_id']) ? (int) $filters['lab_id'] : (string) $filters['lab_id'];
+        }
+
+        $analystId = null;
+        if (!empty($filters['analyst_id'])) {
+            $analystId = is_numeric($filters['analyst_id']) ? (int) $filters['analyst_id'] : (string) $filters['analyst_id'];
+        }
+
         return [
-            'lab_id' => !empty($filters['lab_id']) ? (int) $filters['lab_id'] : null,
-            'analyst_id' => !empty($filters['analyst_id']) ? (int) $filters['analyst_id'] : null,
+            'lab_id' => $labId,
+            'analyst_id' => $analystId,
             'start_date' => ($filters['start_date'] ?? null) ?: null,
             'end_date' => ($filters['end_date'] ?? null) ?: null,
         ];

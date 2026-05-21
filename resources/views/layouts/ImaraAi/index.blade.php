@@ -48,5 +48,6 @@
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
 <script>
     @include('layouts.ImaraAi.partials._script')
+    @include('layouts.ImaraAi.partials._visualization_script')
 </script>
 @endsection

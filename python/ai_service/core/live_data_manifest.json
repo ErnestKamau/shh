@@ -13,19 +13,37 @@
       "ttl_seconds": 10
     },
     "sample_count_pending_review": {
-      "sql": "SELECT status, COUNT(*) as cnt FROM public.sample_headers WHERE isactive = true AND status IN ('Samples Request Review', 'Sample Verification', 'Sample Approval') GROUP BY status ORDER BY cnt DESC",
-      "description": "Sample batches awaiting review, verification, or approval",
+      "sql": "SELECT status, COUNT(*) as cnt FROM public.sample_headers WHERE isactive = true AND status IN ('Technical Verification', 'Sample Receipt & Preparation', 'Sample Request & Submission') GROUP BY status ORDER BY cnt DESC",
+      "description": "Sample batches awaiting review, verification, or preparation",
       "output_format": "table",
       "ttl_seconds": 10
     },
+    "sample_count_request_review": {
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true AND status = 'Samples Request Review'",
+      "description": "Sample batches currently in request review",
+      "output_format": "count",
+      "ttl_seconds": 10
+    },
+    "sample_count_approved": {
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true AND status = 'Sample Approval'",
+      "description": "Sample batches that are approved",
+      "output_format": "count",
+      "ttl_seconds": 10
+    },
+    "sample_count_verified": {
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers WHERE isactive = true AND status = 'Sample Verification'",
+      "description": "Sample batches that are verified",
+      "output_format": "count",
+      "ttl_seconds": 10
+    },
     "sample_count_in_lab": {
-      "sql": "SELECT COUNT(*) as n FROM public.sample_details sd INNER JOIN public.sample_headers sh ON sh.id = sd.sample_header_id INNER JOIN public.sample_analysis_stages sas ON sas.level = sh.sample_tracking_stage WHERE sh.isactive = true AND sas.sample_workflow = 'Samples In Lab'",
-      "description": "Individual sample items currently in the lab",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers sh WHERE sh.isactive = true AND sh.status = 'Samples In Lab'",
+      "description": "Sample batches currently in the lab",
       "output_format": "count",
       "ttl_seconds": 10
     },
     "batch_count_in_lab": {
-      "sql": "SELECT COUNT(*) as n FROM public.sample_headers sh INNER JOIN public.sample_analysis_stages sas ON sas.level = sh.sample_tracking_stage WHERE sh.isactive = true AND sas.sample_workflow = 'Samples In Lab'",
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers sh WHERE sh.isactive = true AND sh.status IN ('Analysis in Progress', 'Technical Verification', 'Sample Receipt & Preparation')",
       "description": "Sample batches currently in the lab",
       "output_format": "count",
       "ttl_seconds": 10
@@ -145,6 +163,18 @@
       "output_format": "count",
       "ttl_seconds": 60
     },
+    "equipment_count_total": {
+      "sql": "SELECT COUNT(*) as n FROM public.equipment",
+      "description": "Total equipment count including inactive",
+      "output_format": "count",
+      "ttl_seconds": 60
+    },
+    "equipment_count_inactive": {
+      "sql": "SELECT COUNT(*) as n FROM public.equipment WHERE active = false",
+      "description": "Inactive or decommissioned equipment count",
+      "output_format": "count",
+      "ttl_seconds": 60
+    },
     "equipment_maintenance_health": {
       "sql": "SELECT status, COUNT(*) as cnt FROM public.equipment GROUP BY status ORDER BY cnt DESC",
       "description": "Equipment status distribution",
@@ -196,14 +226,14 @@
       "ttl_seconds": 300
     },
     "qc_stability_report": {
-      "sql": "SELECT analyte_name, robust_cv_pct, pass_rate_pct, total_tests FROM reporting.v_qc_stability_metrics ORDER BY robust_cv_pct DESC LIMIT 10",
+      "sql": "SELECT analyte_name, robust_cv_pct, pass_rate_pct, total_tests FROM public.v_qc_stability_metrics ORDER BY robust_cv_pct DESC LIMIT 10",
       "description": "Top 10 analytes by variability (CV%) and their pass rates",
       "output_format": "table",
       "visualize": {"type": "bar", "labels": "analyte_name", "values": "robust_cv_pct", "title": "Analyte Variability (CV%)"},
       "ttl_seconds": 300
     },
     "qc_out_of_control_events": {
-      "sql": "SELECT analyte_name, test_date, avg_value, center_line, control_status FROM reporting.v_qc_drift_trends WHERE control_status = 'OUT_OF_CONTROL' ORDER BY test_date DESC LIMIT 15",
+      "sql": "SELECT analyte_name, test_date, avg_value, center_line, control_status FROM public.v_qc_drift_trends WHERE control_status = 'OUT_OF_CONTROL' ORDER BY test_date DESC LIMIT 15",
       "description": "Recent QC results that triggered Out-of-Control alerts",
       "output_format": "table",
       "ttl_seconds": 120

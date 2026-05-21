@@ -13,26 +13,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $this->safeTable('ai_action_logs', function (Blueprint $table) {
+        $this->safeTable('ai.ai_action_logs', function (Blueprint $table) {
             $table->foreign(['user_id'], 'fk_ai_action_logs_user_id_e475dafb')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
         });
 
-        $this->safeTable('ai_analytics_logs', function (Blueprint $table) {
+        $this->safeTable('ai.ai_analytics_logs', function (Blueprint $table) {
             $table->foreign(['user_id'], 'fk_ai_analytics_logs_user_id_2b7ea81e')->references(['id'])->on('users')->onUpdate('no action')->onDelete('set null');
         });
 
-        $this->safeTable('ai_chat_attachments', function (Blueprint $table) {
-            $table->foreign(['ai_conversation_id'], 'fk_ai_chat_att_convo')->references(['id'])->on('ai_conversations')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['ai_message_id'], 'fk_ai_chat_att_msg')->references(['id'])->on('ai_messages')->onUpdate('no action')->onDelete('set null');
+        $this->safeTable('ai.ai_chat_attachments', function (Blueprint $table) {
+            $table->foreign(['ai_conversation_id'], 'fk_ai_chat_att_convo')->references(['id'])->on('ai.ai_conversations')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['ai_message_id'], 'fk_ai_chat_att_msg')->references(['id'])->on('ai.ai_messages')->onUpdate('no action')->onDelete('set null');
         });
 
-        $this->safeTable('ai_conversations', function (Blueprint $table) {
+        $this->safeTable('ai.ai_conversations', function (Blueprint $table) {
             $table->foreign(['user_id'], 'fk_ai_conversations_user_id_99a7c1e5')->references(['id'])->on('users')->onUpdate('no action')->onDelete('cascade');
         });
 
-        $this->safeTable('ai_messages', function (Blueprint $table) {
-            $table->foreign(['ai_conversation_id'], 'fk_ai_messages_ai_conversation_id_c3ddd1d0')->references(['id'])->on('ai_conversations')->onUpdate('no action')->onDelete('cascade');
-            $table->foreign(['parent_message_id'], 'fk_ai_messages_parent_message_id_33553798')->references(['id'])->on('ai_messages')->onUpdate('no action')->onDelete('cascade');
+        $this->safeTable('ai.ai_messages', function (Blueprint $table) {
+            $table->foreign(['ai_conversation_id'], 'fk_ai_messages_ai_conversation_id_c3ddd1d0')->references(['id'])->on('ai.ai_conversations')->onUpdate('no action')->onDelete('cascade');
+            $table->foreign(['parent_message_id'], 'fk_ai_messages_parent_message_id_33553798')->references(['id'])->on('ai.ai_messages')->onUpdate('no action')->onDelete('cascade');
         });
 
         $this->safeTable('analysis_elements', function (Blueprint $table) {
@@ -3418,25 +3418,25 @@ return new class extends Migration
             $table->dropForeign('fk_analysis_elements_procedure_worksheet_id_c6c26d38');
         });
 
-        $this->safeTable('ai_messages', function (Blueprint $table) {
+        $this->safeTable('ai.ai_messages', function (Blueprint $table) {
             $table->dropForeign('fk_ai_messages_ai_conversation_id_c3ddd1d0');
             $table->dropForeign('fk_ai_messages_parent_message_id_33553798');
         });
 
-        $this->safeTable('ai_conversations', function (Blueprint $table) {
+        $this->safeTable('ai.ai_conversations', function (Blueprint $table) {
             $table->dropForeign('fk_ai_conversations_user_id_99a7c1e5');
         });
 
-        $this->safeTable('ai_chat_attachments', function (Blueprint $table) {
+        $this->safeTable('ai.ai_chat_attachments', function (Blueprint $table) {
             $table->dropForeign('fk_ai_chat_att_convo');
             $table->dropForeign('fk_ai_chat_att_msg');
         });
 
-        $this->safeTable('ai_analytics_logs', function (Blueprint $table) {
+        $this->safeTable('ai.ai_analytics_logs', function (Blueprint $table) {
             $table->dropForeign('fk_ai_analytics_logs_user_id_2b7ea81e');
         });
 
-        $this->safeTable('ai_action_logs', function (Blueprint $table) {
+        $this->safeTable('ai.ai_action_logs', function (Blueprint $table) {
             $table->dropForeign('fk_ai_action_logs_user_id_e475dafb');
         });
     }

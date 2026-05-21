@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ai_analytics_logs', function (Blueprint $table) {
+        Schema::create('ai.ai_analytics_logs', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('session_id')->nullable()->index('idx_ai_analytics_logs_session_id_831f447c');
             $table->uuid('user_id')->nullable()->index('idx_ai_analytics_logs_user_id_8534cddc');
@@ -35,6 +35,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ai_analytics_logs');
+        Schema::dropIfExists('ai.ai_analytics_logs');
     }
 };

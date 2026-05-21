@@ -10,7 +10,7 @@ return [
 
     'schemas' => [
         'ai' => env('AI_SCHEMA', 'ai'),
-        'reporting' => env('AI_REPORTING_SCHEMA', 'reporting'),
+        'reporting' => 'public',
     ],
 
     'pgvector' => [

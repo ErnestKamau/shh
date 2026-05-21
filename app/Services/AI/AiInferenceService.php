@@ -93,4 +93,12 @@ class AiInferenceService
     {
         return $this->chat->uploadKnowledgeFile($file, $data);
     }
+
+    /**
+     * Cancel running database queries for a given trace ID.
+     */
+    public function cancel(string $traceId): array
+    {
+        return $this->chat->cancel($traceId);
+    }
 }
