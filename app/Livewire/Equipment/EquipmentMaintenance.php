@@ -53,6 +53,24 @@ class EquipmentMaintenance extends Component
     public $planItemLocation = '';
     public $planItemRemark = '';
 
+    // Program Equipment fields
+    public $showAddProgramEquipmentModal = false;
+    public $programEquipmentId = '';
+    public $programEquipmentName = '';
+    
+    // Annual Add fields
+    public $annualServicedDate = '';
+    public $annualStatus = '';
+    public $annualNextService = '';
+    public $annualRemark = '';
+
+    // Register Add fields
+    public $registerYear = '';
+    public $registerServiceProvider = '';
+    public $registerServiceType = '';
+    public $registerCostUsd = '';
+    public $registerCostTzs = '';
+
     // Searchable dropdown for equipment
     public $equipmentSearch = '';
     public $equipmentSearchResults = [];
@@ -164,10 +182,38 @@ class EquipmentMaintenance extends Component
     {
         $query = Equipment::query()->with([
             'assetLocation.lab.zone',
-            'annualMaintenances' => fn($q) => $q->orderBy('serviced_date', 'desc'),
-            'preventiveMaintenances',
-            'maintenanceRegisters' => fn($q) => $q->orderBy('year', 'desc'),
+            'annualMaintenances' => function($q) {
+                if ($this->activeTab === 'annual' && $this->activeAnnualProgramId) {
+                    $q->where('equipment_maintenance_program_id', $this->activeAnnualProgramId);
+                }
+                $q->orderBy('serviced_date', 'desc');
+            },
+            'preventiveMaintenances' => function($q) {
+                if ($this->activeTab === 'preventive' && $this->activePreventiveProgramId) {
+                    $q->where('equipment_maintenance_program_id', $this->activePreventiveProgramId);
+                }
+            },
+            'maintenanceRegisters' => function($q) {
+                if ($this->activeTab === 'register' && $this->activeRegisterProgramId) {
+                    $q->where('equipment_maintenance_program_id', $this->activeRegisterProgramId);
+                }
+                $q->orderBy('year', 'desc');
+            },
         ]);
+
+        if ($this->activeTab === 'annual' && $this->activeAnnualProgramId) {
+            $query->whereHas('annualMaintenances', function($q) {
+                $q->where('equipment_maintenance_program_id', $this->activeAnnualProgramId);
+            });
+        } elseif ($this->activeTab === 'preventive' && $this->activePreventiveProgramId) {
+            $query->whereHas('preventiveMaintenances', function($q) {
+                $q->where('equipment_maintenance_program_id', $this->activePreventiveProgramId);
+            });
+        } elseif ($this->activeTab === 'register' && $this->activeRegisterProgramId) {
+            $query->whereHas('maintenanceRegisters', function($q) {
+                $q->where('equipment_maintenance_program_id', $this->activeRegisterProgramId);
+            });
+        }
 
         if (!empty($this->search)) {
             $query->where(function ($q) {
@@ -337,6 +383,7 @@ class EquipmentMaintenance extends Component
             $record->save();
         } else {
             EquipmentPreventiveMaintenance::create([
+                'equipment_maintenance_program_id' => $this->activePreventiveProgramId,
                 'equipment_id' => $equipmentId,
                 'scheduled_month' => $monthInt,
                 'is_serviced' => false,
@@ -369,6 +416,7 @@ class EquipmentMaintenance extends Component
                 }
             } else {
                 EquipmentPreventiveMaintenance::create([
+                    'equipment_maintenance_program_id' => $this->activePreventiveProgramId,
                     'equipment_id' => $equipment->id,
                     'scheduled_month' => $monthInt,
                     'is_serviced' => false,
@@ -413,6 +461,10 @@ class EquipmentMaintenance extends Component
     {
         $this->selectedEquipmentId = $id;
         $this->planItemName = $name;
+        
+        $this->programEquipmentId = $id;
+        $this->programEquipmentName = $name;
+        
         $this->equipmentSearch = $name;
         $this->equipmentSearchResults = [];
 
@@ -423,6 +475,80 @@ class EquipmentMaintenance extends Component
                 $this->planItemLocation = $zone->value ?: $zone->name ?: $zone->key ?: '';
             }
         }
+    }
+
+    // ─── Add Equipment to Program ────────────────────────────────────────────
+
+    public function openAddProgramEquipmentModal()
+    {
+        $this->authorizeAction('equipment.maintenance.add');
+        $this->resetProgramEquipmentForm();
+        $this->showAddProgramEquipmentModal = true;
+    }
+
+    public function resetProgramEquipmentForm()
+    {
+        $this->programEquipmentId = '';
+        $this->programEquipmentName = '';
+        $this->equipmentSearch = '';
+        $this->equipmentSearchResults = [];
+        
+        $this->annualServicedDate = '';
+        $this->annualStatus = '';
+        $this->annualNextService = '';
+        $this->annualRemark = '';
+
+        $this->registerYear = '';
+        $this->registerServiceProvider = '';
+        $this->registerServiceType = '';
+        $this->registerCostUsd = '';
+        $this->registerCostTzs = '';
+    }
+
+    public function addProgramEquipment()
+    {
+        $this->authorizeAction('equipment.maintenance.add');
+        $this->validate([
+            'programEquipmentId' => 'required',
+        ], [
+            'programEquipmentId.required' => 'Please select an equipment.',
+        ]);
+
+        if ($this->activeTab === 'annual') {
+            EquipmentAnnualMaintenance::create([
+                'equipment_maintenance_program_id' => $this->activeAnnualProgramId,
+                'equipment_id' => $this->programEquipmentId,
+                'serviced_date' => $this->annualServicedDate ?: null,
+                'status' => $this->annualStatus,
+                'next_service' => $this->annualNextService ?: null,
+                'remark' => $this->annualRemark,
+            ]);
+        } elseif ($this->activeTab === 'preventive') {
+            $exists = EquipmentPreventiveMaintenance::where('equipment_maintenance_program_id', $this->activePreventiveProgramId)
+                ->where('equipment_id', $this->programEquipmentId)
+                ->exists();
+            if (!$exists) {
+                EquipmentPreventiveMaintenance::create([
+                    'equipment_maintenance_program_id' => $this->activePreventiveProgramId,
+                    'equipment_id' => $this->programEquipmentId,
+                    'is_serviced' => false,
+                ]);
+            }
+        } elseif ($this->activeTab === 'register') {
+            EquipmentMaintenanceRegister::create([
+                'equipment_maintenance_program_id' => $this->activeRegisterProgramId,
+                'equipment_id' => $this->programEquipmentId,
+                'year' => $this->registerYear,
+                'service_provider' => $this->registerServiceProvider,
+                'service_type' => $this->registerServiceType,
+                'cost_usd' => $this->registerCostUsd ?: null,
+                'cost_tzs' => $this->registerCostTzs ?: null,
+            ]);
+        }
+
+        $this->showAddProgramEquipmentModal = false;
+        $this->dispatch('notify', ['type' => 'success', 'message' => 'Equipment added to program.']);
+        $this->resetPage('equipmentPage');
     }
 
     // ─── Replacement Plan ────────────────────────────────────────────────────

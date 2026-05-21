@@ -3,6 +3,7 @@
 namespace App\Livewire\SubmissionForms;
 
 use App\ChainOfCustody;
+use App\BatchAttachment;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceNote;
@@ -233,9 +234,20 @@ class RequestViewPage extends Component
 
         $acceptanceForm = $this->instance->analysisAcceptanceForms->first();
 
+        $batchIds = $this->instance->batches->pluck('id');
+        $batchAttachments = BatchAttachment::query()
+            ->whereIn('batch_id', $batchIds)
+            ->where(function ($q) {
+                $q->where('title', 'like', '%Laboratory Analysis Acceptance%')
+                  ->orWhere('title', 'like', '%Sample Receipt Notification%');
+            })
+            ->latest()
+            ->get();
+
         return view('livewire.submission-forms.request-view-page', [
             'formData' => $formData,
             'attachmentInstances' => $attachmentInstances,
+            'batchAttachments' => $batchAttachments,
             'canCreateSamples' => $canCreateSamples,
             'sampleStatus' => $sampleStatus,
             'acceptanceForm' => $acceptanceForm,

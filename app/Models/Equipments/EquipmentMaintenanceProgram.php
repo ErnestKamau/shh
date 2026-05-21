@@ -27,4 +27,19 @@ class EquipmentMaintenanceProgram extends Model implements Auditable
     protected $casts = [
         'program_date' => 'date',
     ];
+
+    public function annualMaintenances()
+    {
+        return $this->hasMany(EquipmentAnnualMaintenance::class, 'equipment_maintenance_program_id');
+    }
+
+    public function preventiveMaintenances()
+    {
+        return $this->hasMany(EquipmentPreventiveMaintenance::class, 'equipment_maintenance_program_id');
+    }
+
+    public function maintenanceRegisters()
+    {
+        return $this->hasMany(EquipmentMaintenanceRegister::class, 'equipment_maintenance_program_id');
+    }
 }

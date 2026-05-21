@@ -131,6 +131,14 @@
                                                 <i class="mdi mdi-plus"></i> Create Annual Program
                                             </button>
                                         @endcan
+                                        @if($activeAnnualProgramId)
+                                            @can('equipment.maintenance.add')
+                                                <button wire:click="openAddProgramEquipmentModal"
+                                                    class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
+                                                    <i class="mdi mdi-plus mr-1"></i> Add Equipment to Program
+                                                </button>
+                                            @endcan
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -150,6 +158,7 @@
                                     <p class="text-muted mb-3">{{ $activeMaintenanceProgram->description }}</p>
                                 @endif
                             </div>
+                        @endif
 
                             <div class="m-3 border rounded shadow-sm table-responsive bg-white">
                                 <table class="table table-hover table-striped mb-0 align-middle">
@@ -224,24 +233,13 @@
                                 </table>
                             </div>
 
+                            </div>
+
                             @if($equipments->hasPages())
                                 <div class="px-3 pb-2 d-flex justify-content-end">
                                     {{ $equipments->links() }}
                                 </div>
                             @endif
-                        @else
-                            <div class="text-center py-5 my-5">
-                                <i class="mdi mdi-calendar-alert display-2 d-block text-muted mb-3"></i>
-                                <h4 class="font-weight-bold text-secondary">No Annual Programs Created Yet</h4>
-                                <p class="text-muted mb-4">Create an annual program and then fill equipment maintenance details within it.</p>
-                                @can('equipment.maintenance.add')
-                                    <button wire:click="openCreateProgramModal"
-                                        class="btn btn-primary rounded-pill px-4 shadow-sm py-2.5 font-weight-bold">
-                                        <i class="mdi mdi-plus mr-1"></i> Create Annual Program
-                                    </button>
-                                @endcan
-                            </div>
-                        @endif
 
                         <!-- TAB 2: PREVENTIVE MAINTENANCE PROGRAM -->
                     @elseif($activeTab === 'preventive')
@@ -273,6 +271,14 @@
                                                 <i class="mdi mdi-plus"></i> Create Preventive Program
                                             </button>
                                         @endcan
+                                        @if($activePreventiveProgramId)
+                                            @can('equipment.maintenance.add')
+                                                <button wire:click="openAddProgramEquipmentModal"
+                                                    class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
+                                                    <i class="mdi mdi-plus mr-1"></i> Add Equipment to Program
+                                                </button>
+                                            @endcan
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -319,6 +325,7 @@
                                     </div>
                                 </div>
                             @endcan
+                        @endif
 
                             {{-- ── Legend ──────────────────────────────────────────────────── --}}
                             <div class="mx-3 mb-3 p-3 border rounded bg-light shadow-sm d-flex align-items-center"
@@ -528,24 +535,13 @@
                                 </div>
                             </div>
 
+                            </div>
+
                             @if($equipments->hasPages())
                                 <div class="px-3 pb-2 d-flex justify-content-end">
                                     {{ $equipments->links() }}
                                 </div>
                             @endif
-                        @else
-                            <div class="text-center py-5 my-5">
-                                <i class="mdi mdi-calendar-alert display-2 d-block text-muted mb-3"></i>
-                                <h4 class="font-weight-bold text-secondary">No Preventive Programs Created Yet</h4>
-                                <p class="text-muted mb-4">Create a preventive program and then assign equipment scheduling in the grid.</p>
-                                @can('equipment.maintenance.add')
-                                    <button wire:click="openCreateProgramModal"
-                                        class="btn btn-primary rounded-pill px-4 shadow-sm py-2.5 font-weight-bold">
-                                        <i class="mdi mdi-plus mr-1"></i> Create Preventive Program
-                                    </button>
-                                @endcan
-                            </div>
-                        @endif
 
                         <!-- TAB 3: MAINTENANCE REGISTER -->
 
@@ -573,6 +569,14 @@
                                                 <i class="mdi mdi-plus"></i> Create Maintenance Register
                                             </button>
                                         @endcan
+                                        @if($activeRegisterProgramId)
+                                            @can('equipment.maintenance.add')
+                                                <button wire:click="openAddProgramEquipmentModal"
+                                                    class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
+                                                    <i class="mdi mdi-plus mr-1"></i> Add Equipment to Program
+                                                </button>
+                                            @endcan
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -592,6 +596,7 @@
                                     <p class="text-muted mb-3">{{ $activeMaintenanceProgram->description }}</p>
                                 @endif
                             </div>
+                        @endif
 
                             <div class="m-3 border rounded shadow-sm table-responsive bg-white">
                                 <table class="table table-hover table-striped mb-0 align-middle">
@@ -661,24 +666,13 @@
                                 </table>
                             </div>
 
+                            </div>
+
                             @if($equipments->hasPages())
                                 <div class="px-3 pb-2 d-flex justify-content-end">
                                     {{ $equipments->links() }}
                                 </div>
                             @endif
-                        @else
-                            <div class="text-center py-5 my-5">
-                                <i class="mdi mdi-calendar-alert display-2 d-block text-muted mb-3"></i>
-                                <h4 class="font-weight-bold text-secondary">No Maintenance Registers Created Yet</h4>
-                                <p class="text-muted mb-4">Create a maintenance register and then capture register records for equipment.</p>
-                                @can('equipment.maintenance.add')
-                                    <button wire:click="openCreateProgramModal"
-                                        class="btn btn-primary rounded-pill px-4 shadow-sm py-2.5 font-weight-bold">
-                                        <i class="mdi mdi-plus mr-1"></i> Create Maintenance Register
-                                    </button>
-                                @endcan
-                            </div>
-                        @endif
 
                         <!-- TAB 4: REPLACEMENT PLAN -->
                     @elseif($activeTab === 'replacement')
@@ -1057,6 +1051,119 @@
                             <button type="button" wire:click="$set('showAddPlanItemModal', false)"
                                 class="btn btn-secondary rounded-pill px-4">Cancel</button>
                             <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm" {{ empty($planItemName) ? 'disabled' : '' }}>Save Item</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- 3. ADD PROGRAM EQUIPMENT MODAL -->
+    @if($showAddProgramEquipmentModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog"
+            style="background-color: rgba(0, 0, 0, 0.5); z-index: 1050; overflow-y: auto;">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content shadow-lg border-0 rounded-lg">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title font-weight-bold">
+                            <i class="mdi mdi-plus-circle mr-1"></i> Add Equipment to Program
+                        </h5>
+                        <button type="button" wire:click="$set('showAddProgramEquipmentModal', false)" class="close text-white" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form wire:submit.prevent="addProgramEquipment">
+                        <div class="modal-body p-4">
+                            <!-- Searchable Dropdown for Equipment Name -->
+                            <div class="form-group mb-3 position-relative">
+                                <label class="font-weight-bold text-secondary">Search & Select Equipment <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text bg-light border-right-0" style="border-top-left-radius: 8px; border-bottom-left-radius: 8px;"><i class="mdi mdi-magnify"></i></span>
+                                    </div>
+                                    <input type="text" wire:model.live="equipmentSearch"
+                                        class="form-control rounded-right-lg" style="border-top-right-radius: 8px; border-bottom-right-radius: 8px;"
+                                        placeholder="Type name to search equipment..." autocomplete="off">
+                                </div>
+                                @error('programEquipmentId') <span class="text-danger text-sm d-block mt-1">{{ $message }}</span> @enderror
+
+                                @if(!empty($equipmentSearchResults))
+                                    <div class="position-absolute bg-white border rounded shadow-lg w-100"
+                                        style="z-index: 1100; max-height: 200px; overflow-y: auto; left: 0; right: 0; margin-top: 2px;">
+                                        @foreach($equipmentSearchResults as $eq)
+                                            <button type="button" wire:click="selectProgramEquipment('{{ $eq->id }}', '{{ addslashes($eq->name) }}')"
+                                                class="btn btn-light btn-block text-left py-2.5 px-3 border-bottom border-0 m-0 transition-all font-weight-semibold">
+                                                <i class="mdi mdi-tools mr-2 text-primary"></i>{{ $eq->name }}
+                                                @if($eq->serial_number)
+                                                    <span class="text-muted text-xs float-right">S/N: {{ $eq->serial_number }}</span>
+                                                @endif
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="font-weight-bold text-secondary">Selected Equipment Name</label>
+                                <input type="text" wire:model="programEquipmentName" class="form-control rounded-lg" readonly
+                                    placeholder="Select an equipment from above search">
+                            </div>
+
+                            @if($activeTab === 'annual')
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold text-secondary">Serviced Date</label>
+                                    <input type="date" wire:model="annualServicedDate" class="form-control rounded-lg">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold text-secondary">Status</label>
+                                    <select wire:model="annualStatus" class="form-control rounded-lg">
+                                        <option value="">-- Select Status --</option>
+                                        <option value="active">Active</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="overdue">Overdue</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold text-secondary">Next Service Date</label>
+                                    <input type="date" wire:model="annualNextService" class="form-control rounded-lg">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold text-secondary">Remark</label>
+                                    <textarea wire:model="annualRemark" class="form-control rounded-lg" rows="2" placeholder="Remarks..."></textarea>
+                                </div>
+                            @elseif($activeTab === 'register')
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold text-secondary">Year</label>
+                                    <input type="text" wire:model="registerYear" class="form-control rounded-lg" placeholder="e.g. 2025/2026">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold text-secondary">Service Provider</label>
+                                    <input type="text" wire:model="registerServiceProvider" class="form-control rounded-lg" placeholder="Provider name">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold text-secondary">Type of Service</label>
+                                    <input type="text" wire:model="registerServiceType" class="form-control rounded-lg" placeholder="e.g. Calibration">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 form-group mb-3">
+                                        <label class="font-weight-bold text-secondary">Cost (USD)</label>
+                                        <input type="number" step="0.01" wire:model="registerCostUsd" class="form-control rounded-lg" placeholder="0.00">
+                                    </div>
+                                    <div class="col-md-6 form-group mb-3">
+                                        <label class="font-weight-bold text-secondary">Cost (TZS)</label>
+                                        <input type="number" step="0.01" wire:model="registerCostTzs" class="form-control rounded-lg" placeholder="0.00">
+                                    </div>
+                                </div>
+                            @elseif($activeTab === 'preventive')
+                                <p class="text-muted text-sm mt-3"><i class="mdi mdi-information text-primary mr-1"></i> You can schedule specific months for this equipment from the grid view after adding it.</p>
+                            @endif
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" wire:click="$set('showAddProgramEquipmentModal', false)"
+                                class="btn btn-secondary rounded-pill px-4">Cancel</button>
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm" {{ empty($programEquipmentName) ? 'disabled' : '' }}>Add to Program</button>
                         </div>
                     </form>
                 </div>

@@ -18,6 +18,7 @@ class EquipmentPreventiveMaintenance extends Model implements Auditable
     protected $table = 'equipment_preventive_maintenances';
 
     protected $fillable = [
+        'equipment_maintenance_program_id',
         'equipment_id',
         'scheduled_month',   // int 1-12: which month in the maintenance period year
         'is_serviced',       // bool: has been maintained/calibrated this year
@@ -34,5 +35,10 @@ class EquipmentPreventiveMaintenance extends Model implements Auditable
     public function equipment()
     {
         return $this->belongsTo(Equipment::class, 'equipment_id');
+    }
+
+    public function program()
+    {
+        return $this->belongsTo(EquipmentMaintenanceProgram::class, 'equipment_maintenance_program_id');
     }
 }

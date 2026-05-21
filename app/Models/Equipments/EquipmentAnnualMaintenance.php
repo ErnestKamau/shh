@@ -18,6 +18,7 @@ class EquipmentAnnualMaintenance extends Model implements Auditable
     protected $table = 'equipment_annual_maintenances';
 
     protected $fillable = [
+        'equipment_maintenance_program_id',
         'equipment_id',
         'serviced_date',
         'status',
@@ -33,5 +34,10 @@ class EquipmentAnnualMaintenance extends Model implements Auditable
     public function equipment()
     {
         return $this->belongsTo(Equipment::class, 'equipment_id');
+    }
+
+    public function program()
+    {
+        return $this->belongsTo(EquipmentMaintenanceProgram::class, 'equipment_maintenance_program_id');
     }
 }

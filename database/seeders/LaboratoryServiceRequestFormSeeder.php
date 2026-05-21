@@ -122,8 +122,8 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         // Section 1: Head
         $this->command->info('Creating Head section...');
         $headSection = $form->sections()->create([
-            'title' => 'Head',
-            'description' => 'General request header information.',
+            'title' => 'General Information',
+            'description' => 'General request information.',
             'section_type' => 'regular',
             'sort_order' => 1,
         ]);
