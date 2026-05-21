@@ -108,7 +108,8 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         (new CreateSamplesFromAcceptanceFormJob((string) $form->id))->handle(
             app(\App\Services\Sampleworkflow\AcceptanceFormBatchCodeService::class),
             app(SampleAnalysisSetupService::class),
-            app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class)
+            app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class),
+            app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class)
         );
 
         $form->refresh();
@@ -199,7 +200,8 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         (new CreateSamplesFromAcceptanceFormJob((string) $form->id))->handle(
             app(\App\Services\Sampleworkflow\AcceptanceFormBatchCodeService::class),
             app(SampleAnalysisSetupService::class),
-            app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class)
+            app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class),
+            app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class)
         );
 
         $details = SampleDetails::query()->where('sample_header_id', $form->fresh()->sample_header_id)->get();

@@ -3,7 +3,9 @@
 namespace App\Livewire\Sampleworkflow;
 
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
+use App\Models\SubmissionFormInstance;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
 use App\Services\Sampleworkflow\SampleReceivingIntegrityService;
@@ -16,7 +18,7 @@ class AcceptanceFormWizard extends Component
 {
     public bool $showModal = false;
 
-    public string $activeStep = 'request';
+    public string $activeStep = 'sample_config';
 
     public ?string $submissionFormInstanceId = null;
 
@@ -38,6 +40,9 @@ class AcceptanceFormWizard extends Component
 
     /** @var list<array<string, mixed>> */
     public array $lines = [];
+
+    /** @var list<array<string, mixed>> */
+    public array $sampleConfigs = [];
 
     public ?string $crmCustomerId = null;
 
@@ -115,7 +120,7 @@ class AcceptanceFormWizard extends Component
         $this->dateOfSampling = $prefill['date_of_sampling'];
         $pricingService = app(AcceptanceFormPricingService::class);
 
-        $this->lines = collect($pricingService->deduplicateRedundantAnalysisTypeLines($prefill['lines']))
+        $prefillLines = collect($pricingService->deduplicateRedundantAnalysisTypeLines($prefill['lines']))
             ->map(function (array $line, int $index) {
                 return [
                     'line_no' => $index + 1,
@@ -132,10 +137,26 @@ class AcceptanceFormWizard extends Component
                 ];
             })->values()->all();
 
+        $instance = $this->submissionFormInstanceId
+            ? SubmissionFormInstance::query()->find($this->submissionFormInstanceId)
+            : null;
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
+        $defaultZoneId = $configService->resolveZoneIdFromInstance($instance);
+        if ($defaultZoneId !== null) {
+            foreach ($this->sampleConfigs as $index => $config) {
+                if (empty($config['zone_id'])) {
+                    $this->sampleConfigs[$index]['zone_id'] = $defaultZoneId;
+                }
+            }
+        }
+        $this->lines = [];
+
         $this->syncReceivingIntegrityState();
 
         $this->showModal = true;
-        $this->activeStep = 'request';
+        $this->activeStep = 'sample_config';
         $this->refreshReceiptNotificationFormState();
     }
 
@@ -145,6 +166,7 @@ class AcceptanceFormWizard extends Component
     public function getWizardStepsProperty(): array
     {
         $steps = [
+            ['key' => 'sample_config', 'label' => 'Sample configuration', 'icon' => 'mdi-flask-outline'],
             ['key' => 'request', 'label' => 'Request & pricing', 'icon' => 'mdi-clipboard-list-outline'],
         ];
 
@@ -272,6 +294,40 @@ class AcceptanceFormWizard extends Component
         }
     }
 
+    public function continueToRequestStep(): void
+    {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs);
+        $configService->validateConfigs($this->sampleConfigs);
+
+        if (!$this->crmCustomerId) {
+            $this->dispatch('notify', type: 'error', message: 'Customer is required for pricing.');
+
+            return;
+        }
+
+        $this->lines = $configService->expandConfigsToLines($this->sampleConfigs, $this->crmCustomerId);
+        $this->numberOfSamples = $configService->totalSampleCount($this->sampleConfigs);
+        $this->reindexLines();
+
+        $this->validate([
+            'customerName' => 'required|string|max:255',
+            'requestDate' => 'required|date',
+            'numberOfSamples' => 'required|integer|min:1',
+            'modeOfWork' => 'required|in:Normal,Express',
+            'dateOfSampling' => 'nullable|date',
+            'lines' => 'required|array|min:1',
+        ]);
+
+        $this->refreshReceiptNotificationFormState();
+        $this->activeStep = 'request';
+    }
+
+    public function backFromRequestStep(): void
+    {
+        $this->activeStep = 'sample_config';
+    }
+
     public function continueToReceiptStep(): void
     {
         $this->validate([
@@ -291,6 +347,217 @@ class AcceptanceFormWizard extends Component
     public function backFromReceiptStep(): void
     {
         $this->activeStep = 'request';
+    }
+
+    public function addSampleConfig(): void
+    {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $empty = $configService->emptyConfig();
+        $empty['zone_id'] = $configService->resolveZoneIdFromInstance(
+            $this->submissionFormInstanceId
+                ? SubmissionFormInstance::query()->find($this->submissionFormInstanceId)
+                : null
+        );
+        $this->sampleConfigs[] = $empty;
+    }
+
+    public function removeSampleConfig(string $configId): void
+    {
+        if (count($this->sampleConfigs) <= 1) {
+            $this->dispatch('notify', type: 'warning', message: 'At least one sample configuration is required.');
+
+            return;
+        }
+
+        $this->sampleConfigs = array_values(array_filter(
+            $this->sampleConfigs,
+            fn (array $config) => (string) ($config['id'] ?? '') !== $configId
+        ));
+    }
+
+    public function updatedSampleConfigs(mixed $value, string $key): void
+    {
+        if (!preg_match('/^(\d+)\.number_of_samples$/', (string) $key, $matches)) {
+            return;
+        }
+
+        $this->syncSampleConfigInstances((int) $matches[1]);
+    }
+
+    public function onConfigNumberOfSamplesChanged(int $index): void
+    {
+        $this->syncSampleConfigInstances($index);
+    }
+
+    private function syncSampleConfigInstances(int $index): void
+    {
+        if (!isset($this->sampleConfigs[$index])) {
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $count = max(1, (int) ($this->sampleConfigs[$index]['number_of_samples'] ?? 1));
+        $this->sampleConfigs[$index]['number_of_samples'] = $count;
+        $this->sampleConfigs[$index]['instances'] = $configService->syncInstances(
+            $this->sampleConfigs[$index]['instances'] ?? [],
+            $count
+        );
+    }
+
+    public function onConfigSampleTypeChanged(int $index): void
+    {
+        if (!isset($this->sampleConfigs[$index])) {
+            return;
+        }
+
+        $this->sampleConfigs[$index]['analysis_type_id'] = null;
+        $this->sampleConfigs[$index]['parameter_keys'] = [];
+    }
+
+    public function onConfigAnalysisTypeChanged(int $index): void
+    {
+        if (!isset($this->sampleConfigs[$index])) {
+            return;
+        }
+
+        $config = $this->sampleConfigs[$index];
+        if (!$this->crmCustomerId || empty($config['analysis_type_id'])) {
+            $this->sampleConfigs[$index]['parameter_keys'] = [];
+
+            return;
+        }
+
+        $parameters = app(AcceptanceFormSampleConfigService::class)->parametersForConfig(
+            $this->crmCustomerId,
+            $config['sample_type_id'] ?? null,
+            $config['analysis_type_id']
+        );
+
+        $this->sampleConfigs[$index]['parameter_keys'] = collect($parameters)
+            ->pluck('analysis_element_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+    }
+
+    public function toggleConfigParameter(string $configId, string $parameterKey): void
+    {
+        foreach ($this->sampleConfigs as $index => $config) {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                continue;
+            }
+
+            $keys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
+            if (in_array($parameterKey, $keys, true)) {
+                $keys = array_values(array_filter($keys, fn ($k) => (string) $k !== $parameterKey));
+            } else {
+                $keys[] = $parameterKey;
+            }
+            $this->sampleConfigs[$index]['parameter_keys'] = $keys;
+
+            break;
+        }
+    }
+
+    public function selectAllConfigParameters(string $configId): void
+    {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+
+        foreach ($this->sampleConfigs as $index => $config) {
+            if ((string) ($config['id'] ?? '') !== $configId) {
+                continue;
+            }
+
+            $parameters = $configService->parametersForConfig(
+                $this->crmCustomerId ?? '',
+                $config['sample_type_id'] ?? null,
+                $config['analysis_type_id'] ?? null
+            );
+
+            $this->sampleConfigs[$index]['parameter_keys'] = collect($parameters)
+                ->pluck('analysis_element_id')
+                ->filter()
+                ->map(fn ($id) => (string) $id)
+                ->values()
+                ->all();
+
+            break;
+        }
+    }
+
+    /**
+     * @return list<array{id: string, name: string}>
+     */
+    public function getConfigSampleTypesProperty(): array
+    {
+        if (!$this->crmCustomerId) {
+            return [];
+        }
+
+        return app(AcceptanceFormSampleConfigService::class)
+            ->sampleTypesForCustomer($this->crmCustomerId, $this->lines);
+    }
+
+    public function getConfigZonesProperty(): array
+    {
+        return app(AcceptanceFormSampleConfigService::class)->zonesForPicker();
+    }
+
+    public function getConfigSampleConditionsProperty(): array
+    {
+        return app(AcceptanceFormSampleConfigService::class)->sampleConditionsForPicker();
+    }
+
+    public function getConfigStandardsProperty(): array
+    {
+        return app(AcceptanceFormSampleConfigService::class)->standardsForPicker();
+    }
+
+    public function analysisTypesForConfigIndex(int $index): array
+    {
+        if (!$this->crmCustomerId || !isset($this->sampleConfigs[$index])) {
+            return [];
+        }
+
+        $sampleTypeId = $this->sampleConfigs[$index]['sample_type_id'] ?? null;
+        if (!$sampleTypeId) {
+            return [];
+        }
+
+        return app(AcceptanceFormSampleConfigService::class)
+            ->analysisTypesForSampleType($this->crmCustomerId, $sampleTypeId, $this->lines);
+    }
+
+    public function parametersForConfigIndex(int $index): array
+    {
+        if (!$this->crmCustomerId || !isset($this->sampleConfigs[$index])) {
+            return [];
+        }
+
+        $config = $this->sampleConfigs[$index];
+
+        return app(AcceptanceFormSampleConfigService::class)->parametersForConfig(
+            $this->crmCustomerId,
+            $config['sample_type_id'] ?? null,
+            $config['analysis_type_id'] ?? null
+        );
+    }
+
+    public function filteredParametersForConfigIndex(int $index): array
+    {
+        $parameters = $this->parametersForConfigIndex($index);
+        $search = strtolower(trim((string) ($this->sampleConfigs[$index]['parameter_search'] ?? '')));
+
+        if ($search === '') {
+            return $parameters;
+        }
+
+        return array_values(array_filter(
+            $parameters,
+            fn (array $param) => str_contains(strtolower((string) ($param['label'] ?? '')), $search)
+                || str_contains(strtolower((string) ($param['analysis_type_name'] ?? '')), $search)
+        ));
     }
 
     public function submitStep1(): void
@@ -341,7 +608,7 @@ class AcceptanceFormWizard extends Component
 
     public function backFromDisclaimerStep(): void
     {
-        $this->activeStep = $this->acceptanceFormId === null ? 'receipt' : 'request';
+        $this->activeStep = $this->acceptanceFormId === null ? 'receipt' : 'sample_config';
     }
 
     /**
@@ -350,6 +617,9 @@ class AcceptanceFormWizard extends Component
     private function finalizeAcceptanceCreation(?array $disclaimerPayload = null): void
     {
         $raisesDisclaimer = $disclaimerPayload !== null;
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $normalizedConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs);
 
         $form = app(AcceptanceFormService::class)->createFromStep1(
             $this->submissionFormInstanceId,
@@ -361,6 +631,7 @@ class AcceptanceFormWizard extends Component
                 'number_of_samples' => $this->numberOfSamples,
                 'mode_of_work' => $this->modeOfWork,
                 'date_of_sampling' => $this->dateOfSampling,
+                'sample_configuration_payload' => $normalizedConfigs,
             ],
             $this->lines,
             (string) Auth::id(),
@@ -784,12 +1055,13 @@ class AcceptanceFormWizard extends Component
 
     private function resetWizard(): void
     {
-        $this->activeStep = 'request';
+        $this->activeStep = 'sample_config';
         $this->submissionFormInstanceId = null;
         $this->submissionRequestId = null;
         $this->acceptanceFormId = null;
         $this->status = '';
         $this->lines = [];
+        $this->sampleConfigs = [];
         $this->crmCustomerId = null;
         $this->showAddLineModal = false;
         $this->managerSignature = '';
