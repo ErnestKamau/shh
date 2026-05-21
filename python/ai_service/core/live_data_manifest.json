@@ -6,6 +6,12 @@
       "output_format": "count",
       "ttl_seconds": 10
     },
+    "sample_count_absolute_all_time": {
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers",
+      "description": "Absolute total sample batches ever created since system launch, including deleted, archived, and cancelled records",
+      "output_format": "count",
+      "ttl_seconds": 10
+    },
     "individual_sample_count": {
       "sql": "SELECT COUNT(*) as n FROM public.sample_details sd INNER JOIN public.sample_headers sh ON sh.id = sd.sample_header_id WHERE sh.isactive = true",
       "description": "Total active individual sample items",

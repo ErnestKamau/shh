@@ -130,16 +130,16 @@ class TestManifestRouterCoverage:
             manifest_intents.update(templates.keys())
 
         # Collect all intent names from the router
-        from python.ai_service.core.manifest_intent_router import (
-            _GROUP_A_RULES,
-            _GROUP_B_RULES,
-        )
+        from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+        router = ManifestIntentRouter()
 
         router_intents = set()
-        for _, intent in _GROUP_A_RULES:
-            router_intents.add(intent)
-        for _, intent in _GROUP_B_RULES:
-            router_intents.add(intent)
+        for domain, rules in router._group_a.items():
+            for _, intent in rules:
+                router_intents.add(intent)
+        for domain, rules in router._group_b.items():
+            for _, intent in rules:
+                router_intents.add(intent)
 
         missing = router_intents - manifest_intents
         assert not missing, (

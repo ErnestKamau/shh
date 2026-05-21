@@ -9,33 +9,7 @@
             </div>
             <div class="welcome-heading">How can I help you today?</div>
             <div class="welcome-sub">
-                Ask about sample tracking, equipment status, QC results, CAPAs, SOPs — or get live counts from the system.
-            </div>
-            <div class="suggestion-chips">
-                <div class="chip" onclick="useChip(this)">
-                    <i class="mdi mdi-counter"></i> How many samples since start of system?
-                </div>
-                <div class="chip" onclick="useChip(this)">
-                    <i class="mdi mdi-clock-alert-outline"></i> How many samples are waiting for review?
-                </div>
-                <div class="chip" onclick="useChip(this)">
-                    <i class="mdi mdi-flask-outline"></i> How many samples are in the lab?
-                </div>
-                <div class="chip" onclick="useChip(this)">
-                    <i class="mdi mdi-table-large"></i> Give me a sample breakdown by stage
-                </div>
-                <div class="chip" onclick="useChip(this)">
-                    <i class="mdi mdi-wrench-clock"></i> Which equipment is overdue for maintenance?
-                </div>
-                <div class="chip" onclick="useChip(this)">
-                    <i class="mdi mdi-alert-circle-outline"></i> How many overdue samples do we have?
-                </div>
-                <div class="chip" onclick="useChip(this)">
-                    <i class="mdi mdi-file-document-outline"></i> Find relevant SOPs
-                </div>
-                <div class="chip" onclick="useChip(this)">
-                    <i class="mdi mdi-clipboard-check-outline"></i> Pending CAPA actions
-                </div>
+                The central intelligence gateway for the entire IMARA LIMS ecosystem. From tracking sample lifecycles and laboratory workflows to auditing equipment status, managing inventory levels, checking quality compliance (CAPAs & SOPs), and analyzing client submissions — ask any question or retrieve real-time metrics instantly.
             </div>
         </div>
     </div>

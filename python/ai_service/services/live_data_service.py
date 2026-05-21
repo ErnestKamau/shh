@@ -40,11 +40,41 @@ class LiveDataService:
         
     def _load_manifest(self) -> Dict[str, Any]:
         try:
-            with open(self.manifest_path, 'r') as f:
-                return json.load(f)
+            logger.info("Loading LiveData manifest templates from PostgreSQL database...")
+            with db_manager.postgres_connection() as conn:
+                rows = conn.execute(text("""
+                    SELECT id, domain, sql_query, description, output_format, ttl_seconds 
+                    FROM ai.manifest_intents 
+                    WHERE active = true
+                """)).fetchall()
+            
+            templates = {}
+            for r in rows:
+                intent_id = r[0]
+                domain = r[1]
+                sql_query = r[2]
+                description = r[3]
+                output_format = r[4]
+                ttl_seconds = r[5]
+                
+                templates.setdefault(domain, {})[intent_id] = {
+                    "sql": sql_query,
+                    "description": description,
+                    "output_format": output_format,
+                    "ttl_seconds": ttl_seconds
+                }
+            
+            logger.info(f"Successfully loaded {sum(len(d) for d in templates.values())} intent templates from DB.")
+            return templates
+            
         except Exception as e:
-            logger.error(f"Failed to load LiveData manifest: {e}")
-            return {}
+            logger.error(f"Failed to load LiveData manifest from PostgreSQL: {e}. Falling back to static JSON file.")
+            try:
+                with open(self.manifest_path, 'r') as f:
+                    return json.load(f)
+            except Exception as fe:
+                logger.error(f"Failed to load static LiveData manifest file fallback: {fe}")
+                return {}
 
     def _generate_cache_key(self, intent: str, params: Optional[Dict[str, Any]]) -> str:
         param_str = json.dumps(params, sort_keys=True) if params else "{}"

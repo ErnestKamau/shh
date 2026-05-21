@@ -23,6 +23,8 @@ import re
 import logging
 import difflib
 from typing import Optional, Tuple, List, Dict
+from python.py_pipeline.core.database import db_manager
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,11 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
         (["total samples", "sample count total", "total sample count",
           "number of samples", "all samples"],
          "sample_count_total"),
+        (["total samples since start of system", "total samples since start",
+          "how many samples since start of system", "how many samples since start",
+          "sample count since start of system", "samples since start of system",
+          "samples since start", "all time samples", "absolute samples count"],
+         "sample_count_absolute_all_time"),
         (["individual sample count", "individual samples", "aliquots",
           "sample items count", "total individual"],
          "individual_sample_count"),
@@ -274,8 +281,42 @@ class ManifestIntentRouter:
     """
 
     def __init__(self):
-        self._group_a = _GROUP_A_RULES
-        self._group_b = _GROUP_B_RULES
+        self._group_a, self._group_b = self._load_rules()
+
+    def _load_rules(self) -> Tuple[Dict[str, List[Tuple[List[str], str]]], Dict[str, List[Tuple[List[str], str]]]]:
+        try:
+            logger.info("Loading AI manifest intent routing rules from PostgreSQL database...")
+            with db_manager.postgres_connection() as conn:
+                rows = conn.execute(text("""
+                    SELECT i.id as intent_id, i.domain, i.group_type, p.pattern 
+                    FROM ai.manifest_intents i
+                    JOIN ai.manifest_intent_patterns p ON i.id = p.intent_id
+                    WHERE i.active = true
+                """)).fetchall()
+
+            # Group patterns by (domain, intent_id, group_type)
+            grouped = {}
+            for r in rows:
+                intent_id = r[0]
+                domain = r[1]
+                group_type = r[2]
+                pattern = r[3]
+                
+                key = (domain, intent_id, group_type)
+                grouped.setdefault(key, []).append(pattern)
+
+            group_a = {}
+            group_b = {}
+            for (domain, intent_id, group_type), patterns in grouped.items():
+                target_group = group_a if group_type == 'A' else group_b
+                target_group.setdefault(domain, []).append((patterns, intent_id))
+
+            logger.info(f"Successfully loaded rules from DB. Group A domains: {list(group_a.keys())}, Group B domains: {list(group_b.keys())}")
+            return group_a, group_b
+
+        except Exception as e:
+            logger.error(f"Failed to load routing rules from PostgreSQL: {e}. Falling back to static rules.")
+            return _GROUP_A_RULES, _GROUP_B_RULES
 
     def _get_active_rules(self, domain_whitelist: Optional[List[str]] = None) -> Tuple[List[Tuple[List[str], str]], List[Tuple[List[str], str]]]:
         """Filter rules based on whitelist. If None or contains '*', return all."""
