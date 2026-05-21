@@ -664,6 +664,9 @@ body > nav + * {
     flex-direction: column;
     align-items: flex-end;
     gap: 3px;
+    max-width: 70%;
+    flex-shrink: 0;
+    min-width: fit-content;
 }
 
 /* Row-level action buttons (edit for user, feedback for bot) */
@@ -773,7 +776,7 @@ body > nav + * {
 
 /* ── User bubble ── */
 .user-bubble {
-    max-width: 85%;
+    max-width: 100%;
     background: #a72b2a;
     color: #fff;
     border-radius: 18px 18px 4px 18px;

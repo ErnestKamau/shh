@@ -50,9 +50,7 @@ return new class extends Migration
 
         $this->dropFormularForeignKeyIfExists();
 
-        Schema::table('analysis_elements', function (Blueprint $table): void {
-            $table->unsignedBigInteger('formular_id')->nullable()->change();
-        });
+        DB::statement('ALTER TABLE analysis_elements ALTER COLUMN formular_id TYPE bigint USING NULL');
     }
 
     private function dropFormularForeignKeyIfExists(): void

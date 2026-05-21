@@ -4,7 +4,7 @@ namespace App\Models\AiRepository;
 
 class ReportingCapturedResult extends AiRepositoryModel
 {
-    protected $table = 'reporting.captured_results';
+    protected $table = 'results';
 
     protected $primaryKey = 'source_id';
 

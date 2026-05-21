@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('ai_chat_attachments', function (Blueprint $table) {
+        Schema::create('ai.ai_chat_attachments', function (Blueprint $table) {
             $table->uuid('id');
             $table->uuid('ai_conversation_id')->index('idx_ai_chat_attachments_ai_conversation_id_03156ace');
             $table->uuid('ai_message_id')->nullable()->index('idx_ai_chat_attachments_ai_message_id_b77dbb62');
@@ -31,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ai_chat_attachments');
+        Schema::dropIfExists('ai.ai_chat_attachments');
     }
 };

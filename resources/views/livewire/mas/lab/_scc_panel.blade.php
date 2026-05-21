@@ -55,6 +55,7 @@
 
 @once
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
 <script>
 (function() {
     var slaRate = 0;
@@ -68,6 +69,7 @@
     function buildChart() {
         var ctx = document.getElementById('performanceChart');
         if (!ctx) return;
+        if (typeof Chart === 'undefined') return;
 
         slaRate = getChartRate();
 
@@ -102,9 +104,6 @@
         setTimeout(buildChart, 50);
     });
 
-    window.addEventListener('open-new-tab', function(event) {
-        window.open(event.detail.url, '_blank');
-    });
 })();
 </script>
 @endpush

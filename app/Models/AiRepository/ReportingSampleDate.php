@@ -4,7 +4,7 @@ namespace App\Models\AiRepository;
 
 class ReportingSampleDate extends AiRepositoryModel
 {
-    protected $table = 'reporting.sample_dates';
+    protected $table = 'sample_details';
 
     protected $primaryKey = 'source_id';
 

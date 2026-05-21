@@ -282,20 +282,8 @@ feature_materialization() {
   fi
 
   feature_foundation
-  reporting_sync
   bash -lc "cd '$ROOT_DIR' && source .venv/bin/activate && python -m python.ai_service.build_feature_snapshot --json"
   echo "[Feature Materialization] Completed"
-}
-
-reporting_sync() {
-  echo "[Reporting Sync] Populating required reporting tables from FIVET source"
-  if [[ ! -f "$ROOT_DIR/.venv/bin/activate" ]]; then
-    echo "Missing virtual environment at $ROOT_DIR/.venv"
-    exit 1
-  fi
-
-  bash -lc "cd '$ROOT_DIR' && source .venv/bin/activate && python -m python.ai_service.sync_reporting_seed --json"
-  echo "[Reporting Sync] Completed"
 }
 
 chat_validation() {
@@ -319,8 +307,7 @@ Processes:
   model-provisioning   Install the Ollama model used by chat
   runtime-bootstrap    Start and validate Ollama + AI API runtime
   feature-foundation   Ensure AI feature-engineering tables exist in PostgreSQL
-  reporting-sync       Sync reporting source tables required by feature engineering
-  feature-materialization  Build a new feature snapshot from reporting data
+  feature-materialization  Build a new feature snapshot from operational data
   predictive-training  Train TAT and equipment models from feature views
   chat-validation      Execute one end-to-end chat request
   full-validation      Run all processes in sequence
@@ -342,9 +329,6 @@ main() {
       ;;
     feature-materialization)
       feature_materialization
-      ;;
-    reporting-sync)
-      reporting_sync
       ;;
     predictive-training)
       predictive_training

@@ -84,6 +84,7 @@
                     <select id="modelSelector" class="premium-select">
                         <option value="qwen3.5:0.8b">⚡ Fast (Efficiency)</option>
                         <option value="qwen3.5:2b" selected>⚖️ Balanced (Pro)</option>
+                        <option value="qwen2.5-coder:1.5b">📊 Visual Coder (Lightweight)</option>
                         <option value="qwen2.5:3b">🧠 Advanced (Reasoning)</option>
                     </select>
                 </div>
@@ -177,7 +178,17 @@
 <div id="chartModal" class="modal-backdrop" style="display:none">
     <div class="modal-box chart-modal-box">
         <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 id="chartModalTitle" style="margin:0;">Visualization Analysis</h3>
+            <div style="display:flex; align-items:center;">
+                <h3 id="chartModalTitle" style="margin:0;">Visualization Analysis</h3>
+                <div class="chart-modal-actions" style="margin-left: 15px; display: flex; gap: 8px;">
+                    <button class="modal-action-btn" onclick="exportChartCSV()" title="Export data to CSV">
+                        <i class="mdi mdi-download-outline"></i> CSV
+                    </button>
+                    <button class="modal-action-btn" onclick="exportChartPDF()" title="Print/Export to PDF">
+                        <i class="mdi mdi-file-pdf-box"></i> PDF
+                    </button>
+                </div>
+            </div>
             <button id="closeChartModal" class="modal-icon-btn" style="background:none; border:none; cursor:pointer; font-size:24px; color:#555;">
                 <i class="mdi mdi-close"></i>
             </button>
@@ -186,7 +197,15 @@
             <div class="modal-chart-container" style="width:100%; height:400px; margin-bottom:20px;">
                 <canvas id="modalChartCanvas"></canvas>
             </div>
-            <div id="modalChartData" class="modal-chart-data"></div>
+            <div class="modal-data-section">
+                <div class="section-header" onclick="toggleDrilldownTable()" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding: 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 10px;">
+                    <h3 style="margin:0; font-size:1rem; color:#334155;"><i class="mdi mdi-table-eye"></i> Raw Data Drilldown</h3>
+                    <i id="drilldownChevron" class="mdi mdi-chevron-down" style="font-size: 1.2rem; color: #64748b;"></i>
+                </div>
+                <div id="drilldownTableWrap" class="drilldown-table-wrap collapsed">
+                    <div id="modalChartData" class="modal-chart-data"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

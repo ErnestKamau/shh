@@ -11,5 +11,5 @@ class ReportingEquipmentLog extends AiRepositoryModel
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $table = 'reporting.equipment_logs';
+    protected $table = 'equipment';
 }

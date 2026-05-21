@@ -106,10 +106,10 @@ class QcDashboardService
         $schema = $this->reportingSchema();
 
         $results = DB::connection($conn)->table("{$schema}.qc_results as qr")
-            ->join("{$schema}.analytes as a", "a.source_id", "=", "qr.analyte_id")
+            ->join("{$schema}.analytes as a", "a.id", "=", "qr.analyte_id")
             ->whereNotNull('qr.status_code')
             ->whereIn('qr.status_code', ['PASSED', 'FAILED'])
-            ->where('qr.source_created_at', '>=', now()->subMonths(6))
+            ->where('qr.created_at', '>=', now()->subMonths(6))
             ->select('a.name', 'qr.status_code', DB::raw('count(*) as total'))
             ->groupBy('a.name', 'qr.status_code')
             ->get();

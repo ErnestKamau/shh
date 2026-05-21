@@ -73,16 +73,17 @@ class SampleHandler implements LiveDataHandlerInterface
 
     private function sampleCountInLab(): array
     {
-        $count = DB::table('sample_headers')
-            ->where('status', 'Samples In Lab')
-            ->where('isactive', 1)
+        $count = DB::table('sample_details')
+            ->join('sample_headers', 'sample_headers.id', '=', 'sample_details.sample_header_id')
+            ->where('sample_headers.status', 'Samples In Lab')
+            ->where('sample_headers.isactive', 1)
             ->count();
 
         return [
             'reply' => $this->formatter->formatCount(
                 $count,
-                'Samples Currently In Lab',
-                'These batches are actively being processed / analyzed.'
+                'Individual Samples Currently In Lab',
+                'These sample items are actively being processed / analyzed.'
             ),
             'value' => $count,
         ];

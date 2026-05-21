@@ -33,6 +33,7 @@ const btnHeaderNewChat = document.getElementById('btnHeaderNewChat');
 let thinkingRow              = null;
 let currentAbortController   = null;
 let currentStreamSessionId    = null;  // Tracks the sessionId of active stream for proper cleanup
+let currentStreamTraceId      = null;  // Tracks the traceId of active stream for proper query cancellation
 let isCleaningUp             = false;  // Prevents new submissions during cleanup
 let isSending                = false;  // Prevents concurrent submissions
 let cleanupTimeoutId         = null;   // Watchdog timeout for stuck cleanup states
@@ -41,6 +42,9 @@ let currentConvoId           = null; // server-generated integer id once convers
 let currentConvoCreated      = false; // true once a server record exists for this session
 let selectedConvoIds         = new Set(); // ids checked in bulk-select mode
 let bulkSelectMode           = false;
+let toolsMasterEnabled       = true;
+let visualsEnabled           = true;
+window.chartConfigs          = window.chartConfigs || {};
 
 // ── Sidebar ───────────────────────────────────────────────────────────────
 // Hook the existing app-wide navbar hamburger to toggle the AI sidebar.
@@ -129,6 +133,8 @@ function startNewConversation() {
         chatMessages.appendChild(welcomeScreen);
         welcomeScreen.style.display = 'flex';
     }
+    const basePageUrl = window.location.origin + '/imara-ai';
+    window.history.pushState(null, '', basePageUrl);
     messageInput?.focus();
 }
 
@@ -341,6 +347,10 @@ async function saveToHistory(userMessage) {
         currentConvoCreated = true;
         conversations.unshift(convo);
         renderSidebarHistory();
+        
+        const basePageUrl = window.location.origin + '/imara-ai';
+        const newUrl = `${basePageUrl}/${convo.id}`;
+        window.history.pushState({ convoId: convo.id }, '', newUrl);
     } catch (e) {
         console.error('Failed to create conversation', e);
     }
@@ -435,6 +445,11 @@ function renderSidebarHistory(filter, list) {
                 currentConvoCreated = true;
                 renderSidebarHistory();
                 await loadConversationMessages(c.id);
+                
+                const basePageUrl = window.location.origin + '/imara-ai';
+                const newUrl = `${basePageUrl}/${c.id}`;
+                window.history.pushState({ convoId: c.id }, '', newUrl);
+
                 // Auto-close menu on mobile after selection
                 if (window.innerWidth <= 768 && sidebar.classList.contains('active')) {
                     toggleMobileMenu();
@@ -744,43 +759,7 @@ function renderMarkdown(text) {
     return text;
 }
 
-// Initialise any chart canvases that were injected by renderMarkdown
-function initCharts(container) {
-    if (typeof Chart === 'undefined') return;
-    container.querySelectorAll('canvas[data-chart]').forEach(canvas => {
-        try {
-            const cfg = JSON.parse(canvas.dataset.chart);
-            const palette = [
-                '#a72b2a','#3b82f6','#10b981','#f59e0b','#8b5cf6',
-                '#ec4899','#06b6d4','#84cc16','#f97316','#6366f1',
-            ];
-            const datasets = (cfg.datasets || []).map((ds, i) => ({
-                ...ds,
-                backgroundColor: ds.data.map((_, j) => palette[(i * 3 + j) % palette.length] + 'cc'),
-                borderColor:     ds.data.map((_, j) => palette[(i * 3 + j) % palette.length]),
-                borderWidth: 1,
-                borderRadius: 4,
-            }));
-            new Chart(canvas, {
-                type: cfg.type || 'bar',
-                data: { labels: cfg.labels || [], datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { display: datasets.length > 1 },
-                        title: { display: !!cfg.title, text: cfg.title || '' },
-                    },
-                    scales: cfg.type === 'pie' || cfg.type === 'doughnut' ? {} : {
-                        y: { beginAtZero: true, ticks: { precision: 0 } },
-                    },
-                },
-            });
-        } catch (e) {
-            console.warn('Imara AI: failed to render chart', e);
-        }
-    });
-}
+// Chart initialization is now dynamically handled via window.initCharts in the visualization script.
 
 // ── DOM helpers ───────────────────────────────────────────────────────────
 function formatTimestamp(isoOrDate) {
@@ -1025,7 +1004,7 @@ function addBotMessage(text, sources, isoTimestamp, msgIdRef, metadata) {
     chatMessages.appendChild(row);
 
     // Initialise any Chart.js canvases injected by the markdown renderer
-    initCharts(row);
+    window.initCharts(row);
 
     const speakBtn   = row.querySelector('.speak-btn');
     const retryBtn   = row.querySelector('.retry-btn');
@@ -1254,7 +1233,10 @@ async function sendMessage() {
             },
             body: JSON.stringify({ 
                 question: message,
-                reference_ids: refIdsToSend
+                reference_ids: refIdsToSend,
+                conversation_id: currentConvoId || null,
+                use_visuals: toolsMasterEnabled && visualsEnabled,
+                model: document.getElementById('modelSelector')?.value || null
             }),
             signal: currentAbortController.signal,
         });
@@ -1324,6 +1306,13 @@ async function sendMessage() {
                     hideThinking();
                     addErrorMessage(data.error);
                     return; // Terminate stream processing
+                }
+
+                // Capture trace_id from upstream connection event
+                if (data.kind === 'upstream_connected' && data.trace_id) {
+                    currentStreamTraceId = data.trace_id;
+                    console.log('[Stream] Captured traceId from backend:', data.trace_id);
+                    continue;
                 }
 
                 // First SSE event carries mode + sources + sessionId
@@ -1397,7 +1386,7 @@ async function sendMessage() {
 
         // Hydrate charts in the final bubble
         const lastRow = chatMessages.querySelector('.msg-row.bot-row:last-child');
-        if (lastRow) initCharts(lastRow);
+        if (lastRow) window.initCharts(lastRow);
 
         // Persist the completed message
         if (currentConvoId && accText) {
@@ -1432,6 +1421,7 @@ async function sendMessage() {
         
         // Clear session tracking
         currentStreamSessionId = null;
+        currentStreamTraceId = null;
         currentAbortController = null;
         
         // Re-enable input with a short delay to ensure backend cleanup completes
@@ -1460,6 +1450,7 @@ function resetStopButtonState() {
     messageInput.disabled = false;
     isCleaningUp = false;
     currentStreamSessionId = null;
+    currentStreamTraceId = null;
     currentAbortController = null;
     messageInput.focus();
 }
@@ -1474,6 +1465,7 @@ stopButton?.addEventListener('click', () => {
     console.log('[Stop Button] Stop requested by user', {
         abortControllerExists: !!currentAbortController,
         sessionId: currentStreamSessionId,
+        traceId: currentStreamTraceId,
         isCleaningUp: isCleaningUp
     });
     
@@ -1497,6 +1489,28 @@ stopButton?.addEventListener('click', () => {
         console.warn('[Stop Button] AbortController was null, cannot abort fetch');
     }
     
+    // Signal backend to cancel active queries using out-of-band signaling
+    if (currentStreamTraceId) {
+        console.log('[Stop Button] Sending out-of-band cancel signal for trace_id:', currentStreamTraceId);
+        fetch('/imara-ai/cancel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF_TOKEN,
+            },
+            body: JSON.stringify({
+                trace_id: currentStreamTraceId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log('[Stop Button] Out-of-band cancel response:', data);
+        })
+        .catch(err => {
+            console.warn('[Stop Button] Out-of-band cancel signal failed:', err.message);
+        });
+    }
+
     // Signal backend to stop streaming (optional double-signal for reliability)
     if (currentStreamSessionId) {
         // Fire and forget - don't block UI on backend response
@@ -1843,15 +1857,69 @@ document.addEventListener('click', (e) => {
     if (modelMenu && modelMenu.style.display === 'block' && !modelMenu.contains(e.target)) {
         modelMenu.style.display = 'none';
     }
-    if (toolsMenu && toolsMenu.style.display === 'block' && !toolsMenu.contains(e.target)) {
-        toolsMenu.style.display = 'none';
+    if (toolsMenu && toolsMenu.style.display === 'block') {
+        if (!toolsMenu.contains(e.target) && e.target !== toolsBtn) {
+            toolsMenu.style.display = 'none';
+        }
     }
 });
 
+// Sync toggles
+const toggleMasterTools = document.getElementById('toggleMasterTools');
+const visualsToggle  = document.getElementById('visualsToggle');
+
+toggleMasterTools?.addEventListener('change', () => {
+    toolsMasterEnabled = toggleMasterTools.checked;
+    updateToolsUI();
+});
+
+visualsToggle?.addEventListener('change', () => {
+    visualsEnabled = visualsToggle.checked;
+    syncToolsIndicator();
+});
+
+function updateToolsUI() {
+    const visualItem = document.getElementById('btnToggleVisuals');
+    if (visualItem) {
+        visualItem.classList.toggle('ghosted', !toolsMasterEnabled);
+        const inputs = visualItem.querySelectorAll('input');
+        inputs.forEach(i => i.disabled = !toolsMasterEnabled);
+    }
+    syncToolsIndicator();
+}
+
+function syncToolsIndicator() {
+    const effectiveVisuals = toolsMasterEnabled && visualsEnabled;
+    const indicator = document.getElementById('toolsIndicator');
+    if (indicator) {
+        indicator.style.display = effectiveVisuals ? 'block' : 'none';
+    }
+}
+
 window.addEventListener('load', async function () {
     await loadConversationsFromBackend();
-    if (messageInput) {
+    
+    const pathParts = window.location.pathname.split('/');
+    const lastPart = pathParts[pathParts.length - 1];
+    // UUID pattern matching (36 characters: 8-4-4-4-12 hex chars)
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const convoIdFromUrl = (lastPart && uuidRegex.test(lastPart)) ? lastPart : null;
+    
+    if (convoIdFromUrl) {
+        const convoExists = conversations.some(c => String(c.id) === String(convoIdFromUrl));
+        if (convoExists) {
+            currentConvoId = convoIdFromUrl;
+            currentConvoCreated = true;
+            renderSidebarHistory();
+            await loadConversationMessages(convoIdFromUrl);
+        } else {
+            startNewConversation();
+        }
+    } else {
         startNewConversation();
+    }
+
+    if (messageInput) {
         messageInput.focus();
     }
     // Move the modal to body so it's not inside overflow:hidden (#imara-ai-root),
@@ -1859,4 +1927,8 @@ window.addEventListener('load', async function () {
     if (deleteConvoModal) {
         document.body.appendChild(deleteConvoModal);
     }
+    if (document.getElementById('chartModal')) {
+        document.body.appendChild(document.getElementById('chartModal'));
+    }
+    updateToolsUI();
 });

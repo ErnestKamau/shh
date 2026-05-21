@@ -43,3 +43,6 @@ class ChatStreamRequest(BaseModel):
     crm_customer_id: Optional[int] = None
     user_data_snapshot: Optional[Dict[str, Any]] = None
     generation_options: Optional[Dict[str, Any]] = None
+
+class ChatCancelRequest(BaseModel):
+    trace_id: str

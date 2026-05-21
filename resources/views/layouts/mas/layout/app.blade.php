@@ -163,6 +163,11 @@
             const payload = Array.isArray(data) ? data[0] : data;
             toastr[payload.type](payload.message);
         });
+
+        window.addEventListener('open-new-tab', (event) => {
+            const detail = Array.isArray(event.detail) ? event.detail[0] : event.detail;
+            window.open(detail.url, '_blank');
+        });
     });
 </script>
 @yield('script2')
