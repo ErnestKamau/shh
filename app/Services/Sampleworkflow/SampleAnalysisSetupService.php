@@ -59,12 +59,18 @@ class SampleAnalysisSetupService
         string $sampleDetailId,
         string $analysisTypeId,
         string $sampleCode,
-        ?string $actingUserId = null
+        ?string $actingUserId = null,
+        ?array $analysisElementIds = null
     ): void {
-        $analysisElements = AnalysisElements::query()
+        $query = AnalysisElements::query()
             ->where('analysis_type_id', $analysisTypeId)
-            ->where('active', 1)
-            ->get();
+            ->where('active', 1);
+
+        if ($analysisElementIds !== null && $analysisElementIds !== []) {
+            $query->whereIn('id', $analysisElementIds);
+        }
+
+        $analysisElements = $query->get();
 
         if ($analysisElements->isEmpty()) {
             Log::warning('No analysis elements found for analysis type', [

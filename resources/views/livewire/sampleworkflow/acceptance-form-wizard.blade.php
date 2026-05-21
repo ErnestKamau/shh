@@ -1,7 +1,7 @@
-<div class="acc-wizard-root">
+<div class="acc-wizard-root acc-wizard-root--acceptance">
     @if($showModal)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-lg acc-wizard-dialog" role="document">
+            <div class="modal-dialog {{ $activeStep === 'sample_config' ? 'modal-xl' : 'modal-lg' }} acc-wizard-dialog" role="document">
                 <div class="modal-content acc-wizard-modal">
                     <div class="acc-wizard-header">
                         <div class="acc-wizard-header-text">
@@ -44,6 +44,10 @@
                     </div>
 
                     <div class="acc-wizard-body">
+                        @if($activeStep === 'sample_config')
+                            @include('livewire.partials.acceptance-sample-config-table')
+                        @endif
+
                         @if($activeStep === 'request')
                             @if($showRaiseDisclaimerOption)
                                 <div class="acc-disclaimer-alert" role="alert">
@@ -99,10 +103,10 @@
                                 <div class="acc-pricing-toolbar">
                                     <div>
                                         <h6 class="acc-wizard-section-title mb-1">Parameters &amp; pricing</h6>
-                                        <p class="acc-wizard-hint mb-0">Grouped by sample type and analysis type. Adjust counts and approval per parameter.</p>
+                                        <p class="acc-wizard-hint mb-0">Review pricing from your sample configuration. Toggle approval per line or go back to edit configuration.</p>
                                     </div>
-                                    <button type="button" class="btn btn-sm acc-btn-add" wire:click="openAddLineModal">
-                                        <i class="mdi mdi-plus"></i> Add parameter
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="backFromRequestStep">
+                                        <i class="mdi mdi-arrow-left"></i> Edit configuration
                                     </button>
                                 </div>
 
@@ -273,28 +277,46 @@
                             </section>
                         @endif
 
-                        <section class="acc-wizard-section">
-                            <div class="acc-pricing-toolbar mb-3">
-                                <div>
-                                    <h6 class="acc-wizard-section-title mb-1">Sample Receipt Notification (GCLA 01)</h6>
-                                    <p class="acc-wizard-hint mb-0">Lab batch number fills in after customer signs.</p>
+                        @if($activeStep === 'receipt')
+                            <section class="acc-wizard-section">
+                                <div class="acc-pricing-toolbar mb-3">
+                                    <div>
+                                        <h6 class="acc-wizard-section-title mb-1">Sample Receipt Notification (GCLA 01)</h6>
+                                        <p class="acc-wizard-hint mb-0">Pre-filled from the selected request. Receiving person is the currently signed-in user; the lab batch number is assigned after the customer signs.</p>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="saveReceiptNotificationDraft">
+                                        Save receipt draft
+                                    </button>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="saveReceiptNotificationDraft">
-                                    Save receipt draft
-                                </button>
-                            </div>
-                            @include('livewire.partials.receipt-notification-wire-fields', [
-                                'wirePrefix' => 'receiptNotificationForm.',
-                                'canvasPrefix' => 'acc-wizard-receipt',
-                                'readOnly' => false,
-                                'partLabel' => null,
-                            ])
-                        </section>
+                                @include('livewire.partials.receipt-notification-wire-fields', [
+                                    'wirePrefix' => 'receiptNotificationForm.',
+                                    'canvasPrefix' => 'acc-wizard-receipt',
+                                    'readOnly' => false,
+                                    'partLabel' => null,
+                                    'showSubmitterSection' => false,
+                                    'showSubmitterSigningNotice' => true,
+                                    'showLabNumberPendingNote' => true,
+                                    'labNumberPlaceholder' => 'Request no. — lab batch no. after customer signs',
+                                ])
+                            </section>
+                        @endif
                     </div>
 
                     <div class="acc-wizard-footer">
                         <button type="button" class="btn btn-light acc-btn-ghost" wire:click="closeWizard">Close</button>
-                        @if($activeStep === 'request')
+                        @if($activeStep === 'sample_config')
+                            <button type="button" class="btn acc-btn-primary" wire:click="continueToRequestStep" wire:loading.attr="disabled">
+                                <span wire:loading wire:target="continueToRequestStep" class="spinner-border spinner-border-sm mr-1"></span>
+                                Continue
+                            </button>
+                        @elseif($activeStep === 'request')
+                            <button type="button" class="btn btn-light" wire:click="backFromRequestStep">Back</button>
+                            <button type="button" class="btn acc-btn-primary" wire:click="continueToReceiptStep" wire:loading.attr="disabled">
+                                <span wire:loading wire:target="continueToReceiptStep" class="spinner-border spinner-border-sm mr-1"></span>
+                                Continue
+                            </button>
+                        @elseif($activeStep === 'receipt' && !$acceptanceFormId)
+                            <button type="button" class="btn btn-light" wire:click="backFromReceiptStep">Back</button>
                             <button type="button" class="btn acc-btn-primary" wire:click="submitStep1" wire:loading.attr="disabled">
                                 <span wire:loading wire:target="submitStep1" class="spinner-border spinner-border-sm mr-1"></span>
                                 @if($raiseSampleDisclaimer)
@@ -363,7 +385,7 @@
                                     @disabled(!$addLineAnalysisTypeId || ($addLineParameters === [] && !$addLineCanAddWholeAnalysisType))
                                 >
                                     @if($addLineCanAddWholeAnalysisType)
-                                        <option value="">Whole analysis type (no element)</option>
+                                        <option value="">All parameters for this analysis type</option>
                                     @endif
                                     @foreach($addLineParameters as $param)
                                         <option value="{{ $param['id'] }}">{{ $param['label'] }} — {{ number_format($param['unit_amount'], 2) }}</option>
@@ -428,6 +450,279 @@
         }
 
         .acc-wizard-dialog { max-width: 920px; margin: 0; }
+
+        .acc-wizard-dialog.modal-xl {
+            max-width: 1140px;
+        }
+
+        .acc-sample-config-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .acc-sample-config-card {
+            border: 1px solid var(--acc-border);
+            border-radius: 12px;
+            background: #fff;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        }
+
+        .acc-sample-config-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+            border-bottom: 1px solid var(--acc-border);
+        }
+
+        .acc-sample-config-card-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--acc-muted);
+        }
+
+        .acc-sample-config-table-wrap {
+            overflow-x: auto;
+        }
+
+        .acc-sample-config-table thead th {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--acc-muted);
+            background: #f8fafc;
+            border-bottom: 1px solid var(--acc-border);
+            white-space: nowrap;
+            padding: 0.65rem 0.75rem;
+        }
+
+        .acc-sample-config-table td {
+            vertical-align: middle;
+            padding: 0.65rem 0.75rem;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .acc-sample-config-main-row td {
+            background: #fff;
+        }
+
+        .acc-sample-config-params-row td,
+        .acc-sample-config-section-row td {
+            background: #f8fafc;
+            padding-top: 0;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        .acc-sample-config-section-row td {
+            padding-bottom: 0.5rem;
+        }
+
+        .acc-sample-config-params-panel {
+            padding: 0.5rem 0.35rem 0.35rem;
+        }
+
+        .acc-sample-config-params-band {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: #e8edf3;
+            border-radius: 8px;
+            border: 1px solid #dde4ec;
+        }
+
+        .acc-sample-config-params-band-actions {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .acc-sample-config-select-all {
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .acc-sample-config-select-all:hover:not(:disabled) {
+            background: #f8fafc;
+            border-color: #94a3b8;
+            color: #334155;
+        }
+
+        .acc-sample-config-select-all:disabled {
+            opacity: 0.55;
+        }
+
+        .acc-sample-config-params-search-row {
+            margin: 0.5rem 0 0.35rem;
+        }
+
+        .acc-sample-config-section-toggle {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            min-width: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.15s;
+        }
+
+        .acc-sample-config-section-toggle:hover,
+        .acc-sample-config-section-toggle:focus {
+            outline: none;
+            background: rgba(148, 163, 184, 0.15);
+        }
+
+        .acc-sample-config-section-toggle-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .acc-sample-config-chevron {
+            font-size: 1.1rem;
+            color: var(--acc-muted);
+            line-height: 1;
+        }
+
+        .acc-sample-config-section-badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: none;
+            color: #1e40af;
+            background: #dbeafe;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+        }
+
+        .acc-sample-config-section-body {
+            padding: 0.5rem 0.35rem 0.15rem;
+        }
+
+        .acc-sample-config-params-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--acc-muted);
+        }
+
+        .acc-sample-config-search {
+            max-width: 220px;
+        }
+
+        .acc-sample-config-param-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0.15rem;
+        }
+
+        .acc-sample-config-param-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 999px;
+            border: 1px solid var(--acc-border);
+            background: #fff;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin: 0;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .acc-sample-config-param-chip.is-selected {
+            border-color: #93c5fd;
+            background: var(--acc-accent-soft);
+            color: #1e3a8a;
+        }
+
+        .acc-sample-config-param-chip input {
+            margin: 0;
+        }
+
+        .acc-sample-config-instances-panel {
+            margin-top: 0.35rem;
+        }
+
+        .acc-sample-config-instances-band {
+            background: #eef2ff;
+            border-color: #c7d2fe;
+        }
+
+        .acc-sample-config-instances-band .acc-sample-config-section-toggle:hover,
+        .acc-sample-config-instances-band .acc-sample-config-section-toggle:focus {
+            background: rgba(99, 102, 241, 0.12);
+        }
+
+        .acc-sample-config-instances-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #3730a3;
+        }
+
+        .acc-sample-config-instances-badge {
+            background: #c7d2fe;
+            color: #312e81;
+        }
+
+        .acc-sample-config-instances-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .acc-sample-config-instance-item {
+            display: grid;
+            grid-template-columns: 100px 1fr 1fr;
+            gap: 0.75rem;
+            align-items: end;
+            padding: 0.5rem 0.35rem;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .acc-sample-config-instance-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #64748b;
+            padding-bottom: 0.35rem;
+        }
+
+        .acc-sample-config-instance-fields {
+            display: contents;
+        }
+
+        @media (max-width: 768px) {
+            .acc-sample-config-instance-item {
+                grid-template-columns: 1fr;
+            }
+        }
 
         .acc-wizard-modal {
             border: none;
@@ -502,9 +797,21 @@
             color: var(--acc-muted);
         }
 
+        .acc-wizard-root--acceptance .acc-wizard-header,
+        .acc-wizard-root--acceptance .acc-wizard-header--compact {
+            background: #fff !important;
+            color: var(--acc-text) !important;
+        }
+
+        .acc-wizard-root--acceptance .acc-wizard-header .acc-wizard-close,
+        .acc-wizard-root--acceptance .acc-wizard-header--compact .acc-wizard-close {
+            background: #f1f5f9 !important;
+            color: var(--acc-muted) !important;
+        }
+
         .acc-wizard-steps {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 0;
             padding: 0;
             background: #f8fafc;
@@ -1195,6 +1502,11 @@
                 setTimeout(initManagerSignaturePad, 400);
                 setTimeout(initWizardReceiptPads, 460);
                 setTimeout(initDisclaimerSignaturePads, 500);
+            });
+
+            Livewire.on('acceptance-receipt-step-opened', function () {
+                resetWizardReceiptCanvasFlags();
+                setTimeout(initWizardReceiptPads, 300);
             });
 
             Livewire.on('acceptance-disclaimer-step-opened', function () {

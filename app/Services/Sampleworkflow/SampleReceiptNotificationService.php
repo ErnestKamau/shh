@@ -3,9 +3,12 @@
 namespace App\Services\Sampleworkflow;
 
 use App\BatchAttachment;
+use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
+use App\Models\SubmissionFormInstance;
 use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
+use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -13,6 +16,8 @@ use Illuminate\Support\Facades\Validator;
 class SampleReceiptNotificationService
 {
     public const ATTACHMENT_TITLE = 'Sample Receipt Notification (GCLA 01)';
+
+    public const LAB_NUMBER_PENDING_SUFFIX = ' — Lab. no. assigned after customer signs';
 
     /**
      * @return array<string, mixed>
@@ -146,6 +151,258 @@ class SampleReceiptNotificationService
         $defaults['number_of_samples'] = (int) ($form->number_of_samples ?? 0);
 
         return $defaults;
+    }
+
+    /**
+     * Prefill GCLA 01 from submission/receiving data before the acceptance form is created.
+     *
+     * @param  array<string, mixed>  $wizardContext
+     * @return array<string, mixed>
+     */
+    public function hydrateDefaultsFromWizardSelection(
+        ?string $submissionFormInstanceId,
+        ?string $submissionRequestId,
+        array $wizardContext = []
+    ): array {
+        $defaults = self::emptyForm();
+        $requestReference = '';
+        $instance = null;
+        $portalRequest = null;
+
+        if ($submissionRequestId !== null && $submissionRequestId !== '') {
+            $portalRequest = SampleSubmissionRequest::query()
+                ->with(['customer', 'batch'])
+                ->find($submissionRequestId);
+        }
+
+        if ($submissionFormInstanceId !== null && $submissionFormInstanceId !== '') {
+            $instance = SubmissionFormInstance::query()
+                ->with(['crmCustomer', 'submittedBy', 'batches', 'submissionForm', 'values.element'])
+                ->find($submissionFormInstanceId);
+
+            if ($portalRequest === null && $instance !== null) {
+                $portalRequest = $this->findLinkedSubmissionRequest($instance);
+            }
+        }
+
+        if ($portalRequest !== null) {
+            $requestReference = (string) $portalRequest->formatted_number;
+            $defaults['client_or_authority_name'] = (string) ($portalRequest->customer?->name ?? '');
+            $defaults['sample_description'] = (string) ($portalRequest->description_of_samples ?? '');
+            $defaults['submitter_name'] = (string) (
+                $portalRequest->submitting_officer_full_name
+                ?: $portalRequest->submitted_by_full_name
+                ?: ''
+            );
+            $defaults['submitter_designation'] = (string) (
+                $portalRequest->submitting_officer_title
+                ?: $portalRequest->submitted_by_title
+                ?: ''
+            );
+            $defaults['submitter_signature'] = (string) ($portalRequest->submitted_by_signature ?? '');
+            $defaults['number_of_samples'] = (int) ($portalRequest->number_of_samples ?? 0);
+            $defaults['sample_receiving_date'] = optional($portalRequest->received_by_date)->format('Y-m-d')
+                ?? optional($portalRequest->submission_date)->format('Y-m-d')
+                ?? '';
+        }
+
+        if ($instance !== null) {
+            $requestReference = $this->resolveRequestReference($instance, $portalRequest, $requestReference);
+
+            $defaults['client_or_authority_name'] = $this->resolveClientNameForInstance($instance)
+                ?: $defaults['client_or_authority_name'];
+
+            $sampleTypeNames = $instance->getResolvedSampleTypeNames();
+            if ($defaults['sample_description'] === '' && $sampleTypeNames !== []) {
+                $defaults['sample_description'] = implode(', ', $sampleTypeNames);
+            }
+
+            $submitterFromForm = $this->pickInstancePersonnelValue($instance, [
+                'submitting_officer',
+                'submitted_by_full_name',
+                'submitted by',
+                'submitting officer',
+                'submitter',
+                'person submitting',
+            ]);
+
+            if ($submitterFromForm !== '') {
+                $defaults['submitter_name'] = $submitterFromForm;
+            } elseif ($defaults['submitter_name'] === '') {
+                $defaults['submitter_name'] = (string) ($instance->submittedBy?->name ?? '');
+            }
+
+            $designationFromForm = $this->pickInstancePersonnelValue($instance, [
+                'submitting_officer_title',
+                'submitted_by_title',
+                'designation',
+                'title',
+            ]);
+
+            if ($designationFromForm !== '') {
+                $defaults['submitter_designation'] = $designationFromForm;
+            }
+
+            $sampleLineSeeds = app(SubmissionRequestSampleLineService::class)->seedsForAcceptancePrefill($instance);
+            $sampleDetailCount = count($instance->getAllSampleDetails());
+            $defaults['number_of_samples'] = max(
+                $defaults['number_of_samples'],
+                count($sampleLineSeeds),
+                $sampleDetailCount,
+                1
+            );
+
+            if ($defaults['sample_receiving_date'] === '' && $instance->reviewed_at !== null) {
+                $defaults['sample_receiving_date'] = $instance->reviewed_at->format('Y-m-d');
+            }
+        }
+
+        $defaults['laboratory_identification_number'] = $this->formatPendingLaboratoryIdentification($requestReference);
+
+        if ($defaults['sample_receiving_date'] === '') {
+            $defaults['sample_receiving_date'] = now()->format('Y-m-d');
+        }
+
+        $merged = $this->mergeFormPayloads($defaults, $wizardContext);
+
+        if (isset($wizardContext['number_of_samples']) && (int) $wizardContext['number_of_samples'] > 0) {
+            $merged['number_of_samples'] = (int) $wizardContext['number_of_samples'];
+        }
+
+        if (isset($wizardContext['client_or_authority_name'])
+            && trim((string) $wizardContext['client_or_authority_name']) !== '') {
+            $merged['client_or_authority_name'] = (string) $wizardContext['client_or_authority_name'];
+        }
+
+        if ($requestReference !== '' && !str_contains((string) $merged['laboratory_identification_number'], $requestReference)) {
+            $merged['laboratory_identification_number'] = $this->formatPendingLaboratoryIdentification($requestReference);
+        }
+
+        return $this->applyReceivingPersonFromAuth($merged);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function applyReceivingPersonFromAuth(array $form): array
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            return $form;
+        }
+
+        $user->loadMissing('roles');
+
+        $form['receiver_name'] = (string) $user->name;
+        $form['receiver_designation'] = (string) ($user->roles->first()?->name ?? '');
+
+        return $form;
+    }
+
+    private function resolveClientNameForInstance(SubmissionFormInstance $instance): string
+    {
+        $fromCrm = trim((string) ($instance->crmCustomer?->name ?? ''));
+        if ($fromCrm !== '') {
+            return $fromCrm;
+        }
+
+        return $this->pickInstancePersonnelValue($instance, [
+            'customer_name',
+            'submitting_agency',
+            'name_of_client',
+            'name of client',
+            'client',
+        ]);
+    }
+
+    private function resolveRequestReference(
+        SubmissionFormInstance $instance,
+        ?SampleSubmissionRequest $portalRequest,
+        string $existingReference
+    ): string {
+        if ($existingReference !== '') {
+            return $existingReference;
+        }
+
+        $documentNumber = trim((string) ($instance->getDocumentControlNumber() ?: $instance->form_number ?: ''));
+        if ($documentNumber !== '') {
+            return $documentNumber;
+        }
+
+        if ($portalRequest !== null) {
+            return (string) $portalRequest->formatted_number;
+        }
+
+        $linked = $this->findLinkedSubmissionRequest($instance);
+        if ($linked !== null) {
+            return (string) $linked->formatted_number;
+        }
+
+        return trim((string) ($instance->title ?? ''));
+    }
+
+    private function findLinkedSubmissionRequest(SubmissionFormInstance $instance): ?SampleSubmissionRequest
+    {
+        $candidateIds = collect([
+            $instance->portal_request_id,
+            $instance->target_record_id,
+        ])
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->map(fn ($value) => (string) $value)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($candidateIds === []) {
+            return null;
+        }
+
+        return SampleSubmissionRequest::query()
+            ->whereIn('id', $candidateIds)
+            ->first();
+    }
+
+    public function formatPendingLaboratoryIdentification(string $requestReference): string
+    {
+        $requestReference = trim($requestReference);
+
+        if ($requestReference === '') {
+            return 'Lab. no. to be assigned after customer signs';
+        }
+
+        return $requestReference . self::LAB_NUMBER_PENDING_SUFFIX;
+    }
+
+    /**
+     * @param  list<string>  $hints
+     */
+    private function pickInstancePersonnelValue(SubmissionFormInstance $instance, array $hints): string
+    {
+        foreach ($instance->values as $value) {
+            $element = $value->element;
+            if ($element === null) {
+                continue;
+            }
+
+            $haystack = strtolower(implode(' ', array_filter([
+                (string) ($element->name ?? ''),
+                (string) ($element->label ?? ''),
+                (string) ($element->mapping_field ?? ''),
+            ])));
+
+            foreach ($hints as $hint) {
+                if ($hint === '' || !str_contains($haystack, strtolower($hint))) {
+                    continue;
+                }
+
+                $display = trim((string) $instance->resolveDisplayValue($element, $value->value));
+                if ($display !== '') {
+                    return $display;
+                }
+            }
+        }
+
+        return '';
     }
 
     public function findAcceptanceFormForBatch(SampleHeader $batch): ?AnalysisAcceptanceForm
@@ -401,6 +658,51 @@ class SampleReceiptNotificationService
         }
 
         return $merged;
+    }
+
+    /**
+     * Apply a saved draft on top of prefill without blank draft values wiping populated fields.
+     *
+     * @param  array<string, mixed>  $prefill
+     * @param  array<string, mixed>  $draft
+     * @return array<string, mixed>
+     */
+    public function mergePrefillWithUserDraft(array $prefill, array $draft): array
+    {
+        $merged = $this->mergeFormPayloads([], $prefill);
+
+        foreach ($draft as $key => $value) {
+            if (!array_key_exists($key, $merged)) {
+                continue;
+            }
+
+            if ($this->isMeaningfulReceiptFieldValue($key, $value)) {
+                $merged[$key] = $value;
+            }
+        }
+
+        return $merged;
+    }
+
+    private function isMeaningfulReceiptFieldValue(string $key, mixed $value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        if ($key === 'number_of_samples') {
+            return is_numeric($value) && (int) $value > 0;
+        }
+
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return true;
+        }
+
+        return !empty($value);
     }
 
     /**

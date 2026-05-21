@@ -62,6 +62,9 @@ class AcceptanceFormService
                 'sample_disclaimer_payload' => $raisesSampleDisclaimer && is_array($disclaimerPayload)
                     ? $disclaimerPayload
                     : null,
+                'sample_configuration_payload' => is_array($header['sample_configuration_payload'] ?? null)
+                    ? $header['sample_configuration_payload']
+                    : null,
                 'created_by' => $createdBy,
             ]);
 

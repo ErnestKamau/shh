@@ -145,6 +145,7 @@ class AcceptanceFormPricingService
             ]);
         }
 
+        $lines = $this->expandAnalysisTypeOnlyLinesToParameters($lines, $customerId, $pricelist);
         $lines = $this->deduplicateRedundantAnalysisTypeLines($lines);
 
         return [
@@ -216,6 +217,86 @@ class AcceptanceFormPricingService
         unset($line);
 
         return $filtered;
+    }
+
+    /**
+     * When a request only specifies sample type + analysis type, expand to all parameters (elements) for that analysis.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    public function expandAnalysisTypeOnlyLinesToParameters(
+        array $lines,
+        ?string $customerId,
+        ?Pricelist $pricelist = null
+    ): array {
+        if ($lines === []) {
+            return [];
+        }
+
+        $pricelist ??= $this->resolvePricelist($customerId);
+        $expanded = [];
+        $expandedKeys = [];
+
+        foreach ($lines as $line) {
+            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+
+            if (!empty($line['analysis_element_id']) || $analysisTypeId === '') {
+                $expanded[] = $line;
+
+                continue;
+            }
+
+            $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
+            $expandKey = $sampleTypeId . '::' . $analysisTypeId;
+
+            if (isset($expandedKeys[$expandKey])) {
+                continue;
+            }
+
+            $parameters = $this->parametersForAddLineSelection(
+                (string) ($customerId ?? ''),
+                $sampleTypeId ?: null,
+                $analysisTypeId
+            );
+
+            if ($parameters === []) {
+                $expanded[] = $line;
+
+                continue;
+            }
+
+            $expandedKeys[$expandKey] = true;
+
+            foreach ($parameters as $parameter) {
+                $resolvedSampleTypeId = (string) ($parameter['sample_type_id'] ?? $sampleTypeId);
+                $resolvedAnalysisTypeId = (string) ($parameter['analysis_type_id'] ?? $analysisTypeId);
+                $elementId = $parameter['analysis_element_id'] ?? null;
+
+                $expanded[] = array_merge($line, [
+                    'sample_type_id' => $resolvedSampleTypeId !== '' ? $resolvedSampleTypeId : null,
+                    'analysis_type_id' => $resolvedAnalysisTypeId,
+                    'analysis_element_id' => $elementId,
+                    'parameter_label' => (string) ($parameter['label'] ?? $line['parameter_label'] ?? 'Parameter'),
+                    'unit_amount' => (float) ($parameter['unit_amount'] ?? $this->resolveLinePrice(
+                        $pricelist,
+                        $resolvedSampleTypeId ?: null,
+                        $resolvedAnalysisTypeId,
+                        $elementId
+                    )),
+                    'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
+                    'is_approved' => (bool) ($line['is_approved'] ?? true),
+                ]);
+            }
+        }
+
+        foreach ($expanded as $index => &$line) {
+            $line['line_no'] = $index + 1;
+            $line['sort_order'] = $index;
+        }
+        unset($line);
+
+        return $expanded;
     }
 
     public function resolveLinePrice(
@@ -622,5 +703,153 @@ class AcceptanceFormPricingService
                 'price' => (float) ($line['unit_amount'] ?? 0),
             ];
         })->values()->all();
+    }
+
+    /**
+     * Sample types available when adding a line: customer pricelist plus types already on the table.
+     *
+     * @param  list<array<string, mixed>>  $existingLines
+     * @return list<array{id: string, name: string}>
+     */
+    public function sampleTypesForAddLinePicker(string $customerId, array $existingLines): array
+    {
+        $fromLines = collect($existingLines)
+            ->filter(fn (array $line) => !empty($line['sample_type_id']))
+            ->map(fn (array $line) => [
+                'id' => (string) $line['sample_type_id'],
+                'name' => trim((string) ($line['sample_type_name'] ?? '')) !== ''
+                    ? (string) $line['sample_type_name']
+                    : (string) (optional(SampleType::find($line['sample_type_id']))->name ?? 'Sample type'),
+            ])
+            ->unique('id')
+            ->values()
+            ->all();
+
+        return $this->mergeTypePickerOptions(
+            $this->pricelistSampleTypesForCustomer($customerId),
+            $fromLines
+        );
+    }
+
+    /**
+     * Analysis types for add-line picker: pricelist plus types already on the table for the sample type.
+     *
+     * @param  list<array<string, mixed>>  $existingLines
+     * @return list<array{id: string, name: string}>
+     */
+    public function analysisTypesForAddLinePicker(
+        string $customerId,
+        ?string $sampleTypeId,
+        array $existingLines
+    ): array {
+        $fromLines = collect($existingLines)
+            ->filter(fn (array $line) => !empty($line['analysis_type_id'])
+                && (string) ($line['sample_type_id'] ?? '') === (string) ($sampleTypeId ?? ''))
+            ->map(fn (array $line) => [
+                'id' => (string) $line['analysis_type_id'],
+                'name' => trim((string) ($line['analysis_type_name'] ?? '')) !== ''
+                    ? (string) $line['analysis_type_name']
+                    : (string) (optional(AnalysisType::find($line['analysis_type_id']))->name ?? 'Analysis type'),
+            ])
+            ->unique('id')
+            ->values()
+            ->all();
+
+        return $this->mergeTypePickerOptions(
+            $this->pricelistAnalysisTypesForCustomer($customerId, $sampleTypeId),
+            $fromLines
+        );
+    }
+
+    /**
+     * Pricelist parameters for an analysis selection, falling back to configured analysis elements.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function parametersForAddLineSelection(
+        string $customerId,
+        ?string $sampleTypeId,
+        ?string $analysisTypeId
+    ): array {
+        $fromPricelist = $this->pricelistParametersForCustomer($customerId, $sampleTypeId, $analysisTypeId);
+        $withElements = array_values(array_filter(
+            $fromPricelist,
+            fn (array $param) => !empty($param['analysis_element_id'])
+        ));
+
+        if ($withElements !== []) {
+            return $withElements;
+        }
+
+        return $this->analysisElementsAsParameterOptions($customerId, $sampleTypeId, $analysisTypeId);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function analysisElementsAsParameterOptions(
+        string $customerId,
+        ?string $sampleTypeId,
+        ?string $analysisTypeId
+    ): array {
+        if ($analysisTypeId === null || $analysisTypeId === '') {
+            return [];
+        }
+
+        $analysisType = AnalysisType::query()->find($analysisTypeId);
+        if ($analysisType === null) {
+            return [];
+        }
+
+        $pricelist = $this->resolvePricelist($customerId);
+        $resolvedSampleTypeId = $sampleTypeId
+            ?? ($analysisType->sample_type_id ? (string) $analysisType->sample_type_id : null);
+
+        return AnalysisElements::query()
+            ->where('analysis_type_id', $analysisTypeId)
+            ->with(['analyte:id,name'])
+            ->orderBy('level')
+            ->get()
+            ->map(function (AnalysisElements $element) use ($pricelist, $resolvedSampleTypeId, $analysisType) {
+                $label = $element->analyte?->name
+                    ?? ($element->method !== '' ? (string) $element->method : null)
+                    ?? 'Parameter';
+
+                return [
+                    'id' => (string) $element->id,
+                    'pricelist_item_id' => null,
+                    'sample_type_id' => $resolvedSampleTypeId,
+                    'sample_type_name' => $resolvedSampleTypeId
+                        ? optional(SampleType::find($resolvedSampleTypeId))->name
+                        : null,
+                    'analysis_type_id' => (string) $analysisType->id,
+                    'analysis_type_name' => (string) $analysisType->name,
+                    'analysis_element_id' => (string) $element->id,
+                    'label' => $label,
+                    'unit_amount' => $this->resolveLinePrice(
+                        $pricelist,
+                        $resolvedSampleTypeId,
+                        (string) $analysisType->id,
+                        (string) $element->id
+                    ),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<array{id: string, name: string}>  $primary
+     * @param  list<array{id: string, name: string}>  $secondary
+     * @return list<array{id: string, name: string}>
+     */
+    private function mergeTypePickerOptions(array $primary, array $secondary): array
+    {
+        return collect($primary)
+            ->merge($secondary)
+            ->unique('id')
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
     }
 }

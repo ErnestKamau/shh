@@ -785,7 +785,7 @@
 										</span>
 									</li>
 								@endif
-								@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['submitted', 'received'], true))
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
 									<li>
 										<span class="btn btn-sm dropdown-item"
 											data-sf-trigger="workflow-action-request-review"
@@ -1117,7 +1117,7 @@
 											<i class="mdi mdi-package-variant-closed mr-1"></i> Receive
 										</button>
 									@endif
-									@if($status === 'Samples Receiving' && in_array($workflowSubTab, ['submitted', 'received'], true))
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
 										<button type="button"
 											class="btn btn-sm btn-outline-warning"
 											data-sf-trigger="workflow-action-request-review"
@@ -3595,79 +3595,14 @@
 												</div>
 											</div>
 											<!-- Part E: Sample Receipt Notification -->
-											<div class="card border-0 lab-acc-part d-none" id="lab-acc-part-5" style="background: #f8fafc;">
-												<div class="card-body">
-													<h6 class="mb-3">Part E: Sample Receipt Notification (GCLA 01)</h6>
-													<div class="row">
-														<div class="col-md-6 mb-3">
-															<label class="form-label">Name of the client or submitting authority</label>
-															<input type="text" class="form-control" name="receipt_notification[client_or_authority_name]">
-														</div>
-														<div class="col-md-6 mb-3">
-															<label class="form-label">Laboratory Identification Number / Lab. No. (Batch No)</label>
-															<input type="text" class="form-control" name="receipt_notification[laboratory_identification_number]" placeholder="Auto-generated on approval" readonly>
-														</div>
-													</div>
-
-													<div class="row">
-														<div class="col-md-8 mb-3">
-															<label class="form-label">Description of sample(s)</label>
-															<textarea class="form-control" rows="3" name="receipt_notification[sample_description]"></textarea>
-														</div>
-														<div class="col-md-4 mb-3">
-															<label class="form-label">Number of Samples</label>
-															<input type="number" min="0" class="form-control" name="receipt_notification[number_of_samples]">
-														</div>
-													</div>
-
-													<hr>
-													<h6 class="mb-3">Person Submitting the Sample or Exhibit</h6>
-													<div class="row">
-														<div class="col-md-6 mb-3">
-															<label class="form-label">Name</label>
-															<input type="text" class="form-control" name="receipt_notification[submitter_name]">
-														</div>
-														<div class="col-md-6 mb-3">
-															<label class="form-label">Designation</label>
-															<input type="text" class="form-control" name="receipt_notification[submitter_designation]">
-														</div>
-													</div>
-
-													<label class="form-label d-block">Signature</label>
-													<div class="bg-white border rounded p-2 mb-3" style="max-width: 560px;">
-														<canvas id="review-submitter-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
-														<div class="d-flex mt-2" style="gap: 8px;">
-															<button type="button" class="btn btn-sm btn-outline-secondary" id="review-submitter-sign-clear">Clear</button>
-														</div>
-													</div>
-													<input type="hidden" id="review-submitter-signature-input" name="receipt_notification[submitter_signature]">
-
-													<hr>
-													<h6 class="mb-3">Receiving Person</h6>
-													<div class="row">
-														<div class="col-md-4 mb-3">
-															<label class="form-label">Name</label>
-															<input type="text" class="form-control" name="receipt_notification[receiver_name]">
-														</div>
-														<div class="col-md-4 mb-3">
-															<label class="form-label">Designation</label>
-															<input type="text" class="form-control" name="receipt_notification[receiver_designation]">
-														</div>
-														<div class="col-md-4 mb-3">
-															<label class="form-label">Sample receiving date</label>
-															<input type="date" class="form-control" name="receipt_notification[sample_receiving_date]" value="{{ now()->format('Y-m-d') }}">
-														</div>
-													</div>
-
-													<label class="form-label d-block">Signature</label>
-													<div class="bg-white border rounded p-2" style="max-width: 560px;">
-														<canvas id="review-receiver-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
-														<div class="d-flex mt-2" style="gap: 8px;">
-															<button type="button" class="btn btn-sm btn-outline-secondary" id="review-receiver-sign-clear">Clear</button>
-														</div>
-													</div>
-													<input type="hidden" id="review-receiver-signature-input" name="receipt_notification[receiver_signature]">
-												</div>
+											<div class="lab-acc-part d-none" id="lab-acc-part-5">
+												@include('livewire.partials.receipt-notification-wire-fields', [
+													'mode' => 'static',
+													'canvasPrefix' => 'review-receipt',
+													'partLabel' => 'Part E: Sample Receipt Notification (GCLA 01)',
+													'showSubmitterSection' => false,
+													'showSubmitterSigningNotice' => true,
+												])
 											</div>
 										</div>
 									</div>
@@ -3739,11 +3674,7 @@
 							document.getElementById('lab-acc-part-' + targetPart).classList.remove('d-none');
 
 							if (targetPart === '5' && !reviewReceiptPadsReady) {
-								const s = setupPad('review-submitter-signature-canvas', 'review-submitter-signature-input', 'review-submitter-sign-clear');
-								const r = setupPad('review-receiver-signature-canvas', 'review-receiver-signature-input', 'review-receiver-sign-clear');
-								if (s) {
-									pads.push(s);
-								}
+								const r = setupPad('review-receipt-receiver-canvas', 'review-receipt-receiver-input', 'review-receipt-receiver-clear');
 								if (r) {
 									pads.push(r);
 								}

@@ -15,6 +15,7 @@ use App\SampleDetails;
 use App\SampleHeader;
 use App\Services\Sampleworkflow\AcceptanceFormBatchCodeService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\SampleAnalysisSetupService;
 use App\TaxRegime;
 use Illuminate\Bus\Queueable;
@@ -41,7 +42,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
     public function handle(
         AcceptanceFormBatchCodeService $batchCodeService,
         SampleAnalysisSetupService $analysisSetupService,
-        AcceptanceFormPricingService $pricingService
+        AcceptanceFormPricingService $pricingService,
+        AcceptanceFormSampleConfigService $sampleConfigService
     ): void {
         $form = AnalysisAcceptanceForm::query()
             ->with(['lines', 'submissionFormInstance.batches'])
@@ -52,7 +54,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         try {
-            DB::transaction(function () use ($form, $batchCodeService, $analysisSetupService, $pricingService) {
+            DB::transaction(function () use ($form, $batchCodeService, $analysisSetupService, $pricingService, $sampleConfigService) {
                 $approvedLines = $form->lines->where('is_approved', true)->values();
                 if ($approvedLines->isEmpty()) {
                     throw new \RuntimeException('No approved analysis lines on acceptance form.');
@@ -74,6 +76,12 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
                 [$crmUnitId, $crmUnitName] = $this->resolveCrmUnit($instance, (string) ($form->crm_customer_id ?? ''));
 
+                $configPayload = is_array($form->sample_configuration_payload)
+                    ? $form->sample_configuration_payload
+                    : [];
+
+                $primaryZoneId = $this->resolvePrimaryZoneIdFromConfig($configPayload);
+
                 $header = SampleHeader::query()->create([
                     'batch_code' => $batchCode,
                     'status' => 'Samples Request Review',
@@ -81,6 +89,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     'crm_unit_id' => $crmUnitId,
                     'crm_unit_name' => $crmUnitName,
                     'sample_type_id' => $primarySampleTypeId !== '' ? $primarySampleTypeId : null,
+                    'zone_id' => $primaryZoneId,
+                    'processing_zone_id' => $primaryZoneId,
                     'receipt_date' => now()->format('Y-m-d'),
                     'date_collected' => $form->date_of_sampling?->format('Y-m-d') ?? now()->format('Y-m-d'),
                     'priority' => $form->mode_of_work,
@@ -92,13 +102,17 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     'reference_number' => $batchCode,
                 ]);
 
-                $detailPlans = $this->buildDetailPlans($approvedLines, max(1, (int) $form->number_of_samples));
+                $detailPlans = $configPayload !== []
+                    ? $sampleConfigService->buildDetailPlansFromConfigs($configPayload)
+                    : $this->buildDetailPlans($approvedLines, max(1, (int) $form->number_of_samples));
+
                 $details = $this->createSampleDetails(
                     $header,
                     $batchCode,
                     $detailPlans,
                     $analysisSetupService,
-                    $form->created_by ? (string) $form->created_by : null
+                    $form->created_by ? (string) $form->created_by : null,
+                    $approvedLines
                 );
 
                 $targetDate = SampleDate::query()
@@ -137,6 +151,21 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
     }
 
     /**
+     * @param  list<array<string, mixed>>  $configPayload
+     */
+    private function resolvePrimaryLabIdFromConfig(array $configPayload): ?string
+    {
+        foreach ($configPayload as $config) {
+            $labId = $config['lab_id'] ?? null;
+            if ($labId !== null && (string) $labId !== '') {
+                return (string) $labId;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @param  Collection<int, AnalysisAcceptanceFormLine>  $approvedLines
      * @return list<array{sample_type_id: ?string, analysis_type_ids: list<string>, count: int}>
      */
@@ -169,7 +198,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
     }
 
     /**
-     * @param  list<array{sample_type_id: ?string, analysis_type_ids: list<string>, count: int}>  $detailPlans
+     * @param  list<array<string, mixed>>  $detailPlans
+     * @param  \Illuminate\Support\Collection<int, AnalysisAcceptanceFormLine>  $approvedLines
      * @return list<SampleDetails>
      */
     private function createSampleDetails(
@@ -177,33 +207,66 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         string $batchCode,
         array $detailPlans,
         SampleAnalysisSetupService $analysisSetupService,
-        ?string $actingUserId = null
+        ?string $actingUserId = null,
+        $approvedLines = null
     ): array {
-        $totalDetails = array_sum(array_column($detailPlans, 'count'));
+        $usesLegacyCountShape = isset($detailPlans[0]['count']);
+        $totalDetails = $usesLegacyCountShape
+            ? array_sum(array_column($detailPlans, 'count'))
+            : count($detailPlans);
+
         $details = [];
         $detailIndex = 0;
 
         foreach ($detailPlans as $plan) {
-            for ($i = 0; $i < $plan['count']; $i++) {
+            $iterations = $usesLegacyCountShape ? max(1, (int) $plan['count']) : 1;
+
+            for ($i = 0; $i < $iterations; $i++) {
                 $detailIndex++;
-                $sampleCode = $this->resolveSampleCode($batchCode, $detailIndex, $totalDetails);
+                $sampleCode = $this->resolveSampleCode($batchCode, $detailIndex, max(1, $totalDetails));
 
-                $detail = SampleDetails::query()->create([
+                $detailData = [
                     'sample_header_id' => $header->id,
-                    'sample_type_id' => $plan['sample_type_id'],
+                    'sample_type_id' => $plan['sample_type_id'] ?? null,
                     'sample_code' => $sampleCode,
-                    'analysis_type_id' => implode(',', $plan['analysis_type_ids']),
-                ]);
+                    'analysis_type_id' => implode(',', $plan['analysis_type_ids'] ?? []),
+                ];
 
-                $analysisSetupService->syncAnalysisRelations($header, $detail, $plan['analysis_type_ids']);
+                if (!$usesLegacyCountShape) {
+                    if (!empty($plan['sample_condition_id'])) {
+                        $detailData['sample_condition_id'] = $plan['sample_condition_id'];
+                    }
+                    if (!empty($plan['main_standard_id'])) {
+                        $detailData['main_standard'] = $plan['main_standard_id'];
+                    }
+                    if (!empty($plan['sample_marking'])) {
+                        $detailData['comments'] = $plan['sample_marking'];
+                    }
+                    if (!empty($plan['customer_sample_id'])) {
+                        $detailData['barcode'] = $plan['customer_sample_id'];
+                    }
+                    if (!empty($plan['zone_id'])) {
+                        $detailData['processing_zone_id'] = $plan['zone_id'];
+                    }
+                }
 
-                foreach ($plan['analysis_type_ids'] as $analysisTypeId) {
+                $detail = SampleDetails::query()->create($detailData);
+
+                $analysisTypeIds = $plan['analysis_type_ids'] ?? [];
+                $analysisSetupService->syncAnalysisRelations($header, $detail, $analysisTypeIds);
+
+                $elementFilter = $usesLegacyCountShape
+                    ? null
+                    : ($plan['analysis_element_ids'] ?? []);
+
+                foreach ($analysisTypeIds as $analysisTypeId) {
                     $analysisSetupService->createCapturedResultsForAnalysisType(
                         (string) $header->id,
                         (string) $detail->id,
                         $analysisTypeId,
                         $sampleCode,
-                        $actingUserId
+                        $actingUserId,
+                        is_array($elementFilter) && $elementFilter !== [] ? $elementFilter : null
                     );
                 }
 

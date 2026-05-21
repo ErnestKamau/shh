@@ -86,6 +86,44 @@ class AcceptanceFormPricingServiceTest extends TestCase
         $this->assertSame('Full DNA Analysis', $deduped[0]['parameter_label']);
     }
 
+    public function test_expand_analysis_type_only_line_uses_configured_elements(): void
+    {
+        $sampleType = \App\SampleType::query()->create(['name' => 'Blood Expand Test']);
+        $analysisType = \App\AnalysisType::query()->create([
+            'name' => 'Full DNA Analysis',
+            'sample_type_id' => $sampleType->id,
+        ]);
+
+        $elementA = \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => null,
+            'method' => 'Marker A',
+            'level' => 1,
+        ]);
+        $elementB = \App\AnalysisElements::query()->create([
+            'analysis_type_id' => $analysisType->id,
+            'analyte_id' => null,
+            'method' => 'Marker B',
+            'level' => 2,
+        ]);
+
+        $service = app(AcceptanceFormPricingService::class);
+        $expanded = $service->expandAnalysisTypeOnlyLinesToParameters([
+            [
+                'sample_type_id' => (string) $sampleType->id,
+                'analysis_type_id' => (string) $analysisType->id,
+                'analysis_element_id' => null,
+                'parameter_label' => 'Full DNA Analysis',
+                'number_of_samples' => 1,
+                'is_approved' => true,
+            ],
+        ], null);
+
+        $this->assertCount(2, $expanded);
+        $elementIds = collect($expanded)->pluck('analysis_element_id')->sort()->values()->all();
+        $this->assertSame([(string) $elementA->id, (string) $elementB->id], $elementIds);
+    }
+
     public function test_build_prefill_uses_per_row_sample_lines_from_instance(): void
     {
         $formId = (string) \Illuminate\Support\Str::uuid7();

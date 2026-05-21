@@ -133,6 +133,11 @@
                                                        title="View Details">
                                                         <i class="mdi mdi-eye"></i>
                                                     </a>
+                                                    <a href="{{ route('solutions-preparation-index', ['solutionFilter' => $subCategory->id]) }}"
+                                                       class="btn btn-sm rm-act-btn rm-act-btn--muted"
+                                                       title="Preparations">
+                                                        <i class="mdi mdi-clipboard-list-outline"></i>
+                                                    </a>
                                                     <button wire:click="cloneSubCategory('{{ $subCategory->id }}')"
                                                             class="btn btn-sm rm-act-btn rm-act-btn--muted"
                                                             title="Clone"

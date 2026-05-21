@@ -19,90 +19,14 @@
                 <div class="alert alert-danger">{{ session('error') }}</div>
             @endif
 
-            <div class="card border-0" style="background: #f8fafc;">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Name of the client or submitting authority</label>
-                            <input type="text" class="form-control" wire:model.defer="form.client_or_authority_name" @if($readOnly) disabled @endif>
-                            @error('form.client_or_authority_name')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Laboratory Identification Number / Lab. No. (Batch No)</label>
-                            <input type="text" class="form-control" wire:model.defer="form.laboratory_identification_number" @if($readOnly) disabled @endif>
-                            @error('form.laboratory_identification_number')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-8 mb-3">
-                            <label class="form-label">Description of sample(s)</label>
-                            <textarea class="form-control" rows="3" wire:model.defer="form.sample_description" @if($readOnly) disabled @endif></textarea>
-                            @error('form.sample_description')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Number of Samples</label>
-                            <input type="number" min="0" class="form-control" wire:model.defer="form.number_of_samples" @if($readOnly) disabled @endif>
-                            @error('form.number_of_samples')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
-
-                    <hr>
-                    <h6 class="mb-3">Person Submitting the Sample or Exhibit</h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Name</label>
-                            <input type="text" class="form-control" wire:model.defer="form.submitter_name" @if($readOnly) disabled @endif>
-                            @error('form.submitter_name')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Designation</label>
-                            <input type="text" class="form-control" wire:model.defer="form.submitter_designation" @if($readOnly) disabled @endif>
-                            @error('form.submitter_designation')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
-
-                    <label class="form-label d-block">Signature</label>
-                    <div class="bg-white border rounded p-2 mb-3" style="max-width: 560px;" wire:ignore>
-                        <canvas id="submitter-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
-                        <div class="d-flex mt-2" style="gap: 8px;">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="submitter-sign-clear" @if($readOnly) disabled @endif>Clear</button>
-                        </div>
-                    </div>
-                    <input type="hidden" id="submitter-signature-input" wire:model.defer="form.submitter_signature">
-                    @error('form.submitter_signature')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-
-                    <hr>
-                    <h6 class="mb-3">Receiving Person</h6>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Name</label>
-                            <input type="text" class="form-control" wire:model.defer="form.receiver_name" @if($readOnly) disabled @endif>
-                            @error('form.receiver_name')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Designation</label>
-                            <input type="text" class="form-control" wire:model.defer="form.receiver_designation" @if($readOnly) disabled @endif>
-                            @error('form.receiver_designation')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Sample receiving date</label>
-                            <input type="date" class="form-control" wire:model.defer="form.sample_receiving_date" @if($readOnly) disabled @endif>
-                            @error('form.sample_receiving_date')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
-
-                    <label class="form-label d-block">Signature</label>
-                    <div class="bg-white border rounded p-2" style="max-width: 560px;" wire:ignore>
-                        <canvas id="receiver-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
-                        <div class="d-flex mt-2" style="gap: 8px;">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="receiver-sign-clear" @if($readOnly) disabled @endif>Clear</button>
-                        </div>
-                    </div>
-                    <input type="hidden" id="receiver-signature-input" wire:model.defer="form.receiver_signature">
-                    @error('form.receiver_signature')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                </div>
-            </div>
+            @include('livewire.partials.receipt-notification-wire-fields', [
+                'wirePrefix' => 'form.',
+                'canvasPrefix' => 'batch-receipt',
+                'readOnly' => $readOnly,
+                'partLabel' => null,
+                'showSubmitterSection' => $readOnly,
+                'showSubmitterSigningNotice' => ! $readOnly,
+            ])
 
             <div class="d-flex justify-content-end mt-3" style="gap: 8px;">
                 @if(!$readOnly)
@@ -163,11 +87,15 @@
             }
 
             function initPads() {
-                const submitterInput = document.getElementById('submitter-signature-input');
-                const receiverInput = document.getElementById('receiver-signature-input');
+                const submitterCanvas = document.getElementById('batch-receipt-submitter-canvas');
+                const receiverInput = document.getElementById('batch-receipt-receiver-input');
 
-                submitterPad = setupPad('submitter-signature-canvas', 'submitter-signature-input', 'submitter-sign-clear', submitterInput ? submitterInput.value : '');
-                receiverPad = setupPad('receiver-signature-canvas', 'receiver-signature-input', 'receiver-sign-clear', receiverInput ? receiverInput.value : '');
+                if (submitterCanvas) {
+                    const submitterInput = document.getElementById('batch-receipt-submitter-input');
+                    submitterPad = setupPad('batch-receipt-submitter-canvas', 'batch-receipt-submitter-input', 'batch-receipt-submitter-clear', submitterInput ? submitterInput.value : '');
+                }
+
+                receiverPad = setupPad('batch-receipt-receiver-canvas', 'batch-receipt-receiver-input', 'batch-receipt-receiver-clear', receiverInput ? receiverInput.value : '');
             }
 
             document.addEventListener('livewire:navigated', initPads);
