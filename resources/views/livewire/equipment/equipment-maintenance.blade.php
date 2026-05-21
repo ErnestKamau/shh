@@ -102,6 +102,73 @@
                                 </div>
                             </div>
                         @endif
+
+                        <!-- Advanced Filters -->
+                        <div class="col-12 mt-3 pt-3 border-top">
+                            <div class="row align-items-center mb-2">
+                                <div class="col">
+                                    <h6 class="text-secondary font-weight-bold mb-0" style="font-size: 0.9rem;"><i class="mdi mdi-filter-variant text-primary mr-1"></i> Advanced Filters</h6>
+                                </div>
+                                @if($filterDateStart || $filterDateEnd || $filterMaintenanceStatus || $filterServiceType || $filterServiceProvider || $filterZone)
+                                <div class="col-auto">
+                                    <button wire:click="resetFilters" class="btn btn-sm btn-light text-danger font-weight-bold shadow-sm" style="border-radius: 12px; font-size: 0.75rem;">
+                                        <i class="mdi mdi-close"></i> Clear Filters
+                                    </button>
+                                </div>
+                                @endif
+                            </div>
+                            <div class="row">
+                                <!-- Zone Filter -->
+                                <div class="col-md-3 mb-2">
+                                    <label class="text-muted font-weight-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Zone (Location)</label>
+                                    <select wire:model.live="filterZone" class="custom-select custom-select-sm shadow-sm" style="border-radius: 8px;">
+                                        <option value="">-- All Zones --</option>
+                                        @foreach($zones as $z)
+                                            <option value="{{ $z->id }}">{{ $z->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                
+                                <!-- Date Filters -->
+                                <div class="col-md-2 mb-2">
+                                    <label class="text-muted font-weight-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Start Date</label>
+                                    <input type="date" wire:model.live="filterDateStart" class="form-control form-control-sm shadow-sm" style="border-radius: 8px;">
+                                </div>
+                                <div class="col-md-2 mb-2">
+                                    <label class="text-muted font-weight-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">End Date</label>
+                                    <input type="date" wire:model.live="filterDateEnd" class="form-control form-control-sm shadow-sm" style="border-radius: 8px;">
+                                </div>
+
+                                <!-- Tab-Specific Filters -->
+                                @if(in_array($activeTab, ['annual', 'preventive']))
+                                <div class="col-md-3 mb-2">
+                                    <label class="text-muted font-weight-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Maintenance Status</label>
+                                    <select wire:model.live="filterMaintenanceStatus" class="custom-select custom-select-sm shadow-sm" style="border-radius: 8px;">
+                                        <option value="">-- All Statuses --</option>
+                                        @if($activeTab === 'annual')
+                                            <option value="scheduled">Scheduled</option>
+                                            <option value="serviced">Serviced</option>
+                                            <option value="overdue">Overdue</option>
+                                        @elseif($activeTab === 'preventive')
+                                            <option value="scheduled">Scheduled (Pending)</option>
+                                            <option value="serviced">Serviced (Done)</option>
+                                        @endif
+                                    </select>
+                                </div>
+                                @endif
+
+                                @if($activeTab === 'register')
+                                <div class="col-md-2 mb-2">
+                                    <label class="text-muted font-weight-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Service Type</label>
+                                    <input type="text" wire:model.live.debounce.300ms="filterServiceType" class="form-control form-control-sm shadow-sm" style="border-radius: 8px;" placeholder="e.g. Calibration">
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="text-muted font-weight-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Service Provider</label>
+                                    <input type="text" wire:model.live.debounce.300ms="filterServiceProvider" class="form-control form-control-sm shadow-sm" style="border-radius: 8px;" placeholder="e.g. Manufacturer">
+                                </div>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -114,16 +181,15 @@
                                     <div class="d-flex align-items-center flex-wrap" style="gap: 12px;">
                                         <span class="text-secondary font-weight-bold text-uppercase tracking-wide"
                                             style="font-size: 0.85rem;">Active Annual Program:</span>
-                                        <select class="form-control d-inline-block shadow-sm"
+                                        <select class="custom-select custom-select-sm shadow-sm d-inline-block"
                                             wire:model.live="activeAnnualProgramId"
                                             style="max-width: 320px; border-radius: 8px;">
-                                            @forelse($annualPrograms as $program)
+                                            <option value="">-- View All Equipment --</option>
+                                            @foreach($annualPrograms as $program)
                                                 <option value="{{ $program->id }}">{{ $program->name }}
                                                     ({{ optional($program->program_date)->format('M d, Y') }})
                                                     - {{ ucfirst($program->status) }}</option>
-                                            @empty
-                                                <option value="">No annual programs created</option>
-                                            @endforelse
+                                            @endforeach
                                         </select>
                                         @can('equipment.maintenance.add')
                                             <button wire:click="openCreateProgramModal"
@@ -132,6 +198,16 @@
                                             </button>
                                         @endcan
                                         @if($activeAnnualProgramId)
+                                            @can('equipment.maintenance.edit')
+                                                <button wire:click="editProgram('{{ $activeAnnualProgramId }}')" class="btn btn-outline-secondary btn-sm rounded-circle p-2 ml-1" title="Edit Program">
+                                                    <i class="mdi mdi-pencil" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                </button>
+                                            @endcan
+                                            @can('equipment.maintenance.delete')
+                                                <button onclick="confirm('CAUTION: Are you sure you want to delete this program? All equipment maintenance records within it will be permanently deleted!') || event.stopImmediatePropagation()" wire:click="deleteProgram('{{ $activeAnnualProgramId }}')" class="btn btn-outline-danger btn-sm rounded-circle p-2 ml-1" title="Delete Program">
+                                                    <i class="mdi mdi-trash-can" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                </button>
+                                            @endcan
                                             @can('equipment.maintenance.add')
                                                 <button wire:click="openAddProgramEquipmentModal"
                                                     class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
@@ -254,16 +330,15 @@
                                     <div class="d-flex align-items-center flex-wrap" style="gap: 12px;">
                                         <span class="text-secondary font-weight-bold text-uppercase tracking-wide"
                                             style="font-size: 0.85rem;">Active Preventive Program:</span>
-                                        <select class="form-control d-inline-block shadow-sm"
+                                        <select class="custom-select custom-select-sm shadow-sm d-inline-block"
                                             wire:model.live="activePreventiveProgramId"
                                             style="max-width: 320px; border-radius: 8px;">
-                                            @forelse($preventivePrograms as $program)
+                                            <option value="">-- View All Equipment --</option>
+                                            @foreach($preventivePrograms as $program)
                                                 <option value="{{ $program->id }}">{{ $program->name }}
                                                     ({{ optional($program->program_date)->format('M d, Y') }})
                                                     - {{ ucfirst($program->status) }}</option>
-                                            @empty
-                                                <option value="">No preventive programs created</option>
-                                            @endforelse
+                                            @endforeach
                                         </select>
                                         @can('equipment.maintenance.add')
                                             <button wire:click="openCreateProgramModal"
@@ -272,6 +347,16 @@
                                             </button>
                                         @endcan
                                         @if($activePreventiveProgramId)
+                                            @can('equipment.maintenance.edit')
+                                                <button wire:click="editProgram('{{ $activePreventiveProgramId }}')" class="btn btn-outline-secondary btn-sm rounded-circle p-2 ml-1" title="Edit Program">
+                                                    <i class="mdi mdi-pencil" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                </button>
+                                            @endcan
+                                            @can('equipment.maintenance.delete')
+                                                <button onclick="confirm('CAUTION: Are you sure you want to delete this program? All equipment maintenance records within it will be permanently deleted!') || event.stopImmediatePropagation()" wire:click="deleteProgram('{{ $activePreventiveProgramId }}')" class="btn btn-outline-danger btn-sm rounded-circle p-2 ml-1" title="Delete Program">
+                                                    <i class="mdi mdi-trash-can" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                </button>
+                                            @endcan
                                             @can('equipment.maintenance.add')
                                                 <button wire:click="openAddProgramEquipmentModal"
                                                     class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
@@ -552,16 +637,15 @@
                                     <div class="d-flex align-items-center flex-wrap" style="gap: 12px;">
                                         <span class="text-secondary font-weight-bold text-uppercase tracking-wide"
                                             style="font-size: 0.85rem;">Active Maintenance Register:</span>
-                                        <select class="form-control d-inline-block shadow-sm"
+                                        <select class="custom-select custom-select-sm shadow-sm d-inline-block"
                                             wire:model.live="activeRegisterProgramId"
                                             style="max-width: 320px; border-radius: 8px;">
-                                            @forelse($registerPrograms as $program)
+                                            <option value="">-- View All Equipment --</option>
+                                            @foreach($registerPrograms as $program)
                                                 <option value="{{ $program->id }}">{{ $program->name }}
                                                     ({{ optional($program->program_date)->format('M d, Y') }})
                                                     - {{ ucfirst($program->status) }}</option>
-                                            @empty
-                                                <option value="">No maintenance registers created</option>
-                                            @endforelse
+                                            @endforeach
                                         </select>
                                         @can('equipment.maintenance.add')
                                             <button wire:click="openCreateProgramModal"
@@ -570,10 +654,20 @@
                                             </button>
                                         @endcan
                                         @if($activeRegisterProgramId)
+                                            @can('equipment.maintenance.edit')
+                                                <button wire:click="editProgram('{{ $activeRegisterProgramId }}')" class="btn btn-outline-secondary btn-sm rounded-circle p-2 ml-1" title="Edit Register">
+                                                    <i class="mdi mdi-pencil" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                </button>
+                                            @endcan
+                                            @can('equipment.maintenance.delete')
+                                                <button onclick="confirm('CAUTION: Are you sure you want to delete this register? All equipment maintenance records within it will be permanently deleted!') || event.stopImmediatePropagation()" wire:click="deleteProgram('{{ $activeRegisterProgramId }}')" class="btn btn-outline-danger btn-sm rounded-circle p-2 ml-1" title="Delete Register">
+                                                    <i class="mdi mdi-trash-can" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                </button>
+                                            @endcan
                                             @can('equipment.maintenance.add')
                                                 <button wire:click="openAddProgramEquipmentModal"
                                                     class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold ml-2">
-                                                    <i class="mdi mdi-plus mr-1"></i> Add Equipment to Program
+                                                    <i class="mdi mdi-plus mr-1"></i> Add Equipment to Register
                                                 </button>
                                             @endcan
                                         @endif
@@ -682,33 +776,40 @@
                                     <div class="d-flex align-items-center flex-wrap" style="gap: 12px;">
                                         <span class="text-secondary font-weight-bold text-uppercase tracking-wide"
                                             style="font-size: 0.85rem;">Active Replacement Plan:</span>
-                                        <select class="form-control d-inline-block shadow-sm" wire:model.live="activePlanId"
+                                        <select class="custom-select custom-select-sm shadow-sm d-inline-block" wire:model.live="activePlanId"
                                             style="max-width: 280px; border-radius: 8px;">
-                                            @forelse($plans as $p)
+                                            <option value="">-- View All Equipment --</option>
+                                            @foreach($plans as $p)
                                                 <option value="{{ $p->id }}">{{ $p->name }}
                                                     ({{ $p->start_year }}/{{ $p->start_year + 1 }} -
                                                     {{ $p->end_year }}/{{ $p->end_year + 1 }})</option>
-                                            @empty
-                                                <option value="">No plans created</option>
-                                            @endforelse
+                                            @endforeach
                                         </select>
                                         @can('equipment.maintenance.add')
-                                            <button wire:click="$set('showCreatePlanModal', true)"
+                                            <button wire:click="openCreatePlanModal"
                                                 class="btn btn-outline-primary rounded-pill px-3 shadow-sm btn-sm font-weight-bold">
                                                 <i class="mdi mdi-plus"></i> Create Plan
                                             </button>
                                         @endcan
+                                        @if($activePlanId)
+                                            @can('equipment.maintenance.edit')
+                                                <button wire:click="editPlan('{{ $activePlanId }}')" class="btn btn-outline-secondary btn-sm rounded-circle p-2 ml-1" title="Edit Plan">
+                                                    <i class="mdi mdi-pencil" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                </button>
+                                            @endcan
+                                            @can('equipment.maintenance.delete')
+                                                <button onclick="confirm('CAUTION: Are you sure you want to delete this plan? All scheduled replacements within it will be permanently deleted!') || event.stopImmediatePropagation()" wire:click="deletePlan('{{ $activePlanId }}')" class="btn btn-outline-danger btn-sm rounded-circle p-2 ml-1" title="Delete Plan">
+                                                    <i class="mdi mdi-trash-can" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                </button>
+                                            @endcan
+                                            @can('equipment.maintenance.add')
+                                                <button wire:click="openAddPlanItemModal"
+                                                    class="btn btn-primary rounded-pill px-4 shadow-sm font-weight-bold py-2 ml-2">
+                                                    <i class="mdi mdi-plus mr-1"></i> Add Equipment to Plan
+                                                </button>
+                                            @endcan
+                                        @endif
                                     </div>
-                                </div>
-                                <div class="col-md-5 col-sm-12 text-md-right mt-3 mt-md-0">
-                                    @if($activePlanId)
-                                        @can('equipment.maintenance.add')
-                                            <button wire:click="openAddPlanItemModal"
-                                                class="btn btn-primary rounded-pill px-4 shadow-sm font-weight-bold py-2">
-                                                <i class="mdi mdi-plus mr-1"></i> Add Equipment to Plan
-                                            </button>
-                                        @endcan
-                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -799,18 +900,56 @@
                                 </div>
                             </div>
                         @else
-                            <!-- standard empty state when there are no plans -->
-                            <div class="text-center py-5 my-5">
-                                <i class="mdi mdi-calendar-alert display-2 d-block text-muted mb-3"></i>
-                                <h4 class="font-weight-bold text-secondary">No Replacement Plans Created Yet</h4>
-                                <p class="text-muted mb-4">Set up an Equipment Investment / Replacement plan to schedule
-                                    equipment lifecycles and upgrades.</p>
-                                @can('equipment.maintenance.add')
-                                    <button wire:click="$set('showCreatePlanModal', true)"
-                                        class="btn btn-primary rounded-pill px-4 shadow-sm py-2.5 font-weight-bold">
-                                        <i class="mdi mdi-plus mr-1"></i> Create Equipment Replacement Plan
-                                    </button>
-                                @endcan
+                            <!-- global equipment list when no plan is selected -->
+                            <div class="m-3 border rounded shadow-sm table-responsive bg-white">
+                                <table class="table table-hover table-striped mb-0 align-middle">
+                                    <thead class="bg-light text-secondary">
+                                        <tr>
+                                            <th class="pl-4 py-3 font-weight-bold">Equipment Name</th>
+                                            <th class="py-3 font-weight-bold">Serial Number</th>
+                                            <th class="py-3 font-weight-bold">Location (Zone)</th>
+                                            <th class="py-3 font-weight-bold text-center">Planned Replacement Year</th>
+                                            <th class="py-3 text-center font-weight-bold pr-4" style="width: 150px;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($equipments as $equipment)
+                                            <tr>
+                                                <td class="pl-4 font-weight-semibold py-3">
+                                                    <a href="{{ route('view-equipment', ['equipmentId' => $equipment->id, 'from' => 'equipment-maintenance']) }}" class="text-primary font-weight-bold text-decoration-none">
+                                                        {{ $equipment->name }}
+                                                    </a>
+                                                </td>
+                                                <td class="py-3 text-muted">{{ $equipment->serial_number ?? '—' }}</td>
+                                                <td class="py-3 text-muted">{{ $equipment->assetLocation?->lab?->zone?->name ?? '—' }}</td>
+                                                <td class="py-3 text-center text-muted">
+                                                    @php
+                                                        $latestPlan = \App\Models\Equipments\EquipmentReplacementPlanItem::where('equipment_id', $equipment->id)->orderBy('scheduled_year', 'desc')->first();
+                                                    @endphp
+                                                    @if($latestPlan)
+                                                        <span class="badge badge-success px-3 py-1.5 text-xs font-weight-semibold rounded-pill shadow-sm">
+                                                            {{ $latestPlan->scheduled_year }}
+                                                        </span>
+                                                    @else
+                                                        —
+                                                    @endif
+                                                </td>
+                                                <td class="py-3 text-center pr-4">
+                                                    <a href="{{ route('view-equipment', ['equipmentId' => $equipment->id, 'from' => 'equipment-maintenance']) }}" class="btn btn-outline-primary btn-sm rounded-circle p-2" title="View Details">
+                                                        <i class="mdi mdi-eye" style="font-size: 1.05rem; line-height: 1;"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="5" class="text-center py-5 text-muted">
+                                                    <i class="mdi mdi-flask-empty-outline display-4 d-block mb-2 text-light"></i>
+                                                    No equipment found matching your search.
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
                             </div>
                         @endif
                     @endif
@@ -819,14 +958,15 @@
         </div>
     </div>
 
-    <!-- CREATE MAINTENANCE PROGRAM MODAL (Annual / Preventive / Register) -->
+    <!-- CREATE / EDIT MAINTENANCE PROGRAM MODAL (Annual / Preventive / Register) -->
     @if($showCreateProgramModal)
         @php
             $programTitle = $activeTab === 'annual'
-                ? 'Create Annual Program'
+                ? 'Annual Program'
                 : ($activeTab === 'preventive'
-                    ? 'Create Preventive Program'
-                    : 'Create Maintenance Register');
+                    ? 'Preventive Program'
+                    : 'Maintenance Register');
+            $actionWord = $editingProgramId ? 'Edit' : 'Create';
         @endphp
         <div class="modal fade show d-block" tabindex="-1" role="dialog"
             style="background-color: rgba(0, 0, 0, 0.5); z-index: 1050; overflow-y: auto;">
@@ -834,7 +974,7 @@
                 <div class="modal-content shadow-lg border-0 rounded-lg">
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title font-weight-bold">
-                            <i class="mdi mdi-file-plus-outline mr-1"></i> {{ $programTitle }}
+                            <i class="mdi mdi-file-plus-outline mr-1"></i> {{ $actionWord }} {{ $programTitle }}
                         </h5>
                         <button type="button" wire:click="$set('showCreateProgramModal', false)" class="close text-white"
                             aria-label="Close">
@@ -884,7 +1024,9 @@
                         <div class="modal-footer bg-light">
                             <button type="button" wire:click="$set('showCreateProgramModal', false)"
                                 class="btn btn-secondary rounded-pill px-4">Cancel</button>
-                            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Save</button>
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm font-weight-bold">
+                                <i class="mdi mdi-content-save mr-1"></i> {{ $editingProgramId ? 'Update' : 'Save' }} Program
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -892,7 +1034,7 @@
         </div>
     @endif
 
-    <!-- 1. CREATE PLAN MODAL -->
+    <!-- 1. CREATE / EDIT REPLACEMENT PLAN MODAL -->
     @if($showCreatePlanModal)
         <div class="modal fade show d-block" tabindex="-1" role="dialog"
             style="background-color: rgba(0, 0, 0, 0.5); z-index: 1050; overflow-y: auto;">
@@ -900,7 +1042,7 @@
                 <div class="modal-content shadow-lg border-0 rounded-lg">
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title font-weight-bold">
-                            <i class="mdi mdi-calendar-plus mr-1"></i> Create Equipment Replacement Plan
+                            <i class="mdi mdi-file-plus-outline mr-1"></i> {{ $editingPlanId ? 'Edit' : 'Create' }} Replacement Plan
                         </h5>
                         <button type="button" wire:click="$set('showCreatePlanModal', false)" class="close text-white"
                             aria-label="Close">
@@ -940,7 +1082,9 @@
                         <div class="modal-footer bg-light">
                             <button type="button" wire:click="$set('showCreatePlanModal', false)"
                                 class="btn btn-secondary rounded-pill px-4">Cancel</button>
-                            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Save Plan</button>
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm font-weight-bold">
+                                <i class="mdi mdi-content-save mr-1"></i> {{ $editingPlanId ? 'Update' : 'Save' }} Plan
+                            </button>
                         </div>
                     </form>
                 </div>

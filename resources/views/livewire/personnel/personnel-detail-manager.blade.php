@@ -712,7 +712,7 @@
                     <div class="modal-body">
                         <div class="form-group">
                             <label>{{ __('personnel.select_roles') }}</label>
-                            <div class="tag-select-container" wire:click="$set('showRoleDropdown', true)">
+                            <div class="tag-select-container" wire:click="$set('showRoleDropdown', true)" wire:click.outside="$set('showRoleDropdown', false)">
                                 <div class="tag-select-input">
                                     @foreach($selectedRoleIds as $roleId)
                                         @php $role = $this->allRoles->firstWhere('id', $roleId); @endphp

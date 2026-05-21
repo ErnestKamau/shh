@@ -3779,7 +3779,11 @@ class SampleWorkFlowController extends Controller
     {
         abort_unless(auth()->user()->can('laboratory.components.all samples.delete'), 403);
         
-        $codes = $request->batch_code;
+        $codes = $request->batch_code ?: [];
+
+        if (empty($codes)) {
+            return redirect()->back()->with('error', 'No batches selected.');
+        }
 
         foreach ($codes as $code) {
             $batch = SampleHeader::where('batch_code', $code)->get();
@@ -4150,7 +4154,13 @@ class SampleWorkFlowController extends Controller
     {
         abort_unless(auth()->user()->can('laboratory.components.approve for analysis.edit'), 403);
         
-        foreach ($request->batch_code as $code) {
+        $codes = $request->batch_code ?: [];
+
+        if (empty($codes)) {
+            return redirect()->back()->with('error', 'No batches selected.');
+        }
+
+        foreach ($codes as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
             if (isset($batch->id)) {
                 $batch->begin_proccess = 1;
