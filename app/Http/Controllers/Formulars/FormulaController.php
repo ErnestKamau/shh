@@ -20,6 +20,8 @@ class FormulaController extends Controller
             'methodSequences' => StageHeader::count(),
             'executions' => \App\Models\Formulars\WorksheetExecution::where('is_saved', true)->count(),
             'lookupTables' => \App\Models\Formulars\LookupTable::count(),
+            'groupedPipelines' => \App\Models\GroupedWorksheets\GroupedWorksheetHolder::where('is_active', true)->count(),
+            'hybridWorksheets' => \App\Models\HybridWorksheets\HybridWorksheet::where('is_active', true)->count(),
         ];
 
         return view('formulars.index', compact('stats'));

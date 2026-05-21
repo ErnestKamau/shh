@@ -5,6 +5,7 @@ namespace App\Livewire\Sampleworkflow;
 use App\Models\CRM\CustomerNotification;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
 use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use App\Services\Sampleworkflow\CustomerContactVerificationService;
 use Illuminate\Contracts\View\View;
@@ -33,6 +34,11 @@ class CustomerAcceptanceSignModal extends Component
 
     /** @var array<string, mixed> */
     public array $receiptNotificationForm = [];
+
+    /** @var array<string, mixed> */
+    public array $disclaimerForm = [];
+
+    public bool $showDisclaimerClaimantSign = false;
 
     /** @var list<array{id: string, label: string}> */
     public array $contactOptions = [];
@@ -79,8 +85,14 @@ class CustomerAcceptanceSignModal extends Component
 
         $this->showModal = true;
         $this->currentStep = 1;
-        $this->receiptNotificationForm = app(SampleReceiptNotificationService::class)
-            ->resolveFormStateForAcceptanceForm($form);
+        $receiptService = app(SampleReceiptNotificationService::class);
+        $this->receiptNotificationForm = $receiptService->resolveFormStateForAcceptanceForm($form);
+
+        $disclaimerService = app(SampleReceivingDisclaimerService::class);
+        $this->disclaimerForm = $disclaimerService->resolveFormStateForAcceptanceForm($form);
+        $this->showDisclaimerClaimantSign = (bool) $form->raises_sample_disclaimer
+            && $disclaimerService->claimantSignatureMissing($this->disclaimerForm);
+
         $this->dispatch('customer-acceptance-sign-opened');
     }
 
@@ -145,7 +157,21 @@ class CustomerAcceptanceSignModal extends Component
         $form = $this->loadAcceptanceForm();
 
         $receiptService = app(SampleReceiptNotificationService::class);
+        $disclaimerService = app(SampleReceivingDisclaimerService::class);
         $receiptService->mergePayloadIntoAcceptanceForm($form, $this->receiptNotificationForm);
+
+        if ($this->showDisclaimerClaimantSign) {
+            $this->validate([
+                'disclaimerForm.claimant_name' => ['required', 'string', 'max:255'],
+                'disclaimerForm.claimant_signature' => ['required', 'string'],
+                'disclaimerForm.claimant_signed_at' => ['nullable', 'date'],
+            ]);
+            $claimantPatch = $disclaimerService->mergeFormPayloads($this->disclaimerForm, [
+                'claimant_signature_source' => 'portal',
+                'claimant_signed_at' => $this->disclaimerForm['claimant_signed_at'] ?? now()->format('Y-m-d'),
+            ]);
+            $disclaimerService->mergePayloadIntoAcceptanceForm($form, $claimantPatch);
+        }
 
         if ($form->status !== AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN) {
             $this->dispatch('notify', type: 'error', message: 'This acceptance form is no longer awaiting customer signature.');
@@ -167,6 +193,7 @@ class CustomerAcceptanceSignModal extends Component
         );
 
         app(SampleReceiptNotificationService::class)->applyBatchDefaultsAfterCustomerSign($signedForm);
+        app(SampleReceivingDisclaimerService::class)->applyBatchDefaultsAfterCustomerSign($signedForm->fresh());
         $fresh = AnalysisAcceptanceForm::query()->find($signedForm->id);
         if ($fresh !== null) {
             $receiptService->mergePayloadIntoAcceptanceForm($fresh, $this->receiptNotificationForm);
@@ -249,6 +276,8 @@ class CustomerAcceptanceSignModal extends Component
         $this->customerSignerName = '';
         $this->customerSignature = '';
         $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
+        $this->disclaimerForm = SampleReceivingDisclaimerService::emptyForm();
+        $this->showDisclaimerClaimantSign = false;
         $this->contactOptions = [];
     }
 }

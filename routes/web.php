@@ -2079,6 +2079,18 @@ Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(func
         Route::get('/manage', 'Procedures\ProcedureWorksheetController@manage')->name('manage');
         Route::get('/{procedureWorksheet}/edit', 'Procedures\ProcedureWorksheetController@edit')->name('edit');
     });
+
+    // Grouped worksheet pipelines
+    Route::prefix('grouped-worksheets')->name('grouped-worksheets.')->group(function () {
+        Route::get('/manage', 'GroupedWorksheets\GroupedWorksheetHolderController@manage')->name('manage');
+        Route::get('/{groupedWorksheetHolder}/edit', 'GroupedWorksheets\GroupedWorksheetHolderController@edit')->name('edit');
+    });
+
+    // Hybrid worksheets
+    Route::prefix('hybrid-worksheets')->name('hybrid-worksheets.')->group(function () {
+        Route::get('/manage', 'HybridWorksheets\HybridWorksheetController@manage')->name('manage');
+        Route::get('/{hybridWorksheet}/versions/{hybridWorksheetVersion}/edit', 'HybridWorksheets\HybridWorksheetController@edit')->name('edit');
+    });
 });
 
 Route::middleware(['auth'])->prefix('method-sequences')->name('method-sequences.')->group(function () {

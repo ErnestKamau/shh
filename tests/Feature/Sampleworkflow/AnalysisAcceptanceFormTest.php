@@ -227,4 +227,56 @@ class AnalysisAcceptanceFormTest extends TestCase
             return $job->acceptanceFormId === $acceptanceForm->id;
         });
     }
+
+    public function test_create_from_step_one_persists_sample_disclaimer_payload(): void
+    {
+        $customer = CRMCustomer::query()->create([
+            'name' => 'Disclaimer Customer',
+            'code' => 'DC001',
+        ]);
+
+        $disclaimerPayload = [
+            'client_name' => 'Disclaimer Customer',
+            'lab_no' => '',
+            'date' => now()->format('Y-m-d'),
+            'time' => '10:00',
+            'sample_types' => 'Water',
+            'number_of_samples' => 2,
+            'disclaimant_name' => 'Disclaimer Customer',
+            'analyst_name' => 'Lab Analyst',
+            'analyst_signature' => 'data:image/png;base64,abc',
+            'analyst_signed_at' => now()->format('Y-m-d'),
+        ];
+
+        $acceptanceForm = app(AcceptanceFormService::class)->createFromStep1(
+            null,
+            null,
+            [
+                'crm_customer_id' => $customer->id,
+                'customer_name' => 'Disclaimer Customer',
+                'request_date' => now()->format('Y-m-d'),
+                'number_of_samples' => 2,
+                'mode_of_work' => 'Normal',
+            ],
+            [
+                [
+                    'line_no' => 1,
+                    'sample_type_id' => (string) Str::uuid(),
+                    'analysis_type_id' => (string) Str::uuid(),
+                    'parameter_label' => 'Lead',
+                    'unit_amount' => 50,
+                    'number_of_samples' => 1,
+                    'is_approved' => true,
+                    'sort_order' => 0,
+                ],
+            ],
+            (string) Str::uuid(),
+            true,
+            $disclaimerPayload
+        );
+
+        $this->assertTrue($acceptanceForm->raises_sample_disclaimer);
+        $this->assertSame('Water', $acceptanceForm->sample_disclaimer_payload['sample_types'] ?? null);
+        $this->assertSame('Lab Analyst', $acceptanceForm->sample_disclaimer_payload['analyst_name'] ?? null);
+    }
 }

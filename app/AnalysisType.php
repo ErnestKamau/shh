@@ -34,7 +34,8 @@ class AnalysisType extends Model implements Auditable
     'include_hygiene_score',
     'include_sanitizer_efficiency',
     'invoicable_item_id',
-    'procedure_worksheet_id'
+    'procedure_worksheet_id',
+    'grouped_worksheet_holder_id',
   ];
 
   protected $casts = [
@@ -117,6 +118,11 @@ class AnalysisType extends Model implements Auditable
   public function procedureWorksheet()
   {
       return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
+  }
+
+  public function groupedWorksheetHolder()
+  {
+      return $this->belongsTo(\App\Models\GroupedWorksheets\GroupedWorksheetHolder::class, 'grouped_worksheet_holder_id');
   }
 
 }

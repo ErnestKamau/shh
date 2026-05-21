@@ -201,6 +201,20 @@
 						</a>
 					</div>
 					<div class="col-md-4 col-lg-3 mb-3">
+						<a href="{{ route('formulars.grouped-worksheets.manage') }}" class="formulars-module-tile tile-accent-success">
+							<i class="mdi mdi-folder-multiple-outline tile-icon"></i>
+							<div class="tile-title">Grouped worksheets</div>
+							<p class="tile-desc">Multi-stage ordered pipelines</p>
+						</a>
+					</div>
+					<div class="col-md-4 col-lg-3 mb-3">
+						<a href="{{ route('formulars.hybrid-worksheets.manage') }}" class="formulars-module-tile tile-accent-info">
+							<i class="mdi mdi-file-tree tile-icon"></i>
+							<div class="tile-title">Hybrid worksheets</div>
+							<p class="tile-desc">Mixed formula, procedure &amp; sequence sheets</p>
+						</a>
+					</div>
+					<div class="col-md-4 col-lg-3 mb-3">
 						<a href="{{ route('formulars.history') }}" class="formulars-module-tile tile-accent-warning">
 							<i class="mdi mdi-history tile-icon"></i>
 							<div class="tile-title">Execution history</div>

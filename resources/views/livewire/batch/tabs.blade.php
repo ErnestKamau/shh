@@ -27,11 +27,6 @@
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" id="laboratory-acceptance-tab" data-toggle="tab" href="#laboratory-acceptance" role="tab" aria-controls="laboratory-acceptance" aria-selected="false">
-                <i class="mdi mdi-file-document-edit-outline"></i> Lab Acceptance (GCLA/F/03 + GCLA 01)
-            </a>
-        </li>
-        <li class="nav-item">
             <a class="nav-link" id="notes-tab" data-toggle="tab" href="#notes" role="tab" aria-controls="notes" aria-selected="false">
                 <i class="mdi mdi-comment-text-outline"></i> Notes 
                 <span class="badge">{{ $batch->comments?->count() ?? 0 }}</span>
@@ -90,11 +85,6 @@
         {{-- Samples Tab --}}
         <div class="tab-pane fade show active" id="samples" role="tabpanel" aria-labelledby="samples-tab">
             @livewire('batch.tabs.samples', ['batch' => $batch], 'samples-tab-'.$batch->id)
-        </div>
-
-        {{-- Laboratory Analysis Acceptance Tab --}}
-        <div class="tab-pane fade" id="laboratory-acceptance" role="tabpanel" aria-labelledby="laboratory-acceptance-tab">
-            @livewire('batch.tabs.laboratory-analysis-acceptance', ['batch' => $batch], 'laboratory-acceptance-tab-'.$batch->id)
         </div>
 
         {{-- Notes Tab --}}
@@ -159,20 +149,10 @@
         if (!hash) return;
         var tabId = hash.replace('#', '');
 
-        if (tabId === 'sample-receipt-notification') {
-            tabId = 'laboratory-acceptance';
-        }
-
-        var part = null;
-        if (tabId === 'laboratory-acceptance-part-5') {
-            tabId = 'laboratory-acceptance';
-            part = 5;
-        } else if (tabId.indexOf('laboratory-acceptance-part-') === 0) {
-            var p = parseInt(tabId.replace('laboratory-acceptance-part-', ''), 10);
-            if (!isNaN(p)) {
-                tabId = 'laboratory-acceptance';
-                part = p;
-            }
+        if (tabId === 'sample-receipt-notification'
+            || tabId === 'laboratory-acceptance'
+            || tabId.indexOf('laboratory-acceptance-part-') === 0) {
+            tabId = 'samples';
         }
 
         var $tabLink = $('#' + tabId + '-tab, [href="#' + tabId + '"]').first();
@@ -187,12 +167,6 @@
 
         tabActivationAttempts = 0;
         $tabLink.tab('show');
-
-        if (typeof Livewire !== 'undefined' && typeof part === 'number') {
-            setTimeout(function () {
-                Livewire.dispatch('batch-open-laboratory-acceptance-part', { part: part });
-            }, 250);
-        }
 
         setTimeout(function () {
             $tabLink[0].scrollIntoView({ behavior: 'smooth', block: 'center' });

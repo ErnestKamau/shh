@@ -28,14 +28,19 @@ class AcceptanceFormService
      * @param  array<string, mixed>  $header
      * @param  list<array<string, mixed>>  $lines
      */
+    /**
+     * @param  array<string, mixed>|null  $disclaimerPayload
+     */
     public function createFromStep1(
         ?string $submissionFormInstanceId,
         ?string $submissionRequestId,
         array $header,
         array $lines,
-        string $createdBy
+        string $createdBy,
+        bool $raisesSampleDisclaimer = false,
+        ?array $disclaimerPayload = null,
     ): AnalysisAcceptanceForm {
-        return DB::transaction(function () use ($submissionFormInstanceId, $submissionRequestId, $header, $lines, $createdBy) {
+        return DB::transaction(function () use ($submissionFormInstanceId, $submissionRequestId, $header, $lines, $createdBy, $raisesSampleDisclaimer, $disclaimerPayload) {
             $prefill = $this->pricingService->buildPrefillFromSelection($submissionRequestId, $submissionFormInstanceId);
             $customerId = (string) ($header['crm_customer_id'] ?? $prefill['customer_id'] ?? '');
             $pricelist = $prefill['pricelist'] ?? $this->pricingService->resolvePricelist($customerId);
@@ -53,6 +58,10 @@ class AcceptanceFormService
                 'mode_of_work' => (string) ($header['mode_of_work'] ?? $prefill['mode_of_work'] ?? 'Normal'),
                 'date_of_sampling' => $header['date_of_sampling'] ?? $prefill['date_of_sampling'],
                 'customer_certification_text' => self::CUSTOMER_CERTIFICATION_TEXT,
+                'raises_sample_disclaimer' => $raisesSampleDisclaimer,
+                'sample_disclaimer_payload' => $raisesSampleDisclaimer && is_array($disclaimerPayload)
+                    ? $disclaimerPayload
+                    : null,
                 'created_by' => $createdBy,
             ]);
 
@@ -125,7 +134,20 @@ class AcceptanceFormService
 
             $this->transitionBatchToSamplesInLab($form, $leadAnalystId, $technicalSignatoryId);
 
-            return $form->fresh(['lines', 'sampleHeader']);
+            $completed = $form->fresh(['lines', 'sampleHeader']);
+
+            if ($completed->raises_sample_disclaimer && $completed->sampleHeader) {
+                $disclaimerService = app(SampleReceivingDisclaimerService::class);
+                $payload = $disclaimerService->hydrateDefaultsFromAcceptanceForm($completed);
+                $disclaimerService->tryFinalizePdfAttachment(
+                    $completed,
+                    $completed->sampleHeader,
+                    $payload,
+                    auth()->id() ? (string) auth()->id() : null
+                );
+            }
+
+            return $completed;
         });
     }
 

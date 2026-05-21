@@ -6,6 +6,8 @@ use App\AnalysisType;
 use App\BatchAttachment;
 use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
+use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
+use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
 use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
@@ -59,6 +61,13 @@ class LaboratoryAnalysisAcceptance extends Component
 
     public ?string $receiptAttachmentUrl = null;
 
+    public bool $showSampleDisclaimer = false;
+
+    /** @var array<string, mixed> */
+    public array $disclaimerForm = [];
+
+    public ?string $disclaimerAttachmentUrl = null;
+
     public function mount(SampleHeader $batch): void
     {
         $this->batch = $batch;
@@ -69,6 +78,7 @@ class LaboratoryAnalysisAcceptance extends Component
         $this->loadExistingAttachment();
         $this->receiptForm = app(SampleReceiptNotificationService::class)->resolveFormStateForBatch($this->batch);
         $this->loadReceiptAttachment();
+        $this->loadSampleDisclaimerState();
 
         if (Auth::user() && (int) Auth::user()->is_client === 1) {
             $this->readOnly = true;
@@ -92,7 +102,8 @@ class LaboratoryAnalysisAcceptance extends Component
 
     public function setPart(int $part): void
     {
-        $this->currentPart = max(1, min(5, $part));
+        $maxPart = $this->showSampleDisclaimer ? 6 : 5;
+        $this->currentPart = max(1, min($maxPart, $part));
         $this->applyLabAcceptanceTabHash();
     }
 
@@ -247,6 +258,30 @@ class LaboratoryAnalysisAcceptance extends Component
             ->first();
 
         $this->receiptAttachmentUrl = $existing?->attachment_url;
+    }
+
+    public function loadSampleDisclaimerState(): void
+    {
+        $this->showSampleDisclaimer = false;
+        $this->disclaimerForm = SampleReceivingDisclaimerService::emptyForm();
+        $this->disclaimerAttachmentUrl = null;
+
+        $acceptanceForm = app(SampleReceiptNotificationService::class)->findAcceptanceFormForBatch($this->batch);
+        if (! $acceptanceForm instanceof AnalysisAcceptanceForm || ! $acceptanceForm->raises_sample_disclaimer) {
+            return;
+        }
+
+        $this->showSampleDisclaimer = true;
+        $this->disclaimerForm = app(SampleReceivingDisclaimerService::class)
+            ->resolveFormStateForAcceptanceForm($acceptanceForm);
+
+        $existing = BatchAttachment::query()
+            ->where('batch_id', $this->batch->id)
+            ->where('title', SampleReceivingDisclaimerService::ATTACHMENT_TITLE)
+            ->orderByDesc('created_at')
+            ->first();
+
+        $this->disclaimerAttachmentUrl = $existing?->attachment_url;
     }
 
     public function getAcceptedTotalProperty(): float

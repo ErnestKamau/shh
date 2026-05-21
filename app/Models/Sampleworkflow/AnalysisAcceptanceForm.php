@@ -54,6 +54,8 @@ class AnalysisAcceptanceForm extends Model
         'manager_signed_at',
         'processing_error',
         'receipt_notification_payload',
+        'raises_sample_disclaimer',
+        'sample_disclaimer_payload',
         'created_by',
     ];
 
@@ -67,6 +69,8 @@ class AnalysisAcceptanceForm extends Model
             'customer_signed_at' => 'datetime',
             'manager_signed_at' => 'datetime',
             'receipt_notification_payload' => 'array',
+            'raises_sample_disclaimer' => 'boolean',
+            'sample_disclaimer_payload' => 'array',
         ];
     }
 

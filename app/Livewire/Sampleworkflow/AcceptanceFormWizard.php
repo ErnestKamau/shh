@@ -5,6 +5,8 @@ namespace App\Livewire\Sampleworkflow;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
+use App\Services\Sampleworkflow\SampleReceivingIntegrityService;
 use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
@@ -14,7 +16,7 @@ class AcceptanceFormWizard extends Component
 {
     public bool $showModal = false;
 
-    public int $currentStep = 1;
+    public string $activeStep = 'request';
 
     public ?string $submissionFormInstanceId = null;
 
@@ -69,6 +71,18 @@ class AcceptanceFormWizard extends Component
     /** @var array<string, mixed> */
     public array $receiptNotificationForm = [];
 
+    public bool $showRaiseDisclaimerOption = false;
+
+    public bool $raiseSampleDisclaimer = false;
+
+    public bool $requiresDisclaimerStep = false;
+
+    /** @var list<array{id: string, label: string}> */
+    public array $incompleteChecklistItems = [];
+
+    /** @var array<string, mixed> */
+    public array $disclaimerForm = [];
+
     public function mount(): void
     {
         $this->managerSignerName = (string) (Auth::user()->name ?? '');
@@ -118,9 +132,46 @@ class AcceptanceFormWizard extends Component
                 ];
             })->values()->all();
 
+        $this->syncReceivingIntegrityState();
+
         $this->showModal = true;
-        $this->currentStep = 1;
+        $this->activeStep = 'request';
         $this->refreshReceiptNotificationFormState();
+    }
+
+    /**
+     * @return list<array{key: string, label: string, icon: string}>
+     */
+    public function getWizardStepsProperty(): array
+    {
+        $steps = [
+            ['key' => 'request', 'label' => 'Request & pricing', 'icon' => 'mdi-clipboard-list-outline'],
+        ];
+
+        if ($this->requiresDisclaimerStep || ($this->acceptanceFormId && $this->hasDisclaimerOnForm())) {
+            $steps[] = ['key' => 'disclaimer', 'label' => 'Sample disclaimer', 'icon' => 'mdi-file-alert-outline'];
+        }
+
+        if ($this->acceptanceFormId !== null) {
+            $steps[] = ['key' => 'customer', 'label' => 'Customer', 'icon' => 'mdi-account-check-outline'];
+        }
+
+        if ($this->acceptanceFormId !== null
+            && in_array($this->status, [
+                AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
+                AnalysisAcceptanceForm::STATUS_COMPLETED,
+            ], true)) {
+            $steps[] = ['key' => 'manager', 'label' => 'Lab manager', 'icon' => 'mdi-shield-check-outline'];
+        }
+
+        return $steps;
+    }
+
+    public function updatedRaiseSampleDisclaimer(bool $value): void
+    {
+        if (!$value) {
+            $this->requiresDisclaimerStep = false;
+        }
     }
 
     public function refreshReceiptNotificationFormState(): void
@@ -170,18 +221,38 @@ class AcceptanceFormWizard extends Component
         $this->resetWizard();
     }
 
-    public function goToStep(int $step): void
+    public function goToStep(string $stepKey): void
     {
-        if ($step === 2 && $this->acceptanceFormId === null) {
+        $allowed = collect($this->wizardSteps)->pluck('key')->all();
+        if (!in_array($stepKey, $allowed, true)) {
             return;
         }
 
-        if ($step === 3 && $this->status !== AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN
-            && $this->status !== AnalysisAcceptanceForm::STATUS_COMPLETED) {
+        if ($stepKey === 'disclaimer' && $this->acceptanceFormId === null && !$this->requiresDisclaimerStep) {
             return;
         }
 
-        $this->currentStep = max(1, min(3, $step));
+        if ($stepKey === 'customer' && $this->acceptanceFormId === null) {
+            return;
+        }
+
+        if ($stepKey === 'manager'
+            && !in_array($this->status, [
+                AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
+                AnalysisAcceptanceForm::STATUS_COMPLETED,
+            ], true)) {
+            return;
+        }
+
+        $this->activeStep = $stepKey;
+
+        if ($stepKey === 'disclaimer' && $this->acceptanceFormId) {
+            $form = AnalysisAcceptanceForm::query()->find($this->acceptanceFormId);
+            if ($form !== null) {
+                $this->disclaimerForm = app(SampleReceivingDisclaimerService::class)
+                    ->resolveFormStateForAcceptanceForm($form);
+            }
+        }
     }
 
     public function submitStep1(): void
@@ -195,6 +266,53 @@ class AcceptanceFormWizard extends Component
             'lines' => 'required|array|min:1',
         ]);
 
+        if ($this->raiseSampleDisclaimer) {
+            $this->requiresDisclaimerStep = true;
+            $this->disclaimerForm = app(SampleReceivingDisclaimerService::class)->hydrateDefaultsForWizard([
+                'customer_name' => $this->customerName,
+                'number_of_samples' => $this->numberOfSamples,
+                'type_of_sample' => $this->sampleTypesSummary(),
+            ]);
+            $this->activeStep = 'disclaimer';
+            $this->dispatch('acceptance-disclaimer-step-opened');
+
+            return;
+        }
+
+        $this->finalizeAcceptanceCreation();
+    }
+
+    public function submitDisclaimerStep(): void
+    {
+        $disclaimerService = app(SampleReceivingDisclaimerService::class);
+        $hasClaimantInWizard = trim((string) ($this->disclaimerForm['claimant_signature'] ?? '')) !== '';
+
+        $this->validate($disclaimerService->wizardValidationRules($hasClaimantInWizard));
+
+        $payload = $disclaimerService->mergeFormPayloads($this->disclaimerForm, []);
+        if ($hasClaimantInWizard) {
+            $payload['claimant_signature_source'] = 'lab';
+            if (empty($payload['claimant_signed_at'])) {
+                $payload['claimant_signed_at'] = now()->format('Y-m-d');
+            }
+        }
+
+        $this->disclaimerForm = $payload;
+        $this->finalizeAcceptanceCreation($payload);
+    }
+
+    public function backFromDisclaimerStep(): void
+    {
+        $this->activeStep = 'request';
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $disclaimerPayload
+     */
+    private function finalizeAcceptanceCreation(?array $disclaimerPayload = null): void
+    {
+        $raisesDisclaimer = $disclaimerPayload !== null;
+
         $form = app(AcceptanceFormService::class)->createFromStep1(
             $this->submissionFormInstanceId,
             $this->submissionRequestId,
@@ -207,12 +325,15 @@ class AcceptanceFormWizard extends Component
                 'date_of_sampling' => $this->dateOfSampling,
             ],
             $this->lines,
-            (string) Auth::id()
+            (string) Auth::id(),
+            $raisesDisclaimer,
+            $disclaimerPayload
         );
 
         $this->acceptanceFormId = $form->id;
         $this->status = $form->status;
-        $this->currentStep = 2;
+        $this->requiresDisclaimerStep = $raisesDisclaimer;
+        $this->activeStep = 'customer';
 
         app(SampleReceiptNotificationService::class)->persistAfterAcceptanceCreated(
             $form->fresh(),
@@ -512,7 +633,13 @@ class AcceptanceFormWizard extends Component
         $this->status = $form->status;
 
         if ($form->status === AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
-            $this->currentStep = 3;
+            $this->activeStep = 'manager';
+        }
+
+        if ($form->raises_sample_disclaimer) {
+            $this->requiresDisclaimerStep = true;
+            $this->disclaimerForm = app(SampleReceivingDisclaimerService::class)
+                ->resolveFormStateForAcceptanceForm($form);
         }
 
         $this->refreshReceiptNotificationFormState();
@@ -645,7 +772,7 @@ class AcceptanceFormWizard extends Component
 
     private function resetWizard(): void
     {
-        $this->currentStep = 1;
+        $this->activeStep = 'request';
         $this->submissionFormInstanceId = null;
         $this->submissionRequestId = null;
         $this->acceptanceFormId = null;
@@ -656,5 +783,43 @@ class AcceptanceFormWizard extends Component
         $this->managerSignature = '';
         $this->managerSignedAt = now()->format('Y-m-d');
         $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
+        $this->showRaiseDisclaimerOption = false;
+        $this->raiseSampleDisclaimer = false;
+        $this->requiresDisclaimerStep = false;
+        $this->incompleteChecklistItems = [];
+        $this->disclaimerForm = SampleReceivingDisclaimerService::emptyForm();
+    }
+
+    private function syncReceivingIntegrityState(): void
+    {
+        $assessment = app(SampleReceivingIntegrityService::class)
+            ->assessFormInstance($this->submissionFormInstanceId);
+
+        $this->showRaiseDisclaimerOption = $assessment['incomplete'];
+        $this->incompleteChecklistItems = $assessment['items'];
+        $this->raiseSampleDisclaimer = false;
+        $this->requiresDisclaimerStep = false;
+    }
+
+    private function hasDisclaimerOnForm(): bool
+    {
+        if (!$this->acceptanceFormId) {
+            return $this->requiresDisclaimerStep;
+        }
+
+        $form = AnalysisAcceptanceForm::query()->find($this->acceptanceFormId);
+
+        return $form?->raises_sample_disclaimer ?? false;
+    }
+
+    private function sampleTypesSummary(): string
+    {
+        $names = collect($this->lines)
+            ->pluck('sample_type_name')
+            ->filter(fn ($name) => trim((string) $name) !== '')
+            ->unique()
+            ->values();
+
+        return $names->isNotEmpty() ? $names->implode(', ') : '';
     }
 }

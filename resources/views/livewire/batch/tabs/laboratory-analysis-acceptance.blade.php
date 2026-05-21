@@ -13,7 +13,12 @@
                         <i class="mdi mdi-eye"></i> View GCLA 01
                     </a>
                 @endif
-                <span class="badge badge-info">Part {{ $currentPart }} of 5</span>
+                @if($disclaimerAttachmentUrl)
+                    <a href="{{ $disclaimerAttachmentUrl }}" target="_blank" class="btn btn-outline-secondary btn-action-sm">
+                        <i class="mdi mdi-eye"></i> View disclaimer
+                    </a>
+                @endif
+                <span class="badge badge-info">Part {{ $currentPart }} of {{ $showSampleDisclaimer ? 6 : 5 }}</span>
             </div>
         </div>
 
@@ -234,6 +239,22 @@
                     'readOnly' => $readOnly,
                     'partLabel' => 'Part E: Sample Receipt Notification (GCLA 01)',
                 ])
+            @endif
+
+            @if($currentPart === 6 && $showSampleDisclaimer)
+                <div class="card border-0" style="background: #f8fafc;">
+                    <div class="card-body">
+                        <h6 class="mb-3">Sample receiving disclaimer</h6>
+                        @include('livewire.partials.sample-disclaimer-wire-fields', [
+                            'wirePrefix' => 'disclaimerForm.',
+                            'canvasPrefix' => 'lab-batch-disclaimer',
+                            'readOnly' => true,
+                            'disclaimantDisplay' => $disclaimerForm['disclaimant_name'] ?? '',
+                            'claimantSignatureDisplay' => $disclaimerForm['claimant_signature'] ?? '',
+                            'analystSignatureDisplay' => $disclaimerForm['analyst_signature'] ?? '',
+                        ])
+                    </div>
+                </div>
             @endif
 
             <div class="d-flex justify-content-between mt-3" style="gap: 8px;">

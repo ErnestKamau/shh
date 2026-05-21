@@ -15,6 +15,8 @@ class CustomerNotification extends Model
 
     public const TYPE_REQUEST_NOTE = 'Request note';
 
+    public const TYPE_SAMPLE_REJECTION = 'Sample request rejected';
+
     protected $keyType = 'string';
 
     public $incrementing = false;

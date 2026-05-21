@@ -325,8 +325,42 @@
                                             </div>
                                         </div>
                                         
+                                        <div class="col-md-12 mb-2">
+                                            <div class="form-group mb-3">
+                                                <label class="form-label">
+                                                    <i class="mdi mdi-folder-multiple-outline text-success"></i> Grouped worksheet pipeline
+                                                </label>
+                                                <div class="tag-select-container" wire:click="$set('showGroupedHolderDropdown', true)" wire:click.outside="$set('showGroupedHolderDropdown', false)">
+                                                    <div class="tag-select-input">
+                                                        @if($this->selectedGroupedHolder)
+                                                            <span class="tag-badge">
+                                                                {{ $this->selectedGroupedHolder->name }}
+                                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.grouped_worksheet_holder_id', null)"></i>
+                                                            </span>
+                                                        @endif
+                                                        <input type="text"
+                                                               wire:model.live="groupedHolderSearch"
+                                                               class="tag-input"
+                                                               placeholder="{{ $this->selectedGroupedHolder ? '' : 'Search grouped pipelines (e.g. DNA Analysis)...' }}"
+                                                               autocomplete="off">
+                                                    </div>
+                                                    @if($showGroupedHolderDropdown && count($this->filteredGroupedHolders) > 0)
+                                                        <div class="tag-dropdown">
+                                                            @foreach($this->filteredGroupedHolders as $holder)
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectGroupedWorksheetHolder('{{ $holder->id }}')">
+                                                                    <strong>{{ $holder->name }}</strong>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                <small class="form-text text-muted">Multi-stage ordered worksheets. Replaces a single procedure worksheet when set.</small>
+                                                @error('analysisTypeForm.grouped_worksheet_holder_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                            </div>
+                                        </div>
+
                                         <!-- Conditional Procedure Worksheet Dropdown -->
-                                        @if($analysisTypeForm['has_no_result'] ?? false)
+                                        @if(($analysisTypeForm['has_no_result'] ?? false) && empty($analysisTypeForm['grouped_worksheet_holder_id']))
                                             <div class="col-md-12 mb-2">
                                                 <div class="form-group mb-3">
                                                     <label class="form-label">

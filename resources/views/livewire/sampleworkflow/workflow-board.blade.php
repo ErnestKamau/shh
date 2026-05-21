@@ -381,6 +381,21 @@
 		border-radius: 8px;
 	}
 
+	.workflow-board-panel-header .workflow-panel-header-title {
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+
+	.workflow-board-panel-header .workflow-panel-header-row {
+		gap: 12px;
+		min-width: 0;
+	}
+
+	.workflow-board-panel-header .workflow-panel-selection-actions {
+		flex-shrink: 0;
+		justify-content: flex-end;
+	}
+
 	.receive-sample-modal-content {
 		border-radius: 14px;
 		overflow: hidden;
@@ -1076,8 +1091,8 @@
 			<div class="col-12">
 				<div class="workflow-board-panel">
 					<div class="workflow-board-panel-header">
-						<div class="d-flex align-items-center justify-content-between w-100">
-							<h5 class="mb-0">
+						<div class="d-flex align-items-center justify-content-between w-100 flex-nowrap workflow-panel-header-row">
+							<h5 class="mb-0 workflow-panel-header-title">
 								<i class="mdi mdi-file-document-multiple"></i>
 								@if($status === 'Samples Receiving')
 									{{ $receivingRequestTabs[$workflowSubTab] ?? 'Submitted Requests' }}
@@ -1090,7 +1105,7 @@
 								@endif
 							</h5>
 							@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
-								<div class="d-flex align-items-center flex-wrap workflow-panel-selection-actions w-100"
+								<div class="d-flex align-items-center flex-wrap workflow-panel-selection-actions ml-auto"
 									style="gap: 8px;"
 									x-show="selectedCount > 0"
 									x-cloak>
@@ -1118,28 +1133,26 @@
 											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Request more info
 										</button>
 									@endif
-									<div class="ml-auto d-flex align-items-center flex-wrap" style="gap: 8px;">
-										@if($status === 'Samples Request Review' && $workflowSubTab === 'in_review')
-											<button type="button"
-												class="btn btn-sm btn-outline-success"
-												data-sf-trigger="workflow-action-approve-request"
-												@click.prevent="selectedCount > 0 && window.openWorkflowAcceptSampleModal && window.openWorkflowAcceptSampleModal()">
-												<i class="mdi mdi-check-circle-outline mr-1"></i> Accept sample
-											</button>
-											<button type="button"
-												class="btn btn-sm btn-outline-danger"
-												data-sf-trigger="workflow-action-reject-request"
-												@click.prevent="selectedCount > 0 && window.openWorkflowRejectSampleModal && window.openWorkflowRejectSampleModal()">
-												<i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
-											</button>
-										@endif
+									@if($status === 'Samples Request Review' && $workflowSubTab === 'in_review')
 										<button type="button"
-											class="btn btn-sm btn-outline-primary"
-											data-sf-trigger="workflow-move-to-intray"
-											@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())">
-											<i class="mdi mdi-inbox-arrow-down mr-1"></i> Move to tray
+											class="btn btn-sm btn-outline-success"
+											data-sf-trigger="workflow-action-approve-request"
+											@click.prevent="selectedCount > 0 && window.openWorkflowAcceptSampleModal && window.openWorkflowAcceptSampleModal()">
+											<i class="mdi mdi-check-circle-outline mr-1"></i> Accept sample
 										</button>
-									</div>
+										<button type="button"
+											class="btn btn-sm btn-outline-danger"
+											data-sf-trigger="workflow-action-reject-request"
+											@click.prevent="selectedCount > 0 && window.openWorkflowRejectSampleModal && window.openWorkflowRejectSampleModal()">
+											<i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
+										</button>
+									@endif
+									<button type="button"
+										class="btn btn-sm btn-outline-primary"
+										data-sf-trigger="workflow-move-to-intray"
+										@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())">
+										<i class="mdi mdi-inbox-arrow-down mr-1"></i> Move to tray
+									</button>
 								</div>
 							@endif
 							@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
@@ -5024,7 +5037,31 @@
 				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
 					window.rebuildWorkflowSelectionLists();
 				}
-				$('#portal-request-reject-form-modal').modal('show');
+
+				var selections = typeof getSourceSelections === 'function' ? getSourceSelections() : null;
+				var instanceId = '';
+				var requestId = '';
+
+				if (selections) {
+					if (selections.selectedFormInstanceCheckboxes && selections.selectedFormInstanceCheckboxes.length) {
+						instanceId = String(selections.selectedFormInstanceCheckboxes.first().val() || '');
+					}
+					if (selections.selectedSubmissionCheckboxes && selections.selectedSubmissionCheckboxes.length) {
+						requestId = String(selections.selectedSubmissionCheckboxes.first().val() || '');
+					}
+				}
+
+				if (!instanceId && !requestId) {
+					alert('Please select exactly one submission request or form row before rejecting.');
+					return;
+				}
+
+				if (typeof Livewire !== 'undefined') {
+					Livewire.dispatch('open-rejection-wizard', {
+						submissionFormInstanceId: instanceId || null,
+						submissionRequestId: requestId || null,
+					});
+				}
 			};
 
 			$('#dispatch-to-labs-modal form').off('submit.workflowSelection').on('submit.workflowSelection', function (event) {
@@ -5637,12 +5674,16 @@
 	@endpush
 
 	@livewire('sampleworkflow.acceptance-form-wizard')
+	@livewire('sampleworkflow.sample-rejection-wizard')
 	@livewire('sampleworkflow.customer-acceptance-sign-modal')
 	@livewire('sampleworkflow.manager-acceptance-sign-modal')
 
 	<script>
 		document.addEventListener('livewire:init', function () {
 			Livewire.on('acceptance-form-created', function () {
+				window.location.reload();
+			});
+			Livewire.on('sample-rejection-completed', function () {
 				window.location.reload();
 			});
 			Livewire.on('acceptance-form-completed', function (event) {

@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('lab_category_items', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('category_id');
-            $table->integer('reagent_id');
-            $table->integer('unit_measure_id');
+            $table->uuid('category_id');
+            $table->uuid('reagent_id')->nullable();
+            $table->uuid('unit_measure_id')->nullable();
             $table->string('amount_used')->nullable();
-            $table->integer('sub_category_id')->nullable();
+            $table->uuid('sub_category_id')->nullable();
             $table->uuid('inventory_sub_category_id')->nullable()->index('idx_lab_category_items_inventory_sub_category_id_1876f5e7');
             $table->uuid('inventory_category_id')->nullable()->index('idx_lab_category_items_inventory_category_id_9a382a08');
             $table->boolean('active')->default(true);

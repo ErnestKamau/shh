@@ -8,6 +8,7 @@ use App\Http\Resources\Portal\AcceptanceFormResource;
 use App\Models\CRM\CustomerNotification;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormService;
+use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
 use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -74,6 +75,15 @@ class AcceptanceFormController extends Controller
         );
 
         $receiptService->applyBatchDefaultsAfterCustomerSign($form);
+
+        $disclaimerService = app(SampleReceivingDisclaimerService::class);
+        if (! empty($validated['sample_disclaimer']) && is_array($validated['sample_disclaimer'])) {
+            $claimantPatch = $disclaimerService->sanitizePortalClaimantPatch($validated['sample_disclaimer']);
+            if ($claimantPatch !== []) {
+                $disclaimerService->mergePayloadIntoAcceptanceForm($form, $claimantPatch);
+            }
+        }
+        $disclaimerService->applyBatchDefaultsAfterCustomerSign($form->fresh());
 
         CustomerNotification::query()
             ->where('customer_id', $form->crm_customer_id)

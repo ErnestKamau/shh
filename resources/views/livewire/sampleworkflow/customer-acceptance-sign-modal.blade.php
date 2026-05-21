@@ -169,6 +169,20 @@
                                 ])
                             </section>
 
+                            @if($showDisclaimerClaimantSign)
+                                <section class="acc-wizard-section">
+                                    <h6 class="acc-wizard-section-title">Sample receiving disclaimer — claimant</h6>
+                                    <p class="acc-wizard-hint mb-3">Sign as the disclaimant to acknowledge analysis despite sample integrity concerns.</p>
+                                    @include('livewire.partials.sample-disclaimer-wire-fields', [
+                                        'wirePrefix' => 'disclaimerForm.',
+                                        'canvasPrefix' => 'cust-acc-disclaimer',
+                                        'readOnly' => false,
+                                        'claimantOnly' => true,
+                                        'disclaimantDisplay' => $disclaimerForm['disclaimant_name'] ?? '',
+                                    ])
+                                </section>
+                            @endif
+
                             <section class="acc-wizard-section">
                                 <div class="acc-cert-card">
                                     <p class="acc-cert-quote">{{ \App\Services\Sampleworkflow\AcceptanceFormService::CUSTOMER_CERTIFICATION_TEXT }}</p>
@@ -321,6 +335,7 @@
         let customerSignaturePad = null;
         let customerReceiptSubmitterPad = null;
         let customerReceiptReceiverPad = null;
+        let customerDisclaimerClaimantPad = null;
 
         function initCustomerReceiptPads() {
             function setup(canvasId, inputId, clearBtnId, existingVal) {
@@ -433,9 +448,43 @@
                 }, 400);
             });
 
+            function initCustomerDisclaimerClaimantPad() {
+                const canvas = document.getElementById('cust-acc-disclaimer-claimant-canvas');
+                const input = document.getElementById('cust-acc-disclaimer-claimant-input');
+                const clearBtn = document.getElementById('cust-acc-disclaimer-claimant-clear');
+                if (!canvas || !input || typeof SignaturePad === 'undefined') {
+                    return;
+                }
+                if (canvas.dataset.custDiscReady === '1') {
+                    return;
+                }
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+                customerDisclaimerClaimantPad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+                canvas.dataset.custDiscReady = '1';
+                if (input.value && input.value.startsWith('data:image')) {
+                    customerDisclaimerClaimantPad.fromDataURL(input.value);
+                }
+                customerDisclaimerClaimantPad.addEventListener('endStroke', function () {
+                    input.value = customerDisclaimerClaimantPad.isEmpty() ? '' : customerDisclaimerClaimantPad.toDataURL('image/png');
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                if (clearBtn) {
+                    clearBtn.onclick = function () {
+                        customerDisclaimerClaimantPad.clear();
+                        input.value = '';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    };
+                }
+            }
+
             Livewire.on('customer-acceptance-sign-step2', function () {
                 setTimeout(initCustomerSignaturePad, 300);
                 setTimeout(initCustomerReceiptPads, 350);
+                setTimeout(initCustomerDisclaimerClaimantPad, 380);
             });
 
             Livewire.hook('morph.updated', function () {
@@ -447,6 +496,13 @@
                 }
                 if (document.getElementById('cust-acc-receipt-submitter-canvas')) {
                     setTimeout(initCustomerReceiptPads, 220);
+                }
+                if (document.getElementById('cust-acc-disclaimer-claimant-canvas')) {
+                    const c = document.getElementById('cust-acc-disclaimer-claimant-canvas');
+                    if (c) {
+                        c.removeAttribute('data-cust-disc-ready');
+                    }
+                    setTimeout(initCustomerDisclaimerClaimantPad, 220);
                 }
             });
         });

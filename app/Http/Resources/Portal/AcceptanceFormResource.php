@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Portal;
 
+use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
 use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -34,6 +35,15 @@ class AcceptanceFormResource extends JsonResource
                 SampleReceiptNotificationService::emptyForm(),
                 is_array($this->resource->receipt_notification_payload) ? $this->resource->receipt_notification_payload : []
             ),
+            'raises_sample_disclaimer' => (bool) $this->raises_sample_disclaimer,
+            'sample_disclaimer' => array_merge(
+                SampleReceivingDisclaimerService::emptyForm(),
+                is_array($this->resource->sample_disclaimer_payload) ? $this->resource->sample_disclaimer_payload : []
+            ),
+            'requires_disclaimer_claimant_sign' => (bool) $this->raises_sample_disclaimer
+                && app(SampleReceivingDisclaimerService::class)->claimantSignatureMissing(
+                    is_array($this->resource->sample_disclaimer_payload) ? $this->resource->sample_disclaimer_payload : []
+                ),
             'created_at' => optional($this->created_at)?->toIso8601String(),
         ];
     }

@@ -109,23 +109,20 @@
 			display: unset;
 		}
 
-		/* Batch workspace — sleek tab bar (Livewire batch.tabs) */
+		/* Batch workspace tab bar (Livewire batch.tabs) */
 		.batch-show-page .batch-tabs-panel .batch-nav-tabs {
 			display: flex;
 			flex-wrap: wrap;
-			align-items: center;
-			gap: 6px;
-			padding: 10px 12px 12px;
+			align-items: flex-end;
+			gap: 4px;
+			padding: 8px 10px 0;
 			margin: 0;
 			list-style: none;
-			background: linear-gradient(180deg, #f1f5f9 0%, #e8eef4 100%);
-			border: 1px solid #e2e8f0;
-			border-bottom: 1px solid #cbd5e1;
-			border-radius: 12px;
-			box-shadow:
-				inset 0 1px 0 rgba(255, 255, 255, 0.7),
-				0 5px 18px -6px rgba(15, 23, 42, 0.12),
-				0 2px 8px -4px rgba(15, 23, 42, 0.06);
+			background: #f8fafc;
+			border: none;
+			border-bottom: 1px solid #e2e8f0;
+			border-radius: 0;
+			box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
 		}
 
 		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-item {
@@ -137,30 +134,32 @@
 			align-items: center;
 			gap: 8px;
 			padding: 10px 14px;
-			border-radius: 8px;
+			margin-bottom: -1px;
+			border-radius: 6px 6px 0 0;
 			border: 1px solid transparent;
-			color: #475569;
+			border-bottom: 1px solid transparent;
+			color: #64748b;
 			font-size: 0.8125rem;
 			font-weight: 600;
 			line-height: 1.25;
 			text-decoration: none;
 			background: transparent;
+			box-shadow: none;
 			transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 		}
 
 		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link:hover {
-			color: #0f172a;
-			background: rgba(255, 255, 255, 0.65);
-			border-color: rgba(148, 163, 184, 0.4);
+			color: #334155;
+			background: rgba(255, 255, 255, 0.7);
+			box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 		}
 
 		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link.active {
 			color: #0f172a;
 			background: #fff;
-			border-color: rgba(148, 163, 184, 0.45);
-			box-shadow:
-				0 2px 8px rgba(15, 23, 42, 0.07),
-				0 1px 2px rgba(15, 23, 42, 0.04);
+			border-color: #e2e8f0;
+			border-bottom-color: #fff;
+			box-shadow: 0 -1px 4px rgba(15, 23, 42, 0.04), 0 2px 4px rgba(15, 23, 42, 0.06);
 		}
 
 		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link .mdi {

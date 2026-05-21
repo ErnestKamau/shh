@@ -17,28 +17,25 @@
                     </div>
 
                     <div class="acc-wizard-steps" role="tablist">
-                        @foreach([
-                            1 => ['label' => 'Request & pricing', 'icon' => 'mdi-clipboard-list-outline'],
-                            2 => ['label' => 'Customer', 'icon' => 'mdi-account-check-outline'],
-                            3 => ['label' => 'Lab manager', 'icon' => 'mdi-shield-check-outline'],
-                        ] as $step => $meta)
+                        @php
+                            $activeIndex = collect($this->wizardSteps)->search(fn ($s) => $s['key'] === $activeStep);
+                            $activeIndex = $activeIndex === false ? 0 : (int) $activeIndex;
+                        @endphp
+                        @foreach($this->wizardSteps as $index => $meta)
                             @php
-                                $isActive = $currentStep === $step;
-                                $isDone = $currentStep > $step;
-                                $stepDisabled = ($step === 2 && !$acceptanceFormId)
-                                    || ($step === 3 && !in_array($status, ['awaiting_lab_manager_sign', 'completed'], true));
+                                $isActive = $activeStep === $meta['key'];
+                                $isDone = $activeIndex > $index;
                             @endphp
                             <button
                                 type="button"
                                 class="acc-wizard-step {{ $isActive ? 'is-active' : '' }} {{ $isDone ? 'is-done' : '' }}"
-                                wire:click="goToStep({{ $step }})"
-                                @disabled($stepDisabled)
+                                wire:click="goToStep('{{ $meta['key'] }}')"
                             >
                                 <span class="acc-wizard-step-index">
                                     @if($isDone)
                                         <i class="mdi mdi-check"></i>
                                     @else
-                                        {{ $step }}
+                                        {{ $index + 1 }}
                                     @endif
                                 </span>
                                 <span class="acc-wizard-step-label">{{ $meta['label'] }}</span>
@@ -47,7 +44,27 @@
                     </div>
 
                     <div class="acc-wizard-body">
-                        @if($currentStep === 1)
+                        @if($activeStep === 'request')
+                            @if($showRaiseDisclaimerOption)
+                                <div class="acc-disclaimer-alert" role="alert">
+                                    <div class="acc-disclaimer-alert-head">
+                                        <i class="mdi mdi-alert-outline"></i>
+                                        <strong>Sample integrity checklist incomplete</strong>
+                                    </div>
+                                    <p class="mb-2">One or more mandatory receiving checklist items were not marked as done:</p>
+                                    <ul class="acc-disclaimer-alert-list mb-3">
+                                        @foreach($incompleteChecklistItems as $item)
+                                            <li>{{ $item['label'] }}</li>
+                                        @endforeach
+                                    </ul>
+                                    <label class="acc-disclaimer-check mb-0">
+                                        <input type="checkbox" wire:model.live="raiseSampleDisclaimer">
+                                        <span class="acc-disclaimer-check-ui"></span>
+                                        <span class="acc-disclaimer-check-label">Raise sample disclaimer form</span>
+                                    </label>
+                                </div>
+                            @endif
+
                             <section class="acc-wizard-section">
                                 <h6 class="acc-wizard-section-title">Request details</h6>
                                 <div class="row acc-wizard-fields">
@@ -185,7 +202,19 @@
                             </section>
                         @endif
 
-                        @if($currentStep === 2)
+                        @if($activeStep === 'disclaimer')
+                            <section class="acc-wizard-section">
+                                <h6 class="acc-wizard-section-title">Sample receiving disclaimer</h6>
+                                <p class="acc-wizard-hint mb-3">Complete the disclaimer when sample integrity criteria were not met at receiving.</p>
+                                @include('livewire.partials.sample-disclaimer-wire-fields', [
+                                    'wirePrefix' => 'disclaimerForm.',
+                                    'canvasPrefix' => 'acc-wizard-disclaimer',
+                                    'readOnly' => false,
+                                ])
+                            </section>
+                        @endif
+
+                        @if($activeStep === 'customer')
                             <section
                                 class="acc-wizard-section"
                                 @if($status === 'awaiting_customer_sign') wire:poll.10s="refreshAcceptanceStatus" @endif
@@ -216,7 +245,7 @@
                             </section>
                         @endif
 
-                        @if($currentStep === 3)
+                        @if($activeStep === 'manager')
                             <section class="acc-wizard-section">
                                 <div class="acc-cert-card">
                                     <p class="acc-cert-quote">{{ \App\Services\Sampleworkflow\AcceptanceFormService::MANAGER_CERTIFICATION_TEXT }}</p>
@@ -262,13 +291,25 @@
                             ])
                         </section>
                     </div>
+
+                    <div class="acc-wizard-footer">
                         <button type="button" class="btn btn-light acc-btn-ghost" wire:click="closeWizard">Close</button>
-                        @if($currentStep === 1)
+                        @if($activeStep === 'request')
                             <button type="button" class="btn acc-btn-primary" wire:click="submitStep1" wire:loading.attr="disabled">
                                 <span wire:loading wire:target="submitStep1" class="spinner-border spinner-border-sm mr-1"></span>
+                                @if($raiseSampleDisclaimer)
+                                    Continue
+                                @else
+                                    Save &amp; send to customer
+                                @endif
+                            </button>
+                        @elseif($activeStep === 'disclaimer' && !$acceptanceFormId)
+                            <button type="button" class="btn btn-light" wire:click="backFromDisclaimerStep">Back</button>
+                            <button type="button" class="btn acc-btn-primary" wire:click="submitDisclaimerStep" wire:loading.attr="disabled" id="acceptance-disclaimer-submit">
+                                <span wire:loading wire:target="submitDisclaimerStep" class="spinner-border spinner-border-sm mr-1"></span>
                                 Save &amp; send to customer
                             </button>
-                        @elseif($currentStep === 3 && $status === 'awaiting_lab_manager_sign')
+                        @elseif($activeStep === 'manager' && $status === 'awaiting_lab_manager_sign')
                             <button type="button" class="btn acc-btn-success" id="acceptance-manager-sign-submit" wire:loading.attr="disabled">
                                 Complete acceptance
                             </button>
@@ -895,6 +936,87 @@
             margin-top: 0.05rem;
         }
 
+        .acc-disclaimer-alert {
+            margin-bottom: 1.25rem;
+            padding: 1rem 1.1rem;
+            border-radius: 10px;
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            font-size: 0.875rem;
+        }
+
+        .acc-disclaimer-alert-head {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .acc-disclaimer-alert-head i { font-size: 1.25rem; }
+
+        .acc-disclaimer-alert-list {
+            margin: 0;
+            padding-left: 1.25rem;
+        }
+
+        .acc-disclaimer-check {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .acc-disclaimer-check input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .acc-disclaimer-check-ui {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #d97706;
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            background: #fff;
+        }
+
+        .acc-disclaimer-check input:checked + .acc-disclaimer-check-ui {
+            background: #d97706;
+            box-shadow: inset 0 0 0 3px #fff;
+        }
+
+        .acc-disclaimer-inline-name {
+            width: 12rem;
+            max-width: 100%;
+            vertical-align: baseline;
+            display: inline-block;
+            margin: 0 0.2rem;
+        }
+
+        .acc-disclaimer-legal-text {
+            text-align: justify;
+            line-height: 1.55;
+            margin: 0;
+            color: var(--acc-text);
+        }
+
+        .acc-disclaimer-footer-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: 8px;
+            background: #f1f5f9;
+            color: var(--acc-muted);
+            font-size: 0.8rem;
+        }
+
         .acc-add-line-hint {
             font-size: 0.8rem;
             color: var(--acc-muted);
@@ -913,6 +1035,8 @@
         let managerSignaturePad = null;
         let wizardReceiptSubmitterPad = null;
         let wizardReceiptReceiverPad = null;
+        let disclaimerClaimantPad = null;
+        let disclaimerAnalystPad = null;
 
         function initWizardReceiptPads() {
             function setup(canvasId, inputId, clearBtnId, existingVal) {
@@ -970,12 +1094,72 @@
         }
 
         function resetWizardReceiptCanvasFlags() {
-            ['acc-wizard-receipt-submitter-canvas', 'acc-wizard-receipt-receiver-canvas'].forEach(function (id) {
+            [
+                'acc-wizard-receipt-submitter-canvas',
+                'acc-wizard-receipt-receiver-canvas',
+                'acc-wizard-disclaimer-claimant-canvas',
+                'acc-wizard-disclaimer-analyst-canvas',
+            ].forEach(function (id) {
                 const el = document.getElementById(id);
                 if (el) {
                     el.removeAttribute('data-signature-ready-wizard');
                 }
             });
+        }
+
+        function initDisclaimerSignaturePads() {
+            function setup(canvasId, inputId, clearBtnId, existingVal) {
+                const canvas = document.getElementById(canvasId);
+                const input = document.getElementById(inputId);
+                const clearBtn = document.getElementById(clearBtnId);
+                if (!canvas || !input || typeof SignaturePad === 'undefined') {
+                    return null;
+                }
+                if (canvas.dataset.signatureReadyWizard === '1') {
+                    return null;
+                }
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+
+                const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+                canvas.dataset.signatureReadyWizard = '1';
+
+                if (existingVal && existingVal.startsWith('data:image')) {
+                    pad.fromDataURL(existingVal);
+                }
+
+                pad.addEventListener('endStroke', function () {
+                    input.value = pad.isEmpty() ? '' : pad.toDataURL('image/png');
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                if (clearBtn) {
+                    clearBtn.onclick = function () {
+                        pad.clear();
+                        input.value = '';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    };
+                }
+                return pad;
+            }
+
+            const claimantIn = document.getElementById('acc-wizard-disclaimer-claimant-input');
+            const analystIn = document.getElementById('acc-wizard-disclaimer-analyst-input');
+            disclaimerClaimantPad = setup(
+                'acc-wizard-disclaimer-claimant-canvas',
+                'acc-wizard-disclaimer-claimant-input',
+                'acc-wizard-disclaimer-claimant-clear',
+                claimantIn ? claimantIn.value : ''
+            );
+            disclaimerAnalystPad = setup(
+                'acc-wizard-disclaimer-analyst-canvas',
+                'acc-wizard-disclaimer-analyst-input',
+                'acc-wizard-disclaimer-analyst-clear',
+                analystIn ? analystIn.value : ''
+            );
         }
 
         function initManagerSignaturePad() {
@@ -1010,6 +1194,12 @@
                 resetWizardReceiptCanvasFlags();
                 setTimeout(initManagerSignaturePad, 400);
                 setTimeout(initWizardReceiptPads, 460);
+                setTimeout(initDisclaimerSignaturePads, 500);
+            });
+
+            Livewire.on('acceptance-disclaimer-step-opened', function () {
+                resetWizardReceiptCanvasFlags();
+                setTimeout(initDisclaimerSignaturePads, 300);
             });
 
             Livewire.hook('morph.updated', function () {
@@ -1020,7 +1210,24 @@
                     resetWizardReceiptCanvasFlags();
                     setTimeout(initWizardReceiptPads, 200);
                 }
+                if (document.getElementById('acc-wizard-disclaimer-analyst-canvas')) {
+                    resetWizardReceiptCanvasFlags();
+                    setTimeout(initDisclaimerSignaturePads, 200);
+                }
             });
+
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('#acceptance-disclaimer-submit');
+                if (!btn) {
+                    return;
+                }
+                const analystInput = document.getElementById('acc-wizard-disclaimer-analyst-input');
+                if (disclaimerAnalystPad && disclaimerAnalystPad.isEmpty() && analystInput) {
+                    alert('Please provide the laboratory analyst signature.');
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                }
+            }, true);
         });
     })();
 </script>
