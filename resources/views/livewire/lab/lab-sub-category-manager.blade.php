@@ -158,7 +158,7 @@
                                             </td>
                                             <td><strong>{{ $subCategory->name }}</strong></td>
                                             <td>{{ $subCategory->category->name ?? 'N/A' }}</td>
-                                            <td>{{ $subCategory->rate }}</td>
+                                            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                <td>{{ $subCategory->rate }}</td>
                                             <td>{{ $subCategory->reportingUnit->name ?? 'N/A' }}</td>
                                             <td>
                                                 @if($subCategory->active)
