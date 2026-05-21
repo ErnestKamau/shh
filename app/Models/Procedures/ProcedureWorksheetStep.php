@@ -24,20 +24,28 @@ class ProcedureWorksheetStep extends Model implements Auditable
         'step',
         'value_type',
         'is_active',
+        'is_result_step',
+        'attracts_equipment_logbook',
+        'logbook_equipment_ids',
         'default_equipment_id',
         'default_analyst_id',
         'default_measurand_ids',
         'default_value',
         'default_measurand_values',
+        'select_options',
         'order',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_result_step' => 'boolean',
+        'attracts_equipment_logbook' => 'boolean',
+        'logbook_equipment_ids' => 'array',
         'default_measurand_ids' => 'array',
         'default_equipment_id' => 'array',
         'default_analyst_id' => 'array',
         'default_measurand_values' => 'array',
+        'select_options' => 'array',
     ];
 
     public function worksheet()
@@ -101,5 +109,16 @@ class ProcedureWorksheetStep extends Model implements Auditable
             return collect([]);
         }
         return \App\ReportingUnit::whereIn('id', $this->default_measurand_ids)->get();
+    }
+
+    public function getLogbookEquipmentAttribute()
+    {
+        if (empty($this->logbook_equipment_ids)) {
+            return collect([]);
+        }
+
+        $ids = is_array($this->logbook_equipment_ids) ? $this->logbook_equipment_ids : [];
+
+        return Equipment::whereIn('id', $ids)->get();
     }
 }

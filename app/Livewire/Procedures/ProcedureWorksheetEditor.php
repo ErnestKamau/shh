@@ -7,10 +7,13 @@ use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\Procedures\ProcedureWorksheetStep;
 use App\Models\Procedures\ProcedureConfigField;
 use App\Models\Procedures\ProcedureTestKitColumn;
+use App\AnalysisMethod;
 use App\Models\Equipments\Equipment;
 use Carbon\Carbon;
 use App\ReportingUnit;
 use App\User;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\WithPagination;
 
 class ProcedureWorksheetEditor extends Component
@@ -40,22 +43,33 @@ class ProcedureWorksheetEditor extends Component
     // Form properties
     public $step = '';
     public $is_active = true;
+    public $is_result_step = false;
+    public $attracts_equipment_logbook = false;
+    public $logbook_equipment_ids = [];
     public $default_equipment_id = null;
     public $default_analyst_id = null;
     public $default_measurand_ids = [];
     public $value_type = 'text';
     public $default_value = '';
     public $default_measurand_values = [];
-    
+    public $select_options = [];
+    public $newSelectOption = '';
+
     // Search properties for dropdowns
     public $equipmentSearch = '';
+    public $logbookEquipmentSearch = '';
     public $analystSearch = '';
     public $measurandSearch = '';
-    
+    public $methodSearch = '';
+    public $defaultValueEquipmentSearch = '';
+
     // Dropdown visibility
     public $showEquipmentDropdown = false;
+    public $showLogbookEquipmentDropdown = false;
     public $showAnalystDropdown = false;
     public $showMeasurandDropdown = false;
+    public $showMethodDropdown = false;
+    public $showDefaultValueEquipmentDropdown = false;
 
     // Configurable Fields state
     public $configFields = [];
@@ -103,7 +117,9 @@ class ProcedureWorksheetEditor extends Component
 
     protected $rules = [
         'step' => 'required|string|max:255',
-        'value_type' => 'required|in:text,number,time,datetime,date',
+        'value_type' => 'required|in:text,number,time,datetime,date,method_select,equipment_select,custom_select',
+        'select_options' => 'nullable|array',
+        'select_options.*' => 'nullable|string|max:255',
         'default_value' => 'nullable|string|max:255',
         'default_measurand_values' => 'nullable|array',
         'default_measurand_values.*' => 'nullable|string|max:255',
@@ -111,6 +127,10 @@ class ProcedureWorksheetEditor extends Component
         'default_analyst_id' => 'nullable|exists:users,id',
         'default_measurand_ids' => 'nullable|array',
         'is_active' => 'boolean',
+        'is_result_step' => 'boolean',
+        'attracts_equipment_logbook' => 'boolean',
+        'logbook_equipment_ids' => 'nullable|array',
+        'logbook_equipment_ids.*' => 'exists:equipment,id',
     ];
 
     /**
@@ -132,9 +152,79 @@ class ProcedureWorksheetEditor extends Component
             'date' => $this->normalizeDateValue($value),
             'time' => $this->normalizeTimeValue($value),
             'datetime' => $this->normalizeDateTimeValue($value),
-            'number', 'text' => $value,
+            'number', 'text', 'method_select', 'equipment_select', 'custom_select' => $value,
             default => $value,
         };
+    }
+
+    public function updatedValueType(): void
+    {
+        $this->default_value = '';
+        $this->default_measurand_values = [];
+        $this->methodSearch = '';
+        $this->defaultValueEquipmentSearch = '';
+        $this->showMethodDropdown = false;
+        $this->showDefaultValueEquipmentDropdown = false;
+
+        if ($this->value_type !== 'custom_select') {
+            $this->select_options = [];
+            $this->newSelectOption = '';
+        }
+    }
+
+    public function addSelectOption(): void
+    {
+        $label = trim($this->newSelectOption);
+        if ($label === '') {
+            return;
+        }
+
+        if (! in_array($label, $this->select_options, true)) {
+            $this->select_options[] = $label;
+        }
+
+        $this->newSelectOption = '';
+    }
+
+    public function removeSelectOption(int $index): void
+    {
+        if (! isset($this->select_options[$index])) {
+            return;
+        }
+
+        $removed = $this->select_options[$index];
+        unset($this->select_options[$index]);
+        $this->select_options = array_values($this->select_options);
+
+        if ((string) $this->default_value === (string) $removed) {
+            $this->default_value = '';
+        }
+    }
+
+    public function selectDefaultMethod(string $id): void
+    {
+        $this->default_value = $id;
+        $this->showMethodDropdown = false;
+        $this->methodSearch = '';
+    }
+
+    public function clearDefaultMethod(): void
+    {
+        $this->default_value = '';
+        $this->methodSearch = '';
+    }
+
+    public function selectDefaultValueEquipment($id): void
+    {
+        $this->default_value = (string) $id;
+        $this->showDefaultValueEquipmentDropdown = false;
+        $this->defaultValueEquipmentSearch = '';
+    }
+
+    public function clearDefaultValueEquipment(): void
+    {
+        $this->default_value = '';
+        $this->defaultValueEquipmentSearch = '';
     }
 
     protected function normalizeDateValue(string $value): string
@@ -221,6 +311,127 @@ class ProcedureWorksheetEditor extends Component
         $this->loadDocumentControl();
     }
 
+    public function setActiveTab(string $tab): void
+    {
+        $this->activeTab = $tab;
+    }
+
+    public function clearToast(): void
+    {
+        $this->toastMessage = '';
+    }
+
+    public function openMethodDropdown(): void
+    {
+        $this->showMethodDropdown = true;
+    }
+
+    public function closeMethodDropdown(): void
+    {
+        $this->showMethodDropdown = false;
+    }
+
+    public function openDefaultValueEquipmentDropdown(): void
+    {
+        $this->showDefaultValueEquipmentDropdown = true;
+    }
+
+    public function closeDefaultValueEquipmentDropdown(): void
+    {
+        $this->showDefaultValueEquipmentDropdown = false;
+    }
+
+    public function openEquipmentDropdown(): void
+    {
+        $this->closeMeasurandDropdown();
+        $this->closeLogbookEquipmentDropdown();
+        $this->showEquipmentDropdown = true;
+    }
+
+    public function closeEquipmentDropdown(): void
+    {
+        $this->showEquipmentDropdown = false;
+    }
+
+    public function openLogbookEquipmentDropdown(): void
+    {
+        $this->closeMeasurandDropdown();
+        $this->closeEquipmentDropdown();
+        $this->closeAnalystDropdown();
+        $this->showLogbookEquipmentDropdown = true;
+    }
+
+    public function closeLogbookEquipmentDropdown(): void
+    {
+        $this->showLogbookEquipmentDropdown = false;
+    }
+
+    public function openAnalystDropdown(): void
+    {
+        $this->closeMeasurandDropdown();
+        $this->closeLogbookEquipmentDropdown();
+        $this->showAnalystDropdown = true;
+    }
+
+    public function closeAnalystDropdown(): void
+    {
+        $this->showAnalystDropdown = false;
+    }
+
+    public function openMeasurandDropdown(): void
+    {
+        $this->closeEquipmentDropdown();
+        $this->closeAnalystDropdown();
+        $this->closeLogbookEquipmentDropdown();
+        $this->showMeasurandDropdown = true;
+    }
+
+    public function closeMeasurandDropdown(): void
+    {
+        $this->showMeasurandDropdown = false;
+    }
+
+    public function clearDefaultEquipment(): void
+    {
+        $this->default_equipment_id = null;
+    }
+
+    public function clearDefaultAnalyst(): void
+    {
+        $this->default_analyst_id = null;
+    }
+
+    public function selectImportWorksheet(string $worksheetId): void
+    {
+        $this->selectedImportWorksheetId = $worksheetId;
+    }
+
+    public function clearSelectedImportWorksheet(): void
+    {
+        $this->selectedImportWorksheetId = null;
+    }
+
+    public function dismissDeleteConfigFieldModal(): void
+    {
+        $this->showDeleteConfigFieldModalOpen = false;
+    }
+
+    public function dismissDeleteTestKitColumnModal(): void
+    {
+        $this->showDeleteTestKitColumnModalOpen = false;
+    }
+
+    public function setDefaultMeasurandValue(string $measurandId, ?string $value): void
+    {
+        if ($value === null || $value === '') {
+            unset($this->default_measurand_values[$measurandId]);
+
+            return;
+        }
+
+        $this->default_measurand_values[$measurandId] = $value;
+    }
+
     public function updatedWorksheetId($value): void
     {
         $this->resetPage();
@@ -263,11 +474,13 @@ class ProcedureWorksheetEditor extends Component
                 ->limit(10)->get();
         }
 
-        $measurands = [];
-        if ($this->showMeasurandDropdown) {
-            $measurands = ReportingUnit::where('name', 'like', '%' . $this->measurandSearch . '%')
-                ->limit(10)->get();
-        }
+        $measurands = $this->showMeasurandDropdown
+            ? $this->searchMeasurands($this->measurandSearch)
+            : collect();
+
+        $logbookEquipments = $this->showLogbookEquipmentDropdown
+            ? $this->searchEquipments($this->logbookEquipmentSearch)
+            : collect();
 
         // Normalize potential JSON/array IDs (from json columns) to a single scalar ID
         $equipmentId = is_array($this->default_equipment_id)
@@ -281,6 +494,46 @@ class ProcedureWorksheetEditor extends Component
         $selectedEquipment = $equipmentId ? Equipment::find($equipmentId) : null;
         $selectedAnalyst = $analystId ? User::find($analystId) : null;
         $selectedMeasurands = ReportingUnit::whereIn('id', $this->default_measurand_ids)->get();
+        $selectedLogbookEquipments = Equipment::whereIn('id', $this->logbook_equipment_ids)->get();
+
+        $methods = [];
+        if ($this->showMethodDropdown) {
+            $methods = AnalysisMethod::query()
+                ->where('active', 1)
+                ->where(function ($query) {
+                    $query->where('name', 'like', '%' . $this->methodSearch . '%')
+                        ->orWhere('code', 'like', '%' . $this->methodSearch . '%');
+                })
+                ->orderBy('name')
+                ->limit(12)
+                ->get();
+        }
+
+        $defaultValueEquipments = [];
+        if ($this->showDefaultValueEquipmentDropdown) {
+            $defaultValueEquipments = Equipment::query()
+                ->where('name', 'like', '%' . $this->defaultValueEquipmentSearch . '%')
+                ->orWhere('equipment_number', 'like', '%' . $this->defaultValueEquipmentSearch . '%')
+                ->orderBy('name')
+                ->limit(12)
+                ->get();
+        }
+
+        $selectedDefaultMethod = ($this->value_type === 'method_select' && $this->default_value !== '')
+            ? AnalysisMethod::find($this->default_value)
+            : null;
+
+        $selectedDefaultValueEquipment = ($this->value_type === 'equipment_select' && $this->default_value !== '')
+            ? Equipment::find($this->default_value)
+            : null;
+
+        $methodOptionsList = ($this->showModal && $this->value_type === 'method_select')
+            ? AnalysisMethod::query()->where('active', 1)->orderBy('name')->get(['id', 'name', 'code'])
+            : collect();
+
+        $equipmentOptionsList = ($this->showModal && $this->value_type === 'equipment_select')
+            ? Equipment::query()->orderBy('name')->get(['id', 'name', 'equipment_number'])
+            : collect();
 
         return view('livewire.procedures.procedure-worksheet-editor', [
             'worksheet' => $worksheet,
@@ -288,9 +541,17 @@ class ProcedureWorksheetEditor extends Component
             'equipments' => $equipments,
             'analysts' => $analysts,
             'measurands' => $measurands,
+            'logbookEquipments' => $logbookEquipments,
             'selectedEquipment' => $selectedEquipment,
+            'selectedLogbookEquipments' => $selectedLogbookEquipments,
             'selectedAnalyst' => $selectedAnalyst,
             'selectedMeasurands' => $selectedMeasurands,
+            'methods' => $methods,
+            'defaultValueEquipments' => $defaultValueEquipments,
+            'selectedDefaultMethod' => $selectedDefaultMethod,
+            'selectedDefaultValueEquipment' => $selectedDefaultValueEquipment,
+            'methodOptionsList' => $methodOptionsList,
+            'equipmentOptionsList' => $equipmentOptionsList,
             'configFields' => $this->configFields,
             'testKitColumns' => $this->testKitColumns,
         ]);
@@ -309,18 +570,58 @@ class ProcedureWorksheetEditor extends Component
         $this->editingStepId = $id;
         $this->step = $step->step;
         $this->is_active = $step->is_active;
+        $this->is_result_step = (bool) $step->is_result_step;
+        $this->attracts_equipment_logbook = (bool) $step->attracts_equipment_logbook;
+        $this->logbook_equipment_ids = $step->logbook_equipment_ids ?? [];
         $this->default_equipment_id = $step->default_equipment_id;
         $this->default_analyst_id = $step->default_analyst_id;
         $this->default_measurand_ids = $step->default_measurand_ids ?? [];
         $this->value_type = $step->value_type ?: 'text';
         $this->default_value = $step->default_value ?? '';
         $this->default_measurand_values = $step->default_measurand_values ?? [];
+        $this->select_options = $step->select_options ?? [];
         $this->showModal = true;
     }
 
     public function save()
     {
         $this->validate();
+
+        if ($this->attracts_equipment_logbook) {
+            $this->logbook_equipment_ids = array_values(array_unique(array_map(
+                'strval',
+                $this->logbook_equipment_ids ?? []
+            )));
+
+            if (count($this->logbook_equipment_ids) === 0) {
+                $this->addError('logbook_equipment_ids', 'Select at least one piece of equipment for the logbook.');
+
+                return;
+            }
+        } else {
+            $this->logbook_equipment_ids = [];
+        }
+
+        if ($this->value_type === 'custom_select') {
+            $this->select_options = array_values(array_filter(array_map(
+                fn ($option) => trim((string) $option),
+                $this->select_options
+            )));
+
+            if (count($this->select_options) === 0) {
+                $this->addError('select_options', 'Add at least one option for custom select.');
+
+                return;
+            }
+
+            if ($this->default_value !== '' && ! in_array($this->default_value, $this->select_options, true)) {
+                $this->addError('default_value', 'Default value must be one of the custom options.');
+
+                return;
+            }
+        } else {
+            $this->select_options = [];
+        }
 
         $normalizedDefault = $this->normalizeDefaultValue(
             $this->default_value,
@@ -355,12 +656,16 @@ class ProcedureWorksheetEditor extends Component
                 'procedure_worksheet_id' => $this->worksheetId,
                 'step' => $this->step,
                 'is_active' => $this->is_active,
+                'is_result_step' => $this->is_result_step,
+                'attracts_equipment_logbook' => $this->attracts_equipment_logbook,
+                'logbook_equipment_ids' => $this->attracts_equipment_logbook ? $this->logbook_equipment_ids : null,
                 'default_equipment_id' => $this->default_equipment_id,
                 'default_analyst_id' => $this->default_analyst_id,
                 'default_measurand_ids' => $this->default_measurand_ids,
                 'value_type' => $this->value_type,
                 'default_value' => $normalizedDefault,
                 'default_measurand_values' => $normalizedMeasurandDefaults,
+                'select_options' => $this->value_type === 'custom_select' ? $this->select_options : null,
             ]
         );
 
@@ -407,20 +712,109 @@ class ProcedureWorksheetEditor extends Component
         $step->save();
     }
 
+    /**
+     * @return Collection<int, ReportingUnit>
+     */
+    protected function searchMeasurands(string $search): Collection
+    {
+        $query = ReportingUnit::query()->orderBy('name');
+
+        $term = trim($search);
+        if ($term !== '') {
+            if (DB::connection()->getDriverName() === 'pgsql') {
+                $query->where('name', 'ilike', '%' . $term . '%');
+            } else {
+                $query->whereRaw('LOWER(name) LIKE ?', ['%' . mb_strtolower($term) . '%']);
+            }
+        }
+
+        return $query->limit(15)->get();
+    }
+
+    /**
+     * @return Collection<int, Equipment>
+     */
+    protected function searchEquipments(string $search): Collection
+    {
+        $query = Equipment::query()->orderBy('name');
+
+        $term = trim($search);
+        if ($term !== '') {
+            if (DB::connection()->getDriverName() === 'pgsql') {
+                $query->where(function ($q) use ($term) {
+                    $q->where('name', 'ilike', '%' . $term . '%')
+                        ->orWhere('equipment_number', 'ilike', '%' . $term . '%');
+                });
+            } else {
+                $like = '%' . mb_strtolower($term) . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->whereRaw('LOWER(name) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(equipment_number) LIKE ?', [$like]);
+                });
+            }
+        }
+
+        return $query->limit(15)->get();
+    }
+
     public function resetForm()
     {
         $this->editingStepId = null;
         $this->step = '';
         $this->is_active = true;
+        $this->is_result_step = false;
+        $this->attracts_equipment_logbook = false;
+        $this->logbook_equipment_ids = [];
         $this->default_equipment_id = null;
         $this->default_analyst_id = null;
         $this->default_measurand_ids = [];
         $this->value_type = 'text';
         $this->default_value = '';
         $this->default_measurand_values = [];
+        $this->select_options = [];
+        $this->newSelectOption = '';
         $this->equipmentSearch = '';
+        $this->logbookEquipmentSearch = '';
         $this->analystSearch = '';
         $this->measurandSearch = '';
+        $this->methodSearch = '';
+        $this->defaultValueEquipmentSearch = '';
+        $this->showMethodDropdown = false;
+        $this->showDefaultValueEquipmentDropdown = false;
+        $this->showMeasurandDropdown = false;
+        $this->showLogbookEquipmentDropdown = false;
+    }
+
+    public function updatedAttractsEquipmentLogbook($value): void
+    {
+        if (! filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+            $this->logbook_equipment_ids = [];
+            $this->logbookEquipmentSearch = '';
+            $this->closeLogbookEquipmentDropdown();
+        }
+    }
+
+    public function toggleLogbookEquipment(string $id): void
+    {
+        $id = (string) $id;
+
+        if (in_array($id, $this->logbook_equipment_ids, true)) {
+            $this->logbook_equipment_ids = array_values(array_filter(
+                $this->logbook_equipment_ids,
+                fn ($existingId) => (string) $existingId !== $id
+            ));
+        } else {
+            $this->logbook_equipment_ids[] = $id;
+        }
+    }
+
+    public function removeLogbookEquipment(string $id): void
+    {
+        $id = (string) $id;
+        $this->logbook_equipment_ids = array_values(array_filter(
+            $this->logbook_equipment_ids,
+            fn ($existingId) => (string) $existingId !== $id
+        ));
     }
 
     public function selectEquipment($id)
@@ -474,12 +868,16 @@ class ProcedureWorksheetEditor extends Component
                     'procedure_worksheet_id' => $this->worksheetId,
                     'step' => $step->step,
                     'is_active' => $step->is_active,
+                    'is_result_step' => (bool) $step->is_result_step,
+                    'attracts_equipment_logbook' => (bool) $step->attracts_equipment_logbook,
+                    'logbook_equipment_ids' => $step->logbook_equipment_ids,
                     'default_equipment_id' => $step->default_equipment_id,
                     'default_analyst_id' => $step->default_analyst_id,
                     'default_measurand_ids' => $step->default_measurand_ids,
                     'value_type' => $step->value_type ?: 'text',
                     'default_value' => $step->default_value,
                     'default_measurand_values' => $step->default_measurand_values,
+                    'select_options' => $step->select_options,
                     'order' => $currentMaxOrder,
                 ]);
             }

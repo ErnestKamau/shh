@@ -153,6 +153,26 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
     /**
      * @param  list<array<string, mixed>>  $configPayload
      */
+    private function resolvePrimaryZoneIdFromConfig(array $configPayload): ?string
+    {
+        foreach ($configPayload as $config) {
+            if (! is_array($config)) {
+                continue;
+            }
+
+            $zoneId = $config['zone_id'] ?? $config['lab_id'] ?? null;
+
+            if ($zoneId !== null && (string) $zoneId !== '') {
+                return (string) $zoneId;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configPayload
+     */
     private function resolvePrimaryLabIdFromConfig(array $configPayload): ?string
     {
         foreach ($configPayload as $config) {

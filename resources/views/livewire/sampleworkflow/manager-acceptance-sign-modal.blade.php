@@ -1,7 +1,7 @@
 <div class="acc-wizard-root">
     @if($showModal && $acceptanceForm)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-lg acc-wizard-dialog" role="document">
+            <div class="modal-dialog modal-xl acc-wizard-dialog" role="document">
                 <div class="modal-content acc-wizard-modal">
                     <div class="acc-wizard-header">
                         <div class="acc-wizard-header-text">
@@ -26,12 +26,73 @@
                     </div>
 
                     <div class="acc-wizard-body">
-                        @if($acceptanceForm->processing_error)
+                        @if(! $acceptanceForm->sample_header_id)
+                            <div class="alert alert-danger mb-3" role="alert">
+                                <i class="mdi mdi-alert-circle-outline"></i>
+                                Sample batch has not been created yet.
+                                @if($acceptanceForm->processing_error)
+                                    {{ $acceptanceForm->processing_error }}
+                                @else
+                                    Batch creation may still be running. Refresh the page and try again, or contact support if this persists.
+                                @endif
+                            </div>
+                        @elseif($acceptanceForm->processing_error)
                             <div class="alert alert-warning mb-3" role="alert">
                                 <i class="mdi mdi-alert-outline"></i>
                                 Batch creation reported an error: {{ $acceptanceForm->processing_error }}
                             </div>
                         @endif
+
+                        <section class="acc-wizard-section">
+                            <h6 class="acc-wizard-section-title">Analysis acceptance (GCLA / F/03)</h6>
+                            <div class="row acc-wizard-fields mb-0">
+                                <div class="col-md-3 mb-3">
+                                    <span class="acc-label d-block">Customer</span>
+                                    <span class="acc-summary-value">{{ $acceptanceForm->customer_name ?: '—' }}</span>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <span class="acc-label d-block">Request date</span>
+                                    <span class="acc-summary-value">{{ optional($acceptanceForm->request_date)->format('Y-m-d') ?? '—' }}</span>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <span class="acc-label d-block">Date of sampling</span>
+                                    <span class="acc-summary-value">{{ optional($acceptanceForm->date_of_sampling)->format('Y-m-d') ?? '—' }}</span>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <span class="acc-label d-block">Mode of work</span>
+                                    <span class="acc-summary-value">{{ $acceptanceForm->mode_of_work ?: '—' }}</span>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <span class="acc-label d-block">Number of samples</span>
+                                    <span class="acc-summary-value">{{ $acceptanceForm->number_of_samples }}</span>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <span class="acc-label d-block">Customer signed</span>
+                                    <span class="acc-summary-value">
+                                        {{ $acceptanceForm->customer_signer_name ?: '—' }}
+                                        @if($acceptanceForm->customer_signed_at)
+                                            <small class="text-muted d-block">{{ $acceptanceForm->customer_signed_at->format('d M Y, H:i') }}</small>
+                                        @endif
+                                    </span>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <span class="acc-label d-block">Pricelist</span>
+                                    <span class="acc-summary-value">{{ $acceptanceForm->pricelist?->description ?? $acceptanceForm->pricelist?->code ?? '—' }}</span>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <span class="acc-label d-block">Total amount</span>
+                                    <span class="acc-summary-value">{{ number_format((float) $acceptanceForm->total_amount, 2) }}</span>
+                                </div>
+                            </div>
+                            @if($acceptanceForm->customer_signature && str_starts_with((string) $acceptanceForm->customer_signature, 'data:image'))
+                                <div class="mt-1">
+                                    <span class="acc-label d-block">Customer signature (acceptance form)</span>
+                                    <div class="acc-signature-review">
+                                        <img src="{{ $acceptanceForm->customer_signature }}" alt="Customer acceptance signature">
+                                    </div>
+                                </div>
+                            @endif
+                        </section>
 
                         <section class="acc-wizard-section">
                             <h6 class="acc-wizard-section-title">Batch assignments</h6>
@@ -61,48 +122,65 @@
                         </section>
 
                         <section class="acc-wizard-section acc-pricing-section">
-                                <h6 class="acc-wizard-section-title mb-2">Parameters &amp; pricing</h6>
-                                <div class="acc-pricing-table-wrap">
-                                    <table class="table acc-pricing-table mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th class="col-no">No</th>
-                                                <th>Parameter</th>
-                                                <th class="text-right col-amount">Line total</th>
+                            <h6 class="acc-wizard-section-title mb-2">Parameters &amp; pricing</h6>
+                            <div class="acc-pricing-table-wrap">
+                                <table class="table acc-pricing-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-no">No</th>
+                                            <th>Parameter</th>
+                                            <th>Sample type</th>
+                                            <th>Analysis type</th>
+                                            <th class="text-right col-amount">Unit</th>
+                                            <th class="col-samples">Qty</th>
+                                            <th class="text-right col-amount">Line total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($acceptanceForm->lines->where('is_approved', true) as $line)
+                                            @php $lineTotal = (float) $line->unit_amount * max(1, (int) $line->number_of_samples); @endphp
+                                            <tr wire:key="manager-sign-line-{{ $line->id }}">
+                                                <td>{{ $line->line_no }}</td>
+                                                <td class="acc-param-name">{{ $line->parameter_label }}</td>
+                                                <td>{{ $line->sampleType?->name ?? '—' }}</td>
+                                                <td>{{ $line->analysisType?->name ?? '—' }}</td>
+                                                <td class="text-right acc-amount">{{ number_format((float) $line->unit_amount, 2) }}</td>
+                                                <td>{{ $line->number_of_samples }}</td>
+                                                <td class="text-right acc-amount">{{ number_format($lineTotal, 2) }}</td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($acceptanceForm->lines->where('is_approved', true) as $line)
-                                                @php $lineTotal = (float) $line->unit_amount * max(1, (int) $line->number_of_samples); @endphp
-                                                <tr wire:key="manager-sign-line-{{ $line->id }}">
-                                                    <td>{{ $line->line_no }}</td>
-                                                    <td class="acc-param-name">{{ $line->parameter_label }}</td>
-                                                    <td class="text-right acc-amount">{{ number_format($lineTotal, 2) }}</td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                        <tfoot>
-                                            <tr>
-                                                <td colspan="2" class="text-right font-weight-bold">Total</td>
-                                                <td class="text-right acc-amount font-weight-bold">{{ number_format((float) $acceptanceForm->total_amount, 2) }}</td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </section>
+                                        @endforeach
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="6" class="text-right font-weight-bold">Total</td>
+                                            <td class="text-right acc-amount font-weight-bold">{{ number_format((float) $acceptanceForm->total_amount, 2) }}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </section>
 
                         <section class="acc-wizard-section">
                             <h6 class="acc-wizard-section-title mb-2">Sample Receipt Notification (GCLA 01)</h6>
-                            @include('livewire.partials.receipt-notification-wire-fields', [
-                                'wirePrefix' => 'receiptNotificationForm.',
-                                'canvasPrefix' => 'mgr-acc-receipt',
-                                'readOnly' => false,
-                                'partLabel' => null,
-                                'showSubmitterSection' => true,
-                                'submitterReadOnly' => true,
-                                'showSubmitterSigningNotice' => false,
+                            <p class="acc-wizard-hint mb-3">Captured at customer sign — review before approving.</p>
+                            @include('livewire.partials.receipt-notification-review-fields', [
+                                'receiptForm' => $receiptNotificationForm,
                             ])
                         </section>
+
+                        @if($showSampleDisclaimer)
+                            <section class="acc-wizard-section">
+                                <h6 class="acc-wizard-section-title mb-2">Sample receiving disclaimer</h6>
+                                @include('livewire.partials.sample-disclaimer-wire-fields', [
+                                    'wirePrefix' => 'disclaimerForm.',
+                                    'canvasPrefix' => 'mgr-acc-disclaimer',
+                                    'readOnly' => true,
+                                    'disclaimantDisplay' => $disclaimerForm['disclaimant_name'] ?? '',
+                                    'claimantSignatureDisplay' => $disclaimerForm['claimant_signature'] ?? '',
+                                    'analystSignatureDisplay' => $disclaimerForm['analyst_signature'] ?? '',
+                                ])
+                            </section>
+                        @endif
 
                             <section class="acc-wizard-section">
                                 <div class="acc-cert-card">
@@ -146,6 +224,7 @@
                             class="btn acc-btn-success"
                             id="manager-acceptance-sign-submit"
                             wire:loading.attr="disabled"
+                            @disabled(! $acceptanceForm->sample_header_id)
                         >
                             <span wire:loading.remove wire:target="submitManagerSign">Approve &amp; complete</span>
                             <span wire:loading wire:target="submitManagerSign">Submitting…</span>
@@ -157,6 +236,104 @@
     @endif
 
     <style>
+        .acc-wizard-root {
+            --acc-accent: #3b5fc0;
+            --acc-border: #e2e8f0;
+            --acc-muted: #64748b;
+            --acc-text: #0f172a;
+        }
+
+        .acc-wizard-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1050;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.52);
+            backdrop-filter: blur(4px);
+        }
+
+        .acc-wizard-dialog {
+            max-width: 1140px;
+            margin: 0;
+            width: 100%;
+        }
+
+        .acc-pricing-table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--acc-border);
+            border-radius: 10px;
+        }
+
+        .acc-pricing-table {
+            margin: 0;
+            font-size: 0.875rem;
+        }
+
+        .acc-pricing-table thead th {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--acc-muted);
+            background: #f8fafc;
+            border-bottom: 1px solid var(--acc-border);
+            white-space: nowrap;
+        }
+
+        .acc-pricing-table .col-no { width: 48px; }
+        .acc-pricing-table .col-amount { width: 100px; }
+        .acc-pricing-table .col-samples { width: 72px; }
+
+        .acc-signature-review {
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 0.5rem;
+            max-width: 420px;
+            background: #fff;
+        }
+
+        .acc-signature-review img {
+            max-width: 100%;
+            max-height: 140px;
+            display: block;
+        }
+
+        .acc-wizard-modal {
+            border: none;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+        }
+
+        .acc-wizard-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.25rem 1.5rem;
+            background: #fff;
+            color: var(--acc-text);
+            border-bottom: 1px solid var(--acc-border);
+        }
+
+        .acc-wizard-body {
+            max-height: min(70vh, 720px);
+            overflow-y: auto;
+            padding: 1.25rem 1.5rem;
+        }
+
+        .acc-wizard-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--acc-border);
+            background: #f8fafc;
+        }
+
         .acc-wizard-steps--two {
             grid-template-columns: repeat(2, 1fr);
         }
@@ -340,15 +517,11 @@
         document.addEventListener('livewire:init', function () {
             Livewire.on('manager-acceptance-sign-opened', function () {
                 setTimeout(initManagerSignaturePad, 300);
-                setTimeout(initManagerReceiptPads, 360);
             });
 
             Livewire.hook('morph.updated', function () {
                 if (document.getElementById('manager-acceptance-signature-canvas')) {
                     setTimeout(initManagerSignaturePad, 200);
-                }
-                if (document.getElementById('mgr-acc-receipt-submitter-canvas')) {
-                    setTimeout(initManagerReceiptPads, 220);
                 }
             });
         });

@@ -1,4 +1,4 @@
-<div class="container-fluid">
+<div class="container-fluid standards-page">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -140,7 +140,7 @@
                             </div>
                             
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover">
+                                <table id="standards-table" class="table table-striped table-hover">
                                     <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Code</th>
@@ -155,45 +155,45 @@
                                         @foreach($this->standards as $standard)
                                             <tr>
                                                 <td>
-                                                    <span class="badge bg-secondary p-2" style="color: white;">{{ $standard->code }}</span>
+                                                    <span class="tag-badge tag-badge--neutral">{{ $standard->code }}</span>
                                                 </td>
                                                 <td>
                                                     <strong>{{ $standard->name }}</strong>
                                                     @if($standard->main_standard)
-                                                        <br><span class="badge bg-warning p-1 mt-1" style="color: white;">Main</span>
+                                                        <br><span class="tag-badge tag-badge--warning mt-1">Main</span>
                                                     @endif
                                                 </td>
                                                 <td>
                                                     @if($standard->is_qc_standard)
-                                                        <span class="badge bg-info p-2" style="color: white;">QC Standard</span>
+                                                        <span class="tag-badge tag-badge--info">QC Standard</span>
                                                     @else
-                                                        <span class="badge bg-primary p-2" style="color: white;">Regular</span>
+                                                        <span class="tag-badge tag-badge--primary">Regular</span>
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-info p-2" style="color: white;">{{ $standard->standardAnalytes->count() }}</span>
+                                                    <span class="tag-badge tag-badge--info">{{ $standard->standardAnalytes->count() }}</span>
                                                 </td>
                                                 <td>
                                                     @if($standard->status)
-                                                        <span class="badge bg-success p-2" style="color: white;">Active</span>
+                                                        <span class="tag-badge tag-badge--success">Active</span>
                                                     @else
-                                                        <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
+                                                        <span class="tag-badge tag-badge--danger">Inactive</span>
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group" role="group">
-                                                        <a href="{{ route('livewire.standard-analytes', ['standardId' => $standard->id]) }}" 
-                                                           class="btn btn-sm btn-outline-primary mr-1" 
+                                                    <div class="d-flex flex-wrap">
+                                                        <a href="{{ route('livewire.standard-analytes', ['standardId' => $standard->id]) }}"
+                                                           class="btn btn-sm rm-act-btn rm-act-btn--view"
                                                            title="View Standard Analytes">
                                                             <i class="mdi mdi-eye"></i>
                                                         </a>
-                                                        <button wire:click="showEditStandardModal({{ $standard->id }})" 
-                                                                class="btn btn-sm btn-outline-warning mr-1" 
+                                                        <button wire:click="showEditStandardModal(@js($standard->id))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--edit"
                                                                 title="Edit">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
-                                                        <button wire:click="deleteStandard({{ $standard->id }})" 
-                                                                class="btn btn-sm btn-outline-danger mr-1" 
+                                                        <button wire:click="deleteStandard(@js($standard->id))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                                 title="Delete"
                                                                 onclick="return confirm('Are you sure you want to delete this standard? This will also delete all associated standard analytes.')">
                                                             <i class="mdi mdi-delete"></i>
@@ -245,7 +245,7 @@
                             </div>
                             
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover">
+                                <table id="standard-values-table" class="table table-striped table-hover">
                                     <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Code</th>
@@ -258,27 +258,27 @@
                                         @foreach($this->standardValues as $standardValue)
                                             <tr>
                                                 <td>
-                                                    <span class="badge bg-secondary p-2" style="color: white;">{{ $standardValue->code }}</span>
+                                                    <span class="tag-badge tag-badge--neutral">{{ $standardValue->code }}</span>
                                                 </td>
                                                 <td>
                                                     <strong>{{ $standardValue->name }}</strong>
                                                 </td>
                                                 <td>
                                                     @if($standardValue->status)
-                                                        <span class="badge bg-success p-2" style="color: white;">Active</span>
+                                                        <span class="tag-badge tag-badge--success">Active</span>
                                                     @else
-                                                        <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
+                                                        <span class="tag-badge tag-badge--danger">Inactive</span>
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button wire:click="showEditStandardValueModal({{ $standardValue->id }})" 
-                                                                class="btn btn-sm btn-outline-warning mr-1" 
+                                                    <div class="d-flex flex-wrap">
+                                                        <button wire:click="showEditStandardValueModal(@js($standardValue->id))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--edit"
                                                                 title="Edit">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
-                                                        <button wire:click="deleteStandardValue({{ $standardValue->id }})" 
-                                                                class="btn btn-sm btn-outline-danger mr-1" 
+                                                        <button wire:click="deleteStandardValue(@js($standardValue->id))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                                 title="Delete"
                                                                 onclick="return confirm('Are you sure you want to delete this standard value?')">
                                                             <i class="mdi mdi-delete"></i>
@@ -428,6 +428,107 @@
     @endif
 
     <style>
+    .standards-page .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        line-height: 1.2;
+        white-space: nowrap;
+        border: 1px solid transparent;
+    }
+
+    .standards-page .tag-badge--neutral {
+        background: #f1f5f9;
+        color: #475569;
+        border-color: #e2e8f0;
+    }
+
+    .standards-page .tag-badge--primary {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+    }
+
+    .standards-page .tag-badge--info {
+        background: #ecfeff;
+        color: #0e7490;
+        border-color: #a5f3fc;
+    }
+
+    .standards-page .tag-badge--success {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: #a7f3d0;
+    }
+
+    .standards-page .tag-badge--warning {
+        background: #fffbeb;
+        color: #b45309;
+        border-color: #fde68a;
+    }
+
+    .standards-page .tag-badge--danger {
+        background: #fef2f2;
+        color: #b91c1c;
+        border-color: #fecaca;
+    }
+
+    #standards-table .rm-act-btn,
+    #standard-values-table .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-right: 3px;
+        font-size: 12px;
+    }
+
+    #standards-table .rm-act-btn:last-child,
+    #standard-values-table .rm-act-btn:last-child {
+        margin-right: 0;
+    }
+
+    #standards-table .rm-act-btn--view,
+    #standard-values-table .rm-act-btn--view {
+        border: 1px solid #bbf7d0;
+        color: #15803d;
+        background: #f0fdf4;
+    }
+
+    #standards-table .rm-act-btn--view:hover,
+    #standard-values-table .rm-act-btn--view:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+    }
+
+    #standards-table .rm-act-btn--edit,
+    #standard-values-table .rm-act-btn--edit {
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    #standards-table .rm-act-btn--edit:hover,
+    #standard-values-table .rm-act-btn--edit:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    #standards-table .rm-act-btn--delete,
+    #standard-values-table .rm-act-btn--delete {
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    #standards-table .rm-act-btn--delete:hover,
+    #standard-values-table .rm-act-btn--delete:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+
     .modal.show {
         display: block !important;
     }

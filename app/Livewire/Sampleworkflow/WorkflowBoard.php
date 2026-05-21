@@ -1573,4 +1573,16 @@ class WorkflowBoard extends Component
             'tatTodayCount' => $tatTodayBatches->count(),
         ]);
     }
+
+    public function openManagerAcceptanceSign(string $acceptanceFormId): void
+    {
+        $this->dispatch('open-manager-acceptance-sign', acceptanceFormId: $acceptanceFormId)
+            ->to(ManagerAcceptanceSignModal::class);
+    }
+
+    public function openCustomerAcceptanceSign(string $acceptanceFormId): void
+    {
+        $this->dispatch('open-customer-acceptance-sign', acceptanceFormId: $acceptanceFormId)
+            ->to(CustomerAcceptanceSignModal::class);
+    }
 }

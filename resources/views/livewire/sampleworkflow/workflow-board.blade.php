@@ -1988,7 +1988,7 @@
 																		type="button"
 																		class="btn btn-sm rm-act-btn rm-act-btn--view"
 																		title="Customer sign"
-																		@click.prevent="typeof Livewire !== 'undefined' && Livewire.dispatch('open-customer-acceptance-sign', { acceptanceFormId: '{{ $acceptanceFormAwaitingCustomer->id }}' })"
+																		wire:click="openCustomerAcceptanceSign('{{ $acceptanceFormAwaitingCustomer->id }}')"
 																	>
 																		<i class="mdi mdi-draw"></i>
 																	</button>
@@ -2002,7 +2002,7 @@
 																		type="button"
 																		class="btn btn-sm rm-act-btn rm-act-btn--view"
 																		title="Manager approval"
-																		@click.prevent="typeof Livewire !== 'undefined' && Livewire.dispatch('open-manager-acceptance-sign', { acceptanceFormId: '{{ $acceptanceFormAwaitingManager->id }}' })"
+																		wire:click="openManagerAcceptanceSign('{{ $acceptanceFormAwaitingManager->id }}')"
 																	>
 																		<i class="mdi mdi-clipboard-check-outline"></i>
 																	</button>
@@ -5611,6 +5611,20 @@
 
 	<script>
 		document.addEventListener('livewire:init', function () {
+			Livewire.on('notify', function (payload) {
+				const data = payload?.detail ?? payload ?? {};
+				const type = data.type ?? 'info';
+				const message = data.message ?? data[0]?.message ?? '';
+				if (!message) {
+					return;
+				}
+				if (typeof toastr !== 'undefined') {
+					toastr[type === 'error' ? 'error' : (type === 'warning' ? 'warning' : 'success')](message);
+					return;
+				}
+				alert(message);
+			});
+
 			Livewire.on('acceptance-form-created', function () {
 				window.location.reload();
 			});

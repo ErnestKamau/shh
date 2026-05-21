@@ -2137,7 +2137,7 @@ class ProcedureWorksheetManager extends Component
             'date' => $this->normalizeDateValueForInput($value),
             'time' => $this->normalizeTimeValueForInput($value),
             'datetime' => $this->normalizeDateTimeValueForInput($value),
-            'number', 'text' => $value,
+            'number', 'text', 'method_select', 'equipment_select', 'custom_select' => $value,
             default => $value,
         };
     }
@@ -2236,5 +2236,27 @@ class ProcedureWorksheetManager extends Component
             ->orderBy('name')
             ->get()
             ->map(fn($u) => (object) ['id' => (string) $u->id, 'label' => $u->name ?: $u->email]);
+    }
+
+    /**
+     * Active analysis methods for method_select step value fields.
+     */
+    public function getMethodOptionsProperty(): \Illuminate\Support\Collection
+    {
+        return AnalysisMethod::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($method) {
+                $code = $method->code ?? null;
+                $label = $code
+                    ? sprintf('%s (%s)', $method->name, $code)
+                    : $method->name;
+
+                return (object) [
+                    'id' => (string) $method->id,
+                    'label' => $label,
+                ];
+            });
     }
 }

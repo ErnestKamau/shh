@@ -327,46 +327,34 @@
                                             <td>
                                                 @php
                                                 $selectedMeasurandIds = $stepMeasurandOverrides[$step->id] ?? [];
-                                                $measurandLookup = collect($this->measurandOptions ?? [])
-                                                ->keyBy('id');
-                                                $valueType = $step->value_type ?: 'text';
-                                                $stepInputType = match ($valueType) {
-                                                'number' => 'number',
-                                                'time' => 'time',
-                                                'datetime' => 'datetime-local',
-                                                'date' => 'date',
-                                                default => 'text',
-                                                };
-                                                $requiresDoubleEntry = in_array($stepInputType, ['text', 'number'], true);
+                                                $measurandLookup = collect($this->measurandOptions ?? [])->keyBy('id');
+                                                $resultId = $selectedResults->first()->id;
                                                 @endphp
 
                                                 @if(!empty($selectedMeasurandIds))
-                                                @foreach($selectedMeasurandIds as $mId)
-                                                @php
-                                                $label = optional($measurandLookup->get($mId))->label ?? $mId;
-                                                @endphp
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <span class="badge badge-light border mr-2" style="min-width: 80px;">
-                                                        {{ $label }}
-                                                    </span>
-                                                    <input type="{{ $stepInputType }}" class="form-control form-control-sm"
-                                                        @if($requiresDoubleEntry)
-                                                        data-double-entry-confirm="1"
-                                                        data-confirm-label="{{ $step->step }} - {{ $label }}"
-                                                        @endif
-                                                        wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}.{{ $mId }}"
-                                                        wire:blur="autosaveStepValue({{ $step->id }})">
-                                                </div>
-                                                @endforeach
+                                                    @foreach($selectedMeasurandIds as $mId)
+                                                        @php
+                                                            $label = optional($measurandLookup->get($mId))->label ?? $mId;
+                                                        @endphp
+                                                        <div class="d-flex align-items-center mb-1">
+                                                            <span class="tag-badge tag-badge--neutral mr-2" style="min-width: 80px;">
+                                                                {{ $label }}
+                                                            </span>
+                                                            @include('livewire.worksheets.partials.procedure-step-value-field', [
+                                                                'step' => $step,
+                                                                'wireModel' => "inputValues.{$resultId}.{$step->id}.{$mId}",
+                                                                'confirmLabel' => $step->step . ' - ' . $label,
+                                                                'compact' => true,
+                                                            ])
+                                                        </div>
+                                                    @endforeach
                                                 @else
-                                                {{-- Fallback: single value field when no measurands selected --}}
-                                                <input type="{{ $stepInputType }}" class="form-control"
-                                                    @if($requiresDoubleEntry)
-                                                    data-double-entry-confirm="1"
-                                                    data-confirm-label="{{ $step->step }}"
-                                                    @endif
-                                                    wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}"
-                                                    wire:blur="autosaveStepValue({{ $step->id }})">
+                                                    @include('livewire.worksheets.partials.procedure-step-value-field', [
+                                                        'step' => $step,
+                                                        'wireModel' => "inputValues.{$resultId}.{$step->id}",
+                                                        'confirmLabel' => $step->step,
+                                                        'compact' => false,
+                                                    ])
                                                 @endif
                                             </td>
                                         </tr>

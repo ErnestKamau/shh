@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\SampleReceiptNotificationService;
+use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
 use App\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -40,6 +42,11 @@ class ManagerAcceptanceSignModal extends Component
     /** @var array<string, mixed> */
     public array $receiptNotificationForm = [];
 
+    /** @var array<string, mixed> */
+    public array $disclaimerForm = [];
+
+    public bool $showSampleDisclaimer = false;
+
     #[On('open-manager-acceptance-sign')]
     public function openModal(string $acceptanceFormId): void
     {
@@ -50,6 +57,7 @@ class ManagerAcceptanceSignModal extends Component
                 'lines.sampleType',
                 'lines.analysisType',
                 'customer',
+                'pricelist',
                 'submissionFormInstance',
                 'sampleHeader',
             ])
@@ -61,11 +69,7 @@ class ManagerAcceptanceSignModal extends Component
             return;
         }
 
-        if (!$form->sample_header_id) {
-            $this->dispatch('notify', type: 'error', message: 'Sample batch has not been created yet. Wait for customer signature to complete.');
-
-            return;
-        }
+        $form = $this->ensureSampleBatchExists($form);
 
         $this->resetModal();
         $this->acceptanceFormId = $form->id;
@@ -78,6 +82,12 @@ class ManagerAcceptanceSignModal extends Component
         $this->signatoryOptions = $this->loadSignatoryOptions();
         $this->receiptNotificationForm = app(SampleReceiptNotificationService::class)
             ->resolveFormStateForAcceptanceForm($form);
+
+        $this->showSampleDisclaimer = (bool) $form->raises_sample_disclaimer;
+        $this->disclaimerForm = $this->showSampleDisclaimer
+            ? app(SampleReceivingDisclaimerService::class)->resolveFormStateForAcceptanceForm($form)
+            : SampleReceivingDisclaimerService::emptyForm();
+
         $this->showModal = true;
         $this->dispatch('manager-acceptance-sign-opened');
     }
@@ -314,5 +324,37 @@ class ManagerAcceptanceSignModal extends Component
         $this->analystOptions = [];
         $this->signatoryOptions = [];
         $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
+        $this->disclaimerForm = SampleReceivingDisclaimerService::emptyForm();
+        $this->showSampleDisclaimer = false;
+    }
+
+    private function ensureSampleBatchExists(AnalysisAcceptanceForm $form): AnalysisAcceptanceForm
+    {
+        if ($form->sample_header_id) {
+            return $form->fresh([
+                'lines.sampleType',
+                'lines.analysisType',
+                'customer',
+                'submissionFormInstance',
+                'sampleHeader',
+            ]) ?? $form;
+        }
+
+        try {
+            CreateSamplesFromAcceptanceFormJob::dispatchSync((string) $form->id);
+        } catch (\Throwable) {
+            // Job logs and stores processing_error on the form.
+        }
+
+        $refreshed = $form->fresh([
+            'lines.sampleType',
+            'lines.analysisType',
+            'customer',
+            'pricelist',
+            'submissionFormInstance',
+            'sampleHeader',
+        ]);
+
+        return $refreshed ?? $form;
     }
 }
