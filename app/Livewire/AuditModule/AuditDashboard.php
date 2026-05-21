@@ -119,58 +119,56 @@ class AuditDashboard extends Component
 
     private function loadDashboardStats($startDateTime, $endDateTime)
     {
-        $companyId = getUserCompany() ?? 0;
-        
         // Audits stats
-        $auditsQuery = Audit::where('company_id', $companyId)
+        $auditsQuery = Audit::forCompany()
             ->whereBetween('created_at', [$startDateTime, $endDateTime]);
         
         // NCs stats
-        $ncsQuery = NonConformance::where('company_id', $companyId)
+        $ncsQuery = NonConformance::forCompany()
             ->whereBetween('date_identified', [$startDateTime, $endDateTime]);
         
         // CAPAs stats
-        $capasQuery = CorrectiveAction::where('company_id', $companyId)
+        $capasQuery = CorrectiveAction::forCompany()
             ->whereBetween('created_at', [$startDateTime, $endDateTime]);
         
         $this->stats = [
             'audits' => [
                 'total' => $auditsQuery->count(),
-                'scheduled' => Audit::where('company_id', $companyId)
+                'scheduled' => Audit::forCompany()
                     ->where('status_name', 'Scheduled')
                     ->whereBetween('created_at', [$startDateTime, $endDateTime])
                     ->count(),
-                'in_progress' => Audit::where('company_id', $companyId)
+                'in_progress' => Audit::forCompany()
                     ->whereIn('status_name', ['In Progress', 'Record Findings & NC', 'Findings Review'])
                     ->whereBetween('created_at', [$startDateTime, $endDateTime])
                     ->count(),
-                'rca_phase' => Audit::where('company_id', $companyId)
+                'rca_phase' => Audit::forCompany()
                     ->where('status_name', 'Root Cause Analysis')
                     ->whereBetween('created_at', [$startDateTime, $endDateTime])
                     ->count(),
-                'pending_closure' => Audit::where('company_id', $companyId)
+                'pending_closure' => Audit::forCompany()
                     ->where('status_name', 'Pending Closure')
                     ->whereBetween('created_at', [$startDateTime, $endDateTime])
                     ->count(),
             ],
             'non_conformances' => [
-                'identified' => NonConformance::where('company_id', $companyId)
+                'identified' => NonConformance::forCompany()
                     ->where('status_name', 'Identified')
                     ->whereBetween('date_identified', [$startDateTime, $endDateTime])
                     ->count(),
-                'rca_in_progress' => NonConformance::where('company_id', $companyId)
+                'rca_in_progress' => NonConformance::forCompany()
                     ->where('status_name', 'RCA In Progress')
                     ->whereBetween('date_identified', [$startDateTime, $endDateTime])
                     ->count(),
-                'capa_assigned' => NonConformance::where('company_id', $companyId)
+                'capa_assigned' => NonConformance::forCompany()
                     ->where('status_name', 'CAPA Assigned')
                     ->whereBetween('date_identified', [$startDateTime, $endDateTime])
                     ->count(),
-                'verification_pending' => NonConformance::where('company_id', $companyId)
+                'verification_pending' => NonConformance::forCompany()
                     ->where('status_name', 'Verification Pending')
                     ->whereBetween('date_identified', [$startDateTime, $endDateTime])
                     ->count(),
-                'overdue' => NonConformance::where('company_id', $companyId)
+                'overdue' => NonConformance::forCompany()
                     ->whereNotIn('status_name', ['Closed', 'Cancelled'])
                     ->whereNotNull('target_closure_date')
                     ->where('target_closure_date', '<', now())
@@ -179,15 +177,15 @@ class AuditDashboard extends Component
                 'total' => $ncsQuery->count(),
             ],
             'corrective_actions' => [
-                'in_progress' => CorrectiveAction::where('company_id', $companyId)
+                'in_progress' => CorrectiveAction::forCompany()
                     ->where('status_name', 'In Progress')
                     ->whereBetween('created_at', [$startDateTime, $endDateTime])
                     ->count(),
-                'verified' => CorrectiveAction::where('company_id', $companyId)
+                'verified' => CorrectiveAction::forCompany()
                     ->where('status_name', 'Verified')
                     ->whereBetween('created_at', [$startDateTime, $endDateTime])
                     ->count(),
-                'overdue' => CorrectiveAction::where('company_id', $companyId)
+                'overdue' => CorrectiveAction::forCompany()
                     ->overdue()
                     ->whereBetween('created_at', [$startDateTime, $endDateTime])
                     ->count(),
@@ -198,12 +196,11 @@ class AuditDashboard extends Component
 
     private function loadWorkflowTotals()
     {
-        $companyId = getUserCompany() ?? 0;
         $workflowSteps = getAuditWorkflowSteps();
         $totals = [];
 
         foreach ($workflowSteps as $stepNum => $stepName) {
-            $totals[$stepNum] = Audit::where('company_id', $companyId)
+            $totals[$stepNum] = Audit::forCompany()
                 ->where('status_name', $stepName)
                 ->count();
         }
@@ -213,9 +210,7 @@ class AuditDashboard extends Component
 
     private function loadNCHotspots()
     {
-        $companyId = getUserCompany() ?? 0;
-
-        $this->ncHotspotsByDepartment = NonConformance::where('company_id', $companyId)
+        $this->ncHotspotsByDepartment = NonConformance::forCompany()
             ->whereNotNull('department')
             ->selectRaw('department as label, count(*) as count')
             ->groupBy('department')
@@ -224,7 +219,7 @@ class AuditDashboard extends Component
             ->pluck('count', 'label')
             ->toArray();
 
-        $this->ncHotspotsByOrigin = NonConformance::where('company_id', $companyId)
+        $this->ncHotspotsByOrigin = NonConformance::forCompany()
             ->whereNotNull('origin_name')
             ->selectRaw('origin_name as label, count(*) as count')
             ->groupBy('origin_name')
@@ -233,7 +228,7 @@ class AuditDashboard extends Component
             ->pluck('count', 'label')
             ->toArray();
 
-        $this->ncHotspotsByRiskLevel = NonConformance::where('company_id', $companyId)
+        $this->ncHotspotsByRiskLevel = NonConformance::forCompany()
             ->whereNotNull('risk_level_name')
             ->selectRaw('risk_level_name as label, count(*) as count')
             ->groupBy('risk_level_name')
@@ -245,12 +240,10 @@ class AuditDashboard extends Component
 
     private function loadNCTrends($startDateTime, $endDateTime)
     {
-        $companyId = getUserCompany() ?? 0;
-        
         // Get NC trends for the selected date range
-        $this->ncTrends = NonConformance::where('company_id', $companyId)
+        $this->ncTrends = NonConformance::forCompany()
             ->whereBetween('date_identified', [$startDateTime, $endDateTime])
-            ->selectRaw("DATE_FORMAT(date_identified, '%Y-%m') as month, count(*) as count")
+            ->selectRaw(auditSqlMonthExpression('date_identified') . ' as month, count(*) as count')
             ->groupBy('month')
             ->orderBy('month')
             ->pluck('count', 'month')
@@ -291,14 +284,12 @@ class AuditDashboard extends Component
 
     private function loadDailyAuditTrend($startDate, $endDate)
     {
-        $companyId = getUserCompany() ?? 0;
-        
         // Show hourly data for the selected day
         for ($hour = 0; $hour < 24; $hour++) {
             $hourStart = $startDate->copy()->setHour($hour)->setMinute(0)->setSecond(0);
             $hourEnd = $hourStart->copy()->addHour();
             
-            $baseQuery = Audit::where('company_id', $companyId)
+            $baseQuery = Audit::forCompany()
                 ->whereBetween('created_at', [$hourStart, $hourEnd]);
             
             $created = (clone $baseQuery)->count();
@@ -324,15 +315,13 @@ class AuditDashboard extends Component
 
     private function loadMonthlyAuditTrendDaily($startDate, $endDate)
     {
-        $companyId = getUserCompany() ?? 0;
-        
         // Show daily data for the month
         $currentDate = $startDate->copy();
         while ($currentDate <= $endDate) {
             $dayStart = $currentDate->copy()->startOfDay();
             $dayEnd = $currentDate->copy()->endOfDay();
             
-            $baseQuery = Audit::where('company_id', $companyId)
+            $baseQuery = Audit::forCompany()
                 ->whereBetween('created_at', [$dayStart, $dayEnd]);
             
             $created = (clone $baseQuery)->count();
@@ -354,8 +343,6 @@ class AuditDashboard extends Component
 
     private function loadYearlyAuditTrend($startDate, $endDate)
     {
-        $companyId = getUserCompany() ?? 0;
-        
         // Show monthly data for the year
         $currentDate = $startDate->copy()->startOfMonth();
         while ($currentDate <= $endDate) {
@@ -365,7 +352,7 @@ class AuditDashboard extends Component
             $rangeStart = max($monthStart, $startDate);
             $rangeEnd = min($monthEnd, $endDate);
             
-            $baseQuery = Audit::where('company_id', $companyId)
+            $baseQuery = Audit::forCompany()
                 ->whereBetween('created_at', [$rangeStart, $rangeEnd]);
             
             $created = (clone $baseQuery)->count();
@@ -387,8 +374,6 @@ class AuditDashboard extends Component
 
     private function loadMultiYearAuditTrend($startDate, $endDate)
     {
-        $companyId = getUserCompany() ?? 0;
-        
         // Show yearly data for multi-year view
         $currentDate = $startDate->copy()->startOfYear();
         while ($currentDate <= $endDate) {
@@ -398,7 +383,7 @@ class AuditDashboard extends Component
             $rangeStart = max($yearStart, $startDate);
             $rangeEnd = min($yearEnd, $endDate);
             
-            $baseQuery = Audit::where('company_id', $companyId)
+            $baseQuery = Audit::forCompany()
                 ->whereBetween('created_at', [$rangeStart, $rangeEnd]);
             
             $created = (clone $baseQuery)->count();

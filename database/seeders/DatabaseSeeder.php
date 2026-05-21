@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             SystemSetupSeeder::class,
+            \Database\Seeders\Setup\RegistryModuleSeeder::class,
             WorkflowResponsibilityConfigSeeder::class,
             PersonnelPermissionsSeeder::class,
             CRMPermissionsSeeder::class,

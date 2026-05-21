@@ -84,6 +84,16 @@ class EquipmentManager extends Component
         'daily_log_frequency_labels' => [],
         'daily_log_monitored_by_another_equipment' => false,
         'daily_log_monitored_equipment_id' => null,
+        'purchase_price' => '',
+        'installation_date' => '',
+        'commissioning_date' => '',
+        'detection_limit' => '',
+        'tolerance_limit' => '',
+        'supplier_name' => '',
+        'warranty' => '',
+        'environment' => '',
+        'end_of_life' => '',
+        'end_of_service' => '',
     ];
 
 
@@ -250,6 +260,16 @@ class EquipmentManager extends Component
             'daily_log_frequency_labels' => is_array($equipment->daily_log_frequency_labels ?? null) ? $equipment->daily_log_frequency_labels : [],
             'daily_log_monitored_by_another_equipment' => $equipment->daily_log_monitored_by_another_equipment ?? false,
             'daily_log_monitored_equipment_id' => $equipment->daily_log_monitored_equipment_id ?? null,
+            'purchase_price' => $equipment->purchase_price ?? '',
+            'installation_date' => $equipment->installation_date ? $equipment->installation_date->format('Y-m-d') : '',
+            'commissioning_date' => $equipment->commissioning_date ? $equipment->commissioning_date->format('Y-m-d') : '',
+            'detection_limit' => $equipment->detection_limit ?? '',
+            'tolerance_limit' => $equipment->tolerance_limit ?? '',
+            'supplier_name' => $equipment->supplier_name ?? '',
+            'warranty' => $equipment->warranty ?? '',
+            'environment' => $equipment->environment ?? '',
+            'end_of_life' => $equipment->end_of_life ? $equipment->end_of_life->format('Y-m-d') : '',
+            'end_of_service' => $equipment->end_of_service ? $equipment->end_of_service->format('Y-m-d') : '',
         ];
 
         $this->syncDailyLogFrequencyLabels();
@@ -391,6 +411,16 @@ class EquipmentManager extends Component
             'daily_log_frequency_labels' => [],
             'daily_log_monitored_by_another_equipment' => false,
             'daily_log_monitored_equipment_id' => null,
+            'purchase_price' => '',
+            'installation_date' => '',
+            'commissioning_date' => '',
+            'detection_limit' => '',
+            'tolerance_limit' => '',
+            'supplier_name' => '',
+            'warranty' => '',
+            'environment' => '',
+            'end_of_life' => '',
+            'end_of_service' => '',
         ];
 
         $this->syncDailyLogFrequencyLabels();
@@ -529,7 +559,17 @@ class EquipmentManager extends Component
                 'Previous Calibration Date',
                 'Calibration Interval (Days)',
                 'Previous Maintainance Date',
-                'Intermediate Checks Interval (Days)'
+                'Intermediate Checks Interval (Days)',
+                'Purchase Price',
+                'Installation Date',
+                'Commissioning Date',
+                'Detection Limit',
+                'Tolerance Limit',
+                'Supplier Name',
+                'Warranty',
+                'Environment',
+                'End of Life',
+                'End of Service'
             ]
         ];
 

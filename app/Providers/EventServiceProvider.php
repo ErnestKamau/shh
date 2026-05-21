@@ -32,5 +32,8 @@ class EventServiceProvider extends ServiceProvider
 
 	protected $subscribe = [
 		'App\Listeners\UserEventSubscriber',
+		'App\Listeners\Registry\SendRegistryWorkflowNotificationListener',
+		'App\Listeners\Registry\CreateRegistryAuditLogListener',
+		'App\Listeners\Registry\UpdateRegistryDashboardMetricsListener',
 	];
 }

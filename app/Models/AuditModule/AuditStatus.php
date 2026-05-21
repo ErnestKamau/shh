@@ -2,6 +2,7 @@
 
 namespace App\Models\AuditModule;
 
+use App\Models\AuditModule\Concerns\ScopesAuditConfigurationForCompany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use OwenIt\Auditing\Contracts\Auditable;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class AuditStatus extends Model implements Auditable
 {
     use HasUuids;
+    use ScopesAuditConfigurationForCompany;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -53,14 +55,6 @@ class AuditStatus extends Model implements Auditable
     public function scopeOrdered($query)
     {
         return $query->orderBy('order_index', 'asc');
-    }
-
-    public function scopeForCompany($query)
-    {
-        $companyId = getUserCompany() ?? 0;
-        return $query->where(function($q) use ($companyId) {
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        });
     }
 }
 

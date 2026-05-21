@@ -15,7 +15,7 @@ class CalibrationSnapshotService
 
         $log = MaintainanceCalibrationLog::query()
             ->where('equipment_id', $equipmentId)
-            ->where('type', 'calibration')
+            ->whereIn('type', ['Calibration', 'calibration'])
             ->orderByDesc('date')
             ->orderByDesc('created_at')
             ->first();

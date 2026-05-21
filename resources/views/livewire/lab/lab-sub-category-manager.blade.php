@@ -12,14 +12,9 @@
                             </h2>
                             <p class="text-muted mb-0">Manage lab sub-categories and reagent items</p>
                         </div>
-                        <div>
-                            <button wire:click="toggleFilters" class="btn btn-outline-warning me-2">
-                                <i class="mdi mdi-filter-variant"></i> Filter
-                            </button>
-                            <button wire:click="showCreateSubCategoryModal" class="btn btn-primary">
-                                <i class="mdi mdi-plus"></i> Add Item
-                            </button>
-                        </div>
+                        <button wire:click="showCreateSubCategoryModal" class="btn btn-primary">
+                            <i class="mdi mdi-plus"></i> Add Item
+                        </button>
                     </div>
                 </div>
             </div>
@@ -35,7 +30,6 @@
     @endif
 
     <!-- Filters -->
-    @if($showFilters)
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
@@ -46,42 +40,56 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group mb-3">
+                        <div class="col-md-4">
+                            <div class="form-group mb-3 mb-md-0">
                                 <label class="form-label fw-bold">Search</label>
                                 <input type="text" wire:model.live="search" class="form-control" placeholder="Search by name or description...">
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Filter by Category</label>
-                                <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group mb-3 mb-md-0">
+                                <label class="form-label fw-bold">Category</label>
+                                <select wire:model.live="categoryFilter" class="form-select">
+                                    <option value="">All Categories</option>
                                     @foreach($categories as $category)
-                                        <div class="col-md-6">
-                                            <div class="form-check">
-                                                <input type="checkbox" wire:model.live="selectedCategories" value="{{ $category->id }}" class="form-check-input" id="cat_{{ $category->id }}">
-                                                <label class="form-check-label" for="cat_{{ $category->id }}">
-                                                    {{ $category->name }}
-                                                </label>
-                                            </div>
-                                        </div>
+                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
                                     @endforeach
-                                </div>
+                                </select>
                             </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-12">
-                            <button wire:click="clearFilters" class="btn btn-outline-secondary">
-                                <i class="mdi mdi-refresh"></i> Clear Filters
-                            </button>
+                        <div class="col-md-2">
+                            <div class="form-group mb-3 mb-md-0">
+                                <label class="form-label fw-bold">Status</label>
+                                <select wire:model.live="statusFilter" class="form-select">
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group mb-3 mb-md-0">
+                                <label for="perPage" class="form-label fw-bold">Show</label>
+                                <select wire:model.live="perPage" id="perPage" class="form-select">
+                                    @foreach($perPageOptions as $option)
+                                        <option value="{{ $option }}">{{ $option }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <div class="form-group mb-0">
+                                <label class="form-label fw-bold">&nbsp;</label>
+                                <button wire:click="clearFilters" class="btn btn-outline-secondary w-100" title="Clear filters">
+                                    <i class="mdi mdi-refresh"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    @endif
 
     <!-- Sub-Categories Table -->
     <div class="row">
@@ -90,27 +98,17 @@
                 <div class="card-body">
                     @if($this->subCategories->count() > 0)
                         <!-- Show Entries -->
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="d-flex align-items-center">
-                                <span class="text-muted">
-                                    Showing {{ $this->subCategories->firstItem() ?? 0 }} to {{ $this->subCategories->lastItem() ?? 0 }} of {{ $this->subCategories->total() }} entries
-                                </span>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
-                                <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
-                                    @foreach($perPageOptions as $option)
-                                        <option value="{{ $option }}">{{ $option }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="text-muted">
+                                Showing {{ $this->subCategories->firstItem() ?? 0 }} to {{ $this->subCategories->lastItem() ?? 0 }} of {{ $this->subCategories->total() }} entries
+                            </span>
                         </div>
-                        
+
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover" id="subcategories-table">
+                            <table class="table table-striped table-hover" id="subcategories-table" style="width: 120%;">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
-                                        <th style="width: 60px;">No</th>
+                                        <th style="width: 200px;">Actions</th>
                                         <th style="width: 150px;">Image</th>
                                         <th>Name</th>
                                         <th>Category</th>
@@ -118,13 +116,42 @@
                                         <th>Unit Measure</th>
                                         <th>Status</th>
                                         <th>Description</th>
-                                        <th style="width: 250px;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->subCategories as $subCategory)
                                         <tr>
-                                            <td>{{ $loop->iteration }}</td>
+                                            <td>
+                                                <div class="d-flex flex-wrap">
+                                                    <button wire:click="showEditSubCategoryModal('{{ $subCategory->id }}')"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                                            title="Edit">
+                                                        <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <a href="{{ route('show_lab_sub_category', ['id' => $subCategory->id]) }}"
+                                                       class="btn btn-sm rm-act-btn rm-act-btn--view"
+                                                       title="View Details">
+                                                        <i class="mdi mdi-eye"></i>
+                                                    </a>
+                                                    <a href="{{ route('solutions-preparation-index', ['solutionFilter' => $subCategory->id]) }}"
+                                                       class="btn btn-sm rm-act-btn rm-act-btn--muted"
+                                                       title="Preparations">
+                                                        <i class="mdi mdi-clipboard-list-outline"></i>
+                                                    </a>
+                                                    <button wire:click="cloneSubCategory('{{ $subCategory->id }}')"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--muted"
+                                                            title="Clone"
+                                                            onclick="return confirm('Are you sure you want to clone this sub-category?')">
+                                                        <i class="mdi mdi-content-duplicate"></i>
+                                                    </button>
+                                                    <button wire:click="deleteSubCategory('{{ $subCategory->id }}')"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--delete"
+                                                            title="Delete"
+                                                            onclick="return confirm('Are you sure you want to delete this sub-category?')">
+                                                        <i class="mdi mdi-delete"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
                                             <td>
                                                 @if($subCategory->image)
                                                     <img src="{{ $subCategory->image }}" class="img-thumbnail" style="width: 125px; height: 65px; object-fit: cover;" alt="{{ $subCategory->name }}">
@@ -150,32 +177,6 @@
                                                 @endif
                                             </td>
                                             <td>{{ $subCategory->description }}</td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <button wire:click="showEditSubCategoryModal({{ $subCategory->id }})" 
-                                                            class="btn btn-sm btn-outline-primary" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
-                                                    </button>
-                                                    <a href="{{ route('show_lab_sub_category', ['id' => $subCategory->id]) }}" 
-                                                       class="btn btn-sm btn-outline-success" 
-                                                       title="View Details">
-                                                        <i class="mdi mdi-eye"></i>
-                                                    </a>
-                                                    <button wire:click="cloneSubCategory({{ $subCategory->id }})" 
-                                                            class="btn btn-sm btn-outline-warning" 
-                                                            title="Clone"
-                                                            onclick="return confirm('Are you sure you want to clone this sub-category?')">
-                                                        <i class="mdi mdi-content-duplicate"></i>
-                                                    </button>
-                                                    <button wire:click="deleteSubCategory({{ $subCategory->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
-                                                            title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this sub-category?')">
-                                                        <i class="mdi mdi-delete"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -206,7 +207,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingSubCategory ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingSubCategory ? 'Edit' : 'Add' }} Sub-Category
+                            {{ $editingSubCategory ? 'Edit' : 'Add' }} Solution/Reagent Preparation Configuration
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeSubCategoryModal"></button>
                     </div>
@@ -467,6 +468,61 @@
 
     .btn-close:hover {
         opacity: .75;
+    }
+
+    #subcategories-table .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-right: 3px;
+        font-size: 12px;
+    }
+
+    #subcategories-table .rm-act-btn:last-child {
+        margin-right: 0;
+    }
+
+    #subcategories-table .rm-act-btn--view {
+        border: 1px solid #bbf7d0;
+        color: #15803d;
+        background: #f0fdf4;
+    }
+
+    #subcategories-table .rm-act-btn--view:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+    }
+
+    #subcategories-table .rm-act-btn--edit {
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    #subcategories-table .rm-act-btn--edit:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    #subcategories-table .rm-act-btn--muted {
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        background: #f8fafc;
+    }
+
+    #subcategories-table .rm-act-btn--muted:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    #subcategories-table .rm-act-btn--delete {
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    #subcategories-table .rm-act-btn--delete:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
     }
     </style>
 

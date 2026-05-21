@@ -34,10 +34,22 @@
 					<span class="menu-collapsed">Equipment Dashboard</span>
 				</div>
 			</a>
-			<a href="{{ route('equipment-home') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('equipment-home') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-home') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-tools fa-fw mr-3"></span>
 					<span class="menu-collapsed">Equipment List</span>
+				</div>
+			</a>
+			<a href="{{ route('equipment.monitoring') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment.monitoring*') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-monitor-dashboard fa-fw mr-3"></span>
+					<span class="menu-collapsed">Equipment Monitoring</span>
+				</div>
+			</a>
+			<a href="{{ route('equipment.maintenance') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment.maintenance*') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-calendar-clock fa-fw mr-3"></span>
+					<span class="menu-collapsed">Equipment Maintenance</span>
 				</div>
 			</a>
 			<a href="{{ route('equipment-disposal-home') }}" class="bg-dark list-group-item list-group-item-action">
@@ -58,13 +70,8 @@
 					<span class="menu-collapsed">Asset Locations</span>
 				</div>
 			</a>
-			<a href="{{ route('equipment-checks') }}" class="bg-dark hidden list-group-item list-group-item-action {{ request()->routeIs('equipment-checks') ? 'active' : '' }}">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-notebook-check-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">Equipment Checks</span>
-				</div>
-			</a>
-			<a href="{{ route('equipment-daily-log') }}" class="bg-dark hidden list-group-item list-group-item-action {{ request()->routeIs('equipment-daily-log') ? 'active' : '' }}">
+			{{-- Equipment Checks hidden by request --}}
+			<a href="{{ route('equipment-daily-log') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-daily-log') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-notebook-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Equipment Daily Log</span>
@@ -76,6 +83,7 @@
 					<span class="menu-collapsed">Equipment Reports</span>
 				</div>
 			</a>
+
 
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>

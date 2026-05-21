@@ -544,8 +544,7 @@
             ->ordered()
             ->get();
         
-        $companyId = getUserCompany() ?? 0;
-        $audits = \App\Models\AuditModule\Audit::where('company_id', $companyId)->get();
+        $audits = \App\Models\AuditModule\Audit::forCompany()->get();
         
         // Count audits by status_name
         $statusCounts = [];

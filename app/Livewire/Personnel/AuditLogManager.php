@@ -7,7 +7,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
-use OwenIt\Auditing\Models\Audit;
+use App\Models\Audit;
 
 class AuditLogManager extends Component
 {
@@ -26,6 +26,10 @@ class AuditLogManager extends Component
     public string $sortField = 'audits.created_at';
     public string $sortDirection = 'desc';
     public string $userFilter = '';
+    
+    public string $viewMode = 'users';
+    public ?string $selectedUserName = null;
+    public string $userListSearch = '';
     /** @var array<int, array{id:string,name:string}> */
     public array $users = [];
     /** @var array<int, string> */
@@ -80,6 +84,11 @@ class AuditLogManager extends Component
         $this->resetPage();
     }
 
+    public function updatingUserListSearch(): void
+    {
+        $this->resetPage('usersPage');
+    }
+
     public function updatingUserFilter(): void
     {
         $this->resetPage();
@@ -127,6 +136,29 @@ class AuditLogManager extends Component
         $this->sortField = 'audits.created_at';
         $this->sortDirection = 'desc';
         $this->resetPage();
+    }
+
+    public function viewUserLogs(string $userId, string $userName): void
+    {
+        $this->clearFilters();
+        $this->userFilter = $userId;
+        $this->selectedUserName = $userName;
+        $this->viewMode = 'logs';
+    }
+
+    public function viewSystemLogs(): void
+    {
+        $this->clearFilters();
+        $this->userFilter = 'system';
+        $this->selectedUserName = 'System / Automated Processes';
+        $this->viewMode = 'logs';
+    }
+
+    public function backToUsers(): void
+    {
+        $this->clearFilters();
+        $this->selectedUserName = null;
+        $this->viewMode = 'users';
     }
 
     public function sortBy(string $field): void
@@ -180,6 +212,34 @@ class AuditLogManager extends Component
         $this->showChangesModal = false;
     }
 
+    public function getUsersListProperty(): LengthAwarePaginator
+    {
+        $query = User::query()
+            ->leftJoin('audits', 'users.id', '=', 'audits.user_id')
+            ->select('users.id', 'users.name', 'users.email')
+            ->selectRaw('COUNT(audits.id) as total_logs')
+            ->selectRaw('MAX(audits.created_at) as last_active')
+            ->groupBy('users.id', 'users.name', 'users.email');
+
+        if ($this->userListSearch !== '') {
+            $query->where(function ($q) {
+                $q->where('users.name', 'like', '%' . $this->userListSearch . '%')
+                  ->orWhere('users.email', 'like', '%' . $this->userListSearch . '%');
+            });
+        }
+
+        return $query->orderBy('users.name')->paginate(12, ['*'], 'usersPage');
+    }
+
+    public function getSystemStatsProperty()
+    {
+        return Audit::query()
+            ->whereNull('user_id')
+            ->selectRaw('COUNT(id) as total_logs')
+            ->selectRaw('MAX(created_at) as last_active')
+            ->first();
+    }
+
     public function getAuditsProperty(): LengthAwarePaginator
     {
         $query = Audit::query()
@@ -201,7 +261,9 @@ class AuditLogManager extends Component
             });
         }
 
-        if ($this->userFilter !== '' && Str::isUuid($this->userFilter)) {
+        if ($this->userFilter === 'system') {
+            $query->whereNull('audits.user_id');
+        } elseif ($this->userFilter !== '') {
             $query->where('audits.user_id', $this->userFilter);
         }
 

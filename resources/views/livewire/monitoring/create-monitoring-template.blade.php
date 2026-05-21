@@ -355,59 +355,268 @@
                     <!-- Step 4: Column Structure -->
                     @if($currentStep === 4)
                         <div class="step-content">
-                            <h5 class="mb-3">
-                                <i class="mdi mdi-table-large text-primary"></i>
-                                Define Column Structure
-                            </h5>
-                            <p class="text-muted mb-4">Create columns for your monitoring template (e.g., AM | PM with Initial/Final values).</p>
-
-                            <div class="column-builder">
-                                @forelse($columnStructure as $column)
-                                    <div class="column-card mb-3 p-4 border rounded" style="background: #f8f9fa; border-left: 4px solid #3b82f6;">
-                                        <div class="d-flex justify-content-between align-items-start mb-3">
-                                            <div class="flex-grow-1">
-                                                <label class="form-label form-label--modern">Column Name</label>
-                                                <input type="text" value="{{ $column['name'] }}" wire:change="updateColumnName('{{ $column['id'] }}', $event.target.value)" class="form-control form-control--modern" placeholder="e.g. Morning (AM)">
-                                            </div>
-                                            <button type="button" class="btn btn-outline-danger btn-sm ms-2" wire:click="removeColumn('{{ $column['id'] }}')" title="Remove column">
-                                                <i class="mdi mdi-delete"></i>
-                                            </button>
-                                        </div>
-
-                                        <div class="rows-container">
-                                            <h6 class="mb-2">Field Rows</h6>
-                                            @forelse($column['rows'] as $row)
-                                                <div class="row-item d-flex gap-2 mb-2 align-items-end">
-                                                    <div class="flex-grow-1">
-                                                        <label class="form-label form-label--modern small mb-1">Row Label</label>
-                                                        <input type="text" value="{{ $row['label'] }}" wire:change="updateRowLabel('{{ $column['id'] }}', '{{ $row['id'] }}', $event.target.value)" class="form-control form-control--modern form-control--modern-sm" placeholder="e.g. Initial Value">
-                                                    </div>
-                                                    <button type="button" class="btn btn-outline-danger btn-sm" wire:click="removeRowFromColumn('{{ $column['id'] }}', '{{ $row['id'] }}')" title="Remove row">
-                                                        <i class="mdi mdi-delete"></i>
-                                                    </button>
-                                                </div>
-                                            @empty
-                                                <div class="alert alert-sm alert-info mb-2">No rows defined yet.</div>
-                                            @endforelse
-
-                                            <button type="button" class="btn btn-outline-primary btn-sm" wire:click="addRowToColumn('{{ $column['id'] }}')">
-                                                <i class="mdi mdi-plus"></i> Add Row
-                                            </button>
-                                        </div>
-                                    </div>
-                                @empty
-                                    <div class="alert alert-info mb-3">
-                                        <i class="mdi mdi-information-outline"></i>
-                                        No columns added yet. Add your first column to get started.
-                                    </div>
-                                @endforelse
-
-                                <button type="button" class="btn btn-primary" wire:click="addColumn">
-                                    <i class="mdi mdi-plus"></i> Add Column
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <h5 class="mb-1">
+                                        <i class="mdi mdi-table-large text-primary"></i>
+                                        Define Column Structure
+                                    </h5>
+                                    <p class="text-muted mb-0 small">Create columns for your monitoring template (e.g., AM | PM with Initial/Final values).</p>
+                                </div>
+                                <button type="button" class="btn btn-outline-success btn-sm shadow-sm" wire:click="openVariableModal">
+                                    <i class="mdi mdi-plus-box-outline"></i> Define Custom Variable
                                 </button>
                             </div>
 
+                            <div class="column-builder">
+                                @forelse($columnStructure as $index => $column)
+                                    <div class="column-card mb-4 p-4 border rounded shadow-sm transition-all" style="background: #ffffff; border-left: 5px solid #3b82f6; border-radius: 12px !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;">
+                                        <!-- Column Card Header Toolbar -->
+                                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="bg-light text-primary rounded d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                    <i class="mdi mdi-view-column-outline fs-5"></i>
+                                                </div>
+                                                <div>
+                                                    <span class="fw-bold text-dark text-uppercase small tracking-wider" style="font-size: 0.8rem; letter-spacing: 0.05em;">Column Matrix #{{ $index + 1 }}</span>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn btn-link text-danger p-0 border-0 d-flex align-items-center gap-1 text-decoration-none small hover-scale" wire:click="removeColumn('{{ $column['id'] }}')" title="Remove column" style="transition: all 0.2s; font-size: 0.85rem; font-weight: 500;">
+                                                <i class="mdi mdi-delete-outline" style="font-size: 1.1rem;"></i> Remove Column
+                                            </button>
+                                        </div>
+
+                                        <!-- Column Name Input Group -->
+                                        <div class="mb-4">
+                                            <label class="form-label text-secondary small fw-semibold mb-1">Column Name / Interval</label>
+                                            <div class="input-group shadow-sm rounded-3">
+                                                <span class="input-group-text bg-light border-end-0" style="border-top-left-radius: 8px; border-bottom-left-radius: 8px;">
+                                                    <i class="mdi mdi-rename-box text-muted"></i>
+                                                </span>
+                                                <input type="text" value="{{ $column['name'] }}" wire:change="updateColumnName('{{ $column['id'] }}', $event.target.value)" class="form-control border-start-0 ps-2" placeholder="e.g. Morning (AM) / Afternoon (PM)" style="height: 42px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; font-weight: 500; font-size: 0.95rem;">
+                                            </div>
+                                        </div>
+
+                                        <!-- Rows Segment -->
+                                        <div class="rows-container pt-3 border-top">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h6 class="mb-0 text-dark fw-bold" style="font-size: 0.9rem;">
+                                                    <i class="mdi mdi-format-list-bulleted-type text-muted me-1"></i> Row Fields Configuration
+                                                </h6>
+                                                <span class="badge bg-light text-secondary rounded-pill px-2 py-1 small" style="font-size: 0.75rem;">{{ count($column['rows']) }} Rows</span>
+                                            </div>
+
+                                            @forelse($column['rows'] as $rowIndex => $row)
+                                                <div class="row-item p-3 mb-2 bg-light rounded border" id="row-item-{{ $row['id'] }}" style="border-radius: 8px !important; transition: all 0.3s ease;">
+                                                    {{-- Row fields grid: drag handle | label | type | variable/formula | remove --}}
+                                                    <div class="row-fields-grid">
+                                                        <!-- Drag handle + index -->
+                                                        <div class="row-field-handle text-muted d-flex align-items-center gap-1">
+                                                            <i class="mdi mdi-drag-vertical fs-5" style="cursor: grab;" title="Drag to reorder"></i>
+                                                            <span class="small fw-bold" style="font-size: 0.75rem;">#{{ $rowIndex + 1 }}</span>
+                                                        </div>
+
+                                                        <!-- Row Label & Key -->
+                                                        <div class="row-field-label">
+                                                            <label class="form-label text-secondary small fw-semibold mb-1">Row Label</label>
+                                                            <input type="text" value="{{ $row['label'] }}" wire:change="updateRowLabel('{{ $column['id'] }}', '{{ $row['id'] }}', $event.target.value)" class="form-control form-control-sm shadow-sm" placeholder="e.g. Temperature / Reading" style="height: 38px; border-radius: 6px; font-size: 0.875rem;">
+                                                            @if(!empty($row['field_key']))
+                                                                <div class="mt-1">
+                                                                    <span class="badge bg-white border text-secondary shadow-sm" style="font-family: monospace; font-size: 0.7rem;"><i class="mdi mdi-key-variant text-muted me-1"></i>{{ $row['field_key'] }}</span>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+
+                                                        <!-- Row Type Selection -->
+                                                        <div class="row-field-type">
+                                                            <label class="form-label text-secondary small fw-semibold mb-1">Row Type</label>
+                                                            <select wire:change="updateRowType('{{ $column['id'] }}', '{{ $row['id'] }}', $event.target.value)" class="form-select form-select-sm shadow-sm text-secondary" style="height: 38px; border-radius: 6px; font-size: 0.875rem; font-weight: 500;">
+                                                                <option value="input" {{ ($row['type'] ?? 'input') === 'input' ? 'selected' : '' }}>Data Input (Manual)</option>
+                                                                <option value="formula" {{ ($row['type'] ?? 'input') === 'formula' ? 'selected' : '' }}>Computed Formula</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <!-- Variable / Formula button -->
+                                                        <div class="row-field-variable">
+                                                            @if(($row['type'] ?? 'input') === 'formula')
+                                                                <label class="form-label text-secondary small fw-semibold mb-1">Expression</label>
+                                                                <button
+                                                                    type="button"
+                                                                    class="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-1 fw-semibold"
+                                                                    style="height: 38px; background: #eff6ff; color: #1d4ed8; border: 1.5px solid #93c5fd; border-radius: 6px; font-size: 0.82rem; transition: all 0.2s;"
+                                                                    onclick="(function(){
+                                                                        var target = document.getElementById('expr-panel-{{ $row['id'] }}');
+                                                                        if(target){
+                                                                            target.scrollIntoView({behavior:'smooth', block:'center'});
+                                                                            target.classList.add('expr-panel-flash');
+                                                                            setTimeout(function(){ target.classList.remove('expr-panel-flash'); }, 1400);
+                                                                        }
+                                                                    })()"
+                                                                    title="Click to jump to expression editor below"
+                                                                >
+                                                                    <i class="mdi mdi-function-variant"></i> Configure expression below
+                                                                </button>
+                                                            @else
+                                                                <label class="form-label text-secondary small fw-semibold mb-1">Attached Variable <span class="text-muted fw-normal">(Optional)</span></label>
+                                                                <select wire:change="updateRowVariable('{{ $column['id'] }}', '{{ $row['id'] }}', $event.target.value)" class="form-select form-select-sm shadow-sm text-secondary" style="height: 38px; border-radius: 6px; font-size: 0.875rem; font-weight: 500;">
+                                                                    <option value="">-- None (Manual Input) --</option>
+                                                                    @foreach($this->availableVariables as $var)
+                                                                        <option value="{{ $var['slug'] }}" {{ ($row['variable_slug'] ?? '') === $var['slug'] ? 'selected' : '' }}>
+                                                                            {{ $var['name'] }}
+                                                                        </option>
+                                                                    @endforeach
+                                                                </select>
+                                                            @endif
+                                                        </div>
+
+                                                        <!-- Remove row button -->
+                                                        <div class="row-field-remove d-flex align-items-end pb-0">
+                                                            <button type="button" class="btn btn-outline-danger btn-sm rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" wire:click="removeRowFromColumn('{{ $column['id'] }}', '{{ $row['id'] }}')" title="Remove row" style="width: 34px; height: 34px; flex-shrink: 0; border-color: #fca5a5; background: #fff; transition: all 0.2s;">
+                                                                <i class="mdi mdi-close" style="font-size: 0.95rem;"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    @if(($row['type'] ?? 'input') === 'formula')
+                                                        <!-- Derived Expression Configuration Full-Width Block -->
+                                                        <div class="card bg-white border shadow-sm mt-3 mb-2" id="expr-panel-{{ $row['id'] }}">
+                                                            <div class="card-header bg-light border-bottom py-2">
+                                                                <h6 class="mb-0 text-muted fw-bold" style="font-size: 0.9rem;">
+                                                                    <i class="mdi mdi-function text-primary me-1"></i> Expression Configuration
+                                                                </h6>
+                                                            </div>
+                                                            <div class="card-body p-3">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label fw-bold small text-dark mb-1">Expression <span class="text-danger">*</span></label>
+                                                                    <div class="input-group">
+                                                                        <textarea wire:model.lazy="columnStructure.{{ $index }}.rows.{{ $rowIndex }}.formula_expression" wire:change="updateRowFormulaExpression('{{ $column['id'] }}', '{{ $row['id'] }}', $event.target.value)" class="form-control font-monospace text-primary bg-light @if(isset($row['expression_valid'])) {{ $row['expression_valid'] ? 'is-valid' : 'is-invalid' }} @endif" rows="2" placeholder="e.g., (temperature * 1.8) + 32">{{ $row['formula_expression'] ?? '' }}</textarea>
+                                                                        <button type="button" wire:click="validateRowExpression('{{ $column['id'] }}', '{{ $row['id'] }}')" class="btn btn-outline-info d-flex flex-column align-items-center justify-content-center px-4" style="border-top-right-radius: 6px; border-bottom-right-radius: 6px;">
+                                                                            <i class="mdi mdi-check-circle-outline fs-5 mb-1"></i> Validate
+                                                                        </button>
+                                                                    </div>
+                                                                    @if(isset($row['expression_valid']) && !$row['expression_valid'])
+                                                                        <div class="invalid-feedback d-block mt-2 fw-semibold">
+                                                                            <i class="mdi mdi-alert-circle outline"></i> {{ $row['expression_message'] }}
+                                                                        </div>
+                                                                    @elseif(isset($row['expression_valid']) && $row['expression_valid'])
+                                                                        <div class="valid-feedback d-block mt-2 fw-semibold">
+                                                                            <i class="mdi mdi-check-circle outline"></i> {{ $row['expression_message'] }}
+                                                                        </div>
+                                                                    @endif
+                                                                    <div class="form-text small mt-1">Use variable names from previous steps in your expression. Available variables are listed below.</div>
+                                                                </div>
+                                                                
+                                                                <!-- Available Variables Reference -->
+                                                                <div class="row g-3">
+                                                                    <div class="col-12">
+                                                                        <h6 class="text-muted mb-2 small fw-bold border-bottom pb-1">Available Variables</h6>
+                                                                        @php
+                                                                            $rowVars = $this->getAvailableRowVariables($column['id'], $row['id']);
+                                                                        @endphp
+                                                                        @if(count($rowVars) > 0)
+                                                                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                                                                @foreach($rowVars as $var)
+                                                                                    <div class="badge bg-light text-dark border p-2 d-flex align-items-center shadow-sm" style="cursor: pointer;" onclick="document.querySelector('textarea[wire\\:model\\.lazy=\\'columnStructure.{{ $index }}.rows.{{ $rowIndex }}.formula_expression\\']').value += ' {{ $var['name'] }} '; document.querySelector('textarea[wire\\:model\\.lazy=\\'columnStructure.{{ $index }}.rows.{{ $rowIndex }}.formula_expression\\']').dispatchEvent(new Event('change'));" title="Click to insert">
+                                                                                        <div class="me-2 text-start">
+                                                                                            <code class="text-primary fw-bold">{{ $var['name'] }}</code>
+                                                                                            <small class="text-muted d-block" style="font-size: 0.65rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $var['label'] }}</small>
+                                                                                        </div>
+                                                                                        <span class="badge badge-{{ $var['type'] === 'input' ? 'success' : ($var['type'] === 'formula' ? 'info' : 'secondary') }} badge-sm rounded-pill ms-auto" style="font-size: 0.6rem;">
+                                                                                            {{ ucfirst($var['type']) }}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                @endforeach
+                                                                            </div>
+                                                                        @else
+                                                                            <p class="text-muted small mb-0"><i class="mdi mdi-information-outline"></i> No variables available. Add input rows first.</p>
+                                                                        @endif
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @empty
+                                                <div class="alert alert-sm alert-info py-2 px-3 rounded-3 mb-2" style="font-size: 0.85rem;">
+                                                    <i class="mdi mdi-information-outline me-1"></i> No rows defined in this column yet. Click below to add one.
+                                                </div>
+                                            @endforelse
+
+                                            <!-- Add Row Button link-style -->
+                                            <div class="mt-2">
+                                                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 mt-1 shadow-sm d-inline-flex align-items-center gap-1 fw-semibold hover-scale" wire:click="addRowToColumn('{{ $column['id'] }}')" style="font-size: 0.8rem; transition: all 0.2s;">
+                                                    <i class="mdi mdi-plus-circle-outline fs-6"></i> Add Field Row
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="alert alert-info py-4 px-4 text-center rounded-3 mb-4 shadow-sm" style="border-left: 4px solid #10b981;">
+                                        <div class="fs-1 text-muted mb-2">
+                                            <i class="mdi mdi-table-row-plus-before"></i>
+                                        </div>
+                                        <h6 class="fw-bold text-dark mb-1">No Columns Defined Yet</h6>
+                                        <p class="text-muted small mb-0">Add your first grid column to design the monitoring checklist structure.</p>
+                                    </div>
+                                @endforelse
+
+                                <!-- Add New Column Primary Gradient Action -->
+                                <div class="text-start">
+                                    <button type="button" class="btn btn-primary btn-lg rounded-pill px-4 py-2 mt-2 shadow d-inline-flex align-items-center gap-2 fw-semibold border-0 hover-scale" wire:click="addColumn" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); font-size: 0.95rem; transition: all 0.25s;">
+                                        <i class="mdi mdi-table-column-plus-after fs-5"></i> Add New Column Matrix
+                                    </button>
+                                </div>
+                            </div>
+
+
                             @error('columnStructure') <div class="text-danger small mt-2">{{ $message }}</div> @enderror
+
+                            <!-- Define Custom Variable Modal Overlay -->
+                            @if($showVariableModal)
+                                <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 1050;">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+                                            <div class="modal-header bg-light border-0 p-4" style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
+                                                <h5 class="modal-title font-weight-bold">
+                                                    <i class="mdi mdi-plus-box-outline text-primary me-2"></i> Define New Variable
+                                                </h5>
+                                                <button type="button" class="btn-close" wire:click="closeVariableModal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body p-4">
+                                                <form wire:submit.prevent="createCustomVariable">
+                                                    <div class="mb-3">
+                                                        <label class="form-label form-label--modern">Variable Name <span class="text-danger">*</span></label>
+                                                        <input type="text" wire:model.defer="newVariable.name" class="form-control form-control--modern" placeholder="e.g. Ambient Humidity Correction" required>
+                                                        @error('newVariable.name') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label form-label--modern">Variable Slug / Identifier <span class="text-danger">*</span></label>
+                                                        <input type="text" wire:model.defer="newVariable.slug" class="form-control form-control--modern" placeholder="e.g. ambient_humidity_corr" required>
+                                                        <small class="text-muted">Use lowercase alphanumeric characters and underscores only.</small>
+                                                        @error('newVariable.slug') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label form-label--modern">Constant Value <span class="text-danger">*</span></label>
+                                                        <input type="text" wire:model.defer="newVariable.constant_value" class="form-control form-control--modern" placeholder="e.g. 0.05" required>
+                                                        @error('newVariable.constant_value') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label form-label--modern">Description</label>
+                                                        <textarea wire:model.defer="newVariable.description" class="form-control form-control--modern" rows="3" placeholder="Optional description..."></textarea>
+                                                        @error('newVariable.description') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+                                                    <div class="d-flex justify-content-end gap-2 mt-4">
+                                                        <button type="button" class="btn btn-outline-secondary" wire:click="closeVariableModal">Cancel</button>
+                                                        <button type="submit" class="btn btn-success">
+                                                            <i class="mdi mdi-check me-1"></i> Define Variable
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
 
                             <div class="alert alert-info mt-4">
                                 <strong>Example Structure:</strong><br>
@@ -567,6 +776,33 @@
             margin-top: 15px;
             padding-top: 15px;
             border-top: 1px solid #e5e7eb;
+        }
+
+        /* Row fields CSS grid — evenly spaced columns */
+        .row-fields-grid {
+            display: grid;
+            grid-template-columns: 44px 2fr 1.4fr 2fr 44px;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .row-field-handle {
+            display: flex;
+            align-items: flex-end;
+            padding-bottom: 4px;
+        }
+
+        /* Flash highlight animation for expression panel */
+        @keyframes exprPanelFlash {
+            0%   { box-shadow: 0 0 0 3px rgba(59,130,246,0); background: #fff; }
+            20%  { box-shadow: 0 0 0 4px rgba(59,130,246,0.55); background: #eff6ff; }
+            60%  { box-shadow: 0 0 0 4px rgba(59,130,246,0.35); background: #eff6ff; }
+            100% { box-shadow: 0 0 0 0px rgba(59,130,246,0); background: #fff; }
+        }
+
+        .expr-panel-flash {
+            animation: exprPanelFlash 1.4s ease forwards;
+            border-radius: 8px;
         }
     </style>
 </div>

@@ -17,7 +17,14 @@ class AuthServiceProvider extends ServiceProvider
     protected $policies = [
         // 'App\Model' => 'App\Policies\ModelPolicy',
         // \App\Models\CertificateTemplate::class => \App\Policies\CertificateTemplatePolicy::class,
+        \App\Models\Lab\EquipmentUsageRequest::class => \App\Policies\Lab\EquipmentUsageRequestPolicy::class,
+        \App\Models\Registry\RegistryRequest::class => \App\Policies\RegistryRequestPolicy::class,
     ];
+
+    /**
+     * Portal dashboard authorization is enforced via {@see \App\Http\Requests\Api\Dashboard\DashboardCustomerRequest}
+     * and {@see \App\Policies\DashboardPolicy} for programmatic checks.
+     */
 
     /**
      * Register any authentication / authorization services.

@@ -133,7 +133,7 @@
 				</a>
 				@endcan
 			</div>
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="position: fixed;bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center text-white">
 				{{ __('system.copyright') }} {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->

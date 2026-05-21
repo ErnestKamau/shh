@@ -52,4 +52,9 @@ class LabStockMovement extends Model implements Auditable
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function preparation()
+    {
+        return $this->belongsTo(\App\Models\SolutionPreparation::class, 'preparation_id');
+    }
 }

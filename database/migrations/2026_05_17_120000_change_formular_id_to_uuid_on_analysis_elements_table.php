@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    public $withinTransaction = false;
+
     public function up(): void
     {
         if (! Schema::hasTable('analysis_elements') || ! Schema::hasColumn('analysis_elements', 'formular_id')) {
@@ -23,7 +25,13 @@ return new class extends Migration
 
         $this->dropFormularForeignKeyIfExists();
 
-        DB::statement('ALTER TABLE analysis_elements ALTER COLUMN formular_id TYPE uuid USING NULL');
+        if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE analysis_elements ALTER COLUMN formular_id TYPE uuid USING NULL');
+        } else {
+            Schema::table('analysis_elements', function (Blueprint $table): void {
+                $table->uuid('formular_id')->nullable()->change();
+            });
+        }
 
         $this->ensureFormularForeignKey();
     }
@@ -59,6 +67,27 @@ return new class extends Migration
             return;
         }
 
+        if ($this->foreignKeyExistsOnColumn('analysis_elements', 'formular_id')) {
+            Schema::table('analysis_elements', function (Blueprint $table): void {
+                $table->dropForeign(['formular_id']);
+            });
+        }
+    }
+
+    private function foreignKeyExistsOnColumn(string $table, string $column): bool
+    {
+        $schema = Schema::getConnection()->getConfig('schema') ?? 'public';
+
+        return (bool) DB::table('information_schema.key_column_usage as kcu')
+            ->join('information_schema.table_constraints as tc', function ($join): void {
+                $join->on('tc.constraint_name', '=', 'kcu.constraint_name')
+                    ->on('tc.table_schema', '=', 'kcu.table_schema');
+            })
+            ->where('tc.constraint_type', 'FOREIGN KEY')
+            ->where('kcu.table_schema', $schema)
+            ->where('kcu.table_name', $table)
+            ->where('kcu.column_name', $column)
+            ->exists();
     }
 
     private function ensureFormularForeignKey(): void

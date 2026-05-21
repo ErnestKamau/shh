@@ -19,14 +19,14 @@ class Result extends Model implements Auditable
     protected $guarded  =['id'];
 
     protected $casts = [
-        'sample_detail_code' => 'encrypted',
-        'analyte_code' => 'encrypted',
-        'result' => 'encrypted',
-        'guide' => 'encrypted',
-        'comments' => 'encrypted',
-        'recommendations' => 'encrypted',
-        'remarks' => 'encrypted',
-        'scienctific_result' => 'encrypted',
+        'sample_detail_code' => \App\Casts\SafeEncrypted::class,
+        'analyte_code' => \App\Casts\SafeEncrypted::class,
+        'result' => \App\Casts\SafeEncrypted::class,
+        'guide' => \App\Casts\SafeEncrypted::class,
+        'comments' => \App\Casts\SafeEncrypted::class,
+        'recommendations' => \App\Casts\SafeEncrypted::class,
+        'remarks' => \App\Casts\SafeEncrypted::class,
+        'scienctific_result' => \App\Casts\SafeEncrypted::class,
     ];
 
     public function captured(){

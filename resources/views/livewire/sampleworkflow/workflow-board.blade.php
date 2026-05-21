@@ -1,4 +1,48 @@
-<div class="container-fluid workflow-board-page lab-panel-theme">
+<div class="container-fluid workflow-board-page lab-panel-theme"
+	x-data="{
+		selectedCount: 0,
+		selectedInstanceIds() {
+			return Array.from(document.querySelectorAll('input[data-instance-select]:checked')).map((el) => el.value);
+		},
+		refreshSelectionCount() {
+			this.selectedCount = document.querySelectorAll('input[data-instance-select]:checked').length;
+		},
+		onSelectionChange(event) {
+			if (event.target && event.target.matches && event.target.matches('input[data-instance-select]')) {
+				this.refreshSelectionCount();
+				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
+					window.rebuildWorkflowSelectionLists();
+				}
+			}
+		},
+		init() {
+			this.refreshSelectionCount();
+			if (typeof Livewire !== 'undefined') {
+				Livewire.hook('morph.updated', () => this.refreshSelectionCount());
+			}
+		},
+		openInterzoneFullRequest() {
+			const ids = this.selectedInstanceIds();
+			if (!ids.length) {
+				alert('Select at least one request row first.');
+				return;
+			}
+			Livewire.dispatch('open-interzone-transfer', { mode: 'full_request', instanceIds: ids });
+		},
+		openInterzoneFullBatch(batchId) {
+			if (!batchId) {
+				return;
+			}
+			Livewire.dispatch('open-interzone-transfer', { mode: 'full_batch', batchId: batchId });
+		},
+		openInterzonePartialBatch(batchId) {
+			if (!batchId) {
+				return;
+			}
+			Livewire.dispatch('open-interzone-transfer', { mode: 'partial_batch', batchId: batchId });
+		},
+	}"
+	@change.window="onSelectionChange($event)">
 @include('layouts.lab.partials.lab-panel-theme-styles')
 <style>
 	.workflow-board-header .batch-header-bar {
@@ -103,6 +147,55 @@
 	.form-actions .btn {
 		padding: 0.2rem 0.45rem;
 	}
+	.workflow-table .workflow-row-actions {
+		gap: 4px;
+	}
+	.workflow-table .rm-act-btn {
+		border-radius: 7px;
+		padding: 4px 8px;
+		margin-right: 0;
+		font-size: 12px;
+	}
+	.workflow-table .rm-act-btn--view {
+		border: 1px solid #bbf7d0;
+		color: #15803d;
+		background: #f0fdf4;
+	}
+	.workflow-table .rm-act-btn--view:hover {
+		background: #dcfce7;
+		border-color: #86efac;
+		color: #15803d;
+	}
+	.workflow-table .rm-act-btn--edit {
+		border: 1px solid #bfdbfe;
+		color: #1d4ed8;
+		background: #eff6ff;
+	}
+	.workflow-table .rm-act-btn--edit:hover {
+		background: #dbeafe;
+		border-color: #93c5fd;
+		color: #1d4ed8;
+	}
+	.workflow-table .rm-act-btn--delete {
+		border: 1px solid #fecdd3;
+		color: #e11d48;
+		background: #fff5f7;
+	}
+	.workflow-table .rm-act-btn--delete:hover {
+		background: #ffe4e6;
+		border-color: #fda4af;
+		color: #e11d48;
+	}
+	.workflow-table .rm-act-btn--muted {
+		border: 1px solid #e2e8f0;
+		color: #475569;
+		background: #f8fafc;
+	}
+	.workflow-table .rm-act-btn--muted:hover {
+		background: #f1f5f9;
+		border-color: #cbd5e1;
+		color: #475569;
+	}
 	.form-template-block {
 		display: flex;
 		flex-direction: column;
@@ -168,6 +261,445 @@
 		background: #f1f5f9;
 		color: #1e293b;
 	}
+
+	.workflow-board-page .workflow-filters-primary-row {
+		align-items: flex-end;
+	}
+	.workflow-board-page .workflow-filters-advanced {
+		border-top: 1px solid #dee2e6;
+		padding-top: 0.75rem;
+		margin-top: 0.5rem;
+	}
+	.workflow-board-page .workflow-receiving-tabs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		padding: 4px;
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: 10px;
+	}
+	.workflow-board-page .workflow-receiving-tab {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 14px;
+		border: 1px solid transparent;
+		border-radius: 8px;
+		background: transparent;
+		color: #475569;
+		font-size: 0.8rem;
+		font-weight: 600;
+		line-height: 1.2;
+		cursor: pointer;
+		transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+	}
+	.workflow-board-page .workflow-receiving-tab:hover {
+		background: #fff;
+		border-color: #c7d7fc;
+		color: #1e293b;
+	}
+	.workflow-board-page .workflow-receiving-tab.is-active {
+		background: #fff;
+		border-color: #3b5fc0;
+		color: #1d4ed8;
+		box-shadow: 0 1px 4px rgba(59, 95, 192, 0.15);
+	}
+	.workflow-board-page .workflow-receiving-tab-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.35rem;
+		padding: 2px 7px;
+		border-radius: 999px;
+		font-size: 0.7rem;
+		font-weight: 700;
+		background: #e2e8f0;
+		color: #475569;
+	}
+	.workflow-board-page .workflow-receiving-tab.is-active .workflow-receiving-tab-badge {
+		background: rgba(255, 255, 255, 0.25);
+		color: #fff;
+	}
+
+	.workflow-review-status-legend {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 14px;
+		padding: 10px 12px;
+		border: 1px solid #e2e8f0;
+		border-radius: 10px;
+		background: #f8fafc;
+		font-size: 13px;
+		color: #334155;
+	}
+	.workflow-review-status-legend .legend-label {
+		font-weight: 700;
+		color: #475569;
+	}
+	.workflow-review-status-legend .legend-item {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		font-weight: 500;
+	}
+	.workflow-review-status-legend .legend-swatch {
+		display: inline-block;
+		width: 20px;
+		height: 14px;
+		background: #fff;
+		border: 1px solid #e2e8f0;
+		border-left-width: 4px;
+		border-radius: 2px;
+	}
+	.workflow-review-status-legend .legend-swatch--awaiting-customer {
+		border-left-color: #f59e0b;
+	}
+	.workflow-review-status-legend .legend-swatch--awaiting-manager {
+		border-left-color: #7dd3fc;
+	}
+	.workflow-review-status-legend .legend-swatch--pending {
+		border-left-color: #94a3b8;
+	}
+	.workflow-table tr.workflow-review-row--awaiting-customer td:first-child {
+		border-left: 4px solid #f59e0b;
+	}
+	.workflow-table tr.workflow-review-row--awaiting-manager td:first-child {
+		border-left: 4px solid #7dd3fc;
+	}
+	.workflow-table tr.workflow-review-row--pending td:first-child {
+		border-left: 4px solid #94a3b8;
+	}
+
+	[x-cloak] {
+		display: none !important;
+	}
+
+	.workflow-panel-selection-actions .btn {
+		font-weight: 600;
+		border-radius: 8px;
+	}
+
+	.workflow-board-panel-header .workflow-panel-header-title {
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+
+	.workflow-board-panel-header .workflow-panel-header-row {
+		gap: 12px;
+		min-width: 0;
+	}
+
+	.workflow-board-panel-header .workflow-panel-selection-actions {
+		flex-shrink: 0;
+		justify-content: flex-end;
+	}
+
+	.receive-sample-modal-content {
+		border-radius: 14px;
+		overflow: hidden;
+	}
+
+	.receive-sample-modal-header {
+		padding: 1.25rem 1.5rem 0.5rem;
+		background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+	}
+
+	#receive-sample-modal .modal-body {
+		padding: 0 1.5rem 1.25rem;
+	}
+
+	.receive-sample-modal-body {
+		padding: 0;
+	}
+
+	.receive-sample-section-label {
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: #64748b;
+		margin: 0 0 0.5rem;
+	}
+
+	.receive-sample-selected {
+		margin-bottom: 1.25rem;
+	}
+
+	.receive-sample-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.receive-sample-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.4rem 0.75rem;
+		border-radius: 999px;
+		background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+		border: 1px solid #c7d2fe;
+		font-size: 0.8125rem;
+		line-height: 1.2;
+	}
+
+	.receive-sample-chip-code {
+		font-weight: 600;
+		color: #1e3a8a;
+	}
+
+	.receive-sample-chip-meta {
+		color: #64748b;
+		font-size: 0.75rem;
+	}
+
+	.receive-sample-chip--muted {
+		color: #64748b;
+	}
+
+	.receive-sample-selected-hint {
+		margin: 0;
+		font-size: 0.8125rem;
+		color: #64748b;
+	}
+
+	.receive-sample-alert {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.75rem 1rem;
+		border-radius: 10px;
+		font-size: 0.875rem;
+	}
+
+	.receive-sample-alert--warning {
+		background: #fffbeb;
+		border: 1px solid #fde68a;
+		color: #92400e;
+	}
+
+	.receive-sample-alert--empty {
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		color: #64748b;
+	}
+
+	.receive-sample-checklist {
+		border: 1px solid #e2e8f0;
+		border-radius: 14px;
+		background: #fff;
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+		overflow: hidden;
+	}
+
+	.receive-sample-checklist-head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 1rem 1.15rem;
+		background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+		border-bottom: 1px solid #e2e8f0;
+	}
+
+	.receive-sample-checklist-title {
+		margin: 0 0 0.15rem;
+		font-size: 0.9375rem;
+		font-weight: 700;
+		color: #0f172a;
+	}
+
+	.receive-sample-legend {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #64748b;
+		white-space: nowrap;
+	}
+
+	.receive-required-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: #dc2626;
+		flex-shrink: 0;
+	}
+
+	.receive-checklist-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.receive-checklist-item {
+		border-bottom: 1px solid #f1f5f9;
+	}
+
+	.receive-checklist-item:last-child {
+		border-bottom: none;
+	}
+
+	.receive-checklist-item.is-required {
+		background: linear-gradient(90deg, rgba(254, 242, 242, 0.35) 0%, transparent 100%);
+	}
+
+	.receive-checklist-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
+		margin: 0;
+		padding: 0.9rem 1.15rem;
+		cursor: pointer;
+		transition: background-color 0.15s ease;
+	}
+
+	.receive-checklist-row:hover {
+		background: #f8fafc;
+	}
+
+	.receive-checklist-input {
+		width: 1.125rem;
+		height: 1.125rem;
+		margin: 0.15rem 0 0;
+		flex-shrink: 0;
+		accent-color: #2563eb;
+		cursor: pointer;
+	}
+
+	.receive-checklist-copy {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.receive-checklist-label {
+		font-size: 0.9rem;
+		font-weight: 500;
+		color: #1e293b;
+		line-height: 1.45;
+	}
+
+	.receive-required-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.1rem 0.45rem;
+		border-radius: 999px;
+		font-size: 0.65rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		background: #fef2f2;
+		color: #b91c1c;
+		border: 1px solid #fecaca;
+	}
+
+	.receive-optional-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.1rem 0.45rem;
+		border-radius: 999px;
+		font-size: 0.65rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		background: #f1f5f9;
+		color: #64748b;
+	}
+
+	.receive-checklist-field-block {
+		padding: 0.9rem 1.15rem 0.9rem 2.65rem;
+	}
+
+	.receive-checklist-field-label {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.45rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: #334155;
+	}
+
+	.receive-checklist-control {
+		border-radius: 8px;
+		border-color: #cbd5e1;
+	}
+
+	.receive-checklist-control:focus {
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+	}
+
+	.receive-checklist-error {
+		margin: 0;
+		padding: 0 1.15rem 0.75rem 2.65rem;
+		font-size: 0.8rem;
+		color: #dc2626;
+	}
+
+	.receive-remarks {
+		padding: 1rem 1.15rem 1.15rem;
+		border-top: 1px solid #e2e8f0;
+		background: #fafbfc;
+	}
+
+	.receive-sample-modal-footer {
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 1.25rem;
+		padding-top: 1rem;
+		border-top: 1px solid #e2e8f0;
+	}
+
+	.receive-sample-submit-btn {
+		min-width: 9.5rem;
+		border-radius: 8px;
+		font-weight: 600;
+	}
+
+	.workflow-intray-panel {
+		border: 1px solid #e2e8f0;
+		border-radius: 12px;
+		padding: 0.85rem 1rem;
+		background: #f8fafc;
+	}
+
+	.workflow-intray-panel-header .workflow-intray-toggle {
+		color: #1e293b;
+		text-decoration: none;
+	}
+
+	.move-to-intray-info-card {
+		border: 1px solid #dbeafe;
+		border-radius: 10px;
+		padding: 1rem;
+		background: #eff6ff;
+	}
+
+	.move-to-intray-info-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 8px;
+		background: #3b5fc0;
+		color: #fff;
+		font-size: 1.25rem;
+		flex-shrink: 0;
+	}
+
 </style>
 	<div class="row workflow-board-header mb-3">
 		<div class="col-12">
@@ -182,24 +714,23 @@
 						</span>
 					</div>
 					<div class="d-flex align-items-center flex-wrap workflow-header-actions" style="gap: 6px;">
-						@if((in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'requests'))
-							@livewire('sampleworkflow.portal-access-requests')
-						@endif
 						@if(in_array($status, ['Sample Approval', 'Sample Verification']))
 							<span class="btn btn-sm btn-outline-danger btn-action-sm"
 								data-status="{{ $status }}" data-toggle="modal" data-target="#awaiting-approval-modal"><i
 									class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span
 									class="badge badge-danger badge-pill pt-1" id="approval-counter"></span></span>
 						@endif
-						<span class="btn btn-sm btn-danger btn-action-sm" data-toggle="modal"
-							data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
-								class="badge badge-light badge-pill pt-1" id="tat-counter">0</span></span>
+						@if($tatTodayCount > 0)
+							<span class="btn btn-sm btn-danger btn-action-sm" data-toggle="modal"
+								data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
+									class="badge badge-light badge-pill pt-1">{{ $tatTodayCount }}</span></span>
+						@endif
 						<div class="btn-group" role="group">
 							<button type="button" class="btn btn-sm btn-primary btn-action-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 								<i class="mdi mdi-form-select"></i> Sample Submissions
 							</button>
 							<div class="dropdown-menu dropdown-menu-right">
-								@if ($this->isReceivingStage() || (in_array($status, ['Samples En-Route', 'Samples Receiving', 'Samples Reception']) && $workflowSubTab === 'received'))
+								@if ($status === 'Samples Receiving' || $this->isReceivingStage() || (in_array($status, ['Samples En-Route', 'Samples Reception']) && $workflowSubTab === 'received'))
 									<button class="dropdown-item" type="button" data-toggle="modal" data-target="#add-submission-form-modal">
 										<i class="mdi mdi-plus mr-2"></i> Capture Samples
 									</button>
@@ -227,11 +758,60 @@
 
 									</li>
 								@endif
-								@if((in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'requests'))
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
+									<li>
+										<span class="btn btn-sm dropdown-item"
+											data-sf-trigger="workflow-receive-sample"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedCount > 0 && $wire.openReceiveModal(selectedInstanceIds())"><i class="mdi mdi-package-variant-closed mr-2"></i> Receive Sample</span>
+									</li>
+								@endif
+								@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+									<li>
+										<span class="btn btn-sm dropdown-item"
+											data-sf-trigger="workflow-move-to-intray"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())"><i class="mdi mdi-inbox-arrow-down mr-2"></i> Move to tray</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item"
+											data-sf-trigger="workflow-interzone-full-request"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="openInterzoneFullRequest()">
+											<i class="mdi mdi-map-marker-path mr-2 text-info"></i> Full interzone transfer (request)
+										</span>
+									</li>
+								@endif
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+									<li>
+										<span class="btn btn-sm dropdown-item"
+											data-sf-trigger="workflow-action-request-review"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedCount > 0 && $wire.openRequestReviewModal(selectedInstanceIds())">
+											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Send for Analyst review
+										</span>
+									</li>
+								@endif
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+									<li>
+										<span class="btn btn-sm dropdown-item"
+											data-sf-trigger="workflow-action-request-additional-info"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
+											<i class="mdi mdi-file-document-edit-outline mr-2"></i> Request more info
+										</span>
+									</li>
+								@endif
+								@if(in_array($status, ['Samples En-Route'], true) && $workflowSubTab === 'requests')
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal"
 											data-sf-trigger="workflow-action-request-review"
-											data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
+											data-toggle="modal"><i class="mdi mdi-clipboard-arrow-right mr-2"></i> Send for request review</span>
 									</li>
 								@endif
 								@if ($status == "Samples Reception" || $status == "Samples Receiving")
@@ -258,7 +838,7 @@
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal"
 											data-sf-trigger="workflow-action-request-review"
-											data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
+											data-toggle="modal"><i class="mdi mdi-clipboard-arrow-right mr-2"></i> Send for request review</span>
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
@@ -312,15 +892,21 @@
 											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
 									</li>
 									<li>
-										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review"
+										<span class="btn btn-sm dropdown-item"
 											data-sf-trigger="workflow-action-approve-request"
-											data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right mr-2"></i>
-											Approve Request</span>
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedCount > 0 && window.openWorkflowAcceptSampleModal && window.openWorkflowAcceptSampleModal()">
+											<i class="mdi mdi-check-circle-outline mr-2"></i> Accept sample
+										</span>
 									</li>
 									<li>
-										<span class="btn btn-sm dropdown-item" disabled
-											data-target="#portal-request-reject-form-modal" data-toggle="modal" data-sf-trigger="workflow-action-reject-request" title="Reject Request">
-											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Reject Request
+										<span class="btn btn-sm dropdown-item"
+											data-sf-trigger="workflow-action-reject-request"
+											:class="{ 'disabled': selectedCount === 0 }"
+											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedCount > 0 && window.openWorkflowRejectSampleModal && window.openWorkflowRejectSampleModal()">
+											<i class="mdi mdi-close-circle-outline mr-2"></i> Reject sample
 										</span>
 									</li>
 									<li>
@@ -328,7 +914,7 @@
 										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal" data-sf-trigger="workflow-action-print-labels"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
 									</li>
 								@endif
-								@if(in_array($status, ['Samples Reception', 'Samples Receiving']) || (in_array($status, ['Samples En-Route', 'Samples Receiving']) && $workflowSubTab === 'requests'))
+								@if(in_array($status, ['Samples Reception', 'Samples Receiving']) || (in_array($status, ['Samples En-Route']) && $workflowSubTab === 'requests'))
 									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#portal-request-reject-form-modal" data-toggle="modal" data-sf-trigger="workflow-action-reject-request" title="Reject Request">
 											<i class="mdi mdi-close-circle-outline mr-2"></i> Reject Request
@@ -505,19 +1091,71 @@
 			<div class="col-12">
 				<div class="workflow-board-panel">
 					<div class="workflow-board-panel-header">
-						<div class="d-flex align-items-center justify-content-between w-100">
-							<h5 class="mb-0">
+						<div class="d-flex align-items-center justify-content-between w-100 flex-nowrap workflow-panel-header-row">
+							<h5 class="mb-0 workflow-panel-header-title">
 								<i class="mdi mdi-file-document-multiple"></i>
-								@if(in_array($status, ['Samples Reception', 'Samples En-Route', 'Samples Receiving', 'Samples Request Review']))
-									@if(in_array($status, ['Samples En-Route', 'Samples Receiving']))
-										{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
-									@else
-										{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
-									@endif
+								@if($status === 'Samples Receiving')
+									{{ $receivingRequestTabs[$workflowSubTab] ?? 'Submitted Requests' }}
+								@elseif($status === 'Samples Request Review')
+									{{ $requestReviewTabs[$workflowSubTab] ?? 'In review' }}
+								@elseif(in_array($status, ['Samples Reception', 'Samples En-Route']))
+									{{ $workflowSubTab === 'requests' ? 'Submission requests' : 'Samples received' }}
 								@else
 									{{ getSampleWorkflowStageLabel($status) }}
 								@endif
 							</h5>
+							@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+								<div class="d-flex align-items-center flex-wrap workflow-panel-selection-actions ml-auto"
+									style="gap: 8px;"
+									x-show="selectedCount > 0"
+									x-cloak>
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											data-sf-trigger="workflow-receive-sample"
+											@click.prevent="selectedCount > 0 && $wire.openReceiveModal(selectedInstanceIds())">
+											<i class="mdi mdi-package-variant-closed mr-1"></i> Receive
+										</button>
+									@endif
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+										<button type="button"
+											class="btn btn-sm btn-outline-warning"
+											data-sf-trigger="workflow-action-request-review"
+											@click.prevent="selectedCount > 0 && $wire.openRequestReviewModal(selectedInstanceIds())">
+											<i class="mdi mdi-clipboard-arrow-right mr-1"></i> Send for Analyst review
+										</button>
+									@endif
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'received')
+										<button type="button"
+											class="btn btn-sm btn-outline-warning"
+											data-sf-trigger="workflow-action-request-additional-info"
+											@click.prevent="selectedCount > 0 && $wire.openRequestAdditionalInfoModal(selectedInstanceIds())">
+											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Request more info
+										</button>
+									@endif
+									@if($status === 'Samples Request Review' && $workflowSubTab === 'in_review')
+										<button type="button"
+											class="btn btn-sm btn-outline-success"
+											data-sf-trigger="workflow-action-approve-request"
+											@click.prevent="selectedCount > 0 && window.openWorkflowAcceptSampleModal && window.openWorkflowAcceptSampleModal()">
+											<i class="mdi mdi-check-circle-outline mr-1"></i> Accept sample
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-outline-danger"
+											data-sf-trigger="workflow-action-reject-request"
+											@click.prevent="selectedCount > 0 && window.openWorkflowRejectSampleModal && window.openWorkflowRejectSampleModal()">
+											<i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
+										</button>
+									@endif
+									<button type="button"
+										class="btn btn-sm btn-outline-primary"
+										data-sf-trigger="workflow-move-to-intray"
+										@click.prevent="selectedCount > 0 && $wire.openMoveToIntrayModal(selectedInstanceIds())">
+										<i class="mdi mdi-inbox-arrow-down mr-1"></i> Move to tray
+									</button>
+								</div>
+							@endif
+							@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
 							<div class="d-flex align-items-center" style="gap: 15px;">
 								<div class="d-flex align-items-center">
 									<span class="mr-2 text-muted" style="font-size: 0.82rem;">Per page</span>
@@ -528,9 +1166,443 @@
 									</select>
 								</div>
 							</div>
+							@endif
 						</div>
 					</div>
 					<div class="workflow-board-panel-body flush-top">
+						@if($status === 'Samples Receiving')
+							<div class="workflow-receiving-tabs mb-3" role="tablist">
+								@foreach($receivingRequestTabs as $tabKey => $tabLabel)
+									<button
+										type="button"
+										class="workflow-receiving-tab {{ $workflowSubTab === $tabKey ? 'is-active' : '' }}"
+										wire:click="setWorkflowSubTab('{{ $tabKey }}')"
+										role="tab"
+										aria-selected="{{ $workflowSubTab === $tabKey ? 'true' : 'false' }}"
+									>
+										{{ $tabLabel }}
+										<span class="workflow-receiving-tab-badge">{{ $receivingRequestTabCounts[$tabKey] ?? 0 }}</span>
+									</button>
+								@endforeach
+							</div>
+							@if($workflowSubTab !== 'interzone_transfers')
+							<div class="workflow-intray-panel mb-4">
+								<div class="workflow-intray-panel-header d-flex align-items-center justify-content-between">
+									<button type="button" class="btn btn-link btn-sm p-0 text-left workflow-intray-toggle" wire:click="toggleMyIntrayPanel">
+										<i class="mdi mdi-{{ $showMyIntrayPanel ? 'chevron-down' : 'chevron-right' }}"></i>
+										<strong>My intray</strong>
+										<span class="badge badge-primary ml-2">{{ $myPendingIntrayCount }}</span>
+									</button>
+									<span class="text-muted small">Pending tasks assigned to you</span>
+								</div>
+								@if($showMyIntrayPanel)
+									@if($myPendingIntrayCount > 0)
+										<div class="table-responsive mt-3">
+											<table class="table table-sm table-hover workflow-table mb-0">
+												<thead>
+													<tr>
+														<th>Form #</th>
+														<th>Customer</th>
+														<th>From</th>
+														<th>Comment</th>
+														<th>Moved</th>
+														<th></th>
+													</tr>
+												</thead>
+												<tbody>
+													@foreach($myPendingIntrayForms as $intray)
+														@php
+															$intrayInstance = $intray->submissionFormInstance;
+														@endphp
+														<tr wire:key="my-intray-{{ $intray->id }}">
+															<td>
+																@if($intrayInstance && $intrayInstance->submissionForm)
+																	<a href="{{ route('submission-forms.instances.show', [$intrayInstance->submissionForm, $intrayInstance]) }}">
+																		<strong>{{ $intrayInstance->getDocumentControlNumber() ?? $intrayInstance->form_number ?? '—' }}</strong>
+																	</a>
+																@else
+																	<span class="text-muted">—</span>
+																@endif
+															</td>
+															<td>{{ $intrayInstance?->crmCustomer?->name ?? $intrayInstance?->submittedBy?->name ?? '—' }}</td>
+															<td>{{ $intray->fromUser?->name ?? '—' }}</td>
+															<td class="text-muted small">{{ \Illuminate\Support\Str::limit($intray->comment ?? '—', 60) }}</td>
+															<td nowrap class="small">{{ $intray->created_at?->format('Y-m-d H:i') }}</td>
+															<td nowrap>
+																@if($intrayInstance)
+																	<button type="button"
+																		class="btn btn-sm rm-act-btn rm-act-btn--view"
+																		wire:click="completeIntray('{{ $intrayInstance->id }}')"
+																		wire:confirm="Mark this intray task as complete?"
+																		title="Complete">
+																		<i class="mdi mdi-check"></i>
+																	</button>
+																@endif
+															</td>
+														</tr>
+													@endforeach
+												</tbody>
+											</table>
+										</div>
+									@else
+										<p class="text-muted small mb-0 mt-3">No pending intray tasks.</p>
+									@endif
+								@endif
+							</div>
+							<div class="bg-light p-3 rounded mb-4 border-bottom">
+								<div class="row workflow-filters-primary-row">
+									<div class="col-md-4">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Search</label>
+											<div class="position-relative">
+												<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Name...">
+												<div wire:loading wire:target="submissionFormsSearch" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
+													<span class="spinner-border spinner-border-sm text-primary"></span>
+												</div>
+											</div>
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Receipt From</label>
+											<input type="date" wire:model.live="receiptDateFrom" class="form-control form-control-sm">
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Receipt To</label>
+											<input type="date" wire:model.live="receiptDateTo" class="form-control form-control-sm">
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Per page</label>
+											<select wire:model.live="submissionFormsPerPage" class="form-control form-control-sm">
+												@foreach($submissionFormsPerPageOptions as $size)
+													<option value="{{ $size }}">{{ $size }}</option>
+												@endforeach
+											</select>
+										</div>
+									</div>
+									<div class="col-md-2 d-flex align-items-end">
+										<button type="button" wire:click="toggleAdvancedFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;">
+											<i class="mdi mdi-filter-variant"></i>
+											{{ $showAdvancedFilters ? 'Fewer filters' : 'More filters' }}
+										</button>
+									</div>
+								</div>
+							@if($showAdvancedFilters)
+								<div class="workflow-filters-advanced">
+									<div class="row">
+										<div class="col-md-3">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Priority</label>
+												<select wire:model.live="submissionFormsPriority" class="form-control form-control-sm">
+													<option value="">All Priorities</option>
+													<option value="low">Low</option>
+													<option value="normal">Normal</option>
+													<option value="high">High</option>
+													<option value="urgent">Urgent</option>
+												</select>
+											</div>
+										</div>
+										<div class="col-md-5">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Customer</label>
+												<div class="position-relative">
+													<div class="tag-select-container form-control-sm py-0"
+														 wire:click="$set('showCustomerDropdown', true)"
+														 wire:key="receiving-customer-dropdown-{{ $customerFilter }}">
+														<div class="tag-select-input" style="min-height: 29px;">
+															@if($this->selectedCustomer)
+																<span class="tag-badge py-0 px-2" style="font-size: 11px;">
+																	{{ $this->selectedCustomer->name }}
+																	<i class="mdi mdi-close-circle" wire:click.stop="$set('customerFilter', null); $set('customerSearch', ''); $set('customerPage', 1)"></i>
+																</span>
+															@endif
+															@if(!$this->selectedCustomer)
+																<input type="text"
+																	   wire:model.live.debounce.300ms="customerSearch"
+																	   wire:click.stop="$set('showCustomerDropdown', true)"
+																	   class="tag-input customer-search-input py-0"
+																	   style="font-size: 12px; height: 28px;"
+																	   placeholder="Search customers..."
+																	   autocomplete="off">
+															@endif
+														</div>
+														@if($showCustomerDropdown)
+															<div class="tag-dropdown customer-dropdown-scroll" style="max-height: 250px; overflow-y: auto; z-index: 1000;">
+																<div wire:loading wire:target="customerSearch,selectCustomer" class="tag-dropdown-item text-center py-2">
+																	<span class="spinner-border spinner-border-sm text-primary"></span>
+																</div>
+																<div wire:loading.remove wire:target="customerSearch,selectCustomer">
+																	@if(count($this->filteredCustomers) > 0)
+																		@foreach($this->filteredCustomers as $customer)
+																			<div class="tag-dropdown-item py-1 px-3" style="font-size: 12px;" wire:click.stop="selectCustomer({{ $customer->id }})">
+																				{{ $customer->name }}
+																			</div>
+																		@endforeach
+																		@if($this->hasMoreCustomers)
+																			<div class="tag-dropdown-item text-center text-primary py-1" wire:click.stop="loadMoreCustomers" style="cursor: pointer; font-weight: 600; font-size: 11px;">
+																				<i class="mdi mdi-chevron-down"></i> Load More
+																			</div>
+																		@endif
+																	@else
+																		<div class="tag-dropdown-item text-muted py-1 px-3" style="font-size: 12px;">No customers found</div>
+																	@endif
+																</div>
+															</div>
+														@endif
+													</div>
+												</div>
+											</div>
+										</div>
+										<div class="col-md-3">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Sample Type</label>
+												<select wire:model.live="sampleTypeFilter" class="form-control form-control-sm">
+													<option value="">All Sample Types</option>
+													@foreach($sampletypes as $sampleType)
+														<option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+													@endforeach
+												</select>
+											</div>
+										</div>
+										<div class="col-md-1 d-flex align-items-end">
+											<button type="button" wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;" title="Clear Filters">
+												<i class="mdi mdi-refresh"></i>
+											</button>
+										</div>
+									</div>
+								</div>
+							@endif
+							@endif
+							@if($workflowSubTab === 'interzone_transfers')
+								@livewire('sampleworkflow.interzone-transfer-manager', [
+									'workflowStatus' => $status,
+									'workflowSubTab' => $workflowSubTab,
+								], key('interzone-receiving-panel'))
+							@endif
+						@elseif($status === 'Samples Request Review')
+							<div class="workflow-receiving-tabs mb-3" role="tablist">
+								@foreach($requestReviewTabs as $tabKey => $tabLabel)
+									<button
+										type="button"
+										class="workflow-receiving-tab {{ $workflowSubTab === $tabKey ? 'is-active' : '' }}"
+										wire:click="setWorkflowSubTab('{{ $tabKey }}')"
+										role="tab"
+										aria-selected="{{ $workflowSubTab === $tabKey ? 'true' : 'false' }}"
+									>
+										{{ $tabLabel }}
+										<span class="workflow-receiving-tab-badge">{{ $requestReviewTabCounts[$tabKey] ?? 0 }}</span>
+									</button>
+								@endforeach
+							</div>
+							<div class="workflow-intray-panel mb-4">
+								<div class="workflow-intray-panel-header d-flex align-items-center justify-content-between">
+									<button type="button" class="btn btn-link btn-sm p-0 text-left workflow-intray-toggle" wire:click="toggleMyIntrayPanel">
+										<i class="mdi mdi-{{ $showMyIntrayPanel ? 'chevron-down' : 'chevron-right' }}"></i>
+										<strong>My intray</strong>
+										<span class="badge badge-primary ml-2">{{ $myPendingIntrayCount }}</span>
+									</button>
+									<span class="text-muted small">Pending tasks assigned to you</span>
+								</div>
+								@if($showMyIntrayPanel)
+									@if($myPendingIntrayCount > 0)
+										<div class="table-responsive mt-3">
+											<table class="table table-sm table-hover workflow-table mb-0">
+												<thead>
+													<tr>
+														<th>Form #</th>
+														<th>Customer</th>
+														<th>From</th>
+														<th>Comment</th>
+														<th>Moved</th>
+														<th></th>
+													</tr>
+												</thead>
+												<tbody>
+													@foreach($myPendingIntrayForms as $intray)
+														@php
+															$intrayInstance = $intray->submissionFormInstance;
+														@endphp
+														<tr wire:key="request-review-intray-{{ $intray->id }}">
+															<td>
+																@if($intrayInstance && $intrayInstance->submissionForm)
+																	<a href="{{ route('submission-forms.instances.show', [$intrayInstance->submissionForm, $intrayInstance]) }}">
+																		<strong>{{ $intrayInstance->getDocumentControlNumber() ?? $intrayInstance->form_number ?? '—' }}</strong>
+																	</a>
+																@else
+																	<span class="text-muted">—</span>
+																@endif
+															</td>
+															<td>{{ $intrayInstance?->crmCustomer?->name ?? $intrayInstance?->submittedBy?->name ?? '—' }}</td>
+															<td>{{ $intray->fromUser?->name ?? '—' }}</td>
+															<td class="text-muted small">{{ \Illuminate\Support\Str::limit($intray->comment ?? '—', 60) }}</td>
+															<td nowrap class="small">{{ $intray->created_at?->format('Y-m-d H:i') }}</td>
+															<td nowrap>
+																@if($intrayInstance)
+																	<button type="button"
+																		class="btn btn-sm rm-act-btn rm-act-btn--view"
+																		wire:click="completeIntray('{{ $intrayInstance->id }}')"
+																		wire:confirm="Mark this intray task as complete?"
+																		title="Complete">
+																		<i class="mdi mdi-check"></i>
+																	</button>
+																@endif
+															</td>
+														</tr>
+													@endforeach
+												</tbody>
+											</table>
+										</div>
+									@else
+										<p class="text-muted small mb-0 mt-3">No pending intray tasks.</p>
+									@endif
+								@endif
+							</div>
+							<div class="bg-light p-3 rounded mb-4 border-bottom">
+								<div class="row workflow-filters-primary-row">
+									<div class="col-md-4">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Search</label>
+											<div class="position-relative">
+												<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Name...">
+												<div wire:loading wire:target="submissionFormsSearch" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%);">
+													<span class="spinner-border spinner-border-sm text-primary"></span>
+												</div>
+											</div>
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Receipt From</label>
+											<input type="date" wire:model.live="receiptDateFrom" class="form-control form-control-sm">
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Receipt To</label>
+											<input type="date" wire:model.live="receiptDateTo" class="form-control form-control-sm">
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group mb-3 mb-md-0">
+											<label class="form-label small fw-bold">Per page</label>
+											<select wire:model.live="submissionFormsPerPage" class="form-control form-control-sm">
+												@foreach($submissionFormsPerPageOptions as $size)
+													<option value="{{ $size }}">{{ $size }}</option>
+												@endforeach
+											</select>
+										</div>
+									</div>
+									<div class="col-md-2 d-flex align-items-end">
+										<button type="button" wire:click="toggleAdvancedFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;">
+											<i class="mdi mdi-filter-variant"></i>
+											{{ $showAdvancedFilters ? 'Fewer filters' : 'More filters' }}
+										</button>
+									</div>
+								</div>
+								@if($showAdvancedFilters)
+									<div class="workflow-filters-advanced">
+										<div class="row">
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Status</label>
+													<select wire:model.live="submissionFormsStatus" class="form-control form-control-sm">
+														<option value="">All Statuses</option>
+														<option value="submitted">Submitted</option>
+														<option value="in_review">In Review</option>
+														<option value="approved">Approved</option>
+														<option value="rejected">Rejected</option>
+													</select>
+												</div>
+											</div>
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Priority</label>
+													<select wire:model.live="submissionFormsPriority" class="form-control form-control-sm">
+														<option value="">All Priorities</option>
+														<option value="low">Low</option>
+														<option value="normal">Normal</option>
+														<option value="high">High</option>
+														<option value="urgent">Urgent</option>
+													</select>
+												</div>
+											</div>
+											<div class="col-md-5">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Customer</label>
+													<div class="position-relative">
+														<div class="tag-select-container form-control-sm py-0"
+															 wire:click="$set('showCustomerDropdown', true)"
+															 wire:key="request-review-customer-dropdown-{{ $customerFilter }}">
+															<div class="tag-select-input" style="min-height: 29px;">
+																@if($this->selectedCustomer)
+																	<span class="tag-badge py-0 px-2" style="font-size: 11px;">
+																		{{ $this->selectedCustomer->name }}
+																		<i class="mdi mdi-close-circle" wire:click.stop="$set('customerFilter', null); $set('customerSearch', ''); $set('customerPage', 1)"></i>
+																	</span>
+																@endif
+																@if(!$this->selectedCustomer)
+																	<input type="text"
+																		   wire:model.live.debounce.300ms="customerSearch"
+																		   wire:click.stop="$set('showCustomerDropdown', true)"
+																		   class="tag-input customer-search-input py-0"
+																		   style="font-size: 12px; height: 28px;"
+																		   placeholder="Search customers..."
+																		   autocomplete="off">
+																@endif
+															</div>
+															@if($showCustomerDropdown)
+																<div class="tag-dropdown customer-dropdown-scroll" style="max-height: 250px; overflow-y: auto; z-index: 1000;">
+																	<div wire:loading wire:target="customerSearch,selectCustomer" class="tag-dropdown-item text-center py-2">
+																		<span class="spinner-border spinner-border-sm text-primary"></span>
+																	</div>
+																	<div wire:loading.remove wire:target="customerSearch,selectCustomer">
+																		@if(count($this->filteredCustomers) > 0)
+																			@foreach($this->filteredCustomers as $customer)
+																				<div class="tag-dropdown-item py-1 px-3" style="font-size: 12px;" wire:click.stop="selectCustomer({{ $customer->id }})">
+																					{{ $customer->name }}
+																				</div>
+																			@endforeach
+																			@if($this->hasMoreCustomers)
+																				<div class="tag-dropdown-item text-center text-primary py-1" wire:click.stop="loadMoreCustomers" style="cursor: pointer; font-weight: 600; font-size: 11px;">
+																					<i class="mdi mdi-chevron-down"></i> Load More
+																				</div>
+																			@endif
+																		@else
+																			<div class="tag-dropdown-item text-muted py-1 px-3" style="font-size: 12px;">No customers found</div>
+																		@endif
+																	</div>
+																</div>
+															@endif
+														</div>
+													</div>
+												</div>
+											</div>
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Sample Type</label>
+													<select wire:model.live="sampleTypeFilter" class="form-control form-control-sm">
+														<option value="">All Sample Types</option>
+														@foreach($sampletypes as $sampleType)
+															<option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+														@endforeach
+													</select>
+												</div>
+											</div>
+											<div class="col-md-1 d-flex align-items-end">
+												<button type="button" wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;" title="Clear Filters">
+													<i class="mdi mdi-refresh"></i>
+												</button>
+											</div>
+										</div>
+									</div>
+								@endif
+							</div>
+						@endif
+						@if($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
 						<!-- Consolidated Filters -->
 						<div class="bg-light p-3 rounded mb-4 border-bottom">
 							<div class="row">
@@ -539,7 +1611,7 @@
 										<label class="form-label small fw-bold">Search</label>
 										<div class="position-relative">
 											@if(
-												($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
+												$status === 'Samples Request Review' ||
 												($this->isReceivingStage() && $workflowSubTab === 'requests') ||
 												($status === 'Samples In Lab')
 											)
@@ -558,7 +1630,7 @@
 								</div>
 								
 								@if(
-									($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
+									$status === 'Samples Request Review' ||
 									($this->isReceivingStage() && $workflowSubTab === 'requests') ||
 									($status === 'Samples In Lab')
 								)
@@ -672,7 +1744,9 @@
 									</div>
 								</div>
 							</div>
-						@if($this->isReceivingStage() || $status === 'Samples Request Review')
+						</div>
+						@endif
+						@if($this->isReceivingStage() && $status !== 'Samples Receiving')
 							<div class="mb-4">
 								<ul class="nav nav-tabs" role="tablist">
 									<li class="nav-item">
@@ -686,18 +1760,36 @@
 						@endif
 
 						@if(
-							($status === 'Samples Request Review' && $workflowSubTab === 'requests') || 
-							($this->isReceivingStage() && $workflowSubTab === 'requests')
+							($status === 'Samples Receiving' && $workflowSubTab !== 'interzone_transfers')
+							|| $status === 'Samples Request Review'
+							|| ($this->isReceivingStage() && $status !== 'Samples Receiving' && $workflowSubTab === 'requests')
 						)
 							@php
 								$submissionForms = $this->submissionForms;
-								$portalSubmissions = $this->portalSubmissions;
+								$portalSubmissions = in_array($status, ['Samples Receiving', 'Samples Request Review'], true) ? null : $this->portalSubmissions;
 								$hasSubmissions = $submissionForms->count() > 0 || ($portalSubmissions && $portalSubmissions->count() > 0);
 							@endphp
 
 							<!-- Submission Forms Table -->
 							@if($hasSubmissions)
 								@if($submissionForms->count() > 0)
+									@if($status === 'Samples Request Review' && $workflowSubTab === 'in_review')
+										<div class="workflow-review-status-legend mb-3">
+											<span class="legend-label">Row border:</span>
+											<span class="legend-item">
+												<span class="legend-swatch legend-swatch--awaiting-customer"></span>
+												Awaiting customer approval
+											</span>
+											<span class="legend-item">
+												<span class="legend-swatch legend-swatch--awaiting-manager"></span>
+												Awaiting lab manager approval
+											</span>
+											<span class="legend-item">
+												<span class="legend-swatch legend-swatch--pending"></span>
+												Nothing actioned — awaiting acceptance or rejection
+											</span>
+										</div>
+									@endif
 									<div class="table-responsive">
 										<table class="table table-hover workflow-table">
 											<thead>
@@ -712,6 +1804,15 @@
 													<th>Sample Type</th>
 													<th>Tests Required</th>
 													<th>Status</th>
+													@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+														<th>In tray</th>
+													@endif
+													@if($status === 'Samples Request Review')
+														<th>Acceptance</th>
+														@if($workflowSubTab === 'accepted')
+															<th>Receipt notification</th>
+														@endif
+													@endif
 													<th>Submitted</th>
 													<th>Due Date</th>
 												</tr>
@@ -780,46 +1881,147 @@
 															optional($instance->submitted_at)->format('Y-m-d')
 															?? $pickValue(['submitted_by_date', 'submission_date', 'date_of_seizure', 'date_of_sampling'])
 														));
+														$reviewRowBorderClass = '';
+														$acceptanceFormAwaitingCustomer = null;
+														$acceptanceFormAwaitingManager = null;
+														if ($status === 'Samples Request Review' && $workflowSubTab === 'in_review') {
+															$acceptanceStatusForRow = $instance->analysisAcceptanceForms->first()?->status;
+															$reviewRowBorderClass = match ($acceptanceStatusForRow) {
+																\App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN => 'workflow-review-row--awaiting-customer',
+																\App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN => 'workflow-review-row--awaiting-manager',
+																default => 'workflow-review-row--pending',
+															};
+															$acceptanceFormAwaitingCustomer = $instance->analysisAcceptanceForms->first(
+																fn ($form) => $form->status === \App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN
+															);
+															$acceptanceFormAwaitingManager = $instance->analysisAcceptanceForms->first(
+																fn ($form) => $form->status === \App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN
+															);
+														}
 													@endphp
-													<tr>
+													<tr @if($reviewRowBorderClass !== '') class="{{ $reviewRowBorderClass }}" @endif>
 														<td class="align-middle">
-															@if(!$hasBatch && in_array($instance->status, ['submitted', 'in_review'], true))
+															@php
+																$requestReviewStatuses = $status === 'Samples Receiving' && $workflowSubTab === 'received'
+																	? ['received']
+																	: ['submitted', 'in_review'];
+																$showRequestReviewCheckbox = (
+																	$status === 'Samples Request Review'
+																	&& $workflowSubTab === 'in_review'
+																	&& ! $hasBatch
+																	&& ! $acceptanceFormAwaitingCustomer
+																	&& ! $acceptanceFormAwaitingManager
+																	&& in_array($instance->status, ['in_review', 'In Review'], true)
+																) || (
+																	$status !== 'Samples Request Review'
+																	&& ! $hasBatch
+																	&& in_array($instance->status, $requestReviewStatuses, true)
+																);
+																$showInstanceRowCheckbox = $status === 'Samples Receiving'
+																	|| $showRequestReviewCheckbox;
+															@endphp
+															@if($showInstanceRowCheckbox)
 																<input type="checkbox"
-																	name="submission_form_instance_id[]"
-																	data-source-selection="1"
-																	form="dispatch-to-labs-modal-form"
+																	wire:model="selectedFormInstanceIds"
+																	data-instance-select
 																	value="{{ $instance->id }}"
-																	data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
-																	data-form-name="{{ $instance->submissionForm->name ?? 'Template Form' }}"
-																	data-customer-name="{{ $instanceCustomerName }}"
-																	data-customer-email="{{ $instanceCustomerEmail }}"
-																	data-customer-phone="{{ $instanceCustomerPhone }}"
-																	data-customer-address="{{ $instanceCustomerAddress }}"
-																	data-sample-type="{{ implode(', ', $formSampleTypeNames) }}"
-																	data-number-samples="{{ $sampleCount }}"
-																	data-request-date="{{ $instanceRequestDate }}"
-																	data-mode-of-work="{{ in_array($instance->priority, ['high', 'urgent'], true) ? 'Express' : 'Normal' }}">
+																	class="mr-1"
+																	title="Select"
+																	@if($showRequestReviewCheckbox && $status !== 'Samples Receiving')
+																		name="submission_form_instance_id[]"
+																		data-source-selection="1"
+																		data-selection-purpose="request-review"
+																		form="dispatch-to-labs-modal-form"
+																		data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
+																		data-form-name="{{ $instance->submissionForm->name ?? 'Template Form' }}"
+																		data-customer-name="{{ $instanceCustomerName }}"
+																		data-customer-email="{{ $instanceCustomerEmail }}"
+																		data-customer-phone="{{ $instanceCustomerPhone }}"
+																		data-customer-address="{{ $instanceCustomerAddress }}"
+																		data-sample-type="{{ implode(', ', $formSampleTypeNames) }}"
+																		data-number-samples="{{ $sampleCount }}"
+																		data-request-date="{{ $instanceRequestDate }}"
+																		data-mode-of-work="{{ in_array($instance->priority, ['high', 'urgent'], true) ? 'Express' : 'Normal' }}"
+																	@endif>
 															@else
 																<span class="text-muted small">-</span>
 															@endif
 														</td>
-														<td nowrap>
-															<div class="d-flex align-items-center" style="gap: 8px;">
+														<td nowrap class="workflow-requests-actions-cell">
+															<div class="d-flex align-items-center flex-nowrap workflow-row-actions">
+																@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true) && $instance->activePendingIntray && (string) $instance->activePendingIntray->to_user_id === (string) auth()->id())
+																	<button type="button"
+																		class="btn btn-sm rm-act-btn rm-act-btn--view"
+																		wire:click="completeIntray('{{ $instance->id }}')"
+																		wire:confirm="Mark this intray task as complete?"
+																		title="Complete intray">
+																		<i class="mdi mdi-check-circle-outline"></i>
+																	</button>
+																@endif
 																@if($instance->isDraft())
-																	<a href="{{ route('submission-forms.instances.fill', [$instance->submissionForm, $instance]) }}" 
-																	   class="btn btn-sm btn-outline-primary" title="Edit">
-																		<i class="mdi mdi-pencil"></i>
+																	<a href="{{ route('submission-forms.instances.fill', [$instance->submissionForm, $instance]) }}"
+																		class="btn btn-sm rm-act-btn rm-act-btn--edit"
+																		title="Edit">
+																		<i class="mdi mdi-pencil-outline"></i>
 																	</a>
-																	<button wire:click="deleteSubmissionForm('{{ $instance->id }}')" 
-																			wire:confirm="Are you sure you want to delete this draft?"
-																			class="btn btn-sm btn-outline-danger" title="Delete Draft">
+																	<button type="button"
+																		wire:click="deleteSubmissionForm('{{ $instance->id }}')"
+																		wire:confirm="Are you sure you want to delete this draft?"
+																		class="btn btn-sm rm-act-btn rm-act-btn--delete"
+																		title="Delete draft">
 																		<i class="mdi mdi-delete"></i>
 																	</button>
 																@else
-																	<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}" 
-																	   class="btn btn-sm btn-outline-info" title="View Details">
+																	<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}"
+																		class="btn btn-sm rm-act-btn rm-act-btn--view"
+																		title="View details">
 																		<i class="mdi mdi-eye"></i>
 																	</a>
+																@endif
+																@if(
+																	$status === 'Samples Request Review'
+																	&& $workflowSubTab === 'in_review'
+																	&& $acceptanceFormAwaitingCustomer
+																	&& $instance->crm_customer_id
+																)
+																	<button
+																		type="button"
+																		class="btn btn-sm rm-act-btn rm-act-btn--view"
+																		title="Customer sign"
+																		@click.prevent="typeof Livewire !== 'undefined' && Livewire.dispatch('open-customer-acceptance-sign', { acceptanceFormId: '{{ $acceptanceFormAwaitingCustomer->id }}' })"
+																	>
+																		<i class="mdi mdi-draw"></i>
+																	</button>
+																@endif
+																@if(
+																	$status === 'Samples Request Review'
+																	&& $workflowSubTab === 'in_review'
+																	&& $acceptanceFormAwaitingManager
+																)
+																	<button
+																		type="button"
+																		class="btn btn-sm rm-act-btn rm-act-btn--view"
+																		title="Manager approval"
+																		@click.prevent="typeof Livewire !== 'undefined' && Livewire.dispatch('open-manager-acceptance-sign', { acceptanceFormId: '{{ $acceptanceFormAwaitingManager->id }}' })"
+																	>
+																		<i class="mdi mdi-clipboard-check-outline"></i>
+																	</button>
+																@endif
+																@if($status === 'Samples Request Review' && $hasBatch)
+																	@foreach($instance->batches as $batch)
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--muted"
+																			title="Full interzone transfer (batch)"
+																			@click.prevent="openInterzoneFullBatch('{{ $batch->id }}')">
+																			<i class="mdi mdi-map-marker-path"></i>
+																		</button>
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--muted"
+																			title="Partial interzone transfer"
+																			@click.prevent="openInterzonePartialBatch('{{ $batch->id }}')">
+																			<i class="mdi mdi-map-marker-multiple"></i>
+																		</button>
+																	@endforeach
 																@endif
 															</div>
 														</td>
@@ -877,6 +2079,7 @@
 																	'warning' => '#ffc107',
 																	'danger' => '#dc3545',
 																	'info' => '#17a2b8',
+																	'primary' => '#3b5fc0',
 																	'secondary' => '#6c757d',
 																	default => '#6c757d'
 																};
@@ -886,6 +2089,64 @@
 																{{ $statusText }}
 															</span>
 														</td>
+														@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+															<td nowrap>
+																<div class="d-flex align-items-center flex-wrap workflow-row-actions">
+																	@if($instance->latestIntray && $instance->latestIntray->toUser)
+																		<div class="mr-2">
+																			<span class="font-weight-medium">{{ $instance->latestIntray->toUser->name }}</span>
+																			@if($instance->activePendingIntray)
+																				<span class="badge badge-warning ml-1">Pending</span>
+																			@endif
+																			@if($instance->latestIntray->fromUser)
+																				<div class="text-muted small">from {{ $instance->latestIntray->fromUser->name }}</div>
+																			@endif
+																		</div>
+																	@else
+																		<span class="text-muted small mr-2">—</span>
+																	@endif
+																	@if($instance->activePendingIntray)
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--muted"
+																			title="Reassign intray"
+																			wire:click="openMoveToIntrayModal('{{ $instance->id }}')">
+																			<i class="mdi mdi-swap-horizontal"></i>
+																		</button>
+																	@endif
+																</div>
+															</td>
+														@endif
+														@if($status === 'Samples Request Review')
+															@php
+																$acceptanceForm = $instance->analysisAcceptanceForms->first();
+																$acceptanceStatus = $acceptanceForm?->status;
+																$hasLabAcceptance = $acceptanceStatus === \App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_COMPLETED;
+																$hasReceiptNotification = $instance->batches->contains(function ($batch) {
+																	return $batch->batch_attachments
+																		->contains(fn ($attachment) => $attachment->title === 'Sample Receipt Notification (GCLA 01)');
+																});
+															@endphp
+															<td>
+																@if($hasLabAcceptance)
+																	<span class="badge badge-success">Complete</span>
+																@elseif($acceptanceStatus === 'awaiting_lab_manager_sign')
+																	<span class="badge badge-warning">Awaiting manager</span>
+																@elseif($acceptanceStatus === 'awaiting_customer_sign')
+																	<span class="badge badge-info">Awaiting customer</span>
+																@else
+																	<span class="badge badge-secondary">Pending</span>
+																@endif
+															</td>
+															@if($workflowSubTab === 'accepted')
+																<td>
+																	@if($hasReceiptNotification)
+																		<span class="badge badge-success">Complete</span>
+																	@else
+																		<span class="badge badge-secondary">Pending</span>
+																	@endif
+																</td>
+															@endif
+														@endif
 														<td nowrap>
 															@if($instance->submitted_at)
 																{{ $instance->submitted_at->format('Y-m-d H:i') }}
@@ -951,8 +2212,8 @@
 														<td>
 															<input type="checkbox" name="portal_submission_id[]" value="{{ $request->id }}" data-source-selection="1">
 														</td>
-														<td>
-															<a href="{{ route('sample-submission-requests.show', $request) }}" class="btn btn-sm btn-outline-info" title="View Details">
+														<td nowrap>
+															<a href="{{ route('sample-submission-requests.show', $request) }}" class="btn btn-sm rm-act-btn rm-act-btn--view" title="View details">
 																<i class="mdi mdi-eye"></i>
 															</a>
 														</td>
@@ -994,7 +2255,7 @@
 									<p class="mb-0">No portal-submitted requests match your current filters.</p>
 								</div>
 							@endif
-						@else
+						@elseif($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
 							<!-- Batches Table -->
 							@if($status == 'Finished Sample')
 								<div class="mb-4">
@@ -1182,7 +2443,19 @@
 								<th>Tat Date</th>
 							</thead>
 							<tbody>
-
+								@foreach($tatTodayBatches as $tatBatch)
+									<tr wire:key="tat-today-{{ $tatBatch->id }}">
+										<td>
+											<a href="{{ route('view-batch-details', ['batch' => $tatBatch->id, 'client' => 0, 'portal' => 0, 'status' => $tatBatch->status]) }}">
+												{{ $tatBatch->batch_code }}
+											</a>
+										</td>
+										<td @class([
+											'text-danger' => $tatBatch->is_late,
+											'text-warning' => $tatBatch->is_today,
+										])>{{ $tatBatch->tat_date }}</td>
+									</tr>
+								@endforeach
 							</tbody>
 						</table>
 					</div>
@@ -1483,7 +2756,95 @@
 				</div>
 			</div>
 		@endif
-		@if ($status == "Samples Reception" || $status == "Samples Request Review" || (in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests'))
+		@if ($status === 'Samples Receiving')
+			<div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog">
+				<div class="modal-dialog modal-lg modal-dialog-centered">
+					<div class="modal-content receive-sample-modal-content border-0 shadow">
+						<div class="modal-header receive-sample-modal-header border-0">
+							<div>
+								<h5 class="modal-title mb-1">
+									<i class="mdi mdi-package-variant-closed text-primary mr-2"></i>
+									Receive sample request(s)
+								</h5>
+								<p class="text-muted small mb-0">Complete the receiving checklist to move requests to Received.</p>
+							</div>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							@livewire('sampleworkflow.receive-sample-request', key('receive-sample-request'))
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="request-additional-info-modal" class="modal fade" tabindex="-1" role="dialog">
+				<div class="modal-dialog modal-lg modal-dialog-centered">
+					<div class="modal-content receive-sample-modal-content border-0 shadow">
+						<div class="modal-header receive-sample-modal-header border-0">
+							<div>
+								<h5 class="modal-title mb-1">
+									<i class="mdi mdi-file-document-edit-outline text-warning mr-2"></i>
+									Request more info
+								</h5>
+								<p class="text-muted small mb-0">Ask the customer for additional information on received requests.</p>
+							</div>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							@livewire('sampleworkflow.request-additional-info', key('request-additional-info'))
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="send-for-analyst-review-modal" class="modal fade" tabindex="-1" role="dialog">
+				<div class="modal-dialog modal-lg modal-dialog-centered">
+					<div class="modal-content receive-sample-modal-content border-0 shadow">
+						<div class="modal-header receive-sample-modal-header border-0">
+							<div>
+								<h5 class="modal-title mb-1">
+									<i class="mdi mdi-clipboard-arrow-right text-warning mr-2"></i>
+									Send for Analyst review
+								</h5>
+								<p class="text-muted small mb-0">Send selected requests to the analyst review queue.</p>
+							</div>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							@livewire('sampleworkflow.send-for-analyst-review', key('send-for-analyst-review'))
+						</div>
+					</div>
+				</div>
+			</div>
+		@endif
+		@if (in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
+			<div id="move-to-intray-modal" class="modal fade" tabindex="-1" role="dialog">
+				<div class="modal-dialog modal-lg modal-dialog-centered">
+					<div class="modal-content receive-sample-modal-content border-0 shadow">
+						<div class="modal-header receive-sample-modal-header border-0">
+							<div>
+								<h5 class="modal-title mb-1">
+									<i class="mdi mdi-inbox-arrow-down text-primary mr-2"></i>
+									Move to tray
+								</h5>
+								<p class="text-muted small mb-0">Assign selected requests to another user's intray.</p>
+							</div>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body pt-0">
+							@livewire('sampleworkflow.move-to-intray', key('move-to-intray'))
+						</div>
+					</div>
+				</div>
+			</div>
+		@endif
+		@if ($status == "Samples Reception" || $status == "Samples Request Review" || $status === 'Samples Receiving' || (in_array($status, ['Samples En-Route'], true) && $workflowSubTab === 'requests'))
 			<div id="dispatch-to-labs-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
@@ -1934,7 +3295,7 @@
 				</div>
 			</div>
 		@endif
-		@if($status == "Samples Request Review" || $status == "Samples Reception" || (in_array($status, ['Samples En-Route', 'Samples Receiving'], true) && $workflowSubTab === 'requests'))
+		@if($status == "Samples Request Review" || $status == "Samples Reception" || $status === 'Samples Receiving' || (in_array($status, ['Samples En-Route'], true) && $workflowSubTab === 'requests'))
 			<div id="portal-request-reject-form-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
@@ -2057,22 +3418,12 @@
 							<input type="hidden" name="tracking_stage" value="20008" />
 							<input type="hidden" name="customer_id" value=0>
 
-							<ul class="nav nav-tabs nav-tabs-custom nav-justified px-3 pt-3 bg-white" role="tablist" style="border-bottom: 1px solid #dee2e6;">
-								<li class="nav-item">
-									<a class="nav-link active" data-toggle="tab" href="#review-lab-acceptance" role="tab">
-										<i class="mdi mdi-file-document-edit-outline mr-1"></i> Laboratory Acceptance Form
-									</a>
-								</li>
-								<li class="nav-item">
-									<a class="nav-link" data-toggle="tab" href="#review-receipt-notification" role="tab">
-										<i class="mdi mdi-file-document-outline mr-1"></i> Receipt Notification
-									</a>
-								</li>
-							</ul>
+							<div class="px-3 pt-3 bg-white border-bottom">
+								<strong class="text-dark"><i class="mdi mdi-file-document-edit-outline mr-1"></i> Laboratory acceptance (GCLA/F/03 &amp; GCLA 01)</strong>
+							</div>
 
-							<div class="tab-content px-4 py-3">
-								<!-- Lab Acceptance Form Tab -->
-								<div class="tab-pane active" id="review-lab-acceptance" role="tabpanel">
+							<div class="px-4 py-3">
+								<div id="review-lab-acceptance">
 									<div class="workflow-board-panel mb-0 border-0 shadow-sm">
 										<div class="workflow-board-panel-header d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
 											<h5><i class="mdi mdi-file-document-edit-outline"></i> Laboratory Analysis Acceptance Form (GCLA/F/03)</h5>
@@ -2083,6 +3434,7 @@
 												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="2">Part B</button>
 												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="3">Part C</button>
 												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="4">Part D</button>
+												<button type="button" class="btn btn-sm btn-outline-primary lab-acc-part-btn" data-part="5">Part E</button>
 											</div>
 
 											<!-- Part A -->
@@ -2242,96 +3594,20 @@
 													<input type="hidden" id="review-manager-signature-input" name="lab_acceptance[manager_signature]">
 												</div>
 											</div>
-										</div>
-									</div>
-								</div>
-
-								<!-- Receipt Notification Tab -->
-								<div class="tab-pane" id="review-receipt-notification" role="tabpanel">
-									<div class="workflow-board-panel mb-0 border-0 shadow-sm">
-										<div class="workflow-board-panel-header d-flex align-items-center justify-content-between flex-wrap" style="gap: 8px;">
-											<h5><i class="mdi mdi-file-document-outline"></i> Sample Receipt Notification (GCLA 01)</h5>
-										</div>
-										<div class="workflow-board-panel-body">
-											<div class="card border-0" style="background: #f8fafc;">
-												<div class="card-body">
-													<div class="row">
-														<div class="col-md-6 mb-3">
-															<label class="form-label">Name of the client or submitting authority</label>
-															<input type="text" class="form-control" name="receipt_notification[client_or_authority_name]">
-														</div>
-														<div class="col-md-6 mb-3">
-															<label class="form-label">Laboratory Identification Number / Lab. No. (Batch No)</label>
-															<input type="text" class="form-control" name="receipt_notification[laboratory_identification_number]" placeholder="Auto-generated on approval" readonly>
-														</div>
-													</div>
-
-													<div class="row">
-														<div class="col-md-8 mb-3">
-															<label class="form-label">Description of sample(s)</label>
-															<textarea class="form-control" rows="3" name="receipt_notification[sample_description]"></textarea>
-														</div>
-														<div class="col-md-4 mb-3">
-															<label class="form-label">Number of Samples</label>
-															<input type="number" min="0" class="form-control" name="receipt_notification[number_of_samples]">
-														</div>
-													</div>
-
-													<hr>
-													<h6 class="mb-3">Person Submitting the Sample or Exhibit</h6>
-													<div class="row">
-														<div class="col-md-6 mb-3">
-															<label class="form-label">Name</label>
-															<input type="text" class="form-control" name="receipt_notification[submitter_name]">
-														</div>
-														<div class="col-md-6 mb-3">
-															<label class="form-label">Designation</label>
-															<input type="text" class="form-control" name="receipt_notification[submitter_designation]">
-														</div>
-													</div>
-
-													<label class="form-label d-block">Signature</label>
-													<div class="bg-white border rounded p-2 mb-3" style="max-width: 560px;">
-														<canvas id="review-submitter-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
-														<div class="d-flex mt-2" style="gap: 8px;">
-															<button type="button" class="btn btn-sm btn-outline-secondary" id="review-submitter-sign-clear">Clear</button>
-														</div>
-													</div>
-													<input type="hidden" id="review-submitter-signature-input" name="receipt_notification[submitter_signature]">
-
-													<hr>
-													<h6 class="mb-3">Receiving Person</h6>
-													<div class="row">
-														<div class="col-md-4 mb-3">
-															<label class="form-label">Name</label>
-															<input type="text" class="form-control" name="receipt_notification[receiver_name]">
-														</div>
-														<div class="col-md-4 mb-3">
-															<label class="form-label">Designation</label>
-															<input type="text" class="form-control" name="receipt_notification[receiver_designation]">
-														</div>
-														<div class="col-md-4 mb-3">
-															<label class="form-label">Sample receiving date</label>
-															<input type="date" class="form-control" name="receipt_notification[sample_receiving_date]" value="{{ now()->format('Y-m-d') }}">
-														</div>
-													</div>
-
-													<label class="form-label d-block">Signature</label>
-													<div class="bg-white border rounded p-2" style="max-width: 560px;">
-														<canvas id="review-receiver-signature-canvas" style="width: 100%; height: 160px; border: 1px dashed #cbd5e1;"></canvas>
-														<div class="d-flex mt-2" style="gap: 8px;">
-															<button type="button" class="btn btn-sm btn-outline-secondary" id="review-receiver-sign-clear">Clear</button>
-														</div>
-													</div>
-													<input type="hidden" id="review-receiver-signature-input" name="receipt_notification[receiver_signature]">
-												</div>
+											<!-- Part E: Sample Receipt Notification -->
+											<div class="lab-acc-part d-none" id="lab-acc-part-5">
+												@include('livewire.partials.receipt-notification-wire-fields', [
+													'mode' => 'static',
+													'canvasPrefix' => 'review-receipt',
+													'partLabel' => 'Part E: Sample Receipt Notification (GCLA 01)',
+													'showSubmitterSection' => false,
+													'showSubmitterSigningNotice' => true,
+												])
 											</div>
 										</div>
 									</div>
 								</div>
 							</div>
-
-							<div class="px-4 pb-3">
 								<div class="card border-0 bg-white">
 									<div class="card-body">
 										<h6 class="mb-3">Other Settings & Confirmations</h6>
@@ -2384,7 +3660,7 @@
 					partBtns.forEach(btn => {
 						btn.addEventListener('click', function() {
 							const targetPart = this.getAttribute('data-part');
-							
+
 							// Update buttons
 							partBtns.forEach(b => {
 								b.classList.remove('btn-primary');
@@ -2392,10 +3668,20 @@
 							});
 							this.classList.remove('btn-outline-primary');
 							this.classList.add('btn-primary');
-							
+
 							// Update parts
 							parts.forEach(p => p.classList.add('d-none'));
 							document.getElementById('lab-acc-part-' + targetPart).classList.remove('d-none');
+
+							if (targetPart === '5' && !reviewReceiptPadsReady) {
+								const r = setupPad('review-receipt-receiver-canvas', 'review-receipt-receiver-input', 'review-receipt-receiver-clear');
+								if (r) {
+									pads.push(r);
+								}
+								reviewReceiptPadsReady = true;
+							}
+
+							window.dispatchEvent(new Event('resize'));
 						});
 					});
 
@@ -2431,21 +3717,23 @@
 
 					let padsInitialized = false;
 					let pads = [];
-					
+					let reviewReceiptPadsReady = false;
+
 					$('#dispatch-to-labs-modal-review').on('shown.bs.modal', function () {
 						if (!padsInitialized) {
 							pads.push(setupPad('review-customer-signature-canvas', 'review-customer-signature-input', 'review-customer-sign-clear'));
 							pads.push(setupPad('review-manager-signature-canvas', 'review-manager-signature-input', 'review-manager-sign-clear'));
-							pads.push(setupPad('review-submitter-signature-canvas', 'review-submitter-signature-input', 'review-submitter-sign-clear'));
-							pads.push(setupPad('review-receiver-signature-canvas', 'review-receiver-signature-input', 'review-receiver-sign-clear'));
 							padsInitialized = true;
+							reviewReceiptPadsReady = false;
 						} else {
-						    window.dispatchEvent(new Event('resize'));
+							window.dispatchEvent(new Event('resize'));
 						}
 					});
-					
-					$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-						window.dispatchEvent(new Event('resize'));
+
+					$('#dispatch-to-labs-modal-review').on('hidden.bs.modal', function () {
+						padsInitialized = false;
+						reviewReceiptPadsReady = false;
+						pads = [];
 					});
 				});
 			</script>
@@ -2717,7 +4005,6 @@
 			var lastParametersRequestKey = null;
 			var lastPreviewRequestKey = null;
 		
-			$('[data-target="#get-batch-tat"]').hide();
 			$('[data-target="#awaiting-approval-modal"]').hide();
 		
 			var checkClientValidity = (data, callback) => {
@@ -2849,11 +4136,6 @@
 							$('#approval-counter').append(data['approval_count']);
 							$('[data-target="#awaiting-approval-modal"]').show();
 						}
-						if (data['tat_count'] > 0) {
-							$('#tat-counter').empty();
-							$('#tat-counter').append(data['tat_count']);
-							$('[data-target="#get-batch-tat"]').show();
-						}
 					}
 				})
 			};
@@ -2926,36 +4208,6 @@
 					}
 				})
 			}
-			var getTatBatch = (callback) => {
-				$.ajax({
-					url: `/get-Tat/Delayed/Sample`,
-					type: 'GET',
-					success: (data) => {
-						callback(data);
-					},
-					error: (data) => {
-						console.log(data);
-					}
-				})
-			}
-			var tatBatchTr = (data) => {
-				var body = $(`
-				<tr>
-					<td><a href="/sample-workflow/batch/${data.id}/details/0/0/${data.status}">${data.batch_code}</a></td>
-					<td class="${data.is_late == 1 ? 'text-danger' : ''} ${data.is_today == 1 ? 'text-warning' : ''}" >${data.tat_date}</td>
-				</tr>
-				`).clone()
-				return body;
-			}
-			$('#get-batch-tat').on('show.bs.modal', (e) => {
-				$('#get-batch-tat').find('tbody').empty();
-				getTatBatch((data) => {
-					$.each(data, (i, obj) => {
-						var trbody = tatBatchTr(obj);
-						$('#get-batch-tat').find('tbody').append(trbody);
-					})
-				})
-			});
 			var getAwaitingTr = (data) => {
 				var body = $(`
 				<tr>
@@ -3681,6 +4933,68 @@
 
 			window.rebuildWorkflowSelectionLists = rebuildSelectionLists;
 
+			window.openWorkflowAcceptSampleModal = function () {
+				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
+					window.rebuildWorkflowSelectionLists();
+				}
+
+				var selections = typeof getSourceSelections === 'function' ? getSourceSelections() : null;
+				var instanceId = '';
+				var requestId = '';
+
+				if (selections) {
+					if (selections.selectedFormInstanceCheckboxes && selections.selectedFormInstanceCheckboxes.length) {
+						instanceId = String(selections.selectedFormInstanceCheckboxes.first().val() || '');
+					}
+					if (selections.selectedSubmissionCheckboxes && selections.selectedSubmissionCheckboxes.length) {
+						requestId = String(selections.selectedSubmissionCheckboxes.first().val() || '');
+					}
+				}
+
+				if (!instanceId && !requestId) {
+					alert('Please select exactly one submission request or form row before accepting.');
+					return;
+				}
+
+				if (typeof Livewire !== 'undefined') {
+					Livewire.dispatch('open-acceptance-wizard', {
+						submissionFormInstanceId: instanceId || null,
+						submissionRequestId: requestId || null,
+					});
+				}
+			};
+
+			window.openWorkflowRejectSampleModal = function () {
+				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
+					window.rebuildWorkflowSelectionLists();
+				}
+
+				var selections = typeof getSourceSelections === 'function' ? getSourceSelections() : null;
+				var instanceId = '';
+				var requestId = '';
+
+				if (selections) {
+					if (selections.selectedFormInstanceCheckboxes && selections.selectedFormInstanceCheckboxes.length) {
+						instanceId = String(selections.selectedFormInstanceCheckboxes.first().val() || '');
+					}
+					if (selections.selectedSubmissionCheckboxes && selections.selectedSubmissionCheckboxes.length) {
+						requestId = String(selections.selectedSubmissionCheckboxes.first().val() || '');
+					}
+				}
+
+				if (!instanceId && !requestId) {
+					alert('Please select exactly one submission request or form row before rejecting.');
+					return;
+				}
+
+				if (typeof Livewire !== 'undefined') {
+					Livewire.dispatch('open-rejection-wizard', {
+						submissionFormInstanceId: instanceId || null,
+						submissionRequestId: requestId || null,
+					});
+				}
+			};
+
 			$('#dispatch-to-labs-modal form').off('submit.workflowSelection').on('submit.workflowSelection', function (event) {
 				const $form = $(this);
 				rebuildSelectionLists();
@@ -4157,8 +5471,39 @@
 				if (loadingOverlay) {
 					loadingOverlay.style.display = 'none';
 				}
-				@this.call('markInitialLoadComplete');
-			}, 1000);
+			}, 500);
+
+			Livewire.on('show-receive-sample-modal', function () {
+				$('#receive-sample-modal').modal('show');
+			});
+
+			Livewire.on('hide-receive-sample-modal', function () {
+				$('#receive-sample-modal').modal('hide');
+			});
+
+			Livewire.on('show-request-additional-info-modal', function () {
+				$('#request-additional-info-modal').modal('show');
+			});
+
+			Livewire.on('hide-request-additional-info-modal', function () {
+				$('#request-additional-info-modal').modal('hide');
+			});
+
+			Livewire.on('show-analyst-review-modal', function () {
+				$('#send-for-analyst-review-modal').modal('show');
+			});
+
+			Livewire.on('hide-analyst-review-modal', function () {
+				$('#send-for-analyst-review-modal').modal('hide');
+			});
+
+			Livewire.on('show-move-to-intray-modal', function () {
+				$('#move-to-intray-modal').modal('show');
+			});
+
+			Livewire.on('hide-move-to-intray-modal', function () {
+				$('#move-to-intray-modal').modal('hide');
+			});
 		});
 	
 		// Ensure overlay hides after Livewire updates complete
@@ -4258,4 +5603,38 @@
 	
 	</script>
 	@endpush
+
+	@livewire('sampleworkflow.acceptance-form-wizard')
+	@livewire('sampleworkflow.sample-rejection-wizard')
+	@livewire('sampleworkflow.customer-acceptance-sign-modal')
+	@livewire('sampleworkflow.manager-acceptance-sign-modal')
+
+	<script>
+		document.addEventListener('livewire:init', function () {
+			Livewire.on('acceptance-form-created', function () {
+				window.location.reload();
+			});
+			Livewire.on('sample-rejection-completed', function () {
+				window.location.reload();
+			});
+			Livewire.on('acceptance-form-completed', function (event) {
+				const redirectUrl = event?.redirectUrl ?? event?.detail?.redirectUrl;
+				if (redirectUrl) {
+					window.location.href = redirectUrl;
+					return;
+				}
+				window.location.reload();
+			});
+			Livewire.on('interzone-transfer-completed', function () {
+				window.location.reload();
+			});
+		});
+	</script>
+
+	@if(!($status === 'Samples Receiving' && $workflowSubTab === 'interzone_transfers'))
+		@livewire('sampleworkflow.interzone-transfer-manager', [
+			'workflowStatus' => $status,
+			'workflowSubTab' => $workflowSubTab,
+		], key('interzone-transfer-modal'))
+	@endif
 </div>

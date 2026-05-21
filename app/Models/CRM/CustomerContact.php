@@ -19,11 +19,11 @@ class CustomerContact extends Model implements Auditable
     protected $table = 'crm_customer_contacts';
 
     protected $casts = [
-        'job_occupation' => 'encrypted',
-        'unit_name' => 'encrypted',
-        'email' => 'encrypted',
-        'telephone' => 'encrypted',
-        'mobile' => 'encrypted',
+        'job_occupation' => \App\Casts\SafeEncrypted::class,
+        'unit_name' => \App\Casts\SafeEncrypted::class,
+        'email' => \App\Casts\SafeEncrypted::class,
+        'telephone' => \App\Casts\SafeEncrypted::class,
+        'mobile' => \App\Casts\SafeEncrypted::class,
     ];
 
     /**

@@ -87,18 +87,31 @@
                             <table class="table table-striped table-hover" id="categories-table">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
-                                        <th style="width: 60px;">No</th>
+                                        <th style="width: 100px;">Actions</th>
                                         <th style="width: 150px;">Image</th>
                                         <th>Name</th>
                                         <th>Description</th>
                                         <th>Available</th>
-                                        <th style="width: 150px;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->categories as $category)
                                         <tr>
-                                            <td>{{ $loop->iteration }}</td>
+                                            <td>
+                                                <div class="d-flex">
+                                                    <button wire:click="showEditCategoryModal({{ $category->id }})"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                                            title="Edit">
+                                                        <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button wire:click="deleteCategory({{ $category->id }})"
+                                                            class="btn btn-sm rm-act-btn rm-act-btn--delete"
+                                                            title="Delete"
+                                                            onclick="return confirm('Are you sure you want to delete this category?')">
+                                                        <i class="mdi mdi-delete"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
                                             <td>
                                                 @if($category->image)
                                                     <img src="{{ $category->image }}" class="img-thumbnail" style="width: 125px; height: 125px; object-fit: cover;" alt="{{ $category->name }}">
@@ -122,21 +135,6 @@
                                                 <small class="text-muted">
                                                     (+{{ number_format($available['pending']) }} pending)
                                                 </small>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <button wire:click="showEditCategoryModal({{ $category->id }})" 
-                                                            class="btn btn-sm btn-outline-warning me-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
-                                                    </button>
-                                                    <button wire:click="deleteCategory({{ $category->id }})" 
-                                                            class="btn btn-sm btn-outline-danger" 
-                                                            title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this category?')">
-                                                        <i class="mdi mdi-delete"></i>
-                                                    </button>
-                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -296,6 +294,39 @@
 
     .btn-close:hover {
         opacity: .75;
+    }
+
+    #categories-table .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-right: 3px;
+        font-size: 12px;
+    }
+
+    #categories-table .rm-act-btn:last-child {
+        margin-right: 0;
+    }
+
+    #categories-table .rm-act-btn--edit {
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    #categories-table .rm-act-btn--edit:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    #categories-table .rm-act-btn--delete {
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    #categories-table .rm-act-btn--delete:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
     }
     </style>
 

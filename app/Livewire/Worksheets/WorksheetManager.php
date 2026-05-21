@@ -4,7 +4,9 @@ namespace App\Livewire\Worksheets;
 
 use App\CapturedResult;
 use App\Models\Formulars\Formula;
+use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
 use App\SampleHeader;
+use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
@@ -18,6 +20,11 @@ class WorksheetManager extends Component
 
     public string $activeTab = 'formulas';
 
+    /** @var Collection<int, GroupedWorksheetHolder> */
+    public Collection $groupedHolders;
+
+    public ?string $activeGroupedHolderId = null;
+
     public $formulas;
 
     public $activeFormulaId = null;
@@ -28,20 +35,32 @@ class WorksheetManager extends Component
 
     protected $queryString = [
         'activeTab' => ['except' => 'formulas', 'as' => 'tab'],
+        'pipeline' => ['except' => null, 'as' => 'pipeline'],
     ];
 
     public function mount(SampleHeader $batch, Collection $stageHeaders): void
     {
         $this->batch = $batch;
         $this->stageHeaders = $stageHeaders;
+        $this->groupedHolders = app(GroupedWorksheetAssignmentService::class)->resolveHoldersForBatch($batch);
         $this->loadWorksheetData();
 
-        $requestedTab = request()->query('tab', 'formulas');
-        if (in_array($requestedTab, ['method-sequences', 'procedures', 'ser'], true)) {
+        if ($this->groupedHolders->isNotEmpty()) {
+            $this->activeGroupedHolderId = (string) ($this->groupedHolders->first()->id);
+        }
+
+        $requestedTab = request()->query('tab', $this->groupedHolders->isNotEmpty() ? 'grouped-pipelines' : 'formulas');
+        if (in_array($requestedTab, ['grouped-pipelines', 'method-sequences', 'procedures', 'ser', 'formulas'], true)) {
             $this->activeTab = $requestedTab;
             if ($requestedTab === 'method-sequences') {
                 $this->queueMethodSequencesInit();
             }
+        }
+
+        $requestedPipeline = request()->query('pipeline');
+        if ($requestedPipeline && $this->groupedHolders->contains('id', $requestedPipeline)) {
+            $this->activeTab = 'grouped-pipelines';
+            $this->activeGroupedHolderId = (string) $requestedPipeline;
         }
 
         $requestedFormulaId = request()->query('formula');
@@ -105,7 +124,7 @@ class WorksheetManager extends Component
 
     public function switchTab(string $tab): void
     {
-        if (! in_array($tab, ['formulas', 'method-sequences', 'procedures', 'ser'], true)) {
+        if (! in_array($tab, ['grouped-pipelines', 'formulas', 'method-sequences', 'procedures', 'ser'], true)) {
             return;
         }
 
@@ -114,6 +133,12 @@ class WorksheetManager extends Component
         if ($tab === 'method-sequences') {
             $this->queueMethodSequencesInit();
         }
+    }
+
+    public function selectGroupedHolder(string $holderId): void
+    {
+        $this->activeTab = 'grouped-pipelines';
+        $this->activeGroupedHolderId = $holderId;
     }
 
     public function updatedActiveTab(string $tab): void
@@ -163,8 +188,12 @@ class WorksheetManager extends Component
 
     public function render()
     {
+        $activeGroupedHolder = $this->groupedHolders->firstWhere('id', $this->activeGroupedHolderId)
+            ?? $this->groupedHolders->first();
+
         return view('livewire.worksheets.worksheet-manager', [
             'stageHeadersPayload' => $this->stageHeadersPayload(),
+            'activeGroupedHolder' => $activeGroupedHolder,
         ]);
     }
 }

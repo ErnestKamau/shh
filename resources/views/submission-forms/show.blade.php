@@ -26,27 +26,38 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    
-    <div class="d-flex justify-content-between align-items-center p-4">
-      <div>
-        <h2>
-          <i class="mdi mdi-form-select"></i> {{ $submissionForm->name }}
-          <small class="text-muted">v{{ $submissionForm->version }}</small>
-        </h2>
-        @if($submissionForm->description)
-          <p class="text-muted mb-0">{{ $submissionForm->description }}</p>
-        @endif
-      </div>
-      <div>
-        <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-primary">
-          <i class="mdi mdi-cog"></i> Form Builder
-        </a>
-        <a href="{{ route('submission-forms.edit', $submissionForm) }}" class="btn btn-outline-warning">
-          <i class="mdi mdi-pencil"></i> Edit Details
-        </a>
-        <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary">
-          <i class="mdi mdi-arrow-left"></i> Back to Forms
-        </a>
+
+    @include('submission-forms.partials.horizontal-gutter-styles')
+    <div class="submission-forms-horizontal-gutter">
+
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-sm border-0 bg-white" style="border-radius: 15px;">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
+              <div>
+                <h2 class="mb-1">
+                  <i class="mdi mdi-form-select text-primary"></i> {{ $submissionForm->name }}
+                  <small class="text-muted">v{{ $submissionForm->version }}</small>
+                </h2>
+                @if($submissionForm->description)
+                  <p class="text-muted mb-0">{{ $submissionForm->description }}</p>
+                @endif
+              </div>
+              <div class="d-flex align-items-center flex-wrap justify-content-lg-end" style="gap: 8px;">
+                <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-outline-primary" style="border-radius: 9px;">
+                  <i class="mdi mdi-cog"></i> Form Builder
+                </a>
+                <a href="{{ route('submission-forms.edit', $submissionForm) }}" class="btn btn-outline-warning" style="border-radius: 9px;">
+                  <i class="mdi mdi-pencil"></i> Edit Details
+                </a>
+                <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary" style="border-radius: 9px;">
+                  <i class="mdi mdi-arrow-left"></i> Back to Forms
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -289,6 +300,8 @@
           </div>
         </div>
       </div>
+    </div>
+
     </div>
   </main>
 
@@ -901,6 +914,10 @@ function getElementIcon($elementType) {
             return 'file-upload-outline';
         case 'camera_photo':
           return 'camera';
+        case 'image_upload':
+            return 'image-plus';
+        case 'zone_select':
+            return 'map-marker-radius';
         case 'signature':
             return 'draw';
         case 'calculation':

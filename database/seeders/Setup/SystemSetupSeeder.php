@@ -79,6 +79,7 @@ class SystemSetupSeeder extends Seeder
                     'ai.module.access',
                     'ai_analytics.module.access',
                     'risk.module.access',
+                    'registry.module.access',
                     'audit.module.access',
                     'tickets.module.access',
                     'settings.module.access',
@@ -339,14 +340,16 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info("  Using location UUID : {$adminLocationUuid}");
 
                 $user = User::updateOrCreate(
-                    ['email' => 'karokin35@gmail.com'],
+                    ['email' => 'dannyagah13@gmail.com'],
                     [
-                        'name'          => 'Nancy Karoki',
+                        'name'          => 'Danny Agah',
                         'password'      => Hash::make('Admin@2026!'),
                         'company_id'    => $company->id,
                         'department_id' => $adminDeptUuid,
                         'location_id'   => $adminLocationUuid,
                         'active'        => 1,
+                        'first_name'    => 'Danny',
+                        'last_name'     => 'Agah',
                     ]
                 );
 

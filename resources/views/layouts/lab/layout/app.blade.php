@@ -100,6 +100,7 @@
 			$canProducts = $user->can('crm.components.products.view');
 			$canLabReports = $user->can('laboratory.components.lab-reports.view');
 			$canReportingUnits = $user->can('laboratory.components.reporting-units.view');
+			$canEquipmentRequests = $user->can('laboratory.components.equipment-requests.view');
 		@endphp
 		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
@@ -155,16 +156,6 @@
 						<small class="badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ $menuTotals[$item] ?? 0 }}</small>
 					</div>
 				</a>
-				@if($item == 'All Samples')
-				<a href="{{ route('sample-submission-requests.index') }}" class="list-group-item list-group-item-action bg-dark text-white">
-					<div class="d-flex w-100 justify-content-between align-items-center">
-						<span class="menu-collapsed">
-							<i class="mdi mdi-circle-medium"></i> Submission Requests
-						</span>
-						<small class="badge badge-pill badge-dark">{{ $submissionRequestTotals }}</small>
-					</div>
-				</a>
-				@endif
 				@endif
 				@endforeach
 
@@ -235,6 +226,14 @@
 			@endif
 
 		</div>
+			@endif
+			@if($canEquipmentRequests)
+			<a href="{{ route('lab.equipment-requests.index') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-tools mr-3"></span>
+					<span class="menu-collapsed">Equipment Requests</span>
+				</div>
+			</a>
 			@endif
 			@if($canQc)
 			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark hidden list-group-item list-group-item-action flex-column align-items-start">
@@ -384,6 +383,10 @@
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Solutions Movement
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
+			<a href="{{route('solutions-preparation-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Preparation Tracking
+					<small class="float-right badge badge-pill"></small></span>
+			</a>
 
 
 	</div>
@@ -455,6 +458,10 @@
 	</a>
 	<div id="report-menu" class="collapse sidebar-submenu">
 
+		<a href="{{ route('module-reports.index') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Centralized Module Reports
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
 		<a href="{{ route('lab-reports-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Lab Reports
 				<small class="float-right badge badge-pill"></small></span>

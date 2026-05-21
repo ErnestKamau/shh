@@ -580,6 +580,14 @@ class Header extends Component
 
     public function getVerificationApprovalStatusProperty()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'pgsql') {
+            return \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
+                ->where('batch_status', 'Sample Verification')
+                ->where(function($q) {
+                    $q->where('status', false)->orWhereNull('status');
+                })
+                ->count();
+        }
         return \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
             ->where('batch_status', 'Sample Verification')
             ->whereIn('status', [2, 0])

@@ -163,17 +163,101 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Manufacturer</label>
-                                        <input type="text" wire:model="equipmentForm.manufacturer" class="form-control">
-                                        @error('equipmentForm.manufacturer') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            </div>
-                            @endif
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Manufacturer</label>
+                                         <input type="text" wire:model="equipmentForm.manufacturer" class="form-control">
+                                         @error('equipmentForm.manufacturer') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                             </div>
+
+                             <div class="eq-section-header mt-4">
+                                 <i class="mdi mdi-cash-multiple"></i> Procurement & Technical Lifecycle
+                             </div>
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Purchase Price</label>
+                                         <input type="number" step="0.01" wire:model="equipmentForm.purchase_price" class="form-control" placeholder="e.g. 5000.00">
+                                         @error('equipmentForm.purchase_price') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Supplier Name</label>
+                                         <input type="text" wire:model="equipmentForm.supplier_name" class="form-control" placeholder="e.g. ACME Corp">
+                                         @error('equipmentForm.supplier_name') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Installation Date</label>
+                                         <input type="date" wire:model="equipmentForm.installation_date" class="form-control">
+                                         @error('equipmentForm.installation_date') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Commissioning Date</label>
+                                         <input type="date" wire:model="equipmentForm.commissioning_date" class="form-control">
+                                         @error('equipmentForm.commissioning_date') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Detection Limit</label>
+                                         <input type="text" wire:model="equipmentForm.detection_limit" class="form-control" placeholder="e.g. 0.01 ppm">
+                                         @error('equipmentForm.detection_limit') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Tolerance Limit</label>
+                                         <input type="text" wire:model="equipmentForm.tolerance_limit" class="form-control" placeholder="e.g. ± 0.05">
+                                         @error('equipmentForm.tolerance_limit') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Warranty Duration / Info</label>
+                                         <input type="text" wire:model="equipmentForm.warranty" class="form-control" placeholder="e.g. 24 Months">
+                                         @error('equipmentForm.warranty') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">Operating Environment</label>
+                                         <input type="text" wire:model="equipmentForm.environment" class="form-control" placeholder="e.g. 20-25°C, Cleanroom">
+                                         @error('equipmentForm.environment') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">End of Life</label>
+                                         <input type="date" wire:model="equipmentForm.end_of_life" class="form-control">
+                                         @error('equipmentForm.end_of_life') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                     <div class="form-group mb-3">
+                                         <label class="form-label">End of Service</label>
+                                         <input type="date" wire:model="equipmentForm.end_of_service" class="form-control">
+                                         @error('equipmentForm.end_of_service') <span class="text-danger">{{ $message }}</span> @enderror
+                                     </div>
+                                 </div>
+                             </div>
+                             </div>
+                             @endif
 
                             <!-- STEP 2: Assignment & Location -->
                             @if($currentStep === 2)

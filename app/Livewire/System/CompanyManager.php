@@ -36,6 +36,12 @@ class CompanyManager extends Component
     public ?string $existingLogo = null;
     public ?string $existingReportLogo = null;
 
+    // Maintenance period (global equipment maintenance year range)
+    public ?int $maintenanceStartYear = null;
+    public ?int $maintenanceStartMonth = null;
+    public ?int $maintenanceEndYear = null;
+    public ?int $maintenanceEndMonth = null;
+
     public bool $showStatusModal = false;
     public ?string $statusCompanyId = null;
     public string $statusCompanyName = '';
@@ -102,6 +108,10 @@ class CompanyManager extends Component
         $this->reportLogoFile = null;
         $this->existingLogo = $company->logo;
         $this->existingReportLogo = $company->report_logo;
+        $this->maintenanceStartYear = $company->maintenance_start_year;
+        $this->maintenanceStartMonth = $company->maintenance_start_month;
+        $this->maintenanceEndYear = $company->maintenance_end_year;
+        $this->maintenanceEndMonth = $company->maintenance_end_month;
 
         $this->showCompanyModal = true;
     }
@@ -133,6 +143,10 @@ class CompanyManager extends Component
             'fax' => ['nullable', 'string', 'max:255'],
             'logoFile' => ['nullable', 'image', 'max:5120'],
             'reportLogoFile' => ['nullable', 'image', 'max:5120'],
+            'maintenanceStartYear' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'maintenanceStartMonth' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'maintenanceEndYear' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'maintenanceEndMonth' => ['nullable', 'integer', 'min:1', 'max:12'],
         ]);
 
         $company = $this->editingCompanyId === null
@@ -149,6 +163,10 @@ class CompanyManager extends Component
         $company->telephone = $validated['telephone'];
         $company->street = $validated['street'];
         $company->fax = $validated['fax'];
+        $company->maintenance_start_year = $validated['maintenanceStartYear'];
+        $company->maintenance_start_month = $validated['maintenanceStartMonth'];
+        $company->maintenance_end_year = $validated['maintenanceEndYear'];
+        $company->maintenance_end_month = $validated['maintenanceEndMonth'];
 
         if ($this->logoFile) {
             $company->logo = '/storage/' . $this->logoFile->store('companies', 'public');
@@ -256,6 +274,10 @@ class CompanyManager extends Component
         $this->reportLogoFile = null;
         $this->existingLogo = null;
         $this->existingReportLogo = null;
+        $this->maintenanceStartYear = null;
+        $this->maintenanceStartMonth = null;
+        $this->maintenanceEndYear = null;
+        $this->maintenanceEndMonth = null;
     }
 
     private function authorizeAction(string $permission): void

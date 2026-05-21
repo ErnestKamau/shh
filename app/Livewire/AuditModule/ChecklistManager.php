@@ -67,14 +67,20 @@ class ChecklistManager extends Component
     public function loadAvailableData()
     {
         $this->available_workflow_actions = WorkflowAction::where('is_active', true)
-            ->where('company_id', getUserCompany() ?? 0)
+            ->forCompany()
             ->orderBy('name')
             ->get()
             ->map(fn($action) => ['id' => $action->id, 'name' => $action->name])
             ->toArray();
 
+        $companyId = getUserCompany();
         $this->available_sample_types = SampleType::where('active', true)
-            ->where('company_id', getUserCompany() ?? 0)
+            ->where(function ($q) use ($companyId) {
+                $q->whereNull('company_id');
+                if ($companyId !== null && $companyId !== '') {
+                    $q->orWhere('company_id', $companyId);
+                }
+            })
             ->orderBy('name')
             ->get()
             ->map(fn($type) => ['id' => $type->id, 'name' => $type->name])
@@ -140,7 +146,7 @@ class ChecklistManager extends Component
             'audit_type_id' => $this->audit_type_id ?: null,
             'iso_standard' => $this->iso_standard,
             'is_active' => $this->is_active,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ];
 
         if ($this->isEdit) {

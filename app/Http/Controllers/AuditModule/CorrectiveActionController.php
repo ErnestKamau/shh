@@ -132,10 +132,7 @@ class CorrectiveActionController extends Controller
 
         // Get verification results for the modal
         $verificationResults = \App\Models\AuditModule\VerificationResult::active()
-            ->where(function($q) {
-                $companyId = getUserCompany() ?? 0;
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
+            ->forCompany()
             ->orderBy('name')
             ->get();
 
@@ -360,12 +357,9 @@ class CorrectiveActionController extends Controller
         
         if ($nextWorkflowStep !== null && $audit) {
             // Find the status for the next workflow step
-            $companyId = getUserCompany() ?? 0;
             $nextStatus = \App\Models\AuditModule\AuditStatus::active()
+                ->forCompany()
                 ->where('workflow_step', $nextWorkflowStep)
-                ->where(function($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhere('company_id', 0);
-                })
                 ->ordered()
                 ->first();
             

@@ -10,7 +10,8 @@
                                 <i class="mdi mdi-clipboard-pulse-outline text-primary"></i>
                                 Monitoring
                             </h2>
-                            <p class="text-muted mb-0">Track environmental conditions and equipment performance with dynamic formula-driven logs and audit-ready records.</p>
+                            <p class="text-muted mb-0">Track environmental conditions and equipment performance with
+                                dynamic formula-driven logs and audit-ready records.</p>
                         </div>
                     </div>
                 </div>
@@ -29,35 +30,44 @@
 
     <div class="row g-3 mb-3">
         <div class="col-md-4 mb-3">
-            <button type="button" class="card monitor-entry-card w-100 text-left {{ $activeSection === 'environmental' ? 'active' : '' }}" wire:click="switchSection('environmental')">
+            <button type="button"
+                class="card monitor-entry-card w-100 text-left {{ $activeSection === 'environmental' ? 'active' : '' }}"
+                wire:click="switchSection('environmental')">
                 <div class="card-body">
                     <div class="monitor-entry-card__icon bg-info-soft">
                         <i class="mdi mdi-thermometer"></i>
                     </div>
                     <h5 class="mb-2">Environmental Monitoring</h5>
-                    <p class="text-muted mb-0">Execution, daily logs, thresholds, and deviation alerts for laboratory conditions.</p>
+                    <p class="text-muted mb-0">Execution, daily logs, thresholds, and deviation alerts for laboratory
+                        conditions.</p>
                 </div>
             </button>
         </div>
         <div class="col-md-4 mb-3">
-            <button type="button" class="card monitor-entry-card w-100 text-left {{ $activeSection === 'equipment' ? 'active' : '' }}" wire:click="switchSection('equipment')">
+            <button type="button"
+                class="card monitor-entry-card w-100 text-left {{ $activeSection === 'equipment' ? 'active' : '' }}"
+                wire:click="switchSection('equipment')">
                 <div class="card-body">
                     <div class="monitor-entry-card__icon bg-success-soft">
                         <i class="mdi mdi-scale-balance"></i>
                     </div>
                     <h5 class="mb-2">Equipment Monitoring</h5>
-                    <p class="text-muted mb-0">Intermediate checks, verification runs, dynamic calculations, and pass/fail controls.</p>
+                    <p class="text-muted mb-0">Intermediate checks, verification runs, dynamic calculations, and
+                        pass/fail controls.</p>
                 </div>
             </button>
         </div>
         <div class="col-md-4 mb-3">
-            <button type="button" class="card monitor-entry-card w-100 text-left {{ $activeSection === 'templates' ? 'active' : '' }}" wire:click="switchSection('templates')">
+            <button type="button"
+                class="card monitor-entry-card w-100 text-left {{ $activeSection === 'templates' ? 'active' : '' }}"
+                wire:click="switchSection('templates')">
                 <div class="card-body">
                     <div class="monitor-entry-card__icon bg-warning-soft">
                         <i class="mdi mdi-file-document-edit-outline"></i>
                     </div>
                     <h5 class="mb-2">Template Engine</h5>
-                    <p class="text-muted mb-0">Template versions, variable logic, formula rules, and workflow-ready configurations.</p>
+                    <p class="text-muted mb-0">Template versions, variable logic, formula rules, and workflow-ready
+                        configurations.</p>
                 </div>
             </button>
         </div>
@@ -144,9 +154,8 @@
                         <ul class="nav nav-tabs monitor-lab-tabs" role="tablist">
                             @foreach($this->assignedLabs as $lab)
                                 <li class="nav-item">
-                                    <button type="button"
-                                            class="nav-link {{ $selectedLabId === $lab->id ? 'active' : '' }}"
-                                            wire:click="selectLab('{{ $lab->id }}')">
+                                    <button type="button" class="nav-link {{ $selectedLabId === $lab->id ? 'active' : '' }}"
+                                        wire:click="selectLab('{{ $lab->id }}')">
                                         <span>{{ $lab->name }}</span>
                                         <small>{{ $lab->code }}</small>
                                     </button>
@@ -193,19 +202,22 @@
                                             <td>{{ $template->document_control_number ?: '-' }}</td>
                                             <td>v{{ $template->version }}</td>
                                             <td>
-                                                <span class="badge badge-pill {{ $statusLabel === 'COMPLETED' ? 'badge-success' : ($statusLabel === 'FAILED' ? 'badge-danger' : 'badge-warning') }}">
+                                                <span
+                                                    class="badge badge-pill {{ $statusLabel === 'COMPLETED' ? 'badge-success' : ($statusLabel === 'FAILED' ? 'badge-danger' : 'badge-warning') }}">
                                                     {{ $statusLabel }}
                                                 </span>
                                             </td>
                                             <td class="text-right">
-                                                <button type="button" class="btn btn-sm btn-primary" wire:click="openExecution('{{ $template->id }}')">
+                                                <button type="button" class="btn btn-sm btn-primary"
+                                                    wire:click="openExecution('{{ $template->id }}')">
                                                     Execute
                                                 </button>
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center text-muted py-4">No templates due for this lab today.</td>
+                                            <td colspan="5" class="text-center text-muted py-4">No templates due for this lab today.
+                                            </td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -234,7 +246,8 @@
                                             <td>{{ $log->template->name ?? '-' }}</td>
                                             <td>{{ $log->overall_result ?: '-' }}</td>
                                             <td>
-                                                <span class="badge badge-pill {{ $log->status === 'completed' ? 'badge-success' : ($log->status === 'failed' ? 'badge-danger' : 'badge-warning') }}">
+                                                <span
+                                                    class="badge badge-pill {{ $log->status === 'completed' ? 'badge-success' : ($log->status === 'failed' ? 'badge-danger' : 'badge-warning') }}">
                                                     {{ strtoupper($log->status) }}
                                                 </span>
                                             </td>
@@ -250,14 +263,71 @@
                             </table>
                         </div>
                     </div>
+
+                    @if(in_array($activeSection, ['environmental', 'equipment'], true))
+                        <!-- Optimum Levels and Trends Chart -->
+                        <div class="card mt-4" style="border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); overflow: hidden;">
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border: none; padding: 15px 20px;">
+                                <h5 class="mb-0 font-weight-bold" style="font-size: 1.1rem; color: white;">
+                                    <i class="mdi mdi-chart-line-variant mr-1"></i> {{ ucfirst($activeSection) }} Logs vs. Optimum Level
+                                </h5>
+                                <span class="badge badge-pill badge-light text-primary px-3 py-1 font-weight-bold" style="background-color: white; color: #1e3c72 !important;">
+                                    Real-time Analysis
+                                </span>
+                            </div>
+                            <div class="card-body bg-white" style="padding: 24px;">
+                                @if($this->environmentalGraphData['hasData'])
+                                    <div style="height: 320px; position: relative;">
+                                        <canvas id="environmentalTrendsChart" data-chart-data="{{ json_encode($this->environmentalGraphData) }}"></canvas>
+                                    </div>
+                                    <div class="mt-4 pt-3 border-top d-flex justify-content-around flex-wrap text-center" style="gap: 15px;">
+                                        <div class="px-3">
+                                            <div class="text-muted small uppercase font-weight-bold mb-1">Expected Minimum</div>
+                                            <h4 class="font-weight-bold text-warning mb-0">
+                                                @php
+                                                    $minVal = collect($this->environmentalGraphData['min'])->filter()->first();
+                                                @endphp
+                                                {{ $minVal ?? 'N/A' }}{{ $minVal !== null ? ' ' . $this->environmentalGraphData['unit'] : '' }}
+                                            </h4>
+                                        </div>
+                                        <div class="px-3" style="border-left: 1px solid #f1f2f5; border-right: 1px solid #f1f2f5;">
+                                            <div class="text-muted small uppercase font-weight-bold mb-1">Optimum Target Level</div>
+                                            <h4 class="font-weight-bold text-success mb-0">
+                                                @php
+                                                    $optVal = collect($this->environmentalGraphData['optimum'])->filter()->first();
+                                                @endphp
+                                                {{ $optVal ?? 'N/A' }}{{ $optVal !== null ? ' ' . $this->environmentalGraphData['unit'] : '' }}
+                                            </h4>
+                                        </div>
+                                        <div class="px-3">
+                                            <div class="text-muted small uppercase font-weight-bold mb-1">Expected Maximum</div>
+                                            <h4 class="font-weight-bold text-danger mb-0">
+                                                @php
+                                                    $maxVal = collect($this->environmentalGraphData['max'])->filter()->first();
+                                                @endphp
+                                                {{ $maxVal ?? 'N/A' }}{{ $maxVal !== null ? ' ' . $this->environmentalGraphData['unit'] : '' }}
+                                            </h4>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="text-center py-5 text-muted">
+                                        <i class="mdi mdi-chart-bubble" style="font-size: 3rem; color: #cbd5e1;"></i>
+                                        <h6 class="mt-3 font-weight-bold text-dark">No {{ $activeSection }} logs captured yet</h6>
+                                        <p class="text-muted mb-0 small">Execute and save an {{ $activeSection }} monitoring template to view the live trend analysis against optimum levels.</p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                 @endif
             @else
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
                         <h5 class="mb-1">Template Engine + Variables + Formula Engine</h5>
-                        <p class="text-muted mb-0">Create versioned templates and dynamic logic without overwriting historical definitions.</p>
+                        <p class="text-muted mb-0">Create versioned templates and dynamic logic without overwriting
+                            historical definitions.</p>
                     </div>
-                    <a href="{{ route('monitoring.template.create') }}" class="btn btn-primary">
+                    <a href="{{ $module === 'equipment' ? route('equipment.monitoring.template.create') : route('monitoring.template.create') }}" class="btn btn-primary">
                         <i class="mdi mdi-plus"></i> New Template
                     </a>
                 </div>
@@ -281,24 +351,20 @@
                             @forelse($this->templateEngineTemplates as $tpl)
                                 <tr>
                                     <td class="text-right">
-                                        <button type="button"
-                                                class="rm-act-btn rm-act-btn--edit"
-                                                wire:click="openTemplateEdit('{{ $tpl->id }}')"
-                                                title="Edit template">
+                                        <a href="{{ $module === 'equipment' ? route('equipment.monitoring.template.edit', $tpl->id) : route('monitoring.template.edit', $tpl->id) }}"
+                                            class="rm-act-btn rm-act-btn--edit" title="Edit template">
                                             <i class="mdi mdi-pencil"></i>
-                                        </button>
-                                        <button type="button"
-                                                class="rm-act-btn rm-act-btn--warning"
-                                                wire:click="clearTemplateLogs('{{ $tpl->id }}')"
-                                                onclick="return confirm('Clear all captured logs for this template? This cannot be undone.')"
-                                                title="Clear captured logs">
+                                        </a>
+                                        <button type="button" class="rm-act-btn rm-act-btn--warning"
+                                            wire:click="clearTemplateLogs('{{ $tpl->id }}')"
+                                            onclick="return confirm('Clear all captured logs for this template? This cannot be undone.')"
+                                            title="Clear captured logs">
                                             <i class="mdi mdi-delete-sweep"></i>
                                         </button>
-                                        <button type="button"
-                                                class="rm-act-btn rm-act-btn--delete"
-                                                wire:click="deleteTemplate('{{ $tpl->id }}')"
-                                                onclick="return confirm('Delete this template and all captured logs? This cannot be undone.')"
-                                                title="Delete template">
+                                        <button type="button" class="rm-act-btn rm-act-btn--delete"
+                                            wire:click="deleteTemplate('{{ $tpl->id }}')"
+                                            onclick="return confirm('Delete this template and all captured logs? This cannot be undone.')"
+                                            title="Delete template">
                                             <i class="mdi mdi-trash-can"></i>
                                         </button>
                                     </td>
@@ -329,7 +395,8 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Edit Monitoring Template</h5>
-                        <button type="button" class="close" wire:click="closeTemplateEditModal"><span>&times;</span></button>
+                        <button type="button" class="close"
+                            wire:click="closeTemplateEditModal"><span>&times;</span></button>
                     </div>
                     <div class="modal-body">
                         <div class="row">
@@ -343,7 +410,8 @@
 
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold">Document #</label>
-                                <input type="text" class="form-control" wire:model.defer="templateEditInputs.document_control_number">
+                                <input type="text" class="form-control"
+                                    wire:model.defer="templateEditInputs.document_control_number">
                                 @error('templateEditInputs.document_control_number')
                                     <div class="text-danger small mt-1">{{ $message }}</div>
                                 @enderror
@@ -351,7 +419,8 @@
 
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Version</label>
-                                <input type="number" min="1" class="form-control" wire:model.defer="templateEditInputs.version">
+                                <input type="number" min="1" class="form-control"
+                                    wire:model.defer="templateEditInputs.version">
                                 @error('templateEditInputs.version')
                                     <div class="text-danger small mt-1">{{ $message }}</div>
                                 @enderror
@@ -370,7 +439,8 @@
 
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Status</label>
-                                <input type="text" class="form-control" wire:model.defer="templateEditInputs.status" placeholder="draft/active/archived">
+                                <input type="text" class="form-control" wire:model.defer="templateEditInputs.status"
+                                    placeholder="draft/active/archived">
                                 @error('templateEditInputs.status')
                                     <div class="text-danger small mt-1">{{ $message }}</div>
                                 @enderror
@@ -378,7 +448,8 @@
 
                             <div class="col-md-12 mb-2">
                                 <div class="form-check">
-                                    <input type="checkbox" class="form-check-input" id="template-active-toggle" wire:model.defer="templateEditInputs.is_active">
+                                    <input type="checkbox" class="form-check-input" id="template-active-toggle"
+                                        wire:model.defer="templateEditInputs.is_active">
                                     <label class="form-check-label" for="template-active-toggle">Template is active</label>
                                 </div>
                                 @error('templateEditInputs.is_active')
@@ -388,7 +459,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" wire:click="closeTemplateEditModal">Cancel</button>
+                        <button type="button" class="btn btn-outline-secondary"
+                            wire:click="closeTemplateEditModal">Cancel</button>
                         <button type="button" class="btn btn-primary" wire:click="saveTemplateEdit">Save Changes</button>
                     </div>
                 </div>
@@ -415,16 +487,21 @@
 
                             <div class="form-group">
                                 <label>Equipment (optional)</label>
-                                <select class="form-control" wire:model.defer="executionInputs.equipment_id">
+                                <select class="form-control" wire:model.live="executionInputs.equipment_id">
                                     <option value="">-- Select equipment --</option>
                                     @foreach($this->executionEquipments as $eq)
-                                        <option value="{{ $eq->id }}">{{ $eq->name }}{{ $eq->equipment_number ? ' (' . $eq->equipment_number . ')' : '' }}</option>
+                                        <option value="{{ $eq->id }}">
+                                            {{ $eq->name }}{{ $eq->equipment_number ? ' (' . $eq->equipment_number . ')' : '' }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
 
                             <div class="row">
                                 @foreach($activeTemplate->fields as $field)
+                                    @if($field->field_type === 'metadata' || $field->field_key === '__meta_scope_items')
+                                        @continue
+                                    @endif
                                     @php
                                         $type = $field->field_type;
                                         $cfg = $field->field_config ?? [];
@@ -436,22 +513,49 @@
                                             @if($field->is_required)
                                                 <span class="text-danger">*</span>
                                             @endif
+                                            @if(!empty($cfg['variable_slug']))
+                                                @php
+                                                    $isDynamic = in_array($cfg['variable_slug'], ['correction_factor', 'uncertainty_of_measure'], true);
+                                                @endphp
+                                                <span class="badge {{ $isDynamic ? 'badge-primary' : 'badge-success' }} ml-1 px-2 py-1"
+                                                    style="font-size: 0.75rem; color: #fff;">
+                                                    <i class="mdi {{ $isDynamic ? 'mdi-sine-wave' : 'mdi-lock' }} mr-1"></i>
+                                                    {{ $isDynamic ? 'Dynamic: ' : 'Constant: ' }}{{ $cfg['variable_slug'] }}
+                                                </span>
+                                            @endif
                                         </label>
 
                                         @if($type === 'textarea')
-                                            <textarea class="form-control" rows="3" wire:model.defer="executionInputs.{{ $field->field_key }}"></textarea>
-                                        @elseif($type === 'number' || $type === 'formula')
-                                            <input type="number" step="any" class="form-control" wire:model.defer="executionInputs.{{ $field->field_key }}">
+                                            <textarea class="form-control" rows="3"
+                                                wire:model.defer="executionInputs.{{ $field->field_key }}"></textarea>
+                                        @elseif($type === 'formula')
+                                            @php $computedVal = $this->executionInputs[$field->field_key] ?? null; @endphp
+                                            <div class="exec-formula-display {{ $computedVal !== null ? 'exec-formula-display--filled' : 'exec-formula-display--pending' }}">
+                                                <span class="exec-formula-badge">
+                                                    <i class="mdi mdi-function-variant"></i> Formula
+                                                </span>
+                                                <span class="exec-formula-value">
+                                                    {{ $computedVal !== null ? $computedVal : '— waiting for inputs —' }}
+                                                </span>
+                                                <i class="mdi mdi-lock-outline exec-formula-lock"></i>
+                                            </div>
+                                            <input type="hidden" wire:model="executionInputs.{{ $field->field_key }}">
+                                        @elseif($type === 'number')
+                                            <input type="number" step="any" class="form-control"
+                                                wire:model.live.debounce.500ms="executionInputs.{{ $field->field_key }}">
                                         @elseif($type === 'checkbox')
                                             <div class="form-check">
-                                                <input type="checkbox" class="form-check-input" wire:model.defer="executionInputs.{{ $field->field_key }}">
+                                                <input type="checkbox" class="form-check-input"
+                                                    wire:model.defer="executionInputs.{{ $field->field_key }}">
                                             </div>
                                         @elseif($type === 'date')
-                                            <input type="date" class="form-control" wire:model.defer="executionInputs.{{ $field->field_key }}">
+                                            <input type="date" class="form-control"
+                                                wire:model.live="executionInputs.{{ $field->field_key }}">
                                         @elseif($type === 'datetime')
-                                            <input type="datetime-local" class="form-control" wire:model.defer="executionInputs.{{ $field->field_key }}">
+                                            <input type="datetime-local" class="form-control"
+                                                wire:model.live="executionInputs.{{ $field->field_key }}">
                                         @elseif($type === 'dropdown' || $type === 'radio')
-                                            <select class="form-control" wire:model.defer="executionInputs.{{ $field->field_key }}">
+                                            <select class="form-control" wire:model.live="executionInputs.{{ $field->field_key }}">
                                                 <option value="">-- Select --</option>
                                                 @foreach($options as $option)
                                                     @php
@@ -464,7 +568,8 @@
                                                 @endforeach
                                             </select>
                                         @else
-                                            <input type="text" class="form-control" wire:model.defer="executionInputs.{{ $field->field_key }}">
+                                            <input type="text" class="form-control"
+                                                wire:model.live="executionInputs.{{ $field->field_key }}">
                                         @endif
 
                                         @error('executionInputs.' . $field->field_key)
@@ -475,7 +580,8 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-secondary" wire:click="closeExecutionModal">Cancel</button>
+                            <button type="button" class="btn btn-outline-secondary"
+                                wire:click="closeExecutionModal">Cancel</button>
                             <button type="button" class="btn btn-primary" wire:click="saveExecution">Save Log</button>
                         </div>
                     </div>
@@ -657,13 +763,100 @@
             color: #64748b;
         }
 
-        .bg-info-soft { background: #dff4ff; color: #0b6a90; }
-        .bg-success-soft { background: #dff8ee; color: #166534; }
-        .bg-warning-soft { background: #fff4dd; color: #9a6700; }
-        .bg-primary-soft { background: #dbeafe; }
-        .bg-danger-soft { background: #fee2e2; }
+        .bg-info-soft {
+            background: #dff4ff;
+            color: #0b6a90;
+        }
+
+        .bg-success-soft {
+            background: #dff8ee;
+            color: #166534;
+        }
+
+        .bg-warning-soft {
+            background: #fff4dd;
+            color: #9a6700;
+        }
+
+        .bg-primary-soft {
+            background: #dbeafe;
+        }
+
+        .bg-danger-soft {
+            background: #fee2e2;
+        }
 
         /* Action button styling for monitoring tables */
+        /* Computed formula field display in Execute Monitoring modal */
+        .exec-formula-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px dashed #93c5fd;
+            border-radius: 8px;
+            padding: 9px 14px;
+            background: #f0f7ff;
+            min-height: 38px;
+            transition: all 0.2s ease;
+        }
+
+        .exec-formula-display--pending {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+
+        .exec-formula-display--pending .exec-formula-value {
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
+        .exec-formula-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-radius: 5px;
+            padding: 2px 8px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .exec-formula-badge .mdi {
+            font-size: 0.85rem;
+        }
+
+        .exec-formula-value {
+            flex: 1;
+            font-weight: 700;
+            font-size: 1rem;
+            color: #0f172a;
+            letter-spacing: 0.01em;
+        }
+
+        .exec-formula-lock {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        .exec-formula-display--filled {
+            border-color: #6ee7b7;
+            background: #f0fdf4;
+        }
+
+        .exec-formula-display--filled .exec-formula-badge {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .exec-formula-display--filled .exec-formula-lock {
+            color: #10b981;
+        }
+
         .rm-act-btn {
             border-radius: 7px;
             padding: 6px;
@@ -740,4 +933,145 @@
             }
         }
     </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let envTrendChart = null;
+
+        function initEnvTrendChart() {
+            const ctx = document.getElementById('environmentalTrendsChart');
+            if (!ctx) return;
+
+            if (envTrendChart) {
+                envTrendChart.destroy();
+            }
+
+            const dataStr = ctx.getAttribute('data-chart-data');
+            if (!dataStr) return;
+            const rawData = JSON.parse(dataStr);
+            if (!rawData || !rawData.hasData) return;
+
+            envTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: rawData.labels,
+                    datasets: [
+                        {
+                            label: 'Logged Value',
+                            data: rawData.actual,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#2563eb',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Optimum Target',
+                            data: rawData.optimum,
+                            borderColor: '#10b981',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Expected Min',
+                            data: rawData.min,
+                            borderColor: '#f59e0b',
+                            borderWidth: 1.5,
+                            borderDash: [8, 4],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Expected Max',
+                            data: rawData.max,
+                            borderColor: '#ef4444',
+                            borderWidth: 1.5,
+                            borderDash: [8, 4],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: "'Outfit', 'Inter', 'Roboto', sans-serif",
+                                    size: 12
+                                },
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleFont: {
+                                family: "'Outfit', 'Inter', 'Roboto', sans-serif",
+                                size: 13,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                family: "'Outfit', 'Inter', 'Roboto', sans-serif",
+                                size: 12
+                            },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: true
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'Outfit', 'Inter', sans-serif",
+                                    size: 11
+                                },
+                                color: '#64748b'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: '#f1f5f9'
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'Outfit', 'Inter', sans-serif",
+                                    size: 11
+                                },
+                                color: '#64748b'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initEnvTrendChart();
+        });
+
+        document.addEventListener('livewire:navigated', function() {
+            initEnvTrendChart();
+        });
+
+        document.addEventListener('livewire:updated', function() {
+            setTimeout(initEnvTrendChart, 100);
+        });
+    </script>
+</div>
+</style>
 </div>

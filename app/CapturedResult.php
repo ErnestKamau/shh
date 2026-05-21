@@ -19,17 +19,17 @@ class CapturedResult extends Model implements Auditable
 	public $incrementing = false;
 
     protected $casts = [
-        'analyte_code' => 'encrypted',
-        'result' => 'encrypted',
-        'remark' => 'encrypted',
-        'main_value' => 'encrypted',
-        'secondary_value' => 'encrypted',
-        'sec_remark' => 'encrypted',
-        'third_remark' => 'encrypted',
-        'scienctific_result' => 'encrypted',
-        'superscript_number' => 'encrypted',
-        'superscript_negative' => 'encrypted',
-        'supercsript_base' => 'encrypted',
+        'analyte_code' => \App\Casts\SafeEncrypted::class,
+        'result' => \App\Casts\SafeEncrypted::class,
+        'remark' => \App\Casts\SafeEncrypted::class,
+        'main_value' => \App\Casts\SafeEncrypted::class,
+        'secondary_value' => \App\Casts\SafeEncrypted::class,
+        'sec_remark' => \App\Casts\SafeEncrypted::class,
+        'third_remark' => \App\Casts\SafeEncrypted::class,
+        'scienctific_result' => \App\Casts\SafeEncrypted::class,
+        'superscript_number' => \App\Casts\SafeEncrypted::class,
+        'superscript_negative' => \App\Casts\SafeEncrypted::class,
+        'supercsript_base' => \App\Casts\SafeEncrypted::class,
         'operator_id' => 'string',
         'method_id' => 'string',
         'main_standard_id' => 'string',
@@ -84,7 +84,7 @@ class CapturedResult extends Model implements Auditable
 
 	public function my_analyte()
 	{
-		return $this->belongsTo(Analyte::class, 'analyte_id');
+		return $this->uuidBelongsTo(Analyte::class, 'analyte_id');
 	}
 
 	public function analyte()
@@ -94,7 +94,7 @@ class CapturedResult extends Model implements Auditable
 
 	public function defacto_analyst_with()
 	{
-		return $this->belongsTo(User::class, 'operator_id');
+		return $this->uuidBelongsTo(User::class, 'operator_id');
 	}
 
 	public function defacto_analyst()
@@ -146,7 +146,7 @@ class CapturedResult extends Model implements Auditable
 
 	public function operator()
 	{
-		return $this->belongsTo(User::class, 'operator_id');
+		return $this->uuidBelongsTo(User::class, 'operator_id');
 	}
 
 	public function analysisElement()
@@ -203,7 +203,26 @@ class CapturedResult extends Model implements Auditable
 
 	public function user()
 	{
-		return $this->belongsTo(User::class, 'user_id');
+		return $this->uuidBelongsTo(User::class, 'user_id');
+	}
+
+	protected function uuidBelongsTo($related, $foreignKey = null, $ownerKey = null, $relation = null)
+	{
+		if (is_null($relation)) {
+			$relation = $this->guessBelongsToRelation();
+		}
+
+		$instance = $this->newRelatedInstance($related);
+
+		if (is_null($foreignKey)) {
+			$foreignKey = \Illuminate\Support\Str::snake($relation).'_id';
+		}
+
+		$ownerKey = $ownerKey ?: $instance->getKeyName();
+
+		return new \App\Relations\UuidBelongsTo(
+			$instance->newQuery(), $this, $foreignKey, $ownerKey, $relation
+		);
 	}
 
 	public function assignAnalyst(?string $userId): void

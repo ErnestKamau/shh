@@ -98,6 +98,7 @@
     }
 
     // Add Equipment Checks breadcrumb
+    /* Commented out as Equipment Checks page is hidden
     if (isset($componentType) && $componentType === 'equipment-checks') {
         $breadcrumbItems[] = [
             'link' => null,
@@ -105,12 +106,58 @@
             'icon' => null
         ];
     }
+    */
 
     // Add Equipment Daily Log breadcrumb
+    
     if (isset($componentType) && $componentType === 'equipment-daily-log') {
         $breadcrumbItems[] = [
             'link' => null,
             'name' => 'Equipment Daily Log',
+            'icon' => null
+        ];
+    }
+
+    // Add Monitoring breadcrumbs
+    if (isset($componentType) && $componentType === 'monitoring') {
+        $breadcrumbItems[] = [
+            'link' => route('equipment.monitoring'),
+            'name' => 'Equipment Monitoring',
+            'icon' => null
+        ];
+    }
+
+    // Add Maintenance breadcrumbs
+    if (isset($componentType) && $componentType === 'equipment-maintenance') {
+        $breadcrumbItems[] = [
+            'link' => route('equipment.maintenance'),
+            'name' => 'Equipment Maintenance',
+            'icon' => null
+        ];
+    }
+
+    if (isset($componentType) && $componentType === 'template-create') {
+        $breadcrumbItems[] = [
+            'link' => route('equipment.monitoring'),
+            'name' => 'Equipment Monitoring',
+            'icon' => null
+        ];
+        $breadcrumbItems[] = [
+            'link' => '#',
+            'name' => 'Create Template',
+            'icon' => null
+        ];
+    }
+
+    if (isset($componentType) && $componentType === 'template-edit') {
+        $breadcrumbItems[] = [
+            'link' => route('equipment.monitoring'),
+            'name' => 'Equipment Monitoring',
+            'icon' => null
+        ];
+        $breadcrumbItems[] = [
+            'link' => '#',
+            'name' => 'Edit Template',
             'icon' => null
         ];
     }
@@ -124,7 +171,11 @@
     @elseif($componentType === 'equipment-dashboard')
         @livewire('equipment.equipment-dashboard')
     @elseif($componentType === 'equipment-detail')
-        @livewire('equipment.equipment-detail', ['equipmentId' => $equipmentId, 'fromEquipmentChecks' => $fromEquipmentChecks ?? false])
+        @livewire('equipment.equipment-detail', [
+            'equipmentId' => $equipmentId, 
+            'fromEquipmentChecks' => $fromEquipmentChecks ?? false,
+            'fromEquipmentMaintenance' => $fromEquipmentMaintenance ?? false
+        ])
     @elseif($componentType === 'disposal-manager')
         @livewire('equipment.disposal-manager')
     @elseif($componentType === 'disposal-detail')
@@ -137,10 +188,20 @@
         @livewire('equipment.assets.asset-type-manager')
     @elseif($componentType === 'asset-location-manager')
         @livewire('equipment.assets.asset-location-manager')
+    {{-- Commented out as this page is hidden
     @elseif($componentType === 'equipment-checks')
         @livewire('equipment.equipment-checks')
+    --}}
     @elseif($componentType === 'equipment-daily-log')
         @livewire('equipment.equipment-daily-log')
+    @elseif($componentType === 'monitoring')
+        @livewire('monitoring.monitoring-dashboard', ['activeSection' => 'equipment', 'module' => 'equipment'])
+    @elseif($componentType === 'equipment-maintenance')
+        @livewire('equipment.equipment-maintenance')
+    @elseif($componentType === 'template-create')
+        @livewire('monitoring.create-monitoring-template', ['templateType' => 'equipment', 'module' => 'equipment'])
+    @elseif($componentType === 'template-edit')
+        @livewire('monitoring.edit-monitoring-template', ['template' => $template, 'module' => 'equipment'])
     @endif
 </main>
 @endsection

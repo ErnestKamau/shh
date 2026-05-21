@@ -1,0 +1,1 @@
+<div class="card mb-3"><div class="card-header">User Workload</div><div class="card-body">@forelse($workload as $w)<div class="d-flex justify-content-between py-1"><span>{{ $w->assignee?->name ?? 'User #'.$w->assigned_to }}</span><span class="badge badge-info">{{ $w->total }}</span></div>@empty<p class="text-muted mb-0">No assignments.</p>@endforelse</div></div>

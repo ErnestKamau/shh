@@ -2,6 +2,7 @@
 
 namespace App\Models\AuditModule;
 
+use App\Models\AuditModule\Concerns\ScopesAuditTenantForCompany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use OwenIt\Auditing\Contracts\Auditable;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AuditWorkflowApprover extends Model implements Auditable
 {
     use HasUuids;
+    use ScopesAuditTenantForCompany;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -47,12 +49,6 @@ class AuditWorkflowApprover extends Model implements Auditable
     }
 
     // Scopes
-    public function scopeForCompany($query)
-    {
-        $companyId = getUserCompany() ?? 0;
-        return $query->where('company_id', $companyId);
-    }
-
     public function scopeForWorkflowStep($query, int $step)
     {
         return $query->where('workflow_step', $step);

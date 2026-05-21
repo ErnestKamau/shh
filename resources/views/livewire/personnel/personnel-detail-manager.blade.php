@@ -715,7 +715,7 @@
                             <div class="tag-select-container" wire:click="$set('showRoleDropdown', true)">
                                 <div class="tag-select-input">
                                     @foreach($selectedRoleIds as $roleId)
-                                        @php $role = $this->allSpatieGroups->firstWhere('id', $roleId); @endphp
+                                        @php $role = $this->allRoles->firstWhere('id', $roleId); @endphp
                                         @if($role)
                                             <span class="tag-badge">{{ $role->name }}<i class="mdi mdi-close-circle" wire:click.stop="removeSelectedRole('{{ $roleId }}')"></i></span>
                                         @endif
@@ -724,7 +724,7 @@
                                 </div>
                                 @if($showRoleDropdown)
                                     <div class="tag-dropdown">
-                                        @foreach($this->allSpatieGroups->filter(fn($r) => $roleSearch === '' || stripos($r->name, $roleSearch) !== false) as $role)
+                                        @foreach($this->allRoles->filter(fn($r) => $roleSearch === '' || stripos($r->name, $roleSearch) !== false) as $role)
                                             <div class="tag-dropdown-item d-flex justify-content-between" wire:click.stop="toggleRoleSelection('{{ $role->id }}')">
                                                 <span>{{ $role->name }}</span>
                                                 @if(in_array($role->id, $selectedRoleIds, true))<i class="mdi mdi-check text-success"></i>@endif

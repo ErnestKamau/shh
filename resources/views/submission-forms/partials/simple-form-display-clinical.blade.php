@@ -49,7 +49,7 @@
                                                                 $savedValue = $rowData[$elementId] ?? null;
                                                                 $displayValue = $savedValue['display_value'] ?? $savedValue['value'] ?? 'N/A';
                                                                 $isSignature = $element['element_type'] === 'signature' || str_contains((string)$displayValue, '/storage/personnel-signature/');
-                                                                $isMediaField = in_array($element['element_type'], ['file', 'camera_photo'], true);
+                                                                $isMediaField = in_array($element['element_type'], ['file', 'camera_photo', 'image_upload'], true);
                                                                 $mediaPath = '';
                                                                 $mediaUrl = null;
                                                                 $isImageMedia = false;
@@ -79,7 +79,7 @@
 
                                                                         $pathForExt = parse_url($candidate, PHP_URL_PATH) ?: $candidate;
                                                                         $isImageMedia = (bool) preg_match('/\.(png|jpe?g|gif|webp|bmp|svg)$/i', $pathForExt)
-                                                                            || $element['element_type'] === 'camera_photo';
+                                                                            || in_array($element['element_type'], ['camera_photo', 'image_upload'], true);
                                                                     }
                                                                 }
                                                             @endphp
@@ -133,7 +133,7 @@
                                             $savedValue = $element['saved_values'][0] ?? null;
                                             $displayValue = $savedValue['display_value'] ?? $savedValue['value'] ?? 'N/A';
                                             $isSignature = $element['element_type'] === 'signature' || str_contains((string)$displayValue, '/storage/personnel-signature/');
-                                            $isMediaField = in_array($element['element_type'], ['file', 'camera_photo'], true);
+                                            $isMediaField = in_array($element['element_type'], ['file', 'camera_photo', 'image_upload'], true);
                                             $mediaPath = '';
                                             $mediaUrl = null;
                                             $isImageMedia = false;
@@ -163,7 +163,7 @@
 
                                                     $pathForExt = parse_url($candidate, PHP_URL_PATH) ?: $candidate;
                                                     $isImageMedia = (bool) preg_match('/\.(png|jpe?g|gif|webp|bmp|svg)$/i', $pathForExt)
-                                                        || $element['element_type'] === 'camera_photo';
+                                                        || in_array($element['element_type'], ['camera_photo', 'image_upload'], true);
                                                 }
                                             }
                                         @endphp

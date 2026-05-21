@@ -29,6 +29,10 @@ Route::get('/', function () {
     return redirect()->route('home');
 });
 
+
+
+
+
 Auth::routes();
 
 // Force-change password (90-day expiry policy)
@@ -206,6 +210,10 @@ Route::get('/getCustomerSampleTypes', 'Lab\LabDashboardController@getCustomerSam
 Route::get('/lab-home', 'LabController@index')->name('lab-home')->middleware('can:laboratory.components.dashboard.view');
 Route::get('/lab-dashboard', 'Lab\LabDashboardController@index')->name('dashboard-lab')->middleware('can:laboratory.module.access');
 
+Route::get('/lab/equipment-requests', function () {
+    return view('layouts.lab.equipment-requests.index');
+})->name('lab.equipment-requests.index')->middleware('can:laboratory.components.equipment-requests.view');
+
 Route::get('/labs', 'LabController@index')->name('labs')->middleware('can:laboratory.components.labs.view');
 Route::get('/lab/{labid?}/analysis-types', 'AnalysisTypeController@index')->name('show-lab-analysis-types')->middleware('can:laboratory.components.analysis types.view');
 Route::post('/labs', 'LabController@add')->name('add-labs')->middleware('can:laboratory.components.labs.add');
@@ -236,6 +244,10 @@ Route::get('/livewire/monitoring', [LabAppController::class, 'monitoring'])
 
 Route::get('/livewire/monitoring/template/create', [LabAppController::class, 'createMonitoringTemplate'])
     ->name('monitoring.template.create')
+    ->middleware('can:laboratory.components.labs.view');
+
+Route::get('/livewire/monitoring/template/{template}/edit', [LabAppController::class, 'editMonitoringTemplate'])
+    ->name('monitoring.template.edit')
     ->middleware('can:laboratory.components.labs.view');
 
 // Remedies Management Routes
@@ -475,6 +487,13 @@ Route::post('/stock-monitoring/lab-sub-category/clone', 'Lab\BufferManagementCon
 Route::get('/solutions-movement', 'Lab\BufferStockMovementController@livewire_index')->name('solution-movement-index')->middleware('can:laboratory.components.stock-monitoring.view');
 Route::get('/solutions-movement/show/{id}', 'Lab\BufferStockMovementController@livewire_show')->name('solution-movement-show')->middleware('can:laboratory.components.stock-monitoring.view');
 Route::post('/solutions-movement/add', 'Lab\BufferStockMovementController@add')->name('solution-movement-add')->middleware('can:laboratory.components.stock-monitoring.add');
+
+Route::get('/solutions-preparation', 'Lab\SolutionPreparationController@index')->name('solutions-preparation-index')->middleware('can:laboratory.components.stock-monitoring.view');
+Route::get('/solutions-preparation/create', 'Lab\SolutionPreparationController@create')->name('solutions-preparation-create')->middleware('can:laboratory.components.stock-monitoring.add');
+Route::get('/solutions-preparation/show/{id}', 'Lab\SolutionPreparationController@show')->name('solutions-preparation-show')->middleware('can:laboratory.components.stock-monitoring.view');
+Route::get('/solutions-preparation/analysis-types/{sampleTypeId}', 'Lab\SolutionPreparationAjaxController@analysisTypes')->name('solutions-preparation-analysis-types')->middleware('can:laboratory.components.stock-monitoring.view');
+Route::get('/solutions-preparation/analytes/{analysisTypeId}', 'Lab\SolutionPreparationAjaxController@analytes')->name('solutions-preparation-analytes')->middleware('can:laboratory.components.stock-monitoring.view');
+Route::get('/solutions-preparation/standard-limits/{analyteId}/{standardId}', 'Lab\SolutionPreparationAjaxController@standardLimits')->name('solutions-preparation-standard-limits')->middleware('can:laboratory.components.stock-monitoring.view');
 
 Route::post('/stock-taking-counter/{id}/add', 'StockTakingCounterController@add')->name('add-stock-taking-counter')->middleware('can:inventory.components.stock-taking.edit');
 Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@remove')->name('remove-stock-taking-counter')->middleware('can:inventory.components.stock-taking.edit');
@@ -985,10 +1004,27 @@ Route::get('/equipment/asset-types', [EquipmentAppController::class, 'assetTypeM
 Route::get('/equipment/asset-locations', [EquipmentAppController::class, 'assetLocationManager'])->name('equipment.asset-locations.index')->middleware(['auth', 'can:equipment.components.asset-location.view']);
 
 //############################################EQUIPMENT##########################################################
+// Equipment Monitoring Routes
+Route::get('/equipment/monitoring', [EquipmentAppController::class, 'monitoring'])
+    ->name('equipment.monitoring')
+    ->middleware('can:equipment.permission');
+
+Route::get('/equipment/maintenance', [EquipmentAppController::class, 'equipmentMaintenance'])
+    ->name('equipment.maintenance')
+    ->middleware('can:equipment.permission');
+
+Route::get('/equipment/monitoring/template/create', [EquipmentAppController::class, 'createMonitoringTemplate'])
+    ->name('equipment.monitoring.template.create')
+    ->middleware('can:equipment.permission');
+
+Route::get('/equipment/monitoring/template/{template}/edit', [EquipmentAppController::class, 'editMonitoringTemplate'])
+    ->name('equipment.monitoring.template.edit')
+    ->middleware('can:equipment.permission');
+
 Route::get('/equipment-home', [EquipmentAppController::class, 'equipmentManager'])->name('equipment-home')->middleware('can:equipment.permission');
 Route::get('/equipment-dashboard', [EquipmentAppController::class, 'equipmentDashboard'])->name('equipment-dashboard')->middleware('can:equipment.module.access');
-Route::get('/equipment-checks', [EquipmentAppController::class, 'checksIndex'])->name('equipment-checks')->middleware('can:equipment.permission');
-Route::get('/equipment-daily-log', [EquipmentAppController::class, 'dailyLogIndex'])->name('equipment-daily-log')->middleware('can:equipment.permission');
+// Route::get('/equipment-checks', [EquipmentAppController::class, 'checksIndex'])->name('equipment-checks')->middleware('can:equipment.permission');
+Route::get('/equipment-daily-log', [EquipmentAppController::class, 'dailyLogIndex'])->name('equipment-daily-log')->middleware('can:equipment.module.access');
 Route::post('/equipment', 'Equipment\EquipmentController@add')->name('add-equipment')->middleware('can:equipment.components.equipment-list.add');
 Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])->name('view-equipment')->middleware('can:equipment.components.equipment-list.view');
 Route::post('/equipment/{id}', 'Equipment\EquipmentController@edit')->name('edit-equipment')->middleware('can:equipment.components.equipment-list.edit');
@@ -1608,6 +1644,9 @@ Route::get('/billing/tax-regime', function () {
 //#################################LAB REPORTS#######################################
 Route::get('/lab/reports-home', 'Lab\Reports\SamplesReportsController@index')->name('lab-reports-home')->middleware('can:laboratory.components.lab-reports.view');
 Route::post('/lab/report/show', 'Lab\Reports\SamplesReportsController@show')->name('lab-report-show')->middleware('can:laboratory.components.lab-reports.view');
+Route::get('/module-reports', 'Lab\Reports\ModuleReportsController@index')->name('module-reports.index')->middleware('auth');
+Route::post('/module-reports/view', 'Lab\Reports\ModuleReportsController@viewReport')->name('module-reports.view')->middleware('auth');
+Route::get('/module-reports/print', 'Lab\Reports\ModuleReportsController@printReport')->name('module-reports.print')->middleware('auth');
 
 Route::get('/lab/sample-generate/certificate-analysis/{id}', 'SampleWorkFlowController@certificate_analysis')->name('certificate-analysis')->middleware('can:laboratory.components.lab-reports.view');
 Route::get('/getAnalysisTypeBySampleTypeAjax/{type_id}', 'Lab\Reports\SamplesReportsController@getAnalysisTypeBySampleTypeAjax')->name('getAnalysisTypeBySampleTypeAjax')->middleware('can:laboratory.components.lab-reports.view');
@@ -2072,6 +2111,18 @@ Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(func
         Route::get('/manage', 'Procedures\ProcedureWorksheetController@manage')->name('manage');
         Route::get('/{procedureWorksheet}/edit', 'Procedures\ProcedureWorksheetController@edit')->name('edit');
     });
+
+    // Grouped worksheet pipelines
+    Route::prefix('grouped-worksheets')->name('grouped-worksheets.')->group(function () {
+        Route::get('/manage', 'GroupedWorksheets\GroupedWorksheetHolderController@manage')->name('manage');
+        Route::get('/{groupedWorksheetHolder}/edit', 'GroupedWorksheets\GroupedWorksheetHolderController@edit')->name('edit');
+    });
+
+    // Hybrid worksheets
+    Route::prefix('hybrid-worksheets')->name('hybrid-worksheets.')->group(function () {
+        Route::get('/manage', 'HybridWorksheets\HybridWorksheetController@manage')->name('manage');
+        Route::get('/{hybridWorksheet}/versions/{hybridWorksheetVersion}/edit', 'HybridWorksheets\HybridWorksheetController@edit')->name('edit');
+    });
 });
 
 Route::middleware(['auth'])->prefix('method-sequences')->name('method-sequences.')->group(function () {
@@ -2164,4 +2215,31 @@ Route::prefix('documents')->name('documents.')->middleware('can:documents.permis
     // Show document (keep last)
     Route::get('/{id}', 'Documents\DocumentController@show')->name('show')->middleware('can:documents.components.document management.view');
 });
+
+//###################################REGISTRY / CORPORATE SERVICES#######################################
+Route::prefix('registry')->name('registry.')->middleware(['auth', 'can:registry.module.access'])->group(function () {
+    Route::get('/', 'Registry\RegistryDashboardController@index')->name('dashboard')->middleware('can:registry.components.dashboard.view');
+
+    Route::prefix('requests')->name('requests.')->group(function () {
+        Route::get('/', 'Registry\RegistryRequestController@index')->name('index')->middleware('can:registry.components.requests.view');
+        Route::get('/create', 'Registry\RegistryRequestController@create')->name('create')->middleware('can:registry.components.requests.add');
+        Route::post('/', 'Registry\RegistryRequestController@store')->name('store')->middleware('can:registry.components.requests.add');
+        Route::get('/{id}', 'Registry\RegistryRequestController@show')->name('show')->middleware('can:registry.components.requests.view');
+        Route::post('/{id}/approve', 'Registry\RegistryRequestController@approve')->name('approve')->middleware('can:registry.components.approval queue.edit');
+        Route::post('/{id}/reject', 'Registry\RegistryRequestController@reject')->name('reject')->middleware('can:registry.components.approval queue.edit');
+        Route::post('/{id}/assign', 'Registry\RegistryRequestController@assign')->name('assign')->middleware('can:registry.components.assignments.edit');
+        Route::post('/{id}/close', 'Registry\RegistryRequestController@close')->name('close')->middleware('can:registry.components.requests.edit');
+        Route::post('/{id}/escalate', 'Registry\RegistryRequestController@escalate')->name('escalate')->middleware('can:registry.components.requests.edit');
+        Route::post('/{id}/documents', 'Registry\RegistryDocumentController@store')->name('documents.store')->middleware('can:registry.components.documents.add');
+    });
+
+    Route::get('/documents/{documentId}/download', 'Registry\RegistryDocumentController@download')->name('documents.download')->middleware('can:registry.components.documents.view');
+
+    Route::get('/approved', 'Registry\RegistryApprovedRequestController@index')->name('approved.index')->middleware('can:registry.components.requests.view');
+    Route::get('/approvals', 'Registry\RegistryApprovalController@index')->name('approvals.index')->middleware('can:registry.components.approval queue.view');
+    Route::get('/correspondence', 'Registry\RegistryCorrespondenceController@index')->name('correspondence.index')->middleware('can:registry.components.correspondence register.view');
+    Route::get('/workflows', 'Registry\RegistryWorkflowController@index')->name('workflows.index')->middleware('can:registry.components.workflow configuration.view');
+    Route::get('/reports/export/{format}', 'Registry\RegistryReportController@export')->name('reports.export')->middleware('can:registry.components.reports.view');
+});
+//###################################REGISTRY / CORPORATE SERVICES#######################################
 

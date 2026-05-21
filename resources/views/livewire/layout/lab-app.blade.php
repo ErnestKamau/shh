@@ -232,6 +232,8 @@
     @livewire('reports.report-format-builder', ['reportFormatId' => $reportFormatId ?? null])
     @elseif($componentType === 'template-create')
     @livewire('monitoring.create-monitoring-template')
+    @elseif($componentType === 'template-edit')
+    @livewire('monitoring.edit-monitoring-template', ['template' => $template])
     @endif
 </main>
 @endsection

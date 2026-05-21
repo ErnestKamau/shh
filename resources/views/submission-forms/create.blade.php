@@ -26,14 +26,28 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    
-    <div class="d-flex justify-content-between align-items-center p-4">
-      <h2>
-        <i class="mdi mdi-form-select"></i> Create Submission Form
-      </h2>
-      <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary">
-        <i class="mdi mdi-arrow-left"></i> Back to Forms
-      </a>
+
+    @include('submission-forms.partials.horizontal-gutter-styles')
+    <div class="submission-forms-horizontal-gutter">
+
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-sm border-0 bg-white" style="border-radius: 15px;">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
+              <div>
+                <h2 class="mb-1">
+                  <i class="mdi mdi-form-select text-primary"></i> Create Submission Form
+                </h2>
+                <p class="text-muted mb-0">Provide form details, document control metadata, and placement for your new template.</p>
+              </div>
+              <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary" style="border-radius: 9px;">
+                <i class="mdi mdi-arrow-left"></i> Back to Forms
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="bg-light p-4">
@@ -259,6 +273,14 @@
                   <small class="form-text text-muted">If checked, this form can only be submitted via customer portal and will route to LIMS destination page(s).</small>
                 </div>
 
+                <div class="form-group ml-4" id="customer-request-form-wrapper" style="display:none;">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="is_customer_request_form" name="is_customer_request_form" value="1" {{ old('is_customer_request_form') ? 'checked' : '' }}>
+                    <label class="form-check-label" for="is_customer_request_form">Mark as customer request form</label>
+                  </div>
+                  <small class="form-text text-muted">When multiple forms are marked, the portal API returns the most recently updated one as the default customer request form.</small>
+                </div>
+
                 <div class="form-group" id="target-pages-wrapper">
                   <label for="target_pages">Target Pages</label>
                   <select class="form-control select2 @error('target_pages') is-invalid @enderror" id="target_pages" name="target_pages[]" multiple>
@@ -395,6 +417,41 @@
                   This helps with tracking and referencing submissions.
                 </p>
               </div>
+
+              <div class="mb-3">
+                <h6>Template form types</h6>
+                <p class="small text-muted mb-2">
+                  A <strong>template form type</strong> groups and labels your <strong>template</strong> submission forms (for example by report family or workflow). It is metadata for discovery and configuration, not the same as linking an attachment to a template below.
+                </p>
+                <ul class="small text-muted mb-0 pl-3">
+                  <li>Pick a type from <strong>Template Form Type</strong> when that field is shown, or use <strong>+ Add New Template Form Type</strong> to define a new label on the fly.</li>
+                  <li>Keeping types consistent makes it easier to find the right template when you have many forms.</li>
+                </ul>
+              </div>
+
+              <div class="mb-3">
+                <h6>Attachment forms and template forms</h6>
+                <p class="small text-muted mb-2">
+                  Use <strong>Attachment Form</strong> when this form is optional or extra paperwork that goes with one or more standalone <strong>template</strong> forms (not the PDF/print layout).
+                </p>
+                <ul class="small text-muted mb-0 pl-3">
+                  <li><strong>Template Form</strong>: the main form (assigned to customers/sample types, etc.).</li>
+                  <li><strong>Attachment Form</strong>: after you select that type, use <strong>Linked Template Forms</strong> to choose which template form(s) this attachment is tied to. Users can then open the attachment in context of those templates.</li>
+                  <li><strong>Print Template</strong> (Dropdown in form details) controls how a filled form is rendered for printing—not the template form link above.</li>
+                </ul>
+              </div>
+
+              <div class="mb-3">
+                <h6>Filled only from customer portal</h6>
+                <p class="small text-muted mb-2">
+                  When <strong>Filled only from customer portal</strong> is checked, new instances are meant to be started and completed by customers through the <strong>customer portal</strong>, not from the usual in-lab form capture entry points.
+                </p>
+                <ul class="small text-muted mb-0 pl-3">
+                  <li>Set <strong>LIMS destination page(s)</strong> so that when a portal submission is received, the lab system opens the right area of the LIMS.</li>
+                  <li>For portal-only forms, placement options that target specific lab UI pages are hidden; routing is driven by those destination pages instead.</li>
+                  <li>Leave this unchecked if laboratory staff should launch or fill this form from inside the lab app as usual.</li>
+                </ul>
+              </div>
               
               <div class="alert alert-info small">
                 <i class="mdi mdi-lightbulb-outline"></i>
@@ -404,6 +461,7 @@
           </div>
         </div>
       </div>
+    </div>
     </div>
   </main>
 
@@ -553,6 +611,7 @@
     const $placementMode = $('#placement-mode-wrapper');
     const $displayMode = $('#display-mode-wrapper');
     const $advancedPlacement = $('#advanced-placement-section');
+    const $customerRequestWrapper = $('#customer-request-form-wrapper');
 
     if (isPortal) {
       $targetPages.hide();
@@ -560,9 +619,12 @@
       $displayMode.hide();
       $advancedPlacement.addClass('d-none');
       $('#lims-destination-wrapper').show();
+      $customerRequestWrapper.show();
       return;
     }
 
+    $customerRequestWrapper.hide();
+    $('#is_customer_request_form').prop('checked', false);
     $targetPages.show();
     $placementMode.show();
     $displayMode.show();

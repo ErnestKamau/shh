@@ -208,6 +208,197 @@
                 {{ $element->help_text ?: 'Take a photo with your camera or choose one from gallery.' }}
             </small>
             @break
+
+        @case('image_upload')
+            @if(isset($isArrayField) && $isArrayField)
+                <div class="alert alert-warning small mb-0">
+                    <i class="mdi mdi-alert-outline"></i>
+                    Image upload is <strong>not saved</strong> inside row grids. Use a regular (non-row) field holder for this field.
+                </div>
+            @else
+                @php
+                    $iuBase = $fieldId;
+                    $iuDropId = $iuBase . '_image_drop';
+                    $iuInputId = $iuBase . '_image_input';
+                    $iuCamId = $iuBase . '_image_capture';
+                    $iuPrevWrap = $iuBase . '_preview_wrap';
+                    $iuPrevImg = $iuBase . '_preview_img';
+                @endphp
+                <div class="image-upload-widget border rounded p-3 bg-light"
+                     id="{{ $iuDropId }}"
+                     role="button"
+                     tabindex="0"
+                     style="cursor: pointer; border-style: dashed !important;">
+                    <input type="file"
+                           class="d-none"
+                           id="{{ $iuInputId }}"
+                           name="{{ $fieldName }}"
+                           accept="image/*"
+                           {{ $element->is_required ? 'required' : '' }}
+                           {{ $element->is_readonly ? 'disabled' : '' }}>
+                    <input type="file"
+                           class="d-none"
+                           id="{{ $iuCamId }}"
+                           accept="image/*"
+                           capture="environment">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between" style="gap: 8px;">
+                        <div>
+                            <strong>Drop an image here</strong>
+                            <span class="text-muted small d-block">or click this area to choose a file</span>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-image-upload-choose="{{ $iuInputId }}">Choose file</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-image-upload-camera="{{ $iuInputId }}" data-image-upload-capture="{{ $iuCamId }}">Take photo</button>
+                        </div>
+                    </div>
+                    <div id="{{ $iuPrevWrap }}" class="mt-2" style="display: none;">
+                        <img id="{{ $iuPrevImg }}" src="" alt="Preview" class="img-thumbnail" style="max-height: 140px;">
+                    </div>
+                    <small class="form-text text-muted d-block mt-2 mb-0">
+                        {{ $element->help_text ?: 'JPG, PNG, or WebP. Camera on desktop may require HTTPS and permission; you can always use Choose file.' }}
+                    </small>
+                </div>
+                @push('scripts')
+                <script>
+                (function () {
+                    var drop = document.getElementById('{{ $iuDropId }}');
+                    var input = document.getElementById('{{ $iuInputId }}');
+                    var cam = document.getElementById('{{ $iuCamId }}');
+                    var previewWrap = document.getElementById('{{ $iuPrevWrap }}');
+                    var previewImg = document.getElementById('{{ $iuPrevImg }}');
+                    if (!drop || !input) {
+                        return;
+                    }
+                    function syncFromFileList(files) {
+                        if (!files || !files.length || !files[0].type.match(/^image\//)) {
+                            return;
+                        }
+                        var dt = new DataTransfer();
+                        dt.items.add(files[0]);
+                        input.files = dt.files;
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    drop.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            input.click();
+                        }
+                    });
+                    drop.addEventListener('click', function (e) {
+                        if (e.target.closest('button')) {
+                            return;
+                        }
+                        input.click();
+                    });
+                    ['dragenter', 'dragover'].forEach(function (ev) {
+                        drop.addEventListener(ev, function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            drop.classList.add('border-primary');
+                        });
+                    });
+                    ['dragleave', 'drop'].forEach(function (ev) {
+                        drop.addEventListener(ev, function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            drop.classList.remove('border-primary');
+                        });
+                    });
+                    drop.addEventListener('drop', function (e) {
+                        var fl = e.dataTransfer && e.dataTransfer.files;
+                        syncFromFileList(fl);
+                    });
+                    var chooseBtn = document.querySelector('[data-image-upload-choose="{{ $iuInputId }}"]');
+                    if (chooseBtn) {
+                        chooseBtn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            input.click();
+                        });
+                    }
+                    var cameraBtn = document.querySelector('[data-image-upload-camera="{{ $iuInputId }}"]');
+                    if (cameraBtn) {
+                        cameraBtn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function (stream) {
+                                    var video = document.createElement('video');
+                                    video.playsInline = true;
+                                    video.srcObject = stream;
+                                    video.play();
+                                    var modal = document.createElement('div');
+                                    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;';
+                                    var inner = document.createElement('div');
+                                    inner.style.cssText = 'background:#fff;border-radius:8px;padding:12px;max-width:100%;';
+                                    var btnRow = document.createElement('div');
+                                    btnRow.className = 'mt-2 text-right';
+                                    var capBtn = document.createElement('button');
+                                    capBtn.type = 'button';
+                                    capBtn.className = 'btn btn-sm btn-primary mr-2';
+                                    capBtn.textContent = 'Capture';
+                                    var cancelBtn = document.createElement('button');
+                                    cancelBtn.type = 'button';
+                                    cancelBtn.className = 'btn btn-sm btn-secondary';
+                                    cancelBtn.textContent = 'Cancel';
+                                    inner.appendChild(video);
+                                    inner.appendChild(btnRow);
+                                    btnRow.appendChild(capBtn);
+                                    btnRow.appendChild(cancelBtn);
+                                    modal.appendChild(inner);
+                                    document.body.appendChild(modal);
+                                    function cleanup() {
+                                        stream.getTracks().forEach(function (t) { t.stop(); });
+                                        modal.remove();
+                                    }
+                                    cancelBtn.addEventListener('click', cleanup);
+                                    capBtn.addEventListener('click', function () {
+                                        var canvas = document.createElement('canvas');
+                                        canvas.width = video.videoWidth;
+                                        canvas.height = video.videoHeight;
+                                        canvas.getContext('2d').drawImage(video, 0, 0);
+                                        canvas.toBlob(function (blob) {
+                                            if (!blob) {
+                                                cleanup();
+                                                return;
+                                            }
+                                            var f = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+                                            var dt = new DataTransfer();
+                                            dt.items.add(f);
+                                            input.files = dt.files;
+                                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                                            cleanup();
+                                        }, 'image/jpeg', 0.92);
+                                    });
+                                }).catch(function () {
+                                    cam.click();
+                                });
+                            } else {
+                                cam.click();
+                            }
+                        });
+                    }
+                    cam.addEventListener('change', function () {
+                        if (cam.files && cam.files.length) {
+                            syncFromFileList(cam.files);
+                            cam.value = '';
+                        }
+                    });
+                    input.addEventListener('change', function () {
+                        if (input.files && input.files[0]) {
+                            var r = new FileReader();
+                            r.onload = function () {
+                                previewImg.src = r.result;
+                                previewWrap.style.display = 'block';
+                            };
+                            r.readAsDataURL(input.files[0]);
+                        }
+                    });
+                })();
+                </script>
+                @endpush
+            @endif
+            @break
             
         @case('signature')
             <div class="signature-container">
@@ -554,6 +745,26 @@
                         </option>
                     @endforeach
                 @endif
+            </select>
+            @break
+            
+        @case('zone_select')
+            @php
+                $zoneOptions = $element->getDynamicOptions();
+            @endphp
+            <select class="form-control"
+                    id="{{ $fieldId }}"
+                    name="{{ $fieldName }}"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a zone...' }}</option>
+                @endif
+                @foreach($zoneOptions as $option)
+                    <option value="{{ $option['value'] }}" {{ ((string) $fieldValue === (string) $option['value']) ? 'selected' : '' }}>
+                        {{ $option['label'] }}
+                    </option>
+                @endforeach
             </select>
             @break
             

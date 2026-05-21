@@ -29,7 +29,8 @@ class LabSubCategory extends Model implements Auditable
         'batch_prepared_date',
         'batch_expiry_date',
         'stability_notes',
-        'batch_status'
+        'batch_status',
+        'alternative_solution_id',
     ];
 
     /**
@@ -62,5 +63,20 @@ class LabSubCategory extends Model implements Auditable
     public function stockMovements()
     {
         return $this->hasMany(LabStockMovement::class, 'lab_sub_category_id')->orderBy('created_at', 'desc');
+    }
+
+    public function templates()
+    {
+        return $this->hasMany(\App\Models\SolutionPreparationStepTemplate::class, 'lab_sub_category_id')->orderBy('step_number');
+    }
+
+    public function preparations()
+    {
+        return $this->hasMany(\App\Models\SolutionPreparation::class, 'solution_id');
+    }
+
+    public function alternativeSolution()
+    {
+        return $this->belongsTo(self::class, 'alternative_solution_id');
     }
 }

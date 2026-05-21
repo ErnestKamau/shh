@@ -81,8 +81,12 @@ function getBatchAmmendmentsById($id)
 
 	foreach ($ammendments as $a) {
 		$s = json_decode($a->samples, true);
-		$p = array_keys($s);
-		$a->sample_name = implode(',', $p);
+		if (is_array($s)) {
+			$p = array_keys($s);
+			$a->sample_name = implode(',', $p);
+		} else {
+			$a->sample_name = '';
+		}
 	}
 	return $ammendments;
 }
@@ -862,6 +866,11 @@ function getSystemModules()
 			'route' => '/mas',
 			'default_visible' => true,
 		),
+		'registry' => array(
+			'name' => 'Registry',
+			'route' => '/registry',
+			'default_visible' => true,
+		),
 		'risk' => array(
 			'name' => 'Risk Management',
 			'route' => '/risk/dashboard',
@@ -1395,6 +1404,20 @@ function getModulePermissions()
 		"Risk-Management" => array(
 			"permission" => false,
 			"components" => array("Risk Dashboard", "Risks", "Risk Settings")
+		),
+		"Registry" => array(
+			"permission" => false,
+			"components" => array(
+				"Dashboard",
+				"Requests",
+				"Correspondence Register",
+				"Approval Queue",
+				"Assignments",
+				"Documents",
+				"Workflow Configuration",
+				"Reports",
+				"Audit Trail",
+			)
 		)
 	);
 

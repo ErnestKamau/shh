@@ -485,45 +485,32 @@ class FormInstanceController extends Controller
             abort(403, 'You are not authorized to view this form instance.');
         }
 
-        // Load form with all relationships
-        $submissionForm->load([
-            'sections.elementHolders.elements' => function ($query) {
-                $query->orderBy('sort_order');
-            }
-        ]);
+        $submissionForm->load(['sections.elementHolders.elements']);
 
-        // return response()->json($instance->getFormDataForDisplay());
+        $instance->load(['batches', 'analysisAcceptanceForms']);
 
-        // Load existing values
-        $existingValues = $instance->values()->with('element')->get();
-
-        // Load audit trail
-        $auditLogs = $instance->auditLogs()->with('user')->latest()->get();
-
-        $linkedBatchesOutOfSyncWithForm = false;
-        if ($instance->batches()->exists()) {
-            $linkedBatchesOutOfSyncWithForm = app(SubmissionFormBatchSyncService::class)
-                ->linkedBatchesOutOfSyncWithForm($instance);
-        }
-
-        $intakeCase = method_exists($instance, 'labIntakeCase') ? $instance->labIntakeCase : null;
-        /** @var \App\User|null $currentUser */
-        $currentUser = Auth::user();
-        $canManageIntake = $currentUser && ($currentUser->hasRole('Sample Reception') || $currentUser->hasRole('admin'));
-        $zones = collect();
-        $directorates = collect();
-
-        $isLabIntakeSubmission = method_exists($instance, 'isLabIntakeSubmission')
-            ? (bool) $instance->isLabIntakeSubmission()
-            : false;
-
-        if ($isLabIntakeSubmission && $canManageIntake) {
-            $zones = Zone::query()->orderBy('key')->get();
-            $directorates = Directorate::query()->where('active', 1)->orderBy('name')->get();
-        }
-
-        // Check if user is on tablet
         if (Auth::user()->is_tablet == 1) {
+            $existingValues = $instance->values()->with('element')->get();
+            $auditLogs = $instance->auditLogs()->with('user')->latest()->get();
+            $linkedBatchesOutOfSyncWithForm = false;
+            if ($instance->batches()->exists()) {
+                $linkedBatchesOutOfSyncWithForm = app(SubmissionFormBatchSyncService::class)
+                    ->linkedBatchesOutOfSyncWithForm($instance);
+            }
+            $intakeCase = method_exists($instance, 'labIntakeCase') ? $instance->labIntakeCase : null;
+            /** @var \App\User|null $currentUser */
+            $currentUser = Auth::user();
+            $canManageIntake = $currentUser && ($currentUser->hasRole('Sample Reception') || $currentUser->hasRole('admin'));
+            $zones = collect();
+            $directorates = collect();
+            $isLabIntakeSubmission = method_exists($instance, 'isLabIntakeSubmission')
+                ? (bool) $instance->isLabIntakeSubmission()
+                : false;
+            if ($isLabIntakeSubmission && $canManageIntake) {
+                $zones = Zone::query()->orderBy('key')->get();
+                $directorates = Directorate::query()->where('active', 1)->orderBy('name')->get();
+            }
+
             return view('submission-forms.instances.show-tablet', compact(
                 'submissionForm',
                 'instance',
@@ -537,17 +524,7 @@ class FormInstanceController extends Controller
             ));
         }
 
-        return view('submission-forms.instances.show', compact(
-            'submissionForm',
-            'instance',
-            'existingValues',
-            'auditLogs',
-            'linkedBatchesOutOfSyncWithForm',
-            'intakeCase',
-            'canManageIntake',
-            'zones',
-            'directorates'
-        ));
+        return view('submission-forms.instances.show', compact('submissionForm', 'instance'));
     }
 
     /**
@@ -790,6 +767,7 @@ class FormInstanceController extends Controller
                     $elementRules[] = 'file';
                     break;
                 case 'camera_photo':
+                case 'image_upload':
                     $elementRules[] = 'image';
                     $elementRules[] = 'mimes:jpg,jpeg,png,webp';
                     break;
@@ -804,6 +782,10 @@ class FormInstanceController extends Controller
                 case 'user_select':
                     $elementRules[] = 'integer';
                     $elementRules[] = 'exists:users,id';
+                    break;
+                case 'zone_select':
+                    $elementRules[] = 'string';
+                    $elementRules[] = 'exists:zones,id';
                     break;
             }
 
@@ -870,7 +852,7 @@ class FormInstanceController extends Controller
         }
 
         // Handle file uploads
-        if (in_array($element->element_type, ['file', 'camera_photo'], true) && $request->hasFile($element->name)) {
+        if (in_array($element->element_type, ['file', 'camera_photo', 'image_upload'], true) && $request->hasFile($element->name)) {
             $file = $request->file($element->name);
             $filename = time() . '_' . Str::slug($element->name) . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('submission-forms/' . $instance->id, $filename, 'public');
@@ -886,8 +868,9 @@ class FormInstanceController extends Controller
      */
     private function processArrayField(SubmissionFormInstance $instance, SubmissionFormElement $element, array $values): void
     {
-        // Delete existing values for this element
-        $instance->values()->where('submission_form_element_id', $element->id)->delete();
+        SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element): void {
+            $instance->values()->where('submission_form_element_id', $element->id)->delete();
+        });
 
         // Save each value with array index
         foreach ($values as $index => $value) {
@@ -945,18 +928,19 @@ class FormInstanceController extends Controller
      */
     private function saveFieldValue(SubmissionFormInstance $instance, SubmissionFormElement $element, $value, $filePath = null, $arrayIndex = null): void
     {
-        // Create or update the value
-        $instanceValue = SubmissionFormInstanceValue::updateOrCreate(
-            [
-                'submission_form_instance_id' => $instance->id,
-                'submission_form_element_id' => $element->id,
-                'array_index' => $arrayIndex
-            ],
-            [
-                'value' => $value,
-                'file_path' => $filePath
-            ]
-        );
+        SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element, $value, $filePath, $arrayIndex): void {
+            SubmissionFormInstanceValue::updateOrCreate(
+                [
+                    'submission_form_instance_id' => $instance->id,
+                    'submission_form_element_id' => $element->id,
+                    'array_index' => $arrayIndex,
+                ],
+                [
+                    'value' => $value,
+                    'file_path' => $filePath,
+                ]
+            );
+        });
 
         // // Process field mapping if configured
         // if ($element->isMapped()) {
@@ -1173,43 +1157,35 @@ class FormInstanceController extends Controller
 
                 case 'analysis_elements_select':
                     $analysisTypeId = $request->get('analysis_type_id');
-                    Log::info('Analysis elements request', [
-                        'analysis_type_id' => $analysisTypeId,
-                        'request_data' => $request->all()
-                    ]);
 
                     if ($analysisTypeId) {
                         $elements = \App\AnalysisElements::where('analysis_type_id', $analysisTypeId)
+                            ->where('active', 1)
                             ->with('analyte')
                             ->get();
 
-                        Log::info('Found analysis elements', [
-                            'count' => $elements->count(),
-                            'elements' => $elements->toArray()
-                        ]);
-
                         $options = $elements->map(function ($element) {
-                            // Get parameter name from the relationship or fallback
-                            $parametername = 'Unknown Parameter';
+                            $parameterName = 'Unknown Parameter';
                             if ($element->analyte) {
-                                $parametername = $element->analyte->name ?? 'Unknown Parameter';
+                                $parameterName = $element->analyte->name ?? 'Unknown Parameter';
                             } elseif ($element->analyte_id) {
-                                // Fallback: try to get the name directly
                                 $analyte = \App\Analyte::find($element->analyte_id);
-                                $parametername = $analyte ? $analyte->name : 'Unknown Parameter';
+                                $parameterName = $analyte ? $analyte->name : 'Unknown Parameter';
                             }
 
-                            $method = $element->method ?? 'No Method';
+                            $methodName = 'No Method';
+                            if ($element->method) {
+                                $method = \App\AnalysisMethod::find($element->method);
+                                $methodName = $method ? ($method->name ?? $element->method) : $element->method;
+                            }
+
                             return [
                                 'id' => $element->id,
-                                'text' => $parametername . ' (' . $method . ')'
+                                'text' => $parameterName . ' (' . $methodName . ')'
                             ];
                         })->toArray();
-
-                        Log::info('Mapped options', ['options' => $options]);
                     } else {
                         $options = [];
-                        Log::info('No analysis_type_id provided');
                     }
                     break;
 
