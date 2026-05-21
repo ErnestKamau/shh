@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
-class EquipmentAnnualProgram extends Model implements Auditable
+class EquipmentMaintenanceProgram extends Model implements Auditable
 {
     use HasUuids;
     use \OwenIt\Auditing\Auditable;
@@ -14,9 +14,10 @@ class EquipmentAnnualProgram extends Model implements Auditable
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $table = 'equipment_annual_programs';
+    protected $table = 'equipment_maintenance_programs';
 
     protected $fillable = [
+        'type',
         'name',
         'program_date',
         'description',
@@ -26,9 +27,4 @@ class EquipmentAnnualProgram extends Model implements Auditable
     protected $casts = [
         'program_date' => 'date',
     ];
-
-    public function maintenances()
-    {
-        return $this->hasMany(EquipmentAnnualMaintenance::class, 'equipment_annual_program_id');
-    }
 }
