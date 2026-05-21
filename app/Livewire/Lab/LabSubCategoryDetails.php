@@ -55,8 +55,8 @@ class LabSubCategoryDetails extends Component
         return [
             'subCategoryForm.name' => 'required|string|max:255',
             'subCategoryForm.description' => 'nullable|string',
-            'subCategoryForm.category_id' => 'required|integer',
-            'subCategoryForm.reporting_unit' => 'required|integer',
+            'subCategoryForm.category_id' => 'required|uuid|exists:lab_inventory_category,id',
+            'subCategoryForm.reporting_unit' => 'required|uuid|exists:reporting_units,id',
             'subCategoryForm.rate' => 'nullable|string|max:255',
             'imageUpload' => 'nullable|image|max:2048',
         ];
@@ -65,9 +65,9 @@ class LabSubCategoryDetails extends Component
     protected function getItemRules(): array
     {
         return [
-            'itemForm.reagent_id' => 'required|integer|exists:inventory_sub_categories,id',
+            'itemForm.reagent_id' => 'required|uuid|exists:inventory_sub_categories,id',
             'itemForm.amount_used' => 'required|numeric|min:0',
-            'itemForm.unit_measure_id' => 'required|integer|exists:reporting_units,id',
+            'itemForm.unit_measure_id' => 'required|uuid|exists:reporting_units,id',
         ];
     }
 
@@ -103,7 +103,8 @@ class LabSubCategoryDetails extends Component
 
     public function loadCategoryItems(): void
     {
-        $this->categoryItems = LabCategoryItems::where('sub_category_id', $this->subCategoryId)
+        $this->categoryItems = $this->subCategory
+            ->categoryItems()
             ->with(['reagent', 'unitMeasure'])
             ->get();
     }

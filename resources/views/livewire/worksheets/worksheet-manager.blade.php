@@ -15,7 +15,7 @@
                                 <i class="mdi mdi-clipboard-text text-success"></i>
                                 Worksheets for {{ $batch->batch_code }}
                             </h2>
-                            <p class="text-muted mb-0">Formula worksheets, method sequences, procedure worksheets, and SER capture for this batch</p>
+                            <p class="text-muted mb-0">Grouped pipelines, formula worksheets, method sequences, procedure worksheets, and SER capture for this batch</p>
                         </div>
                         <div class="d-flex gap-2">
                             @if($activeTab === 'formulas')
@@ -43,6 +43,18 @@
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-white border-0 pt-3" style="border-radius: 15px 15px 0 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
                     <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        @if($groupedHolders->count() > 0)
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab === 'grouped-pipelines' ? 'active' : '' }}"
+                               href="#"
+                               wire:click.prevent="switchTab('grouped-pipelines')"
+                               role="tab"
+                               style="{{ $activeTab === 'grouped-pipelines' ? $activeTabStyle : '' }}">
+                                <i class="mdi mdi-folder-multiple-outline"></i> Grouped pipelines
+                                <span class="badge badge-success">{{ $groupedHolders->count() }}</span>
+                            </a>
+                        </li>
+                        @endif
                         <li class="nav-item">
                             <a class="nav-link {{ $activeTab === 'formulas' ? 'active' : '' }}"
                                href="#"
@@ -107,6 +119,29 @@
                     </ul>
                 </div>
                 <div class="card-body p-4">
+                    @if($activeTab === 'grouped-pipelines' && $groupedHolders->count() > 0)
+                        @if($groupedHolders->count() > 1)
+                            <ul class="nav nav-pills mb-3">
+                                @foreach($groupedHolders as $gh)
+                                    <li class="nav-item">
+                                        <button type="button"
+                                            class="nav-link {{ (string) $activeGroupedHolderId === (string) $gh->id ? 'active' : '' }}"
+                                            wire:click="selectGroupedHolder('{{ $gh->id }}')">
+                                            {{ $gh->name }}
+                                        </button>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                        @if($activeGroupedHolder)
+                            <livewire:worksheets.grouped-worksheet-wizard
+                                :batch="$batch"
+                                :holder="$activeGroupedHolder"
+                                :key="'grouped-wizard-'.$activeGroupedHolder->id"
+                            />
+                        @endif
+                    @endif
+
                     @if($activeTab === 'formulas')
                         <div class="tab-pane fade show active">
                             @if($formulas->count() > 0 || $hasNoCaptureSamples)

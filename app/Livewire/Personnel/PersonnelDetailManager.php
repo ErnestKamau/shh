@@ -653,14 +653,9 @@ class PersonnelDetailManager extends Component
 
     public function addSelectedRoles(): void
     {
-        $availableGroupIds = $this->allSpatieGroups
-            ->pluck('id')
-            ->map(fn ($id): string => (string) $id)
-            ->all();
-
         $this->validate([
             'selectedRoleIds' => 'array|min:1',
-            'selectedRoleIds.*' => ['string', Rule::in($availableGroupIds)],
+            'selectedRoleIds.*' => 'string',
         ]);
 
         $roles = Role::query()
@@ -975,25 +970,13 @@ class PersonnelDetailManager extends Component
         return $query->get(['id', 'name', 'directorate_id', 'zone_id']);
     }
 
-    public function getAllSpatieGroupsProperty(): Collection
+    public function getAllRolesProperty()
     {
-        $query = Role::query()
+        return Role::query()
             ->where('guard_name', 'web')
             ->where('active', 1)
-            ->orderBy('name');
-
-        $companyId = getUserCompany();
-        if (!empty($companyId)) {
-            $query->where(function ($builder) use ($companyId): void {
-                $builder->where('company_id', $companyId)
-                    ->orWhereNull('company_id');
-            });
-        }
-
-        return $query
-            ->get(['id', 'name'])
-            ->filter(fn ($role): bool => $this->isGroupRole((string) $role->name))
-            ->values();
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     public function getAssignedSpatieGroupsProperty(): Collection

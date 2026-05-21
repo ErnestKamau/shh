@@ -11,6 +11,7 @@ use App\Models\CRM\CRMCustomer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -33,6 +34,8 @@ class SubmissionFormInstance extends Model implements Auditable
         'submitted_by',
         'portal_account_id',
         'crm_customer_id',
+        'zone_id',
+        'processing_zone_id',
         'target_record_type',
         'target_record_id',
         'portal_request_id',
@@ -123,6 +126,67 @@ class SubmissionFormInstance extends Model implements Auditable
     {
         return $this->hasMany(RequestWorkflowForm::class, 'submission_form_instance_id', 'id')
             ->latest('submitted_at');
+    }
+
+    public function analysisAcceptanceForms(): HasMany
+    {
+        return $this->hasMany(\App\Models\Sampleworkflow\AnalysisAcceptanceForm::class, 'submission_form_instance_id', 'id')
+            ->latest();
+    }
+
+    public function workflowChecklistResponses(): HasMany
+    {
+        return $this->hasMany(\App\Models\Workflow\ChecklistResponse::class, 'submission_form_instance_id');
+    }
+
+    public function workflowApprovalLogs(): HasMany
+    {
+        return $this->hasMany(\App\Models\Workflow\ApprovalLog::class, 'submission_form_instance_id');
+    }
+
+    public function intrays(): HasMany
+    {
+        return $this->hasMany(SubmissionFormInstanceIntray::class, 'submission_form_instance_id')
+            ->orderByDesc('created_at');
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(SubmissionFormInstanceNote::class, 'submission_form_instance_id')
+            ->orderByDesc('created_at');
+    }
+
+    public function latestIntray(): HasOne
+    {
+        return $this->hasOne(SubmissionFormInstanceIntray::class, 'submission_form_instance_id')
+            ->whereIn('id', $this->latestIntrayIdSubquery());
+    }
+
+    public function activePendingIntray(): HasOne
+    {
+        return $this->hasOne(SubmissionFormInstanceIntray::class, 'submission_form_instance_id')
+            ->where('status', SubmissionFormInstanceIntray::STATUS_PENDING)
+            ->whereIn('id', $this->latestIntrayIdSubquery(SubmissionFormInstanceIntray::STATUS_PENDING));
+    }
+
+    /**
+     * Latest intray row per instance (by created_at). Avoids latestOfMany(), which always
+     * aggregates on the UUID primary key and fails on PostgreSQL (no MAX(uuid)).
+     */
+    private function latestIntrayIdSubquery(?string $status = null): \Closure
+    {
+        return function ($query) use ($status) {
+            $query->select('id')
+                ->from('submission_form_instance_intrays as intray_pick')
+                ->whereColumn(
+                    'intray_pick.submission_form_instance_id',
+                    'submission_form_instance_intrays.submission_form_instance_id'
+                )
+                ->when($status !== null, fn ($q) => $q->where('intray_pick.status', $status))
+                ->orderByDesc('intray_pick.created_at')
+                ->orderByDesc('intray_pick.id')
+                ->limit(1);
+        };
     }
 
     /**
@@ -395,6 +459,95 @@ class SubmissionFormInstance extends Model implements Auditable
     }
 
     /**
+     * Mark a submitted portal/LIMS template request as physically received at the lab.
+     */
+    public function markAsReceived($user, ?string $notes = null): bool
+    {
+        if ($this->status !== 'submitted') {
+            return false;
+        }
+
+        $this->update([
+            'status' => 'received',
+            'reviewed_at' => now(),
+            'reviewed_by' => $user->id,
+            'review_notes' => $notes,
+        ]);
+
+        $this->logAction('received', $user, null, $notes);
+
+        return true;
+    }
+
+    /**
+     * Request additional information from the customer (Samples Receiving — Received tab).
+     */
+    public function markAsInAdditionalInfo(User $user, ?string $notes = null, bool $notifyCustomer = true): bool
+    {
+        if ($this->status !== 'received') {
+            return false;
+        }
+
+        $this->update([
+            'status' => 'in_additional_info',
+            'reviewed_at' => now(),
+            'reviewed_by' => $user->id,
+            'review_notes' => $notes,
+        ]);
+
+        $this->logAction('additional_info_requested', $user, null, $notes);
+
+        if ($notifyCustomer) {
+            $message = trim((string) $notes);
+            if ($message !== '') {
+                app(\App\Services\SubmissionForm\SubmissionFormAdditionalInfoService::class)
+                    ->notifyCustomer($this->fresh(['submissionForm', 'crmCustomer', 'submittedBy', 'values.element']), $message, $user);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Send a submission request to analyst review (Samples Receiving).
+     */
+    public function markAsInReview(User $user, ?string $notes = null): bool
+    {
+        if (! in_array($this->status, ['submitted', 'received'], true)) {
+            return false;
+        }
+
+        $previousStatus = $this->status;
+
+        $attributes = [
+            'status' => 'in_review',
+            'reviewed_by' => $user->id,
+            'review_notes' => $notes,
+        ];
+
+        if (! $this->reviewed_at) {
+            $attributes['reviewed_at'] = now();
+        }
+
+        $this->update($attributes);
+
+        $this->logAction('sent_for_analyst_review', $user, [
+            'status' => ['from' => $previousStatus, 'to' => 'in_review'],
+        ], $notes);
+
+        foreach ($this->attachmentInstances as $attachmentInstance) {
+            if ($attachmentInstance->status === 'submitted') {
+                $attachmentInstance->update([
+                    'status' => 'in_review',
+                    'reviewed_at' => $attachmentInstance->reviewed_at ?? now(),
+                ]);
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Get status badge color for UI
      */
     public function getStatusBadgeColor(): string
@@ -402,8 +555,16 @@ class SubmissionFormInstance extends Model implements Auditable
         switch ($this->status) {
             case 'draft':
                 return 'secondary';
+            case 'submitted':
+                return 'info';
+            case 'received':
+                return 'primary';
             case 'in_review':
                 return 'warning';
+            case 'in_additional_info':
+                return 'warning';
+            case 'complete':
+                return 'success';
             case 'approved':
                 return 'success';
             case 'rejected':
@@ -465,6 +626,52 @@ class SubmissionFormInstance extends Model implements Auditable
     public function scopeSubmittedBy($query, int $userId)
     {
         return $query->where('submitted_by', $userId);
+    }
+
+    /**
+     * Submission requests visible on the Samples Request Review workflow board.
+     */
+    public function scopeInRequestReviewQueue($query)
+    {
+        return $query->whereHas('submissionForm', function ($formQuery) {
+            $formQuery->where('form_type', 'template');
+        })->where(function ($statusQuery) {
+            $statusQuery->whereIn('status', ['in_review', 'In Review'])
+                ->orWhereHas('batches', function ($batchQuery) {
+                    $batchQuery->where(function ($inner) {
+                        $inner->where('status', 'Samples Request Review')
+                            ->orWhere('prelim_batch_status', 'Samples Request Review');
+                    });
+                });
+        });
+    }
+
+    /**
+     * Acceptance form, receipt notification, and batch exist for Request Review.
+     */
+    public function scopeRequestReviewAccepted($query)
+    {
+        return $query->whereHas('analysisAcceptanceForms', function ($acceptanceQuery) {
+            $acceptanceQuery->where('status', \App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_COMPLETED);
+        })->whereHas('batches', function ($batchQuery) {
+            $batchQuery->where(function ($inner) {
+                $inner->where('status', 'Samples Request Review')
+                    ->orWhere('prelim_batch_status', 'Samples Request Review');
+            })->whereHas('batch_attachments', function ($attachmentQuery) {
+                $attachmentQuery->where('title', 'Sample Receipt Notification (GCLA 01)');
+            });
+        });
+    }
+
+    /**
+     * In Request Review queue but not yet fully accepted (forms + batch + receipt).
+     */
+    public function scopeRequestReviewInReview($query)
+    {
+        return $query->inRequestReviewQueue()->whereNotIn(
+            'submission_form_instances.id',
+            static::query()->requestReviewAccepted()->select('submission_form_instances.id')
+        );
     }
 
     /**
@@ -1052,6 +1259,35 @@ class SubmissionFormInstance extends Model implements Auditable
             }
         }
 
+        if ($elementType === 'zone_select' && !empty($tokens)) {
+            $resolved = collect($tokens)
+                ->map(fn (string $token) => $this->resolveZoneDisplayValue($token))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($resolved)) {
+                return implode(', ', $resolved);
+            }
+        }
+
+        if ($elementType === 'client_contact_select'
+            && Str::contains($elementContext, 'customer')
+            && !Str::contains($elementContext, 'contact')
+            && !empty($tokens)) {
+            $resolved = collect($tokens)
+                ->map(fn (string $token) => $this->resolveSingleValue('client_select', $token))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($resolved)) {
+                return implode(', ', $resolved);
+            }
+        }
+
         $isParameterLikeField = $elementType === 'analysis_elements_select'
             || Str::contains($elementContext, ['parameter', 'analyte', 'test required', 'tests required']);
 
@@ -1137,9 +1373,17 @@ class SubmissionFormInstance extends Model implements Auditable
                         ->first();
                     if ($contact) {
                         $name = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);
-                        return $name ?: $id;
+
+                        return $name !== '' ? $name : $id;
                     }
-                    return $id;
+
+                    // Some forms label the field "Customer" but store a CRM customer id.
+                    $customer = DB::table('crm_customers')->where('id', $id)->first();
+
+                    return $customer ? (string) $customer->name : $id;
+
+                case 'zone_select':
+                    return $this->resolveZoneDisplayValue((string) $id);
 
                 case 'analysis_elements_select':
                     return $this->resolveParameterToken((string) $id);
@@ -1253,6 +1497,24 @@ class SubmissionFormInstance extends Model implements Auditable
         }
 
         return $id;
+    }
+
+    private function resolveZoneDisplayValue(string $id): string
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return $id;
+        }
+
+        $zone = \App\Zone::query()->find($id);
+
+        if (!$zone) {
+            return $id;
+        }
+
+        return $zone->key
+            ? ($zone->key . ' — ' . $zone->value)
+            : (string) $zone->value;
     }
 
     private function resolveDependedFieldToken($element, string $id): string

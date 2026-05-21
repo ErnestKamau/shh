@@ -1,0 +1,42 @@
+<?php
+
+namespace App\Notifications\Registry;
+
+use App\Models\Registry\RegistryRequest;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
+
+class RegistryRequestCreatedNotification extends Notification implements ShouldQueue
+{
+    use Queueable;
+
+    public function __construct(public RegistryRequest $request)
+    {
+    }
+
+    public function via(object $notifiable): array
+    {
+        return ['mail', 'database'];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage)
+            ->subject('New Registry Request: ' . $this->request->reference_no)
+            ->line('A new correspondence request has been registered.')
+            ->line('Reference: ' . $this->request->reference_no)
+            ->line('Subject: ' . $this->request->subject)
+            ->action('View Request', route('registry.requests.show', $this->request->id));
+    }
+
+    public function toArray(object $notifiable): array
+    {
+        return [
+            'registry_request_id' => $this->request->id,
+            'reference_no' => $this->request->reference_no,
+            'subject' => $this->request->subject,
+        ];
+    }
+}

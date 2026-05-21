@@ -2,6 +2,7 @@
 
 namespace App\Models\AuditModule;
 
+use App\Models\AuditModule\Concerns\ScopesAuditConfigurationForCompany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use OwenIt\Auditing\Contracts\Auditable;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
 class AuditAttachment extends Model implements Auditable
 {
     use HasUuids;
+    use ScopesAuditConfigurationForCompany;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -60,13 +62,6 @@ class AuditAttachment extends Model implements Auditable
     public function uploadedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
-    }
-
-    // Scopes
-    public function scopeForCompany($query)
-    {
-        $companyId = getUserCompany() ?? 0;
-        return $query->where('company_id', $companyId);
     }
 
     // Helper Methods

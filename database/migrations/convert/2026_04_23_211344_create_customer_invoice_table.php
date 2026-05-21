@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('upload_url')->nullable();
             $table->uuid('currency_id')->nullable()->index('idx_customer_invoice_currency_id_ee270a8b');
             $table->date('due_date')->nullable();
-            $table->integer('customer_id')->default(0);
+            $table->uuid('customer_id')->nullable()->index('idx_customer_invoice_customer_id');
             $table->double('total_tax')->nullable()->default(0);
             $table->string('tax_invoice', 100)->nullable();
             $table->string('sales_order_id', 100)->nullable();

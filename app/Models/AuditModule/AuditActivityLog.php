@@ -2,6 +2,7 @@
 
 namespace App\Models\AuditModule;
 
+use App\Models\AuditModule\Concerns\ScopesAuditTenantForCompany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use OwenIt\Auditing\Contracts\Auditable;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 class AuditActivityLog extends Model implements Auditable
 {
     use HasUuids;
+    use ScopesAuditTenantForCompany;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -62,13 +64,6 @@ class AuditActivityLog extends Model implements Auditable
         return $this->belongsTo(User::class, 'performed_by');
     }
 
-    // Scopes
-    public function scopeForCompany($query)
-    {
-        $companyId = getUserCompany() ?? 0;
-        return $query->where('company_id', $companyId);
-    }
-
     // Static helper methods
     public static function log($model, string $action, ?string $description = null, ?array $oldValues = null, ?array $newValues = null): self
     {
@@ -82,7 +77,7 @@ class AuditActivityLog extends Model implements Auditable
             'performed_by' => Auth::id(),
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ]);
     }
 
@@ -155,7 +150,7 @@ class AuditActivityLog extends Model implements Auditable
             'performed_by' => Auth::id(),
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ]);
     }
 

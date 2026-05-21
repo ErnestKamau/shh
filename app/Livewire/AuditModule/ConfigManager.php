@@ -166,9 +166,7 @@ class ConfigManager extends Component
                 $this->code = 'AUD' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
             }
             
-            $uniqueRule = $this->isEdit 
-                ? 'unique:audit_types,code,' . $this->editId . ',id,company_id,' . (getUserCompany() ?? 0)
-                : 'unique:audit_types,code,NULL,id,company_id,' . (getUserCompany() ?? 0);
+            $uniqueRule = $this->uniqueConfigCodeRule('audit_types');
             
             $rules['code'] = 'required|string|max:10|' . $uniqueRule;
         } elseif ($this->type === 'finding_categories') {
@@ -186,9 +184,7 @@ class ConfigManager extends Component
             }
             $this->code = strtolower(trim($this->code));
             
-            $uniqueRule = $this->isEdit 
-                ? 'unique:compliance_statuses,code,' . $this->editId . ',id,company_id,' . (getUserCompany() ?? 0)
-                : 'unique:compliance_statuses,code,NULL,id,company_id,' . (getUserCompany() ?? 0);
+            $uniqueRule = $this->uniqueConfigCodeRule('compliance_statuses');
             
             $rules['code'] = 'required|string|max:50|' . $uniqueRule;
             $rules['color_code'] = 'nullable|string|max:7';
@@ -213,9 +209,7 @@ class ConfigManager extends Component
             }
             $this->code = strtoupper(trim($this->code));
             
-            $uniqueRule = $this->isEdit 
-                ? 'unique:audit_statuses,code,' . $this->editId . ',id,company_id,' . (getUserCompany() ?? 0)
-                : 'unique:audit_statuses,code,NULL,id,company_id,' . (getUserCompany() ?? 0);
+            $uniqueRule = $this->uniqueConfigCodeRule('audit_statuses');
             
             $rules['code'] = 'required|string|max:10|' . $uniqueRule;
             $rules['color_code'] = 'nullable|string|max:7';
@@ -228,9 +222,7 @@ class ConfigManager extends Component
             }
             $this->code = strtoupper(trim($this->code));
             
-            $uniqueRule = $this->isEdit 
-                ? 'unique:workflow_actions,code,' . $this->editId . ',id,company_id,' . (getUserCompany() ?? 0)
-                : 'unique:workflow_actions,code,NULL,id,company_id,' . (getUserCompany() ?? 0);
+            $uniqueRule = $this->uniqueConfigCodeRule('workflow_actions');
             
             $rules['code'] = 'required|string|max:50|' . $uniqueRule;
             $rules['icon'] = 'nullable|string|max:100';
@@ -254,9 +246,8 @@ class ConfigManager extends Component
             }
             $this->code = strtoupper(trim($this->code));
             
-            $uniqueRule = $this->isEdit 
-                ? 'unique:' . ($this->type === 'severity_scales' ? 'severity_scales' : 'likelihood_scales') . ',code,' . $this->editId . ',id,company_id,' . (getUserCompany() ?? 0)
-                : 'unique:' . ($this->type === 'severity_scales' ? 'severity_scales' : 'likelihood_scales') . ',code,NULL,id,company_id,' . (getUserCompany() ?? 0);
+            $scalesTable = $this->type === 'severity_scales' ? 'severity_scales' : 'likelihood_scales';
+            $uniqueRule = $this->uniqueConfigCodeRule($scalesTable);
             
             $rules['code'] = 'required|string|max:20|' . $uniqueRule;
             $rules['score'] = 'required|integer|min:1|max:100';
@@ -281,9 +272,7 @@ class ConfigManager extends Component
             }
             $this->code = strtoupper(trim($this->code));
             
-            $uniqueRule = $this->isEdit 
-                ? 'unique:verification_results,code,' . $this->editId . ',id,company_id,' . (getUserCompany() ?? 0) . ',deleted_at,NULL'
-                : 'unique:verification_results,code,NULL,id,company_id,' . (getUserCompany() ?? 0) . ',deleted_at,NULL';
+            $uniqueRule = $this->uniqueConfigCodeRule('verification_results', 'code', ',deleted_at,NULL');
             
             $rules['code'] = 'required|string|max:50|' . $uniqueRule;
             $rules['color_code'] = 'nullable|string|max:7';
@@ -299,7 +288,7 @@ class ConfigManager extends Component
             'name' => $this->name,
             'description' => $this->description,
             'is_active' => $this->is_active,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ];
         
         if ($this->type === 'audit_types') {
@@ -417,6 +406,21 @@ class ConfigManager extends Component
         };
     }
 
+    /**
+     * Build a `unique:...` rule scoped by company UUID. Omits `company_id` when no company context (global rows).
+     */
+    protected function uniqueConfigCodeRule(string $table, string $codeColumn = 'code', string $additionalUniqueSuffix = ''): string
+    {
+        $companyId = getUserCompany();
+        $companyClause = ($companyId !== null && $companyId !== '')
+            ? ',company_id,' . $companyId
+            : '';
+
+        return $this->isEdit
+            ? 'unique:' . $table . ',' . $codeColumn . ',' . $this->editId . ',id' . $companyClause . $additionalUniqueSuffix
+            : 'unique:' . $table . ',' . $codeColumn . ',NULL,id' . $companyClause . $additionalUniqueSuffix;
+    }
+
     public function render()
     {
         $modelClass = $this->getModelClass();
@@ -425,9 +429,12 @@ class ConfigManager extends Component
         if (method_exists($modelClass, 'scopeForCompany')) {
             $query = $modelClass::forCompany();
         } else {
-            $companyId = getUserCompany() ?? 0;
-            $query = $modelClass::where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
+            $companyId = getUserCompany();
+            $query = $modelClass::query()->where(function ($q) use ($companyId) {
+                $q->whereNull('company_id');
+                if ($companyId !== null && $companyId !== '') {
+                    $q->orWhere('company_id', $companyId);
+                }
             });
         }
         

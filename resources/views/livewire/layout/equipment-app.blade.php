@@ -109,7 +109,7 @@
     */
 
     // Add Equipment Daily Log breadcrumb
-    /* Commented out as Equipment Daily Log page is hidden
+    
     if (isset($componentType) && $componentType === 'equipment-daily-log') {
         $breadcrumbItems[] = [
             'link' => null,
@@ -117,7 +117,6 @@
             'icon' => null
         ];
     }
-    */
 
     // Add Monitoring breadcrumbs
     if (isset($componentType) && $componentType === 'monitoring') {
@@ -189,12 +188,12 @@
         @livewire('equipment.assets.asset-type-manager')
     @elseif($componentType === 'asset-location-manager')
         @livewire('equipment.assets.asset-location-manager')
-    {{-- Commented out as these pages are hidden
+    {{-- Commented out as this page is hidden
     @elseif($componentType === 'equipment-checks')
         @livewire('equipment.equipment-checks')
+    --}}
     @elseif($componentType === 'equipment-daily-log')
         @livewire('equipment.equipment-daily-log')
-    --}}
     @elseif($componentType === 'monitoring')
         @livewire('monitoring.monitoring-dashboard', ['activeSection' => 'equipment', 'module' => 'equipment'])
     @elseif($componentType === 'equipment-maintenance')

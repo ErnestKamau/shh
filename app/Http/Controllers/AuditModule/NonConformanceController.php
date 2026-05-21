@@ -713,8 +713,7 @@ class NonConformanceController extends Controller
         if ($companyId) {
             $query->where(function($q) use ($companyId) {
                 $q->where('company_id', $companyId)
-                  ->orWhereNull('company_id')
-                  ->orWhere('company_id', 0);
+                  ->orWhereNull('company_id');
             });
         }
 

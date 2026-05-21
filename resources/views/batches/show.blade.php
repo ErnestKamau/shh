@@ -108,6 +108,111 @@
 		.show-hoverable:hover .complete{
 			display: unset;
 		}
+
+		/* Batch workspace tab bar (Livewire batch.tabs) */
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: flex-end;
+			gap: 4px;
+			padding: 8px 10px 0;
+			margin: 0;
+			list-style: none;
+			background: #f8fafc;
+			border: none;
+			border-bottom: 1px solid #e2e8f0;
+			border-radius: 0;
+			box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-item {
+			margin: 0;
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			padding: 10px 14px;
+			margin-bottom: -1px;
+			border-radius: 6px 6px 0 0;
+			border: 1px solid transparent;
+			border-bottom: 1px solid transparent;
+			color: #64748b;
+			font-size: 0.8125rem;
+			font-weight: 600;
+			line-height: 1.25;
+			text-decoration: none;
+			background: transparent;
+			box-shadow: none;
+			transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link:hover {
+			color: #334155;
+			background: rgba(255, 255, 255, 0.7);
+			box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link.active {
+			color: #0f172a;
+			background: #fff;
+			border-color: #e2e8f0;
+			border-bottom-color: #fff;
+			box-shadow: 0 -1px 4px rgba(15, 23, 42, 0.04), 0 2px 4px rgba(15, 23, 42, 0.06);
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link .mdi {
+			font-size: 1.125rem;
+			line-height: 1;
+			opacity: 0.9;
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link.active .mdi {
+			color: #2563eb;
+			opacity: 1;
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link .badge {
+			font-size: 0.65rem;
+			font-weight: 700;
+			padding: 3px 8px;
+			border-radius: 999px;
+			background: #e2e8f0;
+			color: #475569;
+			border: none;
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link.active .badge {
+			background: #dbeafe;
+			color: #1d4ed8;
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link:focus {
+			outline: none;
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link:focus-visible {
+			outline: 2px solid #3b82f6;
+			outline-offset: 2px;
+		}
+
+		.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link:active {
+			transform: translateY(0.5px);
+		}
+
+		.batch-show-page .batch-tabs-panel #batch-tabs-content {
+			margin-top: 1rem !important;
+			padding-top: 0 !important;
+			border-top: none !important;
+		}
+
+		@media (max-width: 575.98px) {
+			.batch-show-page .batch-tabs-panel .batch-nav-tabs .nav-link {
+				padding: 8px 10px;
+				font-size: 0.75rem;
+			}
+		}
   </style>
 @endsection
 

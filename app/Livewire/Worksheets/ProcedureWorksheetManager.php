@@ -71,12 +71,16 @@ class ProcedureWorksheetManager extends Component
     /** Tracks which external-selection cache key has been loaded into memory. */
     public ?string $externalSelectionCacheKeyLoaded = null;
 
-    public function mount($batchId)
+    public function mount($batchId, ?string $initialWorksheetId = null)
     {
         $this->batchId = $batchId;
         $this->importHash = Str::random(8);
         $this->syncCapturedResultsProcedureWorksheetIds();
         $this->initActiveTab();
+
+        if ($initialWorksheetId) {
+            $this->selectWorksheet($initialWorksheetId);
+        }
     }
 
     private function syncCapturedResultsProcedureWorksheetIds(): void

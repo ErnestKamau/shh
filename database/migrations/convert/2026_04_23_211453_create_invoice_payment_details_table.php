@@ -15,7 +15,7 @@ return new class extends Migration
             $table->uuid('id');
             $table->timestamps();
             $table->integer('received_by');
-            $table->integer('invoice_id')->nullable()->default(0);
+            $table->uuid('invoice_id')->nullable()->index('idx_invoice_payment_details_invoice_id');
             $table->string('ref_no')->nullable();
             $table->string('transaction_no')->nullable();
             $table->string('credit_days')->nullable();

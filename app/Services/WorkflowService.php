@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\SubmissionFormInstance;
 use App\Models\Workflow\Approval;
 use App\Models\Workflow\ApprovalLog;
 use App\Models\Workflow\ChecklistItem;
 use App\Models\Workflow\ChecklistResponse;
 use App\SampleHeader;
+use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +46,50 @@ class WorkflowService
                 $query->orderBy('order');
             }])
             ->find($approvalId);
+    }
+
+    public function getApprovalByCode(string $stageName, string $code): ?Approval
+    {
+        $this->assertValidStage($stageName);
+
+        return Approval::query()
+            ->with(['checklistItems' => function ($query) {
+                $query->orderBy('order');
+            }])
+            ->where('stage_name', $stageName)
+            ->where('code', $code)
+            ->where('is_active', true)
+            ->first();
+    }
+
+    /**
+     * @return array{approval: Approval, log: ApprovalLog|null, responses: Collection<int, ChecklistResponse>}
+     */
+    public function getFormInstanceApprovalState(string $formInstanceId, string $approvalId): array
+    {
+        $approval = $this->getApprovalWithChecklist($approvalId);
+
+        if ($approval === null) {
+            throw ValidationException::withMessages([
+                'approval' => 'The selected approval is not available.',
+            ]);
+        }
+
+        $responses = ChecklistResponse::query()
+            ->where('submission_form_instance_id', $formInstanceId)
+            ->where('approval_id', $approvalId)
+            ->get();
+
+        $log = ApprovalLog::query()
+            ->where('submission_form_instance_id', $formInstanceId)
+            ->where('approval_id', $approvalId)
+            ->first();
+
+        return [
+            'approval' => $approval,
+            'log' => $log,
+            'responses' => $responses,
+        ];
     }
 
     public function saveApproval(array $attributes, ?string $approvalId = null): Approval
@@ -214,11 +260,119 @@ class WorkflowService
         });
     }
 
+    public function submitFormInstanceApproval(
+        string $formInstanceId,
+        string $stageName,
+        string $approvalId,
+        array $responses,
+        ?string $remarks,
+        string $status,
+        ?string $userId
+    ): ApprovalLog {
+        $formInstance = $this->assertFormInstanceAndStage($formInstanceId, $stageName);
+
+        $approval = Approval::query()
+            ->with(['checklistItems' => function ($query) {
+                $query->orderBy('order');
+            }])
+            ->where('stage_name', $stageName)
+            ->where('is_active', true)
+            ->findOrFail($approvalId);
+
+        if (!in_array($status, ['approved', 'rejected'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'The selected approval action is invalid.',
+            ]);
+        }
+
+        $this->validateFormInstanceResponses($approval, $responses);
+
+        if (ApprovalLog::query()
+            ->where('submission_form_instance_id', $formInstance->id)
+            ->where('approval_id', $approval->id)
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'approval' => 'This approval has already been completed for the selected submission.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($formInstance, $approval, $stageName, $responses, $remarks, $status, $userId) {
+            foreach ($approval->checklistItems as $item) {
+                ChecklistResponse::query()->updateOrCreate(
+                    [
+                        'submission_form_instance_id' => $formInstance->id,
+                        'approval_id' => $approval->id,
+                        'checklist_item_id' => $item->id,
+                    ],
+                    [
+                        'sample_id' => null,
+                        'value' => Arr::get($responses, $item->id),
+                        'user_id' => $userId,
+                    ]
+                );
+            }
+
+            return ApprovalLog::query()->create([
+                'sample_id' => null,
+                'submission_form_instance_id' => $formInstance->id,
+                'approval_id' => $approval->id,
+                'stage_name' => $stageName,
+                'status' => $status,
+                'remarks' => $remarks,
+                'approved_by' => $userId,
+                'approved_at' => now(),
+            ]);
+        });
+    }
+
+    private function validateFormInstanceResponses(Approval $approval, array $responses): void
+    {
+        $rules = [];
+        $messages = [];
+
+        foreach ($approval->checklistItems as $item) {
+            $key = 'responses.' . $item->id;
+
+            if ($item->type === 'checkbox') {
+                $rules[$key] = $item->is_required ? ['accepted'] : ['nullable', 'boolean'];
+                $messages[$key . '.accepted'] = $item->label . ' must be checked.';
+                continue;
+            }
+
+            if ($item->type === 'select') {
+                $selectRules = [$item->is_required ? 'required' : 'nullable'];
+                $selectRules[] = Rule::in($item->options ?? []);
+                $rules[$key] = $selectRules;
+                $messages[$key . '.required'] = $item->label . ' is required.';
+                $messages[$key . '.in'] = 'Select a valid option for ' . $item->label . '.';
+                continue;
+            }
+
+            $rules[$key] = $item->is_required
+                ? ['required', 'string']
+                : ['nullable', 'string'];
+            $messages[$key . '.required'] = $item->label . ' is required.';
+        }
+
+        if ($rules === []) {
+            return;
+        }
+
+        validator(['responses' => $responses], $rules, $messages)->validate();
+    }
+
     private function assertSampleAndStage(string $sampleId, string $stageName): SampleHeader
     {
         $this->assertValidStage($stageName);
 
         return SampleHeader::query()->findOrFail($sampleId);
+    }
+
+    private function assertFormInstanceAndStage(string $formInstanceId, string $stageName): SubmissionFormInstance
+    {
+        $this->assertValidStage($stageName);
+
+        return SubmissionFormInstance::query()->findOrFail($formInstanceId);
     }
 
     private function assertValidStage(string $stageName): void

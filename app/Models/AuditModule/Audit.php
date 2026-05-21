@@ -2,6 +2,7 @@
 
 namespace App\Models\AuditModule;
 
+use App\Models\AuditModule\Concerns\ScopesAuditTenantForCompany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use OwenIt\Auditing\Contracts\Auditable;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class Audit extends Model implements Auditable
 {
     use HasUuids;
+    use ScopesAuditTenantForCompany;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -154,12 +156,6 @@ class Audit extends Model implements Auditable
     }
 
     // Scopes
-    public function scopeForCompany($query)
-    {
-        $companyId = getUserCompany() ?? 0;
-        return $query->where('company_id', $companyId);
-    }
-
     public function scopeByStatus($query, $statusCode)
     {
         return $query->whereHas('status', function ($q) use ($statusCode) {
@@ -225,10 +221,7 @@ class Audit extends Model implements Auditable
 
         // Get status from database with workflow_step
         $status = AuditStatus::where('name', $this->status_name)
-            ->where(function($q) {
-                $companyId = getUserCompany() ?? 0;
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
+            ->forCompany()
             ->first();
 
         if ($status && $status->workflow_step !== null) {
@@ -258,12 +251,9 @@ class Audit extends Model implements Auditable
      */
     public static function getStatusByCode(string $code): ?AuditStatus
     {
-        $companyId = getUserCompany() ?? 0;
         return AuditStatus::active()
+            ->forCompany()
             ->where('code', $code)
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
             ->first();
     }
     
@@ -272,12 +262,9 @@ class Audit extends Model implements Auditable
      */
     public static function getStatusByName(string $name): ?AuditStatus
     {
-        $companyId = getUserCompany() ?? 0;
         return AuditStatus::active()
+            ->forCompany()
             ->where('name', $name)
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
             ->first();
     }
     
@@ -304,12 +291,9 @@ class Audit extends Model implements Auditable
         }
 
         // Find statuses with the next workflow_step from database configuration
-        $companyId = getUserCompany() ?? 0;
         $nextStatus = AuditStatus::active()
+            ->forCompany()
             ->where('workflow_step', $nextStep)
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
             ->ordered()
             ->first();
         
@@ -319,10 +303,7 @@ class Audit extends Model implements Auditable
 
         // Fallback: If no status found with workflow_step, try to find by order_index
         $currentStatus = AuditStatus::where('name', $this->status_name)
-            ->where(function($q) {
-                $companyId = getUserCompany() ?? 0;
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
+            ->forCompany()
             ->first();
 
         if (!$currentStatus) {
@@ -331,10 +312,8 @@ class Audit extends Model implements Auditable
 
         // Get next status by order_index as fallback
         return AuditStatus::active()
+            ->forCompany()
             ->where('order_index', '>', $currentStatus->order_index)
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
             ->ordered()
             ->first();
     }

@@ -47,7 +47,8 @@ class AnalysisTypeManager extends Component
         'include_hygiene_score' => false,
         'include_sanitizer_efficiency' => false,
         'invoicable_item_id' => null,
-        'procedure_worksheet_id' => null
+        'procedure_worksheet_id' => null,
+        'grouped_worksheet_holder_id' => null,
     ];
 
     // Elements Management
@@ -241,7 +242,8 @@ class AnalysisTypeManager extends Component
             'include_hygiene_score' => (bool) $analysisType->include_hygiene_score,
             'include_sanitizer_efficiency' => (bool) $analysisType->include_sanitizer_efficiency,
             'invoicable_item_id' => $invoicableItemId,
-            'procedure_worksheet_id' => $analysisType->procedure_worksheet_id
+            'procedure_worksheet_id' => $analysisType->procedure_worksheet_id,
+            'grouped_worksheet_holder_id' => $analysisType->grouped_worksheet_holder_id,
         ];
         $this->editingAnalysisType = $id;
         $this->showAnalysisTypeModal = true;
@@ -254,7 +256,21 @@ class AnalysisTypeManager extends Component
             'analysisTypeForm.code' => 'required|string|max:255',
             'analysisTypeForm.lab_ids' => 'required|array|min:1',
             'analysisTypeForm.lab_ids.*' => 'uuid|exists:labs,id',
+            'analysisTypeForm.grouped_worksheet_holder_id' => 'nullable|uuid|exists:grouped_worksheet_holders,id',
+            'analysisTypeForm.procedure_worksheet_id' => 'nullable|uuid|exists:procedure_worksheets,id',
         ]);
+
+        if (! empty($this->analysisTypeForm['grouped_worksheet_holder_id'])
+            && ! empty($this->analysisTypeForm['procedure_worksheet_id'])) {
+            $this->addError('analysisTypeForm.grouped_worksheet_holder_id', 'Use either a grouped pipeline or a single procedure worksheet, not both.');
+            $this->messageType = 'error';
+
+            return;
+        }
+
+        $procedureWorksheetId = ! empty($this->analysisTypeForm['grouped_worksheet_holder_id'])
+            ? null
+            : ($this->analysisTypeForm['procedure_worksheet_id'] ?? null);
 
         $selectedLabIds = array_values(array_unique(array_filter((array) ($this->analysisTypeForm['lab_ids'] ?? []))));
         $primaryLabId = $selectedLabIds[0] ?? null;
@@ -276,13 +292,14 @@ class AnalysisTypeManager extends Component
                     'reporting_time' => $this->analysisTypeForm['reporting_time'],
                     'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'] ?? false,
                     'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'] ?? false,
-                    'procedure_worksheet_id' => $this->analysisTypeForm['procedure_worksheet_id'] ?? null,
+                    'procedure_worksheet_id' => $procedureWorksheetId,
+                    'grouped_worksheet_holder_id' => $this->analysisTypeForm['grouped_worksheet_holder_id'] ?? null,
                 ]);
                 
                 // Cascade update to elements if "Has No Result Captured" and worksheet is set
-                if (($this->analysisTypeForm['has_no_result'] ?? false) && !empty($this->analysisTypeForm['procedure_worksheet_id'])) {
+                if (($this->analysisTypeForm['has_no_result'] ?? false) && ! empty($procedureWorksheetId)) {
                     AnalysisElements::whereRaw('analysis_type_id::text = ?', [(string) $analysisType->id])->update([
-                        'procedure_worksheet_id' => $this->analysisTypeForm['procedure_worksheet_id']
+                        'procedure_worksheet_id' => $procedureWorksheetId,
                     ]);
                 }
 
@@ -306,7 +323,8 @@ class AnalysisTypeManager extends Component
                     'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'] ?? false,
                     'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'] ?? false,
                     'company_id' => getUserCompany(),
-                    'procedure_worksheet_id' => $this->analysisTypeForm['procedure_worksheet_id'] ?? null,
+                    'procedure_worksheet_id' => $procedureWorksheetId,
+                    'grouped_worksheet_holder_id' => $this->analysisTypeForm['grouped_worksheet_holder_id'] ?? null,
                 ]);
                 
                 // Create invoicable item mapping
@@ -378,7 +396,8 @@ class AnalysisTypeManager extends Component
             'include_hygiene_score' => false,
             'include_sanitizer_efficiency' => false,
             'invoicable_item_id' => null,
-            'procedure_worksheet_id' => null
+            'procedure_worksheet_id' => null,
+            'grouped_worksheet_holder_id' => null,
         ];
         $this->editingAnalysisType = null;
         $this->labSearch = '';
@@ -389,6 +408,8 @@ class AnalysisTypeManager extends Component
         $this->showInvoicableItemDropdown = false;
         $this->procedureWorksheetSearch = '';
         $this->showProcedureWorksheetDropdown = false;
+        $this->groupedHolderSearch = '';
+        $this->showGroupedHolderDropdown = false;
     }
 
     /**
@@ -747,8 +768,51 @@ class AnalysisTypeManager extends Component
     public function selectProcedureWorksheet($id)
     {
         $this->analysisTypeForm['procedure_worksheet_id'] = $id;
+        $this->analysisTypeForm['grouped_worksheet_holder_id'] = null;
         $this->procedureWorksheetSearch = '';
         $this->showProcedureWorksheetDropdown = false;
+    }
+
+    public $groupedHolderSearch = '';
+
+    public $showGroupedHolderDropdown = false;
+
+    public function updatedGroupedHolderSearch(): void
+    {
+        $this->showGroupedHolderDropdown = $this->groupedHolderSearch !== '';
+    }
+
+    public function selectGroupedWorksheetHolder(string $id): void
+    {
+        $this->analysisTypeForm['grouped_worksheet_holder_id'] = $id;
+        $this->analysisTypeForm['procedure_worksheet_id'] = null;
+        $this->groupedHolderSearch = '';
+        $this->showGroupedHolderDropdown = false;
+    }
+
+    public function getFilteredGroupedHoldersProperty()
+    {
+        if ($this->groupedHolderSearch === '') {
+            return [];
+        }
+
+        return \App\Models\GroupedWorksheets\GroupedWorksheetHolder::query()
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->where('name', 'like', '%'.$this->groupedHolderSearch.'%')
+                    ->orWhere('description', 'like', '%'.$this->groupedHolderSearch.'%');
+            })
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedGroupedHolderProperty()
+    {
+        if (empty($this->analysisTypeForm['grouped_worksheet_holder_id'])) {
+            return null;
+        }
+
+        return \App\Models\GroupedWorksheets\GroupedWorksheetHolder::find($this->analysisTypeForm['grouped_worksheet_holder_id']);
     }
 
     public function getFilteredProcedureWorksheetsProperty()

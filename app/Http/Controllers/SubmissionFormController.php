@@ -19,49 +19,11 @@ use App\Services\PageLayoutRegistry;
 class SubmissionFormController extends Controller
 {
     /**
-     * Display a listing of submission forms
-     * 
-     * @param Request $request
-     * @return \Illuminate\View\View
+     * Display a listing of submission forms (Livewire-backed registry UI).
      */
-    public function index(Request $request)
+    public function index(): View
     {
-        $query = SubmissionForm::with(['creator', 'sections', 'sampleAnalysisStages'])
-            ->withCount(['sections', 'instances']);
-
-        // Search functionality
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        // Filter by status
-        if ($request->filled('status')) {
-            $status = $request->get('status');
-            if ($status === 'published') {
-                $query->where('is_published', true);
-            } elseif ($status === 'draft') {
-                $query->where('is_published', false);
-            } elseif ($status === 'active') {
-                $query->where('is_active', true);
-            } elseif ($status === 'inactive') {
-                $query->where('is_active', false);
-            }
-        }
-
-        // Filter by creator
-        if ($request->filled('creator')) {
-            $query->where('created_by', $request->get('creator'));
-        }
-
-        $forms = $query->orderBy('created_at', 'desc')
-                      ->paginate(15)
-                      ->withQueryString();
-
-        return view('submission-forms.index', compact('forms'));
+        return view('submission-forms.index');
     }
 
     /**
@@ -109,6 +71,7 @@ class SubmissionFormController extends Controller
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
             'is_customer_portal_form' => ['boolean'],
+            'is_customer_request_form' => ['boolean'],
             'lims_destination_pages' => ['nullable', 'array'],
             'lims_destination_pages.*' => ['string', Rule::in($availablePageNames)],
             'start_submission_number' => ['nullable', 'integer', 'min:1'],
@@ -136,6 +99,13 @@ class SubmissionFormController extends Controller
         $validated['target_pages'] = array_values($validated['target_pages'] ?? []);
         $validated['display_mode'] = $validated['display_mode'] ?? 'expanded';
         $validated['is_customer_portal_form'] = $request->boolean('is_customer_portal_form');
+        $validated['is_customer_request_form'] = $request->boolean('is_customer_request_form');
+        if ($validated['is_customer_request_form'] && ! $validated['is_customer_portal_form']) {
+            $validated['is_customer_portal_form'] = true;
+        }
+        if (! $validated['is_customer_portal_form']) {
+            $validated['is_customer_request_form'] = false;
+        }
         $validated['template_form_type_id'] = isset($validated['template_form_type_id']) ? (int) $validated['template_form_type_id'] : null;
         $validated['lims_destination_pages'] = $validated['is_customer_portal_form']
             ? array_values($validated['lims_destination_pages'] ?? ['sample-workflow'])
@@ -278,6 +248,7 @@ class SubmissionFormController extends Controller
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
             'is_customer_portal_form' => ['boolean'],
+            'is_customer_request_form' => ['boolean'],
             'lims_destination_pages' => ['nullable', 'array'],
             'lims_destination_pages.*' => ['string', Rule::in($availablePageNames)],
             'start_submission_number' => ['nullable', 'integer', 'min:1'],
@@ -305,6 +276,13 @@ class SubmissionFormController extends Controller
         $validated['target_pages'] = array_values($validated['target_pages'] ?? []);
         $validated['display_mode'] = $validated['display_mode'] ?? 'expanded';
         $validated['is_customer_portal_form'] = $request->boolean('is_customer_portal_form');
+        $validated['is_customer_request_form'] = $request->boolean('is_customer_request_form');
+        if ($validated['is_customer_request_form'] && ! $validated['is_customer_portal_form']) {
+            $validated['is_customer_portal_form'] = true;
+        }
+        if (! $validated['is_customer_portal_form']) {
+            $validated['is_customer_request_form'] = false;
+        }
         $validated['template_form_type_id'] = isset($validated['template_form_type_id']) ? (int) $validated['template_form_type_id'] : null;
         $validated['lims_destination_pages'] = $validated['is_customer_portal_form']
             ? array_values($validated['lims_destination_pages'] ?? ['sample-workflow'])
@@ -577,7 +555,9 @@ class SubmissionFormController extends Controller
             }
         ]);
 
-        return view('submission-forms.preview', compact('submissionForm'));
+        $existingValues = collect();
+
+        return view('submission-forms.preview', compact('submissionForm', 'existingValues'));
     }
 
     /**
@@ -726,7 +706,7 @@ class SubmissionFormController extends Controller
         ]);
 
         // Validate element type
-        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select'];
+        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select'];
         if (!in_array($elementType, $validTypes)) {
             Log::warning('Invalid element type requested', ['element_type' => $elementType]);
             return response()->json(['error' => 'Invalid element type'], 400);
@@ -875,6 +855,37 @@ class SubmissionFormController extends Controller
                         $options[] = [
                             'value' => $analysisType->id,
                             'label' => $analysisType->name . ' (' . $analysisType->code . ')'
+                        ];
+                    }
+                }
+                break;
+
+            case 'analysis_elements_select':
+                $analysisTypeId = $request->get('analysis_type_id');
+                if ($analysisTypeId) {
+                    $elements = \App\AnalysisElements::where('analysis_type_id', $analysisTypeId)
+                        ->where('active', 1)
+                        ->with('analyte')
+                        ->get();
+
+                    foreach ($elements as $element) {
+                        $parameterName = 'Unknown Parameter';
+                        if ($element->analyte) {
+                            $parameterName = $element->analyte->name ?? 'Unknown Parameter';
+                        } elseif ($element->analyte_id) {
+                            $analyte = \App\Analyte::find($element->analyte_id);
+                            $parameterName = $analyte ? $analyte->name : 'Unknown Parameter';
+                        }
+
+                        $methodName = 'No Method';
+                        if ($element->method) {
+                            $method = \App\AnalysisMethod::find($element->method);
+                            $methodName = $method ? $method->name : $element->method;
+                        }
+
+                        $options[] = [
+                            'value' => $element->id,
+                            'label' => $parameterName . ' (' . $methodName . ')'
                         ];
                     }
                 }

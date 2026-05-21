@@ -119,20 +119,13 @@
 					<span class="menu-collapsed">Asset Location</span>
 				</div>
 			</a>
-			{{--
-			<a href="{{ route('equipment-checks') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-checks') ? 'active' : '' }}">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-notebook-check-outline fa-fw mr-1"></span>
-					<span class="menu-collapsed">Equipment Checks</span>
-				</div>
-			</a>
+			{{-- Equipment Checks hidden by request --}}
 			<a href="{{ route('equipment-daily-log') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-daily-log') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-notebook-outline fa-fw mr-1"></span>
 					<span class="menu-collapsed">Equipment Daily Log</span>
 				</div>
 			</a>
-			--}}
 			<a href="{{ route('equipment-report-generate') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-report-generate') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clipboard-text-multiple-outline fa-fw mr-1"></span>

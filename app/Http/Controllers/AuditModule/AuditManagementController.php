@@ -292,10 +292,7 @@ class AuditManagementController extends Controller
 
         // Get the status record to update both status_id and status_name
         $targetStatus = \App\Models\AuditModule\AuditStatus::where('name', $newStatus)
-            ->where(function($q) {
-                $companyId = getUserCompany() ?? 0;
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            })
+            ->forCompany()
             ->first();
         
         if ($targetStatus) {

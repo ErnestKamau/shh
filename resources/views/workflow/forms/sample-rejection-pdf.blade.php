@@ -13,6 +13,7 @@
         .center { text-align: center; }
         .logo { max-height: 56px; max-width: 95px; }
         .small { font-size: 9px; color: #4b5563; }
+        .notice { margin-top: 8px; padding: 6px; background: #fef2f2; border: 1px solid #fecaca; }
     </style>
 </head>
 <body>
@@ -37,12 +38,16 @@
     </table>
 
     <table class="grid" style="margin-top: 6px;">
-        <tr><td style="width: 40%;">Sample ID:</td><td>{{ $payload['sample_id'] ?? '' }}</td></tr>
-        <tr><td>Name client:</td><td>{{ $payload['name_of_client'] ?? '' }}</td></tr>
-        <tr><td>Date sample(s) received/collected:</td><td>{{ $payload['date_sample_received'] ?? '' }}</td></tr>
-        <tr><td>Date of sample(s):</td><td>{{ $payload['date_of_sample_collection'] ?? '' }}</td></tr>
-        <tr><td>Number of samples received:</td><td>{{ $payload['number_of_samples_received'] ?? '' }}</td></tr>
+        <tr><td style="width: 40%;">Request NO:</td><td>{{ $payload['request_no'] ?? $payload['sample_id'] ?? '' }}</td></tr>
+        <tr><td>Name of client:</td><td>{{ $payload['name_of_client'] ?? '' }}</td></tr>
+        <tr><td>Date sample received:</td><td>{{ $payload['date_sample_received'] ?? '' }}</td></tr>
+        <tr><td>Type of sample:</td><td>{{ $payload['type_of_sample'] ?? '' }}</td></tr>
+        <tr><td>Number of samples:</td><td>{{ $payload['number_of_samples_received'] ?? '' }}</td></tr>
     </table>
+
+    @if(!empty($payload['integrity_notice']))
+        <div class="notice">{{ $payload['integrity_notice'] }}</div>
+    @endif
 
     <table class="grid" style="margin-top: 6px;">
         <thead>
@@ -53,27 +58,30 @@
         </thead>
         <tbody>
             @php
-                $selectedReasons = collect($payload['reasons'] ?? []);
-                $explanation = $payload['explanation'] ?? '';
-                $reasonRows = [
-                    'Sample was collected in improper container',
-                    'Sample not properly sealed was leaking',
-                    'Sample was stored in appropriate storage conditions',
-                    'Sample was inappropriate treated after sampling prior analysis',
-                    'Sample was improperly labeled and date of collection was not clear',
-                    'Sample material was inappropriate for the test(s) requested',
-                    'Sample volume /weight was inappropriate for the test(s) requested',
-                    'Sample was not accompanied by a request form/sample could not be related to a request form',
-                    'Sample name/date of collection on request form did not match the same details on the sample label',
-                    'Other',
-                ];
+                $reasonDetails = collect($payload['reasons'] ?? []);
+                $hasStructured = $reasonDetails->contains(fn ($r) => is_array($r) && isset($r['explanation']));
             @endphp
-            @foreach($reasonRows as $reasonRow)
-                <tr>
-                    <td>{{ $selectedReasons->contains($reasonRow) ? '☑' : '☐' }} {{ $reasonRow }}</td>
-                    <td>{{ $selectedReasons->contains($reasonRow) ? $explanation : '' }}</td>
-                </tr>
-            @endforeach
+            @if($hasStructured)
+                @foreach($reasonDetails as $row)
+                    @if(is_array($row))
+                        <tr>
+                            <td>☑ {{ $row['label'] ?? $row['key'] ?? '' }}</td>
+                            <td>{{ $row['explanation'] ?? '' }}</td>
+                        </tr>
+                    @endif
+                @endforeach
+            @else
+                @php
+                    $selectedReasons = collect($payload['reasons'] ?? []);
+                    $explanation = $payload['explanation'] ?? '';
+                @endphp
+                @foreach($selectedReasons as $reasonRow)
+                    <tr>
+                        <td>☑ {{ is_string($reasonRow) ? $reasonRow : ($reasonRow['label'] ?? '') }}</td>
+                        <td>{{ $explanation }}</td>
+                    </tr>
+                @endforeach
+            @endif
         </tbody>
     </table>
 
@@ -87,6 +95,6 @@
         </tr>
     </table>
 
-    <div class="small" style="margin-top: 10px;">Generated from workflow request form records.</div>
+    <div class="small" style="margin-top: 10px;">Generated from sample rejection log records.</div>
 </body>
 </html>

@@ -586,6 +586,17 @@
         @endcan
         @endif
 
+        @if(isSystemModuleVisible('registry'))
+        @can('registry.module.access')
+        <a class="app-card registry" href="{{ route('registry.dashboard') }}" data-app="registry">
+            <div class="app-icon" style="background: linear-gradient(135deg, #1565C0, #0D47A1);">
+                <i class="mdi mdi-email-multiple-outline"></i>
+            </div>
+            <h3 class="app-title">Registry</h3>
+        </a>
+        @endcan
+        @endif
+
         @if(isSystemModuleVisible('risk'))
         @can('risk.module.access')
         <a class="app-card risk" href="{{ route('risk.dashboard') }}" data-app="risk">
@@ -630,6 +641,7 @@
         @endcan
         @endif
     </div>
+
 </div>
 
 <div class="modal fade" id="to-be-configured" role="dialog">

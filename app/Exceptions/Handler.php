@@ -2,7 +2,11 @@
 
 namespace App\Exceptions;
 
+use App\Exceptions\Api\Portal\PortalApiException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -50,6 +54,56 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        if ($this->isPortalSubmissionsApiRequest($request)) {
+            if ($exception instanceof PortalApiException) {
+                return $exception->render($request);
+            }
+
+            if ($exception instanceof ValidationException) {
+                return $this->portalValidationResponse($exception);
+            }
+
+            if ($exception instanceof HttpExceptionInterface) {
+                return $this->portalHttpExceptionResponse($exception);
+            }
+        }
+
         return parent::render($request, $exception);
+    }
+
+    private function isPortalSubmissionsApiRequest(Request $request): bool
+    {
+        return $request->is('api/v1/portal/submissions', 'api/v1/portal/submissions/*');
+    }
+
+    private function portalValidationResponse(ValidationException $exception): \Illuminate\Http\JsonResponse
+    {
+        return response()->json([
+            'error' => [
+                'code' => 'validation_failed',
+                'message' => $exception->getMessage(),
+                'fields' => $exception->errors(),
+            ],
+        ], $exception->status);
+    }
+
+    private function portalHttpExceptionResponse(HttpExceptionInterface $exception): \Illuminate\Http\JsonResponse
+    {
+        $status = $exception->getStatusCode();
+        $message = $exception->getMessage() ?: match ($status) {
+            401 => 'Authentication failed. Check your portal gateway API key.',
+            403 => 'You do not have permission to perform this action.',
+            404 => 'The requested resource was not found.',
+            405 => 'This HTTP method is not allowed for this endpoint.',
+            429 => 'Too many requests. Please try again later.',
+            default => 'Something went wrong. Please try again.',
+        };
+
+        return response()->json([
+            'error' => [
+                'code' => 'http_'.$status,
+                'message' => $message,
+            ],
+        ], $status);
     }
 }

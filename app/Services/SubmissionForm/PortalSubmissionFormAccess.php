@@ -1,0 +1,131 @@
+<?php
+
+namespace App\Services\SubmissionForm;
+
+use App\Exceptions\Api\Portal\PortalApiException;
+use App\Models\SubmissionForm;
+use App\Models\SubmissionFormInstance;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+
+class PortalSubmissionFormAccess
+{
+    public function customerIdFromRequest(Request $request): ?string
+    {
+        $customerId = $request->header('X-CRM-Customer-Id')
+            ?? $request->input('crm_customer_id');
+
+        if ($customerId === null || $customerId === '') {
+            return null;
+        }
+
+        return (string) $customerId;
+    }
+
+    public function portalAccountIdFromRequest(Request $request): ?string
+    {
+        $accountId = $request->header('X-Portal-Account-Id')
+            ?? $request->input('portal_account_id');
+
+        if ($accountId === null || $accountId === '') {
+            return null;
+        }
+
+        return (string) $accountId;
+    }
+
+    /**
+     * Portal submission instances for a customer (all accounts under that customer).
+     */
+    public function portalInstancesQuery(string $crmCustomerId): Builder
+    {
+        return SubmissionFormInstance::query()
+            ->where('crm_customer_id', $crmCustomerId)
+            ->whereHas('submissionForm', function (Builder $formQuery): void {
+                $formQuery->where('is_customer_portal_form', true);
+            });
+    }
+
+    public function portalFormsQuery(?string $crmCustomerId = null): Builder
+    {
+        $query = SubmissionForm::query()
+            ->where('is_customer_portal_form', true)
+            ->where('is_published', true)
+            ->where('is_active', true);
+
+        if ($crmCustomerId !== null && Schema::hasTable('submission_form_customers')) {
+            $query->where(function (Builder $builder) use ($crmCustomerId): void {
+                $builder->whereDoesntHave('customers')
+                    ->orWhereHas('customers', function (Builder $customerQuery) use ($crmCustomerId): void {
+                        $customerQuery->where('crm_customers.id', $crmCustomerId);
+                    });
+            });
+        }
+
+        return $query;
+    }
+
+    public function findPortalForm(string $formId, ?string $crmCustomerId = null): SubmissionForm
+    {
+        $form = SubmissionForm::query()->where('id', $formId)->first();
+
+        if (! $form) {
+            throw PortalApiException::formNotFound();
+        }
+
+        if (! $form->is_customer_portal_form) {
+            throw PortalApiException::formNotPortal();
+        }
+
+        if (! $form->is_active) {
+            throw PortalApiException::formNotActive();
+        }
+
+        if (! $form->is_published) {
+            throw PortalApiException::formNotPublished();
+        }
+
+        if ($crmCustomerId !== null && Schema::hasTable('submission_form_customers')) {
+            $hasCustomerRestrictions = $form->customers()->exists();
+
+            if ($hasCustomerRestrictions && ! $form->customers()->where('crm_customers.id', $crmCustomerId)->exists()) {
+                throw PortalApiException::formCustomerNotAllowed();
+            }
+        }
+
+        return $form;
+    }
+
+    public function latestCustomerRequestForm(?string $crmCustomerId = null): ?SubmissionForm
+    {
+        return $this->portalFormsQuery($crmCustomerId)
+            ->where('is_customer_request_form', true)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    public function assertInstanceBelongsToPortalContext(
+        SubmissionFormInstance $instance,
+        ?string $crmCustomerId,
+        ?string $portalAccountId
+    ): void {
+        if ($crmCustomerId !== null && (string) $instance->crm_customer_id !== (string) $crmCustomerId) {
+            throw PortalApiException::instanceCustomerMismatch();
+        }
+
+        // Portal account header is not enforced — any account under the same CRM customer may access/delete.
+        // if (
+        //     $portalAccountId !== null
+        //     && $instance->portal_account_id !== null
+        //     && (string) $instance->portal_account_id !== (string) $portalAccountId
+        // ) {
+        //     throw PortalApiException::instancePortalAccountMismatch();
+        // }
+
+        if ($crmCustomerId === null) {
+            throw PortalApiException::portalContextHeadersRequired();
+        }
+    }
+}

@@ -220,14 +220,14 @@ class MethodRegistration extends Component
         $years = collect(
             AnalysisMethod::where('validation_status', 'sent_for_validation')
                 ->whereNotNull('created_at')
-                ->selectRaw('EXTRACT(YEAR FROM created_at) as year')
+                ->select(DB::raw('EXTRACT(YEAR FROM created_at)::integer as year'))
                 ->distinct()
                 ->pluck('year')
         );
         $years = $years->merge(
             AnalysisMethod::where('validation_status', 'sent_for_validation')
                 ->whereNotNull('updated_at')
-                ->selectRaw('EXTRACT(YEAR FROM updated_at) as year')
+                ->select(DB::raw('EXTRACT(YEAR FROM updated_at)::integer as year'))
                 ->distinct()
                 ->pluck('year')
         );

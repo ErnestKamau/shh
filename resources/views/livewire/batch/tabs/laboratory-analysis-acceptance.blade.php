@@ -5,10 +5,20 @@
             <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
                 @if($attachmentUrl)
                     <a href="{{ $attachmentUrl }}" target="_blank" class="btn btn-outline-secondary btn-action-sm">
-                        <i class="mdi mdi-eye"></i> View Latest Attachment
+                        <i class="mdi mdi-eye"></i> View GCLA/F/03
                     </a>
                 @endif
-                <span class="badge badge-info">Part {{ $currentPart }} of 4</span>
+                @if($receiptAttachmentUrl)
+                    <a href="{{ $receiptAttachmentUrl }}" target="_blank" class="btn btn-outline-secondary btn-action-sm">
+                        <i class="mdi mdi-eye"></i> View GCLA 01
+                    </a>
+                @endif
+                @if($disclaimerAttachmentUrl)
+                    <a href="{{ $disclaimerAttachmentUrl }}" target="_blank" class="btn btn-outline-secondary btn-action-sm">
+                        <i class="mdi mdi-eye"></i> View disclaimer
+                    </a>
+                @endif
+                <span class="badge badge-info">Part {{ $currentPart }} of {{ $showSampleDisclaimer ? 6 : 5 }}</span>
             </div>
         </div>
 
@@ -25,6 +35,7 @@
                 <button type="button" class="btn btn-sm {{ $currentPart === 2 ? 'btn-primary' : 'btn-outline-primary' }}" wire:click="setPart(2)">Part B</button>
                 <button type="button" class="btn btn-sm {{ $currentPart === 3 ? 'btn-primary' : 'btn-outline-primary' }}" wire:click="setPart(3)">Part C</button>
                 <button type="button" class="btn btn-sm {{ $currentPart === 4 ? 'btn-primary' : 'btn-outline-primary' }}" wire:click="setPart(4)">Part D</button>
+                <button type="button" class="btn btn-sm {{ $currentPart === 5 ? 'btn-primary' : 'btn-outline-primary' }}" wire:click="setPart(5)">Part E</button>
             </div>
 
             @if($currentPart === 1)
@@ -221,6 +232,31 @@
                 </div>
             @endif
 
+            @if($currentPart === 5)
+                @include('livewire.partials.receipt-notification-wire-fields', [
+                    'wirePrefix' => 'receiptForm.',
+                    'canvasPrefix' => 'lab-receipt-batch',
+                    'readOnly' => $readOnly,
+                    'partLabel' => 'Part E: Sample Receipt Notification (GCLA 01)',
+                ])
+            @endif
+
+            @if($currentPart === 6 && $showSampleDisclaimer)
+                <div class="card border-0" style="background: #f8fafc;">
+                    <div class="card-body">
+                        <h6 class="mb-3">Sample receiving disclaimer</h6>
+                        @include('livewire.partials.sample-disclaimer-wire-fields', [
+                            'wirePrefix' => 'disclaimerForm.',
+                            'canvasPrefix' => 'lab-batch-disclaimer',
+                            'readOnly' => true,
+                            'disclaimantDisplay' => $disclaimerForm['disclaimant_name'] ?? '',
+                            'claimantSignatureDisplay' => $disclaimerForm['claimant_signature'] ?? '',
+                            'analystSignatureDisplay' => $disclaimerForm['analyst_signature'] ?? '',
+                        ])
+                    </div>
+                </div>
+            @endif
+
             <div class="d-flex justify-content-between mt-3" style="gap: 8px;">
                 <div>
                     @if($currentPart > 1)
@@ -228,18 +264,30 @@
                     @endif
                 </div>
                 <div class="d-flex" style="gap: 8px;">
-                    @if(!$readOnly)
-                        <button type="button" class="btn btn-outline-primary btn-action-sm" wire:click="saveDraft">
-                            <i class="mdi mdi-content-save-outline"></i> Save Draft
-                        </button>
-                    @endif
-                    @if($currentPart < 4)
-                        <button type="button" class="btn btn-primary btn-action-sm" wire:click="nextPart">Next</button>
+                    @if($currentPart === 5)
+                        @if(!$readOnly)
+                            <button type="button" class="btn btn-outline-primary btn-action-sm" wire:click="saveReceiptDraft">
+                                <i class="mdi mdi-content-save-outline"></i> Save receipt draft
+                            </button>
+                            <button type="button" class="btn btn-success btn-action-sm" wire:click="submitReceiptNotification">
+                                <i class="mdi mdi-check-circle-outline"></i> Submit GCLA 01 &amp; Attach
+                            </button>
+                        @endif
                     @else
                         @if(!$readOnly)
-                            <button type="button" class="btn btn-success btn-action-sm" wire:click="submitForm">
-                                <i class="mdi mdi-check-circle-outline"></i> Submit & Attach
+                            <button type="button" class="btn btn-outline-primary btn-action-sm" wire:click="saveDraft">
+                                <i class="mdi mdi-content-save-outline"></i> Save Draft
                             </button>
+                        @endif
+                        @if($currentPart < 4)
+                            <button type="button" class="btn btn-primary btn-action-sm" wire:click="nextPart">Next</button>
+                        @elseif($currentPart === 4)
+                            <button type="button" class="btn btn-primary btn-action-sm" wire:click="nextPart">Next</button>
+                            @if(!$readOnly)
+                                <button type="button" class="btn btn-success btn-action-sm" wire:click="submitForm">
+                                    <i class="mdi mdi-check-circle-outline"></i> Submit GCLA/F/03 &amp; Attach
+                                </button>
+                            @endif
                         @endif
                     @endif
                 </div>
@@ -252,6 +300,8 @@
         (function () {
             let customerPad = null;
             let managerPad = null;
+            let receiptSubmitterPad = null;
+            let receiptReceiverPad = null;
 
             function setupPad(canvasId, inputId, clearBtnId, existingData) {
                 const canvas = document.getElementById(canvasId);
@@ -298,6 +348,10 @@
 
                 customerPad = setupPad('customer-signature-canvas', 'customer-signature-input', 'customer-sign-clear', customerInput ? customerInput.value : '');
                 managerPad = setupPad('manager-signature-canvas', 'manager-signature-input', 'manager-sign-clear', managerInput ? managerInput.value : '');
+                const receiptSubInput = document.getElementById('lab-receipt-batch-submitter-input');
+                const receiptRecInput = document.getElementById('lab-receipt-batch-receiver-input');
+                receiptSubmitterPad = setupPad('lab-receipt-batch-submitter-canvas', 'lab-receipt-batch-submitter-input', 'lab-receipt-batch-submitter-clear', receiptSubInput ? receiptSubInput.value : '');
+                receiptReceiverPad = setupPad('lab-receipt-batch-receiver-canvas', 'lab-receipt-batch-receiver-input', 'lab-receipt-batch-receiver-clear', receiptRecInput ? receiptRecInput.value : '');
             }
 
             document.addEventListener('livewire:navigated', initPads);
@@ -310,7 +364,7 @@
             });
 
             window.addEventListener('resize', function () {
-                if (customerPad || managerPad) {
+                if (customerPad || managerPad || receiptSubmitterPad || receiptReceiverPad) {
                     initPads();
                 }
             });

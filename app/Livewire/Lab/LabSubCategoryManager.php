@@ -34,14 +34,14 @@ class LabSubCategoryManager extends Component
 
     // Search and Filter
     public $search = '';
-    public $selectedCategories = [];
+    public $categoryFilter = '';
+    public $statusFilter = '';
 
     // UI State
     public $message = '';
     public $messageType = '';
     public $perPage = 25;
     public $perPageOptions = [25, 50, 75, 100];
-    public $showFilters = false;
 
     // Supporting Data
     public $categories = [];
@@ -50,14 +50,14 @@ class LabSubCategoryManager extends Component
     protected $rules = [
         'subCategoryForm.name' => 'required|string|max:255',
         'subCategoryForm.description' => 'nullable|string',
-        'subCategoryForm.category_id' => 'required|integer',
-        'subCategoryForm.reporting_unit' => 'required|integer',
+        'subCategoryForm.category_id' => 'required|uuid|exists:lab_inventory_category,id',
+        'subCategoryForm.reporting_unit' => 'required|uuid|exists:reporting_units,id',
         'subCategoryForm.rate' => 'nullable|string|max:255',
         'imageUpload' => 'nullable|image|max:2048',
     ];
 
     protected $messages = [
-        'subCategoryForm.name.required' => 'Sub-category name is required.',
+        'subCategoryForm.name.required' => 'Name is required.',
         'subCategoryForm.category_id.required' => 'Category selection is required.',
         'subCategoryForm.reporting_unit.required' => 'Unit of measure is required.',
         'imageUpload.image' => 'The file must be an image.',
@@ -77,33 +77,41 @@ class LabSubCategoryManager extends Component
 
     public function getSubCategoriesProperty()
     {
-        $query = LabSubCategory::with(['category', 'reportingUnit'])
-            ->where('active', 1);
+        $query = LabSubCategory::with(['category', 'reportingUnit']);
 
-        // Apply search filter
         if ($this->search) {
-            $query->where(function($q) {
+            $query->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('description', 'like', '%' . $this->search . '%');
+                    ->orWhere('description', 'like', '%' . $this->search . '%');
             });
         }
 
-        // Apply category filter
-        if (!empty($this->selectedCategories)) {
-            $query->whereIn('category_id', $this->selectedCategories);
+        if ($this->categoryFilter) {
+            $query->where('category_id', $this->categoryFilter);
+        }
+
+        if ($this->statusFilter === 'active') {
+            $query->where('active', 1);
+        } elseif ($this->statusFilter === 'inactive') {
+            $query->where('active', 0);
         }
 
         return $query->orderBy('created_at', 'desc')->paginate($this->perPage);
     }
 
-    public function updatedSearch(): void
+    public function updatingSearch(): void
     {
         $this->resetPage();
     }
 
-    public function toggleFilters(): void
+    public function updatingCategoryFilter(): void
     {
-        $this->showFilters = !$this->showFilters;
+        $this->resetPage();
+    }
+
+    public function updatingStatusFilter(): void
+    {
+        $this->resetPage();
     }
 
     public function showCreateSubCategoryModal(): void
@@ -243,7 +251,8 @@ class LabSubCategoryManager extends Component
     public function clearFilters(): void
     {
         $this->search = '';
-        $this->selectedCategories = [];
+        $this->categoryFilter = '';
+        $this->statusFilter = '';
         $this->resetPage();
     }
 

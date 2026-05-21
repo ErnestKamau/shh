@@ -54,20 +54,48 @@
 			</div>
 
 			<div class="table-responsive">
-				<table class="table workflow-table table-hover mb-0">
+				<table id="procedure-worksheets-table" class="table workflow-table table-hover mb-0">
 					<thead>
 						<tr>
+							<th>Actions</th>
 							<th>#</th>
 							<th>Name</th>
 							<th>Description</th>
 							<th>Status</th>
 							<th>Created</th>
-							<th>Actions</th>
 						</tr>
 					</thead>
 					<tbody>
 						@forelse($worksheets as $worksheet)
 							<tr>
+								<td>
+									<div class="d-flex flex-wrap gap-1">
+										<a href="{{ route('formulars.procedures.edit', $worksheet->id) }}"
+											class="btn btn-sm rm-act-btn rm-act-btn--view"
+											title="Manage steps">
+											<i class="mdi mdi-format-list-numbered"></i>
+										</a>
+										<button type="button"
+											wire:click="edit('{{ $worksheet->id }}')"
+											class="btn btn-sm rm-act-btn rm-act-btn--edit"
+											title="Edit details">
+											<i class="mdi mdi-pencil"></i>
+										</button>
+										<button type="button"
+											wire:click="toggleActive('{{ $worksheet->id }}')"
+											class="btn btn-sm rm-act-btn rm-act-btn--muted"
+											title="{{ $worksheet->is_active ? 'Deactivate' : 'Activate' }}">
+											<i class="mdi mdi-{{ $worksheet->is_active ? 'pause' : 'play' }}"></i>
+										</button>
+										<button type="button"
+											wire:click="delete('{{ $worksheet->id }}')"
+											class="btn btn-sm rm-act-btn rm-act-btn--delete"
+											title="Delete"
+											onclick="return confirm('Are you sure?')">
+											<i class="mdi mdi-delete"></i>
+										</button>
+									</div>
+								</td>
 								<td>{{ $loop->iteration }}</td>
 								<td><strong>{{ $worksheet->name }}</strong></td>
 								<td>{{ Str::limit($worksheet->description, 50) }}</td>
@@ -80,22 +108,6 @@
 									</span>
 								</td>
 								<td class="text-muted" style="font-size: 0.875rem;">{{ $worksheet->created_at->format('M d, Y') }}</td>
-								<td>
-									<div class="btn-group flex-wrap" role="group">
-										<button type="button" wire:click="edit({{ $worksheet->id }})" class="btn btn-sm btn-outline-primary btn-action-sm me-1 mb-1" title="Edit details">
-											<i class="mdi mdi-pencil"></i>
-										</button>
-										<a href="{{ route('formulars.procedures.edit', $worksheet->id) }}" class="btn btn-sm btn-outline-success btn-action-sm me-1 mb-1" title="Manage steps">
-											<i class="mdi mdi-format-list-numbered"></i>
-										</a>
-										<button type="button" wire:click="toggleActive({{ $worksheet->id }})" class="btn btn-sm btn-outline-{{ $worksheet->is_active ? 'warning' : 'success' }} btn-action-sm me-1 mb-1" title="{{ $worksheet->is_active ? 'Deactivate' : 'Activate' }}">
-											<i class="mdi mdi-{{ $worksheet->is_active ? 'pause' : 'play' }}"></i>
-										</button>
-										<button type="button" wire:click="delete({{ $worksheet->id }})" class="btn btn-sm btn-outline-danger btn-action-sm mb-1" title="Delete" onclick="return confirm('Are you sure?')">
-											<i class="mdi mdi-delete"></i>
-										</button>
-									</div>
-								</td>
 							</tr>
 						@empty
 							<tr>
@@ -157,4 +169,56 @@
 			</div>
 		</div>
 	@endif
+
+	<style>
+	#procedure-worksheets-table .rm-act-btn {
+		border-radius: 7px;
+		padding: 4px 8px;
+		font-size: 12px;
+	}
+
+	#procedure-worksheets-table .rm-act-btn--view {
+		border: 1px solid #bbf7d0;
+		color: #15803d;
+		background: #f0fdf4;
+	}
+
+	#procedure-worksheets-table .rm-act-btn--view:hover {
+		background: #dcfce7;
+		border-color: #86efac;
+	}
+
+	#procedure-worksheets-table .rm-act-btn--edit {
+		border: 1px solid #bfdbfe;
+		color: #1d4ed8;
+		background: #eff6ff;
+	}
+
+	#procedure-worksheets-table .rm-act-btn--edit:hover {
+		background: #dbeafe;
+		border-color: #93c5fd;
+	}
+
+	#procedure-worksheets-table .rm-act-btn--muted {
+		border: 1px solid #e2e8f0;
+		color: #475569;
+		background: #f8fafc;
+	}
+
+	#procedure-worksheets-table .rm-act-btn--muted:hover {
+		background: #f1f5f9;
+		border-color: #cbd5e1;
+	}
+
+	#procedure-worksheets-table .rm-act-btn--delete {
+		border: 1px solid #fecaca;
+		color: #b91c1c;
+		background: #fef2f2;
+	}
+
+	#procedure-worksheets-table .rm-act-btn--delete:hover {
+		background: #fee2e2;
+		border-color: #fca5a5;
+	}
+	</style>
 </div>

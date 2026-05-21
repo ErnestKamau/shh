@@ -16,8 +16,8 @@ return new class extends Migration
             $table->timestamps();
             $table->string('name');
             $table->string('image')->nullable();
-            $table->integer('category_id');
-            $table->integer('reporting_unit')->nullable();
+            $table->uuid('category_id');
+            $table->uuid('reporting_unit')->nullable();
             $table->string('rate')->nullable();
             $table->string('description')->nullable();
             $table->boolean('active')->default(true);

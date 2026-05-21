@@ -2814,12 +2814,9 @@
                 $previousStep = $currentStep && $currentStep > 1 ? $currentStep - 1 : null;
                 $previousStatus = null;
                 if ($previousStep) {
-                    $companyId = getUserCompany() ?? 0;
                     $previousStatus = \App\Models\AuditModule\AuditStatus::active()
+                        ->forCompany()
                         ->where('workflow_step', $previousStep)
-                        ->where(function($q) use ($companyId) {
-                            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-                        })
                         ->ordered()
                         ->first();
                 }

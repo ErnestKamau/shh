@@ -34,6 +34,18 @@ class SampleWorkflowApprovalSeeder extends Seeder
                     ['label' => 'Receiving notes', 'type' => 'text', 'is_required' => false, 'order' => 3],
                 ],
             ] : null,
+            $stageMap['receiving'] === 'Samples Receiving' ? [
+                'stage_name' => 'Samples Receiving',
+                'code' => 'sro_receiving_sample',
+                'name' => 'SRO Receiving Sample',
+                'order' => 2,
+                'is_active' => true,
+                'items' => [
+                    ['label' => 'Sample labels verified', 'type' => 'checkbox', 'is_required' => true, 'order' => 1],
+                    ['label' => 'Chain of custody received', 'type' => 'checkbox', 'is_required' => true, 'order' => 2],
+                    ['label' => 'Receiving notes', 'type' => 'text', 'is_required' => false, 'order' => 3],
+                ],
+            ] : null,
             $stageMap['verification'] ? [
                 'stage_name' => $stageMap['verification'],
                 'code' => 'analyst_verification',

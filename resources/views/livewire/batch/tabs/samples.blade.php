@@ -61,75 +61,7 @@
         </div>
     @endif
 
-    {{-- Unprocessed Staging Data Section --}}
-    @if(isset($batch->sample_detail_processed) && $batch->sample_detail_processed == 0)
-    <div class="workflow-board-panel mb-4">
-        <div class="workflow-board-panel-header"
-            style="background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border-bottom: 1px solid #fcd34d;">
-            <h5><i class="mdi mdi-clipboard-alert"></i> Unprocessed staging data</h5>
-            <button type="button" wire:click="addStaging" class="btn btn-success btn-sm btn-action-sm">
-                <i class="mdi mdi-plus"></i> Add staging record
-            </button>
-        </div>
-        <div class="workflow-board-panel-body flush-top">
-            <div class="table-responsive">
-                <table class="table table-sm workflow-table">
-                    <thead>
-                        <tr>
-                            <th>Actions</th>
-                            <th>Specimen Type</th>
-                            <th>Company Sub Unit</th>
-                            <th>Analysis Types</th>
-                            <th>Quantity</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($batch->stagingDetails as $staging)
-                        @if(!$staging->is_processed)
-                        <tr>
-                            <td>
-                                <button type="button" wire:click="assignSamples({{ $staging->id }})"
-                                    class="btn btn-sm btn-primary" wire:loading.attr="disabled"
-                                    wire:target="assignSamples({{ $staging->id }})">
-                                    <span wire:loading.remove wire:target="assignSamples({{ $staging->id }})">
-                                        <i class="mdi mdi-checkbox-multiple-marked"></i> Assign Samples
-                                    </span>
-                                    <span wire:loading wire:target="assignSamples({{ $staging->id }})">
-                                        <i class="mdi mdi-loading mdi-spin"></i> Processing...
-                                    </span>
-                                </button>
-
-                                <button type="button" wire:click="editStaging({{ $staging->id }})"
-                                    class="btn btn-sm btn-info">
-                                    <i class="mdi mdi-pencil"></i>
-                                </button>
-
-                                <button type="button" wire:click="confirmDeleteStaging({{ $staging->id }})"
-                                    class="btn btn-sm btn-danger">
-                                    <i class="mdi mdi-delete"></i>
-                                </button>
-                            </td>
-                            <td>{{ $batch->sample_type->name ?? 'N/A' }}</td>
-                            <td>{{ $staging->data_json['company_sub_unit_name'] ?? 'N/A' }}</td>
-                            <td>{{ $staging->data_json['analysis_type_names'] ?? 'N/A' }}</td>
-                            <td>{{ $staging->data_json['quantity'] ?? 1 }}</td>
-                        </tr>
-                        @endif
-                        @empty
-                        <tr>
-                            <td colspan="5" class="text-center text-muted">No staging records found. Click "Add Staging
-                                Record" to create one.</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    @endif
-
     {{-- Sample Configuration Form (Livewire-driven) --}}
-    @if(!isset($batch->sample_detail_processed) || $batch->sample_detail_processed == 1)
     <div class="workflow-board-panel">
         <div class="workflow-board-panel-header">
             <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
@@ -553,7 +485,6 @@
         </div>
         </div>
     </div>
-    @endif
 
     {{-- Delete Sample Confirmation Modal --}}
     @if($showDeleteSampleModal)

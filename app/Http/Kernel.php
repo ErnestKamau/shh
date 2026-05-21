@@ -70,6 +70,7 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'twofactor'=> \App\Http\Middleware\TwoFactorVerification::class,
         'portal.client' => \App\Http\Middleware\EnsurePortalClient::class,
+        'portal.gateway' => \App\Http\Middleware\AuthenticatePortalGateway::class,
         'set-locale' => \App\Http\Middleware\SetLocale::class,
     ];
 }

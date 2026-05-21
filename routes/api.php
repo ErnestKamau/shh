@@ -51,6 +51,9 @@ Route::get('/translations', [\App\Http\Controllers\Api\TranslationController::cl
 Route::get('/submission-request/parameters', [\App\Http\Controllers\Api\SubmissionRequestController::class, 'getParametersWithPricing'])
     ->name('api.submission-request-parameters');
 
+Route::get('/acceptance-forms/prefill', [\App\Http\Controllers\Sampleworkflow\AcceptanceFormController::class, 'prefill'])
+    ->name('api.acceptance-forms.prefill');
+
 Route::get('/workflow/preview-batch-code', [\App\Http\Controllers\Api\SubmissionRequestController::class, 'previewBatchCode'])
     ->name('api.workflow.preview-batch-code');
 
@@ -64,3 +67,11 @@ Route::prefix('v1')->group(function () {
 if (file_exists(__DIR__ . '/api/portal.php')) {
     require __DIR__ . '/api/portal.php';
 }
+
+require __DIR__.'/api/portal_submissions.php';
+
+require __DIR__.'/api/dashboard.php';
+
+require __DIR__.'/api/portal_crm.php';
+
+require __DIR__.'/api/registry.php';

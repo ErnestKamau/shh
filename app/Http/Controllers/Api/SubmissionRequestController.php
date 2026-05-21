@@ -3,9 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Billing\Pricelist;
-use App\Models\Billing\PricelistCustomer;
 use App\Models\SampleSubmissionRequest;
+use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Models\SubmissionFormInstance;
 use App\Models\System\SystemConfiguration;
 use App\SampleDetails;
@@ -20,6 +19,10 @@ use Illuminate\Http\Request;
 
 class SubmissionRequestController extends Controller
 {
+    public function __construct(
+        private readonly AcceptanceFormPricingService $pricingService
+    ) {}
+
     /**
      * Get parameters and pricing for a submission request.
      * 
@@ -40,107 +43,42 @@ class SubmissionRequestController extends Controller
         }
 
         try {
-            $parameters = [];
-            $customerId = null;
-            $sampleTypeId = null;
+            $parameters = $this->pricingService->legacyParametersWithPricing(
+                $submissionRequestId ? (string) $submissionRequestId : null,
+                $submissionFormInstanceId ? (string) $submissionFormInstanceId : null
+            );
 
-            if ($submissionRequestId) {
-                $submissionRequest = SampleSubmissionRequest::with('batch')
-                    ->find($submissionRequestId);
+            if ($submissionRequestId && empty($parameters)) {
+                return response()->json([
+                    'error' => 'Submission request not found',
+                    'parameters' => [],
+                    'pricelist' => [],
+                ], 404);
+            }
 
-                if (!$submissionRequest) {
-                    return response()->json([
-                        'error' => 'Submission request not found',
-                        'parameters' => [],
-                        'pricelist' => []
-                    ], 404);
-                }
-
-                $requestedAnalyses = $submissionRequest->requestedAnalyses()
-                    ->select('analysis_key', 'analysis_label')
-                    ->get();
-
-                $customerId = (string) $submissionRequest->crm_customer_id;
-                $sampleTypeId = $this->resolveSampleTypeFromSubmissionRequest($submissionRequest);
-
-                foreach ($requestedAnalyses as $analysis) {
-                    $analysisId = (string) $analysis->analysis_key;
-                    $parameters[] = [
-                        'analysis_id' => $analysisId,
-                        'name' => $analysis->analysis_label,
-                        'label' => $analysis->analysis_label,
-                        'price' => 0,
-                    ];
-                }
-            } else {
-                $instance = SubmissionFormInstance::with([
-                    'submissionForm.sampleTypes:id',
-                    'values.element:id,name,label,element_type,mapping_field',
-                ])->find((string) $submissionFormInstanceId);
-
-                if (!$instance) {
+            if ($submissionFormInstanceId && empty($parameters)) {
+                $instanceExists = SubmissionFormInstance::query()->where('id', $submissionFormInstanceId)->exists();
+                if (!$instanceExists) {
                     return response()->json([
                         'error' => 'Submission form instance not found',
                         'parameters' => [],
-                        'pricelist' => []
+                        'pricelist' => [],
                     ], 404);
                 }
-
-                $customerId = (string) $instance->crm_customer_id;
-                $sampleTypeId = $this->resolveSampleTypeFromFormInstance($instance);
-                $parameters = $this->extractParametersFromFormInstance($instance);
-
-                if (empty($parameters)) {
-                    $linkedSubmissionRequest = $this->resolveLinkedSubmissionRequestFromFormInstance($instance);
-                    if ($linkedSubmissionRequest) {
-                        $requestedAnalyses = $linkedSubmissionRequest->requestedAnalyses()
-                            ->select('analysis_key', 'analysis_label')
-                            ->get();
-
-                        foreach ($requestedAnalyses as $analysis) {
-                            $analysisId = (string) $analysis->analysis_key;
-                            $parameters[] = [
-                                'analysis_id' => $analysisId,
-                                'name' => $analysis->analysis_label,
-                                'label' => $analysis->analysis_label,
-                                'price' => 0,
-                            ];
-                        }
-
-                        if (empty($customerId)) {
-                            $customerId = (string) $linkedSubmissionRequest->crm_customer_id;
-                        }
-                        if (empty($sampleTypeId)) {
-                            $sampleTypeId = $this->resolveSampleTypeFromSubmissionRequest($linkedSubmissionRequest);
-                        }
-                    }
-                }
             }
 
-            if (empty($parameters)) {
-                return response()->json([
-                    'parameters' => [],
-                    'pricelist' => []
-                ]);
-            }
-
-            $pricelist = $this->resolvePricelist($customerId);
-
-            foreach ($parameters as &$parameter) {
-                $parameter['price'] = $this->resolveParameterPrice(
-                    $pricelist,
-                    (string) ($parameter['analysis_id'] ?? ''),
-                    $sampleTypeId
-                );
-            }
-            unset($parameter);
+            $prefill = $this->pricingService->buildPrefillFromSelection(
+                $submissionRequestId ? (string) $submissionRequestId : null,
+                $submissionFormInstanceId ? (string) $submissionFormInstanceId : null
+            );
+            $pricelist = $prefill['pricelist'];
 
             return response()->json([
                 'parameters' => $parameters,
                 'pricelist' => $pricelist ? [
                     'id' => $pricelist->id,
-                    'name' => $pricelist->name ?? 'Default'
-                ] : []
+                    'name' => $pricelist->name ?? 'Default',
+                ] : [],
             ]);
 
         } catch (\Exception $e) {

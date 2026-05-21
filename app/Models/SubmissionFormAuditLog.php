@@ -70,6 +70,12 @@ class SubmissionFormAuditLog extends Model implements Auditable
                 return 'Rejected';
             case 'cancelled':
                 return 'Cancelled';
+            case 'intray_assigned':
+                return 'Moved to intray';
+            case 'intray_completed':
+                return 'Intray completed';
+            case 'received':
+                return 'Received';
             default:
                 return ucfirst($this->action);
         }
