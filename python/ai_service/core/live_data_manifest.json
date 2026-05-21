@@ -163,6 +163,18 @@
       "output_format": "count",
       "ttl_seconds": 60
     },
+    "equipment_count_total": {
+      "sql": "SELECT COUNT(*) as n FROM public.equipment",
+      "description": "Total equipment count including inactive",
+      "output_format": "count",
+      "ttl_seconds": 60
+    },
+    "equipment_count_inactive": {
+      "sql": "SELECT COUNT(*) as n FROM public.equipment WHERE active = false",
+      "description": "Inactive or decommissioned equipment count",
+      "output_format": "count",
+      "ttl_seconds": 60
+    },
     "equipment_maintenance_health": {
       "sql": "SELECT status, COUNT(*) as cnt FROM public.equipment GROUP BY status ORDER BY cnt DESC",
       "description": "Equipment status distribution",

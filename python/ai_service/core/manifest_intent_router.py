@@ -124,9 +124,21 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
         (["equipment downtime", "equipment down", "non-operational",
           "overdue equipment", "broken equipment", "equipment overdue"],
          "equipment_downtime_summary"),
-        (["active equipment", "active instruments", "equipment count",
-          "how many instruments", "total equipment"],
+        (["active equipment", "active instruments", "active equipment count",
+          "active instruments count", "how many active instruments", "how many active equipment",
+          "how many active equipments", "number of active equipment", "number of active equipments",
+          "total active equipment", "total active equipments"],
          "equipment_count_active"),
+        (["total equipment", "total equipments", "total equipment count",
+          "number of equipment", "number of equipments", "equipment count",
+          "how many equipment", "how many equipments", "how many instruments",
+          "total instruments", "all equipment", "all equipments", "all instruments"],
+         "equipment_count_total"),
+        (["inactive equipment", "inactive equipments", "inactive equipment count",
+          "decommissioned equipment", "how many inactive equipment", "how many inactive equipments",
+          "number of inactive equipment", "number of inactive equipments", "total inactive equipment",
+          "total inactive equipments", "decommissioned instruments", "inactive instruments"],
+         "equipment_count_inactive"),
         (["maintenance health", "maintenance status", "instrument maintenance state",
           "equipment maintenance state"],
          "equipment_maintenance_health"),
@@ -291,13 +303,13 @@ class ManifestIntentRouter:
         
         a_active, b_active = self._get_active_rules(domain_whitelist)
         
-        # 1. Exact Match Pass (Fastest)
+        # 1. Exact Match Pass (Fastest with Word Boundaries)
         for patterns, intent in a_active:
-            if any(p in q for p in patterns):
+            if any(re.search(rf"\b{re.escape(p)}\b", q) for p in patterns):
                 matches.append((intent, "keyword", 1.0))
                 
         for patterns, intent in b_active:
-            if any(p in q for p in patterns):
+            if any(re.search(rf"\b{re.escape(p)}\b", q) for p in patterns):
                 if not any(m[0] == intent for m in matches):
                     matches.append((intent, "keyword_loose", 0.8))
 
@@ -315,6 +327,10 @@ class ManifestIntentRouter:
                             window = " ".join(words[i:i+n])
                             # 0.85 ratio allows for 1-2 typos in a medium string
                             if difflib.SequenceMatcher(None, p, window).ratio() >= 0.85:
+                                # Word-by-word safety check: reject if any word is completely different (ratio < 0.7)
+                                w_words = window.split()
+                                if any(difflib.SequenceMatcher(None, pw, ww).ratio() < 0.7 for pw, ww in zip(p_words, w_words)):
+                                    continue
                                 # Only add if this intent hasn't been added yet
                                 if not any(m[0] == intent for m in matches):
                                     tier = "keyword_fuzzy" if patterns in [r[0] for r in a_active] else "keyword_loose_fuzzy"
