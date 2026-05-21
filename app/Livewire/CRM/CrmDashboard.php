@@ -367,7 +367,7 @@ class CrmDashboard extends BaseCrmComponent
             SampleHeader::class,
             Event::class,
         ];
-        $audits = \OwenIt\Auditing\Models\Audit::whereIn('auditable_type', $types)
+        $audits = \App\Models\Audit::whereIn('auditable_type', $types)
             ->with('user')
             ->orderByDesc('created_at')
             ->limit(60)
@@ -439,7 +439,7 @@ class CrmDashboard extends BaseCrmComponent
             SampleHeader::class,
             Event::class,
         ];
-        return \OwenIt\Auditing\Models\Audit::whereIn('auditable_type', $types)
+        return \App\Models\Audit::whereIn('auditable_type', $types)
             ->with('user')
             ->orderByDesc('created_at')
             ->limit(10)

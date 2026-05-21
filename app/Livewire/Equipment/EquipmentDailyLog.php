@@ -15,7 +15,7 @@ class EquipmentDailyLog extends Component
 
     public string $historyToDate = '';
 
-    public ?int $selectedEquipmentId = null;
+    public ?string $selectedEquipmentId = null;
 
     public function mount(): void
     {
@@ -24,7 +24,7 @@ class EquipmentDailyLog extends Component
         $this->historyToDate = now()->toDateString();
     }
 
-    public function selectEquipment(int $equipmentId): void
+    public function selectEquipment(string $equipmentId): void
     {
         $equipment = Equipment::where('company_id', getUserCompany())
             ->where('is_disposal', 0)
@@ -42,31 +42,61 @@ class EquipmentDailyLog extends Component
 
     public function getDailyUsageRowsProperty(): array
     {
-        return MethodSequenceStageEquipmentUsage::query()
-            ->whereNotNull('started_at')
-            ->whereDate('started_at', $this->logDate)
-            ->whereHas('equipment', function ($query) {
-                $query->where('company_id', getUserCompany())
-                    ->where('is_disposal', 0);
-            })
-            ->with(['equipment', 'stageData.run.analyst', 'startedByUser', 'completedByUser'])
-            ->orderBy('started_at', 'desc')
-            ->get()
-            ->map(function (MethodSequenceStageEquipmentUsage $usage) {
-                $status = $usage->isCompleted() ? 'Completed' : ($usage->isInProgress() ? 'In Progress' : 'Not Started');
+        try {
+            $rows = MethodSequenceStageEquipmentUsage::query()
+                ->whereNotNull('started_at')
+                ->whereDate('started_at', $this->logDate)
+                ->whereHas('equipment', function ($query) {
+                    $query->where('company_id', getUserCompany())
+                        ->where('is_disposal', 0);
+                })
+                ->with(['equipment', 'stageData.run.analyst', 'startedByUser', 'completedByUser'])
+                ->orderBy('started_at', 'desc')
+                ->get()
+                ->map(function (MethodSequenceStageEquipmentUsage $usage) {
+                    $status = $usage->isCompleted() ? 'Completed' : ($usage->isInProgress() ? 'In Progress' : 'Not Started');
 
+                    return [
+                        'usage_id' => $usage->id,
+                        'equipment_id' => $usage->equipment_id,
+                        'equipment_name' => $usage->equipment?->name ?? $usage->equipment_name ?? '-',
+                        'equipment_number' => $usage->equipment?->equipment_number ?? '-',
+                        'time_on' => $usage->started_at?->format('H:i:s') ?? '-',
+                        'time_off' => $usage->completed_at?->format('H:i:s') ?? '-',
+                        'duration' => $usage->getFormattedDuration() ?? '-',
+                        'status' => $status,
+                        'analyst' => $usage->stageData?->run?->analyst?->name
+                            ?? $usage->startedByUser?->name
+                            ?? '-',
+                    ];
+                })
+                ->values()
+                ->all();
+
+            if (!empty($rows)) {
+                return $rows;
+            }
+        } catch (\Throwable $e) {
+            // Fall through to equipment-level fallback rows.
+        }
+
+        return Equipment::query()
+            ->where('company_id', getUserCompany())
+            ->where('is_disposal', 0)
+            ->where('requires_daily_log', 1)
+            ->orderBy('name')
+            ->get()
+            ->map(function (Equipment $equipment) {
                 return [
-                    'usage_id' => $usage->id,
-                    'equipment_id' => $usage->equipment_id,
-                    'equipment_name' => $usage->equipment?->name ?? $usage->equipment_name ?? '-',
-                    'equipment_number' => $usage->equipment?->equipment_number ?? '-',
-                    'time_on' => $usage->started_at?->format('H:i:s') ?? '-',
-                    'time_off' => $usage->completed_at?->format('H:i:s') ?? '-',
-                    'duration' => $usage->getFormattedDuration() ?? '-',
-                    'status' => $status,
-                    'analyst' => $usage->stageData?->run?->analyst?->name
-                        ?? $usage->startedByUser?->name
-                        ?? '-',
+                    'usage_id' => null,
+                    'equipment_id' => $equipment->id,
+                    'equipment_name' => $equipment->name ?? '-',
+                    'equipment_number' => $equipment->equipment_number ?? '-',
+                    'time_on' => '-',
+                    'time_off' => '-',
+                    'duration' => '-',
+                    'status' => 'Not Started',
+                    'analyst' => '-',
                 ];
             })
             ->values()

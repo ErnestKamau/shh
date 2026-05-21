@@ -171,7 +171,7 @@
             <div class="card shadow-sm border-0 eq-main-card">
                 <div class="card-header bg-light border-0 eq-main-header">
                     <ul class="nav nav-tabs eq-main-tabs">
-                        @if(!$fromEquipmentChecks)
+                        @if(!$fromEquipmentChecks && !$fromEquipmentMaintenance)
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'details' ? 'active' : '' }}"
                                     wire:click="setActiveTab('details')" type="button">
@@ -214,8 +214,40 @@
                                 {{ __('equipment.notifications') }}
                             </button>
                         </li>
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'accessories' ? 'active' : '' }}" 
+                                    wire:click="setActiveTab('accessories')" type="button">
+                                <i class="mdi mdi-layers-outline"></i> Accessories
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'spareparts' ? 'active' : '' }}" 
+                                    wire:click="setActiveTab('spareparts')" type="button">
+                                <i class="mdi mdi-wrench-outline"></i> Spare Parts
+                            </button>
+                        </li>
                         @endif
-                        @if($equipment->requires_daily_log)
+                        @if($fromEquipmentMaintenance)
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'annual-maintenance' ? 'active' : '' }}" 
+                                    wire:click="setActiveTab('annual-maintenance')" type="button">
+                                <i class="mdi mdi-calendar-clock"></i> Annual (TSU/F/06)
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'preventive-maintenance' ? 'active' : '' }}" 
+                                    wire:click="setActiveTab('preventive-maintenance')" type="button">
+                                <i class="mdi mdi-shield-check"></i> Preventive (TSU/F/05)
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'register-maintenance' ? 'active' : '' }}" 
+                                    wire:click="setActiveTab('register-maintenance')" type="button">
+                                <i class="mdi mdi-book-open"></i> Maintenance Register
+                            </button>
+                        </li>
+                        @endif
+                        @if($equipment->requires_daily_log && !$fromEquipmentMaintenance)
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'dailylog' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('dailylog')" type="button">
@@ -851,10 +883,570 @@
                         @endif
 
                     @endif
+
+                    <!-- Accessories Tab -->
+                    @if($activeTab === 'accessories')
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="mdi mdi-layers-outline text-primary"></i> Accessories</h5>
+                            <button wire:click="showAddAccessoryModal" class="btn btn-primary btn-sm">
+                                <i class="mdi mdi-plus"></i> Add Accessory
+                            </button>
+                        </div>
+                        @if(session()->has('message') && $activeTab === 'accessories')
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('message') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+                        @if($equipment->accessories->isEmpty())
+                            <div class="alert alert-info py-3">
+                                <i class="mdi mdi-information-outline"></i> No accessories registered for this equipment. Click "Add Accessory" to register one.
+                            </div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Part Number</th>
+                                            <th>Serial Number</th>
+                                            <th>Description</th>
+                                            <th style="width: 180px;" class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($equipment->accessories as $accessory)
+                                            <tr>
+                                                <td class="fw-bold">{{ $accessory->name }}</td>
+                                                <td><code>{{ $accessory->part_number ?: '—' }}</code></td>
+                                                <td><code>{{ $accessory->serial_number ?: '—' }}</code></td>
+                                                <td>{{ $accessory->description ?: '—' }}</td>
+                                                <td class="text-center">
+                                                    <button wire:click="editAccessory('{{ $accessory->id }}')" class="btn btn-xs btn-outline-info mr-1" title="Edit">
+                                                        <i class="mdi mdi-pencil-outline"></i> Edit
+                                                    </button>
+                                                    <button onclick="confirm('Are you sure you want to delete this accessory?') || event.stopImmediatePropagation()" wire:click="deleteAccessory('{{ $accessory->id }}')" class="btn btn-xs btn-outline-danger" title="Delete">
+                                                        <i class="mdi mdi-trash-can-outline"></i> Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    @endif
+
+                    <!-- Spare Parts Tab -->
+                    @if($activeTab === 'spareparts')
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="mdi mdi-wrench-outline text-primary"></i> Spare Parts</h5>
+                            <button wire:click="showAddSparePartModal" class="btn btn-primary btn-sm">
+                                <i class="mdi mdi-plus"></i> Add Spare Part
+                            </button>
+                        </div>
+                        @if(session()->has('message') && $activeTab === 'spareparts')
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('message') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+                        @if($equipment->spareParts->isEmpty())
+                            <div class="alert alert-info py-3">
+                                <i class="mdi mdi-information-outline"></i> No spare parts registered for this equipment. Click "Add Spare Part" to register one.
+                            </div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Part Number</th>
+                                            <th>Serial Number</th>
+                                            <th>Description</th>
+                                            <th style="width: 180px;" class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($equipment->spareParts as $sparePart)
+                                            <tr>
+                                                <td class="fw-bold">{{ $sparePart->name }}</td>
+                                                <td><code>{{ $sparePart->part_number ?: '—' }}</code></td>
+                                                <td><code>{{ $sparePart->serial_number ?: '—' }}</code></td>
+                                                <td>{{ $sparePart->description ?: '—' }}</td>
+                                                <td class="text-center">
+                                                    <button wire:click="editSparePart('{{ $sparePart->id }}')" class="btn btn-xs btn-outline-info mr-1" title="Edit">
+                                                        <i class="mdi mdi-pencil-outline"></i> Edit
+                                                    </button>
+                                                    <button onclick="confirm('Are you sure you want to delete this spare part?') || event.stopImmediatePropagation()" wire:click="deleteSparePart('{{ $sparePart->id }}')" class="btn btn-xs btn-outline-danger" title="Delete">
+                                                        <i class="mdi mdi-trash-can-outline"></i> Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    @endif
+
+                    <!-- Annual Maintenance (TSU/F/06) Tab -->
+                    @if($activeTab === 'annual-maintenance')
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="mdi mdi-calendar-clock text-primary"></i> Annual Maintenance Program (TSU/F/06)</h5>
+                            <button wire:click="openAnnualModal()" class="btn btn-primary btn-sm">
+                                <i class="mdi mdi-plus"></i> Add Annual Record
+                            </button>
+                        </div>
+                        @if(session()->has('message') && $activeTab === 'annual-maintenance')
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('message') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+                        @if($equipment->annualMaintenances->isEmpty())
+                            <div class="alert alert-info py-3">
+                                <i class="mdi mdi-information-outline"></i> No annual maintenance records registered for this equipment. Click "Add Annual Record" to register one.
+                            </div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Serviced Date</th>
+                                            <th>Status</th>
+                                            <th>Next Service</th>
+                                            <th>Remark</th>
+                                            <th style="width: 180px;" class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($equipment->annualMaintenances as $record)
+                                            <tr>
+                                                <td class="fw-bold">{{ $record->serviced_date ? $record->serviced_date->format('M d, Y') : '—' }}</td>
+                                                <td>
+                                                    @if($record->status)
+                                                        @php
+                                                            $statusClass = 'badge-secondary';
+                                                            if (strtolower($record->status) === 'active' || strtolower($record->status) === 'completed') $statusClass = 'badge-success';
+                                                            elseif (strtolower($record->status) === 'pending') $statusClass = 'badge-warning';
+                                                            elseif (strtolower($record->status) === 'overdue' || strtolower($record->status) === 'critical') $statusClass = 'badge-danger';
+                                                        @endphp
+                                                        <span class="badge {{ $statusClass }} px-2 py-1">{{ ucfirst($record->status) }}</span>
+                                                    @else
+                                                        <span class="text-muted">—</span>
+                                                    @endif
+                                                </td>
+                                                <td class="text-primary fw-bold">{{ $record->next_service ? $record->next_service->format('M d, Y') : '—' }}</td>
+                                                <td>{{ $record->remark ?: '—' }}</td>
+                                                <td class="text-center">
+                                                    <button wire:click="openAnnualModal('{{ $record->id }}')" class="btn btn-xs btn-outline-info mr-1" title="Edit">
+                                                        <i class="mdi mdi-pencil-outline"></i> Edit
+                                                    </button>
+                                                    <button onclick="confirm('Are you sure you want to delete this record?') || event.stopImmediatePropagation()" wire:click="deleteAnnual('{{ $record->id }}')" class="btn btn-xs btn-outline-danger" title="Delete">
+                                                        <i class="mdi mdi-trash-can-outline"></i> Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    @endif
+
+                    <!-- Preventive Maintenance (TSU/F/05) Tab -->
+                    @if($activeTab === 'preventive-maintenance')
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="mdi mdi-shield-check text-primary"></i> Equipment Preventive Maintenance Program (TSU/F/05)</h5>
+                            <button wire:click="openPreventiveModal()" class="btn btn-primary btn-sm">
+                                <i class="mdi mdi-plus"></i> Add Preventive Record
+                            </button>
+                        </div>
+                        @if(session()->has('message') && $activeTab === 'preventive-maintenance')
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('message') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+                        @if($equipment->preventiveMaintenances->isEmpty())
+                            <div class="alert alert-info py-3">
+                                <i class="mdi mdi-information-outline"></i> No preventive maintenance records registered for this equipment. Click "Add Preventive Record" to register one.
+                            </div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Scheduled Month</th>
+                                            <th>Status</th>
+                                            <th>Serviced Date</th>
+                                            <th>Notes</th>
+                                            <th style="width: 180px;" class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($equipment->preventiveMaintenances as $record)
+                                            <tr>
+                                                <td class="fw-bold">{{ \Carbon\Carbon::create(null, $record->scheduled_month ?: 1, 1)->format('F') }}</td>
+                                                <td>
+                                                    @if($record->is_serviced)
+                                                        <span class="badge badge-success px-2 py-1">Serviced</span>
+                                                    @else
+                                                        <span class="badge badge-warning px-2 py-1">Scheduled</span>
+                                                    @endif
+                                                </td>
+                                                <td>{{ $record->serviced_date ? $record->serviced_date->format('M d, Y') : '—' }}</td>
+                                                <td>{{ $record->notes ?: '—' }}</td>
+                                                <td class="text-center align-middle">
+                                                    <button wire:click="openPreventiveModal('{{ $record->id }}')" class="btn btn-xs btn-outline-info mr-1" title="Edit">
+                                                        <i class="mdi mdi-pencil-outline"></i> Edit
+                                                    </button>
+                                                    <button onclick="confirm('Are you sure you want to delete this record?') || event.stopImmediatePropagation()" wire:click="deletePreventive('{{ $record->id }}')" class="btn btn-xs btn-outline-danger" title="Delete">
+                                                        <i class="mdi mdi-trash-can-outline"></i> Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    @endif
+
+                    <!-- Maintenance Register Tab -->
+                    @if($activeTab === 'register-maintenance')
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="mdi mdi-book-open text-primary"></i> DSM - Equipment Maintenance Register</h5>
+                            <button wire:click="openRegisterModal()" class="btn btn-primary btn-sm">
+                                <i class="mdi mdi-plus"></i> Add Register Entry
+                            </button>
+                        </div>
+                        @if(session()->has('message') && $activeTab === 'register-maintenance')
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('message') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+                        @if($equipment->maintenanceRegisters->isEmpty())
+                            <div class="alert alert-info py-3">
+                                <i class="mdi mdi-information-outline"></i> No maintenance register entries registered for this equipment. Click "Add Register Entry" to register one.
+                            </div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Year</th>
+                                            <th>Service Provider</th>
+                                            <th>Type of Service</th>
+                                            <th class="text-right">Cost (USD)</th>
+                                            <th class="text-right">Cost (TZS)</th>
+                                            <th style="width: 180px;" class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($equipment->maintenanceRegisters as $record)
+                                            <tr>
+                                                <td class="fw-bold">{{ $record->year ?: '—' }}</td>
+                                                <td>{{ $record->service_provider ?: '—' }}</td>
+                                                <td>{{ $record->service_type ?: '—' }}</td>
+                                                <td class="text-right text-success fw-bold">${{ number_format($record->cost_usd, 2) }}</td>
+                                                <td class="text-right text-secondary fw-bold">{{ number_format($record->cost_tzs, 2) }} TZS</td>
+                                                <td class="text-center">
+                                                    <button wire:click="openRegisterModal('{{ $record->id }}')" class="btn btn-xs btn-outline-info mr-1" title="Edit">
+                                                        <i class="mdi mdi-pencil-outline"></i> Edit
+                                                    </button>
+                                                    <button onclick="confirm('Are you sure you want to delete this record?') || event.stopImmediatePropagation()" wire:click="deleteRegister('{{ $record->id }}')" class="btn btn-xs btn-outline-danger" title="Delete">
+                                                        <i class="mdi mdi-trash-can-outline"></i> Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                    <tfoot class="bg-light fw-bold">
+                                        <tr>
+                                            <td colspan="3">Total for this equipment:</td>
+                                            <td class="text-right text-success">${{ number_format($equipment->maintenanceRegisters->sum('cost_usd'), 2) }}</td>
+                                            <td class="text-right text-secondary">{{ number_format($equipment->maintenanceRegisters->sum('cost_tzs'), 2) }} TZS</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        @endif
+                    @endif
+
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Accessory Modal -->
+    @if($showAccessoryModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-{{ $accessoryForm['id'] ? 'pencil' : 'plus' }}"></i>
+                            {{ $accessoryForm['id'] ? 'Edit' : 'Add' }} Accessory
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="$set('showAccessoryModal', false)"></button>
+                    </div>
+                    <form wire:submit.prevent="saveAccessory">
+                        <div class="modal-body">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Name <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="accessoryForm.name" class="form-control" placeholder="e.g. Temperature Probe" required>
+                                @error('accessoryForm.name') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Part Number</label>
+                                <input type="text" wire:model="accessoryForm.part_number" class="form-control" placeholder="e.g. ACC-102">
+                                @error('accessoryForm.part_number') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" wire:model="accessoryForm.serial_number" class="form-control" placeholder="e.g. SN-89231">
+                                @error('accessoryForm.serial_number') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea wire:model="accessoryForm.description" class="form-control" rows="3" placeholder="Additional details..."></textarea>
+                                @error('accessoryForm.description') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="$set('showAccessoryModal', false)">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Accessory</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Spare Part Modal -->
+    @if($showSparePartModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-{{ $sparePartForm['id'] ? 'pencil' : 'plus' }}"></i>
+                            {{ $sparePartForm['id'] ? 'Edit' : 'Add' }} Spare Part
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="$set('showSparePartModal', false)"></button>
+                    </div>
+                    <form wire:submit.prevent="saveSparePart">
+                        <div class="modal-body">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Name <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="sparePartForm.name" class="form-control" placeholder="e.g. Replacement Filter" required>
+                                @error('sparePartForm.name') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Part Number</label>
+                                <input type="text" wire:model="sparePartForm.part_number" class="form-control" placeholder="e.g. FLT-409">
+                                @error('sparePartForm.part_number') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" wire:model="sparePartForm.serial_number" class="form-control" placeholder="e.g. SN-77291">
+                                @error('sparePartForm.serial_number') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea wire:model="sparePartForm.description" class="form-control" rows="3" placeholder="Additional details..."></textarea>
+                                @error('sparePartForm.description') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="$set('showSparePartModal', false)">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Spare Part</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Annual Maintenance Modal -->
+    @if($showAnnualModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-{{ $annualId ? 'pencil' : 'plus' }}"></i>
+                            {{ $annualId ? 'Edit' : 'Add' }} Annual Maintenance Record (TSU/F/06)
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="$set('showAnnualModal', false)"></button>
+                    </div>
+                    <form wire:submit.prevent="saveAnnual">
+                        <div class="modal-body">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Serviced Date</label>
+                                <input type="date" wire:model="annual_serviced_date" class="form-control">
+                                @error('annual_serviced_date') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Status</label>
+                                <select wire:model="annual_status" class="form-control">
+                                    <option value="">-- Select Status --</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Overdue">Overdue</option>
+                                    <option value="Critical">Critical</option>
+                                </select>
+                                @error('annual_status') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Next Service Date</label>
+                                <input type="date" wire:model="annual_next_service" class="form-control">
+                                @error('annual_next_service') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Remark</label>
+                                <textarea wire:model="annual_remark" class="form-control" rows="3" placeholder="Enter remarks..."></textarea>
+                                @error('annual_remark') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="$set('showAnnualModal', false)">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Record</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Preventive Maintenance Modal -->
+    @if($showPreventiveModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-{{ $preventiveId ? 'pencil' : 'plus' }}"></i>
+                            {{ $preventiveId ? 'Edit' : 'Add' }} Preventive Maintenance Record (TSU/F/05)
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="$set('showPreventiveModal', false)"></button>
+                    </div>
+                    <form wire:submit.prevent="savePreventive">
+                        <div class="modal-body">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Beginning of Year <span class="text-danger">*</span></label>
+                                <input type="date" wire:model="preventive_year_start" class="form-control" required>
+                                @error('preventive_year_start') <span class="text-danger">{{ $message }}</span> @enderror
+                                <small class="text-muted">Quarters will be automatically calculated starting from this date.</small>
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">1st Quarter Status</label>
+                                <select wire:model="preventive_q1_status" class="form-control">
+                                    <option value="">-- Select Status --</option>
+                                    <option value="Done">Done</option>
+                                    <option value="Scheduled">Scheduled</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="N/A">N/A</option>
+                                </select>
+                                @error('preventive_q1_status') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">2nd Quarter Status</label>
+                                <select wire:model="preventive_q2_status" class="form-control">
+                                    <option value="">-- Select Status --</option>
+                                    <option value="Done">Done</option>
+                                    <option value="Scheduled">Scheduled</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="N/A">N/A</option>
+                                </select>
+                                @error('preventive_q2_status') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">3rd Quarter Status</label>
+                                <select wire:model="preventive_q3_status" class="form-control">
+                                    <option value="">-- Select Status --</option>
+                                    <option value="Done">Done</option>
+                                    <option value="Scheduled">Scheduled</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="N/A">N/A</option>
+                                </select>
+                                @error('preventive_q3_status') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">4th Quarter Status</label>
+                                <select wire:model="preventive_q4_status" class="form-control">
+                                    <option value="">-- Select Status --</option>
+                                    <option value="Done">Done</option>
+                                    <option value="Scheduled">Scheduled</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="N/A">N/A</option>
+                                </select>
+                                @error('preventive_q4_status') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="$set('showPreventiveModal', false)">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Record</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Maintenance Register Modal -->
+    @if($showRegisterModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-{{ $registerId ? 'pencil' : 'plus' }}"></i>
+                            {{ $registerId ? 'Edit' : 'Add' }} Maintenance Register Entry
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="$set('showRegisterModal', false)"></button>
+                    </div>
+                    <form wire:submit.prevent="saveRegister">
+                        <div class="modal-body">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Year / Financial Year</label>
+                                <input type="text" wire:model="register_year" class="form-control" placeholder="e.g. 2024/2025">
+                                @error('register_year') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Service Provider</label>
+                                <input type="text" wire:model="register_service_provider" class="form-control" placeholder="e.g. GCLA Tech Services">
+                                @error('register_service_provider') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Type of Service</label>
+                                <input type="text" wire:model="register_service_type" class="form-control" placeholder="e.g. Annual Calibration">
+                                @error('register_service_type') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Cost (USD)</label>
+                                <input type="number" step="0.01" wire:model="register_cost_usd" class="form-control" placeholder="0.00">
+                                @error('register_cost_usd') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Cost (TZS)</label>
+                                <input type="number" step="0.01" wire:model="register_cost_tzs" class="form-control" placeholder="0.00">
+                                @error('register_cost_tzs') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="$set('showRegisterModal', false)">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Entry</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Edit Equipment Modal -->
     @if($showEditModal)

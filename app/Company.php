@@ -33,6 +33,10 @@ class Company extends Model implements Auditable
         'street',
         'fax',
         'show_on_reports',
+        'maintenance_start_year',
+        'maintenance_start_month',
+        'maintenance_end_year',
+        'maintenance_end_month',
     ];
 
     protected $casts = [

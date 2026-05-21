@@ -7,7 +7,7 @@ use App\User;
 use App\InventoryDepartment;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
-use OwenIt\Auditing\Models\Audit;
+use App\Models\Audit;
 use App\Datatables\Datatables;
 
 class AuditController extends Controller

@@ -55,6 +55,16 @@ trait InteractsWithEquipmentFormWizard
                 'equipmentForm.barcode_number' => 'nullable|string|max:255',
                 'equipmentForm.manufacturer' => 'nullable|string|max:255',
                 'photo' => 'nullable|image|max:10240',
+                'equipmentForm.purchase_price' => 'nullable|numeric|min:0',
+                'equipmentForm.installation_date' => 'nullable|date',
+                'equipmentForm.commissioning_date' => 'nullable|date',
+                'equipmentForm.detection_limit' => 'nullable|string|max:255',
+                'equipmentForm.tolerance_limit' => 'nullable|string|max:255',
+                'equipmentForm.supplier_name' => 'nullable|string|max:255',
+                'equipmentForm.warranty' => 'nullable|string|max:255',
+                'equipmentForm.environment' => 'nullable|string|max:255',
+                'equipmentForm.end_of_life' => 'nullable|date',
+                'equipmentForm.end_of_service' => 'nullable|date',
             ];
         }
 
@@ -240,6 +250,7 @@ trait InteractsWithEquipmentFormWizard
             'daily_log_tolerance',
             'preventive_maintainance_period',
             'preventive_maintainance_notification_days',
+            'purchase_price',
         ];
 
         $nullableUuid = [
@@ -249,6 +260,18 @@ trait InteractsWithEquipmentFormWizard
             'daily_log_monitored_equipment_id',
         ];
 
+        $nullableStrings = [
+            'installation_date',
+            'commissioning_date',
+            'detection_limit',
+            'tolerance_limit',
+            'supplier_name',
+            'warranty',
+            'environment',
+            'end_of_life',
+            'end_of_service',
+        ];
+
         foreach ($nullableNumeric as $field) {
             if (! array_key_exists($field, $data) || $data[$field] === '' || $data[$field] === false) {
                 $data[$field] = null;
@@ -256,6 +279,12 @@ trait InteractsWithEquipmentFormWizard
         }
 
         foreach ($nullableUuid as $field) {
+            if (! array_key_exists($field, $data) || $data[$field] === '') {
+                $data[$field] = null;
+            }
+        }
+
+        foreach ($nullableStrings as $field) {
             if (! array_key_exists($field, $data) || $data[$field] === '') {
                 $data[$field] = null;
             }

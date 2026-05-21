@@ -238,6 +238,18 @@ class EquipmentImport extends BaseImporter
         
         $status = $this->fuzzyGet($row, ['status']);
 
+        // Parse new optional fields
+        $purchasePrice = $this->fuzzyGet($row, ['purchase_price', 'purchaseprice', 'price', 'cost']);
+        $supplierName = $this->fuzzyGet($row, ['supplier_name', 'suppliername', 'supplier', 'vendor']);
+        $installationDate = $this->fuzzyGet($row, ['installation_date', 'installationdate', 'date_of_installation', 'installed_on']);
+        $commissioningDate = $this->fuzzyGet($row, ['commissioning_date', 'commissioningdate', 'date_of_commissioning', 'commissioned_on']);
+        $detectionLimit = $this->fuzzyGet($row, ['detection_limit', 'detectionlimit', 'dl']);
+        $toleranceLimit = $this->fuzzyGet($row, ['tolerance_limit', 'tolerancelimit', 'tl']);
+        $warranty = $this->fuzzyGet($row, ['warranty', 'warranty_duration', 'warranty_period']);
+        $environment = $this->fuzzyGet($row, ['environment', 'operating_environment', 'env']);
+        $endOfLife = $this->fuzzyGet($row, ['end_of_life', 'endoflife', 'eol']);
+        $endOfService = $this->fuzzyGet($row, ['end_of_service', 'endofservice', 'eos']);
+
         return [
             'name' => $name,
             'equipment_number' => $equipmentNumber,
@@ -258,6 +270,19 @@ class EquipmentImport extends BaseImporter
             'is_disposal' => 0,
             'picture' => '/images/default-equipment.png',
             'asset_location_id' => $assetLocationId,
+            
+            // New fields
+            'purchase_price' => is_numeric($purchasePrice) ? (float) $purchasePrice : null,
+            'supplier_name' => $supplierName ?: null,
+            'installation_date' => $installationDate ? $this->parseDate($installationDate) : null,
+            'commissioning_date' => $commissioningDate ? $this->parseDate($commissioningDate) : null,
+            'detection_limit' => $detectionLimit ?: null,
+            'tolerance_limit' => $toleranceLimit ?: null,
+            'warranty' => $warranty ?: null,
+            'environment' => $environment ?: null,
+            'end_of_life' => $endOfLife ? $this->parseDate($endOfLife) : null,
+            'end_of_service' => $endOfService ? $this->parseDate($endOfService) : null,
+
             '_calibration_date' => $this->parseDate($prevCalDate),
             '_maintenance_date' => $this->parseDate($prevMaintDate),
             '_resolved_lab_id' => $labId,

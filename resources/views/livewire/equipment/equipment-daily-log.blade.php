@@ -111,7 +111,7 @@
                                     </td>
                                     <td class="text-right">
                                         <button type="button"
-                                            wire:click="selectEquipment({{ $row['equipment_id'] }})"
+                                            wire:click="selectEquipment('{{ $row['equipment_id'] }}')"
                                             class="btn btn-sm btn-outline-primary">
                                             {{ __('equipment.view') }} {{ __('equipment.daily_equipment_usage') }}
                                         </button>

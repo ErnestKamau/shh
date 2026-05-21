@@ -153,7 +153,7 @@ class User extends Authenticatable implements Auditable
 
 	public function audit_logs()
 	{
-		return \OwenIt\Auditing\Models\Audit::where('user_id', $this->id)->orderBy('created_at', 'desc')->get();
+		return \App\Models\Audit::where('user_id', $this->id)->orderBy('created_at', 'desc')->get();
 	}
 
 	/**
