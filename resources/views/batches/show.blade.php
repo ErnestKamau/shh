@@ -357,12 +357,12 @@
                             @endforeach
                         </select>
                     </div>
-                    <input name="batch_id" type="hidden" value="{{ $batch->id }}" />
+					<input name="batch_id" type="hidden" value="{{ $batch->id ?? '' }}" />
                     <div class="form-group">
                         <label class="control-label">Type</label>
                         <select class="form-control" name="type" required placeholder="Message Type...">
                             <option></option>
-                            @if($batch->status == 'Sample Verification' || $batch->status == 'Samples In Lab')
+							@if(($batch->status ?? null) == 'Sample Verification' || ($batch->status ?? null) == 'Samples In Lab')
                                 <option value="Recheck">Recheck</option>
                             @endif
                             @foreach ($notesReminderType as $item)

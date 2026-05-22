@@ -163,7 +163,8 @@
                         <form class="dropdown-item p-0" method="POST"
                               action="{{ route('move-to-workflow', ['status' => $item, 'batch_id' => $batch->id]) }}">
                             @csrf
-                            <button type="submit"
+                                                        <input type="hidden" name="is_approval" value="1">
+                                                        <button type="submit"
                                     class="btn btn-link btn-sm text-left w-100"
                                     style="text-decoration: none; color: inherit;">
                                 <small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small>

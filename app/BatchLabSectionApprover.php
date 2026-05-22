@@ -14,6 +14,9 @@ class BatchLabSectionApprover extends Model implements Auditable
 
     protected $table = "batch_labsection_approval";
 
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $appends = ['approvername','labsectionnames','approvertype', 'approvershortname'];
 
     public function getApproverNameAttribute(){

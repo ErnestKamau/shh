@@ -27,6 +27,8 @@ class Approvals extends Component
 
     public string $checklistUrl = '';
 
+    public string $checklistStageName = '';
+
     // Currently selected approver
     public ?string $currentApproverId = null;
 
@@ -148,11 +150,6 @@ class Approvals extends Component
 
         $status = (int)$this->statusForm['status'];
 
-        if ($status === 1 && !$this->canProceedWithStageChecklist($approver)) {
-            $this->showStatusModal = false;
-            return;
-        }
-
         $approver->status = $status;
         $approver->remark = $this->statusForm['remark'] ?? '';
         $approver->approval_date = now();
@@ -234,6 +231,7 @@ class Approvals extends Component
     public function closeChecklistRequiredModal(): void
     {
         $this->showChecklistRequiredModal = false;
+        $this->checklistStageName = '';
     }
 
     protected function resetDeleteModal(): void
@@ -325,6 +323,7 @@ class Approvals extends Component
         } catch (ValidationException $exception) {
             $this->checklistRequiredMessage = $exception->validator->errors()->first()
                 ?: 'Complete and approve the checklist before approving this action.';
+            $this->checklistStageName = $stageName;
             $this->checklistUrl = route('sample-approval-checklist.show', [
                 'sample' => $this->batch->id,
                 'stage_name' => $stageName,

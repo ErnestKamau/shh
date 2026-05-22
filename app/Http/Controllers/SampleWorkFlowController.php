@@ -83,6 +83,7 @@ use App\Services\ProcedureWorksheetPdfService;
 use App\Http\Requests\StoreSampleSubmissionRequest;
 use App\Services\WorkflowService;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 
 class SampleWorkFlowController extends Controller
 {
@@ -1604,7 +1605,11 @@ class SampleWorkFlowController extends Controller
             \Log::error("Failed to dynamically configure report formats: " . $e->getMessage());
         }
 
-        $batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample', 'stagingDetails', 'sample_type', 'sampleSubmissionRequest.suspects', 'sampleSubmissionRequest.exhibits', 'sampleSubmissionRequest.requestedAnalyses')->find($batchID);
+        $batchQuery = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample', 'stagingDetails', 'sample_type', 'sampleSubmissionRequest.suspects', 'sampleSubmissionRequest.exhibits', 'sampleSubmissionRequest.requestedAnalyses');
+        $batchLookup = trim((string) $batchID);
+        $batch = Str::isUuid($batchLookup)
+            ? $batchQuery->find($batchLookup)
+            : $batchQuery->where('batch_code', $batchLookup)->first();
         if (isset($batch->id) && $batch->crm_unit_id < 1) {
             $crm_unit = CRMCompanyUnit::where('crm_customer_id', $batch->crm_customer_id)->where('name', $batch->crm_unit_name)->first();
             $batch->crm_unit_id = isset($crm_unit->id) ? $crm_unit->id : $batch->crm_unit_id;
@@ -1742,9 +1747,12 @@ class SampleWorkFlowController extends Controller
             // return response()->json($test);
         }
 
-        $selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
+        $sampleTypeId = trim((string) ($batch->sample_type_id ?? ''));
+        $selectedSampleType = ($sampleTypeId !== '' && $sampleTypeId !== '0' && Str::isUuid($sampleTypeId))
+            ? \App\SampleType::find($sampleTypeId)
+            : null;
 
-        $selected_analysis_types = isset($batch->sample_type_id) ? $selectedSampleType->analysis_types : [];
+        $selected_analysis_types = $selectedSampleType ? $selectedSampleType->analysis_types : [];
         if (isset($batch->id)) {
             if ($batch->is_qc_batch) {
                 $standards = Standards::where('status', 1)->where('qc_type_id', $batch->qc_type_id)->get();
@@ -2670,15 +2678,29 @@ class SampleWorkFlowController extends Controller
         // return response()->json('test');
         $previousWorkflow = $batch->status;
 
-        // Ensure we always have a valid tracking_stage_id when updating chain of custody
-        $targetTrackingStage = $batch->sample_tracking_stage;
+        // Resolve target tracking stage as UUID (or null when stage setup is incomplete).
+        $targetTrackingStage = \Illuminate\Support\Str::isUuid($batch->sample_tracking_stage)
+            ? $batch->sample_tracking_stage
+            : null;
+
+        if (!$targetTrackingStage) {
+            // Reuse currently open custody stage if available.
+            $openCustody = \App\ChainOfCustody::where('sample_header_id', $batch_id)
+                ->whereNull('moved_out_date')
+                ->latest('id')
+                ->first();
+
+            if (isset($openCustody->tracking_stage_id) && \Illuminate\Support\Str::isUuid($openCustody->tracking_stage_id)) {
+                $targetTrackingStage = $openCustody->tracking_stage_id;
+            }
+        }
 
         if (!$targetTrackingStage) {
             // Try to derive from batch stages for the target workflow (legacy behavior)
             if (method_exists($batch, 'stages')) {
                 $stages = $batch->stages($status);
                 if (isset($stages[0]->id)) {
-                    $targetTrackingStage = $stages[0]->id;
+                    $targetTrackingStage = \Illuminate\Support\Str::isUuid($stages[0]->id) ? $stages[0]->id : null;
                 }
             }
 
@@ -2693,12 +2715,13 @@ class SampleWorkFlowController extends Controller
                 }
             }
 
-            // If we still don't have a tracking stage, prevent a broken custody record
+            // Proceed without tracking stage when configuration is incomplete.
             if (!$targetTrackingStage) {
-                return redirect()->back()->with(
-                    'error',
-                    'Kindly add Sample Analysis Stage to the sample type'
-                );
+                Log::warning('Missing sample tracking stage while moving workflow; proceeding with null tracking stage', [
+                    'batch_id' => $batch_id,
+                    'from_status' => $batch->status,
+                    'to_status' => $status,
+                ]);
             }
         }
 
@@ -2711,14 +2734,14 @@ class SampleWorkFlowController extends Controller
             ],
             'target' => [
                 'status' => $status,
-                'tracking_stage' => $targetTrackingStage,
+                'tracking_stage' => \Illuminate\Support\Str::isUuid($targetTrackingStage) ? $targetTrackingStage : null,
             ],
         ];
 
         $this->updateChainofCustody($custodyDetails);
 
         // Keep batch tracking stage in sync with the target workflow stage
-        $batch->sample_tracking_stage = $targetTrackingStage;
+        $batch->sample_tracking_stage = \Illuminate\Support\Str::isUuid($targetTrackingStage) ? $targetTrackingStage : null;
 
         if ($batch->status == 'Samples In Lab' && $status == 'Sample Verification') {
             // Persist method deviation details at batch level when moving to verification
@@ -2885,27 +2908,35 @@ class SampleWorkFlowController extends Controller
                     }
                 }
             } elseif (isset($request->batch_id)) {
-                $batch = Sampleheader::find((int) $request->batch_id);
+                $batchId = trim((string) $request->batch_id);
+                $batch = Str::isUuid($batchId) ? Sampleheader::find($batchId) : null;
 
-                $responsibility = SystemConfiguration::where('key', $batch->status)->first();
-                if (isset($responsibility->id)) {
-                    $users = JobDescription::where(function ($query) use ($responsibility) {
-                        $query->where('job_designation_responsibility.name', $responsibility->key)
-                            ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
-                    })
-                        ->join('users', function ($join) {
-                            $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                if (!$batch) {
+                    Log::warning('Skipping batch notification due to invalid or unknown batch_id', [
+                        'batch_id' => $request->batch_id,
+                        'status' => $request->status,
+                    ]);
+                } else {
+                    $responsibility = SystemConfiguration::where('key', $batch->status)->first();
+                    if (isset($responsibility->id)) {
+                        $users = JobDescription::where(function ($query) use ($responsibility) {
+                            $query->where('job_designation_responsibility.name', $responsibility->key)
+                                ->orWhereRaw('job_designation_responsibility.config_id::text = ?', [(string) $responsibility->id]);
                         })
-                        ->get('users.*');
-                    // return response()->json($responsibility,200);
-                    $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
+                            ->join('users', function ($join) {
+                                $join->whereRaw('users.position::text = job_designation_responsibility.job_id::text');
+                            })
+                            ->get('users.*');
+                        // return response()->json($responsibility,200);
+                        $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
 
-                    $emails = $users->pluck('email')->toarray();
-                    $position = $users->pluck('position')->toarray();
-                    $position = array_unique($position);
-                    $notification = new SystemNotifications();
-                    foreach ($position as $pos) {
-                        $notification->batchNotification($batch, $pos, $message, $request->status);
+                        $emails = $users->pluck('email')->toarray();
+                        $position = $users->pluck('position')->toarray();
+                        $position = array_unique($position);
+                        $notification = new SystemNotifications();
+                        foreach ($position as $pos) {
+                            $notification->batchNotification($batch, $pos, $message, $request->status);
+                        }
                     }
                 }
             }
@@ -6192,7 +6223,11 @@ class SampleWorkFlowController extends Controller
     public function anothershow($batch, $client = false, $portal = false, $status = false)
     {
         $batchID = $batch;
-        $batch = SampleHeader::with('comments', 'comments.creator')->find($batchID);
+        $batchQuery = SampleHeader::with('comments', 'comments.creator');
+        $batchLookup = trim((string) $batchID);
+        $batch = Str::isUuid($batchLookup)
+            ? $batchQuery->find($batchLookup)
+            : $batchQuery->where('batch_code', $batchLookup)->first();
         $batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
         $countries = Country::orderBy('name')->get();

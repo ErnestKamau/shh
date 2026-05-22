@@ -296,36 +296,38 @@
     </div>
     @endif
 
-</div>
+    {{-- Checklist Required Modal --}}
+    @if($showChecklistRequiredModal)
+    <div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1060;">
+        <div class="modal-dialog modal-lg" role="document" style="max-width: 860px; width: 92vw;">
+            <div class="modal-content modal-content-modern" style="max-height: calc(100vh - 3.5rem); overflow: hidden;">
+                <div class="modal-header modal-header-modern">
+                    <h5 class="modal-title modal-title-modern">
+                        <i class="mdi mdi-clipboard-alert-outline"></i> Complete Checklist First
+                    </h5>
+                    <button type="button" class="close" wire:click="closeChecklistRequiredModal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body modal-body-modern" style="overflow-y: auto; max-height: calc(100vh - 12rem);">
+                    <p class="mb-3">{{ $checklistRequiredMessage }}</p>
 
-{{-- Checklist Required Modal --}}
-@if($showChecklistRequiredModal)
-<div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1060;">
-    <div class="modal-dialog modal-md" role="document">
-        <div class="modal-content modal-content-modern">
-            <div class="modal-header modal-header-modern">
-                <h5 class="modal-title modal-title-modern">
-                    <i class="mdi mdi-clipboard-alert-outline"></i> Checklist Required
-                </h5>
-                <button type="button" class="close" wire:click="closeChecklistRequiredModal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body modal-body-modern">
-                <p class="mb-2">{{ $checklistRequiredMessage }}</p>
-                @if($checklistUrl)
-                    <p class="mb-0 small text-muted">Complete checklist first, then return and approve.</p>
-                @endif
-            </div>
-            <div class="modal-footer modal-footer-modern">
-                <button type="button" class="btn btn-secondary-modern btn-sm" wire:click="closeChecklistRequiredModal">Close</button>
-                @if($checklistUrl)
-                    <a href="{{ $checklistUrl }}" class="btn btn-primary-modern btn-sm">
-                        <i class="mdi mdi-open-in-new"></i> Open Checklist
-                    </a>
-                @endif
+                    @if($checklistStageName)
+                        <div style="border: 1px solid #e9ecef; border-radius: 8px; padding: 10px; background: #fff;">
+                            @livewire(
+                                'sampleworkflow.approval-checklist',
+                                ['sampleId' => (string) $batch->id, 'stageName' => $checklistStageName],
+                                key('embedded-checklist-' . $batch->id . '-' . $checklistStageName)
+                            )
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer modal-footer-modern">
+                    <button type="button" class="btn btn-secondary-modern btn-sm" wire:click="closeChecklistRequiredModal">Done</button>
+                </div>
             </div>
         </div>
     </div>
+    @endif
+
 </div>
-@endif
