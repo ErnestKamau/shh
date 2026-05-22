@@ -133,7 +133,7 @@ class SampleAnalysisSetupService
                 'sample_header_id' => $batchId,
                 'analyte_id' => $element->analyte_id,
                 'analyte_code' => $analyteCode,
-                'equipment_id' => $element->equipment_id ?? 0,
+                'equipment_id' => (empty($element->equipment_id) || $element->equipment_id === '0' || $element->equipment_id === 0) ? null : $element->equipment_id,
                 'result' => null,
                 'user_id' => $userId,
                 'analysis_type_id' => $analysisTypeId,

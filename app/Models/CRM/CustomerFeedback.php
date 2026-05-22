@@ -60,6 +60,8 @@ class CustomerFeedback extends Model implements Auditable
         'last_reminded_at',
         'submitted_at',
         'feedback',
+        'user_type',
+        'date',
     ];
 
     const STATUS_SUBMITTED = 0;

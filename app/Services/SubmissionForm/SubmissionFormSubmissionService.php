@@ -187,7 +187,10 @@ class SubmissionFormSubmissionService
 
                 return;
             } catch (\Illuminate\Database\QueryException $e) {
-                if ($e->getCode() == 23000 && str_contains($e->getMessage(), 'submission_form_instances_form_number_unique')) {
+                $isDuplicateFormNumber = in_array((string) $e->getCode(), ['23000', '23505'], true)
+                    && str_contains($e->getMessage(), 'submission_form_instances_form_number_unique');
+
+                if ($isDuplicateFormNumber) {
                     if ($retryCount >= $maxRetries) {
                         throw new \RuntimeException('Failed to assign form number after maximum retries', 0, $e);
                     }

@@ -62,6 +62,25 @@ class ManagerAcceptanceSignModal extends Component
         }
 
         if (!$form->sample_header_id) {
+            try {
+                \App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob::dispatchSync($acceptanceFormId);
+                $form = AnalysisAcceptanceForm::query()
+                    ->with([
+                        'lines.sampleType',
+                        'lines.analysisType',
+                        'customer',
+                        'submissionFormInstance',
+                        'sampleHeader',
+                    ])
+                    ->find($acceptanceFormId);
+            } catch (\Throwable $e) {
+                $this->dispatch('notify', type: 'error', message: 'Failed to generate sample batch: ' . $e->getMessage());
+
+                return;
+            }
+        }
+
+        if (!$form || !$form->sample_header_id) {
             $this->dispatch('notify', type: 'error', message: 'Sample batch has not been created yet. Wait for customer signature to complete.');
 
             return;
@@ -295,7 +314,7 @@ class ManagerAcceptanceSignModal extends Component
             return;
         }
 
-        if ($user->can('Laboratory.components.RFT Form.View') || $user->can('Laboratory.permission')) {
+        if ($user->can('laboratory.components.rft form.view') || $user->can('laboratory.permission')) {
             return;
         }
 

@@ -65,7 +65,7 @@
                                     <button type="button"
                                         class="btn btn-outline-success"
                                         title="Approve / Decline"
-                                        wire:click="openStatusModal({{ $approver->id }})">
+                                        wire:click="openStatusModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-thumb-up-outline"></i>
                                     </button>
                                     @endif
@@ -74,7 +74,7 @@
                                     <button type="button"
                                         class="btn btn-outline-primary"
                                         title="Edit approver"
-                                        wire:click="openEditModal({{ $approver->id }})">
+                                        wire:click="openEditModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-pencil-outline"></i>
                                     </button>
 
@@ -82,7 +82,7 @@
                                     <button type="button"
                                         class="btn btn-outline-danger"
                                         title="Delete approver"
-                                        wire:click="openDeleteModal({{ $approver->id }})">
+                                        wire:click="openDeleteModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-delete-outline"></i>
                                     </button>
                                 </div>
@@ -297,3 +297,35 @@
     @endif
 
 </div>
+
+{{-- Checklist Required Modal --}}
+@if($showChecklistRequiredModal)
+<div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1060;">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content modal-content-modern">
+            <div class="modal-header modal-header-modern">
+                <h5 class="modal-title modal-title-modern">
+                    <i class="mdi mdi-clipboard-alert-outline"></i> Checklist Required
+                </h5>
+                <button type="button" class="close" wire:click="closeChecklistRequiredModal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body modal-body-modern">
+                <p class="mb-2">{{ $checklistRequiredMessage }}</p>
+                @if($checklistUrl)
+                    <p class="mb-0 small text-muted">Complete checklist first, then return and approve.</p>
+                @endif
+            </div>
+            <div class="modal-footer modal-footer-modern">
+                <button type="button" class="btn btn-secondary-modern btn-sm" wire:click="closeChecklistRequiredModal">Close</button>
+                @if($checklistUrl)
+                    <a href="{{ $checklistUrl }}" class="btn btn-primary-modern btn-sm">
+                        <i class="mdi mdi-open-in-new"></i> Open Checklist
+                    </a>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+@endif

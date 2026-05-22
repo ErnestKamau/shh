@@ -97,16 +97,16 @@
                         <th style="min-width: 100px;">Code</th>
                         <th style="min-width: 150px;">Analysis<sup class="text-danger">*</sup></th>
                         <th style="min-width: 120px;">Lab<sup class="text-danger">*</sup></th>
-                        <th style="min-width: 120px;">Condition<sup class="text-danger">*</sup></th>
+                        <th style="min-width: 120px;">Condition</th>
                         <th style="min-width: 150px;">
-                            Sample Point<sup class="text-danger">*</sup>
+                            Sample Point
                             <button type="button" class="btn btn-xs btn-outline-primary ml-1"
                                 wire:click="openAddModal('sample_point_id', null)" title="Add New Sample Point">
                                 <i class="mdi mdi-plus"></i>
                             </button>
                         </th>
                         <th style="min-width: 150px;">
-                            Product<sup class="text-danger">*</sup>
+                            Product
                             <button type="button" class="btn btn-xs btn-outline-primary ml-1"
                                 wire:click="openAddModal('company_product_id', null)" title="Add New Product">
                                 <i class="mdi mdi-plus"></i>
@@ -164,7 +164,7 @@
 
                                 {{-- Comment Button --}}
                                 @if($sampleForm['id'])
-                                <button type="button" wire:click="openCommentsModal({{ $sampleForm['id'] }})"
+                                <button type="button" wire:click="openCommentsModal('{{ $sampleForm['id'] }}')"
                                     class="btn btn-sm btn-icon btn-light text-success mx-1"
                                     title="Comments & Interpretations">
                                     <i class="mdi mdi-comment-text"></i>
@@ -174,7 +174,7 @@
                                 {{-- Interlab Button --}}
                                 @if($sampleForm['id'])
                                 <button type="button"
-                                    wire:click="openInterlabModal({{ $sampleForm['id'] }}, '{{ $sampleForm['sample_code'] }}')"
+                                    wire:click="openInterlabModal('{{ $sampleForm['id'] }}', '{{ $sampleForm['sample_code'] }}')"
                                     class="btn btn-sm btn-icon btn-light text-warning mx-1"
                                     title="Initiate Inter Lab Transfer">
                                     <i class="mdi mdi-swap-horizontal-bold"></i>
@@ -307,7 +307,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.sample_condition_id" required>
+                                wire:model.defer="sampleForms.{{ $index }}.sample_condition_id">
                                 <option value="">Select...</option>
                                 @foreach($conditions as $condition)
                                 <option value="{{ $condition['id'] }}">{{ $condition['name'] }}</option>
@@ -327,7 +327,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.sample_point_id" required>
+                                wire:model.defer="sampleForms.{{ $index }}.sample_point_id">
                                 <option value="">Select...</option>
                                 @foreach($samplePoints as $point)
                                 <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
@@ -347,7 +347,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.company_product_id" required>
+                                wire:model.defer="sampleForms.{{ $index }}.company_product_id">
                                 <option value="">Select...</option>
                                 @foreach($products as $product)
                                 <option value="{{ $product['id'] }}">{{ $product['name'] }}</option>

@@ -505,6 +505,117 @@
         </div>
     </div>
     @endif
+
+    {{-- Parameter Settings Modal --}}
+    <div id="parameter-settings-modal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+            <form class="modal-content" id="parameter-settings-form">
+                <div class="modal-header">
+                    <h4 class="modal-title">
+                        <i class="mdi mdi-cog"></i> Parameter Settings
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="result_id" id="settings_result_id">
+                    <input type="hidden" name="sample_code" id="settings_sample_code">
+                    <input type="hidden" name="analyte" id="settings_analyte">
+                    
+                    <div class="form-group">
+                        <label class="control-label">Method</label>
+                        <select class="form-control" name="method_id" id="settings_method_id">
+                            <option value="">Select Method...</option>
+                            @foreach ($methods as $item)
+                                <option value="{{ is_array($item) ? $item['id'] : $item->id }}">{{ is_array($item) ? $item['name'] : $item->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">Reporting Unit</label>
+                        <select class="form-control" name="reporting_unit" id="settings_reporting_unit">
+                            <option value="">Select Reporting Unit...</option>
+                            @foreach ($reportingUnits as $item)
+                                <option value="{{ is_array($item) ? $item['id'] : $item->id }}">{{ is_array($item) ? $item['name'] : $item->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">Analyst/Operator</label>
+                        <select class="form-control" name="analyst_id" id="settings_analyst_id">
+                            <option value="">Select Analyst...</option>
+                            @foreach ($analysts as $item)
+                                <option value="{{ is_array($item) ? $item['id'] : $item->id }}">{{ is_array($item) ? $item['name'] : $item->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">Reporting Symbol</label>
+                        <input type="text" class="form-control" name="reporting_symbol" id="settings_reporting_symbol" placeholder="e.g. <, >, N/D">
+                    </div>
+                    <div class="form-group mt-2">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="settings_accredited" name="accredited" value="1">
+                            <label class="custom-control-label" for="settings_accredited">Accredited</label>
+                        </div>
+                    </div>
+                    <div class="form-group mt-2">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="settings_subcontracted" name="subcontracted" value="1">
+                            <label class="custom-control-label" for="settings_subcontracted">Subcontracted</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-info btn-sm">
+                        <i class="mdi mdi-check-circle"></i> Save Settings
+                    </button>
+                    <button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- Edit Standard Modal --}}
+    <div id="edit-standard-modal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+            <form class="modal-content" id="edit-standard-form">
+                <div class="modal-header">
+                    <h4 class="modal-title">
+                        <i class="mdi mdi-pencil"></i> Edit Standard Limit
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="result_id" id="standard_result_id">
+                    <input type="hidden" name="sample_code" id="standard_sample_code">
+                    <input type="hidden" name="analyte" id="standard_analyte">
+                    
+                    <div class="form-group">
+                        <label class="control-label">Standard Limit Value</label>
+                        <input type="text" class="form-control" name="standard_value" id="standard_value" required placeholder="e.g. 10.0">
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label">Limit Type</label>
+                        <select class="form-control" name="limit_type" id="standard_limit_type" required>
+                            <option value="MAX">MAX</option>
+                            <option value="MIN">MIN</option>
+                            <option value="RANGE">RANGE</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-info btn-sm">
+                        <i class="mdi mdi-check-circle"></i> Save Standard
+                    </button>
+                    <button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
     
   </main>
 @endsection
@@ -731,6 +842,233 @@
 
 			// Close the modal
 			$('#view-coa-report').modal('hide');
+		});
+
+		// ----------------------------------------------------
+		// RAW RESULTS LIVE AUTO-SAVE & MODALS EVENT HANDLERS
+		// ----------------------------------------------------
+
+		// Trigger blur on enter inside result input
+		$(document).on('keypress', '.result-input', function(e) {
+			if (e.which === 13) {
+				$(this).blur();
+			}
+		});
+
+		// Focus event to capture starting value
+		$(document).on('focus', '.result-input', function() {
+			var $input = $(this);
+			$input.data('last-val', $input.val());
+		});
+
+		// Auto-save result on blur or change
+		$(document).on('change blur', '.result-input', function() {
+			var $input = $(this);
+			var resultVal = $input.val();
+			var resultId = $input.attr('data-result-id') || $input.data('result-id');
+			var sampleCode = $input.data('sample-code');
+			var analyte = $input.data('analyte');
+
+			// Prevent duplicate triggers
+			if ($input.data('last-val') === resultVal) {
+				return;
+			}
+			$input.data('last-val', resultVal);
+
+			$input.removeClass('border-success border-danger border-secondary').addClass('border-warning');
+
+			$.ajax({
+				url: '{{ route("update-result") }}',
+				method: 'POST',
+				data: {
+					result_id: resultId,
+					sample_code: sampleCode,
+					analyte: analyte,
+					result: resultVal
+				},
+				success: function(response) {
+					if (response.success) {
+						$input.removeClass('border-warning');
+						if (response.result_id) {
+							$input.attr('data-result-id', response.result_id);
+							$input.data('result-id', response.result_id);
+							
+							// Update modal trigger button data attributes in the same cell
+							var $cell = $input.closest('.parameter-cell');
+							$cell.find('.parameter-settings-btn').attr('data-result-id', response.result_id).data('result-id', response.result_id);
+							$cell.find('.edit-standard-btn').attr('data-result-id', response.result_id).data('result-id', response.result_id);
+						}
+						
+						if (response.validation_result === 'PASS') {
+							$input.addClass('border-success');
+						} else if (response.validation_result === 'FAIL') {
+							$input.addClass('border-danger');
+						} else {
+							$input.addClass('border-secondary');
+						}
+
+						// Update standard limit if returned
+						if (response.standard_limit) {
+							var $cell = $input.closest('.parameter-cell');
+							$cell.find('.standard-limit-text').text(response.standard_limit);
+						}
+					} else {
+						$input.removeClass('border-warning').addClass('border-danger');
+						console.error(response.message);
+					}
+				},
+				error: function(xhr) {
+					$input.removeClass('border-warning').addClass('border-danger');
+					console.error('Failed to auto-save result:', xhr.responseText);
+				}
+			});
+		});
+
+		// Parameter settings modal show handler
+		$(document).on('click', '.parameter-settings-btn', function() {
+			var $btn = $(this);
+			var resultId = $btn.attr('data-result-id') || $btn.data('result-id');
+			var sampleCode = $btn.data('sample-code');
+			var analyte = $btn.data('analyte');
+
+			$('#parameter-settings-form')[0].reset();
+			$('#settings_result_id').val(resultId || '');
+			$('#settings_sample_code').val(sampleCode || '');
+			$('#settings_analyte').val(analyte || '');
+
+			if (resultId) {
+				$.ajax({
+					url: `/captured-results/get-parameter-settings/${resultId}`,
+					method: 'GET',
+					success: function(response) {
+						if (response.success && response.data) {
+							var data = response.data;
+							$('#settings_method_id').val(data.method_id || '');
+							$('#settings_reporting_unit').val(data.reporting_unit || '');
+							$('#settings_analyst_id').val(data.analyst_id || '');
+							$('#settings_reporting_symbol').val(data.reporting_symbol || '');
+							$('#settings_accredited').prop('checked', data.accredited == 1);
+							$('#settings_subcontracted').prop('checked', data.subcontracted == 1);
+						}
+					}
+				});
+			}
+		});
+
+		// Save parameter settings form submission
+		$('#parameter-settings-form').on('submit', function(e) {
+			e.preventDefault();
+			var $form = $(this);
+			var submitBtn = $form.find('button[type="submit"]');
+			submitBtn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
+
+			$.ajax({
+				url: '{{ route("update-parameter-settings") }}',
+				method: 'POST',
+				data: $form.serialize(),
+				success: function(response) {
+					submitBtn.prop('disabled', false).html('<i class="mdi mdi-check-circle"></i> Save Settings');
+					if (response.success) {
+						$('#parameter-settings-modal').modal('hide');
+						
+						var sampleCode = $('#settings_sample_code').val();
+						var analyte = $('#settings_analyte').val();
+						var $input = $(`.result-input[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+						var $btn = $(`.parameter-settings-btn[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+						var $editBtn = $(`.edit-standard-btn[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+						
+						if (response.result_id) {
+							$input.attr('data-result-id', response.result_id);
+							$input.data('result-id', response.result_id);
+							$btn.attr('data-result-id', response.result_id);
+							$btn.data('result-id', response.result_id);
+							if ($editBtn.length) {
+								$editBtn.attr('data-result-id', response.result_id).data('result-id', response.result_id);
+							}
+						}
+						alert('Parameter settings saved successfully.');
+					} else {
+						alert('Error: ' + response.message);
+					}
+				},
+				error: function(xhr) {
+					submitBtn.prop('disabled', false).html('<i class="mdi mdi-check-circle"></i> Save Settings');
+					alert('Failed to save parameter settings: ' + xhr.responseText);
+				}
+			});
+		});
+
+		// Edit standard modal show handler
+		$(document).on('click', '.edit-standard-btn', function() {
+			var $btn = $(this);
+			var resultId = $btn.attr('data-result-id') || $btn.data('result-id');
+			var sampleCode = $btn.data('sample-code');
+			var analyte = $btn.data('analyte');
+
+			$('#edit-standard-form')[0].reset();
+			$('#standard_result_id').val(resultId || '');
+			$('#standard_sample_code').val(sampleCode || '');
+			$('#standard_analyte').val(analyte || '');
+
+			var existingText = $btn.siblings('.standard-limit-text').text().trim();
+			if (existingText && existingText !== 'No limit set') {
+				var parts = existingText.split(' ');
+				var val = parts[0];
+				var type = parts.length > 1 ? parts[1].toUpperCase() : 'MAX';
+				$('#standard_value').val(val);
+				$('#standard_limit_type').val(type);
+			}
+		});
+
+		// Save standard limit form submission
+		$('#edit-standard-form').on('submit', function(e) {
+			e.preventDefault();
+			var $form = $(this);
+			var submitBtn = $form.find('button[type="submit"]');
+			submitBtn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
+
+			$.ajax({
+				url: '{{ route("update-standard-limit") }}',
+				method: 'POST',
+				data: $form.serialize(),
+				success: function(response) {
+					submitBtn.prop('disabled', false).html('<i class="mdi mdi-check-circle"></i> Save Standard');
+					if (response.success) {
+						$('#edit-standard-modal').modal('hide');
+						
+						var sampleCode = $('#standard_sample_code').val();
+						var analyte = $('#standard_analyte').val();
+						var $input = $(`.result-input[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+						var $editBtn = $(`.edit-standard-btn[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+						var $settingsBtn = $(`.parameter-settings-btn[data-sample-code="${sampleCode}"][data-analyte="${analyte}"]`);
+						
+						if (response.result_id) {
+							$input.attr('data-result-id', response.result_id);
+							$input.data('result-id', response.result_id);
+							$editBtn.attr('data-result-id', response.result_id);
+							$editBtn.data('result-id', response.result_id);
+							if ($settingsBtn.length) {
+								$settingsBtn.attr('data-result-id', response.result_id).data('result-id', response.result_id);
+							}
+						}
+
+						if (response.standard_limit) {
+							$editBtn.siblings('.standard-limit-text').text(response.standard_limit);
+						}
+						
+						// Trigger change on result input to re-validate styling with new limit
+						$input.trigger('change');
+						
+						alert('Standard limit saved successfully.');
+					} else {
+						alert('Error: ' + response.message);
+					}
+				},
+				error: function(xhr) {
+					submitBtn.prop('disabled', false).html('<i class="mdi mdi-check-circle"></i> Save Standard');
+					alert('Failed to save standard limit: ' + xhr.responseText);
+				}
+			});
 		});
 	});
   </script>

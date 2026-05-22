@@ -107,6 +107,20 @@ class APIController extends Controller
 			}
 			// return response()->json($secondary_standard,200);
 			$eresult = Result::where('captured_result_id', $c->id)->first(); //result to process to
+			if (!$eresult) {
+				$eresult = new Result();
+				$eresult->captured_result_id = $c->id;
+				$eresult->sample_detail_code = $c->sample_detail_code;
+				$eresult->sample_detail_id = $c->sample_detail_id;
+				$eresult->sample_header_id = $c->sample_header_id;
+				$eresult->analyte_id = $c->analyte_id;
+				$eresult->analyte_code = $c->analyte_code;
+				$eresult->analysis_type_id = $c->analysis_type_id;
+				$eresult->lab_section_id = $c->lab_section_id;
+				$eresult->parameters_order = $c->parameters_order ?? 0;
+				$eresult->remark_is_manual = $c->remark_is_manual ?? false;
+				$eresult->has_no_result_capture = $c->has_no_result_capture ?? false;
+			}
 			// return response()->json($eresult,200);
 			$eresult->reporting_symbol = '';
 			$eresult->analyte_status_contracted = $c->analyte_status_contracted;

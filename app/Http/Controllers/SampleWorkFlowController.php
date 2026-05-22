@@ -81,6 +81,8 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\ProcedureWorksheetPdfService;
 use App\Http\Requests\StoreSampleSubmissionRequest;
+use App\Services\WorkflowService;
+use Illuminate\Validation\ValidationException;
 
 class SampleWorkFlowController extends Controller
 {
@@ -755,6 +757,21 @@ class SampleWorkFlowController extends Controller
                     ]);
                     $new_captured->save();
                     $result = Result::where('captured_result_id', $c_result->id)->first();
+                    if (!$result) {
+                        $result = new Result();
+                        $result->captured_result_id = $c_result->id;
+                        $result->sample_detail_code = $c_result->sample_detail_code;
+                        $result->sample_detail_id = $c_result->sample_detail_id;
+                        $result->sample_header_id = $c_result->sample_header_id;
+                        $result->analyte_id = $c_result->analyte_id;
+                        $result->analyte_code = $c_result->analyte_code;
+                        $result->analysis_type_id = $c_result->analysis_type_id;
+                        $result->lab_section_id = $c_result->lab_section_id;
+                        $result->parameters_order = $c_result->parameters_order ?? 0;
+                        $result->remark_is_manual = $c_result->remark_is_manual ?? false;
+                        $result->has_no_result_capture = $c_result->has_no_result_capture ?? false;
+                        $result->save();
+                    }
                     $new_result = $result->replicate();
                     $new_result->fill([
                         "captured_result_id" => $new_captured->id,
@@ -931,7 +948,9 @@ class SampleWorkFlowController extends Controller
                                 $captured_reults = CapturedResult::where('analysis_type_id', $analysis_type->id)->where('sample_detail_id', $detail->id)->where('sample_header_id', $detail->sample_header_id)->get();
                                 foreach ($captured_reults as $cr) {
                                     $result = Result::where('captured_result_id', $cr->id)->first();
-                                    $result->delete();
+                                    if ($result) {
+                                        $result->delete();
+                                    }
                                     $cr->delete();
                                 }
                             }
@@ -1080,6 +1099,21 @@ class SampleWorkFlowController extends Controller
                         ]);
                         $new_cr->save();
                         $result = Result::where('captured_result_id', $c_value->id)->first();
+                        if (!$result) {
+                            $result = new Result();
+                            $result->captured_result_id = $c_value->id;
+                            $result->sample_detail_code = $c_value->sample_detail_code;
+                            $result->sample_detail_id = $c_value->sample_detail_id;
+                            $result->sample_header_id = $c_value->sample_header_id;
+                            $result->analyte_id = $c_value->analyte_id;
+                            $result->analyte_code = $c_value->analyte_code;
+                            $result->analysis_type_id = $c_value->analysis_type_id;
+                            $result->lab_section_id = $c_value->lab_section_id;
+                            $result->parameters_order = $c_value->parameters_order ?? 0;
+                            $result->remark_is_manual = $c_value->remark_is_manual ?? false;
+                            $result->has_no_result_capture = $c_value->has_no_result_capture ?? false;
+                            $result->save();
+                        }
                         $new_result = $result->replicate()->fill([
                             'captured_result_id' => $new_cr->id,
 
@@ -2585,6 +2619,35 @@ class SampleWorkFlowController extends Controller
     public function move_to_workflow(Request $request, $status, $batch_id)
     {
         $batch = SampleHeader::find($batch_id);
+
+        if ($batch->status == 'Sample Verification' && $status == 'Sample Approval') {
+            try {
+                app(WorkflowService::class)->assertStageApprovalsCompleted((string) $batch->id, 'Sample Verification');
+            } catch (ValidationException $exception) {
+                $message = $exception->validator->errors()->first();
+                $checklistUrl = route('sample-approval-checklist.show', [
+                    'sample' => $batch->id,
+                    'stage_name' => 'Sample Verification',
+                ]);
+
+                return redirect()->back()->with('error', $message . ' Complete checklist here: ' . $checklistUrl);
+            }
+        }
+
+        if ($batch->status == 'Sample Approval' && in_array($status, ['Reports for Collection', 'Reports In Payment'], true)) {
+            try {
+                app(WorkflowService::class)->assertStageApprovalsCompleted((string) $batch->id, 'Sample Approval');
+            } catch (ValidationException $exception) {
+                $message = $exception->validator->errors()->first();
+                $checklistUrl = route('sample-approval-checklist.show', [
+                    'sample' => $batch->id,
+                    'stage_name' => 'Sample Approval',
+                ]);
+
+                return redirect()->back()->with('error', $message . ' Complete checklist here: ' . $checklistUrl);
+            }
+        }
+
         if (in_array($batch->status, ['Sample Verification', 'Sample Approval', 'Reports for Collection', 'Reports In Payment']) && in_array($status, ['Samples In Lab', 'Samples Reception', 'Samples Request Review', 'Sample Verification'])) {
             $batch->approve_user_id = '';
             $batch->verify_user_id = $status != 'Sample Verification' ? '' : $batch->verify_user_id;
@@ -3412,6 +3475,21 @@ class SampleWorkFlowController extends Controller
             $result = floatval($c->result);
 
             $eresult = Result::where('captured_result_id', $c->id)->first(); //result to process to
+            if (!$eresult) {
+                $fullCaptured = CapturedResult::find($c->id);
+                $eresult = new Result();
+                $eresult->captured_result_id = $fullCaptured->id;
+                $eresult->sample_detail_code = $fullCaptured->sample_detail_code;
+                $eresult->sample_detail_id = $fullCaptured->sample_detail_id;
+                $eresult->sample_header_id = $fullCaptured->sample_header_id;
+                $eresult->analyte_id = $fullCaptured->analyte_id;
+                $eresult->analyte_code = $fullCaptured->analyte_code;
+                $eresult->analysis_type_id = $fullCaptured->analysis_type_id;
+                $eresult->lab_section_id = $fullCaptured->lab_section_id;
+                $eresult->parameters_order = $fullCaptured->parameters_order ?? 0;
+                $eresult->remark_is_manual = $fullCaptured->remark_is_manual ?? false;
+                $eresult->has_no_result_capture = $fullCaptured->has_no_result_capture ?? false;
+            }
             $eresult->reporting_symbol = '';
             $eresult->unit_code = $c->reporting_unit;
             if ($c->lod && $result < floatval($c->lod)) {
@@ -3496,6 +3574,21 @@ class SampleWorkFlowController extends Controller
 
             // return response()->json($secondary_standard,200);
             $eresult = Result::where('captured_result_id', $c->id)->first(); //result to process to
+            if (!$eresult) {
+                $fullCaptured = CapturedResult::find($c->id);
+                $eresult = new Result();
+                $eresult->captured_result_id = $fullCaptured->id;
+                $eresult->sample_detail_code = $fullCaptured->sample_detail_code;
+                $eresult->sample_detail_id = $fullCaptured->sample_detail_id;
+                $eresult->sample_header_id = $fullCaptured->sample_header_id;
+                $eresult->analyte_id = $fullCaptured->analyte_id;
+                $eresult->analyte_code = $fullCaptured->analyte_code;
+                $eresult->analysis_type_id = $fullCaptured->analysis_type_id;
+                $eresult->lab_section_id = $fullCaptured->lab_section_id;
+                $eresult->parameters_order = $fullCaptured->parameters_order ?? 0;
+                $eresult->remark_is_manual = $fullCaptured->remark_is_manual ?? false;
+                $eresult->has_no_result_capture = $fullCaptured->has_no_result_capture ?? false;
+            }
             // return response()->json($eresult,200);
             $eresult->reporting_symbol = '';
             $eresult->analyte_status_contracted = $c->analyte_status_contracted;
@@ -5381,6 +5474,20 @@ class SampleWorkFlowController extends Controller
                     $cr->analyte_accredited = $analysisElement->non_accredited;
                     $cr->save();
                     $result = Result::where('captured_result_id', $cr->id)->first();
+                    if (!$result) {
+                        $result = new Result();
+                        $result->captured_result_id = $cr->id;
+                        $result->sample_detail_code = $cr->sample_detail_code;
+                        $result->sample_detail_id = $cr->sample_detail_id;
+                        $result->sample_header_id = $cr->sample_header_id;
+                        $result->analyte_id = $cr->analyte_id;
+                        $result->analyte_code = $cr->analyte_code;
+                        $result->analysis_type_id = $cr->analysis_type_id;
+                        $result->lab_section_id = $cr->lab_section_id;
+                        $result->parameters_order = $cr->parameters_order ?? 0;
+                        $result->remark_is_manual = $cr->remark_is_manual ?? false;
+                        $result->has_no_result_capture = $cr->has_no_result_capture ?? false;
+                    }
                     $result->analyte_accredited = $analysisElement->non_accredited;
                     $result->save();
                 }
@@ -6437,6 +6544,21 @@ class SampleWorkFlowController extends Controller
                     ]);
                     $new_captured->save();
                     $result = Result::where('captured_result_id', $c->id)->first();
+                    if (!$result) {
+                        $result = new Result();
+                        $result->captured_result_id = $c->id;
+                        $result->sample_detail_code = $c->sample_detail_code;
+                        $result->sample_detail_id = $c->sample_detail_id;
+                        $result->sample_header_id = $c->sample_header_id;
+                        $result->analyte_id = $c->analyte_id;
+                        $result->analyte_code = $c->analyte_code;
+                        $result->analysis_type_id = $c->analysis_type_id;
+                        $result->lab_section_id = $c->lab_section_id;
+                        $result->parameters_order = $c->parameters_order ?? 0;
+                        $result->remark_is_manual = $c->remark_is_manual ?? false;
+                        $result->has_no_result_capture = $c->has_no_result_capture ?? false;
+                        $result->save();
+                    }
                     $new_result = $result->replicate()->fill([
                         'captured_result_id' => $new_captured->id,
                         'sample_header_id' => $new_batch->id,
@@ -7028,16 +7150,29 @@ class SampleWorkFlowController extends Controller
         $captured = CapturedResult::where('sample_header_id', $request->batch_id)->whereNotNull('result')->get();
 
         foreach ($captured as $c) {
-            Result::where('captured_result_id', $c->id)->update([
-                "result" => $c->result,
-                "remarks" => $c->remark,
-                "reporting_symbol" => $c->result_reporting_symbol,
-                "seond_guide" => $c->secondary_value,
-                'guide' => $c->main_value,
-                'unit_code' => $c->reporting_unit,
-                'analyte_accredited' => $c->analyte_accredited,
-                'analyte_status_contracted' => $c->analyte_status_contracted,
-            ]);
+            Result::updateOrCreate(
+                ['captured_result_id' => $c->id],
+                [
+                    "sample_detail_code" => $c->sample_detail_code,
+                    "sample_detail_id" => $c->sample_detail_id,
+                    "sample_header_id" => $c->sample_header_id,
+                    "analyte_id" => $c->analyte_id,
+                    "analyte_code" => $c->analyte_code,
+                    "analysis_type_id" => $c->analysis_type_id,
+                    "lab_section_id" => $c->lab_section_id,
+                    "parameters_order" => $c->parameters_order ?? 0,
+                    "remark_is_manual" => $c->remark_is_manual ?? false,
+                    "has_no_result_capture" => $c->has_no_result_capture ?? false,
+                    "result" => $c->result,
+                    "remarks" => $c->remark,
+                    "reporting_symbol" => $c->result_reporting_symbol,
+                    "seond_guide" => $c->secondary_value,
+                    'guide' => $c->main_value,
+                    'unit_code' => $c->reporting_unit,
+                    'analyte_accredited' => $c->analyte_accredited,
+                    'analyte_status_contracted' => $c->analyte_status_contracted,
+                ]
+            );
         }
         return redirect()->back()->with('success', 'Results processed successfully!');
     }

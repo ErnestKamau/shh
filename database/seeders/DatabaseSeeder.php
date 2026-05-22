@@ -52,6 +52,7 @@ class DatabaseSeeder extends Seeder
             Phase7TestingParametersSeeder::class,
             Phase8EquipmentManagementSeeder::class,
             Phase9InventoryManagementSeeder::class,
+            SkillsMatrixSeeder::class,
         ]);
 
         // Auto-assign admin role to imported dump users if they exist in the database

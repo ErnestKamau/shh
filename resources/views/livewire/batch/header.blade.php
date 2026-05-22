@@ -617,7 +617,7 @@
             </div>
             <div class="modal-body modal-body-modern">
                 <div class="alert alert-secondary" style="background-color: #e2e6ea; border-color: #d6d8db; color: #383d41;">
-                   <small><i class="mdi mdi-information-outline"></i> Select the approvers for each lab section below.</small>
+                   <small><i class="mdi mdi-information-outline"></i> Select the approvers for each laboratory below.</small>
                 </div>
 
                 @if(session('error'))
@@ -633,25 +633,25 @@
                     <table class="table table-bordered table-sm">
                         <thead class="thead-light">
                             <tr>
-                                <th class="text-muted small font-weight-bold modal-label-small">Section</th>
+                                <th class="text-muted small font-weight-bold modal-label-small">Laboratory</th>
                                 <th class="text-muted small font-weight-bold modal-label-small">Assign Approver</th>
                                 <th class="text-muted small font-weight-bold modal-label-small">Title</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($sectionApprovers as $sa)
+                            @foreach($this->getBatchLabs() as $lab)
                                 <tr>
-                                    <td class="align-middle">{{ $sa->lab_section_name }}</td>
+                                    <td class="align-middle">{{ $lab->name }}</td>
                                     <td>
-                                        <select class="form-control form-control-sm form-control-modern" wire:model="verificationData.approver_user.{{ $sa->lab_section_id }}">
+                                        <select class="form-control form-control-sm form-control-modern" wire:model="verificationData.approver_user.{{ $lab->id }}">
                                             <option value="">Select Approver</option>
-                                            @foreach($users as $user)
+                                            @foreach($this->getLabManagersForLab($lab->id) as $user)
                                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
                                             @endforeach
                                         </select>
                                     </td>
                                     <td>
-                                        <input type="text" class="form-control form-control-sm form-control-modern" wire:model="verificationData.title.{{ $sa->lab_section_id }}" placeholder="Verification Title">
+                                        <input type="text" class="form-control form-control-sm form-control-modern" wire:model="verificationData.title.{{ $lab->id }}" placeholder="Verification Title">
                                     </td>
                                 </tr>
                             @endforeach
@@ -739,7 +739,7 @@
                     <label class="text-muted font-weight-bold small modal-label-small">Approver</label>
                     <select class="form-control form-control-modern" wire:model="approvalData.user_id">
                         <option value="">Select Approver</option>
-                        @foreach($users as $user)
+                        @foreach($this->availableApprovalUsers as $user)
                             @if(!in_array($user->id, $this->approversUserIds))
                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
                             @endif
