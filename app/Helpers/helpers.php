@@ -787,6 +787,10 @@ function getSampleWorkFLowTotals()
 		$arr['All Samples'] += intval($batch->count);
 	}
 
+	// Form-centric stages: match WorkflowBoard queue logic, not batch status alone.
+	$arr['Samples Receiving'] = \App\Livewire\Sampleworkflow\WorkflowBoard::sidebarReceivingRequestCount();
+	$arr['Samples Request Review'] = \App\Livewire\Sampleworkflow\WorkflowBoard::sidebarRequestReviewCount();
+
 	return $arr;
 }
 function getSampleTypeQualificationById($id)
@@ -1274,7 +1278,7 @@ function getActiveUsersByRole(string|array $roleNames): \Illuminate\Database\Elo
 		->values();
 
 	if ($roleNames->isEmpty()) {
-		return collect();
+		return new \Illuminate\Database\Eloquent\Collection();
 	}
 
 	$existingRoleNames = App\Models\Auth\Role::query()
@@ -1283,7 +1287,7 @@ function getActiveUsersByRole(string|array $roleNames): \Illuminate\Database\Elo
 		->pluck('name');
 
 	if ($existingRoleNames->isEmpty()) {
-		return collect();
+		return new \Illuminate\Database\Eloquent\Collection();
 	}
 
 	return App\User::role($existingRoleNames->all())

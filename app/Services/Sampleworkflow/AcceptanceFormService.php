@@ -2,6 +2,8 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\BatchLabSectionApprover;
+use App\CapturedResult;
 use App\ChainOfCustody;
 use App\Models\CRM\CustomerNotification;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
@@ -111,6 +113,9 @@ class AcceptanceFormService
         }
     }
 
+    /**
+     * @param  list<string>  $assignedAnalystIds
+     */
     public function recordManagerSignature(
         AnalysisAcceptanceForm $form,
         string $signerName,
@@ -118,24 +123,38 @@ class AcceptanceFormService
         ?string $signedAt = null,
         ?string $leadAnalystId = null,
         ?string $technicalSignatoryId = null,
+        array $assignedAnalystIds = [],
     ): AnalysisAcceptanceForm {
         if ($form->status !== AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
             throw new \InvalidArgumentException('Acceptance form is not awaiting laboratory manager signature.');
         }
 
-        if (!$form->sample_header_id) {
-            throw new \RuntimeException('Sample batch has not been created yet. Ask the customer to sign the acceptance form first.');
+        $form = $this->ensureSampleBatchForManagerApproval($form);
+
+        $assignedAnalystIds = array_values(array_unique(array_filter($assignedAnalystIds)));
+
+        if ($leadAnalystId !== null && $leadAnalystId !== '' && ! in_array($leadAnalystId, $assignedAnalystIds, true)) {
+            throw new \InvalidArgumentException('Lead analyst must be selected from the assigned analysts.');
         }
 
-        return DB::transaction(function () use ($form, $signerName, $signature, $signedAt, $leadAnalystId, $technicalSignatoryId) {
+        if ($assignedAnalystIds === []) {
+            throw new \InvalidArgumentException('Assign at least one analyst before manager approval.');
+        }
+
+        return DB::transaction(function () use ($form, $signerName, $signature, $signedAt, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds) {
             $form->update([
                 'manager_signer_name' => $signerName,
                 'manager_signature' => $signature,
                 'manager_signed_at' => $signedAt ?? now(),
+                'manager_assignment_payload' => [
+                    'assigned_analyst_ids' => $assignedAnalystIds,
+                    'lead_analyst_id' => $leadAnalystId,
+                    'technical_signatory_id' => $technicalSignatoryId,
+                ],
                 'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
             ]);
 
-            $this->transitionBatchToSamplesInLab($form, $leadAnalystId, $technicalSignatoryId);
+            $this->transitionBatchToSamplesInLab($form, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds);
 
             $completed = $form->fresh(['lines', 'sampleHeader']);
 
@@ -197,13 +216,41 @@ class AcceptanceFormService
         ]);
     }
 
+    private function ensureSampleBatchForManagerApproval(AnalysisAcceptanceForm $form): AnalysisAcceptanceForm
+    {
+        if ($form->sample_header_id) {
+            return $form->fresh(['sampleHeader']);
+        }
+
+        try {
+            CreateSamplesFromAcceptanceFormJob::dispatchSync((string) $form->id);
+        } catch (\Throwable) {
+            // Job logs processing_error on the form.
+        }
+
+        $refreshed = $form->fresh(['sampleHeader']);
+
+        if (! $refreshed?->sample_header_id) {
+            throw new \RuntimeException(
+                'Sample batch has not been created yet. '
+                . ($refreshed?->processing_error ?: 'Ask the customer to sign the acceptance form first, or retry after batch creation completes.')
+            );
+        }
+
+        return $refreshed;
+    }
+
+    /**
+     * @param  list<string>  $assignedAnalystIds
+     */
     private function transitionBatchToSamplesInLab(
         AnalysisAcceptanceForm $form,
         ?string $leadAnalystId = null,
         ?string $technicalSignatoryId = null,
+        array $assignedAnalystIds = [],
     ): void {
         $batch = SampleHeader::query()->find((string) $form->sample_header_id);
-        if (!$batch) {
+        if (! $batch) {
             throw new \RuntimeException('Sample batch not found for this acceptance form.');
         }
 
@@ -214,17 +261,27 @@ class AcceptanceFormService
         if (isset($stages[0]->id)) {
             $targetTrackingStage = $stages[0]->id;
         } else {
-            $targetTrackingStage = SampleAnalysisStage::query()
-                ->where('sample_workflow', $targetStatus)
-                ->orderBy('level')
-                ->value('id');
+            $fallbackStages = $batch->stages();
+            if (isset($fallbackStages[0]->id)) {
+                $targetTrackingStage = $fallbackStages[0]->id;
+            } else {
+                $targetTrackingStage = SampleAnalysisStage::query()
+                    ->where('sample_workflow', $targetStatus)
+                    ->orderBy('level')
+                    ->value('id');
+            }
+        }
+
+        if ($targetTrackingStage !== null && ! Str::isUuid((string) $targetTrackingStage)) {
+            $targetTrackingStage = null;
         }
 
         $previousStatus = $batch->status;
         $batch->status = $targetStatus;
+        $batch->prelim_batch_status = null;
         $batch->in_lab_date = now()->format('Y-m-d');
         $batch->sample_tracking_stage = $targetTrackingStage;
-        $batch->priority = $form->mode_of_work;
+        $batch->priority = $this->normalizeBatchPriority((string) $form->mode_of_work);
 
         if ($leadAnalystId !== null && $leadAnalystId !== '' && Str::isUuid($leadAnalystId)) {
             $batch->specialist_analyst_id = $leadAnalystId;
@@ -236,6 +293,12 @@ class AcceptanceFormService
 
         $batch->save();
 
+        $this->closeOpenChainOfCustody($batch, sprintf(
+            'Moved to %s after laboratory manager approval (from %s).',
+            $targetStatus,
+            $previousStatus ?: 'unknown'
+        ));
+
         $custody = new ChainOfCustody();
         $custody->sample_header_id = $batch->id;
         $custody->workflow_stage = $targetStatus;
@@ -246,6 +309,8 @@ class AcceptanceFormService
             $previousStatus ?: 'unknown'
         );
         $custody->save();
+
+        $this->syncAssignedAnalystsOnBatch($batch, $assignedAnalystIds, $leadAnalystId, $targetStatus);
 
         $instanceIds = collect([
             $form->submission_form_instance_id,
@@ -261,5 +326,75 @@ class AcceptanceFormService
                 ->whereIn('status', ['in_review', 'In Review', 'submitted', 'Submitted'])
                 ->update(['status' => 'approved']);
         }
+    }
+
+    private function closeOpenChainOfCustody(SampleHeader $batch, string $comments): void
+    {
+        $movedOutBy = auth()->id();
+
+        ChainOfCustody::query()
+            ->where('sample_header_id', $batch->id)
+            ->whereNull('moved_out_date')
+            ->update([
+                'moved_out_date' => now(),
+                'moved_out_by' => $movedOutBy,
+                'comments' => $comments,
+            ]);
+    }
+
+    /**
+     * @param  list<string>  $assignedAnalystIds
+     */
+    private function syncAssignedAnalystsOnBatch(
+        SampleHeader $batch,
+        array $assignedAnalystIds,
+        ?string $leadAnalystId,
+        string $batchStatus,
+    ): void {
+        $assignedAnalystIds = array_values(array_unique(array_filter(
+            $assignedAnalystIds,
+            fn (string $id) => Str::isUuid($id)
+        )));
+
+        if ($assignedAnalystIds === []) {
+            return;
+        }
+
+        $defaultSectionId = $batch->sample_tracking_stage;
+        if ($defaultSectionId === null || ! Str::isUuid((string) $defaultSectionId)) {
+            $stagesForStatus = $batch->stages($batchStatus);
+            $defaultSectionId = $stagesForStatus->isNotEmpty()
+                ? $stagesForStatus->first()->id
+                : ($batch->stages()->first()->id ?? null);
+        }
+
+        BatchLabSectionApprover::query()
+            ->where('batch_id', $batch->id)
+            ->where('batch_status', $batchStatus)
+            ->where('title', 'Analyst')
+            ->delete();
+
+        foreach ($assignedAnalystIds as $analystId) {
+            $approver = new BatchLabSectionApprover();
+            $approver->status = 0;
+            $approver->user_id = $analystId;
+            $approver->title = 'Analyst';
+            $approver->lab_section_ids = $defaultSectionId !== null ? (string) $defaultSectionId : '';
+            $approver->batch_id = $batch->id;
+            $approver->batch_status = $batchStatus;
+            $approver->show_report = 0;
+            $approver->save();
+        }
+
+        if ($leadAnalystId !== null && $leadAnalystId !== '' && Str::isUuid($leadAnalystId)) {
+            CapturedResult::query()
+                ->where('sample_header_id', $batch->id)
+                ->update(['user_id' => $leadAnalystId]);
+        }
+    }
+
+    private function normalizeBatchPriority(string $modeOfWork): string
+    {
+        return strtolower(trim($modeOfWork)) === 'express' ? 'Express' : 'Normal';
     }
 }

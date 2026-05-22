@@ -21,25 +21,31 @@
 				Livewire.hook('morph.updated', () => this.refreshSelectionCount());
 			}
 		},
-		openInterzoneFullRequest() {
-			const ids = this.selectedInstanceIds();
-			if (!ids.length) {
-				alert('Select at least one request row first.');
+		openInterzoneTransfer(scope, options = {}) {
+			if (scope === 'request') {
+				const ids = this.selectedInstanceIds();
+				if (!ids.length) {
+					alert('Select at least one request row first.');
+					return;
+				}
+				Livewire.dispatch('open-interzone-transfer', {
+					scope: 'request',
+					instanceIds: ids,
+					transferType: 'full',
+				});
 				return;
 			}
-			Livewire.dispatch('open-interzone-transfer', { mode: 'full_request', instanceIds: ids });
-		},
-		openInterzoneFullBatch(batchId) {
-			if (!batchId) {
-				return;
+			if (scope === 'batch') {
+				const batchId = options.batchId;
+				if (!batchId) {
+					return;
+				}
+				Livewire.dispatch('open-interzone-transfer', {
+					scope: 'batch',
+					batchId: batchId,
+					transferType: options.transferType === 'partial' ? 'partial' : 'full',
+				});
 			}
-			Livewire.dispatch('open-interzone-transfer', { mode: 'full_batch', batchId: batchId });
-		},
-		openInterzonePartialBatch(batchId) {
-			if (!batchId) {
-				return;
-			}
-			Livewire.dispatch('open-interzone-transfer', { mode: 'partial_batch', batchId: batchId });
 		},
 	}"
 	@change.window="onSelectionChange($event)">
@@ -777,11 +783,11 @@
 									</li>
 									<li>
 										<span class="btn btn-sm dropdown-item"
-											data-sf-trigger="workflow-interzone-full-request"
+											data-sf-trigger="workflow-interzone-transfer"
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="openInterzoneFullRequest()">
-											<i class="mdi mdi-map-marker-path mr-2 text-info"></i> Full interzone transfer (request)
+											@click.prevent="openInterzoneTransfer('request')">
+											<i class="mdi mdi-map-marker-path mr-2 text-info"></i> Interzone transfer
 										</span>
 									</li>
 								@endif
@@ -2011,15 +2017,9 @@
 																	@foreach($instance->batches as $batch)
 																		<button type="button"
 																			class="btn btn-sm rm-act-btn rm-act-btn--muted"
-																			title="Full interzone transfer (batch)"
-																			@click.prevent="openInterzoneFullBatch('{{ $batch->id }}')">
+																			title="Interzone transfer"
+																			@click.prevent="openInterzoneTransfer('batch', { batchId: '{{ $batch->id }}' })">
 																			<i class="mdi mdi-map-marker-path"></i>
-																		</button>
-																		<button type="button"
-																			class="btn btn-sm rm-act-btn rm-act-btn--muted"
-																			title="Partial interzone transfer"
-																			@click.prevent="openInterzonePartialBatch('{{ $batch->id }}')">
-																			<i class="mdi mdi-map-marker-multiple"></i>
 																		</button>
 																	@endforeach
 																@endif
@@ -2361,7 +2361,7 @@
 												$sample_codes = $item->samples->pluck('sample_code')->toArray();
 												$sample_count = count($sample_codes);
 												?>
-												<tr style="{{ $item->upfront_payment ? 'background-color:#d7ffd7 !important;' : ($item->is_amendment ? 'background-color:#fcfeb2 !important;' : '') }}">
+												<tr>
 													<td>
 														<input type="checkbox" name="batch_id[]" value="{{$item->id}}" data-batch-code="{{$item->batch_code}}">
 													</td>

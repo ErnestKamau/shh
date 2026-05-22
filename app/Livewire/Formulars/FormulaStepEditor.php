@@ -159,6 +159,11 @@ class FormulaStepEditor extends Component
         $this->showCreateStepModal = true;
     }
 
+    public function closeCreateStepModal(): void
+    {
+        $this->showCreateStepModal = false;
+    }
+
     public function showEditStepModalInit($stepId)
     {
         $step = FormulaStep::findOrFail($stepId);

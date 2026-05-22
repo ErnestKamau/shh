@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Livewire\Sampleworkflow\Concerns\ManagesManagerAssignments;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionFormInstance;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
@@ -16,6 +17,8 @@ use Livewire\Component;
 
 class AcceptanceFormWizard extends Component
 {
+    use ManagesManagerAssignments;
+
     public bool $showModal = false;
 
     public string $activeStep = 'sample_config';
@@ -658,10 +661,13 @@ class AcceptanceFormWizard extends Component
 
     public function submitManagerSign(): void
     {
-        $this->validate([
-            'managerSignerName' => 'required|string|max:255',
-            'managerSignature' => 'required|string',
-        ]);
+        $this->validate(array_merge(
+            $this->managerAssignmentValidationRules(),
+            [
+                'managerSignerName' => 'required|string|max:255',
+                'managerSignature' => 'required|string',
+            ]
+        ), $this->managerAssignmentValidationMessages());
 
         $form = AnalysisAcceptanceForm::query()->findOrFail($this->acceptanceFormId);
 
@@ -669,7 +675,10 @@ class AcceptanceFormWizard extends Component
             $form,
             $this->managerSignerName,
             $this->managerSignature,
-            $this->managerSignedAt
+            $this->managerSignedAt,
+            $this->leadAnalystId,
+            $this->technicalSignatoryId,
+            $this->assignedAnalystIds,
         );
 
         $this->status = AnalysisAcceptanceForm::STATUS_COMPLETED;
@@ -917,6 +926,7 @@ class AcceptanceFormWizard extends Component
 
         if ($form->status === AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
             $this->activeStep = 'manager';
+            $this->initializeManagerAssignmentFields($form);
         }
 
         if ($form->raises_sample_disclaimer) {
@@ -1066,6 +1076,7 @@ class AcceptanceFormWizard extends Component
         $this->showAddLineModal = false;
         $this->managerSignature = '';
         $this->managerSignedAt = now()->format('Y-m-d');
+        $this->resetManagerAssignmentFields();
         $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
         $this->showRaiseDisclaimerOption = false;
         $this->raiseSampleDisclaimer = false;

@@ -22,11 +22,15 @@ class StockMovementService
         }
 
         return DB::transaction(function () use ($preparation, $solution) {
-            $targetUom = $solution->reporting_unit;
+            $targetUomId = $solution->reporting_unit;
             $quantity = (float) $preparation->quantity_prepared;
-            $fromUom = $preparation->uom_id ?? $targetUom;
+            $fromUomId = $preparation->uom_id ?? $targetUomId;
 
-            $converted = $this->convertAmount($quantity, $fromUom, $targetUom);
+            if (! $targetUomId) {
+                return null;
+            }
+
+            $converted = $this->convertAmount($quantity, $fromUomId, $targetUomId);
 
             $movement = new LabStockMovement();
             $movement->description = "Stock in from preparation {$preparation->preparation_number}";
@@ -34,7 +38,7 @@ class StockMovementService
             $movement->stock_type = 'stock_in';
             $movement->stock_in = $converted;
             $movement->stock_out = 0;
-            $movement->uom_id = $targetUom;
+            $movement->uom_id = $targetUomId;
             $movement->created_by = auth()->id();
             $movement->preparation_id = $preparation->id;
             $movement->batch_number = $preparation->batch_number;

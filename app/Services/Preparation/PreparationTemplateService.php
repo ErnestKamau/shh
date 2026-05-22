@@ -177,6 +177,34 @@ class PreparationTemplateService
     }
 
     /**
+     * Preparations that include a step matching this template (by step name).
+     *
+     * @return array{
+     *     preparations: \Illuminate\Support\Collection<int, SolutionPreparation>,
+     *     total_count: int,
+     *     preparing_count: int,
+     *     has_usage: bool
+     * }
+     */
+    public function getTemplateDeletionImpact(SolutionPreparationStepTemplate $template): array
+    {
+        $preparations = SolutionPreparation::query()
+            ->where('solution_id', $template->lab_sub_category_id)
+            ->whereHas('steps', function ($query) use ($template) {
+                $query->where('step_name', $template->step_name);
+            })
+            ->orderByDesc('created_at')
+            ->get(['id', 'preparation_number', 'batch_number', 'status', 'prepared_at', 'created_at']);
+
+        return [
+            'preparations' => $preparations,
+            'total_count' => $preparations->count(),
+            'preparing_count' => $preparations->where('status', 'preparing')->count(),
+            'has_usage' => $preparations->isNotEmpty(),
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function resolveTemplateIngredientForForm(string $solutionId, array $data): ?string

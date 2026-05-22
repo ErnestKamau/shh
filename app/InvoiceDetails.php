@@ -46,4 +46,42 @@ class InvoiceDetails extends Model implements Auditable
     public function invoice(){
         return $this->belongsTo(Invoice::class,'invoice_id');
     }
+
+    public function getParametersLabelAttribute(): string
+    {
+        if (filled($this->analysis_title)) {
+            return trim((string) $this->analysis_title);
+        }
+
+        if (filled($this->zoho_item_name)) {
+            return trim((string) $this->zoho_item_name);
+        }
+
+        if ($this->relationLoaded('analysisType') && $this->analysisType) {
+            $elements = $this->analysisType->relationLoaded('analysis_elements')
+                ? $this->analysisType->analysis_elements
+                : $this->analysisType->analysis_elements()->with('analyte')->where('active', 1)->orderBy('level')->get();
+
+            $parameterNames = $elements
+                ->map(function (AnalysisElements $element) {
+                    return trim((string) ($element->analyte?->name ?? $element->analyte?->code ?? $element->parameter_name ?? ''));
+                })
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($parameterNames->isNotEmpty()) {
+                return $parameterNames->implode(', ');
+            }
+        }
+
+        if ($this->relationLoaded('invoicableItem') && $this->invoicableItem) {
+            $code = trim((string) ($this->invoicableItem->item_code ?? ''));
+            $name = trim((string) ($this->invoicableItem->item_name ?? ''));
+
+            return $code && $name ? "{$code} — {$name}" : ($name ?: $code);
+        }
+
+        return '—';
+    }
 }

@@ -51,6 +51,8 @@ class AuditActivityLog extends Model implements Auditable
         'workflow_step' => 'integer',
         'duration_seconds' => 'integer',
         'step_started_at' => 'datetime',
+        'loggable_id' => 'string',
+        'performed_by' => 'string',
     ];
 
     // Relationships

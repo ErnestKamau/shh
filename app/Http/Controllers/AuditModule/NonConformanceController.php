@@ -11,6 +11,7 @@ use App\Models\AuditModule\AuditAttachment;
 use App\Services\AuditModule\AuditNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class NonConformanceController extends Controller
@@ -106,25 +107,33 @@ class NonConformanceController extends Controller
 
     public function show($id)
     {
+        $eagerLoad = [
+            'audit',
+            'auditFinding',
+            'auditFinding.findingCategory',
+            'origin',
+            'status',
+            'riskLevel',
+            'identifiedByUser',
+            'rootCauseAnalysis.rootCauseMethod',
+            'rootCauseAnalysis.approvedByUser',
+            'rootCauseAnalysis.createdBy',
+            'correctiveActions.actionOwnerUser',
+            'correctiveActions.status',
+            'correctiveActions.priority',
+            'attachments',
+        ];
+
+        if (Schema::hasTable('audit_activity_logs')) {
+            $eagerLoad[] = 'activityLogs.performedBy';
+        }
+
+        if (Schema::hasTable('audit_workflow_approvals')) {
+            $eagerLoad[] = 'workflowApprovals.approver';
+        }
+
         $nc = NonConformance::forCompany()
-            ->with([
-                'audit',
-                'auditFinding',
-                'auditFinding.findingCategory',
-                'origin',
-                'status',
-                'riskLevel',
-                'identifiedByUser',
-                'rootCauseAnalysis.rootCauseMethod',
-                'rootCauseAnalysis.approvedByUser',
-                'rootCauseAnalysis.createdBy',
-                'correctiveActions.actionOwnerUser',
-                'correctiveActions.status',
-                'correctiveActions.priority',
-                'attachments',
-                'activityLogs.performedBy',
-                'workflowApprovals.approver',
-            ])
+            ->with($eagerLoad)
             ->findOrFail($id);
 
         // Get root cause methods for RCA form

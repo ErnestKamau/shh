@@ -366,6 +366,10 @@ Route::get('/billing/invoices', function () {
     return view('layouts.billing.invoices-index');
 })->name('billing.invoices')->middleware('can:laboratory.components.proforma invoices.view');
 
+Route::get('/billing/invoices/{id}', function (string $id) {
+    return view('layouts.billing.invoice-show', ['invoiceId' => $id]);
+})->name('billing.invoices.show')->middleware('can:laboratory.components.proforma invoices.view');
+
 Route::get('/billing/quotations', function () {
     return view('layouts.billing.quotations-index');
 })->name('billing.quotations')->middleware('can:laboratory.components.quotation.view');

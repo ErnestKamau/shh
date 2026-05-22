@@ -3,7 +3,9 @@
 namespace Tests\Unit\Sampleworkflow;
 
 use App\AnalysisType;
+use App\Invoice;
 use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
+use App\Services\Billing\InvoiceNumberGenerator;
 use App\Models\Billing\Pricelist;
 use App\Models\CRM\CRMCustomer;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
@@ -106,10 +108,11 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         ]);
 
         (new CreateSamplesFromAcceptanceFormJob((string) $form->id))->handle(
-            app(\App\Services\Sampleworkflow\AcceptanceFormBatchCodeService::class),
+            app(\App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService::class),
             app(SampleAnalysisSetupService::class),
             app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class),
-            app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class)
+            app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class),
+            app(InvoiceNumberGenerator::class)
         );
 
         $form->refresh();
@@ -137,6 +140,10 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         $this->assertNotNull($header);
         $this->assertSame('Samples Request Review', $header->status);
         $this->assertSame($form->invoice_id, $header->invoice_id);
+
+        $invoice = Invoice::query()->find($form->invoice_id);
+        $this->assertNotNull($invoice);
+        $this->assertMatchesRegularExpression('/^INV\d{4}$/', (string) $invoice->invoice_number);
     }
 
     public function test_job_repeats_details_for_number_of_samples_when_single_sample_type(): void
@@ -198,10 +205,11 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         ]);
 
         (new CreateSamplesFromAcceptanceFormJob((string) $form->id))->handle(
-            app(\App\Services\Sampleworkflow\AcceptanceFormBatchCodeService::class),
+            app(\App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService::class),
             app(SampleAnalysisSetupService::class),
             app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class),
-            app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class)
+            app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class),
+            app(InvoiceNumberGenerator::class)
         );
 
         $details = SampleDetails::query()->where('sample_header_id', $form->fresh()->sample_header_id)->get();

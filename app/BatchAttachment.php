@@ -3,12 +3,19 @@
 namespace App;
 
 use App\Models\System\SystemConfiguration;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class BatchAttachment extends Model implements Auditable
 {
+    use HasUuids;
     use \OwenIt\Auditing\Auditable;
+
+    protected $keyType = 'string';
+
+    public $incrementing = false;
+
     protected $table = 'batch_attachments';
     protected $appends = ['uploaduser', 'attachtypename', 'file_name', 'file_type'];
 

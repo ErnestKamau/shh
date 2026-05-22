@@ -3,20 +3,21 @@
 namespace App\Livewire\Sampleworkflow;
 
 use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
+use App\Livewire\Sampleworkflow\Concerns\ManagesManagerAssignments;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormService;
 use App\Services\Sampleworkflow\SampleReceiptNotificationService;
 use App\Services\Sampleworkflow\SampleReceivingDisclaimerService;
-use App\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ManagerAcceptanceSignModal extends Component
 {
+    use ManagesManagerAssignments;
+
     public bool $showModal = false;
 
     public ?string $acceptanceFormId = null;
@@ -28,16 +29,6 @@ class ManagerAcceptanceSignModal extends Component
     public string $managerSignature = '';
 
     public ?string $managerSignedAt = null;
-
-    public string $leadAnalystId = '';
-
-    public string $technicalSignatoryId = '';
-
-    /** @var list<array{id: string, name: string}> */
-    public array $analystOptions = [];
-
-    /** @var list<array{id: string, name: string}> */
-    public array $signatoryOptions = [];
 
     /** @var array<string, mixed> */
     public array $receiptNotificationForm = [];
@@ -63,7 +54,7 @@ class ManagerAcceptanceSignModal extends Component
             ])
             ->find($acceptanceFormId);
 
-        if (!$form || $form->status !== AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
+        if (! $form || $form->status !== AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
             $this->dispatch('notify', type: 'error', message: 'This request is not awaiting laboratory manager approval.');
 
             return;
@@ -76,10 +67,8 @@ class ManagerAcceptanceSignModal extends Component
         $this->acceptanceForm = $form;
         $this->managerSignerName = (string) (Auth::user()->name ?? '');
         $this->managerSignedAt = now()->format('Y-m-d');
-        $this->leadAnalystId = (string) ($form->sampleHeader?->specialist_analyst_id ?? '');
-        $this->technicalSignatoryId = (string) ($form->sampleHeader?->approve_user_id ?? '');
-        $this->analystOptions = $this->loadAnalystOptions();
-        $this->signatoryOptions = $this->loadSignatoryOptions();
+        $this->initializeManagerAssignmentFields($form);
+
         $this->receiptNotificationForm = app(SampleReceiptNotificationService::class)
             ->resolveFormStateForAcceptanceForm($form);
 
@@ -111,16 +100,14 @@ class ManagerAcceptanceSignModal extends Component
             return;
         }
 
-        $this->validate([
-            'leadAnalystId' => ['required', 'uuid', 'exists:users,id'],
-            'technicalSignatoryId' => ['required', 'uuid', 'exists:users,id'],
-            'managerSignerName' => ['required', 'string', 'max:255'],
-            'managerSignature' => ['required', 'string'],
-            'managerSignedAt' => ['nullable', 'date'],
-        ], [
-            'leadAnalystId.required' => 'Please assign a lead analyst.',
-            'technicalSignatoryId.required' => 'Please assign a technical signatory.',
-        ]);
+        $this->validate(array_merge(
+            $this->managerAssignmentValidationRules(),
+            [
+                'managerSignerName' => ['required', 'string', 'max:255'],
+                'managerSignature' => ['required', 'string'],
+                'managerSignedAt' => ['nullable', 'date'],
+            ]
+        ), $this->managerAssignmentValidationMessages());
 
         $receiptService = app(SampleReceiptNotificationService::class);
         $receiptService->mergePayloadIntoAcceptanceForm($form, $this->receiptNotificationForm);
@@ -146,12 +133,13 @@ class ManagerAcceptanceSignModal extends Component
         }
 
         $completedForm = $acceptanceFormService->recordManagerSignature(
-            $form,
+            $form->fresh(['sampleHeader', 'lines.sampleType', 'lines.analysisType']),
             $this->managerSignerName,
             $this->managerSignature,
             $this->managerSignedAt,
             $this->leadAnalystId,
             $this->technicalSignatoryId,
+            $this->assignedAnalystIds,
         );
 
         $batchId = (string) ($completedForm->sample_header_id ?? '');
@@ -176,7 +164,7 @@ class ManagerAcceptanceSignModal extends Component
 
     private function loadAcceptanceForm(): AnalysisAcceptanceForm
     {
-        if (!$this->acceptanceFormId) {
+        if (! $this->acceptanceFormId) {
             throw ValidationException::withMessages([
                 'managerSignerName' => ['Acceptance form not loaded.'],
             ]);
@@ -186,7 +174,7 @@ class ManagerAcceptanceSignModal extends Component
             ->with(['lines.sampleType', 'lines.analysisType', 'customer', 'sampleHeader'])
             ->find($this->acceptanceFormId);
 
-        if (!$form) {
+        if (! $form) {
             throw ValidationException::withMessages([
                 'managerSignerName' => ['Acceptance form not found.'],
             ]);
@@ -197,107 +185,11 @@ class ManagerAcceptanceSignModal extends Component
         return $form;
     }
 
-    /**
-     * @return list<array{id: string, name: string}>
-     */
-    private function loadAnalystOptions(): array
-    {
-        $analystRoleNames = ['laboratory analyst', 'analyst'];
-        $driver = DB::connection()->getDriverName();
-        $userIdColumn = $driver === 'pgsql' ? DB::raw('id::text') : 'id';
-
-        $analystUserIds = DB::table('spatie_model_has_roles as smr')
-            ->join('spatie_roles as sr', 'sr.id', '=', 'smr.role_id')
-            ->where('smr.model_type', User::class)
-            ->where('sr.guard_name', 'web')
-            ->where(function ($query) use ($analystRoleNames) {
-                foreach ($analystRoleNames as $roleName) {
-                    $query->orWhereRaw('LOWER(sr.name) = ?', [$roleName]);
-                }
-            })
-            ->pluck('smr.model_id')
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if ($analystUserIds === []) {
-            return $this->loadActiveLabUserOptions();
-        }
-
-        return User::query()
-            ->where('active', 1)
-            ->where('is_support_staff', 0)
-            ->whereIn($userIdColumn, $analystUserIds)
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn (User $user) => ['id' => (string) $user->id, 'name' => (string) $user->name])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return list<array{id: string, name: string}>
-     */
-    private function loadSignatoryOptions(): array
-    {
-        $signatoryRoleHints = ['signatory', 'technical', 'manager', 'approver'];
-        $driver = DB::connection()->getDriverName();
-        $userIdColumn = $driver === 'pgsql' ? DB::raw('id::text') : 'id';
-
-        $signatoryUserIds = DB::table('spatie_model_has_roles as smr')
-            ->join('spatie_roles as sr', 'sr.id', '=', 'smr.role_id')
-            ->where('smr.model_type', User::class)
-            ->where('sr.guard_name', 'web')
-            ->where(function ($query) use ($signatoryRoleHints) {
-                foreach ($signatoryRoleHints as $hint) {
-                    $query->orWhereRaw('LOWER(sr.name) LIKE ?', ['%' . $hint . '%']);
-                }
-            })
-            ->pluck('smr.model_id')
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if ($signatoryUserIds === []) {
-            return $this->loadActiveLabUserOptions();
-        }
-
-        return User::query()
-            ->where('active', 1)
-            ->where('is_client', 0)
-            ->where('is_support_staff', 0)
-            ->whereIn($userIdColumn, $signatoryUserIds)
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn (User $user) => ['id' => (string) $user->id, 'name' => (string) $user->name])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return list<array{id: string, name: string}>
-     */
-    private function loadActiveLabUserOptions(): array
-    {
-        return User::query()
-            ->where('active', 1)
-            ->where('is_client', 0)
-            ->where('is_support_staff', 0)
-            ->whereNull('supplier_id')
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn (User $user) => ['id' => (string) $user->id, 'name' => (string) $user->name])
-            ->values()
-            ->all();
-    }
-
     private function authorizeLabAccess(): void
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
@@ -319,10 +211,7 @@ class ManagerAcceptanceSignModal extends Component
         $this->managerSignerName = '';
         $this->managerSignature = '';
         $this->managerSignedAt = null;
-        $this->leadAnalystId = '';
-        $this->technicalSignatoryId = '';
-        $this->analystOptions = [];
-        $this->signatoryOptions = [];
+        $this->resetManagerAssignmentFields();
         $this->receiptNotificationForm = SampleReceiptNotificationService::emptyForm();
         $this->disclaimerForm = SampleReceivingDisclaimerService::emptyForm();
         $this->showSampleDisclaimer = false;

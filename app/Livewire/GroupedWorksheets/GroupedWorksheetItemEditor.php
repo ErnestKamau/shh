@@ -9,6 +9,7 @@ use App\Models\GroupedWorksheets\GroupedWorksheetItem;
 use App\Models\HybridWorksheets\HybridWorksheet;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\StageHeader;
+use App\Services\GroupedWorksheets\GroupedWorksheetCapturePreviewService;
 use App\Services\GroupedWorksheets\GroupedWorksheetReferenceValidator;
 use Livewire\Component;
 
@@ -42,9 +43,12 @@ class GroupedWorksheetItemEditor extends Component
 
     public string $messageType = '';
 
+    public ?string $selectedItemId = null;
+
     public function mount(GroupedWorksheetHolder $holder): void
     {
         $this->holder = $holder->load('items');
+        $this->syncSelectedItem();
     }
 
     public function render()
@@ -54,7 +58,40 @@ class GroupedWorksheetItemEditor extends Component
         return view('livewire.grouped-worksheets.grouped-worksheet-item-editor', [
             'items' => $this->holder->items,
             'itemTypeOptions' => GroupedWorksheetItemType::options(),
+            'capturePreview' => $this->capturePreview,
         ]);
+    }
+
+    public function getCapturePreviewProperty(): ?array
+    {
+        $item = $this->selectedItem;
+
+        if (! $item) {
+            return null;
+        }
+
+        return app(GroupedWorksheetCapturePreviewService::class)->previewForItem($item);
+    }
+
+    public function getSelectedItemProperty(): ?GroupedWorksheetItem
+    {
+        if ($this->selectedItemId === null) {
+            return null;
+        }
+
+        return $this->holder->items->firstWhere('id', $this->selectedItemId);
+    }
+
+    public function selectPipelineStage(string $itemId): void
+    {
+        $this->selectedItemId = $itemId;
+    }
+
+    public function closeModal(): void
+    {
+        $this->showAddModal = false;
+        $this->showEditModal = false;
+        $this->resetItemForm();
     }
 
     public function getFilteredReferenceOptionsProperty(): array
@@ -195,6 +232,7 @@ class GroupedWorksheetItemEditor extends Component
         $this->resetItemForm();
         $this->setMessage('Stage added to pipeline.', 'success');
         $this->holder->refresh();
+        $this->selectedItemId = $this->holder->items->sortByDesc('sort_order')->first()?->id;
     }
 
     public function updateItem(): void
@@ -222,6 +260,7 @@ class GroupedWorksheetItemEditor extends Component
         $this->reindexItems();
         $this->setMessage('Stage removed.', 'success');
         $this->holder->refresh();
+        $this->syncSelectedItem();
     }
 
     public function moveUp(string $itemId): void
@@ -286,5 +325,15 @@ class GroupedWorksheetItemEditor extends Component
     {
         $this->message = $message;
         $this->messageType = $type;
+    }
+
+    protected function syncSelectedItem(): void
+    {
+        if ($this->selectedItemId !== null
+            && $this->holder->items->contains('id', $this->selectedItemId)) {
+            return;
+        }
+
+        $this->selectedItemId = $this->holder->items->first()?->id;
     }
 }

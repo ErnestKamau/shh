@@ -65,16 +65,7 @@ class LookupTable extends Model implements Auditable
      */
     public function getValue(array $keys): ?string
     {
-        // Sort keys for consistent comparison
-        ksort($keys);
-        
-        // Use JSON comparison for the PostgreSQL JSON column.
-        $entry = $this->entries()
-            ->whereRaw('JSON_CONTAINS(`keys`, ?) AND JSON_CONTAINS(?, `keys`)', [
-                json_encode($keys),
-                json_encode($keys)
-            ])
-            ->first();
+        $entry = $this->entries()->whereKeys($keys)->first();
 
         return $entry ? $entry->value : null;
     }

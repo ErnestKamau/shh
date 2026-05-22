@@ -78,7 +78,7 @@
                     <p class="receipt-notif-review-value mb-0">{{ $display('submitter_designation') }}</p>
                 </div>
             </div>
-            <div class="mb-3">
+            <div class="mb-3 acc-collapsible-signature-field">
                 <span class="receipt-notif-form__label d-block">Signature</span>
                 @if($signature('submitter_signature'))
                     <div class="receipt-notif-review-sig">
@@ -105,7 +105,7 @@
                     <p class="receipt-notif-review-value mb-0">{{ $display('sample_receiving_date') }}</p>
                 </div>
             </div>
-            <div class="mb-0">
+            <div class="mb-0 acc-collapsible-signature-field">
                 <span class="receipt-notif-form__label d-block">Signature</span>
                 @if($signature('receiver_signature'))
                     <div class="receipt-notif-review-sig">

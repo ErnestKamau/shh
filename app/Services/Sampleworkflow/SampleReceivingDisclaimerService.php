@@ -4,8 +4,8 @@ namespace App\Services\Sampleworkflow;
 
 use App\BatchAttachment;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
-use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
+use App\Services\System\AttachmentTypeResolver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
@@ -255,7 +255,7 @@ class SampleReceivingDisclaimerService
 
         \Illuminate\Support\Facades\Storage::disk('public')->put($pdfStoragePath, $pdf->output());
 
-        $attachmentTypeId = $this->resolveAttachmentTypeId();
+        $attachmentTypeId = app(AttachmentTypeResolver::class)->resolveOrCreateAttachmentTypeId(self::ATTACHMENT_TITLE);
 
         $attachment = BatchAttachment::query()
             ->where('batch_id', $batch->id)
@@ -305,29 +305,4 @@ class SampleReceivingDisclaimerService
         ];
     }
 
-    private function resolveAttachmentTypeId(): ?int
-    {
-        $label = self::ATTACHMENT_TITLE;
-
-        $existingId = SystemConfiguration::query()->where('key', 'attachment_type')
-            ->where('value', $label)
-            ->value('id');
-
-        if ($existingId !== null) {
-            return (int) $existingId;
-        }
-
-        $typeConfig = SystemConfiguration::query()->where('key', 'attachment_type_config_id')->first();
-        if (! $typeConfig) {
-            return null;
-        }
-
-        $newConfig = new SystemConfiguration();
-        $newConfig->key = 'attachment_type';
-        $newConfig->value = $label;
-        $newConfig->configuration_type_id = $typeConfig->id;
-        $newConfig->save();
-
-        return (int) $newConfig->id;
-    }
 }

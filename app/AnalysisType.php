@@ -36,6 +36,7 @@ class AnalysisType extends Model implements Auditable
     'invoicable_item_id',
     'procedure_worksheet_id',
     'grouped_worksheet_holder_id',
+    'hybrid_worksheet_id',
   ];
 
   protected $casts = [
@@ -123,6 +124,11 @@ class AnalysisType extends Model implements Auditable
   public function groupedWorksheetHolder()
   {
       return $this->belongsTo(\App\Models\GroupedWorksheets\GroupedWorksheetHolder::class, 'grouped_worksheet_holder_id');
+  }
+
+  public function hybridWorksheet()
+  {
+      return $this->belongsTo(\App\Models\HybridWorksheets\HybridWorksheet::class, 'hybrid_worksheet_id');
   }
 
 }

@@ -27,6 +27,7 @@ class InterzoneTransferService
                 'submissionFormInstance:id,form_number,title',
                 'sampleHeader:id,batch_code',
                 'samples.sampleDetail:id,sample_code',
+                'samples.toZone:id,key,value',
             ])
             ->latest()
             ->limit($limit)
@@ -34,47 +35,65 @@ class InterzoneTransferService
     }
 
     /**
-     * @param  list<string>  $sampleDetailIds
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
      */
-    public function transferFullRequest(
+    public function transferRequestWithSampleZones(
         SubmissionFormInstance $instance,
-        string $toZoneId,
+        array $assignments,
         bool $reportFromParentZone,
         ?string $remarks = null
     ): InterzoneTransfer {
-        return DB::transaction(function () use ($instance, $toZoneId, $reportFromParentZone, $remarks) {
+        $assignments = $this->normalizeAssignments($assignments);
+
+        if ($assignments === []) {
+            throw new \InvalidArgumentException('Assign a destination zone for at least one sample.');
+        }
+
+        return DB::transaction(function () use ($instance, $assignments, $reportFromParentZone, $remarks) {
             $fromZoneId = $this->resolveInstanceOriginZoneId($instance);
             $this->ensureOriginZoneStored($instance, $fromZoneId);
+
+            $this->assertAssignmentsBelongToInstance($instance, $assignments);
 
             $transfer = $this->createTransferRecord(
                 InterzoneTransfer::SCOPE_REQUEST,
                 InterzoneTransfer::MODE_FULL,
                 $fromZoneId,
-                $toZoneId,
+                $this->resolveHeaderToZoneId($assignments),
                 $reportFromParentZone,
                 $remarks,
                 submissionFormInstanceId: (string) $instance->id,
             );
 
-            $instance->update([
-                'processing_zone_id' => $toZoneId,
-            ]);
+            $this->applySampleZoneAssignments($assignments, $transfer);
 
-            foreach ($instance->batches as $batch) {
-                $this->applyFullBatchZoneUpdate($batch, $fromZoneId, $toZoneId, $reportFromParentZone);
-            }
+            $this->syncInstanceAndBatchesAfterSampleTransfers($instance, $assignments, $fromZoneId, $reportFromParentZone);
 
-            return $transfer->load(['fromZone', 'toZone']);
+            return $transfer->load(['fromZone', 'toZone', 'samples.toZone', 'samples.sampleDetail']);
         });
     }
 
-    public function transferFullBatch(
+    /**
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
+     */
+    public function transferBatchWithSampleZones(
         SampleHeader $header,
-        string $toZoneId,
+        array $assignments,
+        string $mode,
         bool $reportFromParentZone,
         ?string $remarks = null
     ): InterzoneTransfer {
-        return DB::transaction(function () use ($header, $toZoneId, $reportFromParentZone, $remarks) {
+        $assignments = $this->normalizeAssignments($assignments);
+
+        if ($assignments === []) {
+            throw new \InvalidArgumentException('Assign a destination zone for at least one sample.');
+        }
+
+        if (! in_array($mode, [InterzoneTransfer::MODE_FULL, InterzoneTransfer::MODE_PARTIAL], true)) {
+            throw new \InvalidArgumentException('Invalid transfer mode.');
+        }
+
+        return DB::transaction(function () use ($header, $assignments, $mode, $reportFromParentZone, $remarks) {
             $instance = $header->submission_form_instance_id
                 ? SubmissionFormInstance::query()->find($header->submission_form_instance_id)
                 : null;
@@ -86,25 +105,60 @@ class InterzoneTransferService
                 $this->ensureOriginZoneStored($instance, $fromZoneId);
             }
 
+            $this->assertAssignmentsBelongToBatch($header, $assignments, $mode);
+
             $transfer = $this->createTransferRecord(
                 InterzoneTransfer::SCOPE_BATCH,
-                InterzoneTransfer::MODE_FULL,
+                $mode,
                 $fromZoneId,
-                $toZoneId,
+                $this->resolveHeaderToZoneId($assignments),
                 $reportFromParentZone,
                 $remarks,
                 submissionFormInstanceId: $instance?->id,
                 sampleHeaderId: (string) $header->id,
             );
 
-            $this->applyFullBatchZoneUpdate($header, $fromZoneId, $toZoneId, $reportFromParentZone);
+            $this->applySampleZoneAssignments($assignments, $transfer);
+
+            $this->syncBatchHeaderAfterSampleTransfers($header, $assignments, $fromZoneId, $reportFromParentZone);
 
             if ($instance) {
-                $instance->update(['processing_zone_id' => $toZoneId]);
+                $this->syncInstanceAfterBatchSampleTransfers($instance, $fromZoneId, $reportFromParentZone);
             }
 
-            return $transfer->load(['fromZone', 'toZone', 'sampleHeader']);
+            return $transfer->load(['fromZone', 'toZone', 'samples.toZone', 'samples.sampleDetail', 'sampleHeader']);
         });
+    }
+
+    /**
+     * @param  list<string>  $sampleDetailIds
+     */
+    public function transferFullRequest(
+        SubmissionFormInstance $instance,
+        string $toZoneId,
+        bool $reportFromParentZone,
+        ?string $remarks = null
+    ): InterzoneTransfer {
+        $assignments = $this->buildUniformAssignmentsForInstance($instance, $toZoneId);
+
+        return $this->transferRequestWithSampleZones($instance, $assignments, $reportFromParentZone, $remarks);
+    }
+
+    public function transferFullBatch(
+        SampleHeader $header,
+        string $toZoneId,
+        bool $reportFromParentZone,
+        ?string $remarks = null
+    ): InterzoneTransfer {
+        $assignments = $this->buildUniformAssignmentsForBatch($header, $toZoneId);
+
+        return $this->transferBatchWithSampleZones(
+            $header,
+            $assignments,
+            InterzoneTransfer::MODE_FULL,
+            $reportFromParentZone,
+            $remarks
+        );
     }
 
     /**
@@ -117,55 +171,21 @@ class InterzoneTransferService
         bool $reportFromParentZone,
         ?string $remarks = null
     ): InterzoneTransfer {
-        $sampleDetailIds = array_values(array_unique(array_filter($sampleDetailIds)));
+        $assignments = array_map(
+            fn (string $sampleDetailId) => [
+                'sample_detail_id' => $sampleDetailId,
+                'to_zone_id' => $toZoneId,
+            ],
+            array_values(array_unique(array_filter($sampleDetailIds)))
+        );
 
-        if ($sampleDetailIds === []) {
-            throw new \InvalidArgumentException('Select at least one sample to transfer.');
-        }
-
-        return DB::transaction(function () use ($header, $sampleDetailIds, $toZoneId, $reportFromParentZone, $remarks) {
-            $instance = $header->submission_form_instance_id
-                ? SubmissionFormInstance::query()->find($header->submission_form_instance_id)
-                : null;
-
-            $fromZoneId = $this->resolveBatchOriginZoneId($header, $instance);
-            $this->ensureBatchOriginZoneStored($header, $fromZoneId);
-
-            $details = SampleDetails::query()
-                ->where('sample_header_id', $header->id)
-                ->whereIn('id', $sampleDetailIds)
-                ->get();
-
-            if ($details->count() !== count($sampleDetailIds)) {
-                throw new \InvalidArgumentException('One or more selected samples are invalid for this batch.');
-            }
-
-            $transfer = $this->createTransferRecord(
-                InterzoneTransfer::SCOPE_BATCH,
-                InterzoneTransfer::MODE_PARTIAL,
-                $fromZoneId,
-                $toZoneId,
-                $reportFromParentZone,
-                $remarks,
-                submissionFormInstanceId: $instance?->id,
-                sampleHeaderId: (string) $header->id,
-            );
-
-            foreach ($details as $detail) {
-                $detail->update(['processing_zone_id' => $toZoneId]);
-                InterzoneTransferSample::query()->create([
-                    'interzone_transfer_id' => $transfer->id,
-                    'sample_detail_id' => $detail->id,
-                ]);
-            }
-
-            $reportingZoneId = $reportFromParentZone ? $fromZoneId : $toZoneId;
-            $header->update([
-                'reporting_zone_id' => $reportingZoneId,
-            ]);
-
-            return $transfer->load(['fromZone', 'toZone', 'samples.sampleDetail']);
-        });
+        return $this->transferBatchWithSampleZones(
+            $header,
+            $assignments,
+            InterzoneTransfer::MODE_PARTIAL,
+            $reportFromParentZone,
+            $remarks
+        );
     }
 
     public function resolveInstanceOriginZoneId(SubmissionFormInstance $instance): ?string
@@ -235,29 +255,302 @@ class InterzoneTransferService
             ->all();
     }
 
-    private function applyFullBatchZoneUpdate(
+    /**
+     * @return array<string, string>
+     */
+    public function zoneLabelsById(): array
+    {
+        $labels = [];
+        foreach ($this->zonesForSelect() as $zone) {
+            $labels[$zone['id']] = $zone['label'];
+        }
+
+        return $labels;
+    }
+
+    public function formatTransferDestinations(InterzoneTransfer $transfer): string
+    {
+        $transfer->loadMissing(['toZone:id,key,value', 'samples.toZone:id,key,value']);
+
+        $zoneLabels = $transfer->samples
+            ->map(fn (InterzoneTransferSample $row) => $this->formatZoneLabel($row->toZone))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($zoneLabels->isNotEmpty()) {
+            return $zoneLabels->count() === 1
+                ? $zoneLabels->first()
+                : $zoneLabels->implode(', ');
+        }
+
+        return $this->formatZoneLabel($transfer->toZone) ?? '—';
+    }
+
+    /**
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
+     * @return list<array{sample_detail_id: string, to_zone_id: string}>
+     */
+    private function normalizeAssignments(array $assignments): array
+    {
+        $normalized = [];
+
+        foreach ($assignments as $assignment) {
+            $sampleDetailId = (string) ($assignment['sample_detail_id'] ?? '');
+            $toZoneId = (string) ($assignment['to_zone_id'] ?? '');
+
+            if ($sampleDetailId === '' || $toZoneId === '') {
+                continue;
+            }
+
+            $normalized[$sampleDetailId] = [
+                'sample_detail_id' => $sampleDetailId,
+                'to_zone_id' => $toZoneId,
+            ];
+        }
+
+        return array_values($normalized);
+    }
+
+    /**
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
+     */
+    private function resolveHeaderToZoneId(array $assignments): ?string
+    {
+        $zoneIds = array_values(array_unique(array_column($assignments, 'to_zone_id')));
+
+        return count($zoneIds) === 1 ? $zoneIds[0] : null;
+    }
+
+    /**
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
+     */
+    private function applySampleZoneAssignments(
+        array $assignments,
+        InterzoneTransfer $transfer,
+    ): void {
+        $sampleDetailIds = array_column($assignments, 'sample_detail_id');
+
+        $details = SampleDetails::query()
+            ->whereIn('id', $sampleDetailIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($assignments as $assignment) {
+            $detail = $details->get($assignment['sample_detail_id']);
+            if (! $detail) {
+                continue;
+            }
+
+            $detail->update(['processing_zone_id' => $assignment['to_zone_id']]);
+
+            InterzoneTransferSample::query()->create([
+                'interzone_transfer_id' => $transfer->id,
+                'sample_detail_id' => $detail->id,
+                'to_zone_id' => $assignment['to_zone_id'],
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
+     */
+    private function syncBatchHeaderAfterSampleTransfers(
         SampleHeader $header,
+        array $assignments,
         ?string $fromZoneId,
-        string $toZoneId,
         bool $reportFromParentZone
     ): void {
-        $reportingZoneId = $reportFromParentZone ? $fromZoneId : $toZoneId;
+        $destinationZoneIds = array_values(array_unique(array_column($assignments, 'to_zone_id')));
+        $batchUpdates = [];
 
-        $header->update([
-            'processing_zone_id' => $toZoneId,
-            'reporting_zone_id' => $reportingZoneId,
-        ]);
+        if (count($destinationZoneIds) === 1) {
+            $batchUpdates['processing_zone_id'] = $destinationZoneIds[0];
+        }
 
-        SampleDetails::query()
+        $batchUpdates['reporting_zone_id'] = $this->resolveReportingZoneId(
+            $fromZoneId,
+            $destinationZoneIds,
+            $reportFromParentZone
+        );
+
+        if ($batchUpdates !== []) {
+            $header->update($batchUpdates);
+        }
+    }
+
+    /**
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
+     */
+    private function syncInstanceAndBatchesAfterSampleTransfers(
+        SubmissionFormInstance $instance,
+        array $assignments,
+        ?string $fromZoneId,
+        bool $reportFromParentZone
+    ): void {
+        $instance->load(['batches.samples']);
+
+        $destinationZoneIds = array_values(array_unique(array_column($assignments, 'to_zone_id')));
+
+        if (count($destinationZoneIds) === 1) {
+            $instance->update(['processing_zone_id' => $destinationZoneIds[0]]);
+        }
+
+        foreach ($instance->batches as $batch) {
+            $batchAssignments = array_values(array_filter(
+                $assignments,
+                fn (array $row) => $this->sampleBelongsToBatch($row['sample_detail_id'], $batch)
+            ));
+
+            if ($batchAssignments !== []) {
+                $this->syncBatchHeaderAfterSampleTransfers($batch, $batchAssignments, $fromZoneId, $reportFromParentZone);
+            }
+        }
+    }
+
+    private function syncInstanceAfterBatchSampleTransfers(
+        SubmissionFormInstance $instance,
+        ?string $fromZoneId,
+        bool $reportFromParentZone
+    ): void {
+        $instance->load(['batches.samples']);
+
+        $allDestinationZoneIds = [];
+        foreach ($instance->batches as $batch) {
+            foreach ($batch->samples as $sample) {
+                if ($sample->processing_zone_id) {
+                    $allDestinationZoneIds[] = (string) $sample->processing_zone_id;
+                }
+            }
+        }
+
+        $unique = array_values(array_unique($allDestinationZoneIds));
+
+        if (count($unique) === 1) {
+            $instance->update(['processing_zone_id' => $unique[0]]);
+        }
+    }
+
+    /**
+     * @param  list<string>  $destinationZoneIds
+     */
+    private function resolveReportingZoneId(
+        ?string $fromZoneId,
+        array $destinationZoneIds,
+        bool $reportFromParentZone
+    ): ?string {
+        if ($reportFromParentZone) {
+            return $fromZoneId;
+        }
+
+        $unique = array_values(array_unique($destinationZoneIds));
+
+        return count($unique) === 1 ? $unique[0] : $fromZoneId;
+    }
+
+    /**
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
+     */
+    private function assertAssignmentsBelongToBatch(
+        SampleHeader $header,
+        array $assignments,
+        string $mode
+    ): void {
+        $expectedCount = SampleDetails::query()->where('sample_header_id', $header->id)->count();
+        $sampleDetailIds = array_column($assignments, 'sample_detail_id');
+
+        $validCount = SampleDetails::query()
             ->where('sample_header_id', $header->id)
-            ->update(['processing_zone_id' => $toZoneId]);
+            ->whereIn('id', $sampleDetailIds)
+            ->count();
+
+        if ($validCount !== count($sampleDetailIds)) {
+            throw new \InvalidArgumentException('One or more selected samples are invalid for this batch.');
+        }
+
+        if ($mode === InterzoneTransfer::MODE_FULL && count($sampleDetailIds) !== $expectedCount) {
+            throw new \InvalidArgumentException('Full transfer requires a destination zone for every sample on the batch.');
+        }
+    }
+
+    /**
+     * @param  list<array{sample_detail_id: string, to_zone_id: string}>  $assignments
+     */
+    private function assertAssignmentsBelongToInstance(
+        SubmissionFormInstance $instance,
+        array $assignments
+    ): void {
+        $instance->load(['batches.samples']);
+
+        $validIds = [];
+        foreach ($instance->batches as $batch) {
+            foreach ($batch->samples as $sample) {
+                $validIds[] = (string) $sample->id;
+            }
+        }
+
+        $validIds = array_values(array_unique($validIds));
+
+        if ($validIds === []) {
+            throw new \InvalidArgumentException('No samples found on this request to transfer.');
+        }
+
+        foreach (array_column($assignments, 'sample_detail_id') as $sampleDetailId) {
+            if (! in_array($sampleDetailId, $validIds, true)) {
+                throw new \InvalidArgumentException('One or more selected samples are invalid for this request.');
+            }
+        }
+    }
+
+    private function sampleBelongsToBatch(string $sampleDetailId, SampleHeader $batch): bool
+    {
+        return SampleDetails::query()
+            ->where('sample_header_id', $batch->id)
+            ->where('id', $sampleDetailId)
+            ->exists();
+    }
+
+    /**
+     * @return list<array{sample_detail_id: string, to_zone_id: string}>
+     */
+    private function buildUniformAssignmentsForBatch(SampleHeader $header, string $toZoneId): array
+    {
+        return SampleDetails::query()
+            ->where('sample_header_id', $header->id)
+            ->orderBy('sample_code')
+            ->pluck('id')
+            ->map(fn ($id) => [
+                'sample_detail_id' => (string) $id,
+                'to_zone_id' => $toZoneId,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return list<array{sample_detail_id: string, to_zone_id: string}>
+     */
+    private function buildUniformAssignmentsForInstance(SubmissionFormInstance $instance, string $toZoneId): array
+    {
+        $instance->load(['batches.samples']);
+
+        $assignments = [];
+        foreach ($instance->batches as $batch) {
+            foreach ($batch->samples as $sample) {
+                $assignments[] = [
+                    'sample_detail_id' => (string) $sample->id,
+                    'to_zone_id' => $toZoneId,
+                ];
+            }
+        }
+
+        return $assignments;
     }
 
     private function createTransferRecord(
         string $scope,
         string $mode,
         ?string $fromZoneId,
-        string $toZoneId,
+        ?string $toZoneId,
         bool $reportFromParentZone,
         ?string $remarks,
         ?string $submissionFormInstanceId = null,
@@ -341,6 +634,15 @@ class InterzoneTransferService
         }
 
         return null;
+    }
+
+    private function formatZoneLabel(?Zone $zone): ?string
+    {
+        if (! $zone) {
+            return null;
+        }
+
+        return trim(($zone->key ? $zone->key . ' — ' : '') . $zone->value) ?: null;
     }
 
     private function isUuid(string $value): bool

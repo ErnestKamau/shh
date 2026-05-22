@@ -3,6 +3,7 @@
 namespace App\Services\Sampleworkflow;
 
 use App\Models\SampleSubmissionRequest;
+use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
 use App\User;
@@ -11,6 +12,38 @@ use Illuminate\Support\Str;
 
 class AcceptanceFormBatchCodeService
 {
+    public function resolveBatchCodeForAcceptanceForm(
+        AnalysisAcceptanceForm $form,
+        ?string $preferredZoneId = null,
+    ): string {
+        $instance = $form->submission_form_instance_id
+            ? SubmissionFormInstance::query()->with('batches')->find($form->submission_form_instance_id)
+            : null;
+
+        if ($instance?->batches?->isNotEmpty()) {
+            return (string) $instance->batches->first()->batch_code;
+        }
+
+        $zoneCode = $preferredZoneId !== null && $preferredZoneId !== ''
+            ? $this->resolveZoneCodeFromZoneId($preferredZoneId)
+            : null;
+
+        if ($zoneCode === null && $instance !== null) {
+            $zoneCode = $this->resolveZoneCodeFromZoneId($instance->processing_zone_id)
+                ?? $this->resolveZoneCodeFromZoneId($instance->zone_id)
+                ?? $this->resolveZoneCodeForPreview($instance);
+        }
+
+        if ($zoneCode === null) {
+            $configPayload = is_array($form->sample_configuration_payload)
+                ? $form->sample_configuration_payload
+                : [];
+            $zoneCode = $this->resolveZoneCodeFromConfigPayload($configPayload);
+        }
+
+        return $this->generateZoneYearPreviewCode($zoneCode ?? 'XX');
+    }
+
     public function resolveBatchCode(SubmissionFormInstance $instance): string
     {
         $instance->loadMissing('batches');
@@ -19,9 +52,33 @@ class AcceptanceFormBatchCodeService
             return (string) $instance->batches->first()->batch_code;
         }
 
-        $zoneCode = $this->resolveZoneCodeForPreview($instance) ?? 'XX';
+        $zoneCode = $this->resolveZoneCodeFromZoneId($instance->processing_zone_id)
+            ?? $this->resolveZoneCodeFromZoneId($instance->zone_id)
+            ?? $this->resolveZoneCodeForPreview($instance)
+            ?? 'XX';
 
         return $this->generateZoneYearPreviewCode($zoneCode);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configPayload
+     */
+    public function resolveZoneCodeFromConfigPayload(array $configPayload): ?string
+    {
+        foreach ($configPayload as $config) {
+            if (! is_array($config)) {
+                continue;
+            }
+
+            $zoneId = $config['zone_id'] ?? $config['lab_id'] ?? null;
+            $zoneCode = $this->resolveZoneCodeFromZoneId($zoneId);
+
+            if ($zoneCode !== null) {
+                return $zoneCode;
+            }
+        }
+
+        return null;
     }
 
     private function resolveZoneCodeForPreview(SubmissionFormInstance $instance): ?string
@@ -114,6 +171,6 @@ class AcceptanceFormBatchCodeService
             }
         }
 
-        return $prefix . sprintf('%05d', $maxSeq + 1);
+        return $prefix . sprintf('%04d', $maxSeq + 1);
     }
 }

@@ -8,6 +8,7 @@ use App\LabSubCategory;
 use App\Models\SolutionPreparationStepTemplate;
 use App\SampleType;
 use App\Services\Preparation\PreparationTemplateService;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -22,6 +23,17 @@ class SolutionPreparationTemplates extends Component
     public ?string $editingTemplateId = null;
 
     public bool $deleteFromPreparations = false;
+
+    public bool $showDeleteModal = false;
+
+    public ?string $deletingTemplateId = null;
+
+    /** @var array{total_count: int, preparing_count: int, preparations: array<int, array<string, mixed>>} */
+    public array $deleteImpact = [
+        'total_count' => 0,
+        'preparing_count' => 0,
+        'preparations' => [],
+    ];
 
     public $templateForm = [
         'step_number' => 1,
@@ -60,6 +72,10 @@ class SolutionPreparationTemplates extends Component
 
     public $ingredients = [];
 
+    public string $ingredientSearch = '';
+
+    public bool $showIngredientDropdown = false;
+
     protected PreparationTemplateService $templateService;
 
     public function boot(PreparationTemplateService $templateService): void
@@ -83,7 +99,7 @@ class SolutionPreparationTemplates extends Component
             ->orderBy('name')
             ->get();
         $this->ingredients = LabCategoryItems::where('sub_category_id', $this->subCategoryId)
-            ->with('reagent')
+            ->with(['reagent', 'unitMeasure'])
             ->get();
     }
 
@@ -98,6 +114,74 @@ class SolutionPreparationTemplates extends Component
     public function getSolutionProperty(): ?LabSubCategory
     {
         return LabSubCategory::with('alternativeSolution')->find($this->subCategoryId);
+    }
+
+    public function getDeletingTemplateProperty(): ?SolutionPreparationStepTemplate
+    {
+        if ($this->deletingTemplateId === null) {
+            return null;
+        }
+
+        return SolutionPreparationStepTemplate::with(['ingredient.reagent', 'ingredient.unitMeasure', 'controls'])
+            ->find($this->deletingTemplateId);
+    }
+
+    public function getSelectedIngredientProperty(): ?LabCategoryItems
+    {
+        $selectedId = (string) ($this->templateForm['ingredient_id'] ?? '');
+        if ($selectedId === '') {
+            return null;
+        }
+
+        return collect($this->ingredients)->first(fn ($item) => (string) $item->id === $selectedId);
+    }
+
+    public function getFilteredIngredientsProperty(): Collection
+    {
+        $needle = trim(strtolower($this->ingredientSearch));
+        $selectedId = (string) ($this->templateForm['ingredient_id'] ?? '');
+
+        return collect($this->ingredients)
+            ->filter(function ($item) use ($needle, $selectedId) {
+                if ((string) $item->id === $selectedId) {
+                    return false;
+                }
+
+                if ($needle === '') {
+                    return true;
+                }
+
+                $name = strtolower((string) ($item->reagent?->name ?? ''));
+                $code = strtolower((string) ($item->reagent?->code ?? ''));
+
+                return str_contains($name, $needle) || str_contains($code, $needle);
+            })
+            ->values();
+    }
+
+    public function openIngredientDropdown(): void
+    {
+        $this->showIngredientDropdown = true;
+    }
+
+    public function closeIngredientDropdown(): void
+    {
+        $this->showIngredientDropdown = false;
+    }
+
+    public function selectIngredient(string $ingredientId): void
+    {
+        $this->templateForm['ingredient_id'] = $ingredientId;
+        $selected = $this->selectedIngredient;
+        $this->ingredientSearch = $selected ? $this->formatIngredientLabel($selected) : '';
+        $this->showIngredientDropdown = false;
+    }
+
+    public function clearIngredient(): void
+    {
+        $this->templateForm['ingredient_id'] = null;
+        $this->ingredientSearch = '';
+        $this->showIngredientDropdown = false;
     }
 
     public function updatedTemplateFormSampleTypeId($value): void
@@ -123,6 +207,30 @@ class SolutionPreparationTemplates extends Component
         $this->analyteOptions = json_decode($response->getContent(), true) ?? [];
     }
 
+    public function setTemplateStepType(string $stepType): void
+    {
+        $this->templateForm['step_type'] = $stepType;
+
+        if ($stepType === SolutionPreparationStepTemplate::STEP_TYPE_ANALYSIS) {
+            $this->templateForm['ingredient_id'] = null;
+            $this->ingredientSearch = '';
+            $this->showIngredientDropdown = false;
+        } else {
+            $this->templateForm['sample_type_id'] = null;
+            $this->templateForm['analysis_type_id'] = null;
+            $this->templateForm['selected_analytes'] = [];
+            $this->analysisTypes = collect();
+            $this->analyteOptions = [];
+            $this->templateControls = [];
+        }
+    }
+
+    public function dismissMessage(): void
+    {
+        $this->message = '';
+        $this->messageType = '';
+    }
+
     public function showAddTemplateModal(): void
     {
         $max = (int) SolutionPreparationStepTemplate::where('lab_sub_category_id', $this->subCategoryId)->max('step_number');
@@ -130,6 +238,7 @@ class SolutionPreparationTemplates extends Component
         $this->templateForm['step_number'] = $max + 1;
         $this->editingTemplateId = null;
         $this->showTemplateModal = true;
+        $this->dispatch('spt-modal-opened');
     }
 
     public function showEditTemplateModal(string $id): void
@@ -160,8 +269,11 @@ class SolutionPreparationTemplates extends Component
             $this->updatedTemplateFormAnalysisTypeId($template->analysis_type_id);
         }
 
+        $this->syncIngredientSearchLabel();
+
         $this->editingTemplateId = $id;
         $this->showTemplateModal = true;
+        $this->dispatch('spt-modal-opened');
     }
 
     public function saveTemplate(): void
@@ -188,6 +300,7 @@ class SolutionPreparationTemplates extends Component
             $this->messageType = 'success';
             $this->showTemplateModal = false;
             $this->resetTemplateForm();
+            $this->dispatch('spt-modal-closed');
         } catch (ValidationException $e) {
             $this->message = collect($e->errors())->flatten()->first() ?? $e->getMessage();
             $this->messageType = 'danger';
@@ -197,13 +310,55 @@ class SolutionPreparationTemplates extends Component
         }
     }
 
-    public function deleteTemplate(string $id): void
+    public function showDeleteTemplateModal(string $id): void
     {
+        $template = SolutionPreparationStepTemplate::findOrFail($id);
+        $impact = $this->templateService->getTemplateDeletionImpact($template);
+
+        $this->deletingTemplateId = $id;
+        $this->deleteImpact = [
+            'total_count' => $impact['total_count'],
+            'preparing_count' => $impact['preparing_count'],
+            'preparations' => $impact['preparations']->take(10)->map(fn ($preparation) => [
+                'preparation_number' => $preparation->preparation_number,
+                'batch_number' => $preparation->batch_number,
+                'status' => $preparation->status,
+                'prepared_at' => $preparation->prepared_at?->format('M j, Y g:i A'),
+            ])->all(),
+        ];
+        $this->deleteFromPreparations = $impact['preparing_count'] > 0;
+        $this->showDeleteModal = true;
+        $this->dispatch('spt-modal-opened');
+    }
+
+    public function closeDeleteTemplateModal(): void
+    {
+        $this->showDeleteModal = false;
+        $this->deletingTemplateId = null;
+        $this->deleteFromPreparations = false;
+        $this->deleteImpact = [
+            'total_count' => 0,
+            'preparing_count' => 0,
+            'preparations' => [],
+        ];
+
+        if (! $this->showTemplateModal) {
+            $this->dispatch('spt-modal-closed');
+        }
+    }
+
+    public function confirmDeleteTemplate(): void
+    {
+        if ($this->deletingTemplateId === null) {
+            return;
+        }
+
         try {
-            $template = SolutionPreparationStepTemplate::findOrFail($id);
+            $template = SolutionPreparationStepTemplate::findOrFail($this->deletingTemplateId);
             $this->templateService->deleteTemplate($template, $this->deleteFromPreparations);
-            $this->message = 'Template deleted.';
+            $this->message = 'Preparation step template deleted.';
             $this->messageType = 'success';
+            $this->closeDeleteTemplateModal();
         } catch (\Exception $e) {
             $this->message = $e->getMessage();
             $this->messageType = 'danger';
@@ -261,6 +416,10 @@ class SolutionPreparationTemplates extends Component
     {
         $this->showTemplateModal = false;
         $this->resetTemplateForm();
+
+        if (! $this->showDeleteModal) {
+            $this->dispatch('spt-modal-closed');
+        }
     }
 
     protected function resetTemplateForm(): void
@@ -280,6 +439,27 @@ class SolutionPreparationTemplates extends Component
         ];
         $this->templateControls = [];
         $this->editingTemplateId = null;
+        $this->ingredientSearch = '';
+        $this->showIngredientDropdown = false;
+    }
+
+    protected function syncIngredientSearchLabel(): void
+    {
+        $selected = $this->selectedIngredient;
+        $this->ingredientSearch = $selected ? $this->formatIngredientLabel($selected) : '';
+    }
+
+    protected function formatIngredientLabel(LabCategoryItems $item): string
+    {
+        $name = (string) ($item->reagent?->name ?? 'Unknown');
+        $amount = $item->amount_used;
+        $unit = $item->unitMeasure?->name ?? '';
+
+        if ($amount !== null && $amount !== '') {
+            return trim($name . ' — ' . $amount . ($unit !== '' ? ' ' . $unit : ''));
+        }
+
+        return $name;
     }
 
     public function render()

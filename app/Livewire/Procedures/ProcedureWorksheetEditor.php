@@ -806,6 +806,8 @@ class ProcedureWorksheetEditor extends Component
         } else {
             $this->logbook_equipment_ids[] = $id;
         }
+
+        $this->closeLogbookEquipmentDropdown();
     }
 
     public function removeLogbookEquipment(string $id): void
@@ -944,13 +946,15 @@ class ProcedureWorksheetEditor extends Component
         $this->showAnalystDropdown = false;
     }
 
-    public function toggleMeasurand($id)
+    public function toggleMeasurand($id): void
     {
         if (in_array($id, $this->default_measurand_ids)) {
             $this->default_measurand_ids = array_diff($this->default_measurand_ids, [$id]);
         } else {
             $this->default_measurand_ids[] = $id;
         }
+
+        $this->closeMeasurandDropdown();
     }
     
     public function removeMeasurand($id)

@@ -4,6 +4,7 @@ namespace App\Models\HybridWorksheets;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use App\AnalysisType;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -44,5 +45,10 @@ class HybridWorksheet extends Model implements Auditable
     public function activeVersion(): HasOne
     {
         return $this->hasOne(HybridWorksheetVersion::class)->where('is_active', true);
+    }
+
+    public function analysisTypes(): HasMany
+    {
+        return $this->hasMany(AnalysisType::class, 'hybrid_worksheet_id');
     }
 }

@@ -418,16 +418,71 @@ class WorkflowBoard extends Component
         return array_keys(self::receivingRequestTabs());
     }
 
-    protected function receivingSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
+    /**
+     * Submission form status keys for Samples Receiving (excludes interzone tab).
+     *
+     * @return array<int, string>
+     */
+    public static function receivingRequestStatusKeys(): array
     {
-        return SubmissionFormInstance::query()
+        return array_values(array_filter(
+            array_keys(self::receivingRequestTabs()),
+            fn (string $key) => $key !== 'interzone_transfers'
+        ));
+    }
+
+    /**
+     * Base query for submission form instances on the Samples Receiving board.
+     */
+    public static function receivingSubmissionFormsQuery(?array $statuses = null): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = SubmissionFormInstance::query()
             ->whereHas('submissionForm', function ($formQuery) {
                 $formQuery->where('form_type', 'template');
             })
             ->whereDoesntHave('batches', function ($bq) {
                 $bq->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+            });
+
+        $query->whereIn('status', $statuses ?? self::receivingRequestStatusKeys());
+
+        return $query;
+    }
+
+    /**
+     * Sidebar badge: submitted + received + additional-info requests in receiving.
+     */
+    public static function sidebarReceivingRequestCount(): int
+    {
+        return (int) self::receivingSubmissionFormsQuery(['submitted', 'received', 'in_additional_info'])->count();
+    }
+
+    /**
+     * Sidebar badge: in-review requests plus batches at Samples Request Review.
+     */
+    public static function sidebarRequestReviewCount(): int
+    {
+        $inReviewRequests = SubmissionFormInstance::query()
+            ->whereHas('submissionForm', function ($formQuery) {
+                $formQuery->where('form_type', 'template');
             })
-            ->whereIn('status', $this->receivingRequestTabKeys());
+            ->whereIn('status', ['in_review', 'In Review'])
+            ->count();
+
+        $batchesInReview = SampleHeader::query()
+            ->where('isactive', 1)
+            ->where(function ($inner) {
+                $inner->where('status', 'Samples Request Review')
+                    ->orWhere('prelim_batch_status', 'Samples Request Review');
+            })
+            ->count();
+
+        return $inReviewRequests + $batchesInReview;
+    }
+
+    protected function receivingSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return static::receivingSubmissionFormsQuery();
     }
 
     protected function applyReceivingSubmissionFormFilters(\Illuminate\Database\Eloquent\Builder $query): void

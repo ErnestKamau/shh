@@ -158,13 +158,16 @@
                                                     <span class="text-muted">{{ Str::limit($step['description'], 50) }}</span>
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button wire:click="showEditStepModalInit(@js($step['id']))" 
-                                                                class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <div class="d-flex flex-wrap">
+                                                        <button type="button"
+                                                                wire:click="showEditStepModalInit(@js($step['id']))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                                                title="Edit">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
-                                                        <button wire:click="showDeleteStepModal(@js($step['id']))" 
-                                                                class="btn btn-sm btn-outline-danger" 
+                                                        <button type="button"
+                                                                wire:click="showDeleteStepModal(@js($step['id']))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                                 title="Delete">
                                                             <i class="mdi mdi-delete"></i>
                                                         </button>
@@ -307,17 +310,27 @@
         </div>
 
         @if($showCreateStepModal)
-            <div class="modal fade show d-block formula-step-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="mdi mdi-plus"></i>
-                                Create New Step
-                            </h5>
-                            <button type="button" class="btn-close" wire:click="$set('showCreateStepModal', false)"></button>
+            @php
+                $stepTypeMeta = [
+                    'input' => ['icon' => 'mdi-form-textbox', 'color' => 'input', 'hint' => 'Analyst enters a value during worksheet capture'],
+                    'derived' => ['icon' => 'mdi-function-variant', 'color' => 'derived', 'hint' => 'Calculated from an expression using prior steps'],
+                    'lookup' => ['icon' => 'mdi-table-search', 'color' => 'lookup', 'hint' => 'Resolves a value from a configured lookup table'],
+                    'parameter_result' => ['icon' => 'mdi-flask-outline', 'color' => 'result', 'hint' => 'Posts results for a selected analyte parameter'],
+                ];
+            @endphp
+            <div class="fs-modal show d-block formula-step-modal" tabindex="-1" wire:click.self="closeCreateStepModal">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable fs-modal-dialog" wire:click.stop>
+                    <div class="modal-content fs-modal-content">
+                        <div class="modal-header fs-modal-header">
+                            <div>
+                                <h5 class="modal-title mb-1">Create New Step</h5>
+                                <p class="fs-modal-subtitle mb-0">Define how this step captures or calculates data in the formula pipeline.</p>
+                            </div>
+                            <button type="button" class="close fs-modal-close" wire:click="closeCreateStepModal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body fs-modal-body">
                             @if($message)
                                 <div class="alert alert-{{ $this->messageAlertClass() }} alert-dismissible fade show mb-3" role="alert">
                                     {{ $message }}
@@ -339,62 +352,60 @@
                                 </div>
                             @endif
                             
-                            <form wire:submit.prevent="createStep">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <label for="stepNumber" class="form-label">Step Number *</label>
-                                            <input type="number" wire:model="stepNumber" class="form-control @error('stepNumber') is-invalid @enderror" id="stepNumber" required min="1">
-                                            @error('stepNumber') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <form id="create-formula-step-form" wire:submit.prevent="createStep" class="fs-step-form">
+                                <section class="fs-form-section">
+                                    <h6 class="fs-form-section-title">Step basics</h6>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <label for="stepNumber" class="fs-form-label">Step number <span class="text-danger">*</span></label>
+                                            <input type="number" wire:model="stepNumber" class="form-control fs-input @error('stepNumber') is-invalid @enderror" id="stepNumber" required min="1">
+                                            @error('stepNumber') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="variableName" class="fs-form-label">Variable name <span class="text-danger">*</span></label>
+                                            <input type="text" wire:model="variableName" class="form-control fs-input @error('variableName') is-invalid @enderror" id="variableName" placeholder="e.g. temperature_c" required>
+                                            @error('variableName') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label for="label" class="fs-form-label">Display label <span class="text-danger">*</span></label>
+                                            <input type="text" wire:model="label" class="form-control fs-input @error('label') is-invalid @enderror" id="label" placeholder="e.g. Temperature (°C)" required>
+                                            @error('label') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                         </div>
                                     </div>
-                                    <div class="col-md-8">
-                                        <div class="mb-3">
-                                            <label class="form-label d-block"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
-                                            <div class="step-type-picker @error('stepType') is-invalid @enderror" id="stepType">
-                                                @foreach($this->stepTypeOptions as $value => $label)
-                                                    <label class="step-type-option {{ $stepType === $value ? 'active' : '' }}">
-                                                        <input type="radio"
-                                                               wire:model.live="stepType"
-                                                               value="{{ $value }}"
-                                                               class="step-type-option-input"
-                                                               name="create_step_type">
-                                                        <span>{{ $label }}</span>
-                                                    </label>
-                                                @endforeach
-                                            </div>
-                                            @error('stepType') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="variableName" class="form-label">Variable Name *</label>
-                                            <input type="text" wire:model="variableName" class="form-control @error('variableName') is-invalid @enderror" id="variableName" required>
-                                            @error('variableName') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="label" class="form-label">Label *</label>
-                                            <input type="text" wire:model="label" class="form-control @error('label') is-invalid @enderror" id="label" required>
-                                            @error('label') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                    </div>
-                                </div>
+                                </section>
 
-                                <div class="formula-step-modal-scroll">
+                                <section class="fs-form-section">
+                                    <h6 class="fs-form-section-title">Step type</h6>
+                                    <p class="fs-form-section-hint">Choose how this step behaves when analysts run the formula worksheet.</p>
+                                    <div class="fs-step-type-grid @error('stepType') is-invalid @enderror" id="stepType">
+                                        @foreach($this->stepTypeOptions as $value => $typeLabel)
+                                            @php $meta = $stepTypeMeta[$value] ?? ['icon' => 'mdi-help-circle-outline', 'color' => 'input', 'hint' => '']; @endphp
+                                            <label class="fs-step-type-tile {{ $stepType === $value ? 'is-active' : '' }} fs-step-type-tile--{{ $meta['color'] }}">
+                                                <input type="radio"
+                                                       wire:model.live="stepType"
+                                                       value="{{ $value }}"
+                                                       class="fs-step-type-input"
+                                                       name="create_step_type">
+                                                <span class="fs-step-type-icon"><i class="mdi {{ $meta['icon'] }}"></i></span>
+                                                <span class="fs-step-type-name">{{ $typeLabel }}</span>
+                                                <span class="fs-step-type-hint">{{ $meta['hint'] }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('stepType') <div class="invalid-feedback d-block mt-1">{{ $message }}</div> @enderror
+                                </section>
+
+                                <div class="formula-step-modal-scroll fs-form-scroll">
                                 @if($stepType === 'derived')
-                                    <!-- Derived Step Configuration -->
-                                    <div class="card bg-light mb-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0 text-muted">
-                                                <i class="mdi mdi-function"></i> Expression Configuration
-                                            </h6>
+                                    <section class="fs-config-panel fs-config-panel--derived">
+                                        <div class="fs-config-panel-head">
+                                            <span class="fs-config-panel-icon"><i class="mdi mdi-function-variant"></i></span>
+                                            <div>
+                                                <h6 class="mb-0">Expression configuration</h6>
+                                                <p class="mb-0 small text-muted">Build the calculation using variables from earlier steps.</p>
+                                            </div>
                                         </div>
-                                        <div class="card-body">
+                                        <div class="fs-config-panel-body">
                                             <div class="mb-3">
                                                 <label for="expression" class="form-label">Expression *</label>
                                                 <div class="input-group">
@@ -455,18 +466,19 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </section>
                                 @endif
-        
+
                                 @if($stepType === 'lookup')
-                                    <!-- Lookup Step Configuration -->
-                                    <div class="card bg-light mb-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0 text-muted">
-                                                <i class="mdi mdi-table-search"></i> Lookup Configuration
-                                            </h6>
+                                    <section class="fs-config-panel fs-config-panel--lookup">
+                                        <div class="fs-config-panel-head">
+                                            <span class="fs-config-panel-icon"><i class="mdi mdi-table-search"></i></span>
+                                            <div>
+                                                <h6 class="mb-0">Lookup configuration</h6>
+                                                <p class="mb-0 small text-muted">Map keys to lookup table columns for automatic resolution.</p>
+                                            </div>
                                         </div>
-                                        <div class="card-body">
+                                        <div class="fs-config-panel-body">
                                     <div class="mb-3">
                                         <label for="lookupTableId" class="form-label"><i class="mdi mdi-table-search text-primary"></i> Lookup Table *</label>
                                         <select wire:model.live="lookupTableId" class="form-select modern-select no-select2 @error('lookupTableId') is-invalid @enderror" id="lookupTableId" required>
@@ -615,18 +627,19 @@
                                                 @endif
                                             @endif
                                         </div>
-                                    </div>
+                                    </section>
                                 @endif
 
                                 @if($stepType === 'parameter_result')
-                                    <!-- Parameter Result Step Configuration -->
-                                    <div class="card bg-light mb-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0 text-muted">
-                                                <i class="mdi mdi-flask"></i> Analyte Selection
-                                            </h6>
+                                    <section class="fs-config-panel fs-config-panel--result">
+                                        <div class="fs-config-panel-head">
+                                            <span class="fs-config-panel-icon"><i class="mdi mdi-flask-outline"></i></span>
+                                            <div>
+                                                <h6 class="mb-0">Analyte selection</h6>
+                                                <p class="mb-0 small text-muted">Link this step to the analyte whose result will be posted.</p>
+                                            </div>
                                         </div>
-                                        <div class="card-body">
+                                        <div class="fs-config-panel-body">
                                     <div class="mb-3">
                                         <label for="analyteId" class="form-label"><i class="mdi mdi-flask text-primary"></i> Select Analyte *</label>
                                         <select wire:model.live="analyteId" class="form-select modern-select no-select2 @error('analyteId') is-invalid @enderror" id="analyteId" required>
@@ -638,20 +651,22 @@
                                         @error('analyteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                         </div>
-                                    </div>
+                                    </section>
                                 @endif
-        
-                                <div class="mb-3">
-                                    <label for="description" class="form-label">Description</label>
-                                    <textarea wire:model="description" class="form-control @error('description') is-invalid @enderror" id="description" rows="2"></textarea>
-                                    @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
+
+                                <section class="fs-form-section mb-0">
+                                    <label for="description" class="fs-form-label">Description <span class="text-muted fw-normal">(optional)</span></label>
+                                    <textarea wire:model="description" class="form-control fs-input @error('description') is-invalid @enderror" id="description" rows="2" placeholder="Optional guidance for analysts configuring this step…"></textarea>
+                                    @error('description') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                </section>
                                 </div>
                             </form>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" wire:click="$set('showCreateStepModal', false)">Cancel</button>
-                            <button type="button" class="btn btn-primary" wire:click="createStep">Create Step</button>
+                        <div class="modal-footer fs-modal-footer">
+                            <button type="button" class="btn btn-light" wire:click="closeCreateStepModal">Cancel</button>
+                            <button type="submit" form="create-formula-step-form" class="btn btn-primary px-4">
+                                <i class="mdi mdi-content-save-outline mr-1"></i> Create Step
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1580,6 +1595,39 @@
 @endif
 
     <style>
+    #steps-table .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-right: 3px;
+        font-size: 12px;
+    }
+
+    #steps-table .rm-act-btn:last-child {
+        margin-right: 0;
+    }
+
+    #steps-table .rm-act-btn--edit {
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    #steps-table .rm-act-btn--edit:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    #steps-table .rm-act-btn--delete {
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    #steps-table .rm-act-btn--delete:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+
     .modal.show {
         display: block !important;
     }
@@ -2079,8 +2127,268 @@
         overflow: hidden;
     }
 
+    /* Create step modal — modern form shell */
+    .fs-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1055;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(2px);
+        overflow-y: auto;
+    }
+
+    .fs-modal-dialog {
+        margin: auto;
+        width: 100%;
+        max-width: 920px;
+    }
+
+    .fs-modal-content {
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28);
+        overflow: hidden;
+    }
+
+    .fs-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .fs-modal-subtitle {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+
+    .fs-modal-close {
+        flex-shrink: 0;
+        margin: -0.25rem -0.25rem 0 0;
+        padding: 0.25rem 0.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #64748b;
+        opacity: 0.75;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+    }
+
+    .fs-modal-close:hover {
+        color: #0f172a;
+        opacity: 1;
+    }
+
+    .fs-modal-body {
+        padding: 1.25rem 1.5rem;
+        background: #fff;
+    }
+
+    .fs-modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 1rem 1.5rem;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .fs-form-section {
+        margin-bottom: 1.25rem;
+        padding-bottom: 1.15rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .fs-form-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .fs-form-section-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin: 0 0 0.75rem;
+    }
+
+    .fs-form-section-hint {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        margin: -0.35rem 0 0.75rem;
+    }
+
+    .fs-form-label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 0.35rem;
+    }
+
+    .fs-input,
+    .fs-step-form .form-control,
+    .fs-step-form .form-select {
+        border-radius: 0.5rem;
+        border: 1px solid #d1d5db;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .fs-input:focus,
+    .fs-step-form .form-control:focus,
+    .fs-step-form .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        outline: none;
+    }
+
+    .fs-step-type-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+    }
+
+    .fs-step-type-grid.is-invalid {
+        padding: 0.35rem;
+        border-radius: 0.65rem;
+        border: 1px solid #dc3545;
+    }
+
+    .fs-step-type-tile {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+        margin: 0;
+        padding: 0.85rem 0.9rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.65rem;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        text-align: left;
+    }
+
+    .fs-step-type-tile:hover {
+        border-color: #93c5fd;
+        background: #f8fafc;
+    }
+
+    .fs-step-type-tile.is-active {
+        border-color: #3b82f6;
+        background: linear-gradient(180deg, #ffffff 0%, #f0f7ff 100%);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+    }
+
+    .fs-step-type-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .fs-step-type-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .fs-step-type-tile--input .fs-step-type-icon { background: #ecfdf5; color: #059669; }
+    .fs-step-type-tile--derived .fs-step-type-icon { background: #eff6ff; color: #2563eb; }
+    .fs-step-type-tile--lookup .fs-step-type-icon { background: #fffbeb; color: #d97706; }
+    .fs-step-type-tile--result .fs-step-type-icon { background: #f5f3ff; color: #7c3aed; }
+
+    .fs-step-type-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .fs-step-type-hint {
+        font-size: 0.72rem;
+        color: #64748b;
+        line-height: 1.35;
+    }
+
+    .fs-form-scroll {
+        overflow-y: auto;
+        max-height: calc(90vh - 380px);
+        padding-right: 0.25rem;
+        margin-right: -0.25rem;
+    }
+
+    .fs-config-panel {
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        background: #fafbfc;
+    }
+
+    .fs-config-panel-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        background: #fff;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .fs-config-panel-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.5rem;
+        font-size: 1.15rem;
+        flex-shrink: 0;
+    }
+
+    .fs-config-panel--derived .fs-config-panel-icon { background: #eff6ff; color: #2563eb; }
+    .fs-config-panel--lookup .fs-config-panel-icon { background: #fffbeb; color: #d97706; }
+    .fs-config-panel--result .fs-config-panel-icon { background: #f5f3ff; color: #7c3aed; }
+
+    .fs-config-panel-body {
+        padding: 1rem;
+    }
+
+    @media (min-width: 768px) {
+        .fs-step-type-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    @media (max-width: 767px) {
+        .fs-modal {
+            padding: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .fs-form-scroll {
+            max-height: calc(100vh - 360px);
+        }
+    }
+
     /* Step modals: keep header fields outside scroll so native select lists are not clipped */
-    .formula-step-modal.modal {
+    .formula-step-modal.modal,
+    .formula-step-modal.fs-modal {
         overflow-y: auto;
     }
 

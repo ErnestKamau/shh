@@ -9,13 +9,13 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\Sampleworkflow\AnalysisAcceptanceFormLine;
 use App\Models\SubmissionFormInstance;
-use App\SampleAnalysisStage;
 use App\SampleDate;
 use App\SampleDetails;
 use App\SampleHeader;
-use App\Services\Sampleworkflow\AcceptanceFormBatchCodeService;
+use App\Services\Billing\InvoiceNumberGenerator;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
+use App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService;
 use App\Services\Sampleworkflow\SampleAnalysisSetupService;
 use App\TaxRegime;
 use Illuminate\Bus\Queueable;
@@ -26,7 +26,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 {
@@ -40,10 +39,11 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
     ) {}
 
     public function handle(
-        AcceptanceFormBatchCodeService $batchCodeService,
+        AcceptanceFormSampleHeaderService $sampleHeaderService,
         SampleAnalysisSetupService $analysisSetupService,
         AcceptanceFormPricingService $pricingService,
-        AcceptanceFormSampleConfigService $sampleConfigService
+        AcceptanceFormSampleConfigService $sampleConfigService,
+        InvoiceNumberGenerator $invoiceNumberGenerator
     ): void {
         $form = AnalysisAcceptanceForm::query()
             ->with(['lines', 'submissionFormInstance.batches'])
@@ -54,7 +54,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         try {
-            DB::transaction(function () use ($form, $batchCodeService, $analysisSetupService, $pricingService, $sampleConfigService) {
+            DB::transaction(function () use ($form, $sampleHeaderService, $analysisSetupService, $pricingService, $sampleConfigService, $invoiceNumberGenerator) {
                 $approvedLines = $form->lines->where('is_approved', true)->values();
                 if ($approvedLines->isEmpty()) {
                     throw new \RuntimeException('No approved analysis lines on acceptance form.');
@@ -65,15 +65,6 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     ? SubmissionFormInstance::query()->with('batches')->find($form->submission_form_instance_id)
                     : null;
 
-                $batchCode = $instance
-                    ? $batchCodeService->resolveBatchCode($instance)
-                    : ('ACC' . date('y') . '-' . strtoupper(Str::random(6)));
-
-                $reviewStage = SampleAnalysisStage::query()
-                    ->where('sample_workflow', 'Samples Request Review')
-                    ->orderBy('level')
-                    ->first();
-
                 [$crmUnitId, $crmUnitName] = $this->resolveCrmUnit($instance, (string) ($form->crm_customer_id ?? ''));
 
                 $configPayload = is_array($form->sample_configuration_payload)
@@ -82,25 +73,17 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
                 $primaryZoneId = $this->resolvePrimaryZoneIdFromConfig($configPayload);
 
-                $header = SampleHeader::query()->create([
-                    'batch_code' => $batchCode,
-                    'status' => 'Samples Request Review',
-                    'crm_customer_id' => $form->crm_customer_id,
-                    'crm_unit_id' => $crmUnitId,
-                    'crm_unit_name' => $crmUnitName,
-                    'sample_type_id' => $primarySampleTypeId !== '' ? $primarySampleTypeId : null,
-                    'zone_id' => $primaryZoneId,
-                    'processing_zone_id' => $primaryZoneId,
-                    'receipt_date' => now()->format('Y-m-d'),
-                    'date_collected' => $form->date_of_sampling?->format('Y-m-d') ?? now()->format('Y-m-d'),
-                    'priority' => $form->mode_of_work,
-                    'is_routine' => false,
-                    'routine_frequency' => 0,
-                    'is_client_order' => 1,
-                    'submission_form_instance_id' => $form->submission_form_instance_id,
-                    'sample_tracking_stage' => $reviewStage?->id,
-                    'reference_number' => $batchCode,
-                ]);
+                $headerAttributes = $sampleHeaderService->buildCreateAttributes(
+                    $form,
+                    $primarySampleTypeId,
+                    $primaryZoneId,
+                    $crmUnitId,
+                    $crmUnitName,
+                    $form->created_by ? (string) $form->created_by : null,
+                );
+
+                $batchCode = (string) $headerAttributes['batch_code'];
+                $header = SampleHeader::query()->create($headerAttributes);
 
                 $detailPlans = $configPayload !== []
                     ? $sampleConfigService->buildDetailPlansFromConfigs($configPayload)
@@ -125,7 +108,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $targetDate->date = now()->addDays(7)->format('Y-m-d');
                 $targetDate->save();
 
-                $invoice = $this->createInvoiceFromForm($form, $header, $details, $pricingService);
+                $invoice = $this->createInvoiceFromForm($form, $header, $details, $pricingService, $invoiceNumberGenerator);
 
                 $form->update([
                     'sample_header_id' => $header->id,
@@ -313,7 +296,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         AnalysisAcceptanceForm $form,
         SampleHeader $header,
         array $details,
-        AcceptanceFormPricingService $pricingService
+        AcceptanceFormPricingService $pricingService,
+        InvoiceNumberGenerator $invoiceNumberGenerator
     ): ?Invoice {
         $customer = CRMCustomer::query()->find($form->crm_customer_id);
         if (!$customer) {
@@ -336,8 +320,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             ? now()->addDays($creditDays)->format('Y-m-d')
             : now()->addDays(30)->format('Y-m-d');
 
-        $idStr = strval($invoice->id);
-        $invoice->invoice_number = 'INV-' . str_pad($idStr, 4, '0', STR_PAD_LEFT);
+        $invoice->invoice_number = $invoiceNumberGenerator->next();
         $invoice->save();
 
         if ($details === []) {

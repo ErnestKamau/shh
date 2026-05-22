@@ -3,6 +3,7 @@
 namespace App\Livewire\AuditModule;
 
 use App\Models\AuditModule\Audit;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -766,29 +767,34 @@ class AuditsTable extends Component
         }
 
         // Eager load all necessary relationships for comprehensive audit details
-        $query->with([
+        $eagerLoad = [
             'auditType',
             'leadAuditor',
             'findings.findingCategory',
             'findings.nonConformance',
             'checklists.items',
-            'nonConformances' => function($q) {
+            'nonConformances' => function ($q) {
                 $q->with([
                     'rootCauseAnalysis',
-                    'correctiveActions' => function($cq) {
+                    'correctiveActions' => function ($cq) {
                         $cq->with([
                             'latestVerification',
                             'actionOwnerUser',
-                            'status'
+                            'status',
                         ]);
                     },
                     'status',
-                    'riskLevel'
+                    'riskLevel',
                 ]);
             },
-            'checklistItemResponses',
-            'attachments'
-        ]);
+            'attachments',
+        ];
+
+        if (Schema::hasTable('audit_checklist_item_responses')) {
+            $eagerLoad[] = 'checklistItemResponses';
+        }
+
+        $query->with($eagerLoad);
         
         $audits = $query->orderBy($this->sortField, $this->sortDirection)->paginate($this->perPage);
         

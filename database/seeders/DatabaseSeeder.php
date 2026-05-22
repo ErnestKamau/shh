@@ -11,6 +11,7 @@ use Database\Seeders\Setup\Languages\CRMLanguageSeeder;
 use Database\Seeders\Setup\Languages\EquipmentLanguageSeeder;
 use Database\Seeders\Setup\Languages\PersonnelLanguageSeeder;
 use Database\Seeders\Setup\Languages\SystemTranslationsSeeder;
+use Database\Seeders\Setup\AuditModulePermissionsSeeder;
 use Database\Seeders\Setup\LabModulePermissionsSeeder;
 use Database\Seeders\Setup\SystemConfigPermissionsSeeder;
 use Database\Seeders\Setup\SystemSetupSeeder;
@@ -31,6 +32,7 @@ class DatabaseSeeder extends Seeder
             PersonnelPermissionsSeeder::class,
             CRMPermissionsSeeder::class,
             LabModulePermissionsSeeder::class,
+            AuditModulePermissionsSeeder::class,
             EquipmentPermissionsSeeder::class,
             ReportingUnitsSeeder::class,
             SystemConfigPermissionsSeeder::class,

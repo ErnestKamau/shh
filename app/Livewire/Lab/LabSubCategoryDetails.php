@@ -298,16 +298,7 @@ class LabSubCategoryDetails extends Component
                 return;
             }
 
-            $inventoryCategory = InventoryCategories::query()
-                ->where('name', 'Laboratory Reagents')
-                ->first()
-                ?? InventoryCategories::query()->orderBy('name')->first();
-
-            if (! $inventoryCategory) {
-                $this->addError('newReagentForm.name', 'No inventory category found. Create a Laboratory Reagents category first.');
-
-                return;
-            }
+            $inventoryCategory = $this->resolveReagentsInventoryCategory($location);
 
             $code = trim((string) ($this->newReagentForm['code'] ?? ''));
             if ($code === '') {
@@ -547,6 +538,64 @@ class LabSubCategoryDetails extends Component
     public function render()
     {
         return view('livewire.lab.lab-sub-category-details');
+    }
+
+    /**
+     * Find or create the Laboratory Reagents inventory category for the current location.
+     */
+    protected function resolveReagentsInventoryCategory(object $location): InventoryCategories
+    {
+        $locationId = $location->id;
+        $companyId = getUserCompany();
+
+        $category = InventoryCategories::query()
+            ->where('name', 'Laboratory Reagents')
+            ->where(function ($query) use ($locationId) {
+                $query->where('inventory_location_id', $locationId)
+                    ->orWhereNull('inventory_location_id');
+            })
+            ->when($companyId, function ($query) use ($companyId) {
+                $query->where(function ($inner) use ($companyId) {
+                    $inner->where('company_id', $companyId)
+                        ->orWhereNull('company_id');
+                });
+            })
+            ->first();
+
+        if ($category) {
+            if ($category->inventory_location_id === null) {
+                $category->inventory_location_id = $locationId;
+                $category->save();
+            }
+
+            return $category;
+        }
+
+        $category = InventoryCategories::query()
+            ->where('inventory_location_id', $locationId)
+            ->where(function ($query) {
+                $query->where('name', 'ilike', '%reagent%')
+                    ->orWhere('name', 'ilike', '%reagents%');
+            })
+            ->orderBy('name')
+            ->first();
+
+        if ($category) {
+            return $category;
+        }
+
+        $category = new InventoryCategories();
+        $category->name = 'Laboratory Reagents';
+        $category->description = 'Holds all the reagents required for sample analysis';
+        $category->company_id = $companyId;
+        $category->inventory_location_id = $locationId;
+        $category->category_type = 'normal';
+        $category->is_lab = false;
+        $category->active = true;
+        $category->image = 'no-logo.png';
+        $category->save();
+
+        return $category;
     }
 
     protected function syncSelectSearchLabels(): void

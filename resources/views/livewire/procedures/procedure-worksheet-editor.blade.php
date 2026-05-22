@@ -1032,6 +1032,7 @@
                                                 type="button"
                                                 class="search-dropdown-item d-flex align-items-center justify-content-between"
                                                 wire:click.stop="toggleMeasurand(@js($m->id))"
+                                                @click="open = false"
                                             >
                                                 <span>{{ $m->name }}</span>
                                                 @if(in_array($m->id, $default_measurand_ids))
@@ -1229,6 +1230,7 @@
                                                         type="button"
                                                         class="search-dropdown-item d-flex align-items-center justify-content-between {{ in_array((string) $eq->id, array_map('strval', $logbook_equipment_ids), true) ? 'is-selected' : '' }}"
                                                         wire:click.stop="toggleLogbookEquipment(@js($eq->id))"
+                                                        @click="open = false"
                                                     >
                                                         <span class="d-flex align-items-center">
                                                             <i class="mdi mdi-cog-outline text-muted mr-2"></i>

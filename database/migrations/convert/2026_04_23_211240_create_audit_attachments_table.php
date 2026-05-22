@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('audit_attachments', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('attachable_type');
-            $table->unsignedBigInteger('attachable_id');
+            $table->uuid('attachable_id');
             $table->string('file_name');
             $table->string('file_path');
             $table->string('file_type')->nullable();
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->uuid('attachment_type_id')->nullable()->index('idx_audit_attachments_attachment_type_id_90390576');
             $table->string('attachment_type_name')->nullable();
             $table->text('description')->nullable();
-            $table->unsignedBigInteger('uploaded_by');
+            $table->uuid('uploaded_by')->nullable();
             $table->uuid('company_id')->nullable()->index('idx_audit_attachments_company_id_43ec311c');
             $table->timestamps();
             $table->softDeletes();

@@ -788,7 +788,7 @@ class SalesOrderWizard extends Component
 
             // Redirect to invoice view
             session()->flash('success', 'Sales Order ' . $invoice->invoice_number . ' generated successfully!');
-            return redirect()->route('invoice-sample-header', ['id' => $invoice->id]);
+            return redirect()->route('billing.invoices.show', ['id' => $invoice->id]);
 
         } catch (\Exception $e) {
             DB::rollBack();

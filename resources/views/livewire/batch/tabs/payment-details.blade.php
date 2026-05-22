@@ -44,7 +44,7 @@
                                 Date: {{ $batch->invoice->created_at->format('d M Y') }}
                             </p>
                         </div>
-                        <a href="{{ route('invoice-sample-header', ['id' => $batch->invoice_id]) }}" class="btn btn-outline-success btn-sm">
+                        <a href="{{ route('billing.invoices.show', ['id' => $batch->invoice_id]) }}" class="btn btn-outline-success btn-sm">
                             <i class="mdi mdi-eye"></i> View Draft Invoice
                         </a>
                     </div>

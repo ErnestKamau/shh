@@ -4,15 +4,21 @@ namespace App;
 
 use OwenIt\Auditing\Contracts\Auditable;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use App\User;
 use App\SampleAnalysisStage;
 
 class BatchLabSectionApprover extends Model implements Auditable
 {
+    use HasUuids;
     use \OwenIt\Auditing\Auditable;
 
     protected $table = "batch_labsection_approval";
+
+    protected $keyType = 'string';
+
+    public $incrementing = false;
 
     protected $appends = ['approvername','labsectionnames','approvertype', 'approvershortname'];
 
