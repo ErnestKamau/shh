@@ -38,6 +38,7 @@
                 <li class="nav-item"><button class="nav-link {{ $activeTab === 'work_history' ? 'active' : '' }}" wire:click="setActiveTab('work_history')"><i class="mdi mdi-timeline-text-outline mr-1"></i>{{ __('personnel.work_history') }}</button></li>
                 <li class="nav-item"><button class="nav-link {{ $activeTab === 'certifications' ? 'active' : '' }}" wire:click="setActiveTab('certifications')"><i class="mdi mdi-certificate-outline mr-1"></i>{{ __('personnel.certifications') }}</button></li>
                 <li class="nav-item"><button class="nav-link {{ $activeTab === 'capability_matrix' ? 'active' : '' }}" wire:click="setActiveTab('capability_matrix')"><i class="mdi mdi-view-grid-plus-outline mr-1"></i>{{ __('personnel.capability_matrix') }}</button></li>
+                <li class="nav-item"><button class="nav-link {{ $activeTab === 'attachments' ? 'active' : '' }}" wire:click="setActiveTab('attachments')"><i class="mdi mdi-paperclip mr-1"></i>Attachments</button></li>
             </ul>
         </div>
         <div class="tab-content p-3">
@@ -48,6 +49,7 @@
                     'work_history' => __('personnel.work_history'),
                     'certifications' => __('personnel.certifications'),
                     'capability_matrix' => __('personnel.capability_matrix'),
+                    'attachments' => 'Attachments',
                 ];
                 $activeTabTitle = $tabTitleMap[$activeTab] ?? __('personnel.user_details');
             @endphp
@@ -700,6 +702,10 @@
                         </table>
                     </div>
                 @endif
+            @endif
+
+            @if($activeTab === 'attachments')
+                @livewire('personnel.tabs.personnel-attachments-tab', ['user' => $this->user], key('personnel-attachments-'.$this->user->id))
             @endif
         </div>
     </div>

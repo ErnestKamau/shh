@@ -59,6 +59,7 @@ class CustomerFeedback extends Model implements Auditable
         'delivery_status', // Added for tracking email delivery
         'last_reminded_at',
         'submitted_at',
+        'feedback',
     ];
 
     const STATUS_SUBMITTED = 0;

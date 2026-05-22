@@ -39,15 +39,7 @@ class SendFeedbackCampaign extends BaseCrmComponent
 
     public function mount()
     {
-        $this->loadCustomers();
-    }
-
-    public function loadCustomers()
-    {
-        $this->customers = CRMCustomer::where('company_id', $this->getUserCompany())
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        // No need to load all customers into state
     }
 
     #[On('open-send-campaign-modal')]
@@ -61,34 +53,29 @@ class SendFeedbackCampaign extends BaseCrmComponent
 
     public function getSelectedCustomersListProperty()
     {
-        $selectedIds = collect($this->selectedCustomers)->map(fn($id) => (int) $id)->all();
-        if (empty($selectedIds)) {
+        if (empty($this->selectedCustomers)) {
             return collect();
         }
 
-        return collect($this->customers)->filter(function ($customer) use ($selectedIds) {
-            return in_array((int) $customer->id, $selectedIds, true);
-        })->values();
+        return CRMCustomer::whereIn('id', $this->selectedCustomers)->orderBy('name')->get();
     }
 
     public function getFilteredCustomerOptionsProperty()
     {
         $search = strtolower(trim($this->customerSearch));
-        $selectedIds = collect($this->selectedCustomers)->map(fn($id) => (int) $id)->all();
+        $selectedIds = $this->selectedCustomers;
 
-        return collect($this->customers)
-            ->filter(function ($customer) use ($search, $selectedIds) {
-                if (in_array((int) $customer->id, $selectedIds, true)) {
-                    return false;
-                }
+        $query = CRMCustomer::where('active', 1);
 
-                if ($search === '') {
-                    return true;
-                }
+        if (!empty($selectedIds)) {
+            $query->whereNotIn('id', $selectedIds);
+        }
 
-                return str_contains(strtolower($customer->name), $search);
-            })
-            ->values();
+        if ($search !== '') {
+            $query->where('name', 'like', '%' . $search . '%');
+        }
+
+        return $query->orderBy('name')->take(50)->get();
     }
 
     public function toggleCustomer($customerId)
@@ -177,6 +164,7 @@ class SendFeedbackCampaign extends BaseCrmComponent
                         'received_from'   => $freshContact->customer->name ?? 'Unknown Customer',
                         'registered_by'   => auth()->user() ? auth()->user()->name : 'System',
                         'date'            => now(), 
+                        'feedback'        => 'Pending Feedback Campaign',
                     ]);
 
                      if (strlen($feedback->id) < 4) {
@@ -237,7 +225,6 @@ class SendFeedbackCampaign extends BaseCrmComponent
         }
 
         $this->recipients = CustomerContact::whereIn('crm_customer_id', $this->selectedCustomers)
-            ->where('receive_feedback', 1)
             ->where('active', 1)
             ->with('customer') 
             ->get();
