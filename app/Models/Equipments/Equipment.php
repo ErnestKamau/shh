@@ -428,4 +428,12 @@ class Equipment extends Model implements Auditable
 		}
 		return '—';
 	}
+
+	/**
+	 * Get replacement plan items for this equipment.
+	 */
+	public function replacementPlanItems()
+	{
+		return $this->hasMany(EquipmentReplacementPlanItem::class, 'equipment_id');
+	}
 }

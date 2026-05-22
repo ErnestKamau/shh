@@ -83,7 +83,10 @@ class ReceiveSampleRequest extends Component
             return;
         }
 
-        $this->validate($this->rulesForApproval($approval), $this->messagesForApproval($approval));
+        $rules = $this->rulesForApproval($approval);
+        if (!empty($rules)) {
+            $this->validate($rules, $this->messagesForApproval($approval));
+        }
 
         $user = Auth::user();
         if (!$user instanceof User) {

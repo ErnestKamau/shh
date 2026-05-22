@@ -185,6 +185,9 @@
                   <div class="element-type" data-type="depended_field">
                     <i class="mdi mdi-link-variant"></i> Depended Field
                   </div>
+                  <div class="element-type" data-type="pricelist_viewer">
+                    <i class="mdi mdi-cash-multiple"></i> Pricelist Viewer
+                  </div>
                 </div>
               </div>
             </div>
@@ -399,6 +402,7 @@
                     <option value="user_select">User Select</option>
                     <option value="user_signature">User Signature</option>
                     <option value="depended_field">Depended Field</option>
+                    <option value="pricelist_viewer">Pricelist Viewer</option>
                   </select>
                 </div>
               </div>

@@ -13,6 +13,7 @@ use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
 use App\Models\Billing\Pricelist;
 use App\SampleAnalysisStage;
 use App\SampleHeader;
+use App\Services\Sampleworkflow\AcceptanceFormPdfService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -157,6 +158,8 @@ class AcceptanceFormService
             $this->transitionBatchToSamplesInLab($form, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds);
 
             $completed = $form->fresh(['lines', 'sampleHeader']);
+
+            \App\Jobs\Sampleworkflow\GenerateAcceptanceFormPdfJob::dispatch((string) $completed->id);
 
             if ($completed->raises_sample_disclaimer && $completed->sampleHeader) {
                 $disclaimerService = app(SampleReceivingDisclaimerService::class);

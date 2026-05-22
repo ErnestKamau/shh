@@ -89,6 +89,10 @@
                                     data-title="View Attachment" class="btn-sm btn btn-outline-dark">
                                     <i class="mdi mdi-eye"></i>
                                 </a>
+                                <a href="{{ route('download-batch-attachment', $a->id) }}" data-toggle="tooltip"
+                                    data-title="Download Attachment" class="btn-sm btn btn-outline-primary ml-1">
+                                    <i class="mdi mdi-download"></i>
+                                </a>
                                 @if(strtolower($a->file_type) == 'pdf')
                                 <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
                                     class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Comment on PDF">

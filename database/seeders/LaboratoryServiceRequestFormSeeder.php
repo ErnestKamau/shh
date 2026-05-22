@@ -122,8 +122,8 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         // Section 1: Head
         $this->command->info('Creating Head section...');
         $headSection = $form->sections()->create([
-            'title' => 'Head',
-            'description' => 'General request header information.',
+            'title' => 'General Information',
+            'description' => 'General request information.',
             'section_type' => 'regular',
             'sort_order' => 1,
         ]);
@@ -179,7 +179,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
 
         $samplesHolder = $samplesSection->elementHolders()->create([
             'holder_type' => 'field',
-            'max_elements' => 8,
+            'max_elements' => 9,
             'sort_order' => 1,
         ]);
 
@@ -266,6 +266,14 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'sort_order' => 8,
         ]);
 
+        $samplesHolder->elements()->create([
+            'element_type' => 'pricelist_viewer',
+            'label' => 'Pricelist',
+            'name' => 'pricelist',
+            'is_required' => false,
+            'sort_order' => 9,
+        ]);
+
         // Section 3: Additional Details
         $this->command->info('Creating Additional Details section...');
         $additionalSection = $form->sections()->create([
@@ -340,6 +348,10 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'element_type' => 'checkbox',
             'label' => 'Mode of payment',
             'name' => 'mode_of_payment',
+            'options' => [
+                ['value' => 'pre_paid', 'label' => 'Pre-Paid'],
+                ['value' => 'post_paid', 'label' => 'Post-Paid']
+            ],
             'is_required' => false,
             'sort_order' => 6,
         ]);
@@ -356,6 +368,11 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'element_type' => 'checkbox',
             'label' => 'Mode of Service',
             'name' => 'mode_of_service',
+            'options' => [
+                ['value' => 'express', 'label' => 'Express'],
+                ['value' => 'normal', 'label' => 'Normal'],
+                ['value' => 'confidential', 'label' => 'Confidential']
+            ],
             'is_required' => false,
             'sort_order' => 8,
         ]);

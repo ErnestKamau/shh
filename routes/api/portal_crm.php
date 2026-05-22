@@ -40,5 +40,8 @@ Route::prefix('v1/portal')
                 ->name('api.portal.invoices.index');
             Route::get('invoices/{invoice_id}', [InvoiceController::class, 'show'])
                 ->name('api.portal.invoices.show');
+
+            Route::get('pricelist', [\App\Http\Controllers\Api\PricelistController::class, 'showForCustomer'])
+                ->name('api.portal.pricelist.show');
         });
     });

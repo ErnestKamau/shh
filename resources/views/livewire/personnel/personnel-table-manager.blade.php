@@ -509,12 +509,21 @@
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
-                                                <div class="form-group mb-0 ptm-check-group">
-                                                    <label class="control-label d-block">{{ __('personnel.active') }}</label>
-                                                    <label class="ptm-check-card mb-0">
-                                                        <input type="checkbox" wire:model="personnelForm.active" />
-                                                        <span>{{ __('personnel.active') }}</span>
-                                                    </label>
+                                                <div class="d-flex" style="gap: 15px;">
+                                                    <div class="form-group mb-0 ptm-check-group flex-fill">
+                                                        <label class="control-label d-block">{{ __('personnel.active') }}</label>
+                                                        <label class="ptm-check-card mb-0">
+                                                            <input type="checkbox" wire:model="personnelForm.active" />
+                                                            <span>{{ __('personnel.active') }}</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-group mb-0 ptm-check-group flex-fill">
+                                                        <label class="control-label d-block">Technical User</label>
+                                                        <label class="ptm-check-card mb-0">
+                                                            <input type="checkbox" wire:model="personnelForm.is_technical" />
+                                                            <span>Technical</span>
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
