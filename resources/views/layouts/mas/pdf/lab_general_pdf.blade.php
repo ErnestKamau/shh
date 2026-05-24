@@ -112,16 +112,53 @@
         <div class="header-box">
             <table class="layout-grid">
                 <tr>
-                    <td style="width: 50%; vertical-align: middle;">
-                        <img src="{{ public_path('assets/branding/logo.jpeg') }}" style="height: 55px; width: auto;">
-                    </td>
-                    <td style="width: 50%; text-align: right; vertical-align: middle;">
-                        <div class="brand-title">{{ __('mas/dashboard.lab_analytics') }}</div>
-                        <div class="report-meta">
-                            {{ __('mas/report.generated') }}: <span class="meta-value">{{ date('F d, Y H:i') }}</span><br>
-                            Ref: <span class="meta-value">#{{ date('Ymd') }}-GEN</span> | 
-                            {{ __('mas/report.classification') }}: <span class="meta-value">{{ __('mas/dashboard.operational') }}</span>
+                    {{-- Left Cell: Filter Metadata --}}
+                    <td style="width: 40%; vertical-align: middle; text-align: left;">
+                        @if(isset($selectedFilters))
+                        <div style="font-size: 10px; color: #475569; line-height: 1.45;">
+                            <div>
+                                <span style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; display: inline-block; width: 65px;">Range:</span>
+                                <strong style="color: #1e293b;">{{ $selectedFilters['start_date'] }} - {{ $selectedFilters['end_date'] }}</strong>
+                            </div>
                         </div>
+                        @endif
+                    </td>
+
+                    {{-- Center Cell: Company Logo --}}
+                    <td style="width: 20%; text-align: center; vertical-align: middle;">
+                        @php
+                            $logoSrc = null;
+                            if (isset($company) && !empty($company->logo)) {
+                                $logoRaw = $company->logo;
+                                if (str_starts_with($logoRaw, 'http')) {
+                                    $logoSrc = $logoRaw;
+                                } else {
+                                    $localPath = public_path(ltrim($logoRaw, '/'));
+                                    if (file_exists($localPath)) {
+                                        $logoSrc = $localPath;
+                                    }
+                                }
+                            }
+                            if (!$logoSrc) {
+                                $defaultBranding = public_path('assets/branding/logo.jpeg');
+                                if (file_exists($defaultBranding)) {
+                                    $logoSrc = $defaultBranding;
+                                }
+                            }
+                        @endphp
+                        @if($logoSrc)
+                            <img src="{{ $logoSrc }}" style="height: 55px; max-width: 140px; object-fit: contain;">
+                        @else
+                            <div style="font-size: 16px; font-weight: bold; color: #1e40af;">{{ $company->name ?? 'GCLA' }}</div>
+                        @endif
+                    </td>
+
+                    {{-- Right Cell: Title & Date --}}
+                    <td style="width: 40%; text-align: right; vertical-align: middle;">
+                        <div style="font-size: 22px; font-weight: 900; color: #1e40af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;">LAB ANALYTICS</div>
+                        <div style="font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">GENERAL ANALYTICS REPORT</div>
+                        <div style="font-size: 9px; color: #94a3b8;">{{ __('mas/report.generated') }}: {{ date('d M Y, H:i') }}</div>
+                        <div style="font-size: 9px; color: #3b82f6; font-weight: 700; margin-top: 5px;">REF #{{ date('Ymd') }}-GEN | CONFIDENTIAL OPERATIONAL DATA</div>
                     </td>
                 </tr>
             </table>
@@ -169,23 +206,32 @@
                     <tr>
                         <th>{{ __('mas/lab.workflow_stage') }}</th>
                         <th style="text-align: center;">{{ __('mas/lab.batch_count') }}</th>
-                        <th style="text-align: center;">{{ __('mas/lab.overdue') }}</th>
+                        <th style="text-align: center;">Completed</th>
+                        <th style="text-align: center;">Due Today</th>
+                        <th style="text-align: center;">Status</th>
                         <th style="text-align: right;">{{ __('mas/lab.avg_days_tat') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($stats['stage_summary'] as $stage)
+                    @php
+                        $total = (int) ($stage['total_batches'] ?? 0);
+                        $completed = (int) ($stage['completed_batches'] ?? max($total - (int) ($stage['overdue_batches'] ?? 0), 0));
+                        $completionRate = (int) ($stage['completion_rate'] ?? ($total > 0 ? round(($completed / $total) * 100) : 0));
+                    @endphp
                     <tr>
                         <td style="font-weight: bold;">{{ $stage['workflow_stage'] }}</td>
                         <td style="text-align: center;">
-                            <span class="badge stage-badge">{{ $stage['total_batches'] }}</span>
+                            <span class="badge stage-badge">{{ number_format($total) }}</span>
                         </td>
                         <td style="text-align: center;">
-                            @if($stage['overdue_batches'] > 0)
-                                <span class="badge badge-danger">{{ $stage['overdue_batches'] }} {{ __('mas/lab.overdue') }}</span>
-                            @else
-                                <span class="badge badge-success">{{ __('mas/common.stable') }}</span>
-                            @endif
+                            <span class="badge badge-success">{{ number_format($completed) }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            {{ number_format($stage['due_today_batches'] ?? 0) }}
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-success">{{ number_format($completed) }}/{{ number_format($total) }} ({{ $completionRate }}%)</span>
                         </td>
                         <td style="text-align: right; color: #64748b; font-weight: bold;">{{ $stage['avg_days_to_target'] ?? '—' }} <span style="font-size: 8px;">Days</span></td>
                     </tr>

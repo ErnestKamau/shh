@@ -12,7 +12,7 @@
                 <table class="pivot-table">
                     <thead>
                         <tr>
-                            <th>Batch Code</th>
+                            <th>Lab No</th>
                             <th>Stage</th>
                             <th class="text-center">Days Overdue</th>
                             <th class="text-center">Target Date</th>

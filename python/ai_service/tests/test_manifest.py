@@ -146,6 +146,31 @@ class TestManifestRouterCoverage:
             f"ManifestIntentRouter references intents not in manifest: {missing}"
         )
 
+    def test_show_samples_by_status_does_not_include_sample_type_distribution(self):
+        """Status requests should not also trigger the sample type report."""
+        from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+        router = ManifestIntentRouter()
+
+        intents = [intent for intent, _, _ in router.match_all("show samples by status")]
+
+        assert intents == ["samples_by_status"]
+
+    def test_how_many_analysts_routes_to_active_analyst_count(self):
+        from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+        router = ManifestIntentRouter()
+
+        intents = [intent for intent, _, _ in router.match_all("how many analysts are in system")]
+
+        assert "analyst_count_active" in intents
+
+    def test_entire_system_samples_routes_to_absolute_all_time_count(self):
+        from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+        router = ManifestIntentRouter()
+
+        intents = [intent for intent, _, _ in router.match_all("how many samples in entire system")]
+
+        assert intents == ["sample_count_absolute_all_time"]
+
     def _load_manifest(self, manifest_path):
         with open(manifest_path, "r") as f:
             return json.load(f)

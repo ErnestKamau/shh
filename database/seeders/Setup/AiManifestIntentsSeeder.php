@@ -36,6 +36,15 @@ class AiManifestIntentsSeeder extends Seeder
                 'ttl_seconds' => 10,
             ],
             [
+                'id' => 'sample_count_absolute_all_time',
+                'domain' => 'samples',
+                'group_type' => 'A',
+                'sql_query' => 'SELECT COUNT(*) as n FROM public.sample_headers',
+                'description' => 'Absolute total sample batches ever created since system launch, including deleted, archived, and cancelled records',
+                'output_format' => 'count',
+                'ttl_seconds' => 10,
+            ],
+            [
                 'id' => 'individual_sample_count',
                 'domain' => 'samples',
                 'group_type' => 'A',
@@ -174,8 +183,8 @@ class AiManifestIntentsSeeder extends Seeder
                 'id' => 'sample_type_distribution',
                 'domain' => 'samples',
                 'group_type' => 'A',
-                'sql_query' => 'SELECT sample_type_id::text as sample_type, COUNT(*) as count FROM public.sample_headers WHERE isactive = true GROUP BY sample_type_id ORDER BY count DESC',
-                'description' => 'Sample volume by sample type id',
+                'sql_query' => 'SELECT COALESCE(st.name, \'Unspecified\') as sample_type, COUNT(*) as count FROM public.sample_headers sh LEFT JOIN public.sample_types st ON sh.sample_type_id = st.id WHERE sh.isactive = true GROUP BY COALESCE(st.name, \'Unspecified\') ORDER BY count DESC',
+                'description' => 'Sample volume by sample type name',
                 'output_format' => 'table',
                 'ttl_seconds' => 120,
             ],
@@ -372,8 +381,8 @@ class AiManifestIntentsSeeder extends Seeder
                 'id' => 'tat_overall_average',
                 'domain' => 'tat',
                 'group_type' => 'A',
-                'sql_query' => 'SELECT ROUND(AVG(tat_overdue_days * 24.0), 1) as avg_tat_hours FROM public.tat_captured WHERE created_at >= (NOW() - INTERVAL \'30 days\') AND is_complete = true',
-                'description' => 'Average overdue TAT hours for completed records in the last 30 days',
+                'sql_query' => 'SELECT ROUND(AVG(ABS(tat_overdue_days) * 24.0), 1) as avg_tat_hours FROM public.tat_captured WHERE created_at >= (NOW() - INTERVAL \'30 days\') AND is_complete = true',
+                'description' => 'Average TAT offset magnitude in hours for completed records in the last 30 days (ABS used because column is signed: negative = early, positive = late)',
                 'output_format' => 'count',
                 'ttl_seconds' => 300,
             ],
@@ -390,8 +399,8 @@ class AiManifestIntentsSeeder extends Seeder
                 'id' => 'tat_by_analyte',
                 'domain' => 'tat',
                 'group_type' => 'A',
-                'sql_query' => 'SELECT analyte_id::text as analyte, ROUND(AVG(tat_overdue_days * 24.0), 1) as avg_hours, COUNT(*) as test_count FROM public.tat_captured WHERE created_at >= (NOW() - INTERVAL \'30 days\') GROUP BY analyte_id ORDER BY avg_hours DESC LIMIT 10',
-                'description' => 'Average TAT overdue hours by analyte id',
+                'sql_query' => 'SELECT analyte_id::text as analyte, ROUND(AVG(ABS(tat_overdue_days) * 24.0), 1) as avg_hours, COUNT(*) as test_count FROM public.tat_captured WHERE created_at >= (NOW() - INTERVAL \'30 days\') GROUP BY analyte_id ORDER BY avg_hours DESC LIMIT 10',
+                'description' => 'Average TAT offset magnitude in hours by analyte id (sorted by highest deviation regardless of direction)',
                 'output_format' => 'table',
                 'ttl_seconds' => 300,
             ],
@@ -466,6 +475,15 @@ class AiManifestIntentsSeeder extends Seeder
                 'description' => 'Complaint resolution SLA compliance',
                 'output_format' => 'percentage',
                 'ttl_seconds' => 300,
+            ],
+            [
+                'id' => 'analyst_count_active',
+                'domain' => 'personnel',
+                'group_type' => 'A',
+                'sql_query' => 'SELECT COUNT(*) as n FROM public.users WHERE active = 1 AND COALESCE(is_client, false) = false AND COALESCE(is_support_staff, false) = false AND COALESCE(is_tablet, false) = false AND (lab_id IS NOT NULL OR lab_section_id IS NOT NULL OR COALESCE(analyst_is_gazzetted, false) = true OR LOWER(COALESCE(designation, \'\')) LIKE \'%analyst%\')',
+                'description' => 'Active analyst users in the system',
+                'output_format' => 'count',
+                'ttl_seconds' => 120,
             ],
             [
                 'id' => 'analyst_verifications',
@@ -822,6 +840,62 @@ class AiManifestIntentsSeeder extends Seeder
                 'pattern' => 'all samples',
             ],
             [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'total samples since start of system',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'total samples since start',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'how many samples since start of system',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'how many samples since start',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'sample count since start of system',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'samples since start of system',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'samples since start',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'all time samples',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'absolute samples count',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'how many samples in entire system',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'samples in entire system',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'entire system samples',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'sample count entire system',
+            ],
+            [
+                'intent_id' => 'sample_count_absolute_all_time',
+                'pattern' => 'total samples in entire system',
+            ],
+            [
                 'intent_id' => 'individual_sample_count',
                 'pattern' => 'individual sample count',
             ],
@@ -931,11 +1005,11 @@ class AiManifestIntentsSeeder extends Seeder
             ],
             [
                 'intent_id' => 'sample_type_distribution',
-                'pattern' => 'list samples',
+                'pattern' => 'list sample types',
             ],
             [
                 'intent_id' => 'sample_type_distribution',
-                'pattern' => 'show samples',
+                'pattern' => 'show sample types',
             ],
             [
                 'intent_id' => 'inventory_low_stock',
@@ -1564,6 +1638,34 @@ class AiManifestIntentsSeeder extends Seeder
             [
                 'intent_id' => 'tickets_by_department',
                 'pattern' => 'which department',
+            ],
+            [
+                'intent_id' => 'analyst_count_active',
+                'pattern' => 'how many analysts',
+            ],
+            [
+                'intent_id' => 'analyst_count_active',
+                'pattern' => 'analyst count',
+            ],
+            [
+                'intent_id' => 'analyst_count_active',
+                'pattern' => 'total analysts',
+            ],
+            [
+                'intent_id' => 'analyst_count_active',
+                'pattern' => 'number of analysts',
+            ],
+            [
+                'intent_id' => 'analyst_count_active',
+                'pattern' => 'active analysts',
+            ],
+            [
+                'intent_id' => 'analyst_count_active',
+                'pattern' => 'analysts in system',
+            ],
+            [
+                'intent_id' => 'analyst_count_active',
+                'pattern' => 'analysts are in system',
             ],
             [
                 'intent_id' => 'analyst_verifications',

@@ -3,6 +3,7 @@
 namespace App\Services\Dashboards;
 
 use App\Services\Dashboards\Concerns\DashboardHelpers;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
@@ -22,12 +23,14 @@ class LabTatDashboardService
         int $perPage = 10,
         string $period = 'active',
         int $gridPage = 1,
-        int $perGridPage = 20
+        int $perGridPage = 20,
+        int $pivotPage = 1,
+        int $perPivotPage = 10
     ): array {
         $filters = $this->normalizeFilters($filters);
-        $cacheKey = $this->tatAnalysisPayloadCacheKey($filters, $tab, $page, $perPage, $period, $gridPage, $perGridPage);
+        $cacheKey = $this->tatAnalysisPayloadCacheKey($filters, $tab, $page, $perPage, $period, $gridPage, $perGridPage, $pivotPage, $perPivotPage);
 
-        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($filters, $tab, $page, $perPage, $period, $gridPage, $perGridPage) {
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($filters, $tab, $page, $perPage, $period, $gridPage, $perGridPage, $pivotPage, $perPivotPage) {
             try {
                 $board = $this->getLabTatBoard($period);
                 $grid = $this->getSmartActionGridData($tab, $gridPage, $perGridPage);
@@ -37,8 +40,9 @@ class LabTatDashboardService
                 $board['smart_grid'] = $grid;
                 $board['detailed_logs'] = $detailed;
                 $board['testing_metrics'] = $this->getTestingDepartmentMetrics($filters, $period);
-                $board['pivot'] = $this->getParametersTestedPivot($filters, $period);
+                $board['pivot'] = $this->getParametersTestedPivot($filters, $period, $pivotPage, $perPivotPage);
                 $board['analyst_performance'] = $this->getAnalystPerformanceStats($period);
+                $board['charts'] = array_merge($board['charts'] ?? [], $this->getAnalyteThroughputChart($filters, $period));
 
                 return $board;
             } catch (Throwable $e) {
@@ -61,14 +65,20 @@ class LabTatDashboardService
             $agingBuckets = $connection->table("v_lab_tat_aging_buckets")->get();
             $overdueBatches = $connection->table("v_lab_tat_overdue_batches")
                 ->orderByDesc('days_overdue')
-                ->limit(12)
+                ->limit(10)
                 ->get();
 
             $normalizedStageSummary = $stageSummary->map(function ($row) {
+                $totalBatches = (int) $row->total_batches;
+                $overdueBatches = (int) $row->overdue_batches;
+                $completedBatches = (int) ($row->completed_batches ?? max($totalBatches - $overdueBatches, 0));
+
                 return [
                     'workflow_stage' => $row->workflow_stage,
-                    'total_batches' => (int) $row->total_batches,
-                    'overdue_batches' => (int) $row->overdue_batches,
+                    'total_batches' => $totalBatches,
+                    'completed_batches' => $completedBatches,
+                    'completion_rate' => $this->stageCompletionRate($completedBatches, $totalBatches),
+                    'overdue_batches' => $overdueBatches,
                     'due_today_batches' => (int) $row->due_today_batches,
                     'avg_days_to_target' => $this->toFloat($row->avg_days_to_target),
                     'avg_days_overdue' => $this->toFloat($row->avg_days_overdue),
@@ -79,6 +89,7 @@ class LabTatDashboardService
 
             $summary = [
                 'active_batches' => (int) $normalizedStageSummary->sum('total_batches'),
+                'completed_batches' => (int) $normalizedStageSummary->sum('completed_batches'),
                 'overdue_batches' => (int) $normalizedStageSummary->sum('overdue_batches'),
                 'due_today_batches' => (int) $normalizedStageSummary->sum('due_today_batches'),
                 'workflow_stages' => (int) $normalizedStageSummary->count(),
@@ -127,53 +138,49 @@ class LabTatDashboardService
     public function getLabSectionTatStats(): array
     {
         try {
-            $sections = DB::table('sample_analysis_stages')
-                ->where('active', 1)
-                ->get();
+            $sections = $this->getLabSectionOptions();
 
             $leaderboard = [];
             foreach ($sections as $section) {
                 // Count total completed and overdue
                 $total = DB::table('tat_captured_view')
-                    ->join('results', function ($join) {
-                        $join->on('results.sample_header_id', '=', 'tat_captured_view.sample_header_id')
-                            ->on('results.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
-                            ->on('results.analyte_id', '=', 'tat_captured_view.analyte_id');
-                    })
-                    ->where('results.lab_section_id', $section->id)
+                    ->join('sample_details', 'sample_details.id', '=', 'tat_captured_view.sample_detail_id')
+                    ->join('labs', 'labs.id', '=', 'sample_details.lab_id')
+                    ->where('labs.code', 'like', $section['id'] . '%')
+                    ->where('tat_captured_view.analyst_email', 'like', '%@gcla-labs.com')
                     ->count();
 
                 $overdue = DB::table('tat_captured_view')
-                    ->join('results', function ($join) {
-                        $join->on('results.sample_header_id', '=', 'tat_captured_view.sample_header_id')
-                            ->on('results.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
-                            ->on('results.analyte_id', '=', 'tat_captured_view.analyte_id');
-                    })
-                    ->where('results.lab_section_id', $section->id)
+                    ->join('sample_details', 'sample_details.id', '=', 'tat_captured_view.sample_detail_id')
+                    ->join('labs', 'labs.id', '=', 'sample_details.lab_id')
+                    ->where('labs.code', 'like', $section['id'] . '%')
                     ->where('tat_captured_view.tat_overdue_days', '>', 0)
+                    ->where('tat_captured_view.analyst_email', 'like', '%@gcla-labs.com')
                     ->count();
 
                 $avgTat = DB::table('tat_captured_view')
-                    ->join('results', function ($join) {
-                        $join->on('results.sample_header_id', '=', 'tat_captured_view.sample_header_id')
-                            ->on('results.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
-                            ->on('results.analyte_id', '=', 'tat_captured_view.analyte_id');
-                    })
-                    ->where('results.lab_section_id', $section->id)
-                    ->avg('tat_captured_view.actual_tat_days');
+                    ->join('sample_details', 'sample_details.id', '=', 'tat_captured_view.sample_detail_id')
+                    ->join('labs', 'labs.id', '=', 'sample_details.lab_id')
+                    ->where('labs.code', 'like', $section['id'] . '%')
+                    ->where('tat_captured_view.analyst_email', 'like', '%@gcla-labs.com')
+                    ->avg(DB::raw("EXTRACT(EPOCH FROM (tat_captured_view.finished_date - tat_captured_view.receipt_date)) / 86400.0"));
+
+                $withinTat = max($total - $overdue, 0);
 
                 $leaderboard[] = [
-                    'name' => $section->name,
-                    'code' => substr(strtoupper(str_replace(' ', '', $section->name)), 0, 5) . '-' . substr($section->id, 0, 4),
+                    'name' => $section['name'],
+                    'code' => $section['id'],
                     'total' => $total,
                     'avg_tat' => $avgTat ? round($avgTat, 1) : 0.0,
                     'overdue' => $overdue,
+                    'within_tat' => $withinTat,
+                    'compliance_rate' => $total > 0 ? (int) round(($withinTat / $total) * 100) : 100,
                 ];
             }
 
-            // Generate trends for past 6 months
+            // Generate trends for the same rolling 12-month window used by the report pivot.
             $labels = [];
-            for ($i = 5; $i >= 0; $i--) {
+            for ($i = 11; $i >= 0; $i--) {
                 $labels[] = now()->subMonths($i)->format('M Y');
             }
 
@@ -181,20 +188,18 @@ class LabTatDashboardService
             foreach ($sections as $section) {
                 $data = [];
                 foreach ($labels as $label) {
-                    $count = DB::table('tat_captured_view')
-                        ->join('results', function ($join) {
-                            $join->on('results.sample_header_id', '=', 'tat_captured_view.sample_header_id')
-                                ->on('results.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
-                                ->on('results.analyte_id', '=', 'tat_captured_view.analyte_id');
-                        })
-                        ->where('results.lab_section_id', $section->id)
+                    $avgTat = DB::table('tat_captured_view')
+                        ->join('sample_details', 'sample_details.id', '=', 'tat_captured_view.sample_detail_id')
+                        ->join('labs', 'labs.id', '=', 'sample_details.lab_id')
+                        ->where('labs.code', 'like', $section['id'] . '%')
+                        ->where('tat_captured_view.analyst_email', 'like', '%@gcla-labs.com')
                         ->where(DB::raw("TO_CHAR(tat_captured_view.finished_date, 'Mon YYYY')"), $label)
-                        ->count();
-                    $data[] = $count;
+                        ->avg(DB::raw("EXTRACT(EPOCH FROM (tat_captured_view.finished_date - tat_captured_view.receipt_date)) / 86400.0"));
+                    $data[] = $avgTat ? round($avgTat, 1) : 0.0;
                 }
 
                 $series[] = [
-                    'name' => $section->name,
+                    'name' => $section['name'],
                     'data' => $data,
                 ];
             }
@@ -217,10 +222,49 @@ class LabTatDashboardService
 
     public function getLabSectionOptions(): array
     {
-        return DB::table('sample_analysis_stages')
-            ->where('active', 1)
-            ->select('id', 'name')
-            ->orderBy('name')
+        return [
+            ['id' => 'LAB-FCH', 'name' => 'Forensic Chemistry Lab'],
+            ['id' => 'LAB-FDNA', 'name' => 'Forensic DNA Lab'],
+            ['id' => 'LAB-FTOX', 'name' => 'Forensic Toxicology Lab'],
+            ['id' => 'LAB-FD', 'name' => 'Food and Drugs Lab'],
+            ['id' => 'LAB-MIC', 'name' => 'Microbiology Lab'],
+            ['id' => 'LAB-ENV', 'name' => 'Environmental Lab'],
+            ['id' => 'LAB-TSU', 'name' => 'Technical Service Unit Lab'],
+        ];
+    }
+
+    public function getAnalyteThroughputChart(array $filters = [], string $period = 'active'): array
+    {
+        try {
+            $rows = $this->tatCapturedDashboardQuery($filters, $period)
+                ->select([
+                    'tat_captured_view.analyte_name',
+                    DB::raw('COUNT(*) as total_count'),
+                ])
+                ->groupBy('tat_captured_view.analyte_name')
+                ->orderByDesc('total_count')
+                ->limit(10)
+                ->get();
+
+            return [
+                'throughput_labels' => $rows->pluck('analyte_name')->map(fn($name) => $name ?: 'Unknown')->all(),
+                'throughput_counts' => $rows->pluck('total_count')->map(fn($count) => (int) $count)->all(),
+            ];
+        } catch (Throwable $e) {
+            Log::error("Failed to generate analyte throughput chart: " . $e->getMessage());
+
+            return [
+                'throughput_labels' => [],
+                'throughput_counts' => [],
+            ];
+        }
+    }
+
+    public function getZoneOptions(): array
+    {
+        return DB::table('zones')
+            ->select('id', 'value as name')
+            ->orderBy('value')
             ->get()
             ->map(fn($row) => ['id' => $row->id, 'name' => $row->name])
             ->all();
@@ -228,21 +272,25 @@ class LabTatDashboardService
 
     public function getAvailableAnalysts(string|int|null $labId = null, string $period = 'active', array $filters = []): array
     {
-        $query = DB::table('tat_captured_view')
-            ->select('analyst_id', 'analyst_name')
-            ->whereNotNull('analyst_id')
-            ->distinct();
+        $query = DB::table('users')
+            ->where('email', 'like', '%@gcla-labs.com')
+            ->select('id as analyst_id', 'name')
+            ->orderBy('name');
 
         if ($labId) {
-            $query->whereIn('sample_detail_id', function($sub) use ($labId) {
-                $sub->select('sample_detail_id')
-                    ->from('results')
-                    ->where('lab_section_id', $labId);
+            $query->whereIn('lab_id', function($sub) use ($labId) {
+                $sub->select(DB::raw('id::text'))
+                    ->from('labs')
+                    ->where('code', 'like', $labId . '%');
             });
         }
 
+        if (!empty($filters['zone_id'])) {
+            $query->where('zone_id', $filters['zone_id']);
+        }
+
         return $query->get()
-            ->map(fn($row) => ['analyst_id' => $row->analyst_id, 'name' => $row->analyst_name])
+            ->map(fn($row) => ['analyst_id' => $row->analyst_id, 'name' => $row->name])
             ->all();
     }
 
@@ -283,7 +331,7 @@ class LabTatDashboardService
     {
         try {
             $query = $this->tatCapturedDashboardQuery($filters, $period);
-            
+
             $stats = (clone $query)
                 ->select([
                     DB::raw('COUNT(*) as total_params'),
@@ -313,27 +361,63 @@ class LabTatDashboardService
         }
     }
 
-    public function getParametersTestedPivot(array $filters = [], string $period = 'active'): array
+    public function getParametersTestedPivot(array $filters = [], string $period = 'active', int $page = 1, int $perPage = 15): array
     {
         try {
             $months = collect();
-            for ($i = 5; $i >= 0; $i--) {
+            for ($i = 11; $i >= 0; $i--) {
                 $months->push(now()->subMonths($i)->format('M Y'));
             }
-
+            // $query is used for analyte-list scoping (respects period filter)
             $query = $this->tatCapturedDashboardQuery($filters, $period);
 
-            $rows = (clone $query)
+            // $monthCountQuery always spans the last 12 months so it aligns with
+            // the 12 column headers regardless of the selected period.
+            $twelveMonthsAgo = now()->subMonths(12)->startOfMonth();
+            if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
+                $monthCountQuery = $this->tatCapturedDashboardQuery($filters, 'lifetime')
+                    ->whereBetween('tat_captured_view.finished_date', [$filters['start_date'], $filters['end_date']]);
+            } else {
+                $monthCountQuery = $this->tatCapturedDashboardQuery($filters, 'lifetime')
+                    ->where('tat_captured_view.finished_date', '>=', $twelveMonthsAgo);
+            }
+
+            // Query all analytes matching the active lab section/zone filters
+            $analyteQuery = DB::table('analytes')
+                ->join('analysis_elements', 'analysis_elements.analyte_id', '=', 'analytes.id')
+                ->join('analysis_types', 'analysis_elements.analysis_type_id', '=', 'analysis_types.id')
+                ->join('labs', 'analysis_types.lab_id', '=', 'labs.id');
+
+            if (!empty($filters['lab_id'])) {
+                $analyteQuery->where('labs.code', 'like', $filters['lab_id'] . '%');
+            }
+
+            if (!empty($filters['zone_id'])) {
+                $analyteQuery->where('labs.zone_id', $filters['zone_id']);
+            }
+
+            if (!empty($filters['analyst_id'])) {
+                $testedAnalyteIds = (clone $query)->pluck('tat_captured_view.analyte_id')->unique()->all();
+                $analyteQuery->whereIn('analytes.id', $testedAnalyteIds);
+            }
+
+            $analytes = $analyteQuery
+                ->select('analytes.id', 'analytes.name', 'analytes.code')
+                ->distinct()
+                ->get();
+
+            $rows = (clone $monthCountQuery)
                 ->select([
-                    'analyte_name',
+                    'analyte_id',
                     DB::raw("TO_CHAR(finished_date, 'Mon YYYY') as month_key"),
                     DB::raw('COUNT(*) as total_count')
                 ])
-                ->groupBy('analyte_name', 'month_key')
+                ->groupBy('analyte_id', 'month_key')
                 ->get()
-                ->groupBy('analyte_name');
+                ->groupBy('analyte_id');
 
-            $displayRows = $rows->map(function ($group, $name) use ($months) {
+            $allRows = $analytes->map(function ($analyte) use ($rows, $months) {
+                $group = $rows->get($analyte->id) ?? collect();
                 $monthValues = [];
                 $total = 0;
                 foreach ($months as $month) {
@@ -342,18 +426,81 @@ class LabTatDashboardService
                     $total += $count;
                 }
                 return [
-                    'section' => $name,
+                    'section' => $analyte->name,
                     'months' => $monthValues,
                     'total' => $total
                 ];
-            })->sortByDesc('total')->take(10)->values()->all();
+            })->sortByDesc('total')->values();
+
+            $totalCount = $allRows->count();
+            $totalPages = (int) ceil($totalCount / $perPage);
+            $offset = ($page - 1) * $perPage;
+            $displayRows = $allRows->slice($offset, $perPage)->values()->all();
+
+            // Calculate Compliance dynamically based on the active filters
+            $complianceRows = [];
+            $hasLab = !empty($filters['lab_id']);
+            $hasZone = !empty($filters['zone_id']);
+
+            if ($hasLab && $hasZone) {
+                // Case D: Both filters active -> Show compliance by Parameter (Analyte) in this lab section + zone
+                foreach ($analytes as $analyte) {
+                    $analyteQuery = (clone $query)->where('tat_captured_view.analyte_id', $analyte->id);
+                    $totalTests = (clone $analyteQuery)->count();
+                    $onTimeTests = (clone $analyteQuery)->where('tat_captured_view.tat_overdue_days', '<=', 0)->count();
+
+                    $rate = $totalTests > 0 ? (int) round(($onTimeTests / $totalTests) * 100) : 100;
+
+                    $complianceRows[] = [
+                        'section' => $analyte->name,
+                        'compliance_rate' => $rate,
+                        'total' => $totalTests,
+                    ];
+                }
+            } elseif ($hasLab) {
+                // Case C: Lab filter active, no zone filter -> Show compliance by Zone for this lab section
+                $zones = $this->getZoneOptions();
+                foreach ($zones as $zone) {
+                    $zoneQuery = (clone $query)->where('labs.zone_id', $zone['id']);
+                    $totalTests = (clone $zoneQuery)->count();
+                    $onTimeTests = (clone $zoneQuery)->where('tat_captured_view.tat_overdue_days', '<=', 0)->count();
+
+                    $rate = $totalTests > 0 ? (int) round(($onTimeTests / $totalTests) * 100) : 100;
+
+                    $complianceRows[] = [
+                        'section' => $zone['name'],
+                        'compliance_rate' => $rate,
+                        'total' => $totalTests,
+                    ];
+                }
+            } else {
+                // Case A & B: No lab filter active -> Show compliance by Lab Section (optionally filtered by zone if active)
+                $sections = $this->getLabSectionOptions();
+                foreach ($sections as $sec) {
+                    $secQuery = (clone $query)->where('labs.code', 'like', $sec['id'] . '%');
+                    $totalTests = (clone $secQuery)->count();
+                    $onTimeTests = (clone $secQuery)->where('tat_captured_view.tat_overdue_days', '<=', 0)->count();
+
+                    $rate = $totalTests > 0 ? (int) round(($onTimeTests / $totalTests) * 100) : 100;
+
+                    $complianceRows[] = [
+                        'section' => $sec['name'],
+                        'compliance_rate' => $rate,
+                        'total' => $totalTests,
+                    ];
+                }
+            }
 
             return [
                 'headers' => $months->all(),
                 'rows' => $displayRows,
                 'row_label' => 'Analyte',
                 'subtitle' => 'Last 6 Months by Analyte',
-                'compliance_rows' => [],
+                'compliance_rows' => $complianceRows,
+                'total' => $totalCount,
+                'page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => max(1, $totalPages),
             ];
         } catch (\Exception $e) {
             Log::error("Failed to fetch Parameters Pivot: " . $e->getMessage());
@@ -363,6 +510,10 @@ class LabTatDashboardService
                 'row_label' => 'Analyte',
                 'subtitle' => 'Error loading pivot',
                 'compliance_rows' => [],
+                'total' => 0,
+                'page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => 1,
             ];
         }
     }
@@ -391,24 +542,34 @@ class LabTatDashboardService
                 'analyst_name',
                 DB::raw('COUNT(*) as total_tests'),
                 DB::raw('AVG(tat_overdue_days) as avg_tat_offset'),
+                DB::raw('SUM(CASE WHEN tat_overdue_days > 0 THEN 1 ELSE 0 END) as delayed_count'),
                 DB::raw('SUM(CASE WHEN tat_overdue_days <= 0 THEN 1 ELSE 0 END) as on_time_count')
             ])
             ->whereNotNull('analyst_id')
             ->groupBy('analyst_id', 'analyst_name')
-            ->orderByDesc('total_tests')
             ->limit(10)
             ->get();
 
             return $stats->map(function($row) {
                 return [
-                    'analyst_id' => $row->analyst_id,
-                    'name' => $row->analyst_name,
-                    'total_tests' => (int) $row->total_tests,
-                    'avg_offset' => round((float) $row->avg_tat_offset, 1),
-                    'on_time_rate' => $row->total_tests > 0 ? round(($row->on_time_count / $row->total_tests) * 100, 1) : 0,
+                    'analyst_id'        => $row->analyst_id,
+                    'name'              => $row->analyst_name,
+                    'total_tests'       => (int) $row->total_tests,
+                    'total_tests_provided' => (int) $row->total_tests,
+                    'tests_delayed'     => (int) $row->delayed_count,
+                    'tests_within_tat'  => (int) $row->on_time_count,
+                    'avg_offset'        => round((float) $row->avg_tat_offset, 1),
+                    'on_time_rate'      => $row->total_tests > 0 ? round(($row->on_time_count / $row->total_tests) * 100, 1) : 0,
                     'performance_label' => $this->getPerformanceLabel($row->avg_tat_offset)
                 ];
-            })->all();
+            })
+            // Best on-time rate first; ties broken by lowest (best) avg TAT offset
+            ->sortBy([
+                ['on_time_rate', 'desc'],
+                ['avg_offset',   'asc'],
+            ])
+            ->values()
+            ->all();
         } catch (\Exception $e) {
             Log::error("Failed to fetch Analyst Performance stats: " . $e->getMessage());
             return [];
@@ -422,25 +583,53 @@ class LabTatDashboardService
         int $perPage = 10
     ): array {
         try {
-            $query = $this->tatCapturedDashboardQuery($filters, $period);
-            $total = (clone $query)->count();
+            // Detailed logs should page through the top 100 records matching
+            // the effective report range. If the user has not selected dates,
+            // use the same rolling 12-month range shown by the page/report.
+            $query = $this->tatCapturedDashboardQuery($filters, 'lifetime');
+            if (empty($filters['start_date']) || empty($filters['end_date'])) {
+                $query->where('tat_captured_view.finished_date', '>=', now()->subMonths(11)->startOfMonth());
+            }
+            $sourceTotal = (clone $query)->count();
+            $total = min($sourceTotal, 100);
             $offset = max(0, ($page - 1) * $perPage);
+            $limit = $offset >= 100 ? 0 : min($perPage, 100 - $offset);
 
             $rows = $query
+                ->leftJoin('sample_headers as sh', 'sh.id', '=', 'tat_captured_view.sample_header_id')
+                ->select([
+                    'tat_captured_view.sample_header_id',
+                    'tat_captured_view.sample_detail_id',
+                    'tat_captured_view.analyte_name',
+                    'tat_captured_view.sample_code',
+                    'tat_captured_view.sample_type_name',
+                    'tat_captured_view.analysis_type_name',
+                    'tat_captured_view.receipt_date',
+                    'tat_captured_view.tat_date',
+                    'tat_captured_view.finished_date',
+                    'tat_captured_view.tat_overdue_days',
+                    'tat_captured_view.analyst_name',
+                    'tat_captured_view.tat_remark',
+                    'sh.batch_code',
+                ])
                 ->orderByDesc('tat_captured_view.finished_date')
                 ->offset($offset)
-                ->limit($perPage)
+                ->limit($limit)
                 ->get()
                 ->map(function ($row) {
                     return [
                         'analyte' => $row->analyte_name,
+                        'lab_no' => $row->batch_code ?? 'N/A',
+                        'sample_header_id' => $row->sample_header_id,
+                        'sample_detail_id' => $row->sample_detail_id,
                         'sample_code' => $row->sample_code,
                         'sample_type' => $row->sample_type_name,
                         'analysis_type' => $row->analysis_type_name,
                         'receipt_date' => $row->receipt_date ? date('d M Y', strtotime($row->receipt_date)) : '-',
                         'expected_date' => $row->tat_date ? date('d M Y', strtotime($row->tat_date)) : '-',
                         'actual_date' => $row->finished_date ? date('d M Y', strtotime($row->finished_date)) : '-',
-                        'offset' => (int) $row->tat_overdue_days,
+                        'offset' => $this->signedTatOffsetDays($row->tat_date, $row->finished_date),
+                        'overdue_days' => (int) $row->tat_overdue_days,
                         'analyst' => $row->analyst_name ?? 'Unassigned',
                         'remark' => $row->tat_remark,
                     ];
@@ -449,7 +638,10 @@ class LabTatDashboardService
 
             return [
                 'rows' => $rows,
+                'grouped_rows' => $this->groupDetailedTatLogsByLabNo($rows),
                 'total' => $total,
+                'source_total' => $sourceTotal,
+                'is_capped' => $sourceTotal > 100,
                 'page' => $page,
                 'per_page' => $perPage,
                 'total_pages' => max(1, (int) ceil($total / $perPage)),
@@ -459,12 +651,113 @@ class LabTatDashboardService
 
             return [
                 'rows' => [],
+                'grouped_rows' => [],
                 'total' => 0,
+                'source_total' => 0,
+                'is_capped' => false,
                 'page' => $page,
                 'per_page' => $perPage,
                 'total_pages' => 1,
             ];
         }
+    }
+
+    private function groupDetailedTatLogsByLabNo(array $rows): array
+    {
+        $labGroups = [];
+
+        foreach ($rows as $row) {
+            $labKey = (string) ($row['sample_header_id'] ?? $row['lab_no'] ?? 'unknown');
+            $sampleKey = (string) ($row['sample_detail_id'] ?? $row['sample_code'] ?? 'unknown');
+            $analysisKey = ($row['sample_type'] ?? 'N/A') . '|' . ($row['analysis_type'] ?? 'N/A');
+
+            if (!isset($labGroups[$labKey])) {
+                $labGroups[$labKey] = [
+                    'lab_no' => $row['lab_no'] ?? 'N/A',
+                    'samples' => [],
+                ];
+            }
+
+            if (!isset($labGroups[$labKey]['samples'][$sampleKey])) {
+                $labGroups[$labKey]['samples'][$sampleKey] = [
+                    'sample_code' => $row['sample_code'] ?? 'N/A',
+                    'analysis_groups' => [],
+                ];
+            }
+
+            if (!isset($labGroups[$labKey]['samples'][$sampleKey]['analysis_groups'][$analysisKey])) {
+                $labGroups[$labKey]['samples'][$sampleKey]['analysis_groups'][$analysisKey] = [
+                    'sample_type' => $row['sample_type'] ?? 'N/A',
+                    'analysis_type' => $row['analysis_type'] ?? 'N/A',
+                    'parameters' => [],
+                ];
+            }
+
+            $labGroups[$labKey]['samples'][$sampleKey]['analysis_groups'][$analysisKey]['parameters'][] = [
+                'parameter' => $row['analyte'] ?? 'N/A',
+                'expected_date' => $row['expected_date'] ?? '-',
+                'actual_date' => $row['actual_date'] ?? '-',
+                'offset' => (int) ($row['offset'] ?? 0),
+                'analyst' => $row['analyst'] ?? 'Unassigned',
+            ];
+        }
+
+        return collect($labGroups)->map(function ($labGroup) {
+            $labGroup['samples'] = collect($labGroup['samples'])->map(function ($sampleGroup) {
+                $sampleGroup['analysis_groups'] = array_values($sampleGroup['analysis_groups']);
+                return $sampleGroup;
+            })->values()->all();
+
+            return $labGroup;
+        })->values()->all();
+    }
+
+    /**
+     * Grace-aware signed TAT offset for display use.
+     *
+     * Delegates to the shared static helper in DashboardHelpers so the
+     * logic lives in exactly one place.  The public signature is preserved
+     * so existing unit tests continue to pass unchanged.
+     */
+    public function signedTatOffsetDays($expected, $actual): int
+    {
+        return self::computeSignedTatOffset($expected, $actual);
+    }
+
+    public function isWithinDueTodayWindow($expected, $reference = null): bool
+    {
+        if (!$expected) {
+            return false;
+        }
+
+        $expectedAt = Carbon::parse($expected);
+        $referenceAt = $reference ? Carbon::parse($reference) : now();
+
+        return $referenceAt->betweenIncluded(
+            $expectedAt->copy()->subHours(12),
+            $expectedAt->copy()->addHours(12)
+        );
+    }
+
+    public function completionDays($started, $completed): ?float
+    {
+        if (!$started || !$completed) {
+            return null;
+        }
+
+        $startedAt = Carbon::parse($started);
+        $completedAt = Carbon::parse($completed);
+
+        return round($startedAt->diffInSeconds($completedAt, false) / 86400, 2);
+    }
+
+    public function stageCompletionRate(int $completedBatches, int $totalBatches): int
+    {
+        if ($totalBatches <= 0) {
+            return 0;
+        }
+
+        return (int) round((max($completedBatches, 0) / $totalBatches) * 100);
     }
 
     private function getPerformanceLabel($offset): string
@@ -496,6 +789,7 @@ class LabTatDashboardService
             'period_label' => 'Active Workload',
             'summary' => [
                 'active_batches' => 0,
+                'completed_batches' => 0,
                 'overdue_batches' => 0,
                 'due_today_batches' => 0,
                 'workflow_stages' => 0,
@@ -518,7 +812,30 @@ class LabTatDashboardService
             ],
             'pivot' => [
                 'headers' => [],
-                'rows' => []
+                'rows' => [],
+                'row_label' => 'Analyte',
+                'subtitle' => 'No parameter data available',
+                'compliance_rows' => [],
+                'total' => 0,
+                'page' => 1,
+                'per_page' => 10,
+                'total_pages' => 1,
+            ],
+            'smart_grid' => [],
+            'detailed_logs' => [
+                'rows' => [],
+                'grouped_rows' => [],
+                'total' => 0,
+                'source_total' => 0,
+                'is_capped' => false,
+                'page' => 1,
+                'per_page' => 10,
+                'total_pages' => 1,
+            ],
+            'analyst_performance' => [],
+            'sections' => [
+                'leaderboard' => [],
+                'trends' => ['labels' => [], 'series' => []],
             ],
             'stage_summary' => [],
             'aging_buckets' => collect($this->agingBucketLabels())->map(function ($label, $bucketKey) {
@@ -534,30 +851,25 @@ class LabTatDashboardService
 
     protected function tatCapturedDashboardQuery(array $filters = [], ?string $period = null, bool $applyAnalystFilter = true)
     {
-        $resultLabSectionMap = DB::table('results')
-            ->select(
-                'sample_header_id',
-                'sample_detail_id',
-                'analyte_id',
-                DB::raw('MAX(lab_section_id::text) as lab_section_id')
-            )
-            ->groupBy('sample_header_id', 'sample_detail_id', 'analyte_id');
-
         $query = DB::table('tat_captured_view')
-            ->joinSub($resultLabSectionMap, 'result_rows', function ($join) {
-                $join->on('result_rows.sample_header_id', '=', 'tat_captured_view.sample_header_id')
-                    ->on('result_rows.sample_detail_id', '=', 'tat_captured_view.sample_detail_id')
-                    ->on('result_rows.analyte_id', '=', 'tat_captured_view.analyte_id');
-            })
+            ->join('sample_details', 'sample_details.id', '=', 'tat_captured_view.sample_detail_id')
+            ->join('labs', 'labs.id', '=', 'sample_details.lab_id')
             ->where('tat_captured_view.is_complete', 1);
 
         if (!empty($filters['lab_id'])) {
-            $query->where('result_rows.lab_section_id', $filters['lab_id']);
+            $query->where('labs.code', 'like', $filters['lab_id'] . '%');
+        }
+
+        if (!empty($filters['zone_id'])) {
+            $query->where('labs.zone_id', $filters['zone_id']);
         }
 
         if ($applyAnalystFilter && !empty($filters['analyst_id'])) {
             $query->where('tat_captured_view.analyst_id', $filters['analyst_id']);
         }
+
+        // Restrict strictly to seeded analysts
+        $query->where('tat_captured_view.analyst_email', 'like', '%@gcla-labs.com');
 
         if ($period && $period !== 'lifetime') {
             $dateLimit = match($period) {
@@ -595,6 +907,7 @@ class LabTatDashboardService
         return [
             'lab_id' => $labId,
             'analyst_id' => $analystId,
+            'zone_id' => ($filters['zone_id'] ?? null) ?: null,
             'start_date' => ($filters['start_date'] ?? null) ?: null,
             'end_date' => ($filters['end_date'] ?? null) ?: null,
         ];
@@ -607,7 +920,9 @@ class LabTatDashboardService
         int $perPage,
         string $period,
         int $gridPage,
-        int $perGridPage
+        int $perGridPage,
+        int $pivotPage = 1,
+        int $perPivotPage = 10
     ): string {
         return 'mas_lab_tat:payload:' . md5(json_encode([
             'filters' => $filters,
@@ -617,6 +932,8 @@ class LabTatDashboardService
             'period' => $period,
             'grid_page' => $gridPage,
             'grid_per_page' => $perGridPage,
+            'pivot_page' => $pivotPage,
+            'pivot_per_page' => $perPivotPage,
         ]));
     }
 }

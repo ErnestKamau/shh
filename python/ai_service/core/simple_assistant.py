@@ -136,6 +136,18 @@ class SimpleAssistant:
                 result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
                 return result
 
+            # ── Step 0a: Ambiguous sample listing clarification ───────
+            if self._is_ambiguous_show_samples_query(message):
+                logger.info(f"SimpleAssistant [{trace_id[:8]}]: Ambiguous sample query detected")
+                routing_tier = "clarification"
+                route_name = "clarification"
+                result["answer"] = self._generate_sample_clarification_response()
+                result["meta"]["route"] = "clarification"
+                result["meta"]["routing_tier"] = routing_tier
+                result["meta"]["confidence"] = 1.0
+                result["meta"]["latency_ms"] = self._elapsed_ms(start_time)
+                return result
+
             # ── Step 0b: UI/feature help short-circuit ────────────────
             if self._is_ui_help_query(message):
                 logger.info(f"SimpleAssistant [{trace_id[:8]}]: UI help query detected")
@@ -739,19 +751,47 @@ Rules:
 
     def _generate_greeting_response(self, message: str) -> str:
         """Fast deterministic reply for simple greetings/health pings."""
-        import random
         m = (message or "").strip().lower()
         if m in {"ping", "health", "status", "alive"}:
             return "Imara AI is online and connected to the GCLA database. Ask a lab or inventory question when ready."
-        
-        greetings = [
-            "Hello! I am online and ready to help with GCLA lab operations, samples, inventory, and reports.",
-            "Hi there! How can I assist you with the GCLA LIMS today?",
-            "Greetings! I'm here to help you query GCLA lab data, check inventory, or generate reports.",
-            "Hello! What GCLA lab operations or metrics can I help you look up today?",
-            "Hi! Imara AI is at your service for all GCLA LIMS needs. What do you need help with?"
-        ]
-        return random.choice(greetings)
+
+        if re.search(r"\bhow\s+are\s+you\b", m):
+            return f"I'm running well. {self._current_time_greeting()} How can I help you today?"
+
+        explicit_greeting = self._explicit_time_greeting(m)
+        if explicit_greeting:
+            return f"{explicit_greeting}. How can I help you today?"
+
+        if re.search(r"\b(thanks|thank\s*you|cheers)\b", m):
+            return "You're welcome. How else can I help?"
+
+        if re.search(r"\b(bye|goodbye)\b", m):
+            return "Goodbye. I'll be here when you need help with GCLA lab operations."
+
+        return f"{self._current_time_greeting()} How can I help you today?"
+
+    def _explicit_time_greeting(self, message: str) -> Optional[str]:
+        if re.search(r"\bgood\s*morning\b", message):
+            return "Good morning"
+        if re.search(r"\bgood\s*afternoon\b", message):
+            return "Good afternoon"
+        if re.search(r"\bgood\s*evening\b", message):
+            return "Good evening"
+        if re.search(r"\bgood\s*night\b", message):
+            return "Good night"
+        return None
+
+    def _current_time_greeting(self) -> str:
+        from datetime import datetime
+        hour = datetime.now().hour
+
+        if 5 <= hour < 12:
+            return "Good morning."
+        if 12 <= hour < 17:
+            return "Good afternoon."
+        if 17 <= hour < 21:
+            return "Good evening."
+        return "Hello."
 
     def _is_ui_help_query(self, message: str) -> bool:
         m = (message or "").strip().lower()
@@ -772,6 +812,21 @@ Rules:
             r"\bhow do i (see|open|use) (the )?chat visuali[sz]ation\b",
         ]
         return any(re.search(p, m) for p in patterns)
+
+    def _is_ambiguous_show_samples_query(self, message: str) -> bool:
+        m = (message or "").strip().lower()
+        m = re.sub(r"\s+", " ", m)
+        return bool(re.match(
+            r"^(please )?(show|list|display|view|give me) (all )?samples?(\s+please)?[?.!]*$",
+            m,
+        ))
+
+    def _generate_sample_clarification_response(self) -> str:
+        return (
+            "What would you like to see for samples? "
+            "For example: samples by status, sample types, samples in lab, "
+            "latest received batches, or total samples."
+        )
 
     def _generate_ui_help_response(self, message: str) -> str:
         m = (message or "").lower()

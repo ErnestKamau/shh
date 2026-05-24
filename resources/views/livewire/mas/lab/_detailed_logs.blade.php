@@ -1,7 +1,10 @@
-{{-- Detailed TAT Logs: paginated analyte-level log table --}}
+{{-- Detailed TAT Logs: paginated Lab No grouped log table --}}
 @php
     $rows = $detailedLogs['rows'] ?? [];
+    $groupedRows = $detailedLogs['grouped_rows'] ?? [];
     $totalLogs = $detailedLogs['total'] ?? 0;
+    $sourceTotalLogs = $detailedLogs['source_total'] ?? $totalLogs;
+    $isCapped = $detailedLogs['is_capped'] ?? false;
     $detailedPage = $detailedLogs['page'] ?? 1;
     $perPage = $detailedLogs['per_page'] ?? 10;
     $totalPages = $detailedLogs['total_pages'] ?? 1;
@@ -10,46 +13,63 @@
     <div class="pivot-header d-flex justify-content-between align-items-center">
         <span><i class="mdi mdi-clipboard-list-outline mr-1"></i> Detailed TAT Logs</span>
         <small class="font-weight-normal opacity-75">
-            {{ $totalLogs }} records &bull; Page {{ $detailedPage }} of {{ $totalPages }}
+            {{ $isCapped ? 'Top ' : '' }}{{ $totalLogs }} records
+            @if($isCapped)
+                of {{ $sourceTotalLogs }}
+            @endif
+            &bull; Page {{ $detailedPage }} of {{ $totalPages }}
         </small>
     </div>
     <div class="table-responsive">
         <table class="pivot-table">
             <thead>
                 <tr>
-                    <th>Analyte</th>
-                    <th>Sample Code</th>
-                    <th>Type</th>
-                    <th class="text-center">Received</th>
+                    <th>Lab No</th>
+                    <th>Sample No</th>
+                    <th>Sample Type</th>
+                    <th>Analysis</th>
+                    <th>Parameter</th>
                     <th class="text-center">Expected</th>
-                    <th class="text-center">Completed</th>
+                    <th class="text-center">Actual</th>
                     <th class="text-center">Offset</th>
                     <th>Analyst</th>
-                    <th>Remark</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($rows as $log)
-                    @php $offset = $log['offset']; @endphp
+                @forelse($groupedRows as $labGroup)
                     <tr>
-                        <td class="font-weight-bold">{{ $log['analyte'] }}</td>
-                        <td class="text-primary">{{ $log['sample_code'] }}</td>
-                        <td><small>{{ $log['sample_type'] }}</small></td>
-                        <td class="text-center small">{{ $log['receipt_date'] }}</td>
-                        <td class="text-center small">{{ $log['expected_date'] }}</td>
-                        <td class="text-center small">{{ $log['actual_date'] }}</td>
-                        <td class="text-center">
-                            @if($offset <= 0)
-                                <span class="badge badge-success">{{ $offset }}d</span>
-                            @elseif($offset <= 2)
-                                <span class="badge badge-warning">+{{ $offset }}d</span>
-                            @else
-                                <span class="badge badge-danger">+{{ $offset }}d</span>
-                            @endif
+                        <td colspan="9" class="font-weight-bold text-primary" style="background:#eff6ff; border-left:4px solid #2563eb;">
+                            Lab No: {{ $labGroup['lab_no'] ?? 'N/A' }}
                         </td>
-                        <td class="small">{{ $log['analyst'] }}</td>
-                        <td class="small text-muted">{{ $log['remark'] ?? '—' }}</td>
                     </tr>
+                    @foreach($labGroup['samples'] ?? [] as $sampleGroup)
+                        @foreach($sampleGroup['analysis_groups'] ?? [] as $analysisGroup)
+                            @foreach($analysisGroup['parameters'] ?? [] as $parameter)
+                                @php $offset = (int) ($parameter['offset'] ?? 0); @endphp
+                                <tr>
+                                    <td></td>
+                                    <td class="font-weight-bold small">{{ $sampleGroup['sample_code'] ?? 'N/A' }}</td>
+                                    <td class="small">{{ $analysisGroup['sample_type'] ?? 'N/A' }}</td>
+                                    <td class="small">{{ $analysisGroup['analysis_type'] ?? 'N/A' }}</td>
+                                    <td class="font-weight-bold text-primary small">{{ $parameter['parameter'] ?? 'N/A' }}</td>
+                                    <td class="text-center small">{{ $parameter['expected_date'] ?? '-' }}</td>
+                                    <td class="text-center small">{{ $parameter['actual_date'] ?? '-' }}</td>
+                                    <td class="text-center">
+                                        @if($offset < 0)
+                                            <span class="badge badge-success">{{ $offset }}d</span>
+                                        @elseif($offset === 0)
+                                            <span class="badge badge-success">0d</span>
+                                        @elseif($offset <= 2)
+                                            <span class="badge badge-warning">+{{ $offset }}d</span>
+                                        @else
+                                            <span class="badge badge-danger">+{{ $offset }}d</span>
+                                        @endif
+                                    </td>
+                                    <td class="small">{{ $parameter['analyst'] ?? 'Unassigned' }}</td>
+                                </tr>
+                            @endforeach
+                        @endforeach
+                    @endforeach
                 @empty
                     <tr>
                         <td colspan="9" class="text-center text-muted py-4">

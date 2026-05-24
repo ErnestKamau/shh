@@ -76,8 +76,8 @@ class AnalyticsCollectorService
                 'confidence' => $confidence,
                 'success' => true,
                 'query' => $query,
-                'user_id' => $userId,
-                'company_id' => $companyId,
+                'user_id' => $this->bigintOrNull($userId),
+                'company_id' => $this->bigintOrNull($companyId),
                 'session_id' => $sessionId,
                 'response_preview' => json_encode(['recommended_model' => $recommendedModel]),
                 'created_at' => now(),
@@ -155,8 +155,8 @@ class AnalyticsCollectorService
                 'success' => $success,
                 'error_message' => $error,
                 'query' => $query,
-                'user_id' => $userId,
-                'company_id' => $companyId,
+                'user_id' => $this->bigintOrNull($userId),
+                'company_id' => $this->bigintOrNull($companyId),
                 'session_id' => $sessionId,
                 'created_at' => now(),
             ]);
@@ -560,6 +560,19 @@ class AnalyticsCollectorService
         }
 
         return $totalRequests > 0 ? ($totalErrors / $totalRequests) * 100 : 0;
+    }
+
+    protected function bigintOrNull($value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        return null;
     }
 
     /**

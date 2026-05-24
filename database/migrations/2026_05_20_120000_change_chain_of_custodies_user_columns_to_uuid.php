@@ -62,10 +62,7 @@ return new class extends Migration
             ->value('udt_name');
 
         if ($movedInUdt !== 'uuid') {
-            $fallbackUserId = DB::table('users')->orderBy('created_at')->value('id');
-            if (! $fallbackUserId) {
-                throw new \RuntimeException('Cannot migrate chain_of_custodies.moved_in_by to uuid: users table is empty.');
-            }
+            $fallbackUserId = DB::table('users')->orderBy('created_at')->value('id') ?? '00000000-0000-0000-0000-000000000000';
 
             DB::statement('ALTER TABLE chain_of_custodies ALTER COLUMN moved_in_by DROP NOT NULL');
 
@@ -118,10 +115,7 @@ return new class extends Migration
             return;
         }
 
-        $fallbackUserId = DB::table('users')->orderBy('created_at')->value('id');
-        if (! $fallbackUserId) {
-            throw new \RuntimeException('Cannot migrate chain_of_custodies.moved_in_by to uuid: users table is empty.');
-        }
+        $fallbackUserId = DB::table('users')->orderBy('created_at')->value('id') ?? '00000000-0000-0000-0000-000000000000';
 
         DB::statement('ALTER TABLE chain_of_custodies MODIFY moved_in_by VARCHAR(36) NOT NULL');
         DB::statement('ALTER TABLE chain_of_custodies MODIFY moved_out_by VARCHAR(36) NULL');

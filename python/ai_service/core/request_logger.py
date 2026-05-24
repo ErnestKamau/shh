@@ -12,7 +12,7 @@ import logging
 import threading
 import traceback
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any
 
 from sqlalchemy import text
 from python.py_pipeline.core.database import db_manager
@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS ai.ai_request_logs (
     confidence      FLOAT DEFAULT 0.0,
     success         BOOLEAN DEFAULT TRUE,
     error_message   TEXT,
-    company_id      INT,
-    user_id         INT,
+    company_id      BIGINT,
+    user_id         BIGINT,
     session_id      VARCHAR(128),
     response_preview TEXT,
     source_count    INT DEFAULT 0,
@@ -144,6 +144,8 @@ class RequestLogger:
             """)
 
             kwargs["created_at"] = datetime.now(timezone.utc)
+            kwargs["company_id"] = self._runtime_optional_int(kwargs.get("company_id"))
+            kwargs["user_id"] = self._runtime_optional_int(kwargs.get("user_id"))
 
             with db_manager.postgres_connection() as conn:
                 conn.execute(sql, kwargs)
@@ -154,6 +156,15 @@ class RequestLogger:
                 f"RequestLogger: Failed to write log entry: "
                 f"{traceback.format_exc()}"
             )
+
+    def _runtime_optional_int(self, value: Any) -> Optional[int]:
+        if value is None or isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return None
 
 
 # Shared singleton

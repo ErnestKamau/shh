@@ -309,7 +309,10 @@
                             <td><strong>{{ $row->sample_code }}</strong></td>
                             <td>{{ $row->analyst_name }}</td>
                             <td>{{ $row->sample_type_name }}</td>
-                            <td>Complete</td>
+                            @php $off = $row->signed_offset ?? 0; @endphp
+                            <td style="color: {{ $off < 0 ? 'green' : ($off === 0 ? '#334155' : '#991b1b') }}; font-weight: bold;">
+                                @if($off < 0){{ $off }}d@elseif($off === 0)0d@else+{{ $off }}d@endif
+                            </td>
                         @elseif($reportType === 'standards')
                             <td>{{ $row->name }}</td>
                             <td><strong>{{ $row->standard_code }}</strong></td>

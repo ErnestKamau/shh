@@ -213,9 +213,20 @@ class RetrievalService:
                 if key == "company_id":
                     # Use the dedicated column for company_id
                     where_parts.append(f"company_id = :{param_key}")
+                    params[param_key] = self._runtime_int(value, default=0)
+                    continue
                 else:
                     # Fallback for other metadata fields
                     where_parts.append(f"metadata->>'{key}' = :{param_key}")
                 params[param_key] = str(value)
         
         return where_parts, params
+
+    def _runtime_int(self, value: Any, default: int = 0) -> int:
+        if isinstance(value, bool):
+            return default
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return default

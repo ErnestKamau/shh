@@ -134,8 +134,12 @@ class SubmissionFormElement extends Model implements Auditable
                 $rules[] = 'file';
                 break;
             case 'camera_photo':
+            case 'image_upload':
                 $rules[] = 'image';
                 $rules[] = 'mimes:jpg,jpeg,png,webp';
+                break;
+            case 'zone_select':
+                $rules[] = 'exists:zones,id';
                 break;
         }
 

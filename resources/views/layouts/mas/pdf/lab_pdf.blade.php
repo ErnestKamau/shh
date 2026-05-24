@@ -2,9 +2,11 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>{{ __('mas/lab.tat_title') }} - {{ __('mas/common.report') }}</title>
+    <title>Detailed Laboratory Report</title>
     <style>
-        @page { margin: 2cm; }
+        @page         { margin: 2cm; margin-top: 1.6cm; }
+        @page :first  { margin-top: 2cm; }
+
         body { font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; line-height: 1.6; margin: 0; padding: 0; background-color: #fff; }
         .header { margin-bottom: 30px; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; }
         .container { width: 100%; }
@@ -40,24 +42,61 @@
     </style>
 </head>
 <body>
+{{-- Resolve logo path for the main first-page header. Repeated page logos are drawn by DomPDF canvas. --}}
+@php
+    $resolvedLogoPath = null;
+    if (isset($company) && !empty($company->logo)) {
+        $rawLogo = $company->logo;
+        if (str_starts_with($rawLogo, 'http')) {
+            $resolvedLogoPath = $rawLogo;
+        } else {
+            $local = public_path(ltrim($rawLogo, '/'));
+            if (file_exists($local)) $resolvedLogoPath = $local;
+        }
+    }
+    if (!$resolvedLogoPath) {
+        $fallback = public_path('assets/branding/logo.jpeg');
+        if (file_exists($fallback)) $resolvedLogoPath = $fallback;
+    }
+@endphp
+
     <div class="footer">
-        Confidential | IMARA LIMS | {{ date('Y') }}
+        Confidential | {{ $company->name ?? 'IMARA LIMS' }} | {{ date('Y') }}
     </div>
 
     <div class="container">
 
         <!-- Header -->
-        <div class="header">
+        <div class="header" style="border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 25px;">
             <table style="width: 100%;">
                 <tr>
-                    <td style="width: 50%;">
-                        <img src="{{ public_path('assets/branding/logo.jpeg') }}" style="height: 60px; width: auto;">
+                    {{-- Left Cell: Filter Metadata --}}
+                    <td style="width: 40%; vertical-align: middle; text-align: left;">
+                        @if(isset($selectedFilters))
+                        <div style="font-size: 10px; color: #475569; line-height: 1.45;">
+                            <div><span style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; display: inline-block; width: 65px;">Section:</span> <strong style="color: #1e293b;">{{ $selectedFilters['lab_section'] }}</strong></div>
+                            <div><span style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; display: inline-block; width: 65px;">Zone:</span> <strong style="color: #1e293b;">{{ $selectedFilters['zone'] }}</strong></div>
+                            <div><span style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; display: inline-block; width: 65px;">Analyst:</span> <strong style="color: #1e293b;">{{ $selectedFilters['analyst'] }}</strong></div>
+                            <div><span style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; display: inline-block; width: 65px;">Range:</span> <strong style="color: #1e293b;">{{ $selectedFilters['start_date'] }} - {{ $selectedFilters['end_date'] }}</strong></div>
+                        </div>
+                        @endif
                     </td>
-                    <td style="width: 50%; text-align: right;">
-                        <div style="font-size: 22px; font-weight: 900; color: #1e40af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;">TAT Analysis</div>
+
+                    {{-- Center Cell: Company Logo (reuses already-resolved path) --}}
+                    <td style="width: 20%; text-align: center; vertical-align: middle;">
+                        @if($resolvedLogoPath)
+                            <img src="{{ $resolvedLogoPath }}" style="height: 55px; max-width: 140px; object-fit: contain;">
+                        @else
+                            <div style="font-size: 16px; font-weight: bold; color: #1e40af;">{{ $company->name ?? 'GCLA' }}</div>
+                        @endif
+                    </td>
+
+                    {{-- Right Cell: Title & Date --}}
+                    <td style="width: 40%; text-align: right; vertical-align: middle;">
+                        <div style="font-size: 22px; font-weight: 900; color: #1e40af; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;">TAT ANALYSIS</div>
                         <div style="font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">{{ __('mas/dashboard.insights_report') }}</div>
                         <div style="font-size: 9px; color: #94a3b8;">{{ __('mas/report.generated') }}: {{ date('d M Y, H:i') }}</div>
-                        <div style="font-size: 9px; color: #3b82f6; font-weight: 700; margin-top: 5px;">CONFIDENTIAL OPERATIONAL DATA</div>
+                        <div style="font-size: 9px; color: #3b82f6; font-weight: 700; margin-top: 5px;">REF #{{ date('Ymd') }}-TAT | CONFIDENTIAL OPERATIONAL DATA</div>
                     </td>
                 </tr>
             </table>
@@ -65,37 +104,165 @@
 
         <!-- KPI Overview -->
         <div class="report-section">
-            <div class="section-title">Performance Snapshot</div>
-            <table style="width: 100%; border-spacing: 15px 0; margin-left: -15px;">
-                <tr>
-                    <td style="width: 25%;">
-                        <div class="kpi-card">
-                            <div class="kpi-value">{{ $stats['summary']['active_batches'] ?? 0 }}</div>
-                            <div class="kpi-label">{{ __('mas/dashboard.active_batches') }}</div>
-                        </div>
-                    </td>
-                    <td style="width: 25%;">
-                        <div class="kpi-card" style="border-left: 4px solid #ef4444;">
-                            <div class="kpi-value" style="color: #dc2626;">{{ $stats['summary']['overdue_batches'] ?? 0 }}</div>
-                            <div class="kpi-label">Breached SLAs</div>
-                        </div>
-                    </td>
-                    <td style="width: 25%;">
-                        <div class="kpi-card">
-                            <div class="kpi-value" style="color: #10b981;">{{ $stats['summary']['tests_completed'] ?? 0 }}</div>
-                            <div class="kpi-label">{{ __('mas/dashboard.tests_completed') }}</div>
-                        </div>
-                    </td>
-                    <td style="width: 25%;">
-                        <div class="kpi-card">
-                            <div class="kpi-value" style="color: #3b82f6;">{{ $stats['summary']['sla_compliance_rate'] }}%</div>
-                            <div class="kpi-label">{{ __('mas/lab.sla_compliance_rate') }}</div>
-                        </div>
-                    </td>
+            <div class="section-title">TAT Performance Metrics</div>
 
+            {{-- Row 1: Parameter & Compliance KPIs --}}
+            <table style="width: 100%; border-spacing: 12px 0; margin-left: -12px; margin-bottom: 12px;">
+                <tr>
+                    <td style="width: 33.33%;">
+                        <div class="kpi-card">
+                            <div class="kpi-value">{{ number_format($stats['testing_metrics']['total_params'] ?? 0) }}</div>
+                            <div class="kpi-label" style="font-size: 9px;">Number of Params</div>
+                        </div>
+                    </td>
+                    <td style="width: 33.33%;">
+                        <div class="kpi-card">
+                            <div class="kpi-value" style="color: #10b981;">{{ $stats['testing_metrics']['tested_vs_requested'] ?? 0 }}%</div>
+                            <div class="kpi-label" style="font-size: 9px;">% Tested vs Req</div>
+                        </div>
+                    </td>
+                    <td style="width: 33.33%;">
+                        <div class="kpi-card">
+                            <div class="kpi-value" style="color: #3b82f6;">{{ $stats['testing_metrics']['tat_compliance_tes'] ?? 0 }}%</div>
+                            <div class="kpi-label" style="font-size: 9px;">% TAT Compliance (TES)</div>
+                        </div>
+                    </td>
                 </tr>
             </table>
+
+            {{-- Row 2: TAT Durations & Delivery Compliance --}}
+            <table style="width: 100%; border-spacing: 12px 0; margin-left: -12px;">
+                <tr>
+                    <td style="width: 33.33%;">
+                        <div class="kpi-card">
+                            <div class="kpi-value">{{ $stats['testing_metrics']['avg_tat_tes'] ?? 0 }} d</div>
+                            <div class="kpi-label" style="font-size: 9px;">Avg TAT (Days)</div>
+                        </div>
+                    </td>
+                    <td style="width: 33.33%;">
+                        <div class="kpi-card" style="background-color: #f1f5f9; border-color: #cbd5e1;">
+                            <div class="kpi-value" style="color: #334155;">{{ $stats['testing_metrics']['avg_delivery_tat'] ?? 0 }} d</div>
+                            <div class="kpi-label" style="font-size: 9px;">Avg Delivery TAT</div>
+                        </div>
+                    </td>
+                    <td style="width: 33.33%;">
+                        <div class="kpi-card" style="background-color: #f1f5f9; border-color: #cbd5e1;">
+                            <div class="kpi-value" style="color: #475569;">{{ $stats['testing_metrics']['delivery_compliance'] ?? 0 }}%</div>
+                            <div class="kpi-label" style="font-size: 9px;">TAT Compliance (Deliv)</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            {{-- Formulas Legend --}}
+            <div style="margin-top: 20px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px 24px;">
+                <span style="font-size: 12px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 10px;">KPI Calculation Formulas Reference</span>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #1e293b; line-height: 1.55;">
+                    <tr>
+                        <td style="width: 50%; padding-right: 25px; vertical-align: top; border-right: 1px solid #cbd5e1;">
+                            <div><strong>1. Number of Params:</strong> Count of unique analytes/parameters tested.</div>
+                            <div style="margin-top: 6px;"><strong>2. % Tested vs Req:</strong> <span style="font-family: monospace; font-size: 12px; font-weight: bold; color: #0f172a;">(Completed Parameters / Total Requested Parameters) &times; 100</span></div>
+                            <div style="margin-top: 6px;"><strong>3. % TAT Compliance (TES):</strong> <span style="font-family: monospace; font-size: 12px; font-weight: bold; color: #0f172a;">(Parameters completed within SLA / Total Completed) &times; 100</span></div>
+                        </td>
+                        <td style="width: 50%; padding-left: 25px; vertical-align: top;">
+                            <div><strong>4. Avg TAT (Days):</strong> <span style="font-family: monospace; font-size: 12px; font-weight: bold; color: #0f172a;">Average (Analysis Completion Date - Lab Receipt Date)</span></div>
+                            <div style="margin-top: 6px;"><strong>5. Avg Delivery TAT:</strong> <span style="font-family: monospace; font-size: 12px; font-weight: bold; color: #0f172a;">Average (Report Collection/Release Date - Reception Date)</span></div>
+                            <div style="margin-top: 6px;"><strong>6. TAT Compliance (Deliv):</strong> <span style="font-family: monospace; font-size: 12px; font-weight: bold; color: #0f172a;">(Batches released within SLA / Total Dispatched Batches) &times; 100</span></div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
         </div>
+
+        <!-- Workflow Stage Pipeline -->
+        <div class="report-section">
+            <div class="section-title">Workflow Stage Pipeline</div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Workflow Stage</th>
+                        <th class="text-center">Total Batches</th>
+                        <th class="text-center">Completed</th>
+                        <th class="text-center">Due Today</th>
+                        <th class="text-center">Avg Days</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($stats['stage_summary'] ?? [] as $stage)
+                    @php
+                        $total = (int) ($stage['total_batches'] ?? 0);
+                        $completed = (int) ($stage['completed_batches'] ?? max($total - (int) ($stage['overdue_batches'] ?? 0), 0));
+                        $completionRate = (int) ($stage['completion_rate'] ?? ($total > 0 ? round(($completed / $total) * 100) : 0));
+                    @endphp
+                    <tr>
+                        <td class="font-bold">{{ $stage['workflow_stage'] ?? 'N/A' }}</td>
+                        <td class="text-center">
+                            <span class="badge badge-primary">{{ number_format($total) }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge badge-success">{{ number_format($completed) }}</span>
+                        </td>
+                        <td class="text-center">{{ number_format($stage['due_today_batches'] ?? 0) }}</td>
+                        <td class="text-center">
+                            {{ ($stage['avg_completion_days'] ?? null) !== null ? number_format($stage['avg_completion_days'], 1) . ' d' : '—' }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge badge-success">{{ number_format($completed) }}/{{ number_format($total) }} ({{ $completionRate }}%)</span>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted small">No workflow stage data available.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if(($stats['pivot']['total'] ?? 0) <= 45)
+        <!-- Parameters Tested Pivot Table (<= 45 params) -->
+        <div class="report-section" style="page-break-before: always;">
+            <div class="section-title">Number of Parameters Tested</div>
+            <p style="font-size: 10px; color: #64748b; margin-bottom: 15px;">
+                This table displays the volume breakdown of analytical parameter tests performed across laboratory sections and operational periods.
+            </p>
+            @php
+                $pivotRows = $stats['pivot']['rows'] ?? [];
+                $headers = $stats['pivot']['headers'] ?? [];
+            @endphp
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="min-width: 160px; text-align: left;">{{ $stats['pivot']['row_label'] ?? 'Lab Section' }}</th>
+                        @foreach($headers as $header)
+                            <th class="text-center">{{ $header }}</th>
+                        @endforeach
+                        <th class="text-right" style="padding-right: 15px;">Grand Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($pivotRows as $row)
+                    <tr>
+                        <td class="font-bold border-left" style="border-left: 3px solid #3b82f6 !important; padding-left: 10px;">
+                            {{ $row['section'] ?? $row['name'] ?? 'N/A' }}
+                        </td>
+                        @foreach($headers as $header)
+                            <td class="text-center">{{ number_format($row['months'][$header] ?? 0) }}</td>
+                        @endforeach
+                        <td class="text-right font-bold" style="color: #1e40af; padding-right: 15px;">
+                            {{ number_format($row['total']) }}
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="{{ count($headers) + 2 }}" class="text-center py-4 text-muted small">No parameters tested data available.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @endif
 
         <!-- Distribution & Trends -->
         <div class="report-section">
@@ -161,10 +328,10 @@
                 <thead>
                     <tr>
                         <th style="width: 30%;">{{ __('mas/lab.lab_section') }}</th>
-                        <th class="text-center">Workload</th>
+                        <th class="text-center">Tests Completed</th>
                         <th class="text-center">Share %</th>
-                        <th class="text-center">Avg. Completion</th>
-                        <th class="text-center">Operational Status</th>
+                        <th class="text-center">Avg. TAT</th>
+                        <th class="text-center">TAT Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -177,9 +344,9 @@
                             {{ $section['name'] }}
                             <div style="font-size: 9px; color: #64748b; margin-top: 2px;">SEC-ID: {{ $section['code'] }}</div>
                         </td>
-                        <td class="text-center font-bold">{{ $section['total'] }} items</td>
+                        <td class="text-center font-bold">{{ number_format($section['total']) }} tests</td>
                         <td class="text-center font-bold" style="color: #3b82f6;">
-                            {{ round(($section['total'] / $totalWorkload) * 100) }}%
+                            {{ number_format(($section['total'] / $totalWorkload) * 100, 1) }}%
                         </td>
                         <td class="text-center">
                             @if($section['avg_tat'] > 0)
@@ -189,11 +356,14 @@
                             @endif
                         </td>
                         <td class="text-center">
-                            @if($section['overdue'] > 0)
-                                <span class="badge badge-danger">{{ $section['overdue'] }} {{ __('mas/lab.overdue') }}</span>
-                            @else
-                                <span class="badge badge-success">Optimized</span>
-                            @endif
+                            @php
+                                $withinTat = (int) ($section['within_tat'] ?? max(($section['total'] ?? 0) - ($section['overdue'] ?? 0), 0));
+                                $complianceRate = (int) ($section['compliance_rate'] ?? (($section['total'] ?? 0) > 0 ? round(($withinTat / $section['total']) * 100) : 100));
+                                $tatBadgeClass = $complianceRate >= 85 ? 'badge-success' : ($complianceRate >= 70 ? 'badge-warning' : 'badge-danger');
+                            @endphp
+                            <span class="badge {{ $tatBadgeClass }}">
+                                {{ number_format($withinTat) }}/{{ number_format($section['total']) }} within TAT ({{ $complianceRate }}%)
+                            </span>
                         </td>
                     </tr>
                     @endforeach
@@ -203,7 +373,17 @@
 
         <!-- Historical Trends -->
         <div class="report-section">
-            <div class="section-title">{{ __('mas/lab.historical_section_tat') }}</div>
+            @php
+                $historicalStart = $selectedFilters['start_date'] ?? null;
+                $historicalEnd = $selectedFilters['end_date'] ?? null;
+
+                if ($historicalStart && $historicalEnd && $historicalStart !== '12 Months' && $historicalEnd !== 'Present') {
+                    $historicalRange = date('d M Y', strtotime($historicalStart)) . ' - ' . date('d M Y', strtotime($historicalEnd));
+                } else {
+                    $historicalRange = now()->subMonths(11)->format('M Y') . ' - ' . now()->format('M Y');
+                }
+            @endphp
+            <div class="section-title">Historical Section TAT ({{ $historicalRange }})</div>
             <table class="data-table">
                             <thead>
                                 <tr>
@@ -235,10 +415,12 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th style="width: 35%;">{{ __('mas/lab.analyst') }}</th>
+                        <th style="width: 28%;">{{ __('mas/lab.analyst') }}</th>
                         <th class="text-center">Tests Completed</th>
                         <th class="text-center">Avg. Offset</th>
-                        <th class="text-center">SLA Compliance</th>
+                        <th class="text-center">Total Tests Provided</th>
+                        <th class="text-center">Tests Delayed</th>
+                        <th class="text-center">Tests Within TAT</th>
                         <th class="text-center">Efficiency Rating</th>
                     </tr>
                 </thead>
@@ -252,8 +434,14 @@
                         <td class="text-center font-bold" style="color: {{ $analyst['avg_offset'] <= 0 ? '#166534' : '#991b1b' }}">
                             {{ $analyst['avg_offset'] <= 0 ? '-' : '+' }}{{ abs($analyst['avg_offset']) }}d
                         </td>
-                        <td class="text-center font-bold" style="color: {{ $analyst['on_time_rate'] >= 90 ? '#166534' : ($analyst['on_time_rate'] >= 75 ? '#854d0e' : '#991b1b') }};">
-                            {{ $analyst['on_time_rate'] }}%
+                        <td class="text-center font-bold">
+                            {{ number_format($analyst['total_tests_provided'] ?? $analyst['total_tests']) }}
+                        </td>
+                        <td class="text-center font-bold" style="color: {{ ($analyst['tests_delayed'] ?? 0) > 0 ? '#991b1b' : '#166534' }};">
+                            {{ number_format($analyst['tests_delayed'] ?? 0) }}
+                        </td>
+                        <td class="text-center font-bold" style="color: #166534;">
+                            {{ number_format($analyst['tests_within_tat'] ?? 0) }}
                         </td>
                         <td class="text-center">
                             @php
@@ -271,7 +459,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted small">{{ __('mas/common.no_data') }}</td>
+                        <td colspan="7" class="text-center py-4 text-muted small">{{ __('mas/common.no_data') }}</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -285,10 +473,10 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Batch Reference</th>
+                        <th>Lab No</th>
                         <th>Client Entity</th>
                         <th>Sample Category</th>
-                        <th class="text-center">Risk Multiplier</th>
+                        <th class="text-center">Operational Priority</th>
                         <th>Workflow Status</th>
                     </tr>
                 </thead>
@@ -300,9 +488,9 @@
                         <td>{{ $item['type'] }}</td>
                         <td class="text-center">
                             @if(($item['priority'] ?? '') == 'Urgent')
-                                <span class="badge badge-danger">High Risk</span>
+                                <span class="badge badge-danger">Urgent</span>
                             @else
-                                <span class="badge badge-primary">Standard</span>
+                                <span class="badge badge-primary">Normal</span>
                             @endif
                         </td>
                         <td>
@@ -317,51 +505,129 @@
                 </tbody>
             </table>
         </div>
+
+        @if(($stats['pivot']['total'] ?? 0) > 45)
+        <!-- Parameters Tested Pivot Table (> 45 params) -->
+        <div class="report-section" style="page-break-before: always;">
+            <div class="section-title">Number of Parameters Tested</div>
+            <p style="font-size: 10px; color: #64748b; margin-bottom: 15px;">
+                This table displays the volume breakdown of analytical parameter tests performed across laboratory sections and operational periods.
+            </p>
+            @php
+                $pivotRows = $stats['pivot']['rows'] ?? [];
+                $headers = $stats['pivot']['headers'] ?? [];
+            @endphp
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="min-width: 160px; text-align: left;">{{ $stats['pivot']['row_label'] ?? 'Lab Section' }}</th>
+                        @foreach($headers as $header)
+                            <th class="text-center">{{ $header }}</th>
+                        @endforeach
+                        <th class="text-right" style="padding-right: 15px;">Grand Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($pivotRows as $row)
+                    <tr>
+                        <td class="font-bold border-left" style="border-left: 3px solid #3b82f6 !important; padding-left: 10px;">
+                            {{ $row['section'] ?? $row['name'] ?? 'N/A' }}
+                        </td>
+                        @foreach($headers as $header)
+                            <td class="text-center">{{ number_format($row['months'][$header] ?? 0) }}</td>
+                        @endforeach
+                        <td class="text-right font-bold" style="color: #1e40af; padding-right: 15px;">
+                            {{ number_format($row['total']) }}
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="{{ count($headers) + 2 }}" class="text-center py-4 text-muted small">No parameters tested data available.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @endif
     </div>
 
         <!-- Detailed Appendix (New Page) -->
         <div style="page-break-before: always;">
-            <div class="section-title">Appendix: Detailed Analyte TAT Performance</div>
+            <div class="section-title">Detailed Analyte TAT Performance</div>
             <p style="font-size: 9px; color: #64748b; margin-bottom: 15px;">
-                This appendix provides a granular breakdown of individual tests completed during the period. 
-                Negative (-) offsets indicate early completion, while positive (+) offsets indicate SLA breaches.
+                This table groups completed tests by Lab No, then breaks them down by sample, sample type, analysis, and parameter. 
+                Negative (-) offsets indicate early completion, while positive (+) offsets indicate completion beyond the allowed TAT window.
             </p>
+            @php
+                $detailedLogPayload = $stats['detailed_logs'] ?? [];
+                $groupedDetailedLogs = $detailedLogPayload['grouped_rows'] ?? [];
+                $totalDetailedLogs = $detailedLogPayload['total'] ?? 0;
+                $sourceDetailedLogs = $detailedLogPayload['source_total'] ?? $totalDetailedLogs;
+                $isDetailedLogCapped = $detailedLogPayload['is_capped'] ?? false;
+            @endphp
+            <div style="font-size: 8px; color: #94a3b8; text-align: right; margin-bottom: 8px;">
+                Showing {{ $isDetailedLogCapped ? 'top ' : '' }}{{ number_format($totalDetailedLogs) }} records
+                @if($isDetailedLogCapped)
+                    of {{ number_format($sourceDetailedLogs) }}
+                @endif
+                for the selected report range.
+            </div>
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Analyte</th>
-                        <th>Sample Code</th>
-                        <th>Expected</th>
-                        <th>Actual</th>
-                        <th class="text-center">Offset</th>
-                        <th>Analyst</th>
+                        <th style="width: 14%;">Lab No</th>
+                        <th style="width: 12%;">Sample No</th>
+                        <th style="width: 13%;">Sample Type</th>
+                        <th style="width: 15%;">Analysis</th>
+                        <th style="width: 16%;">Parameter</th>
+                        <th style="width: 10%;">Expected</th>
+                        <th style="width: 10%;">Actual</th>
+                        <th class="text-center" style="width: 5%;">Offset</th>
+                        <th style="width: 15%;">Analyst</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($stats['detailed_logs'] ?? [] as $log)
+                    @forelse($groupedDetailedLogs as $labGroup)
                     <tr>
-                        <td class="font-bold" style="font-size: 9px; color: #1e40af;">{{ $log['analyte'] }}</td>
-                        <td style="font-size: 9px;">{{ $log['sample_code'] }}</td>
-                        <td style="font-size: 9px; color: #64748b;">{{ $log['expected_date'] }}</td>
-                        <td style="font-size: 9px;">{{ $log['actual_date'] }}</td>
-                        <td class="text-center">
-                            @if($log['offset'] <= 0)
-                                <span style="color: #166534; font-weight: bold;">-{{ abs($log['offset']) }}d</span>
-                            @else
-                                <span style="color: #991b1b; font-weight: bold;">+{{ $log['offset'] }}d</span>
-                            @endif
+                        <td colspan="9" style="background-color: #eff6ff; border-left: 4px solid #2563eb; color: #1e3a8a; font-size: 10px; font-weight: 800;">
+                            Lab No: {{ $labGroup['lab_no'] ?? 'N/A' }}
                         </td>
-                        <td style="font-size: 9px; font-weight: bold;">{{ $log['analyst'] }}</td>
                     </tr>
+                    @foreach($labGroup['samples'] ?? [] as $sampleGroup)
+                        @foreach($sampleGroup['analysis_groups'] ?? [] as $analysisGroup)
+                            @foreach($analysisGroup['parameters'] ?? [] as $parameter)
+                            <tr>
+                                <td></td>
+                                <td style="font-size: 8px; font-weight: bold;">{{ $sampleGroup['sample_code'] ?? 'N/A' }}</td>
+                                <td style="font-size: 8px;">{{ $analysisGroup['sample_type'] ?? 'N/A' }}</td>
+                                <td style="font-size: 8px;">{{ $analysisGroup['analysis_type'] ?? 'N/A' }}</td>
+                                <td style="font-size: 8px; font-weight: bold; color: #1e40af;">{{ $parameter['parameter'] ?? 'N/A' }}</td>
+                                <td style="font-size: 8px; color: #64748b;">{{ $parameter['expected_date'] ?? '-' }}</td>
+                                <td style="font-size: 8px;">{{ $parameter['actual_date'] ?? '-' }}</td>
+                                <td class="text-center">
+                                    @php $offset = (int) ($parameter['offset'] ?? 0); @endphp
+                                    @if($offset < 0)
+                                        <span style="color: #166534; font-weight: bold; font-size: 8px;">{{ $offset }}d</span>
+                                    @elseif($offset === 0)
+                                        <span style="color: #334155; font-weight: bold; font-size: 8px;">0d</span>
+                                    @else
+                                        <span style="color: #991b1b; font-weight: bold; font-size: 8px;">+{{ $offset }}d</span>
+                                    @endif
+                                </td>
+                                <td style="font-size: 8px; font-weight: bold;">{{ $parameter['analyst'] ?? 'Unassigned' }}</td>
+                            </tr>
+                            @endforeach
+                        @endforeach
+                    @endforeach
                     @empty
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted small">No detailed records available for this period.</td>
+                        <td colspan="9" class="text-center py-4 text-muted small">No detailed records available for this period.</td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
             <div style="margin-top: 10px; font-size: 8px; color: #94a3b8; text-align: center;">
-                * Appendix records are capped at the top 100 entries for readability.
+                * Detailed records are capped at the top 100 entries for readability.
             </div>
         </div>
     </div>

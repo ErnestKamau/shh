@@ -109,7 +109,7 @@ class RagIndexer:
                 if isinstance(payload, str):
                     payload = json.loads(payload)
                 
-                company_id = payload.get('company_id', payload.get('crm_customer_id', 0))
+                company_id = self._runtime_int(payload.get('company_id', payload.get('crm_customer_id', 0)), default=0)
                 
                 # 2. Determine chunks logic
                 prepared_chunks = []
@@ -219,3 +219,12 @@ class RagIndexer:
                 continue
 
         return indexed_count
+
+    def _runtime_int(self, value: Any, default: int = 0) -> int:
+        if isinstance(value, bool):
+            return default
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return default

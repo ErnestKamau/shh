@@ -22,6 +22,7 @@ use App\Models\CRM\CRMCustomer;
 use App\Analyte;
 use App\Lab;
 use App\Models\Equipments\Equipment;
+use App\Services\Dashboards\Concerns\DashboardHelpers;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class ModuleReportsController extends Controller
@@ -508,7 +509,15 @@ class ModuleReportsController extends Controller
                 if ($request->filled('sample_type_id') && $request->sample_type_id !== 'all') {
                     $query->where('sample_type_id', $request->sample_type_id);
                 }
-                return $query->latest('receipt_date')->get();
+                return $query->latest('receipt_date')->get()->map(function ($row) {
+                    // Attach grace-aware signed offset so the blade doesn't need
+                    // to recompute it and cannot accidentally use the raw unsigned column.
+                    $row->signed_offset = DashboardHelpers::computeSignedTatOffset(
+                        $row->tat_date,
+                        $row->finished_date
+                    );
+                    return $row;
+                });
 
             case 'standards':
                 $query = Standards::query();
@@ -1273,7 +1282,7 @@ class ModuleReportsController extends Controller
             'disposal' => ['Disposal Date', 'Sample Code', 'Batch Code', 'Lab Section', 'Method Reference'],
             'amendment' => ['Date', 'Batch Code', 'Created By', 'Ammendment No', 'Reason/Details'],
             'workbook' => ['Captured Date', 'Sample Code', 'Analyte', 'Result Value', 'Analyst', 'Status'],
-            'tat' => ['Receipt Date', 'Sample Code', 'Analyst', 'Sample Type', 'Complete Status'],
+            'tat' => ['Receipt Date', 'Sample Code', 'Analyst', 'Sample Type', 'TAT Offset'],
             'standards' => ['Name', 'Standard Code', 'Batch/Lot Number', 'Expiry Date', 'Status'],
             'risk_register' => ['Risk Number', 'Title', 'Category', 'Risk Level', 'Risk Owner', 'Status'],
             'non_conformance' => ['NC Number', 'Title', 'Date Identified', 'Identified By', 'Severity', 'Status'],

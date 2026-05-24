@@ -22,6 +22,7 @@ Groups:
 import re
 import logging
 import difflib
+import copy
 from typing import Optional, Tuple, List, Dict
 from python.py_pipeline.core.database import db_manager
 from sqlalchemy import text
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 # ── Conversational short-circuit patterns ────────────────────────────────
 GREETING_PATTERNS = re.compile(
-    r"^(hi|hello|hey|good\s*(morning|afternoon|evening)|"
+    r"^(hi|hello|hey|good\s*(morning|afternoon|evening|night)|"
     r"thanks|thank\s*you|bye|goodbye|how\s*are\s*you|"
     r"what\'?s\s*up|cheers|greetings|howdy|yo)\b",
     re.IGNORECASE,
@@ -75,7 +76,10 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
          "sample_count_approved"),
         (["samples verified", "verified samples", "how many verified",
           "how many samples are verified", "samples are verified",
-          "verification count", "verified batches", "batches verified"],
+          "verification count", "verified batches", "batches verified",
+          "samples in verification", "samples under verification",
+          "how many samples in verification", "how many samples are in verification",
+          "sample verification count", "batches in verification"],
          "sample_count_verified"),
         (["samples by status", "sample status breakdown", "status breakdown",
           "sample distribution", "status distribution"],
@@ -86,7 +90,10 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
         (["total samples since start of system", "total samples since start",
           "how many samples since start of system", "how many samples since start",
           "sample count since start of system", "samples since start of system",
-          "samples since start", "all time samples", "absolute samples count"],
+          "samples since start", "all time samples", "absolute samples count",
+          "how many samples in entire system", "samples in entire system",
+          "entire system samples", "sample count entire system",
+          "total samples in entire system"],
          "sample_count_absolute_all_time"),
         (["individual sample count", "individual samples", "aliquots",
           "sample items count", "total individual"],
@@ -101,7 +108,7 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
          "daily_ingestion_trend"),
         (["sample type", "specimen type", "matrix type",
           "sample type distribution", "types of samples", "what samples are in lab",
-          "what samples are in the lab", "list samples", "show samples"],
+          "what samples are in the lab", "list sample types", "show sample types"],
          "sample_type_distribution"),
     ],
     "inventory": [
@@ -219,6 +226,10 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
          "portal_pending_approval"),
     ],
     "personnel": [
+        (["how many analysts", "analyst count", "total analysts",
+          "number of analysts", "active analysts", "analysts in system",
+          "analysts are in system"],
+         "analyst_count_active"),
         (["analyst verification", "batches verified", "who verified",
           "verification count", "analyst verified"],
          "analyst_verifications"),
@@ -228,6 +239,11 @@ _GROUP_A_RULES: Dict[str, List[Tuple[List[str], str]]] = {
         (["analyst workload", "analyst activity today", "workload today",
           "who is working"],
          "analyst_workload_today"),
+        (["analyst performance", "top analysts", "rank analysts",
+          "rank top analysts", "top 10 analysts", "analyst ranking",
+          "best analysts", "staff performance", "personnel performance",
+          "team performance"],
+         "analyst_verifications"),
     ],
     "billing": [
         (["outstanding balance", "how much do i owe", "unpaid invoices",
@@ -266,7 +282,8 @@ _GROUP_B_RULES: Dict[str, List[Tuple[List[str], str]]] = {
         (["reliability", "equipment reliability"], "equipment_maintenance_health"),
     ],
     "personnel": [
-        (["personnel performance", "staff performance", "team performance"], "analyst_verifications"),
+        (["personnel performance", "staff performance", "team performance",
+          "analyst performance", "top analysts", "rank analysts"], "analyst_verifications"),
     ],
     "support": [
         (["support sla", "sla rate", "support compliance"], "sla_compliance"),
@@ -284,6 +301,9 @@ class ManifestIntentRouter:
         self._group_a, self._group_b = self._load_rules()
 
     def _load_rules(self) -> Tuple[Dict[str, List[Tuple[List[str], str]]], Dict[str, List[Tuple[List[str], str]]]]:
+        group_a = copy.deepcopy(_GROUP_A_RULES)
+        group_b = copy.deepcopy(_GROUP_B_RULES)
+
         try:
             logger.info("Loading AI manifest intent routing rules from PostgreSQL database...")
             with db_manager.postgres_connection() as conn:
@@ -293,6 +313,10 @@ class ManifestIntentRouter:
                     JOIN ai.manifest_intent_patterns p ON i.id = p.intent_id
                     WHERE i.active = true
                 """)).fetchall()
+
+            if not rows:
+                logger.warning("No active DB routing rules found. Using static manifest intent rules.")
+                return group_a, group_b
 
             # Group patterns by (domain, intent_id, group_type)
             grouped = {}
@@ -305,18 +329,16 @@ class ManifestIntentRouter:
                 key = (domain, intent_id, group_type)
                 grouped.setdefault(key, []).append(pattern)
 
-            group_a = {}
-            group_b = {}
             for (domain, intent_id, group_type), patterns in grouped.items():
                 target_group = group_a if group_type == 'A' else group_b
                 target_group.setdefault(domain, []).append((patterns, intent_id))
 
-            logger.info(f"Successfully loaded rules from DB. Group A domains: {list(group_a.keys())}, Group B domains: {list(group_b.keys())}")
+            logger.info(f"Successfully loaded rules from DB with static fallback. Group A domains: {list(group_a.keys())}, Group B domains: {list(group_b.keys())}")
             return group_a, group_b
 
         except Exception as e:
             logger.error(f"Failed to load routing rules from PostgreSQL: {e}. Falling back to static rules.")
-            return _GROUP_A_RULES, _GROUP_B_RULES
+            return group_a, group_b
 
     def _get_active_rules(self, domain_whitelist: Optional[List[str]] = None) -> Tuple[List[Tuple[List[str], str]], List[Tuple[List[str], str]]]:
         """Filter rules based on whitelist. If None or contains '*', return all."""
@@ -380,7 +402,43 @@ class ManifestIntentRouter:
                                 break
                     # Removed 'break' here to allow matching multiple DIFFERENT intents in fuzzy pass if they exist
 
-        return matches
+        return self._prune_ambiguous_sample_matches(q, matches)
+
+    def _prune_ambiguous_sample_matches(
+        self,
+        query: str,
+        matches: List[Tuple[str, str, float]],
+    ) -> List[Tuple[str, str, float]]:
+        """
+        Resolve sample query overlaps caused by generic phrases like "show samples".
+
+        "show samples by status" should route only to samples_by_status. The
+        sample_type_distribution route is still valid when the user explicitly
+        mentions type/specimen/matrix.
+        """
+        intent_names = {intent for intent, _, _ in matches}
+        if (
+            "samples_by_status" not in intent_names
+            or "sample_type_distribution" not in intent_names
+        ):
+            return matches
+
+        explicit_type_terms = (
+            "sample type",
+            "sample types",
+            "specimen type",
+            "specimen types",
+            "matrix type",
+            "matrix types",
+            "types of samples",
+        )
+        if any(term in query for term in explicit_type_terms):
+            return matches
+
+        return [
+            match for match in matches
+            if match[0] != "sample_type_distribution"
+        ]
 
     def match(self, query: str, domain_whitelist: Optional[List[str]] = None) -> Tuple[Optional[str], Optional[str], float]:
         """

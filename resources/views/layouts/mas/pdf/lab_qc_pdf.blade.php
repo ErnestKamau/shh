@@ -29,7 +29,13 @@
             <table style="width: 100%;">
                 <tr>
                     <td style="width: 60%; vertical-align: middle;">
-                        <img src="{{ public_path('assets/branding/logo.jpeg') }}" style="height: 60px; width: auto;">
+                        @php
+                            $logoPath = $company->logo ?? null;
+                            $logoSrc  = $logoPath
+                                ? (str_starts_with($logoPath, 'http') ? $logoPath : public_path($logoPath))
+                                : public_path('assets/branding/logo.jpeg');
+                        @endphp
+                        <img src="{{ $logoSrc }}" style="height: 60px; width: auto;">
                         <div style="font-size: 10px; color: #64748b; margin-top: 2px; font-weight: bold; text-transform: uppercase;">{{ __('mas/dashboard.command_center') }}</div>
                     </td>
                     <td style="width: 40%; text-align: right; vertical-align: middle;">

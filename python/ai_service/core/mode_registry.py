@@ -18,6 +18,8 @@ Adding a new mode:
   No other code changes are required.
 """
 
+import re
+from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -221,9 +223,52 @@ def get_allowed_domains(mode_key: Optional[str]) -> List[str]:
     return get_mode(mode_key)["domains"]
 
 
-def get_greeting(mode_key: Optional[str]) -> str:
-    """Return the deterministic greeting string for this mode."""
-    return get_mode(mode_key)["greeting"]
+def get_greeting(mode_key: Optional[str], message: Optional[str] = None) -> str:
+    """Return a deterministic, context-aware greeting for this mode."""
+    base = _explicit_time_greeting(message or "") or _current_time_greeting()
+    mode_name = _mode_display_name(mode_key)
+
+    if re.search(r"\bhow\s+are\s+you\b", (message or "").strip().lower()):
+        return f"I'm running well. {base} {mode_name} is ready. How can I help you today?"
+
+    return f"{base} {mode_name} is ready. How can I help you today?"
+
+
+def _explicit_time_greeting(message: str) -> Optional[str]:
+    m = message.strip().lower()
+    if re.search(r"\bgood\s*morning\b", m):
+        return "Good morning."
+    if re.search(r"\bgood\s*afternoon\b", m):
+        return "Good afternoon."
+    if re.search(r"\bgood\s*evening\b", m):
+        return "Good evening."
+    if re.search(r"\bgood\s*night\b", m):
+        return "Good night."
+    return None
+
+
+def _current_time_greeting() -> str:
+    hour = datetime.now().hour
+
+    if 5 <= hour < 12:
+        return "Good morning."
+    if 12 <= hour < 17:
+        return "Good afternoon."
+    if 17 <= hour < 21:
+        return "Good evening."
+    return "Hello."
+
+
+def _mode_display_name(mode_key: Optional[str]) -> str:
+    mode = mode_key if mode_key in MODES else _DEFAULT_MODE
+    return {
+        "general": "ImaraChat AI",
+        "support": "Customer Support AI",
+        "lab": "Lab Mode",
+        "inventory": "Inventory Mode",
+        "audit": "Audit Mode",
+        "crm": "CRM Mode",
+    }.get(mode, "ImaraChat AI")
 
 
 def get_persona(mode_key: Optional[str]) -> str:

@@ -8,9 +8,12 @@ logger = logging.getLogger(__name__)
 
 class OllamaService:
     def __init__(self):
-        self.host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        self.model = os.getenv("AI_HEAVY_MODEL", os.getenv("OLLAMA_MODEL", "qwen2.5:3b"))
+        from python.ai_service.config.settings import settings
+        self.host = settings.ollama_host
+        self.model = settings.heavy_model
         self.request_timeout_s = float(os.getenv("OLLAMA_REQUEST_TIMEOUT_S", "120"))
+        self.stream_idle_timeout_s = float(os.getenv("OLLAMA_STREAM_IDLE_TIMEOUT_S", "30"))
+        self.stream_num_predict = int(os.getenv("OLLAMA_STREAM_NUM_PREDICT", "768"))
         try:
             import ollama
             self.client = ollama.Client(host=self.host)
@@ -74,22 +77,44 @@ class OllamaService:
                     stream = self.client.chat(
                         model=target_model,
                         messages=messages,
-                        options=options or {"temperature": 0.3, "num_predict": 4096},
+                        options=options or {"temperature": 0.3, "num_predict": self.stream_num_predict},
                         stream=True
                     )
                     for chunk in stream:
                         loop.call_soon_threadsafe(queue.put_nowait, self._normalize_chunk(chunk))
                 except Exception as exc:
                     logger.error(f"OllamaService.chat_stream failed: {exc}")
-                    loop.call_soon_threadsafe(queue.put_nowait, {"error": str(exc)})
+                    try:
+                        loop.call_soon_threadsafe(queue.put_nowait, {"error": str(exc)})
+                    except Exception:
+                        pass
                 finally:
-                    loop.call_soon_threadsafe(queue.put_nowait, None)
+                    try:
+                        loop.call_soon_threadsafe(queue.put_nowait, None)
+                    except Exception:
+                        pass
 
             producer_task = asyncio.create_task(asyncio.to_thread(producer))
             try:
                 while True:
-                    # Removed strict wait_for as per user request to allow long LLM response times
-                    chunk = await queue.get()
+                    try:
+                        chunk = await asyncio.wait_for(
+                            queue.get(),
+                            timeout=self.stream_idle_timeout_s,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.error(
+                            "OllamaService.chat_stream idle timeout after %ss for model %s",
+                            self.stream_idle_timeout_s,
+                            target_model,
+                        )
+                        yield {
+                            "error": (
+                                f"AI stream timed out after {int(self.stream_idle_timeout_s)}s "
+                                "without receiving a token."
+                            )
+                        }
+                        break
                     if chunk is None:
                         break
                     yield chunk
