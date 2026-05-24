@@ -12,8 +12,11 @@ use Database\Seeders\Setup\Languages\EquipmentLanguageSeeder;
 use Database\Seeders\Setup\Languages\PersonnelLanguageSeeder;
 use Database\Seeders\Setup\Languages\SystemTranslationsSeeder;
 use Database\Seeders\Setup\AuditModulePermissionsSeeder;
+use Database\Seeders\Setup\RiskModulePermissionsSeeder;
+use Database\Seeders\Setup\DmsModulePermissionsSeeder;
 use Database\Seeders\Setup\LabModulePermissionsSeeder;
 use Database\Seeders\Setup\SystemConfigPermissionsSeeder;
+use Database\Seeders\Setup\RegistryModuleDataSeeder;
 use Database\Seeders\Setup\SystemSetupSeeder;
 use Database\Seeders\Setup\WorkflowResponsibilityConfigSeeder;
 use Illuminate\Database\Seeder;
@@ -27,12 +30,16 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             SystemSetupSeeder::class,
-            \Database\Seeders\Setup\RegistryModuleSeeder::class,
+            \Database\Seeders\Setup\SkillsMatrixPermissionsSeeder::class,
+            RegistryModuleDataSeeder::class,
             WorkflowResponsibilityConfigSeeder::class,
             PersonnelPermissionsSeeder::class,
             CRMPermissionsSeeder::class,
             LabModulePermissionsSeeder::class,
             AuditModulePermissionsSeeder::class,
+            RiskModulePermissionsSeeder::class,
+            DmsModulePermissionsSeeder::class,
+            // Optional: php artisan db:seed --class=Database\\Seeders\\DmsModuleWorkflowSeeder
             EquipmentPermissionsSeeder::class,
             ReportingUnitsSeeder::class,
             SystemConfigPermissionsSeeder::class,

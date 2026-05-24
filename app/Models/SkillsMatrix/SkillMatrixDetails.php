@@ -18,6 +18,14 @@ class SkillMatrixDetails extends Model implements Auditable
     use \OwenIt\Auditing\Auditable;
     protected $table = "skills_matrix_detail";
 
+    protected $fillable = [
+        'skill_matrix_id',
+        'competency_area_id',
+        'competency_type_id',
+        'competency_description_id',
+        'deleted_at',
+    ];
+
     public function roles(){
         return $this->hasMany(SkillMatrixDetailRole::class,'matrix_detail_id')->orderBy('role_id','ASC');
     }

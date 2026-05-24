@@ -558,7 +558,7 @@
 
         @if(isSystemModuleVisible('matrix'))
         @can('matrix.module.access')
-        <a class="app-card matrix" href="{{route('matrix')}}" data-app="matrix">
+        <a class="app-card matrix" href="{{ route('matrix.dashboard') }}" data-app="matrix">
             <div class="app-icon" style="background: linear-gradient(135deg, #9E9E9E, #616161);">
                 <i class="mdi mdi-account-star-outline"></i>
             </div>

@@ -77,6 +77,7 @@ class RegistryRequestRepository
             ->forCompany()
             ->with([
                 'category.workflowDefinition.steps',
+                'assignee',
                 'actions.performer',
                 'assignments.assignee',
                 'documents',

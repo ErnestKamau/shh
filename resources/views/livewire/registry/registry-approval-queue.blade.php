@@ -24,7 +24,9 @@
                                     <tr>
                                         <td>{{ $r->reference_no }}</td>
                                         <td>{{ Str::limit($r->subject, 60) }}</td>
-                                        <td>{{ $r->current_stage }}</td>
+                                        <td>
+                                            @include('layouts.registry.partials.stage-badge', ['stage' => $r->current_stage])
+                                        </td>
                                         <td>
                                             <a href="{{ route('registry.requests.show', $r->id) }}"
                                                class="btn btn-sm rm-act-btn rm-act-btn--edit"

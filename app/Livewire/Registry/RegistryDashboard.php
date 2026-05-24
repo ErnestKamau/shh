@@ -45,9 +45,10 @@ class RegistryDashboard extends Component
     {
         $pendingTasks = RegistryRequest::query()
             ->forCompany()
+            ->with('category')
             ->whereIn('status', [RegistryRequest::STATUS_OPEN, RegistryRequest::STATUS_PENDING_APPROVAL])
             ->orderByDesc('updated_at')
-            ->limit(6)
+            ->limit(8)
             ->get();
 
         return view('livewire.registry.registry-dashboard', [

@@ -199,15 +199,17 @@
                         </div>
                     @endif
 
-                    <div class="method-sequences-tab-panel {{ $activeTab !== 'method-sequences' ? 'd-none' : '' }}">
-                        <div wire:ignore wire:key="method-sequences-jquery-panel">
-                            @include('worksheets.partials.method-sequences-jquery', [
-                                'batch' => $batch,
-                                'stageHeaders' => $stageHeaders,
-                                'stageHeadersPayload' => $stageHeadersPayload,
-                            ])
+                    @if($activeTab === 'method-sequences')
+                        <div class="method-sequences-tab-panel">
+                            <div wire:ignore wire:key="method-sequences-jquery-panel">
+                                @include('worksheets.partials.method-sequences-jquery', [
+                                    'batch' => $batch,
+                                    'stageHeaders' => $stageHeaders,
+                                    'stageHeadersPayload' => $stageHeadersPayload,
+                                ])
+                            </div>
                         </div>
-                    </div>
+                    @endif
 
                     @if($activeTab === 'procedures')
                         @livewire('worksheets.procedure-worksheet-manager', ['batchId' => $batch->id], 'procedure-manager-'.$batch->id)

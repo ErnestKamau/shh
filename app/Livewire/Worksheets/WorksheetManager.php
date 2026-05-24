@@ -5,6 +5,7 @@ namespace App\Livewire\Worksheets;
 use App\CapturedResult;
 use App\Models\Formulars\Formula;
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
+use App\Models\StageHeader;
 use App\SampleHeader;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use Illuminate\Support\Collection;
@@ -33,17 +34,21 @@ class WorksheetManager extends Component
 
     public $groupedNoCaptureSamples = [];
 
+    protected bool $formulaDataLoaded = false;
+
+    protected bool $stageHeadersLoaded = false;
+
     protected $queryString = [
         'activeTab' => ['except' => 'formulas', 'as' => 'tab'],
         'pipeline' => ['except' => null, 'as' => 'pipeline'],
     ];
 
-    public function mount(SampleHeader $batch, Collection $stageHeaders): void
+    public function mount(SampleHeader $batch): void
     {
         $this->batch = $batch;
-        $this->stageHeaders = $stageHeaders;
+        $this->stageHeaders = collect();
+        $this->formulas = collect();
         $this->groupedHolders = app(GroupedWorksheetAssignmentService::class)->resolveHoldersForBatch($batch);
-        $this->loadWorksheetData();
 
         if ($this->groupedHolders->isNotEmpty()) {
             $this->activeGroupedHolderId = (string) ($this->groupedHolders->first()->id);
@@ -68,6 +73,48 @@ class WorksheetManager extends Component
             $this->activeTab = 'formulas';
             $this->activeFormulaId = $requestedFormulaId;
         }
+
+        $this->ensureTabDataLoaded();
+    }
+
+    protected function ensureTabDataLoaded(): void
+    {
+        if (in_array($this->activeTab, ['formulas', 'ser'], true)) {
+            $this->loadFormulaWorksheetData();
+        }
+
+        if ($this->activeTab === 'method-sequences') {
+            $this->loadStageHeaders();
+        }
+    }
+
+    protected function loadStageHeaders(): void
+    {
+        if ($this->stageHeadersLoaded) {
+            return;
+        }
+
+        $this->stageHeaders = StageHeader::query()
+            ->whereHas('capturedResults', function ($q) {
+                $q->whereHas('sample', function ($sq) {
+                    $sq->where('sample_header_id', $this->batch->id);
+                });
+            })
+            ->with(['method', 'analyte', 'sampleType', 'testStages'])
+            ->orderBy('name')
+            ->get();
+
+        $this->stageHeadersLoaded = true;
+    }
+
+    public function loadFormulaWorksheetData(): void
+    {
+        if ($this->formulaDataLoaded) {
+            return;
+        }
+
+        $this->loadWorksheetData();
+        $this->formulaDataLoaded = true;
     }
 
     public function loadWorksheetData(): void
@@ -129,6 +176,7 @@ class WorksheetManager extends Component
         }
 
         $this->activeTab = $tab;
+        $this->ensureTabDataLoaded();
 
         if ($tab === 'method-sequences') {
             $this->queueMethodSequencesInit();
@@ -143,6 +191,8 @@ class WorksheetManager extends Component
 
     public function updatedActiveTab(string $tab): void
     {
+        $this->ensureTabDataLoaded();
+
         if ($tab === 'method-sequences') {
             $this->queueMethodSequencesInit();
         }
@@ -191,8 +241,12 @@ class WorksheetManager extends Component
         $activeGroupedHolder = $this->groupedHolders->firstWhere('id', $this->activeGroupedHolderId)
             ?? $this->groupedHolders->first();
 
+        $stageHeadersPayload = $this->activeTab === 'method-sequences'
+            ? $this->stageHeadersPayload()
+            : [];
+
         return view('livewire.worksheets.worksheet-manager', [
-            'stageHeadersPayload' => $this->stageHeadersPayload(),
+            'stageHeadersPayload' => $stageHeadersPayload,
             'activeGroupedHolder' => $activeGroupedHolder,
         ]);
     }

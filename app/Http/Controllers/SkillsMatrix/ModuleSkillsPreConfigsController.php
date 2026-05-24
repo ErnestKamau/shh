@@ -33,7 +33,12 @@ class ModuleSkillsPreConfigsController extends Controller
 	public function index(Request $request, $config, $module){
 		$this->authorizeModuleAccess($module);
 
-					
+		if ($module === 'Skills-Matrix') {
+			$displayConfig = $config === 'Roles' ? 'Job Description' : $config;
+
+			return app(SkillsMatrixAppController::class)->modulePreConfigs($displayConfig);
+		}
+
 		if($config=='Roles') {
 			$config = 'Job Description';			
 			$config_items = ModulePreConfigs::where('type', $config)

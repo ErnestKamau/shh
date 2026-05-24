@@ -28,6 +28,10 @@
 	}
 </style>
 @include('layouts.registry.partials.rm-act-btn-styles')
+<style type="text/css">
+@include('layouts.registry.partials.status-badge-styles')
+@include('layouts.registry.partials.stage-badge-styles')
+</style>
 @yield('title2')
 @endsection
 

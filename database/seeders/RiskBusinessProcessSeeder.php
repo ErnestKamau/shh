@@ -25,7 +25,7 @@ class RiskBusinessProcessSeeder extends Seeder
         foreach ($processes as $name) {
             RiskBusinessProcess::firstOrCreate(
                 ['name' => $name],
-                ['company_id' => 0] // Global/Default
+                ['company_id' => null]
             );
         }
     }

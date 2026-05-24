@@ -97,7 +97,20 @@
 		100% { opacity: 1; }
 	}
 
+	.sidebar-submenu .list-group-item.risk-workflow-link {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.sidebar-submenu .list-group-item.risk-workflow-link .menu-collapsed {
+		flex: 1 1 auto;
+		min-width: 0;
+		padding-right: 0.5rem;
+	}
+
 	.workflow-count {
+		flex: 0 0 auto;
 		min-width: 24px;
 		text-align: center;
 	}
@@ -144,13 +157,11 @@
 				@endphp
 				@foreach($workflowSteps as $stepNum => $stepName)
 					<a href="{{ route('risk.risks.index', ['status' => $stepName]) }}" 
-					   class="list-group-item list-group-item-action bg-dark text-white {{ ($currentStatus === $stepName) ? 'active' : '' }}">
-						<span class="menu-collapsed">
-							{{ $stepName }}
-							<small class="float-right badge badge-pill badge-secondary workflow-count">
-								{{ $workflowTotals[$stepNum] ?? 0 }}
-							</small>
-						</span>
+					   class="list-group-item list-group-item-action bg-dark text-white risk-workflow-link {{ ($currentStatus === $stepName) ? 'active' : '' }}">
+						<span class="menu-collapsed">{{ $stepName }}</span>
+						<small class="badge badge-pill badge-secondary workflow-count">
+							{{ $workflowTotals[$stepNum] ?? 0 }}
+						</small>
 					</a>
 				@endforeach
 			</div>

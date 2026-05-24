@@ -16,4 +16,6 @@ class TrainingHeaderStaff extends Model implements Auditable
 
     use \OwenIt\Auditing\Auditable;
     protected $table = "skill_training_header_staff";
+
+    protected $fillable = ['training_header_id', 'capability_matrix_role_id'];
 }

@@ -122,9 +122,9 @@ class ConfigManager extends Component
             $modelClass = $this->getModelClass();
             $tableName = (new $modelClass)->getTable();
             
-            $uniqueRule = $this->isEdit 
-                ? "unique:{$tableName},code," . $this->editId . ',id,company_id,' . (getUserCompany() ?? 0)
-                : "unique:{$tableName},code,NULL,id,company_id," . (getUserCompany() ?? 0);
+            $uniqueRule = $this->isEdit
+                ? 'unique:'.$tableName.',code,'.$this->editId.',id,company_id,'.(riskCompanyId() ?? 'NULL')
+                : 'unique:'.$tableName.',code,NULL,id,company_id,'.(riskCompanyId() ?? 'NULL');
             
             $rules['code'] = 'nullable|string|max:' . ($isScale ? 50 : 10) . '|' . $uniqueRule;
             $rules['color_code'] = 'nullable|string|max:7';
@@ -154,9 +154,9 @@ class ConfigManager extends Component
             $modelClass = $this->getModelClass();
             $tableName = (new $modelClass)->getTable();
             
-            $uniqueRule = $this->isEdit 
-                ? "unique:{$tableName},code," . $this->editId . ',id,company_id,' . (getUserCompany() ?? 0)
-                : "unique:{$tableName},code,NULL,id,company_id," . (getUserCompany() ?? 0);
+            $uniqueRule = $this->isEdit
+                ? 'unique:'.$tableName.',code,'.$this->editId.',id,company_id,'.(riskCompanyId() ?? 'NULL')
+                : 'unique:'.$tableName.',code,NULL,id,company_id,'.(riskCompanyId() ?? 'NULL');
             
             $rules['code'] = 'nullable|string|max:10|' . $uniqueRule;
         }
@@ -169,7 +169,7 @@ class ConfigManager extends Component
             'name' => $this->name,
             'description' => $this->description,
             'is_active' => $this->is_active,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => riskCompanyId(),
         ];
         
         if ($this->type === 'risk_statuses' || $isScale) {
@@ -248,10 +248,7 @@ class ConfigManager extends Component
     {
         $modelClass = $this->getModelClass();
         
-        $query = $modelClass::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        });
+        $query = riskApplyCompanyScope($modelClass::query());
         
         if ($this->search) {
             $query->where('name', 'like', '%' . $this->search . '%');

@@ -278,7 +278,12 @@ class Risk extends Model implements Auditable
     // Scopes
     public function scopeForCompany($query)
     {
-        $companyId = getUserCompany();
+        $companyId = riskCompanyId();
+
+        if ($companyId === null) {
+            return $query;
+        }
+
         return $query->where('company_id', $companyId);
     }
 

@@ -19,6 +19,7 @@ use App\Analyte;
 use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
+use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -114,6 +115,16 @@ class Samples extends Component
     /** Unique lab sections in current parameters (for Date of Analysis row): [ id => name ] */
     public $parameterLabSections = [];
 
+    /** @var array<string, array<int, array<string, mixed>>> */
+    public array $sampleWorksheetMap = [];
+
+    public bool $showGroupedWorksheetsModal = false;
+
+    public string $groupedWorksheetsModalSampleCode = '';
+
+    /** @var array<int, array<string, mixed>> */
+    public array $groupedWorksheetsModalItems = [];
+
     // Assign Samples Modal Data
     public $showAssignSamplesModal = false;
     public $assignStagingId = null;
@@ -199,6 +210,65 @@ class Samples extends Component
         $this->loadIncompleteCapturedResults();
         $this->loadDropdownData();
         $this->loadSamples();
+        $this->loadSampleGroupedWorksheets();
+    }
+
+    protected function loadSampleGroupedWorksheets(): void
+    {
+        try {
+            $this->sampleWorksheetMap = app(GroupedWorksheetAssignmentService::class)
+                ->buildSampleWorksheetMap($this->batch);
+        } catch (\Exception $e) {
+            Log::error('Error loading sample grouped worksheets for batch ' . $this->batchId . ': ' . $e->getMessage());
+            $this->sampleWorksheetMap = [];
+        }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function worksheetsForSampleRow(int $index): array
+    {
+        if (! isset($this->sampleForms[$index])) {
+            return [];
+        }
+
+        $sampleId = $this->sampleForms[$index]['id'] ?? null;
+
+        if ($sampleId && isset($this->sampleWorksheetMap[(string) $sampleId])) {
+            return $this->sampleWorksheetMap[(string) $sampleId];
+        }
+
+        $analysisIds = $this->sampleForms[$index]['analysis_type_id'] ?? [];
+
+        if (! is_array($analysisIds) || $analysisIds === []) {
+            return [];
+        }
+
+        return app(GroupedWorksheetAssignmentService::class)
+            ->summariesForAnalysisTypeIds($analysisIds, $this->batch);
+    }
+
+    public function openGroupedWorksheetsModal(int $index): void
+    {
+        $worksheets = $this->worksheetsForSampleRow($index);
+
+        if ($worksheets === []) {
+            session()->flash('error', 'No grouped worksheets are linked to this sample\'s analysis types.');
+
+            return;
+        }
+
+        $this->groupedWorksheetsModalSampleCode = $this->sampleForms[$index]['sample_code'] ?? 'Sample';
+        $this->groupedWorksheetsModalItems = $worksheets;
+        $this->showGroupedWorksheetsModal = true;
+    }
+
+    public function closeGroupedWorksheetsModal(): void
+    {
+        $this->showGroupedWorksheetsModal = false;
+        $this->groupedWorksheetsModalSampleCode = '';
+        $this->groupedWorksheetsModalItems = [];
     }
 
     /**
@@ -401,6 +471,7 @@ class Samples extends Component
             }
 
             $this->samples = $samples;
+            $this->loadSampleGroupedWorksheets();
         } catch (\Exception $e) {
             Log::error('Error loading samples: ' . $e->getMessage());
             $this->sampleForms = [];
@@ -1702,6 +1773,8 @@ class Samples extends Component
             // Add if not selected
             $this->sampleForms[$index]['analysis_type_id'][] = $analysisTypeId;
         }
+
+        $this->loadSampleGroupedWorksheets();
     }
 
     /**

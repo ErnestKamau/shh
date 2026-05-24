@@ -9,6 +9,10 @@
         justify-content: center;
     }
 
+    #main-container-body .rm-act-btn + .rm-act-btn {
+        margin-left: 8px;
+    }
+
     #main-container-body .rm-act-btn--view {
         border: 1px solid #bbf7d0;
         color: #15803d;

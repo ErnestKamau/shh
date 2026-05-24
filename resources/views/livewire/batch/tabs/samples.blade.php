@@ -1,4 +1,113 @@
 <div>
+    <style>
+        .sample-gw-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #dbeafe;
+            text-decoration: none !important;
+            margin: 0.15rem 0.25rem 0.15rem 0;
+            white-space: nowrap;
+        }
+        .sample-gw-pill:hover {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .sample-gw-pill--done {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #d1fae5;
+        }
+        .sample-gw-pill--progress {
+            background: #fff7ed;
+            color: #c2410c;
+            border-color: #ffedd5;
+        }
+        .sample-gw-timeline {
+            list-style: none;
+            margin: 0.75rem 0 0;
+            padding: 0 0 0 0.25rem;
+        }
+        .sample-gw-timeline__item {
+            display: flex;
+            gap: 0.75rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+        .sample-gw-timeline__item:not(:last-child)::before {
+            content: '';
+            position: absolute;
+            left: 13px;
+            top: 28px;
+            bottom: 0;
+            width: 2px;
+            background: #e2e8f0;
+        }
+        .sample-gw-timeline__dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.72rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px #e2e8f0;
+            z-index: 1;
+        }
+        .sample-gw-timeline__dot--final {
+            background: #d1fae5;
+            color: #047857;
+        }
+        .sample-gw-timeline__card {
+            flex: 1;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.55rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        .sample-gw-timeline__title {
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0 0 0.15rem;
+        }
+        .sample-gw-timeline__meta {
+            color: #64748b;
+            margin: 0;
+            font-size: 0.75rem;
+        }
+        .sample-gw-holder {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem 1.15rem;
+            margin-bottom: 1rem;
+            background: #fff;
+        }
+        .sample-gw-holder:last-child {
+            margin-bottom: 0;
+        }
+        .sample-gw-status {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .sample-gw-status--in_progress { background: #fff7ed; color: #c2410c; }
+        .sample-gw-status--completed { background: #ecfdf5; color: #047857; }
+    </style>
     <div wire:ignore>
         <script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
     </div>
@@ -162,6 +271,15 @@
                                 </button>
                                 @endif
 
+                                @php $rowWorksheets = $this->worksheetsForSampleRow($index); @endphp
+                                @if(count($rowWorksheets) > 0)
+                                <button type="button" wire:click="openGroupedWorksheetsModal({{ $index }})"
+                                    class="btn btn-sm btn-icon btn-light text-primary mx-1"
+                                    title="Grouped worksheets ({{ count($rowWorksheets) }})">
+                                    <i class="mdi mdi-folder-multiple-outline"></i>
+                                </button>
+                                @endif
+
                                 {{-- Comment Button --}}
                                 @if($sampleForm['id'])
                                 <button type="button" wire:click="openCommentsModal({{ $sampleForm['id'] }})"
@@ -276,6 +394,20 @@
                             @error("sampleForms.$index.analysis_type_id")
                             <small class="text-danger">{{ $message }}</small>
                             @enderror
+                            @endif
+                            @php $rowWorksheets = $this->worksheetsForSampleRow($index); @endphp
+                            @if(count($rowWorksheets) > 0)
+                                <div class="mt-1">
+                                    @foreach($rowWorksheets as $ws)
+                                        <a href="{{ $ws['capture_url'] }}"
+                                           class="sample-gw-pill {{ $ws['run_status'] === 'completed' ? 'sample-gw-pill--done' : ($ws['run_status'] === 'in_progress' ? 'sample-gw-pill--progress' : '') }}"
+                                           title="Open {{ $ws['holder_name'] }} — {{ implode(', ', $ws['analysis_names']) }}"
+                                           target="_blank" rel="noopener">
+                                            <i class="mdi mdi-folder-multiple-outline"></i>
+                                            {{ Str::limit($ws['holder_name'], 22) }}
+                                        </a>
+                                    @endforeach
+                                </div>
                             @endif
                         </td>
 
@@ -1771,6 +1903,79 @@
             </div>
         </div>
     </div>
+    </div>
+    @endif
+
+    {{-- Grouped worksheets modal (per sample, from linked analysis types) --}}
+    @if($showGroupedWorksheetsModal)
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1095;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+            <div class="modal-content" style="border-radius: 15px; border: none;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">
+                        <i class="mdi mdi-folder-multiple-outline text-primary"></i>
+                        Grouped worksheets — {{ $groupedWorksheetsModalSampleCode }}
+                    </h5>
+                    <button type="button" class="close" wire:click="closeGroupedWorksheetsModal" aria-label="Close">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body pt-2">
+                    <p class="text-muted small mb-3">
+                        Pipelines linked via this sample's analysis types. Open a worksheet to capture results for the batch.
+                    </p>
+                    @foreach($groupedWorksheetsModalItems as $ws)
+                        <div class="sample-gw-holder">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                <div>
+                                    <h6 class="mb-1 font-weight-bold">{{ $ws['holder_name'] }}</h6>
+                                    <p class="text-muted small mb-0">
+                                        <i class="mdi mdi-flask-outline"></i>
+                                        {{ implode(' · ', $ws['analysis_names']) }}
+                                        <span class="mx-1">·</span>
+                                        {{ $ws['step_count'] }} {{ Str::plural('stage', $ws['step_count']) }}
+                                    </p>
+                                </div>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="sample-gw-status {{ $ws['run_status'] ? 'sample-gw-status--' . $ws['run_status'] : '' }}">
+                                        {{ $ws['run_status_label'] }}
+                                    </span>
+                                    <a href="{{ $ws['capture_url'] }}" class="btn btn-sm btn-primary" target="_blank" rel="noopener">
+                                        <i class="mdi mdi-clipboard-edit-outline"></i> Capture worksheet
+                                    </a>
+                                </div>
+                            </div>
+                            @if(!empty($ws['stages']))
+                                <ul class="sample-gw-timeline">
+                                    @foreach($ws['stages'] as $stage)
+                                        <li class="sample-gw-timeline__item">
+                                            <div class="sample-gw-timeline__dot {{ $loop->last ? 'sample-gw-timeline__dot--final' : '' }}">
+                                                {{ $stage['sequence'] }}
+                                            </div>
+                                            <div class="sample-gw-timeline__card">
+                                                <p class="sample-gw-timeline__title">{{ $stage['label'] }}</p>
+                                                <p class="sample-gw-timeline__meta mb-0">
+                                                    {{ ucwords(str_replace('_', ' ', $stage['item_type'])) }}
+                                                    @if($stage['reference_name'] && $stage['reference_name'] !== '—')
+                                                        — {{ $stage['reference_name'] }}
+                                                    @endif
+                                                    @if($stage['is_required'])
+                                                        <span class="text-danger">· Required</span>
+                                                    @endif
+                                                </p>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary" wire:click="closeGroupedWorksheetsModal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
     @endif
 

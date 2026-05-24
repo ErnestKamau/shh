@@ -1840,61 +1840,58 @@ Route::get('/module-skills-pre-configs/{config}/{module}', 'SkillsMatrix\ModuleS
 Route::post('/add-module-skills-pre-configs/{id}/{config}/{module}', 'ModulePreConfigsController@update')->name('add-module-skills-pre-configs')->middleware('auth');
 Route::post('/update-module-skills-pre-configs/{id}/{config}/{module}', 'SkillsMatrix\ModuleSkillsPreConfigsController@update')->name('update-module-skills-pre-configs')->middleware('auth');
 Route::get('/move-skills-type/{direction}/{module}/{element}', 'SkillsMatrix\ModuleSkillsPreConfigsController@move_skills_types')->name('move-skills-type')->middleware('auth');
-/* MODULE SKILLS MATRIX */
-Route::get('/matrix', 'SkillsMatrix\SkillsMatrixController@index')->name('matrix')->middleware('can:matrix.module.access');
+/* MODULE SKILLS MATRIX — Livewire UI */
+Route::get('/matrix/dashboard', 'SkillsMatrix\SkillsMatrixAppController@dashboard')->name('matrix.dashboard')->middleware('can:matrix.module.access');
+Route::get('/matrix', 'SkillsMatrix\SkillsMatrixAppController@skillsMatrixIndex')->name('matrix')->middleware('can:matrix.module.access');
+Route::get('/matrix/show/{id}', 'SkillsMatrix\SkillsMatrixAppController@skillsMatrixShow')->name('show-matrix')->middleware('can:skills-matrix.components.skills-matrix.view');
+Route::get('/matrix/staff', 'SkillsMatrix\SkillsMatrixAppController@staffProfiles')->name('matrix.staff')->middleware('can:skills-matrix.components.capability.view');
+Route::get('/matrix/staff/{userId}', 'SkillsMatrix\SkillsMatrixAppController@staffProfileShow')->name('matrix.staff.show')->middleware('can:skills-matrix.components.capability.view');
+Route::get('/matrix/education', 'SkillsMatrix\SkillsMatrixAppController@educationRequirements')->name('matrix.education')->middleware('can:skills-matrix.components.skills-matrix.view');
+Route::get('/matrix/reports', 'SkillsMatrix\SkillsMatrixAppController@reports')->name('matrix.reports')->middleware('can:skills-matrix.components.skills-matrix.view');
+Route::get('/matrix/evaluations', 'SkillsMatrix\SkillsMatrixAppController@evaluationApprovals')->name('matrix.evaluations')->middleware('can:skills-matrix.components.training-plan.evaluation.approve');
+Route::get('/matrix/training-material/{materialId}', 'SkillsMatrix\SkillsMatrixAppController@downloadTrainingMaterial')->name('matrix.training.material.download')->middleware('can:skills-matrix.components.training-plan.view');
+
 Route::post('/matrix', 'SkillsMatrix\SkillsMatrixController@add')->name('assign-matrix')->middleware('can:skills-matrix.components.skills-matrix.add');
 Route::post('/matrix/edit', 'SkillsMatrix\SkillsMatrixController@edit')->name('edit-matrix')->middleware('can:skills-matrix.components.skills-matrix.edit');
-Route::get('/matrix/show/{id}', 'SkillsMatrix\SkillsMatrixController@show')->name('show-matrix')->middleware('can:skills-matrix.components.skills-matrix.view');
 Route::post('/matrix/create', 'SkillsMatrix\SkillsMatrixController@createSkillsMatrix')->name('create-matrix')->middleware('can:skills-matrix.components.skills-matrix.add');
 Route::post('/matrix/detail/delete', 'SkillsMatrix\SkillsMatrixController@deleteMatrixDetail')->name('delete-matrix-detail')->middleware('can:skills-matrix.components.skills-matrix.delete');
 Route::post('/matrix/detail/role/edit', 'SkillsMatrix\SkillsMatrixController@editMatrixdetailRole')->name('edit-matrix-detail-role')->middleware('can:skills-matrix.components.skills-matrix.edit');
 
-Route::get('/matrix/capability/index', 'SkillsMatrix\CapabilityController@index')->name('capability-index')->middleware('can:skills-matrix.components.capability.view');
+Route::get('/matrix/capability/index', 'SkillsMatrix\SkillsMatrixAppController@capabilityIndex')->name('capability-index')->middleware('can:skills-matrix.components.capability.view');
 Route::post('/matrix/capability/add', 'SkillsMatrix\CapabilityController@store')->name('capability.add')->middleware('can:skills-matrix.components.capability.add');
 Route::post('/matrix/capability/edit', 'SkillsMatrix\CapabilityController@editCapabaility')->name('capability.edit')->middleware('can:skills-matrix.components.capability.edit');
 Route::post('/matrix/capability/delete', 'SkillsMatrix\CapabilityController@deleteCapabaility')->name('capability.delete')->middleware('can:skills-matrix.components.capability.delete');
 
 Route::get('/matrix/get/role/{matrix_id}/ajax', 'SkillsMatrix\CapabilityController@getSkillMatrixRolesAjax')->name('capability.get.role')->middleware('can:skills-matrix.components.capability.view');
 Route::post('/matrix/get/user/position/ajax', 'SkillsMatrix\CapabilityController@getMatrixUsersByPositionAjax')->name('capability.get.userby.position')->middleware('can:skills-matrix.components.capability.view');
-Route::get('/matrix/capability/show/{id}', 'SkillsMatrix\CapabilityController@show')->name('capability.show')->middleware('can:skills-matrix.components.capability.view');
+Route::get('/matrix/capability/show/{id}', 'SkillsMatrix\SkillsMatrixAppController@capabilityShow')->name('capability.show')->middleware('can:skills-matrix.components.capability.view');
 Route::post('/matrix/capability/show/{id}', 'SkillsMatrix\CapabilityController@show')->name('capability.show-post')->middleware('can:skills-matrix.components.capability.view');
 Route::post('/matrix/capability/details/store', 'SkillsMatrix\CapabilityController@storeDetails')->name('capability.detail.store')->middleware('can:skills-matrix.components.capability.edit');
 
-Route::get('/matrix/training-needs', 'SkillsMatrix\TrainingNeedsController@index')->name('train.needs.index')->middleware('can:skills-matrix.components.training-needs.view');
+Route::get('/matrix/training-needs', 'SkillsMatrix\SkillsMatrixAppController@trainingNeedsIndex')->name('train.needs.index')->middleware('can:skills-matrix.components.training-needs.view');
 Route::post('/matrix/train-needs/store', 'SkillsMatrix\TrainingNeedsController@store')->name('train.needs.store')->middleware('can:skills-matrix.components.training-needs.add');
 Route::get('/matrix/get-capability-users/{id}', 'SkillsMatrix\TrainingNeedsController@getCapabilityUsers')->name('train.needs.get.cabailityusers')->middleware('can:skills-matrix.components.training-needs.view');
-Route::get('/matrix/train-needs/{id}', 'SkillsMatrix\TrainingNeedsController@show')->name('train.needs.show')->middleware('can:skills-matrix.components.training-needs.view');
+Route::get('/matrix/train-needs/{id}', 'SkillsMatrix\SkillsMatrixAppController@trainingNeedsShow')->name('train.needs.show')->middleware('can:skills-matrix.components.training-needs.view');
 Route::post('/matrix/train-need/edit', 'SkillsMatrix\TrainingNeedsController@editTrainNeed')->name('train.needs.edit')->middleware('can:skills-matrix.components.training-needs.edit');
 Route::post('/matrix/train-need/delete', 'SkillsMatrix\TrainingNeedsController@deleteTrainNeed')->name('train.needs.delete')->middleware('can:skills-matrix.components.training-needs.delete');
 
 
-Route::get('/matrix/train-plan/index', 'SkillsMatrix\TrainingPlanController@index')->name('train.plan.index')->middleware('can:skills-matrix.components.training-plan.view');
+Route::get('/matrix/train-plan/index', 'SkillsMatrix\SkillsMatrixAppController@trainingPlanIndex')->name('train.plan.index')->middleware('can:skills-matrix.components.training-plan.view');
 Route::post('/matrix/train-plan/store', 'SkillsMatrix\TrainingPlanController@store')->name('train.plan.store')->middleware('can:skills-matrix.components.training-plan.add');
 Route::post('/matrix/train/plan/edit', 'SkillsMatrix\TrainingPlanController@editPlan')->name('train.plan.edit')->middleware('can:skills-matrix.components.training-plan.edit');
 Route::post('/matrix/train/plan/delete', 'SkillsMatrix\TrainingPlanController@deletePlan')->name('train.plan.delete')->middleware('can:skills-matrix.components.training-plan.delete');
-Route::get('/matrix/train-plan/show/{id}', 'SkillsMatrix\TrainingPlanController@show')->name('train.plan.show')->middleware('can:skills-matrix.components.training-plan.view');
+Route::get('/matrix/train-plan/show/{id}', 'SkillsMatrix\SkillsMatrixAppController@trainingPlanShow')->name('train.plan.show')->middleware('can:skills-matrix.components.training-plan.view');
 Route::post('/matrix/train-plan/show/{id}', 'SkillsMatrix\TrainingPlanController@show')->name('train.plan.show-post')->middleware('can:skills-matrix.components.training-plan.view');
 
 Route::post('/matrix/train/plan/other/store', 'SkillsMatrix\TrainingPlanController@storeOther')->name('train.plan.store.other')->middleware('can:skills-matrix.components.training-plan.add');
 Route::post('/matrix/train/planner/detail/store', 'SkillsMatrix\TrainingPlanController@storeDetail')->name('train.plan.detail.store')->middleware('can:skills-matrix.components.training-plan.edit');
 Route::post('/matrix/train/plan/others/delete', 'SkillsMatrix\TrainingPlanController@deleteOtherDetail')->name('train.plan.others.delete')->middleware('can:skills-matrix.components.training-plan.delete');
 
-Route::get('/matrix-config/{module}', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('matrix-config')->middleware('can:skills-matrix.components.matrix-configuration.view');
-Route::get('/matrix-config/{module}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology-module')->middleware('can:skills-matrix.components.matrix-configuration.view');
-Route::post('/matrix-config-add/{matrix_id}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@add')->name('topology-add')->middleware('can:skills-matrix.components.matrix-configuration.add');
-Route::post('/update-matrix-Config', 'SkillsMatrix\SkillsMatrixConfigController@updat_matrix_Config')->name('update-matrix-Config')->middleware('can:skills-matrix.components.matrix-configuration.edit');
-Route::post('/update-user-role-matrix-Config', 'SkillsMatrix\SkillsMatrixConfigController@updat_user_role_matrix_Config')->name('update-user-role-matrix-Config')->middleware('can:skills-matrix.components.matrix-configuration.edit');
-Route::get('/matrix-config-topology', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('topology')->middleware('can:skills-matrix.components.matrix-configuration.view');
-Route::get('/matrix-config-topology/{id}/{matrix_id}/', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology-parent')->middleware('can:skills-matrix.components.matrix-configuration.view');
-Route::post('/matrix-config-topology/{id}/{matrix_id}/', 'SkillsMatrix\SkillsMatrixConfigController@add')->name('topology-add-post')->middleware('can:skills-matrix.components.matrix-configuration.add');
-Route::post('/matrix-config-topology/{id}/{matrix_id}/remove', 'SkillsMatrix\SkillsMatrixConfigController@remove')->name('topology-remove')->middleware('can:skills-matrix.components.matrix-configuration.delete');
-Route::get('/matrix-competence', 'SkillsMatrix\SkillsMatrixConfigController@competence_history')->name('matrix-competence')->middleware('can:skills-matrix.components.matrix-configuration.view');
-Route::post('/get-week-listing', 'SkillsMatrix\SkillsMatrixConfigController@get_weeks_listing')->name('get-week-listing')->middleware('can:skills-matrix.components.matrix-configuration.view');
-Route::post('/save-new-week', 'SkillsMatrix\SkillsMatrixConfigController@save_new_week')->name('save-new-week')->middleware('can:skills-matrix.components.matrix-configuration.add');
-Route::post('/assign-trainner', 'SkillsMatrix\SkillsMatrixConfigController@assign_trainner')->name('assign-trainner')->middleware('can:skills-matrix.components.matrix-configuration.edit');
-Route::post('/update-trainner', 'SkillsMatrix\SkillsMatrixConfigController@update_trainner')->name('update-trainner')->middleware('can:skills-matrix.components.matrix-configuration.edit');
-Route::post('/get-skills-phase-comments', 'SkillsMatrix\SkillsMatrixConfigController@get_phase_comments')->name('get-skills-phase-comments')->middleware('can:skills-matrix.components.matrix-configuration.view');
-Route::post('/assign-skills-phase-comments', 'SkillsMatrix\SkillsMatrixConfigController@assign_phase_comments')->name('assign-skills-phase-comments')->middleware('can:skills-matrix.components.matrix-configuration.edit');
+Route::get('/matrix-config/{module?}', 'SkillsMatrix\SkillsMatrixAppController@legacyConfigRedirect')->name('matrix-config')->middleware('can:matrix.module.access');
+Route::get('/matrix-config-topology/{any?}', 'SkillsMatrix\SkillsMatrixAppController@legacyConfigRedirect')->where('any', '.*')->middleware('can:matrix.module.access');
+Route::get('/matrix-competence', 'SkillsMatrix\SkillsMatrixAppController@legacyConfigRedirect')->name('matrix-competence')->middleware('can:matrix.module.access');
+Route::redirect('/topology-module', '/matrix/dashboard');
+Route::redirect('/topology-parent', '/matrix/dashboard');
 /* MODULE OTHER TRAINING */
 
 Route::get('/other-training', 'Training\SkillsOtherTrainingController@index')->name('other-training')->middleware('can:skills-matrix.components.other-training.view');

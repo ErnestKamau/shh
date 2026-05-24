@@ -14,14 +14,14 @@ return new class extends Migration
         Schema::create('risk_attachments', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('attachable_type');
-            $table->unsignedBigInteger('attachable_id');
+            $table->uuid('attachable_id');
             $table->string('file_name');
             $table->string('file_path');
             $table->string('file_type')->nullable();
             $table->integer('file_size')->nullable();
             $table->string('original_name')->nullable();
             $table->text('description')->nullable();
-            $table->unsignedBigInteger('uploaded_by');
+            $table->uuid('uploaded_by')->nullable();
             $table->uuid('company_id')->nullable()->index('idx_risk_attachments_company_id_494f1065');
             $table->timestamps();
             $table->softDeletes();

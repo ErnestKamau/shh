@@ -19,7 +19,7 @@ class TrainingPlannerHeader extends Model implements Auditable
     use \OwenIt\Auditing\Auditable;
     protected $table = "skills_training_planner_header";
 
-    protected $fillable = ['name','deleted_at'];
+    protected $fillable = ['name', 'training_need_header_id', 'created_by', 'deleted_at'];
 
     public function trainneed(){
         return $this->belongsTo(TrainingHeader::class,'training_need_header_id');

@@ -89,7 +89,7 @@
                                     data-title="View Attachment" class="btn-sm btn btn-outline-dark">
                                     <i class="mdi mdi-eye"></i>
                                 </a>
-                                <a href="{{ route('download-batch-attachment', $a->id) }}" data-toggle="tooltip"
+                                <a href="{{ route('download-attachment', $a->id) }}" data-toggle="tooltip"
                                     data-title="Download Attachment" class="btn-sm btn btn-outline-primary ml-1">
                                     <i class="mdi mdi-download"></i>
                                 </a>

@@ -18,7 +18,7 @@ class RegistryRequestDetails extends Component
     {
         $request = RegistryRequest::query()
             ->forCompany()
-            ->with(['category', 'assignee', 'actions.performer', 'documents', 'statusLogs'])
+            ->with(['category', 'assignee', 'assignments', 'documents', 'actions.performer', 'statusLogs'])
             ->findOrFail($this->requestId);
 
         return view('livewire.registry.registry-request-details', compact('request'));

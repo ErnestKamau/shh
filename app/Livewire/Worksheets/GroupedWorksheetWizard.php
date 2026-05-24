@@ -11,6 +11,7 @@ use App\Models\GroupedWorksheets\GroupedWorksheetRun;
 use App\Models\HybridWorksheets\HybridWorksheet;
 use App\Models\StageHeader;
 use App\SampleHeader;
+use App\Services\GroupedWorksheets\GroupedWorksheetCapturePreviewService;
 use App\Services\GroupedWorksheets\GroupedWorksheetRunService;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -27,6 +28,9 @@ class GroupedWorksheetWizard extends Component
 
     public string $messageType = '';
 
+    /** @var array<string, mixed>|null */
+    public ?array $capturePreview = null;
+
     protected $listeners = [
         'groupedStageCompleted' => 'handleStageCompleted',
     ];
@@ -37,6 +41,16 @@ class GroupedWorksheetWizard extends Component
         $this->holder = $holder->load('items');
         $this->run = app(GroupedWorksheetRunService::class)->findOrCreateRun($batch, $holder);
         $this->markFirstStageInProgress();
+        $this->refreshCapturePreview();
+    }
+
+    protected function refreshCapturePreview(): void
+    {
+        $current = $this->currentItem();
+
+        $this->capturePreview = $current
+            ? app(GroupedWorksheetCapturePreviewService::class)->previewForItem($current)
+            : null;
     }
 
     protected function markFirstStageInProgress(): void
@@ -56,6 +70,7 @@ class GroupedWorksheetWizard extends Component
     public function render()
     {
         $this->run->load(['holder.items', 'runItems']);
+        $this->holder->load('items');
         $current = $this->currentItem();
         $formula = null;
         $stageHeaders = collect();
@@ -75,6 +90,7 @@ class GroupedWorksheetWizard extends Component
         return view('livewire.worksheets.grouped-worksheet-wizard', [
             'items' => $this->holder->items,
             'currentItem' => $current,
+            'capturePreview' => $this->capturePreview,
             'runItems' => $this->run->runItems,
             'formula' => $formula,
             'stageHeaders' => $stageHeaders,
@@ -102,6 +118,7 @@ class GroupedWorksheetWizard extends Component
             'success'
         );
         $this->markFirstStageInProgress();
+        $this->refreshCapturePreview();
     }
 
     public function skipStage(): void
@@ -116,11 +133,13 @@ class GroupedWorksheetWizard extends Component
         $this->run = app(GroupedWorksheetRunService::class)->skipCurrentStage($this->run);
         $this->setMessage('Stage skipped.', 'success');
         $this->markFirstStageInProgress();
+        $this->refreshCapturePreview();
     }
 
     public function goToStage(int $index): void
     {
         $this->run = app(GroupedWorksheetRunService::class)->goToStage($this->run, $index);
+        $this->refreshCapturePreview();
     }
 
     public function handleStageCompleted(): void

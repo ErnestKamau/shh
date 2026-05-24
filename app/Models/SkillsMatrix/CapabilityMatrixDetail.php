@@ -18,6 +18,15 @@ class CapabilityMatrixDetail extends Model implements Auditable
     use \OwenIt\Auditing\Auditable;
     protected $table = "skill_capability_detail";
 
+    protected $fillable = [
+        'capability_id',
+        'competency_id',
+        'user_id',
+        'proficiency_id',
+        'skill_matrix_role_id',
+        'deleted_at',
+    ];
+
     public function competency(){
         return $this->belongsTo(SkillMatrixDetails::class,'competency_id');
     }

@@ -23,7 +23,7 @@ class RiskStatusesTableSeeder extends Seeder
                 'order_index' => 1,
                 'workflow_step' => 1,
                 'is_active' => true,
-                'company_id' => 0,
+                'company_id' => null,
             ],
             [
                 'name' => 'Under Assessment',
@@ -33,7 +33,7 @@ class RiskStatusesTableSeeder extends Seeder
                 'order_index' => 2,
                 'workflow_step' => 2,
                 'is_active' => true,
-                'company_id' => 0,
+                'company_id' => null,
             ],
             [
                 'name' => 'Under Evaluation',
@@ -43,7 +43,7 @@ class RiskStatusesTableSeeder extends Seeder
                 'order_index' => 3,
                 'workflow_step' => 3,
                 'is_active' => true,
-                'company_id' => 0,
+                'company_id' => null,
             ],
             [
                 'name' => 'Treatment Planning',
@@ -53,7 +53,7 @@ class RiskStatusesTableSeeder extends Seeder
                 'order_index' => 4,
                 'workflow_step' => 4,
                 'is_active' => true,
-                'company_id' => 0,
+                'company_id' => null,
             ],
             [
                 'name' => 'Treatment Implementation',
@@ -63,7 +63,7 @@ class RiskStatusesTableSeeder extends Seeder
                 'order_index' => 5,
                 'workflow_step' => 5,
                 'is_active' => true,
-                'company_id' => 0,
+                'company_id' => null,
             ],
             [
                 'name' => 'Under Monitoring',
@@ -73,7 +73,7 @@ class RiskStatusesTableSeeder extends Seeder
                 'order_index' => 6,
                 'workflow_step' => 6,
                 'is_active' => true,
-                'company_id' => 0,
+                'company_id' => null,
             ],
             [
                 'name' => 'Closed',
@@ -83,7 +83,7 @@ class RiskStatusesTableSeeder extends Seeder
                 'order_index' => 7,
                 'workflow_step' => 7,
                 'is_active' => true,
-                'company_id' => 0,
+                'company_id' => null,
             ],
         ];
 

@@ -159,11 +159,8 @@ class RisksTable extends Component
                 }
 
                 // Get the status record
-                $targetStatus = \App\Models\RiskManagement\RiskStatus::where('name', $this->newStatus)
-                    ->where(function($q) {
-                        $companyId = getUserCompany() ?? 0;
-                        $q->where('company_id', $companyId)->orWhere('company_id', 0);
-                    })
+                $targetStatus = \App\Models\RiskManagement\RiskStatus::forCompany()
+                    ->where('name', $this->newStatus)
                     ->first();
                 
                 if ($targetStatus) {

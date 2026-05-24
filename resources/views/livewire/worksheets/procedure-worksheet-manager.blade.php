@@ -20,13 +20,21 @@
     </div>
     @endif
 
-    @if($this->paramsWithWorksheets->isEmpty())
-    <div class="alert alert-info">
+    @php
+        $canShowGroupedCapture = $groupedCaptureLayout && $this->selectedWorksheet && $this->hasGroupedProcedureSteps;
+    @endphp
+    @if($this->paramsWithWorksheets->isEmpty() && !$canShowGroupedCapture)
+    <div class="alert alert-info m-3">
         <i class="mdi mdi-information"></i> No procedure worksheets found for the samples in this batch.
+        @if($groupedCaptureLayout && !$this->hasGroupedProcedureSteps)
+            <span class="d-block mt-1 small">This grouped stage has no procedure steps configured on the worksheet.</span>
+        @elseif($groupedCaptureLayout)
+            <span class="d-block mt-1 small">Link analysis parameters to this procedure worksheet in Analysis Type setup, then ensure this batch has captured results for those parameters.</span>
+        @endif
     </div>
     @else
-    <div class="col-12">
-        @if(!empty($activeTabs) && $this->selectedWorksheet)
+    <div class="{{ $groupedCaptureLayout ? '' : 'col-12' }}">
+        @if(!$groupedCaptureLayout && !empty($activeTabs) && $this->selectedWorksheet)
         <div class="alert alert-light border mb-4 procedure-info-banner">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center">
@@ -43,8 +51,8 @@
         </div>
         @endif
 
-        <div class="card shadow-sm border-0 procedure-worksheet-card mb-0" style="border-radius: 15px;">
-            {{-- Workflow guidance hint --}}
+        <div class="card shadow-sm border-0 procedure-worksheet-card mb-0" style="{{ $groupedCaptureLayout ? 'border-radius: 0; box-shadow: none;' : 'border-radius: 15px;' }}">
+            @if(!$groupedCaptureLayout)
             <div class="alert alert-info alert-sm py-2 px-3 mb-0 rounded-0 border-0 border-bottom" style="font-size:0.85rem;">
                 <i class="mdi mdi-information-outline mr-1"></i>
                 <strong>Tip:</strong> Select a <strong>parameter</strong> to enter its procedure data.
@@ -52,8 +60,10 @@
                 <span class="badge badge-success ml-2"><i class="mdi mdi-check"></i> {{ count($externalCapturedResultIds) }} external sample(s) added &mdash; will persist across tab changes</span>
                 @endif
             </div>
-            {{-- Tabs: one per parameter; worksheet from element below --}}
+            @endif
+            @if(!$groupedCaptureLayout || $this->paramsWithWorksheets->count() > 1)
             <div class="procedure-selector-bar">
+                @if(!$groupedCaptureLayout || $this->paramsWithWorksheets->count() > 1)
                 <ul class="nav nav-pills mb-0 px-3 pt-2" role="tablist">
                     @foreach($this->paramsWithWorksheets as $param)
                     <li class="nav-item" role="presentation">
@@ -66,7 +76,8 @@
                     </li>
                     @endforeach
                 </ul>
-                @if(!empty($activeTabs))
+                @endif
+                @if(!empty($activeTabs) && (!$groupedCaptureLayout || $this->paramsWithWorksheets->count() > 1))
                 <div class="procedure-tab-worksheet">
                     @if($this->worksheetsForParam->count() === 1)
                     <span class="procedure-worksheet-name">{{ $this->worksheetsForParam->first()->name }}</span>
@@ -81,9 +92,10 @@
                 </div>
                 @endif
             </div>
+            @endif
 
-            <div class="card-body p-0">
-                @if(!empty($activeTabs))
+            <div class="card-body {{ $groupedCaptureLayout ? 'p-3' : 'p-0' }}">
+                @if($groupedCaptureLayout || !empty($activeTabs))
                 @if($selectedWorksheetId)
                 <section class="procedure-section mb-4">
                     <div class="card shadow-sm border-0 procedure-section-card mb-4">
@@ -557,7 +569,7 @@
                 @else
                 <div class="alert alert-info mb-0">Select a worksheet to proceed.</div>
                 @endif
-                @else
+                @elseif(!$groupedCaptureLayout)
                 <div class="alert alert-info mb-0">Select a parameter to view worksheets.</div>
                 @endif
             </div>
@@ -968,9 +980,14 @@
     <script>
         (function () {
             // Track value at focus time so we only prompt when the value actually changed.
+            function isDoubleEntryInput(target) {
+                return target instanceof HTMLElement
+                    && target.getAttribute('data-double-entry-confirm') === '1';
+            }
+
             document.addEventListener('focusin', function (event) {
                 var input = event.target;
-                if (!input || input.getAttribute('data-double-entry-confirm') !== '1') {
+                if (!isDoubleEntryInput(input)) {
                     return;
                 }
                 input.dataset.initialValueOnFocus = input.value || '';
@@ -979,7 +996,7 @@
             // Capture-phase blur runs before Livewire's blur handler, so we can block autosave on mismatch.
             document.addEventListener('blur', function (event) {
                 var input = event.target;
-                if (!input || input.getAttribute('data-double-entry-confirm') !== '1') {
+                if (!isDoubleEntryInput(input)) {
                     return;
                 }
 

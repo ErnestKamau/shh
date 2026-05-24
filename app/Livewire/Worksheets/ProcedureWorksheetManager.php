@@ -3,6 +3,7 @@
 namespace App\Livewire\Worksheets;
 
 use Livewire\Component;
+use App\AnalysisElements;
 use App\CapturedResult;
 use App\Analyte;
 use App\BatchAttachment;
@@ -33,6 +34,13 @@ use Illuminate\Support\Str;
 class ProcedureWorksheetManager extends Component
 {
     public $batchId;
+
+    /** Set when embedded from grouped worksheet wizard (specific procedure stage). */
+    public ?string $groupedInitialWorksheetId = null;
+
+    /** Use compact layout inside grouped pipeline capture shell (sidebar shows steps). */
+    public bool $groupedCaptureLayout = false;
+
     public $activeTabs = []; // This will hold an array of active Analyte IDs
     public $selectedWorksheetId = null;
     public $selectedSamples = []; // Array of sample_detail_ids
@@ -71,16 +79,200 @@ class ProcedureWorksheetManager extends Component
     /** Tracks which external-selection cache key has been loaded into memory. */
     public ?string $externalSelectionCacheKeyLoaded = null;
 
-    public function mount($batchId, ?string $initialWorksheetId = null)
+    public function mount($batchId, ?string $initialWorksheetId = null, bool $groupedCaptureLayout = false): void
     {
         $this->batchId = $batchId;
+        $this->groupedInitialWorksheetId = $initialWorksheetId;
+        $this->groupedCaptureLayout = $groupedCaptureLayout || $initialWorksheetId !== null;
         $this->importHash = Str::random(8);
-        $this->syncCapturedResultsProcedureWorksheetIds();
-        $this->initActiveTab();
+
+        if (! $this->groupedCaptureLayout) {
+            $this->syncCapturedResultsProcedureWorksheetIds();
+        }
 
         if ($initialWorksheetId) {
-            $this->selectWorksheet($initialWorksheetId);
+            $this->bootstrapGroupedProcedureWorksheet($initialWorksheetId);
+        } else {
+            $this->initActiveTab();
         }
+    }
+
+    /**
+     * Grouped pipeline: link batch captured results to the stage procedure worksheet and load capture UI.
+     */
+    protected function bootstrapGroupedProcedureWorksheet(string $worksheetId): void
+    {
+        $worksheet = ProcedureWorksheet::query()
+            ->where('id', $worksheetId)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $worksheet) {
+            return;
+        }
+
+        $this->linkCapturedResultsToProcedureWorksheet($worksheetId);
+
+        $params = $this->paramsForProcedureWorksheet($worksheetId);
+
+        $this->selectedWorksheetId = $worksheetId;
+
+        if ($params->isEmpty()) {
+            $this->loadSamplesForGroupedWorksheet($worksheetId);
+
+            return;
+        }
+
+        $this->activeTabs = $params->pluck('id')->map(fn ($id) => (string) $id)->unique()->values()->all();
+        $this->loadSamples();
+    }
+
+    /**
+     * When parameters are not pre-linked, still load all batch rows tied to this worksheet for capture.
+     */
+    protected function loadSamplesForGroupedWorksheet(string $worksheetId): void
+    {
+        $analyteIds = CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->where('procedure_worksheet_id', $worksheetId)
+            ->whereValidUuidAnalyteId()
+            ->pluck('analyte_id')
+            ->unique()
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($analyteIds === []) {
+            // No analyte-linked captured results yet — nothing to load.
+            $this->selectedSamples = [];
+            $this->testKitRows = [];
+            $this->testKitData = [];
+
+            return;
+        }
+
+        $this->activeTabs = array_map('strval', $analyteIds);
+        $this->loadSamples();
+    }
+
+    /**
+     * Assign procedure_worksheet_id on batch captured rows for this grouped stage worksheet.
+     */
+    protected function linkCapturedResultsToProcedureWorksheet(string $worksheetId): void
+    {
+        $elementIds = AnalysisElements::query()
+            ->where('procedure_worksheet_id', $worksheetId)
+            ->pluck('id');
+
+        if ($elementIds->isNotEmpty()) {
+            CapturedResult::query()
+                ->where('sample_header_id', $this->batchId)
+                ->whereIn('analysis_element_id', $elementIds)
+                ->update([
+                    'procedure_worksheet_id' => $worksheetId,
+                    'has_procedure_worksheet' => true,
+                ]);
+        }
+
+        $analyteIds = AnalysisElements::query()
+            ->where('procedure_worksheet_id', $worksheetId)
+            ->whereNotNull('analyte_id')
+            ->pluck('analyte_id')
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($analyteIds->isNotEmpty()) {
+            CapturedResult::query()
+                ->where('sample_header_id', $this->batchId)
+                ->whereIn('analyte_id', $analyteIds)
+                ->where(function ($query) use ($worksheetId) {
+                    $query->whereNull('procedure_worksheet_id')
+                        ->orWhere('procedure_worksheet_id', '!=', $worksheetId);
+                })
+                ->update([
+                    'procedure_worksheet_id' => $worksheetId,
+                    'has_procedure_worksheet' => true,
+                ]);
+        }
+
+        $analysisTypeIds = AnalysisElements::query()
+            ->where('procedure_worksheet_id', $worksheetId)
+            ->whereNotNull('analysis_type_id')
+            ->pluck('analysis_type_id')
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($analysisTypeIds->isNotEmpty()) {
+            CapturedResult::query()
+                ->where('sample_header_id', $this->batchId)
+                ->whereIn('analysis_type_id', $analysisTypeIds)
+                ->where(function ($query) use ($worksheetId) {
+                    $query->whereNull('procedure_worksheet_id')
+                        ->orWhere('procedure_worksheet_id', '!=', $worksheetId);
+                })
+                ->update([
+                    'procedure_worksheet_id' => $worksheetId,
+                    'has_procedure_worksheet' => true,
+                ]);
+        }
+    }
+
+    /**
+     * @return Collection<int, Analyte>
+     */
+    protected function paramsForProcedureWorksheet(string $worksheetId): Collection
+    {
+        $fromCaptured = CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->where('procedure_worksheet_id', $worksheetId)
+            ->whereValidUuidAnalyteId()
+            ->with('my_analyte')
+            ->get()
+            ->pluck('my_analyte')
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        if ($fromCaptured->isNotEmpty()) {
+            return $fromCaptured;
+        }
+
+        $analyteIds = AnalysisElements::query()
+            ->where('procedure_worksheet_id', $worksheetId)
+            ->whereNotNull('analyte_id')
+            ->pluck('analyte_id')
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($analyteIds->isNotEmpty()) {
+            return Analyte::query()->whereIn('id', $analyteIds)->get();
+        }
+
+        $analysisTypeIds = AnalysisElements::query()
+            ->where('procedure_worksheet_id', $worksheetId)
+            ->whereNotNull('analysis_type_id')
+            ->pluck('analysis_type_id')
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($analysisTypeIds->isEmpty()) {
+            return collect();
+        }
+
+        return CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->whereIn('analysis_type_id', $analysisTypeIds)
+            ->whereValidUuidAnalyteId()
+            ->with('my_analyte')
+            ->get()
+            ->pluck('my_analyte')
+            ->filter()
+            ->unique('id')
+            ->values();
     }
 
     private function syncCapturedResultsProcedureWorksheetIds(): void
@@ -158,11 +350,13 @@ class ProcedureWorksheetManager extends Component
         }
     }
 
-    public function getParamsWithWorksheetsProperty()
+    public function getParamsWithWorksheetsProperty(): Collection
     {
+        if ($this->groupedInitialWorksheetId) {
+            return $this->paramsForProcedureWorksheet($this->groupedInitialWorksheetId);
+        }
+
         // Get analytes that have captured results tied to an ACTIVE procedure worksheet.
-        // (Works even if captured_results still contain a stale/deleted worksheet id,
-        // because mount() reconciles them to the current active configuration.)
         return CapturedResult::query()
             ->where('captured_results.sample_header_id', $this->batchId)
             ->whereValidUuidAnalyteId()
@@ -170,8 +364,20 @@ class ProcedureWorksheetManager extends Component
             ->with('my_analyte')
             ->get()
             ->pluck('my_analyte')
+            ->filter()
             ->unique('id')
             ->values();
+    }
+
+    public function getHasGroupedProcedureStepsProperty(): bool
+    {
+        if (! $this->groupedInitialWorksheetId) {
+            return false;
+        }
+
+        return ProcedureWorksheetStep::query()
+            ->where('procedure_worksheet_id', $this->groupedInitialWorksheetId)
+            ->exists();
     }
 
     public function getWorksheetsForParamProperty()
@@ -257,12 +463,21 @@ class ProcedureWorksheetManager extends Component
         $this->loadSamples();
     }
 
-    public function loadSamples()
+    public function loadSamples(): void
     {
-        if (empty($this->activeTabs) || !$this->selectedWorksheetId) {
+        if (! $this->selectedWorksheetId) {
             $this->selectedSamples = [];
             $this->testKitRows = [];
             $this->testKitData = [];
+
+            return;
+        }
+
+        if (empty($this->activeTabs)) {
+            $this->selectedSamples = [];
+            $this->testKitRows = [];
+            $this->testKitData = [];
+
             return;
         }
 
@@ -887,13 +1102,18 @@ class ProcedureWorksheetManager extends Component
         }
     }
 
-    public function getAnalysisSamplesProperty()
+    public function getAnalysisSamplesProperty(): Collection
     {
-        if (empty($this->activeTabs) || !$this->selectedWorksheetId) return collect();
+        if (! $this->selectedWorksheetId) {
+            return collect();
+        }
 
         $query = CapturedResult::query()
-            ->whereIn('analyte_id', $this->activeTabs)
             ->where('procedure_worksheet_id', $this->selectedWorksheetId);
+
+        if (! empty($this->activeTabs)) {
+            $query->whereIn('analyte_id', $this->activeTabs);
+        }
 
         if (! empty($this->externalCapturedResultIds)) {
             $query->where(function ($inner) {
@@ -1466,6 +1686,11 @@ class ProcedureWorksheetManager extends Component
 
         // Reload samples and existing values with the newly added external results
         $this->loadSamples();
+    }
+
+    public function placeholder(): string
+    {
+        return '<div class="text-center py-5"><span class="spinner-border text-success" role="status"></span><p class="text-muted mt-3 small">Loading capture form…</p></div>';
     }
 
     public function render()

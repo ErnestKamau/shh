@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('risk_notifications', function (Blueprint $table) {
             $table->uuid('id');
             $table->string('notifiable_type');
-            $table->unsignedBigInteger('notifiable_id');
+            $table->uuid('notifiable_id');
             $table->string('title');
             $table->text('message')->nullable();
-            $table->unsignedBigInteger('recipient_user_id');
+            $table->uuid('recipient_user_id')->nullable();
             $table->boolean('is_read')->default(false);
             $table->boolean('is_email_sent')->default(false);
             $table->timestamp('read_at')->nullable();

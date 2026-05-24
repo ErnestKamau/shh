@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\StageHeader;
 use App\SampleHeader;
 use App\Services\ProcedureWorksheetPdfService;
 use App\Models\Procedures\ProcedureWorksheet;
@@ -16,18 +15,8 @@ class WorksheetsController extends Controller
     {
         $batch = SampleHeader::findOrFail($batchId);
 
-        $stageHeaders = StageHeader::whereHas('capturedResults', function ($q) use ($batchId) {
-            $q->whereHas('sample', function ($sq) use ($batchId) {
-                $sq->where('sample_header_id', $batchId);
-            });
-        })
-            ->with(['method', 'analyte', 'sampleType', 'testStages'])
-            ->orderBy('name')
-            ->get();
-
         return view('worksheets.index', [
             'batch' => $batch,
-            'stageHeaders' => $stageHeaders,
         ]);
     }
 
