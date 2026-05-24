@@ -227,12 +227,15 @@
                         <li><span class="btn btn-sm dropdown-item" wire:click="$set('showBulkUpdateModal', true)" style="cursor: pointer;"><i class="mdi mdi-database-edit mr-2"></i> Update Sample Data</span></li>
                         <li><span class="btn btn-sm dropdown-item" wire:click="$set('showVerificationModal', true)" style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification</span></li>
                         <li><span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span></li>
-                        @if($batch->prelim_report_status != 0 && $status == 'Sample Verification')
+                        @endif
+                        
+                        @if(isset($batch->status) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0 && $status == 'Sample Verification')
+                        @if(auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds))
                         <li><span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval</span></li>
+                        @endif
                         <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span></li>
                         @if($batch->invoice_number == '')
                         <li><span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span></li>
-                        @endif
                         @endif
                         @endif
 
@@ -240,7 +243,7 @@
                             @if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 2 && $status == 'Sample Verification')
                             <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span></li>
                             @endif
-                            @if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1 && $status == 'Sample Verification')
+                            @if((auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds)) && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1 && $status == 'Sample Verification')
                             <li><span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval</span></li>
                             @endif
                             @if($batch->batch_report_url)
@@ -261,10 +264,14 @@
                         @if(isset($batch->status) && in_array($batch->status, ["Sample Verification","Sample Approval","Reports for Collection","Reports In Payment"]) && Auth::user()->is_client == 0)
                             @if($batch->status == "Sample Verification")
                                 @if($notCaptured->count() == 0)
-                                    @if(auth()->user()->checkVerifyLabSampleRole())
+                                    @if(auth()->user()->checkVerifyLabSampleRole() || in_array(auth()->id(), $this->approversUserIds))
                                     <li><span class="dropdown-item"><hr/></span></li>
                                     <li><span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval</span></li>
+                                    @else
+                                    <li><span class="dropdown-item text-muted small"><i class="mdi mdi-lock"></i> Send for Approval (Requires Verify Role)</span></li>
                                     @endif
+                                @else
+                                    <li><span class="dropdown-item text-danger small"><i class="mdi mdi-alert"></i> Send for Approval (Pending Data Capture)</span></li>
                                 @endif
                             @endif
                             @if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != '')
@@ -718,7 +725,7 @@
 {{-- Send for Approval Modal --}}
 @if($showApprovalModal)
 <div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1050;">
-    <div class="modal-dialog modal-md" role="document">
+    <div class="modal-dialog modal-md modal-dialog-scrollable" role="document">
         <div class="modal-content modal-content-modern">
             <div class="modal-header modal-header-modern">
                 <h5 class="modal-title modal-title-modern">
@@ -733,6 +740,20 @@
                 <div class="alert alert-danger p-2 d-flex mt-1">
                     <i class="mdi mdi-decagram" style="font-size: 30px"></i>
                     <span class="p-2">Confirm all approvers have approved before sending the report for approval</span>
+                </div>
+                @endif
+                
+                @if(session()->has('approval_error'))
+                <div class="alert alert-danger p-2 d-flex mt-1">
+                    <i class="mdi mdi-alert" style="font-size: 30px"></i>
+                    <span class="p-2">{{ session('approval_error') }}</span>
+                </div>
+                @endif
+                
+                @if(session()->has('error'))
+                <div class="alert alert-danger p-2 d-flex mt-1">
+                    <i class="mdi mdi-alert" style="font-size: 30px"></i>
+                    <span class="p-2">{!! session('error') !!}</span>
                 </div>
                 @endif
                 
@@ -755,9 +776,7 @@
                     <select class="form-control form-control-modern" wire:model="approvalData.user_id">
                         <option value="">Select Approver</option>
                         @foreach($this->availableApprovalUsers as $user)
-                            @if(!in_array($user->id, $this->approversUserIds))
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                            @endif
+                            <option value="{{ $user->id }}">{{ $user->name }}</option>
                         @endforeach
                     </select>
                     @error('approvalData.user_id') <span class="text-danger small">{{ $message }}</span> @enderror

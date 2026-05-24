@@ -134,12 +134,10 @@ class SubmissionFormSubmissionService
             $instance->refresh();
         }
 
-        SubmissionFormInstance::withoutAuditing(function () use ($instance): void {
-            $instance->update([
-                'status' => 'submitted',
-                'submitted_at' => now(),
-            ]);
-        });
+        $instance->update([
+            'status' => 'submitted',
+            'submitted_at' => now(),
+        ]);
 
         $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
 

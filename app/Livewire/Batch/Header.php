@@ -592,18 +592,16 @@ class Header extends Component
             }
         }
 
-        if (empty($batch->lab_section_ids)) {
-            session()->flash('error', 'Kindly provide the lab sections associated with the sample at batch information section');
-            return;
-        }
-
-        // Check if user is already an approver
+        // Lab section check removed per user request
+        
+        // Check if user is already an approver in the Sample Approval stage
         $approvers_user_ids = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', 'Sample Approval')
             ->pluck('user_id')
             ->toArray();
 
         if (in_array($this->approvalData['user_id'], $approvers_user_ids)) {
-            session()->flash('error', 'System cannot assign the specified user as an approver since the user is already an approver');
+            session()->flash('approval_error', 'System cannot assign the specified user as an approver since the user is already an approver in this stage');
             return;
         }
 

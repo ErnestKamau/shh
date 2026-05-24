@@ -121,49 +121,57 @@
                 </style>
 
                 <div class="custody-timeline">
-                    @foreach($custodyRecords as $custody)
-                        @php
-                            $isCompleted = !empty($custody->moved_out_date);
-                        @endphp
+                    @foreach($custodyRecords as $event)
                         <div class="timeline-event">
-                            <div class="timeline-marker {{ $isCompleted ? 'completed' : 'pending' }}"></div>
+                            <div class="timeline-marker {{ $event->badge === 'success' || (isset($event->is_completed) && $event->is_completed) ? 'completed' : 'pending' }}"></div>
                             <div class="timeline-card">
                                 <div class="timeline-card-header">
                                     <h6 class="timeline-stage-title">
-                                        {{ $custody->workflow_stage ?? 'Unknown Stage' }}
+                                        {{ $event->title }}
                                     </h6>
-                                    @if($custody->tracking_stage)
+                                    @if($event->subtitle)
                                         <span class="timeline-tracking-stage">
-                                            {{ $custody->tracking_stage->name }}
+                                            {{ $event->subtitle }}
                                         </span>
                                     @endif
                                 </div>
                                 
                                 <div class="timeline-details-grid">
                                     <div class="detail-group">
-                                        <span class="detail-label">Started</span>
+                                        <span class="detail-label">{{ $event->source === 'batch' ? 'Started By' : 'User' }}</span>
                                         <span class="detail-value">
-                                            <i class="mdi mdi-account-arrow-right"></i> {{ $custody->started_by->name ?? 'System' }}
+                                            <i class="mdi mdi-account-arrow-right"></i> {{ $event->user_name }}
                                             <span class="text-muted mx-1">&bull;</span>
-                                            <i class="mdi mdi-calendar-clock"></i> {{ optional($custody->created_at)->format('Y-m-d H:i') ?? '-' }}
+                                            <i class="mdi mdi-calendar-clock"></i> {{ $event->occurred_at ? $event->occurred_at->format('Y-m-d H:i') : '-' }}
                                         </span>
                                     </div>
                                     
+                                    @if($event->source === 'batch')
                                     <div class="detail-group">
                                         <span class="detail-label">Completed</span>
                                         <span class="detail-value">
-                                            @if($isCompleted)
+                                            @if($event->is_completed)
                                                 <i class="mdi mdi-account-check text-success"></i> 
-                                                {{ $custody->completed_by->name ?? 'System' }}
+                                                {{ $event->completed_by }}
                                                 <span class="text-muted mx-1">&bull;</span>
                                                 <i class="mdi mdi-calendar-check text-success"></i> 
-                                                {{ $custody->moved_out_date }}
+                                                {{ $event->completed_at }}
                                             @else
                                                 <i class="mdi mdi-timer-sand text-warning"></i> 
                                                 <span class="text-warning">In Progress</span>
                                             @endif
                                         </span>
                                     </div>
+                                    @endif
+
+                                    @if($event->comment)
+                                    <div class="detail-group">
+                                        <span class="detail-label">Comments</span>
+                                        <span class="detail-value text-muted">
+                                            <i class="mdi mdi-comment-text-outline"></i> {{ $event->comment }}
+                                        </span>
+                                    </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
