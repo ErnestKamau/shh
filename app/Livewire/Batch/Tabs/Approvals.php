@@ -4,6 +4,8 @@ namespace App\Livewire\Batch\Tabs;
 
 use App\BatchLabSectionApprover;
 use App\SampleHeader;
+use App\Services\WorkflowService;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -19,9 +21,16 @@ class Approvals extends Component
     public bool $showStatusModal = false;
     public bool $showDeleteModal = false;
     public bool $showEditModal = false;
+    public bool $showChecklistRequiredModal = false;
+
+    public string $checklistRequiredMessage = '';
+
+    public string $checklistUrl = '';
+
+    public string $checklistStageName = '';
 
     // Currently selected approver
-    public ?int $currentApproverId = null;
+    public ?string $currentApproverId = null;
 
     // Forms
     public array $statusForm = [
@@ -72,13 +81,17 @@ class Approvals extends Component
             ->paginate($this->perPage);
     }
 
-    public function openStatusModal(int $approverId): void
+    public function openStatusModal($approverId): void
     {
-        $this->currentApproverId = $approverId;
-        $approver = BatchLabSectionApprover::find($approverId);
+        $this->currentApproverId = $this->normalizeApproverId($approverId);
+        $approver = $this->findApproverById($this->currentApproverId);
 
         if (!$approver) {
             session()->flash('error', 'Approver not found.');
+            return;
+        }
+
+        if (!$this->canProceedWithStageChecklist($approver)) {
             return;
         }
 
@@ -93,16 +106,16 @@ class Approvals extends Component
         $this->showStatusModal = true;
     }
 
-    public function openDeleteModal(int $approverId): void
+    public function openDeleteModal($approverId): void
     {
-        $this->currentApproverId = $approverId;
+        $this->currentApproverId = $this->normalizeApproverId($approverId);
         $this->showDeleteModal = true;
     }
 
-    public function openEditModal(int $approverId): void
+    public function openEditModal($approverId): void
     {
-        $this->currentApproverId = $approverId;
-        $approver = BatchLabSectionApprover::find($approverId);
+        $this->currentApproverId = $this->normalizeApproverId($approverId);
+        $approver = $this->findApproverById($this->currentApproverId);
 
         if (!$approver) {
             session()->flash('error', 'Approver not found.');
@@ -124,11 +137,11 @@ class Approvals extends Component
         }
 
         $this->validate([
-            'statusForm.status' => 'required|in:1,2',
+            'statusForm.status' => 'required|in:1,2,3',
             'statusForm.remark' => 'nullable|string',
         ]);
 
-        $approver = BatchLabSectionApprover::find($this->currentApproverId);
+        $approver = $this->findApproverById($this->currentApproverId);
 
         if (!$approver) {
             session()->flash('error', 'Approver not found.');
@@ -136,6 +149,74 @@ class Approvals extends Component
         }
 
         $status = (int)$this->statusForm['status'];
+
+        if ($status === 1 && $approver->approver_order == 2) {
+            $pendingTechReviews = \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
+                ->where('approver_order', 1)
+                ->where('status', '!=', 1)
+                ->exists();
+
+            if ($pendingTechReviews) {
+                session()->flash('error', 'Cannot approve. The Technical Reviewer must approve first.');
+                return;
+            }
+        }
+
+        if ($status === 3) {
+            if (!$approver->can_send_back_to_lab) {
+                session()->flash('error', 'You do not have permission to send this batch back to the lab.');
+                return;
+            }
+
+            if (empty($this->statusForm['remark'])) {
+                session()->flash('error', 'A remark is required when sending a batch back to the lab.');
+                return;
+            }
+
+            // Create amendment
+            $samples = \App\SampleDetails::where('sample_header_id', $this->batch->id)->get();
+            $t = [];
+            foreach ($samples as $h) {
+                $t[$h->sample_code] = $h->id;
+            }
+            $y = json_encode($t);
+
+            $new_ammendment = new \App\BatchAmmendment();
+            $new_ammendment->samples = $y;
+            $new_ammendment->created_by_id = auth()->user()->id;
+            $new_ammendment->reason = $this->statusForm['remark'];
+            $new_ammendment->batch_id = $this->batch->id;
+            $new_ammendment->report_url = $this->batch->batch_report_url;
+            $new_ammendment->version_number = $this->batch->is_amendment + 1;
+            $new_ammendment->save();
+
+            // Log Chain of Custody
+            $custody = new \App\ChainOfCustody();
+            $custody->sample_header_id = $this->batch->id;
+            $custody->workflow_stage = 'Samples In Lab';
+            $custody->tracking_stage_id = $this->batch->sample_tracking_stage;
+            $custody->moved_in_by = auth()->id();
+            $custody->comments = 'Sent back to lab for amendment by ' . auth()->user()->name . '. Reason: ' . $this->statusForm['remark'];
+            $custody->save();
+
+            // Revert batch
+            $this->batch->is_amendment = $new_ammendment->version_number;
+            $this->batch->status = 'Samples In Lab';
+            $this->batch->in_ammendment_proccess = 1;
+            $this->batch->save();
+
+            $approver->status = $status;
+            $approver->remark = $this->statusForm['remark'];
+            $approver->approval_date = now();
+            $approver->save();
+
+            $this->resetStatusModal();
+            $this->batch->refresh();
+            $this->resetPage();
+
+            session()->flash('success', 'Batch has been sent back to the lab for amendment.');
+            return;
+        }
 
         $approver->status = $status;
         $approver->remark = $this->statusForm['remark'] ?? '';
@@ -161,7 +242,7 @@ class Approvals extends Component
             return;
         }
 
-        $approver = BatchLabSectionApprover::find($this->currentApproverId);
+        $approver = $this->findApproverById($this->currentApproverId);
 
         if ($approver) {
             $approver->delete();
@@ -186,14 +267,14 @@ class Approvals extends Component
             'editForm.title' => 'required|string|max:255',
         ]);
 
-        $approver = BatchLabSectionApprover::find($this->currentApproverId);
+        $approver = $this->findApproverById($this->currentApproverId);
 
         if (!$approver) {
             session()->flash('error', 'Approver not found.');
             return;
         }
 
-        $approver->user_id = (int)$this->editForm['user_id'];
+        $approver->user_id = (string)$this->editForm['user_id'];
         $approver->title = $this->editForm['title'];
         $approver->save();
 
@@ -213,6 +294,12 @@ class Approvals extends Component
             'status' => '1',
             'remark' => '',
         ];
+    }
+
+    public function closeChecklistRequiredModal(): void
+    {
+        $this->showChecklistRequiredModal = false;
+        $this->checklistStageName = '';
     }
 
     protected function resetDeleteModal(): void
@@ -236,5 +323,82 @@ class Approvals extends Component
         return view('livewire.batch.tabs.approvals', [
             'approvers' => $this->approvers
         ]);
+    }
+
+    private function findApproverById(?string $approverId): ?BatchLabSectionApprover
+    {
+        $normalizedId = $this->normalizeApproverId($approverId);
+        if ($normalizedId === '') {
+            return null;
+        }
+
+        $batchId = (string) ($this->batch->id ?? '');
+
+        // Prefer a strict lookup scoped to the current batch to avoid cross-batch collisions.
+        $query = BatchLabSectionApprover::query()
+            ->when($batchId !== '', function ($q) use ($batchId) {
+                $q->whereRaw('batch_id::text = ?', [$batchId]);
+            });
+
+        $approver = (clone $query)
+            ->whereRaw('id::text = ?', [$normalizedId])
+            ->first();
+
+        if ($approver) {
+            return $approver;
+        }
+
+        // Fallback for edge-cases where the incoming value has formatting artifacts.
+        $compactId = preg_replace('/[^a-zA-Z0-9-]/', '', $normalizedId) ?? $normalizedId;
+        if ($compactId !== '' && $compactId !== $normalizedId) {
+            $approver = (clone $query)
+                ->whereRaw('id::text = ?', [$compactId])
+                ->first();
+            if ($approver) {
+                return $approver;
+            }
+        }
+
+        // Last fallback: resolve from the current batch relation already used by this tab.
+        return $this->batch->approvers()
+            ->get()
+            ->first(function ($item) use ($normalizedId, $compactId) {
+                $id = (string) ($item->id ?? '');
+                return $id === $normalizedId || ($compactId !== '' && $id === $compactId);
+            });
+    }
+
+    private function normalizeApproverId($approverId): string
+    {
+        return trim((string) $approverId, " \t\n\r\0\x0B'\"");
+    }
+
+    private function canProceedWithStageChecklist(BatchLabSectionApprover $approver): bool
+    {
+        $stageName = (string) ($approver->batch_status ?? '');
+        $requiresChecklist = in_array($stageName, ['Sample Verification', 'Sample Approval'], true)
+            && (string) ($this->batch->status ?? '') === $stageName;
+
+        if (!$requiresChecklist) {
+            return true;
+        }
+
+        try {
+            app(WorkflowService::class)
+                ->assertStageApprovalsCompleted((string) $this->batch->id, $stageName);
+
+            return true;
+        } catch (ValidationException $exception) {
+            $this->checklistRequiredMessage = $exception->validator->errors()->first()
+                ?: 'Complete and approve the checklist before approving this action.';
+            $this->checklistStageName = $stageName;
+            $this->checklistUrl = route('sample-approval-checklist.show', [
+                'sample' => $this->batch->id,
+                'stage_name' => $stageName,
+            ]);
+            $this->showChecklistRequiredModal = true;
+
+            return false;
+        }
     }
 }

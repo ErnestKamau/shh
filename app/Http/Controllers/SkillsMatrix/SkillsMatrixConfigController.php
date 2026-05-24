@@ -55,14 +55,14 @@ class SkillsMatrixConfigController extends Controller
 		// Get all competence description collection
 		$competence_description = ModulePreConfigs::where('type', 'Competence Description')->selectRaw('id,description')->orderBy('level', 'asc')->get();
 		// Get all matrix Configuration
-		$topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', 'skills_matrix_configurations.id')
+		$topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', '=', 'skills_matrix_configurations.id')
 			 ->where('skills_matrix_configurations.skills_matrix_id', $id)
 			 ->where('skills_matrix_configurations.active', 1)
 			->selectRaw('skills_matrix_configurations.id, skills_matrix_configurations.name, skills_matrix_configurations.level, skills_matrix_configurations.parent, count(t.id) as cNo')
 			->groupBy('skills_matrix_configurations.id', 'skills_matrix_configurations.name', 'skills_matrix_configurations.level', 'skills_matrix_configurations.parent')->get();
 
 		// Get all matrix role Configuration
-		$role_topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', 'skills_matrix_configurations.id')
+		$role_topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', '=', 'skills_matrix_configurations.id')
 			->where('skills_matrix_configurations.skills_matrix_id', $id)
 			->where('skills_matrix_configurations.active', 1)
 		   ->selectRaw('skills_matrix_configurations.id,skills_matrix_configurations.skills_matrix_id, skills_matrix_configurations.name,skills_matrix_configurations.level,skills_matrix_configurations.competence_area_id')
@@ -105,13 +105,13 @@ class SkillsMatrixConfigController extends Controller
 			->orderBy('p.level', 'asc')
 			->where('users.company_id', getUserCompany())->get();	
 		
-		$topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', 'skills_matrix_configurations.id')
+		$topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', '=', 'skills_matrix_configurations.id')
 			->where('skills_matrix_configurations.skills_matrix_id', $id)
 			->where('skills_matrix_configurations.active', 1)
 		   ->selectRaw('skills_matrix_configurations.id, skills_matrix_configurations.name, skills_matrix_configurations.level, skills_matrix_configurations.parent, count(t.id) as cNo')
 		   ->groupBy('skills_matrix_configurations.id', 'skills_matrix_configurations.name', 'skills_matrix_configurations.level', 'skills_matrix_configurations.parent')->get();	
 		
-		$users_role_topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', 'skills_matrix_configurations.id')
+		$users_role_topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', '=', 'skills_matrix_configurations.id')
 		   ->leftJoin('skills_matrix_user_role_requirments as de', function($join){
 			   $join->on('de.skills_matrix_config_id', '=', 'skills_matrix_configurations.skills_matrix_id');			
 		   })
@@ -123,7 +123,7 @@ class SkillsMatrixConfigController extends Controller
 		  ->selectRaw('skills_matrix_configurations.id, skills_matrix_configurations.name, skills_matrix_configurations.level, skills_matrix_configurations.parent, count(t.id) as cNo,de.user_id,de.color_code,mc.color')
 		  ->groupBy('skills_matrix_configurations.id', 'skills_matrix_configurations.name', 'skills_matrix_configurations.level', 'skills_matrix_configurations.parent')->get();
 		
-		$users_training_need_topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', 'skills_matrix_configurations.id')
+		$users_training_need_topologies = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', '=', 'skills_matrix_configurations.id')
 		  ->leftJoin('skills_matrix_training_needs as de', function($join){
 			  $join->on('de.skills_matrix_config_id', '=', 'skills_matrix_configurations.skills_matrix_id');			
 		  })
@@ -140,10 +140,15 @@ class SkillsMatrixConfigController extends Controller
 
 	public function getTopologies($parent=0,$matrix_id){
 	
-		$matrix_topology = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', 'skills_matrix_configurations.id')
+		$matrix_topology = SkillsMatrixConfiguration::leftJoin('skills_matrix_configurations as t', 't.parent', '=', 'skills_matrix_configurations.id')
 			->where('skills_matrix_configurations.skills_matrix_id', $matrix_id)
 			->where('skills_matrix_configurations.active', 1)
-			->selectRaw('skills_matrix_configurations.id, skills_matrix_configurations.name, skills_matrix_configurations.competence_area_id,skills_matrix_configurations.competence_type_id, skills_matrix_configurations.level, skills_matrix_configurations.parent, count(t.id) as cNo')->where('skills_matrix_configurations.parent', $parent)
+			->selectRaw('skills_matrix_configurations.id, skills_matrix_configurations.name, skills_matrix_configurations.competence_area_id,skills_matrix_configurations.competence_type_id, skills_matrix_configurations.level, skills_matrix_configurations.parent, count(t.id) as cNo')
+			->when((string) $parent === '0' || $parent === '' || $parent === null, function ($query) {
+				return $query->whereNull('skills_matrix_configurations.parent');
+			}, function ($query) use ($parent) {
+				return $query->where('skills_matrix_configurations.parent', $parent);
+			})
 			->groupBy('skills_matrix_configurations.id', 'skills_matrix_configurations.name', 'skills_matrix_configurations.level', 'skills_matrix_configurations.parent')
 			->get();
 
@@ -305,6 +310,8 @@ class SkillsMatrixConfigController extends Controller
 			$matrix_parent_Topology = SkillsMatrixConfiguration::find($parent);
 			$matrix_topology->parent = $matrix_parent_Topology->id;
 			$matrix_topology->level = $matrix_parent_Topology->level + 1;
+		}else{
+			$matrix_topology->parent = null;
 		}
 		$matrix_topology->save();
 		if($add_default_role){

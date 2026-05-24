@@ -65,7 +65,7 @@
                                     <button type="button"
                                         class="btn btn-outline-success"
                                         title="Approve / Decline"
-                                        wire:click="openStatusModal({{ $approver->id }})">
+                                        wire:click="openStatusModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-thumb-up-outline"></i>
                                     </button>
                                     @endif
@@ -74,7 +74,7 @@
                                     <button type="button"
                                         class="btn btn-outline-primary"
                                         title="Edit approver"
-                                        wire:click="openEditModal({{ $approver->id }})">
+                                        wire:click="openEditModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-pencil-outline"></i>
                                     </button>
 
@@ -82,7 +82,7 @@
                                     <button type="button"
                                         class="btn btn-outline-danger"
                                         title="Delete approver"
-                                        wire:click="openDeleteModal({{ $approver->id }})">
+                                        wire:click="openDeleteModal('{{ $approver->id }}')">
                                         <i class="mdi mdi-delete-outline"></i>
                                     </button>
                                 </div>
@@ -106,6 +106,10 @@
                                     {{ $approver->batch_status  == "Sample Verification"  ? 'Verified' : 'Authorized'}}
                                 </span>
                                 @endif
+                                @elseif($approver->status == 3)
+                                <span class="badge badge-warning badge-pill p-2">
+                                    <i class="mdi mdi-keyboard-return"></i> Sent Back
+                                </span>
                                 @else
                                 <span class="badge badge-danger badge-pill p-2">
                                     <i class="mdi mdi-decagram"></i> Declined
@@ -113,7 +117,10 @@
                                 @endif
                             </td>
                             <td>{{ $approver->approval_date }}</td>
-                            <td>{{ $approver->approvername }}</td>
+                            <td>
+                                {{ $approver->approvername }}<br>
+                                <small class="text-muted">{{ $approver->approver_type }}</small>
+                            </td>
                             <td>{{ $approver->title }}</td>
                             <td>{{ $approver->workflow }}</td>
                             <td>
@@ -201,6 +208,12 @@
                         <select class="form-control form-control-modern" wire:model="statusForm.status">
                             <option value="1">Approve</option>
                             <option value="2">Decline</option>
+                            @php
+                                $currentApp = $approvers->firstWhere('id', $currentApproverId);
+                            @endphp
+                            @if($currentApp && $currentApp->can_send_back_to_lab)
+                            <option value="3">Send Back to Lab (Amendment)</option>
+                            @endif
                         </select>
                     </div>
                     <div class="form-group">
@@ -290,6 +303,40 @@
                     <button type="button" class="btn btn-danger btn-sm" wire:click="deleteApprover">
                         <i class="mdi mdi-delete-outline"></i> Delete
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Checklist Required Modal --}}
+    @if($showChecklistRequiredModal)
+    <div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1060;">
+        <div class="modal-dialog modal-lg" role="document" style="max-width: 860px; width: 92vw;">
+            <div class="modal-content modal-content-modern" style="max-height: calc(100vh - 3.5rem); overflow: hidden;">
+                <div class="modal-header modal-header-modern">
+                    <h5 class="modal-title modal-title-modern">
+                        <i class="mdi mdi-clipboard-alert-outline"></i> Complete Checklist First
+                    </h5>
+                    <button type="button" class="close" wire:click="closeChecklistRequiredModal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body modal-body-modern" style="overflow-y: auto; max-height: calc(100vh - 12rem);">
+                    <p class="mb-3">{{ $checklistRequiredMessage }}</p>
+
+                    @if($checklistStageName)
+                        <div style="border: 1px solid #e9ecef; border-radius: 8px; padding: 10px; background: #fff;">
+                            @livewire(
+                                'sampleworkflow.approval-checklist',
+                                ['sampleId' => (string) $batch->id, 'stageName' => $checklistStageName],
+                                key('embedded-checklist-' . $batch->id . '-' . $checklistStageName)
+                            )
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer modal-footer-modern">
+                    <button type="button" class="btn btn-secondary-modern btn-sm" wire:click="closeChecklistRequiredModal">Done</button>
                 </div>
             </div>
         </div>

@@ -197,7 +197,7 @@ class ManagerAcceptanceSignModal extends Component
             return;
         }
 
-        if ($user->can('Laboratory.components.RFT Form.View') || $user->can('Laboratory.permission')) {
+        if ($user->can('laboratory.components.rft form.view') || $user->can('laboratory.permission')) {
             return;
         }
 

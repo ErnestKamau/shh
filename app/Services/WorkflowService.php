@@ -202,6 +202,49 @@ class WorkflowService
             ->get();
     }
 
+    public function assertStageApprovalsCompleted(string $sampleId, string $stageName): void
+    {
+        $sample = $this->assertSampleAndStage($sampleId, $stageName);
+
+        $approvals = Approval::query()
+            ->where('stage_name', $stageName)
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->get(['id', 'name']);
+
+        if ($approvals->isEmpty()) {
+            return;
+        }
+
+        $logsByApprovalId = ApprovalLog::query()
+            ->where('sample_id', $sample->id)
+            ->where('stage_name', $stageName)
+            ->whereIn('approval_id', $approvals->pluck('id'))
+            ->get(['approval_id', 'status'])
+            ->keyBy('approval_id');
+
+        $pendingApprovals = [];
+
+        foreach ($approvals as $approval) {
+            $log = $logsByApprovalId->get($approval->id);
+
+            if ($log === null) {
+                $pendingApprovals[] = $approval->name;
+                continue;
+            }
+
+            if ($log->status !== 'approved') {
+                $pendingApprovals[] = $approval->name . ' (' . ucfirst((string) $log->status) . ')';
+            }
+        }
+
+        if ($pendingApprovals !== []) {
+            throw ValidationException::withMessages([
+                'approval_checklist' => 'Complete and approve the verification checklist before moving this batch. Pending: ' . implode(', ', $pendingApprovals) . '.',
+            ]);
+        }
+    }
+
     public function submitApproval(
         string $sampleId,
         string $stageName,

@@ -231,7 +231,7 @@ class FormInstanceController extends Controller
             return true;
         }
         // Spatie permission check
-        if ($user->can('Laboratory.components.RFT Form.View') || $user->can('Laboratory.permission')) {
+        if ($user->can('laboratory.components.rft form.view') || $user->can('laboratory.permission')) {
             return true;
         }
 
@@ -701,8 +701,11 @@ class FormInstanceController extends Controller
                 // Success – exit the method
                 return;
             } catch (\Illuminate\Database\QueryException $e) {
-                // Check if it's a duplicate key error
-                if ($e->getCode() == 23000 && strpos($e->getMessage(), 'submission_form_instances_form_number_unique') !== false) {
+                // Handle unique violations on both MySQL (23000) and PostgreSQL (23505)
+                $isDuplicateFormNumber = in_array((string) $e->getCode(), ['23000', '23505'], true)
+                    && strpos($e->getMessage(), 'submission_form_instances_form_number_unique') !== false;
+
+                if ($isDuplicateFormNumber) {
                     Log::warning('Duplicate form number detected during assignment, retrying', [
                         'instance_id' => $instance->id,
                         'form_id' => $submissionForm->id,

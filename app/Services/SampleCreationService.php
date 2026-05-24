@@ -350,10 +350,12 @@ class SampleCreationService
                 unset($detailData['analysis_type_id']);
             }
             
-            $uuidColumns = ['lab_id', 'sample_condition_id', 'sample_point_id'];
+            $uuidColumns = ['lab_id', 'sample_condition_id', 'sample_point_id', 'company_product_id'];
             foreach ($uuidColumns as $col) {
-                if (!empty($detailData[$col]) && !$this->isValidUuid($detailData[$col])) {
-                    unset($detailData[$col]);
+                if (isset($detailData[$col])) {
+                    if (empty($detailData[$col]) || !$this->isValidUuid($detailData[$col])) {
+                        $detailData[$col] = null;
+                    }
                 }
             }
 

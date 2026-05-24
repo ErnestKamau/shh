@@ -48,6 +48,11 @@
                         <i class="mdi mdi-account-lock"></i> {{ __('personnel.deactivated_personnel_tab') }}
                     </button>
                 </li>
+                <li class="nav-item">
+                    <button type="button" class="nav-link {{ $activeTab === 'dormant' ? 'active' : '' }}" wire:click="setActiveTab('dormant')">
+                        <i class="mdi mdi-account-clock"></i> Dormant Accounts
+                    </button>
+                </li>
             </ul>
         </div>
         <div class="card-body">

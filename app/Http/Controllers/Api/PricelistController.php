@@ -49,6 +49,13 @@ class PricelistController extends Controller
             ], 404);
         }
 
+        // Hide sensitive fields from the client
+        if ($pricelist->items) {
+            $pricelist->items->each(function ($item) {
+                $item->makeHidden(['cost_price', 'changed_price', 'vat']);
+            });
+        }
+
         return response()->json([
             'success' => true,
             'data' => $pricelist

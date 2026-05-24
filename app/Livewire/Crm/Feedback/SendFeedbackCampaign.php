@@ -39,7 +39,11 @@ class SendFeedbackCampaign extends BaseCrmComponent
 
     public function mount()
     {
-        // No need to load all customers into state
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        } catch (\Exception $e) {
+            // Ignore migration issues if any
+        }
     }
 
     #[On('open-send-campaign-modal')]
@@ -165,6 +169,7 @@ class SendFeedbackCampaign extends BaseCrmComponent
                         'registered_by'   => auth()->user() ? auth()->user()->name : 'System',
                         'date'            => now(), 
                         'feedback'        => 'Pending Feedback Campaign',
+                        'user_type'       => 'Customer',
                     ]);
 
                      if (strlen($feedback->id) < 4) {
@@ -197,17 +202,30 @@ class SendFeedbackCampaign extends BaseCrmComponent
                     // and let the Job constructor handle the change or we update the call here to pass IDs if we change the Job first.
                     // The plan says "Change __construct to accept IDs". So I should update the dispatch call here to pass IDs.
                     
-                    \App\Jobs\SendFeedbackEmail::dispatch($feedback->id, $request->id, $this->getUserCompany());
+                    \App\Jobs\SendFeedbackEmail::dispatch($feedback->id, $request->id, $this->getUserCompany())->onConnection('sync');
+
+                    $this->batchFeedbackIds[] = $feedback->id;
+                    $this->feedbackProgress[$feedback->id] = [
+                        'id'       => $feedback->id,
+                        'name'     => trim(($freshContact->first_name ?? '') . ' ' . ($freshContact->surname ?? '')),
+                        'email'    => $freshContact->email,
+                        'customer' => $freshContact->customer->name ?? 'Unknown Customer',
+                        'status'   => 'pending',
+                    ];
                 });
             }
         }
         
-        // Immediate UI Feedback (Fire and Forget)
-        $this->dispatch('feedback-requests-sent'); // Tell FeedbackList to refresh and show new pending items
-        $this->dispatch('close-campaign-modal'); // Assuming this triggers the JS close
-        $this->dispatch('alert', ['type' => 'success', 'message' => "Feedback requests are being processed in the background."]);
-        
-        $this->reset(['selectedCustomers', 'recipients', 'selectedRecipients', 'sending', 'batchFeedbackIds', 'completed', 'progressStats', 'feedbackProgress']);
+        $this->progressStats = [
+            'pending'    => count($this->batchFeedbackIds),
+            'processing' => 0,
+            'sent'       => 0,
+            'failed'     => 0,
+            'total'      => count($this->batchFeedbackIds)
+        ];
+
+        // Tell parent list to refresh in the background
+        $this->dispatch('feedback-requests-sent');
     }
 
     public function updatedSelectedCustomers()

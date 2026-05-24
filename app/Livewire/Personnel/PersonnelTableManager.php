@@ -518,7 +518,7 @@ class PersonnelTableManager extends Component
 
     public function setActiveTab(string $tab): void
     {
-        $this->activeTab = in_array($tab, ['all', 'active', 'deactive'], true) ? $tab : 'all';
+        $this->activeTab = in_array($tab, ['all', 'active', 'deactive', 'dormant'], true) ? $tab : 'all';
         $this->resetPage();
     }
 
@@ -609,6 +609,16 @@ class PersonnelTableManager extends Component
             $query->where('users.active', 1);
         } elseif ($this->activeTab === 'deactive') {
             $query->where('users.active', 0);
+        } elseif ($this->activeTab === 'dormant') {
+            $ninetyDaysAgo = now()->subDays(90);
+            
+            $activeUserIds = \App\Models\Audit::where('created_at', '>=', $ninetyDaysAgo)
+                ->pluck('user_id')
+                ->unique()
+                ->toArray();
+
+            $query->whereNotIn('users.id', $activeUserIds)
+                ->where('users.created_at', '<', $ninetyDaysAgo);
         }
 
         if ($this->search !== '') {
