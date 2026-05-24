@@ -50,7 +50,7 @@ class User extends Authenticatable implements Auditable
 	protected $fillable = [
 		'name', 'first_name', 'middle_name', 'last_name', 'email', 'password', 'zone_id', 'verify_code', 'verify_code_expires',
 		'company_id', 'department_id', 'location_id', 'active', 'position',
-		'failed_login_attempts', 'login_locked_by_admin_reset',
+		'failed_login_attempts', 'login_locked_by_admin_reset', 'is_technical'
 	];
 	protected $appends = ['labsectionname','labsectionids'];
 
@@ -96,6 +96,7 @@ class User extends Authenticatable implements Auditable
 		'department_id' => 'string',
 		'position' => 'string',
 		'lab_section_id' => 'string',
+        'is_technical' => 'boolean',
 	];
 
     /** Returns days remaining until password expires. Null means never changed (expired immediately). */

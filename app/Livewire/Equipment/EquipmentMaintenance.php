@@ -40,7 +40,7 @@ class EquipmentMaintenance extends Component
     public $showCreatePlanModal = false;
     public $showAddPlanItemModal = false;
 
-    // Create plan fields
+    public $editingPlanId = null;
     public $newPlanName = '';
     public $newPlanStartYear = '';
     public $newPlanEndYear = '';
@@ -52,6 +52,24 @@ class EquipmentMaintenance extends Component
     public $planItemYear = '';
     public $planItemLocation = '';
     public $planItemRemark = '';
+
+    // Program Equipment fields
+    public $showAddProgramEquipmentModal = false;
+    public $programEquipmentId = '';
+    public $programEquipmentName = '';
+    
+    // Annual Add fields
+    public $annualServicedDate = '';
+    public $annualStatus = '';
+    public $annualNextService = '';
+    public $annualRemark = '';
+
+    // Register Add fields
+    public $registerYear = '';
+    public $registerServiceProvider = '';
+    public $registerServiceType = '';
+    public $registerCostUsd = '';
+    public $registerCostTzs = '';
 
     // Searchable dropdown for equipment
     public $equipmentSearch = '';
@@ -69,15 +87,30 @@ class EquipmentMaintenance extends Component
     public $activeRegisterProgramId = '';
 
     public bool $showCreateProgramModal = false;
+    public $editingProgramId = null;
     public $newProgramName = '';
     public $newProgramDate = '';
     public $newProgramDescription = '';
     public $newProgramStatus = 'draft';
 
+    // Advanced Filters
+    public $filterDateStart = '';
+    public $filterDateEnd = '';
+    public $filterMaintenanceStatus = '';
+    public $filterServiceType = '';
+    public $filterServiceProvider = '';
+    public $filterZone = '';
+
     protected $queryString = [
         'activeTab' => ['except' => 'annual'],
         'search' => ['except' => ''],
         'perPage' => ['except' => 10],
+        'filterDateStart' => ['except' => ''],
+        'filterDateEnd' => ['except' => ''],
+        'filterMaintenanceStatus' => ['except' => ''],
+        'filterServiceType' => ['except' => ''],
+        'filterServiceProvider' => ['except' => ''],
+        'filterZone' => ['except' => ''],
     ];
 
     public function mount()
@@ -91,6 +124,24 @@ class EquipmentMaintenance extends Component
 
     public function updatingSearch(): void
     {
+        $this->resetPage('equipmentPage');
+    }
+
+    public function updatingFilterDateStart(): void { $this->resetPage('equipmentPage'); }
+    public function updatingFilterDateEnd(): void { $this->resetPage('equipmentPage'); }
+    public function updatingFilterMaintenanceStatus(): void { $this->resetPage('equipmentPage'); }
+    public function updatingFilterServiceType(): void { $this->resetPage('equipmentPage'); }
+    public function updatingFilterServiceProvider(): void { $this->resetPage('equipmentPage'); }
+    public function updatingFilterZone(): void { $this->resetPage('equipmentPage'); }
+
+    public function resetFilters(): void
+    {
+        $this->filterDateStart = '';
+        $this->filterDateEnd = '';
+        $this->filterMaintenanceStatus = '';
+        $this->filterServiceType = '';
+        $this->filterServiceProvider = '';
+        $this->filterZone = '';
         $this->resetPage('equipmentPage');
     }
 
@@ -164,16 +215,106 @@ class EquipmentMaintenance extends Component
     {
         $query = Equipment::query()->with([
             'assetLocation.lab.zone',
-            'annualMaintenances' => fn($q) => $q->orderBy('serviced_date', 'desc'),
-            'preventiveMaintenances',
-            'maintenanceRegisters' => fn($q) => $q->orderBy('year', 'desc'),
+            'annualMaintenances' => function($q) {
+                if ($this->activeTab === 'annual' && $this->activeAnnualProgramId) {
+                    $q->where('equipment_maintenance_program_id', $this->activeAnnualProgramId);
+                }
+                $q->orderBy('serviced_date', 'desc');
+            },
+            'preventiveMaintenances' => function($q) {
+                if ($this->activeTab === 'preventive' && $this->activePreventiveProgramId) {
+                    $q->where('equipment_maintenance_program_id', $this->activePreventiveProgramId);
+                }
+            },
+            'maintenanceRegisters' => function($q) {
+                if ($this->activeTab === 'register' && $this->activeRegisterProgramId) {
+                    $q->where('equipment_maintenance_program_id', $this->activeRegisterProgramId);
+                }
+                $q->orderBy('year', 'desc');
+            },
         ]);
 
+        // --- Base Program Filters ---
+        if ($this->activeTab === 'annual' && $this->activeAnnualProgramId) {
+            $query->whereHas('annualMaintenances', function($q) {
+                $q->where('equipment_maintenance_program_id', $this->activeAnnualProgramId);
+            });
+        } elseif ($this->activeTab === 'preventive' && $this->activePreventiveProgramId) {
+            $query->whereHas('preventiveMaintenances', function($q) {
+                $q->where('equipment_maintenance_program_id', $this->activePreventiveProgramId);
+            });
+        } elseif ($this->activeTab === 'register' && $this->activeRegisterProgramId) {
+            $query->whereHas('maintenanceRegisters', function($q) {
+                $q->where('equipment_maintenance_program_id', $this->activeRegisterProgramId);
+            });
+        }
+
+        // --- Advanced Filters ---
+        
+        // 1. Zone
+        if (!empty($this->filterZone)) {
+            $query->inZones([$this->filterZone]);
+        }
+
+        // 2. Equipment Search
         if (!empty($this->search)) {
             $query->where(function ($q) {
                 $q->where('name', 'ilike', '%' . $this->search . '%')
-                    ->orWhere('serial_number', 'ilike', '%' . $this->search . '%');
+                  ->orWhere('serial_number', 'ilike', '%' . $this->search . '%')
+                  ->orWhere('equipment_number', 'ilike', '%' . $this->search . '%');
             });
+        }
+
+        // 3. Tab-Specific Filters
+        if ($this->activeTab === 'annual') {
+            if ($this->filterMaintenanceStatus || $this->filterDateStart || $this->filterDateEnd) {
+                $query->whereHas('annualMaintenances', function($q) {
+                    if ($this->filterMaintenanceStatus) $q->where('status', $this->filterMaintenanceStatus);
+                    if ($this->filterDateStart) $q->whereDate('serviced_date', '>=', $this->filterDateStart);
+                    if ($this->filterDateEnd) $q->whereDate('serviced_date', '<=', $this->filterDateEnd);
+                });
+            }
+        } elseif ($this->activeTab === 'preventive') {
+            if ($this->filterMaintenanceStatus || $this->filterDateStart || $this->filterDateEnd) {
+                $query->whereHas('preventiveMaintenances', function($q) {
+                    if ($this->filterMaintenanceStatus === 'serviced') {
+                        $q->where('is_serviced', true);
+                    } elseif ($this->filterMaintenanceStatus === 'scheduled') {
+                        $q->where('is_serviced', false);
+                    }
+                    if ($this->filterDateStart) $q->whereDate('serviced_date', '>=', $this->filterDateStart);
+                    if ($this->filterDateEnd) $q->whereDate('serviced_date', '<=', $this->filterDateEnd);
+                });
+            }
+        } elseif ($this->activeTab === 'register') {
+            if ($this->filterServiceType || $this->filterServiceProvider || $this->filterDateStart || $this->filterDateEnd) {
+                $query->whereHas('maintenanceRegisters', function($q) {
+                    if ($this->filterServiceType) $q->where('service_type', 'ilike', '%' . $this->filterServiceType . '%');
+                    if ($this->filterServiceProvider) $q->where('service_provider', 'ilike', '%' . $this->filterServiceProvider . '%');
+                    // For register, year is usually an integer. We'll extract year from filterDateStart/End if provided
+                    if ($this->filterDateStart) {
+                        $startYear = \Carbon\Carbon::parse($this->filterDateStart)->year;
+                        $q->where('year', '>=', $startYear);
+                    }
+                    if ($this->filterDateEnd) {
+                        $endYear = \Carbon\Carbon::parse($this->filterDateEnd)->year;
+                        $q->where('year', '<=', $endYear);
+                    }
+                });
+            }
+        } elseif ($this->activeTab === 'replacement') {
+            if ($this->filterDateStart || $this->filterDateEnd) {
+                $query->whereHas('replacementPlanItems', function($q) {
+                    if ($this->filterDateStart) {
+                        $startYear = \Carbon\Carbon::parse($this->filterDateStart)->year;
+                        $q->where('scheduled_year', '>=', $startYear);
+                    }
+                    if ($this->filterDateEnd) {
+                        $endYear = \Carbon\Carbon::parse($this->filterDateEnd)->year;
+                        $q->where('scheduled_year', '<=', $endYear);
+                    }
+                });
+            }
         }
 
         return $query;
@@ -198,26 +339,14 @@ class EquipmentMaintenance extends Component
             ->orderBy('created_at', 'desc')
             ->get();
 
-        if ($this->annualPrograms->isNotEmpty() && !$this->activeAnnualProgramId) {
-            $active = $this->annualPrograms->firstWhere('status', 'active');
-            $this->activeAnnualProgramId = $active?->id ?? $this->annualPrograms->first()->id;
-        }
-
-        if ($this->preventivePrograms->isNotEmpty() && !$this->activePreventiveProgramId) {
-            $active = $this->preventivePrograms->firstWhere('status', 'active');
-            $this->activePreventiveProgramId = $active?->id ?? $this->preventivePrograms->first()->id;
-        }
-
-        if ($this->registerPrograms->isNotEmpty() && !$this->activeRegisterProgramId) {
-            $active = $this->registerPrograms->firstWhere('status', 'active');
-            $this->activeRegisterProgramId = $active?->id ?? $this->registerPrograms->first()->id;
-        }
+        // Auto-selection of active programs removed to allow global equipment list to load by default.
     }
 
     public function openCreateProgramModal(): void
     {
         $this->authorizeAction('equipment.maintenance.add');
 
+        $this->editingProgramId = null;
         $this->newProgramName = '';
         $this->newProgramDate = now()->toDateString();
         $this->newProgramDescription = '';
@@ -243,28 +372,80 @@ class EquipmentMaintenance extends Component
         if ($this->newProgramStatus === 'active') {
             EquipmentMaintenanceProgram::where('type', $this->activeTab)
                 ->where('status', 'active')
+                ->when($this->editingProgramId, function ($q) {
+                    $q->where('id', '!=', $this->editingProgramId);
+                })
                 ->update(['status' => 'draft']);
         }
 
-        $program = EquipmentMaintenanceProgram::create([
-            'type' => $this->activeTab,
-            'name' => $this->newProgramName,
-            'program_date' => $this->newProgramDate,
-            'description' => $this->newProgramDescription,
-            'status' => $this->newProgramStatus,
-        ]);
+        if ($this->editingProgramId) {
+            $program = EquipmentMaintenanceProgram::findOrFail($this->editingProgramId);
+            $program->update([
+                'name' => $this->newProgramName,
+                'program_date' => $this->newProgramDate,
+                'description' => $this->newProgramDescription,
+                'status' => $this->newProgramStatus,
+            ]);
+            session()->flash('success', 'Program updated successfully.');
+        } else {
+            $program = EquipmentMaintenanceProgram::create([
+                'type' => $this->activeTab,
+                'name' => $this->newProgramName,
+                'program_date' => $this->newProgramDate,
+                'description' => $this->newProgramDescription,
+                'status' => $this->newProgramStatus,
+                'created_by' => auth()->id(),
+            ]);
+            session()->flash('success', 'Program created successfully.');
+        }
+
+        $this->showCreateProgramModal = false;
+        $this->loadPrograms();
 
         if ($this->activeTab === 'annual') {
             $this->activeAnnualProgramId = $program->id;
         } elseif ($this->activeTab === 'preventive') {
             $this->activePreventiveProgramId = $program->id;
-        } else {
+        } elseif ($this->activeTab === 'register') {
             $this->activeRegisterProgramId = $program->id;
         }
 
-        $this->showCreateProgramModal = false;
+        $this->dispatch('notify', ['type' => 'success', 'message' => $this->editingProgramId ? 'Program updated successfully.' : 'Program created successfully.']);
+    }
+
+    public function editProgram($id): void
+    {
+        $this->authorizeAction('equipment.maintenance.edit');
+
+        $program = EquipmentMaintenanceProgram::findOrFail($id);
+        $this->editingProgramId = $program->id;
+        $this->newProgramName = $program->name;
+        $this->newProgramDate = $program->program_date ? $program->program_date->toDateString() : null;
+        $this->newProgramDescription = $program->description;
+        $this->newProgramStatus = $program->status;
+
+        $this->showCreateProgramModal = true;
+    }
+
+    public function deleteProgram($id): void
+    {
+        $this->authorizeAction('equipment.maintenance.delete');
+
+        $program = EquipmentMaintenanceProgram::findOrFail($id);
+        
+        // Delete all related maintenance records before deleting the program
+        $program->annualMaintenances()->delete();
+        $program->preventiveMaintenances()->delete();
+        $program->maintenanceRegisters()->delete();
+
+        $program->delete();
+
+        if ($this->activeAnnualProgramId === $id) $this->activeAnnualProgramId = '';
+        if ($this->activePreventiveProgramId === $id) $this->activePreventiveProgramId = '';
+        if ($this->activeRegisterProgramId === $id) $this->activeRegisterProgramId = '';
+
         $this->loadPrograms();
-        $this->dispatch('notify', ['type' => 'success', 'message' => 'Program created successfully.']);
+        $this->dispatch('notify', ['type' => 'success', 'message' => 'Program deleted successfully.']);
     }
 
     public function getCurrentProgramsProperty()
@@ -337,6 +518,7 @@ class EquipmentMaintenance extends Component
             $record->save();
         } else {
             EquipmentPreventiveMaintenance::create([
+                'equipment_maintenance_program_id' => $this->activePreventiveProgramId,
                 'equipment_id' => $equipmentId,
                 'scheduled_month' => $monthInt,
                 'is_serviced' => false,
@@ -369,6 +551,7 @@ class EquipmentMaintenance extends Component
                 }
             } else {
                 EquipmentPreventiveMaintenance::create([
+                    'equipment_maintenance_program_id' => $this->activePreventiveProgramId,
                     'equipment_id' => $equipment->id,
                     'scheduled_month' => $monthInt,
                     'is_serviced' => false,
@@ -413,6 +596,10 @@ class EquipmentMaintenance extends Component
     {
         $this->selectedEquipmentId = $id;
         $this->planItemName = $name;
+        
+        $this->programEquipmentId = $id;
+        $this->programEquipmentName = $name;
+        
         $this->equipmentSearch = $name;
         $this->equipmentSearchResults = [];
 
@@ -425,14 +612,96 @@ class EquipmentMaintenance extends Component
         }
     }
 
+    // ─── Add Equipment to Program ────────────────────────────────────────────
+
+    public function openAddProgramEquipmentModal()
+    {
+        $this->authorizeAction('equipment.maintenance.add');
+        $this->resetProgramEquipmentForm();
+        $this->showAddProgramEquipmentModal = true;
+    }
+
+    public function resetProgramEquipmentForm()
+    {
+        $this->programEquipmentId = '';
+        $this->programEquipmentName = '';
+        $this->equipmentSearch = '';
+        $this->equipmentSearchResults = [];
+        
+        $this->annualServicedDate = '';
+        $this->annualStatus = '';
+        $this->annualNextService = '';
+        $this->annualRemark = '';
+
+        $this->registerYear = '';
+        $this->registerServiceProvider = '';
+        $this->registerServiceType = '';
+        $this->registerCostUsd = '';
+        $this->registerCostTzs = '';
+    }
+
+    public function addProgramEquipment()
+    {
+        $this->authorizeAction('equipment.maintenance.add');
+        $this->validate([
+            'programEquipmentId' => 'required',
+        ], [
+            'programEquipmentId.required' => 'Please select an equipment.',
+        ]);
+
+        if ($this->activeTab === 'annual') {
+            EquipmentAnnualMaintenance::create([
+                'equipment_maintenance_program_id' => $this->activeAnnualProgramId,
+                'equipment_id' => $this->programEquipmentId,
+                'serviced_date' => $this->annualServicedDate ?: null,
+                'status' => $this->annualStatus,
+                'next_service' => $this->annualNextService ?: null,
+                'remark' => $this->annualRemark,
+            ]);
+        } elseif ($this->activeTab === 'preventive') {
+            $exists = EquipmentPreventiveMaintenance::where('equipment_maintenance_program_id', $this->activePreventiveProgramId)
+                ->where('equipment_id', $this->programEquipmentId)
+                ->exists();
+            if (!$exists) {
+                EquipmentPreventiveMaintenance::create([
+                    'equipment_maintenance_program_id' => $this->activePreventiveProgramId,
+                    'equipment_id' => $this->programEquipmentId,
+                    'is_serviced' => false,
+                ]);
+            }
+        } elseif ($this->activeTab === 'register') {
+            EquipmentMaintenanceRegister::create([
+                'equipment_maintenance_program_id' => $this->activeRegisterProgramId,
+                'equipment_id' => $this->programEquipmentId,
+                'year' => $this->registerYear,
+                'service_provider' => $this->registerServiceProvider,
+                'service_type' => $this->registerServiceType,
+                'cost_usd' => $this->registerCostUsd ?: null,
+                'cost_tzs' => $this->registerCostTzs ?: null,
+            ]);
+        }
+
+        $this->showAddProgramEquipmentModal = false;
+        $this->dispatch('notify', ['type' => 'success', 'message' => 'Equipment added to program.']);
+        $this->resetPage('equipmentPage');
+    }
+
     // ─── Replacement Plan ────────────────────────────────────────────────────
 
     public function loadPlans()
     {
         $this->plans = EquipmentReplacementPlan::orderBy('created_at', 'desc')->get();
-        if ($this->plans->isNotEmpty() && !$this->activePlanId) {
-            $this->activePlanId = $this->plans->first()->id;
-        }
+        // Auto-selection of active plan removed to allow global equipment list to load by default.
+    }
+
+    public function openCreatePlanModal()
+    {
+        $this->authorizeAction('equipment.maintenance.add');
+        $this->editingPlanId = null;
+        $this->newPlanName = '';
+        $this->newPlanStartYear = now()->year;
+        $this->newPlanEndYear = now()->year + 5;
+        $this->showCreatePlanModal = true;
     }
 
     public function createPlan()
@@ -443,16 +712,54 @@ class EquipmentMaintenance extends Component
             'newPlanStartYear' => 'required|integer|min:2000|max:2100',
             'newPlanEndYear' => 'required|integer|min:2000|max:2100|gte:newPlanStartYear',
         ]);
-        $plan = EquipmentReplacementPlan::create([
-            'name' => $this->newPlanName,
-            'start_year' => $this->newPlanStartYear,
-            'end_year' => $this->newPlanEndYear,
-        ]);
+
+        if ($this->editingPlanId) {
+            $plan = EquipmentReplacementPlan::findOrFail($this->editingPlanId);
+            $plan->update([
+                'name' => $this->newPlanName,
+                'start_year' => $this->newPlanStartYear,
+                'end_year' => $this->newPlanEndYear,
+            ]);
+            $message = 'Equipment Replacement Plan updated successfully!';
+        } else {
+            $plan = EquipmentReplacementPlan::create([
+                'name' => $this->newPlanName,
+                'start_year' => $this->newPlanStartYear,
+                'end_year' => $this->newPlanEndYear,
+            ]);
+            $this->activePlanId = $plan->id;
+            $message = 'Equipment Replacement Plan created successfully!';
+        }
+
         $this->newPlanName = $this->newPlanStartYear = $this->newPlanEndYear = '';
         $this->showCreatePlanModal = false;
-        $this->activePlanId = $plan->id;
         $this->loadPlans();
-        $this->dispatch('notify', ['type' => 'success', 'message' => 'Equipment Replacement Plan created successfully!']);
+        $this->dispatch('notify', ['type' => 'success', 'message' => $message]);
+    }
+
+    public function editPlan($id)
+    {
+        $this->authorizeAction('equipment.maintenance.edit');
+        $plan = EquipmentReplacementPlan::findOrFail($id);
+        $this->editingPlanId = $plan->id;
+        $this->newPlanName = $plan->name;
+        $this->newPlanStartYear = $plan->start_year;
+        $this->newPlanEndYear = $plan->end_year;
+        $this->showCreatePlanModal = true;
+    }
+
+    public function deletePlan($id)
+    {
+        $this->authorizeAction('equipment.maintenance.delete');
+        $plan = EquipmentReplacementPlan::findOrFail($id);
+        $plan->items()->delete();
+        $plan->delete();
+        
+        if ($this->activePlanId === $id) {
+            $this->activePlanId = '';
+        }
+        $this->loadPlans();
+        $this->dispatch('notify', ['type' => 'success', 'message' => 'Equipment Replacement Plan deleted successfully!']);
     }
 
     public function openAddPlanItemModal()

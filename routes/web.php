@@ -1163,6 +1163,12 @@ Route::post('/add/customer-feedback', 'CRM\CustomerFeedbackController@add')->nam
 Route::post('/add-feedback/customer', 'CRM\CustomerFeedbackController@customer_add')->name('customer-add-feedback')->middleware('can:crm.feedback.add');
 Route::post('/edit/customer-feedback/{id}', 'CRM\CustomerFeedbackController@edit')->name('edit-feedback')->middleware('can:crm.feedback.edit');
 
+Route::get('/customer-feedback/submit/{contact_id}', '\\' . \App\Livewire\Crm\Feedback\FeedbackSubmitForm::class)
+    ->name('feedback.form')
+    ->middleware('signed');
+
+
+
 Route::post('/request-resolution-approval/{id}', 'CRM\Complaint\ComplaintWorkflowController@request_resolution_approve')->name('request-resolution')->middleware('can:crm.resolution-approval.add');
 Route::post('/reverse-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowController@reverse_resolution')->name('reverse-resolution')->middleware('can:crm.resolution-approval.edit');
 Route::post('/reject-resolution/{id}', 'CRM\Complaint\ComplaintWorkflowController@reject_resolution')->name('reject-resolution')->middleware('can:crm.resolution-approval.delete');
@@ -1761,6 +1767,8 @@ Route::post('move/To-Verification/Approval-Level', 'SampleWorkFlowController@mov
 Route::post('edit/Verification/Approver-Config', 'SampleWorkFlowController@editVerificationApproverConfig')->name('editVerificationApproverConfig')->middleware('can:laboratory.components.verification-approvals.edit');
 Route::post('delete/Verification-Approver/Config', 'SampleWorkFlowController@deleteVerificationApproverConfig')->name('deleteVerificationApproverConfig')->middleware('can:laboratory.components.verification-approvals.delete');
 Route::post('change/Batch-Approval/Status', 'SampleWorkFlowController@changeBatchApprovalStatus')->name('changeBatchApprovalStatus')->middleware('can:laboratory.components.verification-approvals.edit');
+Route::post('send-back-to-lab-for-amendment', 'SampleWorkFlowController@sendBackToLabForAmendment')->name('sendBackToLabForAmendment')->middleware('can:laboratory.components.verification-approvals.edit');
+Route::post('resubmit-amendment-for-verification', 'SampleWorkFlowController@resubmitAmendmentForVerification')->name('resubmitAmendmentForVerification')->middleware('can:laboratory.components.verification-approvals.edit');
 Route::get('/get/Show-Batch/COA/{batch_code}/{format}', 'SampleWorkFlowController@getShowBatchCOA')->name('getShowBatchCOA')->middleware('can:laboratory.components.lab-reports.view');
 
 Route::get('/sample-condition-index', 'SampleConditionController@index')->name('sample_condition_index')->middleware('can:laboratory.components.sample-types.view');

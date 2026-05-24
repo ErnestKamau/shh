@@ -79,7 +79,7 @@ class SubmissionFormElement extends Model implements Auditable
             'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select',
             'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select',
             'zone_select',
-            'depended_field',
+            'depended_field', 'pricelist_viewer'
         ]);
     }
 
@@ -292,7 +292,7 @@ class SubmissionFormElement extends Model implements Auditable
     {
         return in_array($this->element_type, [
             'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select',
-            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'zone_select',
+            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'zone_select', 'pricelist_viewer'
         ]);
     }
 

@@ -389,6 +389,9 @@
         <button class="tab-btn {{ $activeTab === 'management' ? 'active' : '' }}" onclick="switchTab('management')">
             <i class="mdi mdi-account-multiple-outline"></i> Management
         </button>
+        <button class="tab-btn {{ $activeTab === 'crm' ? 'active' : '' }}" onclick="switchTab('crm')">
+            <i class="mdi mdi-account-tie"></i> CRM
+        </button>
     </div>
 
     <!-- TAB 1: Sample Management -->
@@ -1519,6 +1522,50 @@
         </div>
     </div>
 
+    <!-- TAB 9: CRM -->
+    <div id="crm" class="tab-content-panel {{ $activeTab === 'crm' ? 'active' : '' }}">
+        <div class="report-selection-grid">
+            <div class="report-card {{ $reportType === 'dormant_accounts' ? 'selected' : '' }}" onclick="selectReport('dormant_accounts', 'crm')">
+                <span class="badge">Active</span>
+                <h3><i class="mdi mdi-account-off-outline"></i> Dormant Account Reports</h3>
+                <p>Track user accounts with no activity in the last 90 days and their corresponding details.</p>
+            </div>
+        </div>
+
+        <!-- Custom Unique Filters: CRM -->
+        <div class="filter-panel" id="filter-panel-crm" style="display: {{ $activeTab === 'crm' && $reportType ? 'block' : 'none' }};">
+            <h4><i class="mdi mdi-tune-variant"></i> CRM Filter Configuration</h4>
+            <form action="{{ route('module-reports.view') }}" method="POST">
+                @csrf
+                <input type="hidden" name="active_tab" value="crm">
+                <input type="hidden" name="report_type" class="tab-report-type-input" value="{{ $reportType }}">
+                
+                <div class="filter-grid">
+                    <div class="form-group">
+                        <label><i class="mdi mdi-calendar"></i> Date From</label>
+                        <input type="date" name="date_from" class="form-control-custom" value="{{ $filters['date_from'] ?? '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="mdi mdi-calendar"></i> Date To</label>
+                        <input type="date" name="date_to" class="form-control-custom" value="{{ $filters['date_to'] ?? '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="mdi mdi-home-map-marker"></i> Lab / Zone</label>
+                        <select name="lab_id" class="form-control-custom">
+                            <option value="all">-- All Labs --</option>
+                            @foreach($labs as $l)
+                                <option value="{{ $l->id }}" {{ ($filters['lab_id'] ?? '') == $l->id ? 'selected' : '' }}>{{ $l->name }} ({{ $l->code }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="submit-actions">
+                    <button type="submit" class="btn-premium"><i class="mdi mdi-cogs"></i> Query & Generate Preview</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Report Preview Area -->
     <div class="preview-section" id="report-preview-section">
         <div class="preview-header">
@@ -1831,6 +1878,15 @@
                                 <th>Individual Clients</th>
                                 <th>Government Bodies</th>
                                 <th>Total Served</th>
+                            @elseif($reportType === 'dormant_accounts')
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Zone</th>
+                                <th>Lab</th>
+                                <th>Last Active</th>
                             @endif
                         </tr>
                     </thead>
@@ -2144,6 +2200,15 @@
                                     <td>{{ $row->individual_clients }}</td>
                                     <td>{{ $row->govt_bodies }}</td>
                                     <td><strong>{{ $row->total_served }}</strong></td>
+                                @elseif($reportType === 'dormant_accounts')
+                                    <td>{{ $row->name }}</td>
+                                    <td>{{ $row->email }}</td>
+                                    <td>{{ $row->phone }}</td>
+                                    <td>{{ $row->role }}</td>
+                                    <td>{{ $row->department }}</td>
+                                    <td>{{ $row->zone }}</td>
+                                    <td>{{ $row->lab }}</td>
+                                    <td>{{ $row->last_active }}</td>
                                 @endif
                             </tr>
                         @endforeach

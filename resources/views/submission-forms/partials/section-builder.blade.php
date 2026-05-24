@@ -54,6 +54,8 @@ if (!function_exists('getElementIcon')) {
                 return 'account';
             case 'calculation':
                 return 'calculator';
+            case 'pricelist_viewer':
+                return 'cash-multiple';
             default:
                 return 'form-textbox';
         }

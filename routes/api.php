@@ -57,6 +57,9 @@ Route::get('/acceptance-forms/prefill', [\App\Http\Controllers\Sampleworkflow\Ac
 Route::get('/workflow/preview-batch-code', [\App\Http\Controllers\Api\SubmissionRequestController::class, 'previewBatchCode'])
     ->name('api.workflow.preview-batch-code');
 
+Route::get('/customers/{customerId}/pricelist', [\App\Http\Controllers\Api\PricelistController::class, 'showForCustomer'])
+    ->name('api.customers.pricelist');
+
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('access-requests', [PortalAccessRequestController::class, 'store'])->middleware('throttle:60,1');

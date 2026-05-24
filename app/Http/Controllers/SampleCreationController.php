@@ -485,11 +485,25 @@ class SampleCreationController extends Controller
             'sample_reporting_unit' => $getSingleValue($detailData['sample_reporting_unit'] ?? ''),
         ];
 
-        // Merge additional detail data
+        $isValidUuid = function ($uuid) {
+            if (!is_string($uuid)) {
+                return false;
+            }
+            return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid) === 1;
+        };
 
-        // dd($sampleData, $detailData);
-
-        // $sampleData = array_merge($sampleData, $detailData);
+        // Sanitize UUID columns
+        $uuidCols = [
+            'sample_point_id', 'sample_condition_id', 'company_product_id', 
+            'main_standard', 'secondary_standard', 'third_standard_id', 'lab_id'
+        ];
+        foreach ($uuidCols as $col) {
+            if (isset($sampleData[$col])) {
+                if (empty($sampleData[$col]) || !$isValidUuid($sampleData[$col])) {
+                    $sampleData[$col] = null;
+                }
+            }
+        }
 
         $sampleDetail->fill($sampleData);
 
@@ -623,7 +637,7 @@ class SampleCreationController extends Controller
                 'sample_header_id' => $batchId,
                 'analyte_id' => $element->analyte_id,
                 'analyte_code' => $analyteCode,
-                'equipment_id' => $element->equipment_id ?? 0,
+                'equipment_id' => (empty($element->equipment_id) || $element->equipment_id === '0' || $element->equipment_id === 0) ? null : $element->equipment_id,
                 'result' => null, // Will be filled when results are captured
                 'user_id' => auth()->id() ?? 1,
                 'analysis_type_id' => $analysisTypeId,

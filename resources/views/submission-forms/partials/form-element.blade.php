@@ -118,7 +118,7 @@
                 @if(!$element->is_required)
                     <option value="">{{ $element->placeholder ?: 'Select an option...' }}</option>
                 @endif
-                @foreach($element->options as $option)
+                @foreach($element->options ?? [] as $option)
                     <option value="{{ $option['value'] ?? $option }}" 
                             {{ ($fieldValue == ($option['value'] ?? $option)) ? 'selected' : '' }}>
                         {{ $option['label'] ?? $option }}
@@ -129,7 +129,7 @@
             
         @case('radio')
             <div class="form-check-container">
-                @foreach($element->options as $index => $option)
+                @foreach($element->options ?? [] as $index => $option)
                     <div class="form-check">
                         <input class="form-check-input" 
                                type="radio" 
@@ -147,11 +147,31 @@
             </div>
             @break
             
+        @case('checklist')
+            <div class="form-check-container">
+                @foreach($element->options ?? [] as $index => $option)
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               id="{{ $element->name }}_{{ $index }}" 
+                               name="{{ $element->name }}[]"
+                               value="{{ $option['value'] ?? $option }}"
+                               {{ in_array(($option['value'] ?? $option), $allSavedValues) ? 'checked' : '' }}
+                               {{ $element->is_required ? 'required' : '' }}
+                               {{ $element->is_readonly ? 'disabled' : '' }}>
+                        <label class="form-check-label" for="{{ $element->name }}_{{ $index }}">
+                            {{ $option['label'] ?? $option }}
+                        </label>
+                    </div>
+                @endforeach
+            </div>
+            @break
+            
         @case('checkbox')
             @if($element->options && count($element->options) > 1)
                 {{-- Multiple checkboxes --}}
                 <div class="form-check-container">
-                    @foreach($element->options as $index => $option)
+                    @foreach($element->options ?? [] as $index => $option)
                         <div class="form-check">
                             <input class="form-check-input" 
                                    type="checkbox" 
@@ -795,8 +815,180 @@
                     <i class="mdi mdi-plus"></i>
                 </button>
             </div>
+            @case('pricelist_viewer')
+            <div class="custom-element-wrapper position-relative text-center">
+                <button type="button" class="btn btn-outline-primary glowing-button pricelist-viewer-btn" 
+                        id="{{ $fieldId }}_btn"
+                        data-element-type="pricelist_viewer"
+                        data-depends-on="client_select"
+                        data-element-id="{{ $element->id }}">
+                    <i class="mdi mdi-cash-multiple mr-1"></i> Pricelist
+                </button>
+            </div>
+            
+            <style>
+                .glowing-button {
+                    position: relative;
+                    overflow: hidden;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 0 10px rgba(0, 123, 255, 0.4);
+                    border: 1px solid #007bff;
+                    font-weight: 600;
+                    padding: 8px 24px;
+                    border-radius: 30px;
+                    background: linear-gradient(145deg, #ffffff, #f0f8ff);
+                }
+                .glowing-button:hover {
+                    box-shadow: 0 0 20px rgba(0, 123, 255, 0.8), 0 0 40px rgba(0, 123, 255, 0.3);
+                    transform: translateY(-2px);
+                    background: linear-gradient(145deg, #e6f2ff, #ffffff);
+                }
+                .glowing-button::after {
+                    content: '';
+                    position: absolute;
+                    top: -50%;
+                    left: -50%;
+                    width: 200%;
+                    height: 200%;
+                    background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 60%);
+                    opacity: 0;
+                    transform: scale(0.5);
+                    transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+                }
+                .glowing-button:active::after {
+                    opacity: 1;
+                    transform: scale(1);
+                    transition: 0s;
+                }
+            </style>
+            
+            @pushOnce('scripts')
+            <script>
+                if (!window.pricelistViewerInitialized) {
+                    window.pricelistViewerInitialized = true;
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // Create single global modal dynamically if not exists
+                        let modalId = 'globalPricelistModal';
+                        if (!document.getElementById(modalId)) {
+                            const modalHTML = `
+                                <div class="modal fade" id="${modalId}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-primary text-white">
+                                                <h5 class="modal-title"><i class="mdi mdi-cash-multiple mr-2"></i> Pricelist</h5>
+                                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body p-0">
+                                                <div id="${modalId}_loader" class="text-center p-5">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="sr-only">Loading...</span>
+                                                    </div>
+                                                    <p class="mt-2 text-muted">Loading pricelist data...</p>
+                                                </div>
+                                                <div id="${modalId}_error" class="alert alert-danger m-3" style="display: none;">
+                                                </div>
+                                                <div id="${modalId}_content" style="display: none;">
+                                                    <div class="p-3 bg-light border-bottom">
+                                                        <h6 id="${modalId}_title" class="mb-1 font-weight-bold"></h6>
+                                                        <small id="${modalId}_desc" class="text-muted"></small>
+                                                    </div>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover table-striped table-bordered mb-0">
+                                                            <thead class="thead-light">
+                                                                <tr>
+                                                                    <th>Item Details</th>
+                                                                    <th>Cost Price</th>
+                                                                    <th>Selling Price</th>
+                                                                    <th>Changed Price</th>
+                                                                    <th>VAT</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="${modalId}_tbody">
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.insertAdjacentHTML('beforeend', modalHTML);
+                        }
+                        
+                        document.body.addEventListener('click', function(e) {
+                            const btn = e.target.closest('.pricelist-viewer-btn');
+                            if (!btn) return;
+                            
+                            e.preventDefault();
+                            
+                            const form = btn.closest('form') || document;
+                            const clientSelect = form.querySelector('[data-element-type="client_select"]');
+                            const clientId = clientSelect ? clientSelect.value : null;
+                            
+                            $(`#${modalId}`).modal('show');
+                            
+                            document.getElementById(`${modalId}_loader`).style.display = 'block';
+                            document.getElementById(`${modalId}_content`).style.display = 'none';
+                            document.getElementById(`${modalId}_error`).style.display = 'none';
+                            
+                            const url = clientId 
+                                ? \`/api/customers/\${clientId}/pricelist\` 
+                                : '/api/customers/0/pricelist'; // 0 will fallback to master
+
+                            fetch(url)
+                                .then(res => res.json())
+                                .then(data => {
+                                    document.getElementById(`${modalId}_loader`).style.display = 'none';
+                                    
+                                    if (data.success && data.data) {
+                                        document.getElementById(`${modalId}_content`).style.display = 'block';
+                                        const pl = data.data;
+                                        
+                                        document.getElementById(`${modalId}_title`).innerText = pl.description || 'Pricelist ' + (pl.code || '');
+                                        document.getElementById(`${modalId}_desc`).innerText = (pl.is_master ? 'Master Pricelist' : 'Customer Pricelist') + (pl.currency ? ' (' + pl.currency.name + ')' : '');
+                                        
+                                        const tbody = document.getElementById(`${modalId}_tbody`);
+                                        tbody.innerHTML = '';
+                                        
+                                        if (pl.items && pl.items.length > 0) {
+                                            pl.items.forEach(item => {
+                                                tbody.innerHTML += `
+                                                    <tr>
+                                                        <td>
+                                                            Level: \${item.level || '-'}<br>
+                                                            <small class="text-muted">Type: \${item.analysis_id || '-'} | Sample: \${item.sample_type_id || '-'}</small>
+                                                        </td>
+                                                        <td>\${item.cost_price || 0}</td>
+                                                        <td><strong>\${item.selling_price || 0}</strong></td>
+                                                        <td>\${item.changed_price || 0}</td>
+                                                        <td>\${item.vat || 0}%</td>
+                                                    </tr>
+                                                `;
+                                            });
+                                        } else {
+                                            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No items found in this pricelist</td></tr>';
+                                        }
+                                    } else {
+                                        document.getElementById(`${modalId}_error`).innerText = data.message || 'Failed to load pricelist.';
+                                        document.getElementById(`${modalId}_error`).style.display = 'block';
+                                    }
+                                })
+                                .catch(err => {
+                                    document.getElementById(`${modalId}_loader`).style.display = 'none';
+                                    document.getElementById(`${modalId}_error`).innerText = 'An error occurred while fetching data.';
+                                    document.getElementById(`${modalId}_error`).style.display = 'block';
+                                    console.error(err);
+                                });
+                        });
+                    });
+                }
+            </script>
+            @endPushOnce
             @break
-        
+            
         @case('user_select')
             @php
                 $defaultUserId = auth()->check() ? auth()->id() : null;

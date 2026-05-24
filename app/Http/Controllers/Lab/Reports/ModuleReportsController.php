@@ -1047,6 +1047,40 @@ class ModuleReportsController extends Controller
                 }
                 return $items;
 
+            case 'dormant_accounts':
+                $items = collect();
+                $ninetyDaysAgo = now()->subDays(90);
+                
+                $activeUserIds = \App\Models\Audit::where('created_at', '>=', $ninetyDaysAgo)
+                    ->pluck('user_id')
+                    ->unique()
+                    ->toArray();
+
+                $query = \App\User::with(['zone', 'roles'])
+                    ->whereNotIn('id', $activeUserIds)
+                    ->where('created_at', '<', $ninetyDaysAgo);
+                
+                if ($request->filled('date_from')) {
+                    $query->where('created_at', '>=', $request->date_from);
+                }
+                if ($request->filled('date_to')) {
+                    $query->where('created_at', '<=', $request->date_to);
+                }
+
+                foreach($query->get() as $u) {
+                    $items->push((object)[
+                        'name' => $u->name,
+                        'email' => $u->email,
+                        'phone' => 'Masked/Hidden', // User phone is encrypted
+                        'role' => count($u->roles) ? $u->roles->pluck('name')->join(', ') : 'User',
+                        'department' => optional($u->department())->name ?? 'N/A',
+                        'zone' => optional($u->zone)->name ?? 'N/A',
+                        'lab' => $u->labsectionname ?: 'N/A',
+                        'last_active' => 'No Activity (90+ Days)'
+                    ]);
+                }
+                return $items;
+
             case 'interzone_transfers':
                 $items = collect();
                 foreach ($randomSamples as $i => $sh) {
@@ -1198,7 +1232,8 @@ class ModuleReportsController extends Controller
             'reagent_audit' => 'Chemical Reagent Audit and Discrepancy Registry',
             'ceo_performance' => 'CEO & Board of Directors LIMS Performance Dashboard',
             'equipment_breakdown' => 'Laboratory Equipment Breakdown and Downtime Summary',
-            'clients_served' => 'Clients Served Demographic Analysis Report'
+            'clients_served' => 'Clients Served Demographic Analysis Report',
+            'dormant_accounts' => 'CRM Dormant Account Activity Report'
         ];
         return $titles[$reportType] ?? 'LIMS Custom Report';
     }
@@ -1265,7 +1300,8 @@ class ModuleReportsController extends Controller
             'reagent_audit' => 'Ripoti ya ulinganifu na uhakiki wa stoku halisi ya kemikali (Physical Inventory Audit) dhidi ya idadi inayotambuliwa na mfumo.',
             'ceo_performance' => 'Ripoti rasmi ya kiutendaji ya Mkemia Mkuu wa Serikali na Bodi ya Wakurugenzi inayojumuisha ufanisi wa maabara zote nchini.',
             'equipment_breakdown' => 'Mchanganuo wa uharibifu wa vifaa vya kisayansi, muda vilivyokaa bila kufanya kazi, na gharama zilizotumika kuvirejesha kwenye utendaji.',
-            'clients_served' => 'Ripoti ya kiuchambuzi kuhusu idadi ya wateja waliopata huduma pamoja na mgawanyiko wao kijamii na kiuchumi kwa kipindi kilichochaguliwa.'
+            'clients_served' => 'Ripoti ya kiuchambuzi kuhusu idadi ya wateja waliopata huduma pamoja na mgawanyiko wao kijamii na kiuchumi kwa kipindi kilichochaguliwa.',
+            'dormant_accounts' => 'Ripoti ya akaunti za watumiaji (CRM) ambazo hazijafanya shughuli yoyote katika siku 90 zilizopita, ikionyesha maelezo kamili ya akaunti.'
         ];
         return $intros[$reportType] ?? 'Ripoti rasmi ya kiutendaji kutoka GCLA LIMS.';
     }
@@ -1332,7 +1368,8 @@ class ModuleReportsController extends Controller
             'reagent_audit' => ['Reagent Name', 'Lot Number', 'Actual Stock', 'System Stock', 'Discrepancy'],
             'ceo_performance' => ['Period', 'Total Revenue TZS', 'Overall TAT (Days)', 'Customer Satisfaction', 'Performance Rating'],
             'equipment_breakdown' => ['Instrument Name', 'Breakdown Date', 'Repair Completion', 'Downtime Hours', 'Repair Cost TZS'],
-            'clients_served' => ['Month', 'Corporate Clients', 'Individual Clients', 'Government Bodies', 'Total Served']
+            'clients_served' => ['Month', 'Corporate Clients', 'Individual Clients', 'Government Bodies', 'Total Served'],
+            'dormant_accounts' => ['Name', 'Email', 'Phone', 'Role', 'Department', 'Zone', 'Lab', 'Last Active']
         ];
         return $headers[$reportType] ?? [];
     }

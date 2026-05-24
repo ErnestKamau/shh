@@ -89,10 +89,9 @@
     <!-- Modal -->
     <div class="modal fade @if($showModal) show @endif"
         style="@if($showModal) display: block; background: rgba(0,0,0,0.5); @endif" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg">
-                <form wire:submit.prevent="save">
-                    <div class="modal-header border-bottom-0 pt-4 px-4">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <form wire:submit.prevent="save" class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-bottom-0 pt-4 px-4">
                         <h5 class="modal-title font-weight-bold">
                             {{ $editingMetricId ? __('crm.edit') . ' ' . __('crm.metric_name') : __('crm.add_new_metric') }}
                         </h5>
@@ -176,8 +175,7 @@
                             {{ $editingMetricId ? 'Save Changes' : 'Create Metric' }}
                         </button>
                     </div>
-                </form>
-            </div>
+            </form>
         </div>
     </div>
 </div>

@@ -176,10 +176,10 @@ class FormSchemaBuilder
             $dependsOn = is_array($element->options) ? ($element->options['depends'] ?? null) : null;
         } elseif ($element->element_type === 'depended_field') {
             $dependsOn = $element->depends_on_field;
-        } elseif (in_array($element->element_type, ['store_slot_select', 'client_unit_select', 'client_contact_select', 'sample_point_select', 'analysis_type_select', 'analysis_elements_select'], true)) {
+        } elseif (in_array($element->element_type, ['store_slot_select', 'client_unit_select', 'client_contact_select', 'sample_point_select', 'analysis_type_select', 'analysis_elements_select', 'pricelist_viewer'], true)) {
             $dependsOn = match ($element->element_type) {
                 'store_slot_select' => 'store_select',
-                'client_unit_select', 'client_contact_select' => 'client_select',
+                'client_unit_select', 'client_contact_select', 'pricelist_viewer' => 'client_select',
                 'sample_point_select' => 'client_unit_select',
                 'analysis_type_select' => 'sample_type_select',
                 'analysis_elements_select' => 'analysis_type_select',

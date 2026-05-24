@@ -3,6 +3,7 @@
 namespace App\Livewire\SubmissionForms;
 
 use App\ChainOfCustody;
+use App\BatchAttachment;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceNote;
@@ -13,9 +14,15 @@ use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use App\Models\SubmissionFormInstanceAttachment;
 
 class RequestViewPage extends Component
 {
+    use WithFileUploads;
+
+    public $newAttachment;
+
     public string $submissionFormId;
 
     public string $instanceId;
@@ -95,6 +102,31 @@ class RequestViewPage extends Component
         session()->flash('request_view_message', 'Note saved successfully.');
     }
 
+    public function uploadAttachment(): void
+    {
+        $user = auth()->user();
+        $this->authorizeFormAccess($user);
+
+        $this->validate([
+            'newAttachment' => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,webp,txt'],
+        ], [
+            'newAttachment.max' => 'The attachment must not be greater than 10MB.',
+            'newAttachment.mimes' => 'The attachment must be a file of type: pdf, doc, docx, xls, xlsx, png, jpg, jpeg, webp, txt.',
+        ]);
+
+        $originalName = $this->newAttachment->getClientOriginalName();
+        $path = $this->newAttachment->store('request-attachments', 'public');
+
+        $this->instance->customAttachments()->create([
+            'file_path' => $path,
+            'original_name' => $originalName,
+            'uploaded_by' => $user->id,
+        ]);
+
+        $this->reset('newAttachment');
+        session()->flash('request_view_message', 'Attachment uploaded successfully.');
+    }
+
     private function authorizeFormAccess(?\App\User $user): void
     {
         if (! $user) {
@@ -105,7 +137,7 @@ class RequestViewPage extends Component
             return;
         }
 
-        if ($user->can('Laboratory.components.RFT Form.View') || $user->can('Laboratory.permission')) {
+        if ($user->can('laboratory.components.rft form.view') || $user->can('laboratory.permission')) {
             return;
         }
 
@@ -233,9 +265,23 @@ class RequestViewPage extends Component
 
         $acceptanceForm = $this->instance->analysisAcceptanceForms->first();
 
+        $batchIds = $this->instance->batches->pluck('id');
+        $batchAttachments = BatchAttachment::query()
+            ->whereIn('batch_id', $batchIds)
+            ->where(function ($q) {
+                $q->where('title', 'like', '%Laboratory Analysis Acceptance%')
+                  ->orWhere('title', 'like', '%Sample Receipt Notification%');
+            })
+            ->latest()
+            ->get();
+
+        $customAttachments = $this->instance->customAttachments()->with('uploader')->get();
+
         return view('livewire.submission-forms.request-view-page', [
             'formData' => $formData,
             'attachmentInstances' => $attachmentInstances,
+            'batchAttachments' => $batchAttachments,
+            'customAttachments' => $customAttachments,
             'canCreateSamples' => $canCreateSamples,
             'sampleStatus' => $sampleStatus,
             'acceptanceForm' => $acceptanceForm,

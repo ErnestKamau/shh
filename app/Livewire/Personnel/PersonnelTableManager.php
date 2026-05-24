@@ -98,6 +98,7 @@ class PersonnelTableManager extends Component
         'lab_ids' => [],
         'lab_section_id' => [],
         'active' => true,
+        'is_technical' => false,
     ];
 
     public string $message = '';
@@ -288,6 +289,7 @@ class PersonnelTableManager extends Component
             'personnelForm.department' => 'required|string|exists:inventory_departments,id',
             'personnelForm.lab_section_id' => 'array',
             'personnelForm.active' => 'boolean',
+            'personnelForm.is_technical' => 'boolean',
             'signatureUpload' => 'nullable|image|max:3072',
             'signatureData' => 'nullable|string',
         ];
@@ -325,6 +327,7 @@ class PersonnelTableManager extends Component
         $personnel->id_number = (string) $this->personnelForm['id_number'];
         $personnel->zone_id = null;
         $personnel->active = $this->personnelForm['active'] ? 1 : 0;
+        $personnel->is_technical = $this->personnelForm['is_technical'] ? 1 : 0;
         $personnel->lab_section_id = implode(',', $this->personnelForm['lab_section_id'] ?? []);
         $plainPassword = $personnel->first_name . config('app.name') . date('Y');
         $personnel->password              = bcrypt($plainPassword);
@@ -515,7 +518,7 @@ class PersonnelTableManager extends Component
 
     public function setActiveTab(string $tab): void
     {
-        $this->activeTab = in_array($tab, ['all', 'active', 'deactive'], true) ? $tab : 'all';
+        $this->activeTab = in_array($tab, ['all', 'active', 'deactive', 'dormant'], true) ? $tab : 'all';
         $this->resetPage();
     }
 
@@ -606,6 +609,16 @@ class PersonnelTableManager extends Component
             $query->where('users.active', 1);
         } elseif ($this->activeTab === 'deactive') {
             $query->where('users.active', 0);
+        } elseif ($this->activeTab === 'dormant') {
+            $ninetyDaysAgo = now()->subDays(90);
+            
+            $activeUserIds = \App\Models\Audit::where('created_at', '>=', $ninetyDaysAgo)
+                ->pluck('user_id')
+                ->unique()
+                ->toArray();
+
+            $query->whereNotIn('users.id', $activeUserIds)
+                ->where('users.created_at', '<', $ninetyDaysAgo);
         }
 
         if ($this->search !== '') {

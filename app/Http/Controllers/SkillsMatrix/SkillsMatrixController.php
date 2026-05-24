@@ -18,6 +18,7 @@ use App\ModulePreConfigs;
 use App\InventoryDepartment;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 use App\Http\Controllers\Controller;
 use App\QuotationHeader;
@@ -41,7 +42,7 @@ class SkillsMatrixController extends Controller
 	public function index()
 	{
 		$module = 'Skills Matrix';
-		$matrix_info = SkillsMatrix::leftJoin('inventory_departments as c', 'c.id', '=', 'skillsmatrices.department_id')->selectRaw('skillsmatrices.*, c.name as department')->get();
+		$matrix_info = SkillsMatrix::leftJoin('inventory_departments as c', DB::raw('c.id::varchar'), '=', DB::raw('skillsmatrices.department_id::varchar'))->selectRaw('skillsmatrices.*, c.name as department')->get();
 		// return response()->json($matrix_info);
 		$user = Auth::user();
 		$module_text = "organizational";

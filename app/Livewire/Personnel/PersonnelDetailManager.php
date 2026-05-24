@@ -163,7 +163,7 @@ class PersonnelDetailManager extends Component
 
     public function setActiveTab(string $tab): void
     {
-        $this->activeTab = in_array($tab, ['roles', 'details', 'work_history', 'certifications', 'capability_matrix'], true) ? $tab : 'roles';
+        $this->activeTab = in_array($tab, ['roles', 'details', 'work_history', 'certifications', 'capability_matrix', 'attachments'], true) ? $tab : 'roles';
         $this->resetPage('rolesPage');
         $this->resetPage('workPage');
 

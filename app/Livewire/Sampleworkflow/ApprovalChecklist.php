@@ -13,6 +13,7 @@ class ApprovalChecklist extends Component
 {
     public string $sampleId;
     public string $stageName;
+    public string $batchCode = '';
     public array $responses = [];
     public array $remarks = [];
 
@@ -20,6 +21,9 @@ class ApprovalChecklist extends Component
     {
         $this->sampleId = $sampleId;
         $this->stageName = $stageName;
+        
+        $batch = \App\SampleHeader::find($sampleId);
+        $this->batchCode = $batch ? $batch->batch_code : $sampleId;
 
         $this->hydrateSavedState();
     }

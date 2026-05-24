@@ -14,6 +14,9 @@ class BatchLabSectionApprover extends Model implements Auditable
 
     protected $table = "batch_labsection_approval";
 
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $appends = ['approvername','labsectionnames','approvertype', 'approvershortname'];
 
     public function getApproverNameAttribute(){
@@ -23,10 +26,21 @@ class BatchLabSectionApprover extends Model implements Auditable
     public function getLabSectionNamesAttribute(){
         $ids = array_filter(array_map('trim', explode(',', (string)$this->lab_section_ids)), fn($id) => \Illuminate\Support\Str::isUuid($id));
         if (empty($ids)) {
-            return collect();
+            return '';
         }
-        $stages = SampleAnalysisStage::whereIn('id', $ids)->get();
-        return implode(', ', $stages->pluck('namecode')->toArray());
+        $names = [];
+        foreach ($ids as $id) {
+            $lab = \App\Lab::find($id);
+            if ($lab) {
+                $names[] = $lab->name;
+            } else {
+                $stage = SampleAnalysisStage::find($id);
+                if ($stage) {
+                    $names[] = $stage->namecode ?? $stage->name;
+                }
+            }
+        }
+        return implode(', ', $names);
     }
 
     /**
@@ -42,7 +56,23 @@ class BatchLabSectionApprover extends Model implements Auditable
 
         $ids = array_filter(explode(',', $this->lab_section_ids));
 
-        return SampleAnalysisStage::whereIn('id', $ids)->get();
+        $items = collect();
+        foreach ($ids as $id) {
+            $lab = \App\Lab::find($id);
+            if ($lab) {
+                $items->push((object)[
+                    'id' => $lab->id,
+                    'name' => $lab->name,
+                    'namecode' => $lab->code . ' - ' . $lab->name,
+                ]);
+            } else {
+                $stage = SampleAnalysisStage::find($id);
+                if ($stage) {
+                    $items->push($stage);
+                }
+            }
+        }
+        return $items;
     }
 
     public function getApproverDetails(){

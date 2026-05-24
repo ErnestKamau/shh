@@ -365,7 +365,11 @@ class Samples extends Component
             }
 
             // Load Areas for point creation
-            $this->areas = \App\Models\Area::select('id', 'name')->orderBy('name')->get()->toArray();
+            if (\Schema::hasTable('crm_areas')) {
+                $this->areas = \App\Models\Area::select('id', 'name')->orderBy('name')->get()->toArray();
+            } else {
+                $this->areas = [];
+            }
         } catch (\Exception $e) {
             Log::error('Error loading dropdown data: ' . $e->getMessage());
         }
@@ -1143,6 +1147,7 @@ class Samples extends Component
                 'crm_company_unit_id' => $this->batch->crm_unit_id,
                 'created_by'          => auth()->id(),
                 'active'              => true,
+                'gps'                 => '0,0',
             ]);
 
             // Link sample point to this batch's sample type when available.
@@ -1736,18 +1741,15 @@ class Samples extends Component
         $this->validate([
             "sampleForms.$index.analysis_type_id" => 'required|array|min:1',
             "sampleForms.$index.lab_id" => 'required',
-            "sampleForms.$index.sample_condition_id" => 'required',
-            "sampleForms.$index.sample_point_id" => 'required',
-            "sampleForms.$index.company_product_id" => 'required',
+            "sampleForms.$index.sample_condition_id" => 'nullable',
+            "sampleForms.$index.sample_point_id" => 'nullable',
+            "sampleForms.$index.company_product_id" => 'nullable',
             "sampleForms.$index.main_standard" => 'required',
             "sampleForms.$index.quantity" => 'required|numeric|min:0',
         ], [
             "sampleForms.$index.analysis_type_id.required" => 'Analysis type is required',
             "sampleForms.$index.analysis_type_id.min" => 'At least one analysis type must be selected',
             "sampleForms.$index.lab_id.required" => 'Lab is required',
-            "sampleForms.$index.sample_condition_id.required" => 'Condition is required',
-            "sampleForms.$index.sample_point_id.required" => 'Sample point is required',
-            "sampleForms.$index.company_product_id.required" => 'Product is required',
             "sampleForms.$index.main_standard.required" => 'Main standard is required',
         ]);
 
@@ -1773,17 +1775,17 @@ class Samples extends Component
                 ? implode(',', $sampleData['analysis_type_id'])
                 : $sampleData['analysis_type_id'];
             $sample->lab_id = $sampleData['lab_id'];
-            $sample->sample_condition_id = $sampleData['sample_condition_id'];
-            $sample->sample_point_id = $sampleData['sample_point_id'];
-            $sample->company_product_id = $sampleData['company_product_id'];
+            $sample->sample_condition_id = !empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
+            $sample->sample_point_id = !empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
+            $sample->company_product_id = !empty($sampleData['company_product_id']) ? $sampleData['company_product_id'] : null;
             $sample->comments = $sampleData['comments'];
-            $sample->main_standard = $sampleData['main_standard'];
-            $sample->secondary_standard = $sampleData['secondary_standard'];
-            $sample->disposal_date = $sampleData['disposal_date'];
-            $sample->store_id = $sampleData['store_id'];
-            $sample->store_slot_id = $sampleData['store_slot_id'];
+            $sample->main_standard = !empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;
+            $sample->secondary_standard = !empty($sampleData['secondary_standard']) ? $sampleData['secondary_standard'] : null;
+            $sample->disposal_date = !empty($sampleData['disposal_date']) ? $sampleData['disposal_date'] : null;
+            $sample->store_id = !empty($sampleData['store_id']) ? $sampleData['store_id'] : null;
+            $sample->store_slot_id = !empty($sampleData['store_slot_id']) ? $sampleData['store_slot_id'] : null;
             $sample->quantity = $sampleData['quantity'];
-            $sample->reporting_unit_id = $sampleData['reporting_unit_id'];
+            $sample->reporting_unit_id = !empty($sampleData['reporting_unit_id']) ? $sampleData['reporting_unit_id'] : null;
 
             $sample->save();
 
@@ -1815,18 +1817,15 @@ class Samples extends Component
         $this->validate([
             'sampleForms.*.analysis_type_id' => 'required|array|min:1',
             'sampleForms.*.lab_id' => 'required',
-            'sampleForms.*.sample_condition_id' => 'required',
-            'sampleForms.*.sample_point_id' => 'required',
-            'sampleForms.*.company_product_id' => 'required',
+            'sampleForms.*.sample_condition_id' => 'nullable',
+            'sampleForms.*.sample_point_id' => 'nullable',
+            'sampleForms.*.company_product_id' => 'nullable',
             'sampleForms.*.main_standard' => 'required',
             'sampleForms.*.quantity' => 'required|numeric|min:0',
         ], [
             'sampleForms.*.analysis_type_id.required' => 'Analysis type is required',
             'sampleForms.*.analysis_type_id.min' => 'At least  one analysis type must be selected',
             'sampleForms.*.lab_id.required' => 'Lab is required',
-            'sampleForms.*.sample_condition_id.required' => 'Condition is required',
-            'sampleForms.*.sample_point_id.required' => 'Sample point is required',
-            'sampleForms.*.company_product_id.required' => 'Product is required',
             'sampleForms.*.main_standard.required' => 'Main standard is required',
         ]);
 
@@ -1849,17 +1848,17 @@ class Samples extends Component
                     ? implode(',', $sampleData['analysis_type_id'])
                     : $sampleData['analysis_type_id'];
                 $sample->lab_id = $sampleData['lab_id'];
-                $sample->sample_condition_id = $sampleData['sample_condition_id'];
-                $sample->sample_point_id = $sampleData['sample_point_id'];
-                $sample->company_product_id = $sampleData['company_product_id'];
+                $sample->sample_condition_id = !empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
+                $sample->sample_point_id = !empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
+                $sample->company_product_id = !empty($sampleData['company_product_id']) ? $sampleData['company_product_id'] : null;
                 $sample->comments = $sampleData['comments'];
-                $sample->main_standard = $sampleData['main_standard'];
-                $sample->secondary_standard = $sampleData['secondary_standard'];
-                $sample->disposal_date = $sampleData['disposal_date'];
-                $sample->store_id = $sampleData['store_id'];
-                $sample->store_slot_id = $sampleData['store_slot_id'];
+                $sample->main_standard = !empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;
+                $sample->secondary_standard = !empty($sampleData['secondary_standard']) ? $sampleData['secondary_standard'] : null;
+                $sample->disposal_date = !empty($sampleData['disposal_date']) ? $sampleData['disposal_date'] : null;
+                $sample->store_id = !empty($sampleData['store_id']) ? $sampleData['store_id'] : null;
+                $sample->store_slot_id = !empty($sampleData['store_slot_id']) ? $sampleData['store_slot_id'] : null;
                 $sample->quantity = $sampleData['quantity'];
-                $sample->reporting_unit_id = $sampleData['reporting_unit_id'];
+                $sample->reporting_unit_id = !empty($sampleData['reporting_unit_id']) ? $sampleData['reporting_unit_id'] : null;
 
                 $sample->save();
 

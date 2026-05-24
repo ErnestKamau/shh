@@ -73,14 +73,12 @@
                             <div class="tag-select-container" wire:click.outside="$set('showCustomerDropdown', false)">
                                 <div class="tag-select-input">
                                     <div class="selected-tags">
-                                        @forelse($this->selectedCustomersList as $customer)
+                                        @foreach($this->selectedCustomersList as $customer)
                                             <span class="selected-tag">
                                                 {{ $customer->name }}
                                                 <i class="mdi mdi-close" wire:click.stop="removeCustomer('{{ $customer->id }}')"></i>
                                             </span>
-                                        @empty
-                                            <span class="text-muted small">No customer selected</span>
-                                        @endforelse
+                                        @endforeach
                                     </div>
                                     <input type="text" class="tag-input" placeholder="Search customers..."
                                         wire:model.live.debounce.200ms="customerSearch"
@@ -106,7 +104,7 @@
                         <!-- Recipients Preview -->
                         <div class="form-group">
                             <label class="font-weight-bold d-flex justify-content-between">
-                                <span>Recipients Preview (Opt-in Only)</span>
+                                <span>Recipients Preview</span>
                                 <span class="crm-badge crm-badge-primary">{{ count($recipients) }} Found</span>
                             </label>
                             <div class="border rounded p-2 bg-light" style="max-height: 150px; overflow-y: auto;">

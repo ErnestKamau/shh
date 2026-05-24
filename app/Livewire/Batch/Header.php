@@ -4,6 +4,8 @@ namespace App\Livewire\Batch;
 
 use App\SampleHeader;
 use App\CapturedResult;
+use App\Services\WorkflowService;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class Header extends Component
@@ -56,6 +58,7 @@ class Header extends Component
         'level' => 0,
         'has_method_deviation' => false,
         'method_deviation_reason' => '',
+        'technical_reviewer_id' => '',
     ];
 
     protected $listeners = ['batchUpdated' => '$refresh'];
@@ -110,8 +113,40 @@ class Header extends Component
             // Section Approvers (for verification modal)
             $this->sectionApprovers = \App\LabSectionApproverRelationShip::whereIn('lab_section_id', array_filter(explode(',', (string)$this->batch->lab_section_ids)))->get();
 
+            // Pre-populate verificationData with labs instead of sections
+            $labs = $this->getBatchLabs();
+            foreach ($labs as $lab) {
+                $prevApprover = \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
+                    ->where('approver_order', 2)
+                    ->whereRaw("FIND_IN_SET(?, lab_section_ids) > 0", [$lab->id])
+                    ->first();
+
+                if ($prevApprover) {
+                    if (empty($this->verificationData['approver_user'][$lab->id])) {
+                        $this->verificationData['approver_user'][$lab->id] = $prevApprover->user_id;
+                    }
+                    if (empty($this->verificationData['title'][$lab->id])) {
+                        $this->verificationData['title'][$lab->id] = $prevApprover->title;
+                    }
+                } else {
+                    $managers = $this->getLabManagersForLab($lab->id);
+                    $firstManager = $managers->first();
+                    if ($firstManager) {
+                        if (empty($this->verificationData['approver_user'][$lab->id])) {
+                            $this->verificationData['approver_user'][$lab->id] = $firstManager->id;
+                        }
+                    }
+                    if (empty($this->verificationData['title'][$lab->id])) {
+                        $this->verificationData['title'][$lab->id] = 'Lab Manager';
+                    }
+                }
+            }
+
             // Lab Stores
             $this->labStores = getStorageByType('lab_store');
+
+            // Initialize technical reviewer if exists
+            $this->verificationData['technical_reviewer_id'] = $this->batch->approve_user_id ?? '';
         }
     }
 
@@ -357,14 +392,21 @@ class Header extends Component
         // Match legacy controller behaviour: remember the workflow column we came from
         $previousWorkflow = $batch->status;
 
-        if (empty($batch->lab_section_ids)) {
-            session()->flash('error', 'Kindly provide the lab sections associated with the sample at batch information section');
+        $labs = $this->getBatchLabs();
+        if ($labs->isEmpty()) {
+            session()->flash('error', 'Kindly provide the laboratories associated with the samples at batch information section');
             return;
         }
 
-        $section_users = \App\LabSectionApproverRelationShip::whereIn('lab_section_id', array_filter(explode(',', (string)$batch->lab_section_ids)))->get();
-        if ($section_users->count() <= 0) {
-            session()->flash('error', 'Kindly provide approval configuration for the selected batch lab sections');
+        // We check if at least one laboratory has a manager or we have a manager assigned
+        $hasManagers = false;
+        foreach ($labs as $lab) {
+            if ($this->getLabManagersForLab($lab->id)->isNotEmpty()) {
+                $hasManagers = true;
+            }
+        }
+        if (!$hasManagers) {
+            session()->flash('error', 'Kindly provide Lab Manager configuration for the batch laboratories');
             return;
         }
 
@@ -390,21 +432,25 @@ class Header extends Component
         }
 
         // Populate analysts based on Captured Results logic
-        // The legacy controller logic does this:
+        // captured_results has lab_section_id (not lab_id), so resolve sections via SampleAnalysisStage
         $users = [];
         $user_approvers = [];
-        foreach (array_filter(explode(',', (string)$batch->lab_section_ids)) as $section_id) {
-            $c_user = CapturedResult::where('lab_section_id', $section_id)
+        foreach ($labs as $lab) {
+            $sectionIds = \App\SampleAnalysisStage::where('lab_id', $lab->id)->pluck('id')->toArray();
+            if (empty($sectionIds)) {
+                continue;
+            }
+            $c_user = CapturedResult::whereIn('lab_section_id', $sectionIds)
                 ->where('sample_header_id', $batch->id)
                 ->orderBy('updated_at', 'DESC')
                 ->first();
 
             if ($c_user && $c_user->operator_id) {
                 array_push($users, $c_user->operator_id);
-                $user_approvers[$c_user->operator_id] = $section_id;
+                $user_approvers[$c_user->operator_id] = $lab->id;
             }
         }
-        $analysts = \App\User::whereIn('id', $users)->get();
+        $analysts = \App\User::whereIn('id', array_unique($users))->get();
 
         // Perform updates
         \App\Models\Lab\TatCaptured::where('sample_header_id', $batch->id)->update(['is_complete' => 1]);
@@ -414,8 +460,8 @@ class Header extends Component
 
         // Status Logic
         $batch->status = ($level == '0') ? $status : $batch->status;
-        $batch->report_status = ($level == '0') ? $level : $batch->report_status;
-        $batch->prelim_report_status = ($level != '0') ? $level : $batch->prelim_report_status;
+        $batch->report_status = ($level == '0') ? (int)$level : $batch->report_status;
+        $batch->prelim_report_status = ($level != '0') ? (int)$level : $batch->prelim_report_status;
         $batch->prelim_batch_status = ($level != '0') ? $status : $batch->prelim_batch_status;
 
         // Persist method deviation details at batch level when moving to verification
@@ -425,10 +471,14 @@ class Header extends Component
             ? ($this->verificationData['method_deviation_reason'] ?? '')
             : null;
 
+        if (!empty($this->verificationData['technical_reviewer_id'])) {
+            $batch->approve_user_id = $this->verificationData['technical_reviewer_id'];
+        }
+
         if ($level == '0') {
-            $batch->report_status = '';
+            $batch->report_status = null;
             $batch->prelim_report_status = 0;
-            $batch->prelim_batch_status = '';
+            $batch->prelim_batch_status = null;
         }
 
         if ($level != '2') {
@@ -437,47 +487,67 @@ class Header extends Component
                 ? \App\BatchLabSectionApprover::where('batch_id', $batch->id)->delete()
                 : \App\BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim', 0)->delete();
 
-            // dd($this->verificationData);
+            // Add Technical Reviewer
+            if ($batch->approve_user_id) {
+                $techApprover = new \App\BatchLabSectionApprover();
+                $techApprover->status = 0;
+                $techApprover->user_id = $batch->approve_user_id;
+                $techApprover->title = 'Technical Signatory';
+                $techApprover->lab_section_ids = '0'; // Global
+                $techApprover->batch_id = $batch->id;
+                $techApprover->batch_status = $status;
+                $techApprover->is_prelim = ($level != '0') ? 1 : 0;
+                $techApprover->show_report = 1;
+                
+                $techApprover->approver_order = 1;
+                $techApprover->is_technical_reviewer = 1;
+                $techApprover->approver_type = 'Technical Reviewer';
+                $techApprover->can_send_back_to_lab = 0;
+                $techApprover->save();
+            } else {
+                session()->flash('error', 'No Technical Signatory assigned to this batch. Please assign one first.');
+                return;
+            }
 
             // Add new approvers from Form Data
-            foreach ($this->verificationData['approver_user'] as $section_id => $user_id) {
-                // Ensure section_id is valid for this batch? Assume yes from UI.
+            foreach ($this->verificationData['approver_user'] as $lab_id => $user_id) {
+                if (empty($user_id)) {
+                    continue;
+                }
 
                 $approvers = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
                     ->where('user_id', $user_id)
-                    // ->where('title', '$user_id->title') // This looks like a bug in legacy code '$user_id->title', let's ignore or fix if needed. 
-                    // Legacy code was: ->where('title', '$user_id->title') which is literally string literal. Probably bug.
+                    ->where('approver_order', 2)
                     ->first() ?? new \App\BatchLabSectionApprover();
 
-                $title = $this->verificationData['title'][$section_id] ?? 'Verifier';
+                $title = $this->verificationData['title'][$lab_id] ?? 'Lab Manager';
 
                 $approvers->status = 0;
                 $approvers->user_id = $user_id;
                 $approvers->title = $title;
-                $approvers->lab_section_ids = ($approvers->lab_section_ids == '') ? $section_id : $approvers->lab_section_ids . ',' . $section_id;
+                $approvers->lab_section_ids = ($approvers->lab_section_ids == '') ? $lab_id : $approvers->lab_section_ids . ',' . $lab_id;
                 $approvers->batch_id = $batch->id;
                 $approvers->batch_status = $status;
                 $approvers->is_prelim = ($level != '0') ? 1 : 0;
                 $approvers->show_report = 1;
+                
+                $approvers->approver_order = 2;
+                $approvers->is_technical_reviewer = 0;
+                $approvers->approver_type = 'Lab Manager';
+                $approvers->can_send_back_to_lab = 1;
                 $approvers->save();
             }
 
-            // Add analysts who worked on it as approved/verifier?
+            // Add analysts who worked on it as approved/verifier
             foreach ($analysts as $analyst) {
-                // Legacy logic used $user_approvers which maps analyst to section
-                // $section = SampleAnalysisStage::find($user_approvers[$analyst->id]);
-                // We need to implement this if it's critical. Legacy code does it.
-                // Let's implement it.
                 if (isset($user_approvers[$analyst->id])) {
-                    $section = \App\SampleAnalysisStage::find($user_approvers[$analyst->id]);
+                    $lab_id = $user_approvers[$analyst->id];
 
-                    $approvers = new \App\BatchLabSectionApprover(); // Always new? Legacy used findOrNew with weird where clause.
-                    // Actually legacy used same weird where clause. I'll just create new one to match logic of "adding approver"
-
+                    $approvers = new \App\BatchLabSectionApprover();
                     $approvers->status = 1; // Auto-approved?
                     $approvers->user_id = $analyst->id;
                     $approvers->title = 'Analyst';
-                    $approvers->lab_section_ids = $section->id;
+                    $approvers->lab_section_ids = $lab_id;
                     $approvers->batch_id = $batch->id;
                     $approvers->batch_status = $status;
                     $approvers->is_prelim = ($level != '0') ? 1 : 0;
@@ -507,18 +577,31 @@ class Header extends Component
 
         $batch = $this->batch;
 
-        if (empty($batch->lab_section_ids)) {
-            session()->flash('error', 'Kindly provide the lab sections associated with the sample at batch information section');
-            return;
+        if ($batch->status === 'Sample Verification') {
+            try {
+                app(WorkflowService::class)->assertStageApprovalsCompleted((string) $batch->id, 'Sample Verification');
+            } catch (ValidationException $exception) {
+                $message = $exception->validator->errors()->first();
+                $checklistUrl = route('sample-approval-checklist.show', [
+                    'sample' => $batch->id,
+                    'stage_name' => 'Sample Verification',
+                ]);
+
+                session()->flash('error', $message . ' Complete checklist here: ' . $checklistUrl);
+                return;
+            }
         }
 
-        // Check if user is already an approver
+        // Lab section check removed per user request
+        
+        // Check if user is already an approver in the Sample Approval stage
         $approvers_user_ids = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', 'Sample Approval')
             ->pluck('user_id')
             ->toArray();
 
         if (in_array($this->approvalData['user_id'], $approvers_user_ids)) {
-            session()->flash('error', 'System cannot assign the specified user as an approver since the user is already an approver');
+            session()->flash('approval_error', 'System cannot assign the specified user as an approver since the user is already an approver in this stage');
             return;
         }
 
@@ -569,6 +652,91 @@ class Header extends Component
         $this->showApprovalModal = false;
         session()->flash('success', 'Batch sent for approval successfully');
         $this->dispatch('batchUpdated');
+    }
+
+    public function getBatchLabs()
+    {
+        if (!isset($this->batch->id)) {
+            return collect();
+        }
+
+        $labIds = [];
+        
+        // 1. From sample_details.lab_id
+        $directLabIds = \App\SampleDetails::where('sample_header_id', $this->batch->id)
+            ->whereNotNull('lab_id')
+            ->pluck('lab_id')
+            ->toArray();
+        $labIds = array_merge($labIds, $directLabIds);
+        
+        // 2. From analysis types of the samples
+        $samples = \App\SampleDetails::where('sample_header_id', $this->batch->id)->get();
+        foreach ($samples as $sample) {
+            $analysisIDs = array_filter(explode(",", (string)$sample->analysis_type_id));
+            if (!empty($analysisIDs)) {
+                $typeLabIds = \App\AnalysisType::whereIn('id', $analysisIDs)
+                    ->whereNotNull('lab_id')
+                    ->pluck('lab_id')
+                    ->toArray();
+                $labIds = array_merge($labIds, $typeLabIds);
+            }
+        }
+        
+        $uniqueLabIds = array_unique(array_filter($labIds));
+        if (empty($uniqueLabIds)) {
+            return collect();
+        }
+        
+        return \App\Lab::whereIn('id', $uniqueLabIds)->get();
+    }
+
+    public function getLabManagersForLab($labId)
+    {
+        $lab = \App\Lab::find($labId);
+        if (!$lab) {
+            return collect();
+        }
+        
+        // Get users associated with this lab in user_lab_relation
+        $associatedUserIds = \DB::table('user_lab_relation')
+            ->where('lab_id', $labId)
+            ->pluck('user_id')
+            ->toArray();
+            
+        if ($lab->manager_id) {
+            $associatedUserIds[] = $lab->manager_id;
+        }
+        
+        $associatedUserIds = array_unique(array_filter($associatedUserIds));
+        
+        if (empty($associatedUserIds)) {
+            return collect();
+        }
+        
+        $users = \App\User::whereIn('id', $associatedUserIds)
+            ->where('active', 1)
+            ->get();
+            
+        return $users->filter(function($u) use ($lab) {
+            return $u->hasRole('Lab Manager') || $u->id === $lab->manager_id;
+        });
+    }
+
+    public function getAvailableApprovalUsersProperty()
+    {
+        $labs = $this->getBatchLabs();
+        $userIds = [];
+        foreach ($labs as $lab) {
+            $managers = $this->getLabManagersForLab($lab->id);
+            $userIds = array_merge($userIds, $managers->pluck('id')->toArray());
+        }
+        $userIds = array_unique(array_filter($userIds));
+        
+        if (empty($userIds)) {
+            return collect();
+        }
+        
+        return \App\User::whereIn('id', $userIds)->get();
     }
 
     public function getApproversUserIdsProperty()

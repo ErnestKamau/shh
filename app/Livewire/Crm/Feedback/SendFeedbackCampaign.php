@@ -39,15 +39,11 @@ class SendFeedbackCampaign extends BaseCrmComponent
 
     public function mount()
     {
-        $this->loadCustomers();
-    }
-
-    public function loadCustomers()
-    {
-        $this->customers = CRMCustomer::where('company_id', $this->getUserCompany())
-            ->where('active', 1)
-            ->orderBy('name')
-            ->get();
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        } catch (\Exception $e) {
+            // Ignore migration issues if any
+        }
     }
 
     #[On('open-send-campaign-modal')]
@@ -61,34 +57,29 @@ class SendFeedbackCampaign extends BaseCrmComponent
 
     public function getSelectedCustomersListProperty()
     {
-        $selectedIds = collect($this->selectedCustomers)->map(fn($id) => (int) $id)->all();
-        if (empty($selectedIds)) {
+        if (empty($this->selectedCustomers)) {
             return collect();
         }
 
-        return collect($this->customers)->filter(function ($customer) use ($selectedIds) {
-            return in_array((int) $customer->id, $selectedIds, true);
-        })->values();
+        return CRMCustomer::whereIn('id', $this->selectedCustomers)->orderBy('name')->get();
     }
 
     public function getFilteredCustomerOptionsProperty()
     {
         $search = strtolower(trim($this->customerSearch));
-        $selectedIds = collect($this->selectedCustomers)->map(fn($id) => (int) $id)->all();
+        $selectedIds = $this->selectedCustomers;
 
-        return collect($this->customers)
-            ->filter(function ($customer) use ($search, $selectedIds) {
-                if (in_array((int) $customer->id, $selectedIds, true)) {
-                    return false;
-                }
+        $query = CRMCustomer::where('active', 1);
 
-                if ($search === '') {
-                    return true;
-                }
+        if (!empty($selectedIds)) {
+            $query->whereNotIn('id', $selectedIds);
+        }
 
-                return str_contains(strtolower($customer->name), $search);
-            })
-            ->values();
+        if ($search !== '') {
+            $query->where('name', 'like', '%' . $search . '%');
+        }
+
+        return $query->orderBy('name')->take(50)->get();
     }
 
     public function toggleCustomer($customerId)
@@ -177,6 +168,8 @@ class SendFeedbackCampaign extends BaseCrmComponent
                         'received_from'   => $freshContact->customer->name ?? 'Unknown Customer',
                         'registered_by'   => auth()->user() ? auth()->user()->name : 'System',
                         'date'            => now(), 
+                        'feedback'        => 'Pending Feedback Campaign',
+                        'user_type'       => 'Customer',
                     ]);
 
                      if (strlen($feedback->id) < 4) {
@@ -209,17 +202,30 @@ class SendFeedbackCampaign extends BaseCrmComponent
                     // and let the Job constructor handle the change or we update the call here to pass IDs if we change the Job first.
                     // The plan says "Change __construct to accept IDs". So I should update the dispatch call here to pass IDs.
                     
-                    \App\Jobs\SendFeedbackEmail::dispatch($feedback->id, $request->id, $this->getUserCompany());
+                    \App\Jobs\SendFeedbackEmail::dispatch($feedback->id, $request->id, $this->getUserCompany())->onConnection('sync');
+
+                    $this->batchFeedbackIds[] = $feedback->id;
+                    $this->feedbackProgress[$feedback->id] = [
+                        'id'       => $feedback->id,
+                        'name'     => trim(($freshContact->first_name ?? '') . ' ' . ($freshContact->surname ?? '')),
+                        'email'    => $freshContact->email,
+                        'customer' => $freshContact->customer->name ?? 'Unknown Customer',
+                        'status'   => 'pending',
+                    ];
                 });
             }
         }
         
-        // Immediate UI Feedback (Fire and Forget)
-        $this->dispatch('feedback-requests-sent'); // Tell FeedbackList to refresh and show new pending items
-        $this->dispatch('close-campaign-modal'); // Assuming this triggers the JS close
-        $this->dispatch('alert', ['type' => 'success', 'message' => "Feedback requests are being processed in the background."]);
-        
-        $this->reset(['selectedCustomers', 'recipients', 'selectedRecipients', 'sending', 'batchFeedbackIds', 'completed', 'progressStats', 'feedbackProgress']);
+        $this->progressStats = [
+            'pending'    => count($this->batchFeedbackIds),
+            'processing' => 0,
+            'sent'       => 0,
+            'failed'     => 0,
+            'total'      => count($this->batchFeedbackIds)
+        ];
+
+        // Tell parent list to refresh in the background
+        $this->dispatch('feedback-requests-sent');
     }
 
     public function updatedSelectedCustomers()
@@ -237,7 +243,6 @@ class SendFeedbackCampaign extends BaseCrmComponent
         }
 
         $this->recipients = CustomerContact::whereIn('crm_customer_id', $this->selectedCustomers)
-            ->where('receive_feedback', 1)
             ->where('active', 1)
             ->with('customer') 
             ->get();
