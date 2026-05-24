@@ -22,43 +22,152 @@
             </div>
 
             @if($custodyRecords->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead style="background-color: rgba(0, 0, 0, .03);">
-                            <tr>
-                                <th>No.</th>
-                                <th>Workflow Stage</th>
-                                <th>Tracking Stage</th>
-                                <th>Started By</th>
-                                <th>Start Date</th>
-                                <th>Completed By</th>
-                                <th>Complete Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($custodyRecords as $custody)
-                                <tr>
-                                    <td class="text-nowrap">{{ ($custodyRecords->firstItem() ?? 0) + $loop->index }}</td>
-                                    <td class="text-nowrap">{{ $custody->workflow_stage ?? '-' }}</td>
-                                    <td class="text-nowrap">{{ $custody->tracking_stage->name ?? '-' }}</td>
-                                    <td class="text-nowrap">{{ $custody->started_by->name ?? '-' }}</td>
-                                    <td class="text-nowrap">
-                                        {{ optional($custody->created_at)->format('Y-m-d H:i') ?? '-' }}
-                                    </td>
-                                    <td class="text-nowrap">
-                                        {!! $custody->completed_by->name ?? '<i class="mdi mdi-timer-sand text-warning" style="font-size: 16px!important"></i>' !!}
-                                    </td>
-                                    <td class="text-nowrap">
-                                        @if(!empty($custody->moved_out_date))
-                                            {{ $custody->moved_out_date }}
-                                        @else
-                                            <i class="mdi mdi-timer-sand text-warning" style="font-size: 16px!important"></i>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                <style>
+                    .custody-timeline {
+                        position: relative;
+                        padding-left: 30px;
+                        margin: 20px 0;
+                    }
+                    .custody-timeline::before {
+                        content: '';
+                        position: absolute;
+                        left: 7px;
+                        top: 0;
+                        bottom: 0;
+                        width: 2px;
+                        background-color: #e5e7eb;
+                    }
+                    .timeline-event {
+                        position: relative;
+                        margin-bottom: 1.5rem;
+                    }
+                    .timeline-event:last-child {
+                        margin-bottom: 0;
+                    }
+                    .timeline-marker {
+                        position: absolute;
+                        left: -30px;
+                        top: 4px;
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        background-color: #fff;
+                        border: 2px solid #3b82f6;
+                        z-index: 1;
+                    }
+                    .timeline-marker.completed {
+                        background-color: #10b981;
+                        border-color: #10b981;
+                    }
+                    .timeline-marker.pending {
+                        background-color: #f59e0b;
+                        border-color: #f59e0b;
+                    }
+                    .timeline-card {
+                        background-color: #ffffff;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        padding: 16px;
+                        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                    }
+                    .timeline-card-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 12px;
+                        border-bottom: 1px solid #f3f4f6;
+                        padding-bottom: 8px;
+                    }
+                    .timeline-stage-title {
+                        font-weight: 600;
+                        font-size: 1rem;
+                        color: #111827;
+                        margin: 0;
+                    }
+                    .timeline-tracking-stage {
+                        font-size: 0.85rem;
+                        color: #6b7280;
+                        background-color: #f3f4f6;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                    }
+                    .timeline-details-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 16px;
+                    }
+                    .detail-group {
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    .detail-label {
+                        font-size: 0.75rem;
+                        text-transform: uppercase;
+                        letter-spacing: 0.05em;
+                        color: #6b7280;
+                        margin-bottom: 4px;
+                    }
+                    .detail-value {
+                        font-size: 0.875rem;
+                        color: #374151;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                    }
+                    .detail-value i {
+                        font-size: 1.1em;
+                        color: #9ca3af;
+                    }
+                </style>
+
+                <div class="custody-timeline">
+                    @foreach($custodyRecords as $custody)
+                        @php
+                            $isCompleted = !empty($custody->moved_out_date);
+                        @endphp
+                        <div class="timeline-event">
+                            <div class="timeline-marker {{ $isCompleted ? 'completed' : 'pending' }}"></div>
+                            <div class="timeline-card">
+                                <div class="timeline-card-header">
+                                    <h6 class="timeline-stage-title">
+                                        {{ $custody->workflow_stage ?? 'Unknown Stage' }}
+                                    </h6>
+                                    @if($custody->tracking_stage)
+                                        <span class="timeline-tracking-stage">
+                                            {{ $custody->tracking_stage->name }}
+                                        </span>
+                                    @endif
+                                </div>
+                                
+                                <div class="timeline-details-grid">
+                                    <div class="detail-group">
+                                        <span class="detail-label">Started</span>
+                                        <span class="detail-value">
+                                            <i class="mdi mdi-account-arrow-right"></i> {{ $custody->started_by->name ?? 'System' }}
+                                            <span class="text-muted mx-1">&bull;</span>
+                                            <i class="mdi mdi-calendar-clock"></i> {{ optional($custody->created_at)->format('Y-m-d H:i') ?? '-' }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="detail-group">
+                                        <span class="detail-label">Completed</span>
+                                        <span class="detail-value">
+                                            @if($isCompleted)
+                                                <i class="mdi mdi-account-check text-success"></i> 
+                                                {{ $custody->completed_by->name ?? 'System' }}
+                                                <span class="text-muted mx-1">&bull;</span>
+                                                <i class="mdi mdi-calendar-check text-success"></i> 
+                                                {{ $custody->moved_out_date }}
+                                            @else
+                                                <i class="mdi mdi-timer-sand text-warning"></i> 
+                                                <span class="text-warning">In Progress</span>
+                                            @endif
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
 
                 <!-- Pagination -->

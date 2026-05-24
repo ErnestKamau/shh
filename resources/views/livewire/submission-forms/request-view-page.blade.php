@@ -229,6 +229,7 @@
                     @include('livewire.submission-forms.request-view.tabs.attachments', [
                         'attachmentInstances' => $attachmentInstances,
                         'batchAttachments' => $batchAttachments,
+                        'customAttachments' => $customAttachments,
                     ])
                 @elseif($activeTab === 'custody')
                     @include('livewire.submission-forms.request-view.tabs.chain-of-custody', [

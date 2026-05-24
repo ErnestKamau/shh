@@ -128,6 +128,15 @@ class SubmissionFormInstance extends Model implements Auditable
             ->latest('submitted_at');
     }
 
+    /**
+     * Get uploaded document attachments for this instance.
+     */
+    public function customAttachments(): HasMany
+    {
+        return $this->hasMany(SubmissionFormInstanceAttachment::class, 'submission_form_instance_id', 'id')
+            ->latest();
+    }
+
     public function analysisAcceptanceForms(): HasMany
     {
         return $this->hasMany(\App\Models\Sampleworkflow\AnalysisAcceptanceForm::class, 'submission_form_instance_id', 'id')

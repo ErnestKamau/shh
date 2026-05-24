@@ -608,7 +608,7 @@
 {{-- Send/Move for Verification --}}
 @if($showVerificationModal)
 <div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1050;">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
         <div class="modal-content modal-content-modern">
             <div class="modal-header modal-header-modern">
                 <h5 class="modal-title modal-title-modern">Move Batch to Verification</h5>
@@ -640,6 +640,20 @@
                             </tr>
                         </thead>
                         <tbody>
+                            <tr style="background-color: #f8f9fa;">
+                                <td class="align-middle"><strong>Technical Reviewer</strong> <br><small class="text-muted">(Overall Signatory)</small></td>
+                                <td>
+                                    <select class="form-control form-control-sm form-control-modern" wire:model="verificationData.technical_reviewer_id">
+                                        <option value="">Select Technical Reviewer</option>
+                                        @foreach($users as $user)
+                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm form-control-modern" value="Technical Signatory" readonly>
+                                </td>
+                            </tr>
                             @foreach($this->getBatchLabs() as $lab)
                                 <tr>
                                     <td class="align-middle">{{ $lab->name }}</td>

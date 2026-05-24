@@ -58,6 +58,7 @@ class Header extends Component
         'level' => 0,
         'has_method_deviation' => false,
         'method_deviation_reason' => '',
+        'technical_reviewer_id' => '',
     ];
 
     protected $listeners = ['batchUpdated' => '$refresh'];
@@ -115,20 +116,37 @@ class Header extends Component
             // Pre-populate verificationData with labs instead of sections
             $labs = $this->getBatchLabs();
             foreach ($labs as $lab) {
-                $managers = $this->getLabManagersForLab($lab->id);
-                $firstManager = $managers->first();
-                if ($firstManager) {
+                $prevApprover = \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
+                    ->where('approver_order', 2)
+                    ->whereRaw("FIND_IN_SET(?, lab_section_ids) > 0", [$lab->id])
+                    ->first();
+
+                if ($prevApprover) {
                     if (empty($this->verificationData['approver_user'][$lab->id])) {
-                        $this->verificationData['approver_user'][$lab->id] = $firstManager->id;
+                        $this->verificationData['approver_user'][$lab->id] = $prevApprover->user_id;
                     }
-                }
-                if (empty($this->verificationData['title'][$lab->id])) {
-                    $this->verificationData['title'][$lab->id] = 'Lab Manager';
+                    if (empty($this->verificationData['title'][$lab->id])) {
+                        $this->verificationData['title'][$lab->id] = $prevApprover->title;
+                    }
+                } else {
+                    $managers = $this->getLabManagersForLab($lab->id);
+                    $firstManager = $managers->first();
+                    if ($firstManager) {
+                        if (empty($this->verificationData['approver_user'][$lab->id])) {
+                            $this->verificationData['approver_user'][$lab->id] = $firstManager->id;
+                        }
+                    }
+                    if (empty($this->verificationData['title'][$lab->id])) {
+                        $this->verificationData['title'][$lab->id] = 'Lab Manager';
+                    }
                 }
             }
 
             // Lab Stores
             $this->labStores = getStorageByType('lab_store');
+
+            // Initialize technical reviewer if exists
+            $this->verificationData['technical_reviewer_id'] = $this->batch->approve_user_id ?? '';
         }
     }
 
@@ -453,6 +471,10 @@ class Header extends Component
             ? ($this->verificationData['method_deviation_reason'] ?? '')
             : null;
 
+        if (!empty($this->verificationData['technical_reviewer_id'])) {
+            $batch->approve_user_id = $this->verificationData['technical_reviewer_id'];
+        }
+
         if ($level == '0') {
             $batch->report_status = null;
             $batch->prelim_report_status = 0;
@@ -465,6 +487,28 @@ class Header extends Component
                 ? \App\BatchLabSectionApprover::where('batch_id', $batch->id)->delete()
                 : \App\BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim', 0)->delete();
 
+            // Add Technical Reviewer
+            if ($batch->approve_user_id) {
+                $techApprover = new \App\BatchLabSectionApprover();
+                $techApprover->status = 0;
+                $techApprover->user_id = $batch->approve_user_id;
+                $techApprover->title = 'Technical Signatory';
+                $techApprover->lab_section_ids = '0'; // Global
+                $techApprover->batch_id = $batch->id;
+                $techApprover->batch_status = $status;
+                $techApprover->is_prelim = ($level != '0') ? 1 : 0;
+                $techApprover->show_report = 1;
+                
+                $techApprover->approver_order = 1;
+                $techApprover->is_technical_reviewer = 1;
+                $techApprover->approver_type = 'Technical Reviewer';
+                $techApprover->can_send_back_to_lab = 0;
+                $techApprover->save();
+            } else {
+                session()->flash('error', 'No Technical Signatory assigned to this batch. Please assign one first.');
+                return;
+            }
+
             // Add new approvers from Form Data
             foreach ($this->verificationData['approver_user'] as $lab_id => $user_id) {
                 if (empty($user_id)) {
@@ -473,6 +517,7 @@ class Header extends Component
 
                 $approvers = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
                     ->where('user_id', $user_id)
+                    ->where('approver_order', 2)
                     ->first() ?? new \App\BatchLabSectionApprover();
 
                 $title = $this->verificationData['title'][$lab_id] ?? 'Lab Manager';
@@ -485,6 +530,11 @@ class Header extends Component
                 $approvers->batch_status = $status;
                 $approvers->is_prelim = ($level != '0') ? 1 : 0;
                 $approvers->show_report = 1;
+                
+                $approvers->approver_order = 2;
+                $approvers->is_technical_reviewer = 0;
+                $approvers->approver_type = 'Lab Manager';
+                $approvers->can_send_back_to_lab = 1;
                 $approvers->save();
             }
 

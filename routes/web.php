@@ -1767,6 +1767,8 @@ Route::post('move/To-Verification/Approval-Level', 'SampleWorkFlowController@mov
 Route::post('edit/Verification/Approver-Config', 'SampleWorkFlowController@editVerificationApproverConfig')->name('editVerificationApproverConfig')->middleware('can:laboratory.components.verification-approvals.edit');
 Route::post('delete/Verification-Approver/Config', 'SampleWorkFlowController@deleteVerificationApproverConfig')->name('deleteVerificationApproverConfig')->middleware('can:laboratory.components.verification-approvals.delete');
 Route::post('change/Batch-Approval/Status', 'SampleWorkFlowController@changeBatchApprovalStatus')->name('changeBatchApprovalStatus')->middleware('can:laboratory.components.verification-approvals.edit');
+Route::post('send-back-to-lab-for-amendment', 'SampleWorkFlowController@sendBackToLabForAmendment')->name('sendBackToLabForAmendment')->middleware('can:laboratory.components.verification-approvals.edit');
+Route::post('resubmit-amendment-for-verification', 'SampleWorkFlowController@resubmitAmendmentForVerification')->name('resubmitAmendmentForVerification')->middleware('can:laboratory.components.verification-approvals.edit');
 Route::get('/get/Show-Batch/COA/{batch_code}/{format}', 'SampleWorkFlowController@getShowBatchCOA')->name('getShowBatchCOA')->middleware('can:laboratory.components.lab-reports.view');
 
 Route::get('/sample-condition-index', 'SampleConditionController@index')->name('sample_condition_index')->middleware('can:laboratory.components.sample-types.view');

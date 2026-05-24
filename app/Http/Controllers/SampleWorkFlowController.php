@@ -2599,6 +2599,78 @@ class SampleWorkFlowController extends Controller
         return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'Batches Successfully Moved to ' . $request->status);
     }
 
+    /**
+     * Validate that verification approvals are in proper order:
+     * - Technical Reviewer (order 1) must approve first
+     * - Lab Manager (order 2) can only see/approve after Technical Reviewer approves
+     * - Both must approve before moving to Sample Approval
+     */
+    protected function validateVerificationApprovalOrder($batchId)
+    {
+        $technicalReviewer = BatchLabSectionApprover::where('batch_id', $batchId)
+            ->where('batch_status', 'Sample Verification')
+            ->where('approver_order', 1)
+            ->where('is_technical_reviewer', true)
+            ->first();
+
+        $labManager = BatchLabSectionApprover::where('batch_id', $batchId)
+            ->where('batch_status', 'Sample Verification')
+            ->where('approver_order', 2)
+            ->where('can_send_back_to_lab', true)
+            ->first();
+
+        // Both approvers must exist
+        if (!$technicalReviewer || !$labManager) {
+            throw new \Exception('Verification approvers not properly configured. Both Technical Reviewer and Lab Manager must be assigned.');
+        }
+
+        // Technical Reviewer must approve first (status = 1)
+        if ($technicalReviewer->status != 1) {
+            throw new \Exception('Technical Reviewer must approve first before Lab Manager can take action.');
+        }
+
+        // Lab Manager must also approve
+        if ($labManager->status != 1) {
+            throw new \Exception('Lab Manager approval is pending. Both approvers must approve before moving to Sample Approval.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if current user can approve at verification stage,
+     * respecting the approval order sequence.
+     */
+    protected function canApproveAtVerificationStage($batchId, $userId)
+    {
+        $approver = BatchLabSectionApprover::where('batch_id', $batchId)
+            ->where('batch_status', 'Sample Verification')
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$approver) {
+            return false; // User is not an assigned approver
+        }
+
+        // If this is Technical Reviewer (order 1), they can always approve
+        if ($approver->approver_order == 1) {
+            return true;
+        }
+
+        // If this is Lab Manager (order 2), Technical Reviewer must have already approved
+        if ($approver->approver_order == 2) {
+            $technicalReviewer = BatchLabSectionApprover::where('batch_id', $batchId)
+                ->where('batch_status', 'Sample Verification')
+                ->where('approver_order', 1)
+                ->where('is_technical_reviewer', true)
+                ->first();
+
+            return $technicalReviewer && $technicalReviewer->status == 1;
+        }
+
+        return false;
+    }
+
     public function move_to_stage(Request $request, $stage, $batch_id)
     {
         $batch = SampleHeader::find($batch_id);
@@ -2629,6 +2701,13 @@ class SampleWorkFlowController extends Controller
         $batch = SampleHeader::find($batch_id);
 
         if ($batch->status == 'Sample Verification' && $status == 'Sample Approval') {
+            // Validate verification approval order first
+            try {
+                $this->validateVerificationApprovalOrder($batch_id);
+            } catch (\Exception $exception) {
+                return redirect()->back()->with('error', $exception->getMessage());
+            }
+
             try {
                 app(WorkflowService::class)->assertStageApprovalsCompleted((string) $batch->id, 'Sample Verification');
             } catch (ValidationException $exception) {
@@ -5885,76 +5964,131 @@ class SampleWorkFlowController extends Controller
 
     public function moveToVerificationApprovalLevel(Request $request)
     {
-        // return response()->json($request->all());
         $batch = SampleHeader::find($request->batch_id);
-
         $previousWorkflow = $batch->status;
+
         if ($batch->lab_section_ids == '') {
             return redirect()->back()->with('error', 'Kindly provide the lab sections associated with the sample at batch information section');
         }
-        $section_users = LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get();
 
-        $users = [];
-        $user_approvers = [];
-        foreach (explode(',', $batch->lab_section_ids) as $section_id) {
-            $c_user = CapturedResult::where('lab_section_id', $section_id)->where('sample_header_id', $batch->id)->orderBy('updated_at', 'DESC')->first();
-
-            if ($c_user && $c_user->operator_id) {
-                array_push($users, $c_user->operator_id);
-                $user_approvers[$c_user->operator_id] = $section_id;
-            }
-        }
-        $analysts = User::whereIn('id', $users)->get();
-
-        if ($section_users->count() <= 0) {
-            return redirect()->back()->with('error', 'Kindly provide approval configuration for the selected batch lab sections');
-        }
         if ($request->status == 'Sample Verification') {
             TatCaptured::where('sample_header_id', $batch->id)->update(['is_complete' => 1]);
-            $batch->status = $request->level == '0' ? $request->status : $batch->status;
-            $batch->report_status = $request->level == '0' ? $request->level : $batch->report_status;
-            $batch->prelim_report_status = $request->level != '0' ? $request->level : $batch->prelim_report_status;
-            $batch->prelim_batch_status = $request->level != '0' ? $request->status : $batch->prelim_batch_status;
-            if ($request->level == '0') {
-                $batch->report_status = '';
-                $batch->prelim_report_status = 0;
-                $batch->prelim_batch_status = '';
-            }
-            if ($request->level != '2') {
-                $request->level != 0 ? BatchLabSectionApprover::where('batch_id', $batch->id)->delete() : BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim', 0)->delete();
-                foreach ($request->section_id as $section_id) {
-                    $user_id = $request->appover_user[$section_id];
-                    $approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $user_id)->where('title', '$user_id->title')->first() ?? new BatchLabSectionApprover();
-                    $approvers->status = 0;
-                    $approvers->user_id = $user_id;
-                    $approvers->title = $request->title[$section_id];
-                    $approvers->lab_section_ids = $approvers->lab_section_ids == '' ? $approvers->lab_section_ids . $section_id : $approvers->lab_section_ids . ',' . $section_id;
-                    $approvers->batch_id = $batch->id;
-                    $approvers->batch_status = $request->status;
-                    $approvers->is_prelim = $request->level != '0' ? 1 : 0;
-                    $approvers->show_report = 1;
-                    $approvers->save();
+
+            // Clear previous approvers for this verification cycle
+            BatchLabSectionApprover::where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Verification')
+                ->delete();
+
+            // Get Technical Reviewer from previous Sample Approval context
+            // The Technical Reviewer is the first approver who approved at Sample Approval stage
+            $technicalReviewer = BatchLabSectionApprover::where('batch_id', $batch->id)
+                ->where('batch_status', 'Sample Approval')
+                ->where('status', 1)
+                ->where('is_technical_reviewer', true)
+                ->orWhere(function($q) use ($batch) {
+                    $q->where('batch_id', $batch->id)
+                    ->where('batch_status', 'Sample Approval')
+                    ->where('status', 1)
+                    ->where('approver_order', 1);
+                })
+                ->orderBy('approval_date', 'asc')
+                ->first();
+
+            // If no previous technical reviewer found, use the first lab section approver
+            if (!$technicalReviewer) {
+                $section_users = LabSectionApproverRelationShip::whereIn(
+                    'lab_section_id',
+                    explode(',', $batch->lab_section_ids)
+                )->get();
+
+                if ($section_users->count() > 0) {
+                    $technicalReviewerUser = User::find($section_users->first()->user_id);
+                } else {
+                    return redirect()->back()->with('error', 'Kindly provide approval configuration for the selected batch lab sections');
                 }
-                foreach ($analysts as $analyst) {
-                    $approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $analyst->id)->where('title', '$user_id->title')->first() ?? new BatchLabSectionApprover();
-                    $section = SampleAnalysisStage::find($user_approvers[$analyst->id]);
-                    $approvers->status = 1;
-                    $approvers->user_id = $analyst->id;
-                    $approvers->title = $section->title ?? 'Verifier';
-                    $approvers->lab_section_ids = $approvers->lab_section_ids == '' ? $approvers->lab_section_ids . $section->id : $approvers->lab_section_ids . ',' . $section->id;
-                    $approvers->batch_id = $batch->id;
-                    $approvers->batch_status = $request->status;
-                    $approvers->is_prelim = $request->level != '0' ? 1 : 0;
-                    $approvers->approval_date = date('Y-m-d h:i:s a');
-                    $approvers->show_report = 0;
-                    $approvers->save();
+            } else {
+                $technicalReviewerUser = User::find($technicalReviewer->user_id);
+            }
+
+            // Get Lab Manager (typically from configuration or system role)
+            // Find user with Lab Manager or section head role
+            $labManagerRole = \App\Role::where('name', 'like', '%Lab Manager%')->first();
+            $labManager = null;
+
+            if ($labManagerRole) {
+                $labManager = User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+                    ->where('ur.role_id', $labManagerRole->id)
+                    ->first();
+            }
+
+            // Fallback: Use section head if available
+            if (!$labManager && $batch->lab_section_ids) {
+                $section = SampleAnalysisStage::whereIn('id', explode(',', $batch->lab_section_ids))
+                    ->first();
+                if ($section && $section->section_head_id) {
+                    $labManager = User::find($section->section_head_id);
                 }
             }
+
+            if (!$labManager && $technicalReviewerUser) {
+                $labManager = $technicalReviewerUser; // Fallback to same user if needed
+            }
+
+            // Create Technical Reviewer approver (Order 1 - approves first)
+            if ($technicalReviewerUser) {
+                $trApprover = new BatchLabSectionApprover();
+                $trApprover->user_id = $technicalReviewerUser->id;
+                $trApprover->title = 'Technical Reviewer';
+                $trApprover->lab_section_ids = $batch->lab_section_ids;
+                $trApprover->batch_id = $batch->id;
+                $trApprover->batch_status = 'Sample Verification';
+                $trApprover->status = 0; // Not yet approved
+                $trApprover->approver_order = 1; // Technical Reviewer approves first
+                $trApprover->is_technical_reviewer = true;
+                $trApprover->can_send_back_to_lab = false;
+                $trApprover->show_report = 1;
+                $trApprover->save();
+
+                // Notify Technical Reviewer
+                if (isset($request->notification)) {
+                    $message = 'Hi ' . $technicalReviewerUser->name . ', <br>' . $batch->batch_code . ' batch is ready for technical review and verification. <br> Please review and approve.';
+                    notify_user($message, $technicalReviewerUser->email, '[POLUCON LIMS] ' . $batch->batch_code . ' - Technical Review Required');
+                }
+            }
+
+            // Create Lab Manager approver (Order 2 - approves after Technical Reviewer)
+            if ($labManager) {
+                $lmApprover = new BatchLabSectionApprover();
+                $lmApprover->user_id = $labManager->id;
+                $lmApprover->title = 'Lab Manager';
+                $lmApprover->lab_section_ids = $batch->lab_section_ids;
+                $lmApprover->batch_id = $batch->id;
+                $lmApprover->batch_status = 'Sample Verification';
+                $lmApprover->status = 0; // Not yet approved
+                $lmApprover->approver_order = 2; // Lab Manager approves second
+                $lmApprover->is_technical_reviewer = false;
+                $lmApprover->can_send_back_to_lab = true; // Lab Manager can send back
+                $lmApprover->show_report = 1;
+                $lmApprover->save();
+
+                // Notify Lab Manager
+                if (isset($request->notification)) {
+                    $message = 'Hi ' . $labManager->name . ', <br>' . $batch->batch_code . ' batch will be ready for your approval after technical review is complete.';
+                    notify_user($message, $labManager->email, '[POLUCON LIMS] ' . $batch->batch_code . ' - Awaiting Lab Manager Approval');
+                }
+            }
+
+            // Update batch status
+            $batch->status = $request->status;
+            $batch->report_status = '';
+            $batch->prelim_report_status = 0;
+            $batch->prelim_batch_status = '';
             $batch->save();
 
-            return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
+            return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch moved to Sample Verification with assigned Technical Reviewer and Lab Manager');
         }
 
+        // Legacy handling for other status transitions
         $approvers_user_ids = BatchLabSectionApprover::where('batch_id', $batch->id)->pluck('user_id')->toArray();
         if (in_array($request->user_id, $approvers_user_ids)) {
             return redirect()->back()->with('error', 'System cannot assign the specified user as an approver since the user is already an approver');
@@ -5975,7 +6109,7 @@ class SampleWorkFlowController extends Controller
         if (isset($request->notification)) {
             $user = User::find($request->user_id);
             $message = 'Hi ' . $user->name . ', <br>' . $batch->batch_code . ' COA needs your approval at ' . $batch->status . '. <br> Comments : ' . $request->comments;
-            notify_user($message, $user->email, '[FIVET LIMS] ' . $batch->batch_code . ' Batch Approval Notification');
+            notify_user($message, $user->email, '[POLUCON LIMS] ' . $batch->batch_code . ' Batch Approval Notification');
         }
         if (isset($request->send_message)) {
             $user = User::find($request->user_id);
@@ -5984,6 +6118,126 @@ class SampleWorkFlowController extends Controller
         }
 
         return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
+    }
+
+    /**
+     * Send batch back from verification to lab for amendment/reanalysis.
+     * Only Lab Manager can perform this action.
+     */
+    public function sendBackToLabForAmendment(Request $request)
+    {
+        $batch = SampleHeader::find($request->batch_id);
+        $labManager = auth()->user();
+
+        // Verify user is a Lab Manager with can_send_back_to_lab permission
+        $isLabManager = BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('user_id', $labManager->id)
+            ->where('can_send_back_to_lab', true)
+            ->where('batch_status', 'Sample Verification')
+            ->exists();
+
+        if (!$isLabManager) {
+            return redirect()->back()->with('error', 'Only Lab Manager can send batch back for amendment');
+        }
+
+        // Create amendment record
+        $amendment = new BatchAmmendment();
+        $amendment->batch_id = $batch->id;
+        $amendment->created_by_id = $labManager->id;
+        $amendment->reason = $request->amendment_reason ?? 'Lab Manager requested amendment for further analysis';
+        $amendment->samples = json_encode($request->selected_samples ?? []);
+        $amendment->report_url = $batch->batch_report_url ?? '';
+        $amendment->version_number = ($batch->is_amendment ?? 0) + 1;
+        $amendment->save();
+
+        // Update batch to amendment state
+        $batch->status = 'Samples In Lab'; // Back to lab for re-analysis
+        $batch->in_ammendment_proccess = 1;
+        $batch->is_amendment = $amendment->version_number;
+        $batch->save();
+
+        // Clear previous verification approvers
+        BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', 'Sample Verification')
+            ->delete();
+
+        // Notify relevant parties
+        $analyst = User::find($batch->specialist_analyst_id);
+        if ($analyst) {
+            $message = 'Hi ' . $analyst->name . ', <br>' . $batch->batch_code . ' requires amendment/reanalysis. ' 
+                . '<br>Reason: ' . $amendment->reason
+                . '<br>Please complete the amendment and resubmit for verification.';
+            notify_user($message, $analyst->email, '[POLUCON LIMS] ' . $batch->batch_code . ' - Amendment Required');
+        }
+
+        return redirect()->route('sample-workflow', ['status' => 'Sample Verification'])
+            ->with('success', 'Batch sent back to lab for amendment. Version ' . $amendment->version_number . ' created.');
+    }
+
+    /**
+     * When amendment is completed, re-assign Technical Reviewer and Lab Manager for another verification cycle.
+     * This is called after analyst completes the amendment work.
+     */
+    public function resubmitAmendmentForVerification(Request $request)
+    {
+        $batch = SampleHeader::find($request->batch_id);
+
+        if (!$batch->in_ammendment_proccess) {
+            return redirect()->back()->with('error', 'Batch is not in amendment process');
+        }
+
+        // Re-assign Technical Reviewer and Lab Manager
+        // Get the same users who were assigned before
+        $previousTechnicalReviewer = BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', 'Sample Verification')
+            ->where('is_technical_reviewer', true)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        $previousLabManager = BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('batch_status', 'Sample Verification')
+            ->where('can_send_back_to_lab', true)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        // Create new verification approver records for this cycle
+        if ($previousTechnicalReviewer && $previousTechnicalReviewer->user_id) {
+            $trApprover = new BatchLabSectionApprover();
+            $trApprover->user_id = $previousTechnicalReviewer->user_id;
+            $trApprover->title = 'Technical Reviewer';
+            $trApprover->lab_section_ids = $batch->lab_section_ids;
+            $trApprover->batch_id = $batch->id;
+            $trApprover->batch_status = 'Sample Verification';
+            $trApprover->status = 0; // Not yet approved
+            $trApprover->approver_order = 1;
+            $trApprover->is_technical_reviewer = true;
+            $trApprover->can_send_back_to_lab = false;
+            $trApprover->show_report = 1;
+            $trApprover->save();
+        }
+
+        if ($previousLabManager && $previousLabManager->user_id) {
+            $lmApprover = new BatchLabSectionApprover();
+            $lmApprover->user_id = $previousLabManager->user_id;
+            $lmApprover->title = 'Lab Manager';
+            $lmApprover->lab_section_ids = $batch->lab_section_ids;
+            $lmApprover->batch_id = $batch->id;
+            $lmApprover->batch_status = 'Sample Verification';
+            $lmApprover->status = 0; // Not yet approved
+            $lmApprover->approver_order = 2;
+            $lmApprover->is_technical_reviewer = false;
+            $lmApprover->can_send_back_to_lab = true;
+            $lmApprover->show_report = 1;
+            $lmApprover->save();
+        }
+
+        // Update batch status
+        $batch->status = 'Sample Verification';
+        $batch->in_ammendment_proccess = 0;
+        $batch->save();
+
+        return redirect()->route('sample-workflow', ['status' => 'Samples In Lab'])
+            ->with('success', 'Amendment submitted for verification. Technical Reviewer and Lab Manager reassigned.');
     }
 
     public function editVerificationApproverConfig(Request $request)
@@ -6005,11 +6259,54 @@ class SampleWorkFlowController extends Controller
 
     public function changeBatchApprovalStatus(Request $request)
     {
+        $approver = BatchLabSectionApprover::find($request->approver_id);
+        $batch = SampleHeader::find($approver->batch_id);
+        $currentUser = auth()->user();
+
+        // For Sample Verification stage, enforce approval order
+        if ($approver->batch_status == 'Sample Verification') {
+            // Verify this is the current user approving
+            if ($approver->user_id !== $currentUser->id) {
+                return redirect()->back()->with('error', 'You do not have permission to approve on behalf of another user');
+            }
+
+            // Check if user can approve based on order
+            if (!$this->canApproveAtVerificationStage($batch->id, $currentUser->id)) {
+                if ($approver->approver_order == 2) {
+                    return redirect()->back()->with('error', 'Lab Manager can only approve after Technical Reviewer has approved');
+                }
+                return redirect()->back()->with('error', 'You cannot approve at this time');
+            }
+
+            // Mark as approved
+            $approver->status = $request->status;
+            $approver->approval_date = date('Y-m-d H:i:s');
+            $approver->remark = $request->remark;
+            $approver->save();
+
+            // Notify next approver if this is Technical Reviewer
+            if ($approver->is_technical_reviewer && $approver->status == 1) {
+                $labManager = BatchLabSectionApprover::where('batch_id', $batch->id)
+                    ->where('batch_status', 'Sample Verification')
+                    ->where('can_send_back_to_lab', true)
+                    ->first();
+
+                if ($labManager) {
+                    $lmUser = User::find($labManager->user_id);
+                    if ($lmUser) {
+                        $message = 'Hi ' . $lmUser->name . ', <br>' . $batch->batch_code . ' batch has been reviewed by Technical Reviewer and is now ready for your approval.';
+                        notify_user($message, $lmUser->email, '[POLUCON LIMS] ' . $batch->batch_code . ' - Ready for Lab Manager Approval');
+                    }
+                }
+            }
+
+            return redirect()->back()->with('success', 'Verification approval recorded successfully');
+        }
+
+        // Legacy approval logic for other stages
         $ip_address_link = request()->root();
         BatchLabSectionApprover::where('id', $request->approver_id)->update(['status' => $request->status, 'approval_date' => date('Y-m-d H:i:s'), 'remark' => $request->remark]);
         if (BatchLabSectionApprover::where('id', $request->approver_id)->where('status', 0)->get()->count() == 0) {
-            $approver = BatchLabSectionApprover::find($request->approver_id);
-            $batch = SampleHeader::find($approver->batch_id);
             if ($batch->status == 'Sample Approval') {
                 $batch->approval_date = getTodayDate();
                 $batch->save();
@@ -6040,8 +6337,6 @@ class SampleWorkFlowController extends Controller
                     }
                 }
 
-                // $emails = ['danmuv12@gmail.com'];
-                // notify_user($message, 'dannyagah13@gmail.com', $subject, false, true, $emails);
                 try {
                     notify_user($message, 'Accounts@FIVET.com', $subject, false, true, $emails);
                 } catch (\Exception $e) {

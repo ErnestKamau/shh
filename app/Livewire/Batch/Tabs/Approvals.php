@@ -137,7 +137,7 @@ class Approvals extends Component
         }
 
         $this->validate([
-            'statusForm.status' => 'required|in:1,2',
+            'statusForm.status' => 'required|in:1,2,3',
             'statusForm.remark' => 'nullable|string',
         ]);
 
@@ -149,6 +149,74 @@ class Approvals extends Component
         }
 
         $status = (int)$this->statusForm['status'];
+
+        if ($status === 1 && $approver->approver_order == 2) {
+            $pendingTechReviews = \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
+                ->where('approver_order', 1)
+                ->where('status', '!=', 1)
+                ->exists();
+
+            if ($pendingTechReviews) {
+                session()->flash('error', 'Cannot approve. The Technical Reviewer must approve first.');
+                return;
+            }
+        }
+
+        if ($status === 3) {
+            if (!$approver->can_send_back_to_lab) {
+                session()->flash('error', 'You do not have permission to send this batch back to the lab.');
+                return;
+            }
+
+            if (empty($this->statusForm['remark'])) {
+                session()->flash('error', 'A remark is required when sending a batch back to the lab.');
+                return;
+            }
+
+            // Create amendment
+            $samples = \App\SampleDetails::where('sample_header_id', $this->batch->id)->get();
+            $t = [];
+            foreach ($samples as $h) {
+                $t[$h->sample_code] = $h->id;
+            }
+            $y = json_encode($t);
+
+            $new_ammendment = new \App\BatchAmmendment();
+            $new_ammendment->samples = $y;
+            $new_ammendment->created_by_id = auth()->user()->id;
+            $new_ammendment->reason = $this->statusForm['remark'];
+            $new_ammendment->batch_id = $this->batch->id;
+            $new_ammendment->report_url = $this->batch->batch_report_url;
+            $new_ammendment->version_number = $this->batch->is_amendment + 1;
+            $new_ammendment->save();
+
+            // Log Chain of Custody
+            $custody = new \App\ChainOfCustody();
+            $custody->sample_header_id = $this->batch->id;
+            $custody->workflow_stage = 'Samples In Lab';
+            $custody->tracking_stage_id = $this->batch->sample_tracking_stage;
+            $custody->moved_in_by = auth()->id();
+            $custody->comments = 'Sent back to lab for amendment by ' . auth()->user()->name . '. Reason: ' . $this->statusForm['remark'];
+            $custody->save();
+
+            // Revert batch
+            $this->batch->is_amendment = $new_ammendment->version_number;
+            $this->batch->status = 'Samples In Lab';
+            $this->batch->in_ammendment_proccess = 1;
+            $this->batch->save();
+
+            $approver->status = $status;
+            $approver->remark = $this->statusForm['remark'];
+            $approver->approval_date = now();
+            $approver->save();
+
+            $this->resetStatusModal();
+            $this->batch->refresh();
+            $this->resetPage();
+
+            session()->flash('success', 'Batch has been sent back to the lab for amendment.');
+            return;
+        }
 
         $approver->status = $status;
         $approver->remark = $this->statusForm['remark'] ?? '';

@@ -106,6 +106,10 @@
                                     {{ $approver->batch_status  == "Sample Verification"  ? 'Verified' : 'Authorized'}}
                                 </span>
                                 @endif
+                                @elseif($approver->status == 3)
+                                <span class="badge badge-warning badge-pill p-2">
+                                    <i class="mdi mdi-keyboard-return"></i> Sent Back
+                                </span>
                                 @else
                                 <span class="badge badge-danger badge-pill p-2">
                                     <i class="mdi mdi-decagram"></i> Declined
@@ -113,7 +117,10 @@
                                 @endif
                             </td>
                             <td>{{ $approver->approval_date }}</td>
-                            <td>{{ $approver->approvername }}</td>
+                            <td>
+                                {{ $approver->approvername }}<br>
+                                <small class="text-muted">{{ $approver->approver_type }}</small>
+                            </td>
                             <td>{{ $approver->title }}</td>
                             <td>{{ $approver->workflow }}</td>
                             <td>
@@ -201,6 +208,12 @@
                         <select class="form-control form-control-modern" wire:model="statusForm.status">
                             <option value="1">Approve</option>
                             <option value="2">Decline</option>
+                            @php
+                                $currentApp = $approvers->firstWhere('id', $currentApproverId);
+                            @endphp
+                            @if($currentApp && $currentApp->can_send_back_to_lab)
+                            <option value="3">Send Back to Lab (Amendment)</option>
+                            @endif
                         </select>
                     </div>
                     <div class="form-group">
