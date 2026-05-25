@@ -130,21 +130,46 @@ class TestManifestRouterCoverage:
             manifest_intents.update(templates.keys())
 
         # Collect all intent names from the router
-        from python.ai_service.core.manifest_intent_router import (
-            _GROUP_A_RULES,
-            _GROUP_B_RULES,
-        )
+        from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+        router = ManifestIntentRouter()
 
         router_intents = set()
-        for _, intent in _GROUP_A_RULES:
-            router_intents.add(intent)
-        for _, intent in _GROUP_B_RULES:
-            router_intents.add(intent)
+        for domain, rules in router._group_a.items():
+            for _, intent in rules:
+                router_intents.add(intent)
+        for domain, rules in router._group_b.items():
+            for _, intent in rules:
+                router_intents.add(intent)
 
         missing = router_intents - manifest_intents
         assert not missing, (
             f"ManifestIntentRouter references intents not in manifest: {missing}"
         )
+
+    def test_show_samples_by_status_does_not_include_sample_type_distribution(self):
+        """Status requests should not also trigger the sample type report."""
+        from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+        router = ManifestIntentRouter()
+
+        intents = [intent for intent, _, _ in router.match_all("show samples by status")]
+
+        assert intents == ["samples_by_status"]
+
+    def test_how_many_analysts_routes_to_active_analyst_count(self):
+        from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+        router = ManifestIntentRouter()
+
+        intents = [intent for intent, _, _ in router.match_all("how many analysts are in system")]
+
+        assert "analyst_count_active" in intents
+
+    def test_entire_system_samples_routes_to_absolute_all_time_count(self):
+        from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
+        router = ManifestIntentRouter()
+
+        intents = [intent for intent, _, _ in router.match_all("how many samples in entire system")]
+
+        assert intents == ["sample_count_absolute_all_time"]
 
     def _load_manifest(self, manifest_path):
         with open(manifest_path, "r") as f:

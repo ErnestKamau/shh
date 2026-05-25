@@ -8,7 +8,7 @@
 #   ./scripts/fresh_migrate.sh --no-seed        # migrate only, then restore users
 #
 # What it does:
-#   1. php artisan migrate:fresh --seed   (all 9 phased seeders)
+#   1. php artisan migrate:fresh --seed   (all 12 phased seeders)
 #   2. Restores the real users table from gcla_dump_2026_05_12.dump
 #      (clears seeder-generated stub users first)
 # =============================================================================
@@ -86,58 +86,39 @@ echo ""
 source_env
 find_users_dump
 
-# ── Step 1: Fresh migration + seeding ────────────────────────────────────────
-if [[ "$SKIP_SEED" == "true" ]]; then
-    info "Step 1: Running fresh migration only (--no-seed)..."
-    php artisan migrate:fresh
-else
-    info "Step 1: Running fresh migration + all phased seeders..."
-    php artisan migrate:fresh --seed
-fi
-
-echo ""
-info "✓ Migration and seeding complete."
+# ── Step 1: Fresh migration ──────────────────────────────────────────────────
+info "Step 1: Running fresh migration only..."
+php artisan migrate:fresh
 
 # ── Step 2: Restore users from dump ──────────────────────────────────────────
+USER_COUNT=0
 if [[ -z "$DUMP_FILE" ]]; then
     warn "Skipping users restore — no dump file found."
+else
     echo ""
-    echo "========================================================"
-    echo "  DONE (without users restore)"
-    echo "========================================================"
-    exit 0
+    info "Step 2: Restoring real users from dump..."
+    info "  Importing users table from dump (data only, triggers disabled)..."
+    PGPASSWORD="$DB_PASSWORD" pg_restore \
+        -h "$DB_HOST" -p "$DB_PORT" \
+        -U "$DB_USERNAME" -d "$DB_DATABASE" \
+        -t users \
+        --data-only \
+        --disable-triggers \
+        "$DUMP_FILE" 2>/dev/null || true
+
+    USER_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql \
+        -h "$DB_HOST" -p "$DB_PORT" \
+        -U "$DB_USERNAME" -d "$DB_DATABASE" \
+        -tAc "SELECT COUNT(*) FROM public.users;")
+    info "  ✓ Restored ${USER_COUNT} user(s) from dump."
 fi
 
-echo ""
-info "Step 2: Restoring real users from dump..."
-
-# Remove any stub users created by seeders (Phase 1, 6) before restoring
-# from the authoritative dump. Use session_replication_role to bypass FKs.
-info "  Clearing seeder-generated users..."
-PGPASSWORD="$DB_PASSWORD" psql \
-    -h "$DB_HOST" -p "$DB_PORT" \
-    -U "$DB_USERNAME" -d "$DB_DATABASE" \
-    -c "SET session_replication_role = 'replica'; DELETE FROM public.users;" \
-    -q
-
-# Restore only the users table data from the dump
-info "  Importing users table from dump (data only, triggers disabled)..."
-PGPASSWORD="$DB_PASSWORD" pg_restore \
-    -h "$DB_HOST" -p "$DB_PORT" \
-    -U "$DB_USERNAME" -d "$DB_DATABASE" \
-    -t users \
-    --data-only \
-    --disable-triggers \
-    "$DUMP_FILE" 2>/dev/null || true
-    # pg_restore exits non-zero when tables exist — suppress noise.
-
-# Verify
-USER_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql \
-    -h "$DB_HOST" -p "$DB_PORT" \
-    -U "$DB_USERNAME" -d "$DB_DATABASE" \
-    -tAc "SELECT COUNT(*) FROM public.users;")
-
-info "  ✓ Restored ${USER_COUNT} user(s) from dump."
+# ── Step 3: Run phased seeders ───────────────────────────────────────────────
+if [[ "$SKIP_SEED" == "false" ]]; then
+    echo ""
+    info "Step 3: Running all phased seeders..."
+    php artisan db:seed
+fi
 
 # ── Step 3: Post-restore — update AI request logs table to accept UUID company_id ──
 # The users restored from the dump have UUID company_ids. The ai.ai_request_logs

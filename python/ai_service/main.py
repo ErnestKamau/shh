@@ -57,6 +57,11 @@ async def validation_exception_handler(request, exc):
 @app.on_event("startup")
 async def startup_event():
     logger.info(f"Starting {settings.app_name} v{settings.version}...")
+    logger.info(f"⚙️ Dynamic Hardware Profile: '{settings.hardware_profile.upper()}'")
+    logger.info(
+        f"🤖 Model Configuration -> Chat: '{settings.chat_model}' | "
+        f"Heavy: '{settings.heavy_model}' | Coder: '{settings.coder_model}'"
+    )
     # Ensure observability table exists
     try:
         from python.ai_service.core.request_logger import request_logger

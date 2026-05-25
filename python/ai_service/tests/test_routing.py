@@ -40,6 +40,51 @@ class TestGreetingDetection:
         assistant.process_query("Hi there")
         mock_retrieval.search.assert_not_called()
 
+    def test_greeting_does_not_invoke_llm(self, assistant, mock_ollama):
+        assistant.process_query("Hello")
+        mock_ollama.generate.assert_not_called()
+
+    def test_generic_greeting_uses_current_time_greeting(self, assistant):
+        with patch.object(assistant, "_current_time_greeting", return_value="Good morning."):
+            result = assistant.process_query("hello")
+
+        assert result["answer"] == "Good morning. How can I help you today?"
+
+    @pytest.mark.parametrize("query,expected", [
+        ("good morning", "Good morning. How can I help you today?"),
+        ("good afternoon", "Good afternoon. How can I help you today?"),
+        ("good evening", "Good evening. How can I help you today?"),
+        ("good night", "Good night. How can I help you today?"),
+    ])
+    def test_explicit_time_greetings_are_respected(self, assistant, query, expected):
+        result = assistant.process_query(query)
+
+        assert result["answer"] == expected
+
+    def test_how_are_you_uses_current_time_greeting(self, assistant):
+        with patch.object(assistant, "_current_time_greeting", return_value="Good afternoon."):
+            result = assistant.process_query("how are you")
+
+        assert result["answer"] == "I'm running well. Good afternoon. How can I help you today?"
+
+    @pytest.mark.parametrize("query,expected", [
+        ("good morning", "Good morning. ImaraChat AI is ready. How can I help you today?"),
+        ("good evening", "Good evening. ImaraChat AI is ready. How can I help you today?"),
+    ])
+    def test_mode_registry_explicit_greeting_uses_user_greeting(self, query, expected):
+        from python.ai_service.core import mode_registry
+
+        assert mode_registry.get_greeting("general", query) == expected
+
+    def test_mode_registry_generic_greeting_uses_current_time(self):
+        from python.ai_service.core import mode_registry
+
+        with patch.object(mode_registry, "_current_time_greeting", return_value="Good afternoon."):
+            assert (
+                mode_registry.get_greeting("general", "hello")
+                == "Good afternoon. ImaraChat AI is ready. How can I help you today?"
+            )
+
 
 # ── Keyword Routing (Group A) ────────────────────────────────────────────
 
@@ -77,6 +122,15 @@ class TestKeywordRouting:
         """Keyword-matched queries should NOT call the LLM for classification."""
         assistant.process_query("How many samples in the lab?")
         # generate() should not be called for routing — only for conversational
+        mock_ollama.generate.assert_not_called()
+
+    def test_show_samples_asks_for_clarification(self, assistant, mock_live_data, mock_ollama):
+        result = assistant.process_query("show samples")
+
+        assert result["meta"]["route"] == "clarification"
+        assert result["meta"]["routing_tier"] == "clarification"
+        assert "samples by status" in result["answer"]
+        mock_live_data.execute_step.assert_not_called()
         mock_ollama.generate.assert_not_called()
 
 

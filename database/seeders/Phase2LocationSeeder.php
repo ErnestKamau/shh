@@ -1,0 +1,182 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Company;
+use App\Zone;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+
+class Phase2LocationSeeder extends Seeder
+{
+    public const ZONE_LOCATIONS = [
+        'EZO' => [
+            'name' => 'Eastern Zone',
+            'office' => 'Luthuli Street, Dar es Salaam',
+            'gps' => '-6.8161, 39.2888',
+            'regions' => ['Dar es Salaam', 'Pwani', 'Morogoro'],
+        ],
+        'CZO' => [
+            'name' => 'Central Zone',
+            'office' => "Secherela Street, Tambukareli Ward, Plot No. 138 & 140 'AC', Dodoma",
+            'gps' => '-6.1630, 35.7516',
+            'regions' => ['Dodoma', 'Singida', 'Tabora'],
+        ],
+        'LZO' => [
+            'name' => 'Lake Zone',
+            'office' => 'Mwanza',
+            'gps' => '-2.5164, 32.9175',
+            'regions' => ['Mwanza', 'Geita', 'Kagera', 'Shinyanga', 'Simiyu', 'Mara'],
+        ],
+        'NZO' => [
+            'name' => 'Northern Zone',
+            'office' => 'Block No. 3, Sekei, Arusha',
+            'gps' => '-3.3869, 36.6830',
+            'regions' => ['Arusha', 'Kilimanjaro', 'Tanga', 'Manyara'],
+        ],
+        'SZO' => [
+            'name' => 'Southern Zone',
+            'office' => 'Mahakama Road, Mtwara',
+            'gps' => '-10.2697, 40.1811',
+            'regions' => ['Mtwara', 'Lindi', 'Ruvuma'],
+        ],
+        'SHZO' => [
+            'name' => 'Southern Highlands Zone',
+            'office' => 'Plot F, Iwambi Area, Mbeya',
+            'gps' => '-8.9094, 33.4608',
+            'regions' => ['Mbeya', 'Njombe', 'Songwe', 'Iringa', 'Katavi', 'Rukwa'],
+        ],
+    ];
+
+    public const ZONES = [
+        'LZO' => self::ZONE_LOCATIONS['LZO']['name'],
+        'NZO' => self::ZONE_LOCATIONS['NZO']['name'],
+        'SHZO' => self::ZONE_LOCATIONS['SHZO']['name'],
+        'SZO' => self::ZONE_LOCATIONS['SZO']['name'],
+        'CZO' => self::ZONE_LOCATIONS['CZO']['name'],
+        'EZO' => self::ZONE_LOCATIONS['EZO']['name'],
+    ];
+
+    public function run(): void
+    {
+        config(['database.default' => 'pgsql']);
+        Model::unguard();
+
+        DB::connection('pgsql')->transaction(function (): void {
+            $this->command?->info('====================================================');
+            $this->command?->info('STARTING PHASE 2 SEEDING: Locations / Zones');
+            $this->command?->info('====================================================');
+
+            $company = Company::query()->first();
+            if (! $company) {
+                $this->command?->error('Base company not found. Run Phase 1 first.');
+                return;
+            }
+
+            foreach (self::ZONE_LOCATIONS as $code => $location) {
+                $name = $location['name'];
+                $inventoryLocation = DB::connection('pgsql')
+                    ->table('inventory_locations')
+                    ->where('name', $name)
+                    ->first();
+
+                $inventoryLocationId = $inventoryLocation?->id ?? (string) Str::uuid();
+                DB::connection('pgsql')->table('inventory_locations')->updateOrInsert(
+                    ['id' => $inventoryLocationId],
+                    [
+                        'name' => $name,
+                        'level' => 1,
+                        'inventory_location_id' => null,
+                        'active' => 1,
+                        'company_id' => $company->id,
+                        'updated_at' => now(),
+                        'created_at' => $inventoryLocation?->created_at ?? now(),
+                    ]
+                );
+
+                Zone::query()->updateOrCreate(
+                    ['key' => $code],
+                    [
+                        'value' => $name,
+                        'description' => $this->zoneDescription($location),
+                        'module' => 'laboratory',
+                        'inventory_location_id' => $inventoryLocationId,
+                        'is_hq_zone' => $code === 'CZO',
+                    ]
+                );
+
+                $this->command?->info("Seeded Zone: {$code} - {$name}");
+            }
+
+            $this->seedZoneSamplePoints();
+
+            $this->command?->info('====================================================');
+            $this->command?->info('PHASE 2 SEEDING COMPLETED SUCCESSFULLY!');
+            $this->command?->info('====================================================');
+        });
+
+        Model::reguard();
+    }
+
+    private function seedZoneSamplePoints(): void
+    {
+        if (! Schema::connection('pgsql')->hasTable('sample_points') || ! Schema::connection('pgsql')->hasTable('crm_company_units')) {
+            return;
+        }
+
+        $units = DB::connection('pgsql')
+            ->table('crm_company_units')
+            ->select('id', 'crm_customer_id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        if ($units->isEmpty()) {
+            $this->command?->info('CRM units not available yet; zone sample points will be created when Phase 2 is rerun after CRM seeding.');
+            return;
+        }
+
+        foreach ($units as $unit) {
+            foreach (self::ZONE_LOCATIONS as $code => $location) {
+                $pointName = "{$location['name']} - {$unit->name}";
+                $existing = DB::connection('pgsql')
+                    ->table('sample_points')
+                    ->where('crm_company_unit_id', $unit->id)
+                    ->where('name', $pointName)
+                    ->first();
+
+                $payload = [
+                    'crm_company_unit_id' => $unit->id,
+                    'crm_customer_id' => $unit->crm_customer_id,
+                    'name' => $pointName,
+                    'description' => $this->zoneDescription($location),
+                    'gps' => $location['gps'],
+                    'active' => 1,
+                    'updated_at' => now(),
+                    'created_at' => $existing?->created_at ?? now(),
+                ];
+
+                if (Schema::connection('pgsql')->hasColumn('sample_points', 'code')) {
+                    $payload['code'] = 'GCLA-'.$code.'-'.substr(md5((string) $unit->id), 0, 8);
+                }
+
+                DB::connection('pgsql')->table('sample_points')->updateOrInsert(
+                    ['id' => $existing?->id ?? (string) Str::uuid()],
+                    $payload
+                );
+            }
+        }
+    }
+
+    private function zoneDescription(array $location): string
+    {
+        return sprintf(
+            '%s office at %s. Regions served: %s.',
+            $location['name'],
+            $location['office'],
+            implode(', ', $location['regions'])
+        );
+    }
+}

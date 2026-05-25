@@ -3,6 +3,7 @@
     $sectionOptions = $available_sections ?? [];
     $selectedSection = collect($sectionOptions)->first(fn($item) => (string) ($item['id'] ?? '') === (string) ($selectedLabId ?? ''));
     $selectedAnalyst = collect($available_analysts ?? [])->first(fn($item) => (string) ($item['analyst_id'] ?? '') === (string) ($selectedAnalystId ?? ''));
+    $selectedZone = collect($available_zones ?? [])->first(fn($item) => (string) ($item['id'] ?? '') === (string) ($selectedZoneId ?? ''));
 @endphp
 
 <div class="kebs-title-bar">
@@ -46,9 +47,19 @@
         <div class="tat-filter-field">
             <label class="tat-filter-label" for="tat-lab-section">Lab Section</label>
             <select id="tat-lab-section" wire:model="selectedLabId" wire:change="handleLabSelectionChange" class="form-control form-control-sm tat-filter-input">
-                <option value="" class="text-dark">All Labs</option>
+                <option value="" class="text-dark">All Sections</option>
                 @foreach($sectionOptions as $section)
                     <option value="{{ $section['id'] }}" class="text-dark">{{ $section['name'] }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="tat-filter-field">
+            <label class="tat-filter-label" for="tat-zone">Zone</label>
+            <select id="tat-zone" wire:model="selectedZoneId" wire:change="applyFilters" class="form-control form-control-sm tat-filter-input">
+                <option value="" class="text-dark">All Zones</option>
+                @foreach($available_zones ?? [] as $zone)
+                    <option value="{{ $zone['id'] }}" class="text-dark">{{ $zone['name'] }}</option>
                 @endforeach
             </select>
         </div>
@@ -84,8 +95,13 @@
 
     <div class="tat-filter-summary">
         <span class="tat-filter-chip {{ $selectedSection ? '' : 'tat-filter-chip-muted' }}">
-            <strong>Lab</strong>
-            <span>{{ $selectedSection['name'] ?? 'All Labs' }}</span>
+            <strong>Section</strong>
+            <span>{{ $selectedSection['name'] ?? 'All Sections' }}</span>
+        </span>
+
+        <span class="tat-filter-chip {{ $selectedZone ? '' : 'tat-filter-chip-muted' }}">
+            <strong>Zone</strong>
+            <span>{{ $selectedZone['name'] ?? 'All Zones' }}</span>
         </span>
 
         <span class="tat-filter-chip {{ $selectedAnalyst ? '' : 'tat-filter-chip-muted' }}">

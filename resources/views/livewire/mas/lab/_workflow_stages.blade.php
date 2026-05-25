@@ -1,10 +1,10 @@
-{{-- Workflow Stage Funnel: active batches, overdue counts, avg completion per stage --}}
+{{-- Workflow Stage Funnel: active batches, completed counts, avg completion per stage --}}
 <div class="pivot-card">
     <div class="pivot-header d-flex justify-content-between align-items-center">
         <span><i class="mdi mdi-transit-connection-variant mr-1"></i> Workflow Stage Pipeline</span>
         <small class="font-weight-normal opacity-75">
             {{ $stats['summary']['active_batches'] ?? 0 }} active &bull;
-            <span class="text-danger">{{ $stats['summary']['overdue_batches'] ?? 0 }} overdue</span>
+            <span class="text-success">{{ $stats['summary']['completed_batches'] ?? 0 }} completed</span>
         </small>
     </div>
     <div class="table-responsive">
@@ -22,10 +22,10 @@
             <tbody>
                 @forelse($stats['stage_summary'] ?? [] as $stage)
                     @php
-                        $total   = $stage['total_batches'];
-                        $overdue = $stage['overdue_batches'];
-                        $pct     = $total > 0 ? round(($overdue / $total) * 100) : 0;
-                        $statusColor = $pct === 0 ? 'success' : ($pct <= 20 ? 'warning' : 'danger');
+                        $total     = $stage['total_batches'];
+                        $completed = $stage['completed_batches'] ?? max($total - ($stage['overdue_batches'] ?? 0), 0);
+                        $overdue   = $stage['overdue_batches'];
+                        $pct       = $stage['completion_rate'] ?? ($total > 0 ? round(($completed / $total) * 100) : 0);
                     @endphp
                     <tr>
                         <td class="font-weight-bold">{{ $stage['workflow_stage'] }}</td>
@@ -52,9 +52,11 @@
                         <td class="text-center">
                             @if($total > 0)
                                 <div style="min-width:80px; height:8px; background:#f1f5f9; border-radius:4px; overflow:hidden; display:inline-block; width:80px;">
-                                    <div style="width:{{ min($pct, 100) }}%; height:100%; background:{{ $pct === 0 ? '#22c55e' : ($pct <= 20 ? '#f59e0b' : '#ef4444') }};"></div>
+                                    <div style="width:{{ min($pct, 100) }}%; height:100%; background:#22c55e;"></div>
                                 </div>
-                                <small class="text-{{ $statusColor }} ml-1">{{ $pct }}%</small>
+                                <small class="text-success ml-1">
+                                    {{ number_format($completed) }}/{{ number_format($total) }} ({{ $pct }}%)
+                                </small>
                             @else
                                 <span class="text-muted small">No data</span>
                             @endif

@@ -77,6 +77,13 @@ _CAPABILITIES_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_LANGUAGE_CAPABILITY_PATTERN = re.compile(
+    r"\b(can|do)\s+you\s+(speak|understand|use|reply\s+in|respond\s+in)\s+"
+    r"(swahili|kiswahili|english)\b|"
+    r"\b(swahili|kiswahili|english)\b.{0,30}\b(can|do)\s+you\b",
+    re.IGNORECASE,
+)
+
 _MODE_MENTION_ALIASES = {
     "general": ("general", "all modules", "everything"),
     "support": ("support", "portal", "customer portal"),
@@ -404,6 +411,13 @@ class AIOrchestrator:
                 "health_fast", mode, trace_id, start
             )
 
+        # Language capability
+        if _LANGUAGE_CAPABILITY_PATTERN.search(m):
+            return self._make_fast_result(
+                "Yes. I can respond in English or Kiswahili. Unaweza kuniuliza kwa Kiswahili, nami nitakujibu kwa Kiswahili.",
+                "language_capability_fast", mode, trace_id, start
+            )
+
         # Capabilities
         if _CAPABILITIES_PATTERN.search(m):
             target_mode = self._capabilities_mode(m, mode)
@@ -415,7 +429,7 @@ class AIOrchestrator:
         # Greeting (only on first message)
         if len(messages) <= 1 and GREETING_PATTERNS.search(m):
             return self._make_fast_result(
-                mode_registry.get_greeting(mode),
+                mode_registry.get_greeting(mode, m),
                 "greeting_fast", mode, trace_id, start
             )
 

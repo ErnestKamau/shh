@@ -24,12 +24,13 @@
     .tat-filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.14); color: #fff; font-size: 12px; line-height: 1; }
     .tat-filter-chip strong { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(219,234,254,0.88); }
     .tat-filter-chip-muted { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.82); }
-    .metric-card { background-color: #0ea5e9; color: white; border-radius: 4px; text-align: center; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; }
+    .metric-card { background-color: #0ea5e9; color: white; border-radius: 4px; text-align: center; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; height: 90px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     .metric-card:hover { transform: translateY(-2px); }
     .metric-card.dark { background-color: #1e3a8a; }
-    .metric-label { font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; opacity: 0.9; }
+    .metric-label { font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; opacity: 0.9; }
     .metric-value { font-size: 20px; font-weight: bold; }
-    .pivot-card { background-color: white; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .pivot-card { background-color: white; border: 1px solid #e2e8f0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 100%; display: flex; flex-direction: column; width: 100%; margin-bottom: 0 !important; }
+    .pivot-card .table-responsive { flex-grow: 1; }
     .pivot-header { background-color: #1e3a8a; color: white; padding: 8px 15px; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0; }
     .pivot-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .pivot-table th { background-color: #e0f2fe; padding: 10px; border: 1px solid #cbd5e1; text-align: left; color: #334155; }
@@ -62,8 +63,10 @@
     @include('livewire.mas.lab._header', [
         'available_sections' => $available_sections ?? [],
         'available_analysts' => $available_analysts ?? [],
+        'available_zones' => $available_zones ?? [],
         'selectedAnalystId' => $selectedAnalystId ?? null,
         'selectedLabId' => $selectedLabId ?? null,
+        'selectedZoneId' => $selectedZoneId ?? null,
         'startDate' => $startDate ?? null,
         'endDate' => $endDate ?? null,
     ])
@@ -72,26 +75,44 @@
     @include('livewire.mas.lab._kpi_cards')
 
     {{-- 3. Main body --}}
-    <div class="row">
-
-        {{-- Left/Centre: pivot + workflow stages + analyst leaderboard --}}
-        <div class="col-md-9">
-
+    {{-- Row 1: Full Width Pivot Section --}}
+    <div class="row mb-3">
+        <div class="col-12">
             @include('livewire.mas.lab._pivot_table')
+        </div>
+    </div>
 
+    {{-- Row 2: Compliance & Workflow Pipeline (Same Height) --}}
+    <div class="row mb-3">
+        {{-- Left: % TAT Compliance --}}
+        <div class="col-md-6 d-flex align-items-stretch">
+            @include('livewire.mas.lab._compliance_card')
+        </div>
+
+        {{-- Right: Workflow Stage Pipeline --}}
+        <div class="col-md-6 d-flex align-items-stretch">
             @include('livewire.mas.lab._workflow_stages')
+        </div>
+    </div>
 
+    {{-- Row 3: SCC Enclosed Table & Analyst Leaderboard (Same Height) --}}
+    <div class="row mb-3">
+        {{-- Left: Sample Control Performance (SCC) Enclosed Table --}}
+        <div class="col-md-6 d-flex align-items-stretch">
+            @include('livewire.mas.lab._scc_table')
+        </div>
+
+        {{-- Right: Analyst Performance Leaderboard --}}
+        <div class="col-md-6 d-flex align-items-stretch">
             @include('livewire.mas.lab._analyst_leaderboard')
+        </div>
+    </div>
 
+    {{-- Row 4: Overdue Aging Breakdown --}}
+    <div class="row mb-3">
+        <div class="col-12">
             @include('livewire.mas.lab._overdue_aging')
-
         </div>
-
-        {{-- Right: SCC panel --}}
-        <div class="col-md-3">
-            @include('livewire.mas.lab._scc_panel')
-        </div>
-
     </div>
 
     {{-- 4. Detailed TAT Logs (full width) --}}

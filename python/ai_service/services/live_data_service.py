@@ -4,6 +4,7 @@ import time
 import hashlib
 import json
 import threading
+import copy
 from typing import Dict, Any, List, Optional
 import pandas as pd
 from sqlalchemy import text
@@ -39,11 +40,50 @@ class LiveDataService:
         self.CIRCUIT_COOLDOWN_SECONDS = 60
         
     def _load_manifest(self) -> Dict[str, Any]:
+        static_templates = self._load_static_manifest()
+
+        try:
+            logger.info("Loading LiveData manifest templates from PostgreSQL database...")
+            with db_manager.postgres_connection() as conn:
+                rows = conn.execute(text("""
+                    SELECT id, domain, sql_query, description, output_format, ttl_seconds 
+                    FROM ai.manifest_intents 
+                    WHERE active = true
+                """)).fetchall()
+
+            if not rows:
+                logger.warning("No active DB manifest templates found. Using static LiveData manifest.")
+                return static_templates
+            
+            templates = copy.deepcopy(static_templates)
+            for r in rows:
+                intent_id = r[0]
+                domain = r[1]
+                sql_query = r[2]
+                description = r[3]
+                output_format = r[4]
+                ttl_seconds = r[5]
+                
+                templates.setdefault(domain, {})[intent_id] = {
+                    "sql": sql_query,
+                    "description": description,
+                    "output_format": output_format,
+                    "ttl_seconds": ttl_seconds
+                }
+            
+            logger.info(f"Successfully loaded LiveData templates from DB with static fallback. Total templates: {sum(len(d) for d in templates.values())}.")
+            return templates
+            
+        except Exception as e:
+            logger.error(f"Failed to load LiveData manifest from PostgreSQL: {e}. Falling back to static JSON file.")
+            return static_templates
+
+    def _load_static_manifest(self) -> Dict[str, Any]:
         try:
             with open(self.manifest_path, 'r') as f:
                 return json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to load LiveData manifest: {e}")
+        except Exception as exc:
+            logger.error(f"Failed to load static LiveData manifest file fallback: {exc}")
             return {}
 
     def _generate_cache_key(self, intent: str, params: Optional[Dict[str, Any]]) -> str:

@@ -405,12 +405,32 @@ class SystemAdminDashboardService
         $connected = [];
         $disconnected = [];
 
+        $defaultConnection = config('database.default', 'pgsql');
+        $defaultDriver = config("database.connections.{$defaultConnection}.driver", 'pgsql');
+
         foreach ($connectionNames as $name) {
             $connectionConfig = config("database.connections.{$name}", []);
             $driver = (string) ($connectionConfig['driver'] ?? 'unknown');
             $exportSupport = $this->databaseExportSupport($driver);
 
+            // Skip boilerplate connections of different drivers that are not explicitly configured
+            if ($name !== $defaultConnection && $driver !== $defaultDriver && $driver !== 'sqlite') {
+                continue;
+            }
+
             try {
+                // Set a short connection/login timeout dynamically (2 seconds)
+                if ($driver === 'pgsql') {
+                    config(["database.connections.{$name}.connect_timeout" => 2]);
+                } elseif ($driver === 'mysql') {
+                    config(["database.connections.{$name}.options." . \PDO::ATTR_TIMEOUT => 2]);
+                } elseif ($driver === 'sqlsrv') {
+                    config(["database.connections.{$name}.LoginTimeout" => 2]);
+                }
+
+                // Purge the connection instance to ensure the new timeout configuration is picked up
+                DB::purge($name);
+
                 DB::connection($name)->select('select 1');
 
                 $connected[] = [

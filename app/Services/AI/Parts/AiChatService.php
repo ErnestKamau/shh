@@ -28,14 +28,15 @@ class AiChatService extends AiBaseService
         $totalTokens = 0;
         $modelName = $options['model'] ?? 'unknown';
         $queryText = end($messages)['content'] ?? 'Unknown Query';
-        $userId = auth()->id();
-        $companyId = optional(auth()->user())->company_id;
+        $userId = $this->aiRuntimeUserId(auth()->id());
+        $companyId = $this->aiRuntimeCompanyId(optional(auth()->user())->company_id);
         $sessionId = $options['session_id'] ?? null;
         
         try {
             $payload = [
                 'messages' => $messages,
-                'company_id' => optional(auth()->user())->company_id ?? 1,
+                'company_id' => $companyId,
+                'user_id' => $userId,
                 'trace_id' => $traceId,
                 'use_visuals' => (bool) ($options['use_visuals'] ?? true),
                 'model' => $options['model'] ?? null,
@@ -51,36 +52,43 @@ class AiChatService extends AiBaseService
             ]);
 
             $body = $response->getBody();
+            $resource = $body->detach();
             $buffer = '';
             
-            while (!$body->eof()) {
-                $chunk = $body->read(1024);
-                $buffer .= $chunk;
-                
-                while (($pos = strpos($buffer, "\n\n")) !== false) {
-                    $event = substr($buffer, 0, $pos);
-                    $buffer = substr($buffer, $pos + 2);
+            if ($resource) {
+                while (!feof($resource)) {
+                    $line = fgets($resource);
+                    if ($line === false) {
+                        break;
+                    }
+                    $buffer .= $line;
                     
-                    if (strpos($event, "data: ") === 0) {
-                        $jsonData = substr($event, 6);
-                        if (trim($jsonData) !== '[DONE]') {
-                            $decoded = json_decode($jsonData, true);
-                            if (isset($decoded['usage']['total_tokens'])) {
-                                $totalTokens = $decoded['usage']['total_tokens'];
+                    while (($pos = strpos($buffer, "\n\n")) !== false) {
+                        $event = substr($buffer, 0, $pos);
+                        $buffer = substr($buffer, $pos + 2);
+
+                        if (strpos($event, "data: ") === 0) {
+                            $jsonData = substr($event, 6);
+                            if (trim($jsonData) !== '[DONE]') {
+                                $decoded = json_decode($jsonData, true);
+                                if (isset($decoded['usage']['total_tokens'])) {
+                                    $totalTokens = $decoded['usage']['total_tokens'];
+                                }
+                                if (isset($decoded['model'])) {
+                                    $modelName = $decoded['model'];
+                                }
+                                if (isset($decoded['route_name'])) {
+                                    $options['route_name'] = $decoded['route_name'];
+                                }
+                                if (isset($decoded['confidence'])) {
+                                    $options['confidence'] = $decoded['confidence'];
+                                }
+                                yield $jsonData;
                             }
-                            if (isset($decoded['model'])) {
-                                $modelName = $decoded['model'];
-                            }
-                            if (isset($decoded['route_name'])) {
-                                $options['route_name'] = $decoded['route_name'];
-                            }
-                            if (isset($decoded['confidence'])) {
-                                $options['confidence'] = $decoded['confidence'];
-                            }
-                            yield $jsonData;
                         }
                     }
                 }
+                fclose($resource);
             }
 
             // Log successful completion
@@ -135,8 +143,8 @@ class AiChatService extends AiBaseService
      */
     public function chat(string $message, array $options = []): array
     {
-        $userId = auth()->id();
-        $companyId = optional(auth()->user())->company_id;
+        $userId = $this->aiRuntimeUserId(auth()->id());
+        $companyId = $this->aiRuntimeCompanyId(optional(auth()->user())->company_id);
         $sessionId = $options['session_id'] ?? null;
 
         try {
@@ -144,7 +152,8 @@ class AiChatService extends AiBaseService
                 ->connectTimeout(5)
                 ->post("{$this->apiBaseUrl}/v1/chat", [
                     'messages' => [['role' => 'user', 'content' => $message]],
-                    'company_id' => auth()->user()->company_id ?? 1,
+                    'company_id' => $companyId,
+                    'user_id' => $userId,
                     'trace_id' => $options['trace_id'] ?? null,
                     'use_visuals' => (bool) ($options['use_visuals'] ?? true),
                     'mode' => $options['mode'] ?? 'general',
@@ -238,9 +247,11 @@ class AiChatService extends AiBaseService
     /**
      * Delete knowledge entry/entries via the Python service.
      */
-    public function deleteKnowledge(string $entityType, $entityId, int $companyId = 0): array
+    public function deleteKnowledge(string $entityType, $entityId, $companyId = 0): array
     {
         try {
+            $companyId = $this->aiRuntimeCompanyId($companyId, 0);
+
             if (is_array($entityId)) {
                 $response = \Illuminate\Support\Facades\Http::timeout(60)
                     ->post("{$this->apiBaseUrl}/v1/index/bulk-delete", [
@@ -270,10 +281,12 @@ class AiChatService extends AiBaseService
     public function searchKnowledge(string $query, array $options = []): array
     {
         try {
+            $companyId = $this->aiRuntimeCompanyId($options['company_id'] ?? 1);
+
             $response = \Illuminate\Support\Facades\Http::timeout(30)
                 ->post("{$this->apiBaseUrl}/v1/index/search", [
                     'query' => $query,
-                    'company_id' => $options['company_id'] ?? 1,
+                    'company_id' => $companyId,
                     'collections' => $options['collections'] ?? null,
                     'limit' => $options['limit'] ?? 5,
                 ]);
@@ -341,5 +354,31 @@ class AiChatService extends AiBaseService
             $this->log('error', 'Cancel request failed', ['error' => $e->getMessage()]);
             return ['success' => false, 'error' => 'AI Service unreachable'];
         }
+    }
+
+    protected function aiRuntimeCompanyId($value, int $default = 1): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        return $default;
+    }
+
+    protected function aiRuntimeUserId($value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        return null;
     }
 }

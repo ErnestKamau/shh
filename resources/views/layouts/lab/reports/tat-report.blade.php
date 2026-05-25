@@ -181,8 +181,15 @@ $items = array(
                         <td>{{$tat->start_date_analysis}}</td>
                         <td>{{$tat->tat_date}}</td>
                         <td>{{$tat->finished_date}}</td>
-                        <td class="{{$tat->tat_date > $tat->finished_date ? 'text-success' : 'text-danger'}}">
-                            {{$tat->tat_date > $tat->finished_date ? '-' . $tat->tat_overdue_days : '+' . $tat->tat_overdue_days }}
+                        @php $tatOffset = $tat->signed_offset ?? 0; @endphp
+                        <td class="{{ $tatOffset < 0 ? 'text-success' : ($tatOffset === 0 ? 'text-muted' : 'text-danger') }}">
+                            @if($tatOffset < 0)
+                                {{ $tatOffset }}d
+                            @elseif($tatOffset === 0)
+                                0d
+                            @else
+                                +{{ $tatOffset }}d
+                            @endif
                         </td>
                         <td>{{$tat->analyst_name}}</td>
                         <td

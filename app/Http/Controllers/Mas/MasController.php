@@ -296,9 +296,20 @@ class MasController extends Controller
         switch ($module) {
             case 'lab':
                 $stats = $tatService->getLabTatBoard();
-                $columns = ['Stage Name', 'Batch Count', 'Overdue Count', 'Avg Days in Stage'];
-                foreach ($stats['stage_counts'] as $stage => $count) {
-                    $data[] = [$stage, $count, 0, 0]; // Simplified for base export
+                $columns = ['Stage Name', 'Total Batches', 'Completed Batches', 'Completion Status', 'Due Today', 'Avg Days'];
+                foreach ($stats['stage_summary'] ?? [] as $stage) {
+                    $total = (int) ($stage['total_batches'] ?? 0);
+                    $completed = (int) ($stage['completed_batches'] ?? max($total - (int) ($stage['overdue_batches'] ?? 0), 0));
+                    $completionRate = (int) ($stage['completion_rate'] ?? ($total > 0 ? round(($completed / $total) * 100) : 0));
+
+                    $data[] = [
+                        $stage['workflow_stage'] ?? 'N/A',
+                        $total,
+                        $completed,
+                        "{$completed}/{$total} ({$completionRate}%)",
+                        (int) ($stage['due_today_batches'] ?? 0),
+                        $stage['avg_completion_days'] ?? $stage['avg_days_to_target'] ?? null,
+                    ];
                 }
                 break;
 
@@ -411,28 +422,72 @@ class MasController extends Controller
         $chartImage = $request->input('chart_image');
         $preview = $request->has('preview') && $request->input('preview') == 'true';
         $timestamp = date('Ymd_His');
+        $company = getActiveCompany();
 
         switch ($module) {
             case 'lab': // TAT Analysis
                 $period = $request->get('period', 'active');
-                $stats = $tatService->getLabTatBoard($period);
+                $filters = [
+                    'lab_id' => $request->get('lab_id'),
+                    'analyst_id' => $request->get('analyst_id'),
+                    'zone_id' => $request->get('zone_id'),
+                    'start_date' => $request->get('start_date'),
+                    'end_date' => $request->get('end_date'),
+                ];
+                $stats = $tatService->getTatAnalysisPayload(
+                    $filters,
+                    'urgent',
+                    1,
+                    100,
+                    $period,
+                    1,
+                    100,
+                    1,
+                    100
+                );
                 $stats['sections'] = $tatService->getLabSectionTatStats();
-                $stats['analyst_performance'] = $tatService->getAnalystPerformanceStats($period);
-                $stats['smart_grid'] = $tatService->getSmartActionGridData('urgent');
-                $stats['detailed_logs'] = $tatService->getDetailedAnalyteTatLogsPage($period, [], 1, 100)['rows'] ?? [];
-                $pdf = Pdf::loadView('layouts.mas.pdf.lab_pdf', compact('stats', 'chartImage'))
 
+                $labId = $filters['lab_id'];
+                $zoneId = $filters['zone_id'];
+                $analystId = $filters['analyst_id'];
+                $selectedSection = collect($tatService->getLabSectionOptions())
+                    ->first(fn($section) => (string) $section['id'] === (string) $labId);
 
+                $selectedFilters = [
+                    'lab_section' => $labId ? ($selectedSection['name'] ?? 'All Sections') : 'All Sections',
+                    'zone' => $zoneId ? (\App\Zone::find($zoneId)?->name ?? 'All Zones') : 'All Zones',
+                    'analyst' => $analystId ? (\App\User::find($analystId)?->name ?? 'All Analysts') : 'All Analysts',
+                    'start_date' => $filters['start_date'] ?: '12 Months',
+                    'end_date' => $filters['end_date'] ?: 'Present',
+                ];
+
+                $pdf = Pdf::loadView('layouts.mas.pdf.lab_pdf', compact('stats', 'chartImage', 'company', 'selectedFilters'))
                     ->setPaper('a4', 'landscape');
+                $runningLogoPath = $this->resolveLocalPdfLogoPath($company);
+                if ($runningLogoPath) {
+                    $pdf->getDomPDF()->getCanvas()->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($runningLogoPath) {
+                        if ($pageNumber > 1) {
+                            $canvas->image($runningLogoPath, 765, 18, 42, 24);
+                        }
+                    });
+                }
                 $fileName = "Lab_Performance_Report_{$timestamp}.pdf";
                 break;
 
             case 'lab-general':
+                $filters = [
+                    'start_date' => $request->get('start_date'),
+                    'end_date' => $request->get('end_date'),
+                ];
                 $stats = $tatService->getLabTatBoard();
-                $stats['top_clients'] = $generalService->getTopClientsData() ?? [];
-                $stats['monthly_trends'] = $generalService->getLabMonthlyTrends();
-                $stats['geographic_data'] = $generalService->getLabGeographicData();
-                $pdf = Pdf::loadView('layouts.mas.pdf.lab_general_pdf', compact('stats', 'chartImage'))
+                $stats['top_clients'] = $generalService->getTopClientsData(10, $filters) ?? [];
+                $stats['monthly_trends'] = $generalService->getLabMonthlyTrends(null, $filters);
+                $stats['geographic_data'] = $generalService->getLabGeographicData(null, $filters);
+                $selectedFilters = [
+                    'start_date' => $filters['start_date'] ?: '12 Months',
+                    'end_date' => $filters['end_date'] ?: 'Present',
+                ];
+                $pdf = Pdf::loadView('layouts.mas.pdf.lab_general_pdf', compact('stats', 'chartImage', 'company', 'selectedFilters'))
                     ->setPaper('a4', 'landscape');
                 $fileName = "Lab_General_Analytics_{$timestamp}.pdf";
                 break;
@@ -441,7 +496,7 @@ class MasController extends Controller
                 $stats = $qcService->getQcStabilityBoard();
                 $stats['parameter_performance'] = $qcService->getParameterPerformanceData();
                 $stats['testing_matrix'] = $generalService->getTestingMatrixData();
-                $pdf = Pdf::loadView('layouts.mas.pdf.lab_qc_pdf', compact('stats', 'chartImage'))
+                $pdf = Pdf::loadView('layouts.mas.pdf.lab_qc_pdf', compact('stats', 'chartImage', 'company'))
                     ->setPaper('a4', 'landscape');
                 $fileName = "Lab_QC_Stability_Report_{$timestamp}.pdf";
                 break;
@@ -510,5 +565,18 @@ class MasController extends Controller
         }
 
         return $pdf->download($fileName);
+    }
+
+    private function resolveLocalPdfLogoPath($company): ?string
+    {
+        if ($company && !empty($company->logo) && !str_starts_with($company->logo, 'http')) {
+            $local = public_path(ltrim($company->logo, '/'));
+            if (file_exists($local)) {
+                return $local;
+            }
+        }
+
+        $fallback = public_path('assets/branding/logo.jpeg');
+        return file_exists($fallback) ? $fallback : null;
     }
 }
