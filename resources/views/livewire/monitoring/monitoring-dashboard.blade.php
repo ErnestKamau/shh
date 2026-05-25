@@ -28,12 +28,12 @@
         </div>
     @endif
 
-    <div class="row g-3 mb-3">
-        <div class="col-md-4 mb-3">
+    <div class="row g-3 mb-3 monitor-entry-cards-row">
+        <div class="col-md-4 d-flex">
             <button type="button"
-                class="card monitor-entry-card w-100 text-left {{ $activeSection === 'environmental' ? 'active' : '' }}"
+                class="card monitor-entry-card w-100 h-100 text-left {{ $activeSection === 'environmental' ? 'active' : '' }}"
                 wire:click="switchSection('environmental')">
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                     <div class="monitor-entry-card__icon bg-info-soft">
                         <i class="mdi mdi-thermometer"></i>
                     </div>
@@ -43,11 +43,11 @@
                 </div>
             </button>
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-4 d-flex">
             <button type="button"
-                class="card monitor-entry-card w-100 text-left {{ $activeSection === 'equipment' ? 'active' : '' }}"
+                class="card monitor-entry-card w-100 h-100 text-left {{ $activeSection === 'equipment' ? 'active' : '' }}"
                 wire:click="switchSection('equipment')">
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                     <div class="monitor-entry-card__icon bg-success-soft">
                         <i class="mdi mdi-scale-balance"></i>
                     </div>
@@ -57,11 +57,11 @@
                 </div>
             </button>
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-4 d-flex">
             <button type="button"
-                class="card monitor-entry-card w-100 text-left {{ $activeSection === 'templates' ? 'active' : '' }}"
+                class="card monitor-entry-card w-100 h-100 text-left {{ $activeSection === 'templates' ? 'active' : '' }}"
                 wire:click="switchSection('templates')">
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                     <div class="monitor-entry-card__icon bg-warning-soft">
                         <i class="mdi mdi-file-document-edit-outline"></i>
                     </div>
@@ -327,7 +327,8 @@
                         <p class="text-muted mb-0">Create versioned templates and dynamic logic without overwriting
                             historical definitions.</p>
                     </div>
-                    <a href="{{ $module === 'equipment' ? route('equipment.monitoring.template.create') : route('monitoring.template.create') }}" class="btn btn-primary">
+                    <a href="{{ $module === 'equipment' ? route('equipment.monitoring.template.create') : route('monitoring.template.create') }}"
+                       class="btn btn-outline-primary monitor-new-template-btn">
                         <i class="mdi mdi-plus"></i> New Template
                     </a>
                 </div>
@@ -591,12 +592,27 @@
     @endif
 
     <style>
+        .monitoring-shell .monitor-entry-cards-row {
+            align-items: stretch;
+        }
+
         .monitoring-shell .monitor-entry-card {
             border: 1px solid #dfe6ef;
             border-radius: 14px;
             transition: all 0.18s ease;
             background: #ffffff;
             cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .monitoring-shell .monitor-entry-card .card-body {
+            flex: 1 1 auto;
+        }
+
+        .monitoring-shell .monitor-entry-card .card-body p {
+            flex: 1 1 auto;
         }
 
         .monitoring-shell .monitor-entry-card:hover,
@@ -626,6 +642,11 @@
             border: 1px solid #e2e8f0;
             border-radius: 14px;
             box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+        }
+
+        .monitoring-shell .monitor-new-template-btn {
+            border-radius: 8px;
+            font-weight: 600;
         }
 
         .monitor-lab-list {
@@ -1072,6 +1093,4 @@
             setTimeout(initEnvTrendChart, 100);
         });
     </script>
-</div>
-</style>
 </div>

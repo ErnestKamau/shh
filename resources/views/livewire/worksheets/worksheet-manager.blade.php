@@ -87,6 +87,18 @@
                                 @endif
                             </a>
                         </li>
+                        @if($logEntryWorksheets->count() > 0)
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab === 'log-entry' ? 'active' : '' }}"
+                               href="#"
+                               wire:click.prevent="switchTab('log-entry')"
+                               role="tab"
+                               style="{{ $activeTab === 'log-entry' ? $activeTabStyle : '' }}">
+                                <i class="mdi mdi-table-edit"></i> Log entry
+                                <span class="badge badge-success">{{ $logEntryWorksheets->count() }}</span>
+                            </a>
+                        </li>
+                        @endif
                         <li class="nav-item">
                             <a class="nav-link {{ $activeTab === 'procedures' ? 'active' : '' }}"
                                href="#"
@@ -213,6 +225,27 @@
 
                     @if($activeTab === 'procedures')
                         @livewire('worksheets.procedure-worksheet-manager', ['batchId' => $batch->id], 'procedure-manager-'.$batch->id)
+                    @endif
+
+                    @if($activeTab === 'log-entry' && $logEntryWorksheets->count() > 0)
+                        @if($logEntryWorksheets->count() > 1)
+                            <ul class="nav nav-pills mb-3">
+                                @foreach($logEntryWorksheets as $lew)
+                                    <li class="nav-item">
+                                        <button type="button"
+                                            class="nav-link {{ (string) $activeLogEntryWorksheetId === (string) $lew->id ? 'active' : '' }}"
+                                            wire:click="$set('activeLogEntryWorksheetId', '{{ $lew->id }}')">
+                                            {{ $lew->name }}
+                                        </button>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                        <livewire:worksheets.log-entry-worksheet-manager
+                            :batch="$batch"
+                            :worksheet-id="$activeLogEntryWorksheetId ?? $logEntryWorksheets->first()->id"
+                            :key="'log-entry-'.($activeLogEntryWorksheetId ?? $logEntryWorksheets->first()->id)"
+                        />
                     @endif
 
                     @if($activeTab === 'ser' && $hasNoCaptureSamples)

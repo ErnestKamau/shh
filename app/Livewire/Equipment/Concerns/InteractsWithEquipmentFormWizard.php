@@ -65,6 +65,7 @@ trait InteractsWithEquipmentFormWizard
                 'equipmentForm.environment' => 'nullable|string|max:255',
                 'equipmentForm.end_of_life' => 'nullable|date',
                 'equipmentForm.end_of_service' => 'nullable|date',
+                'equipmentForm.has_logbook_tracking' => 'boolean',
             ];
         }
 
@@ -98,15 +99,11 @@ trait InteractsWithEquipmentFormWizard
 
                 if ($type === 'constant') {
                     $rules['equipmentForm.daily_log_expected_value'] = 'required|string|max:255';
-                    if ($nature === 'quantitative') {
-                        $rules['equipmentForm.daily_log_tolerance'] = 'required|integer|min:1|max:100';
-                    }
                 }
 
                 if ($type === 'range') {
                     $rules['equipmentForm.daily_log_expected_min'] = 'required|numeric';
                     $rules['equipmentForm.daily_log_expected_max'] = 'required|numeric|gte:equipmentForm.daily_log_expected_min';
-                    $rules['equipmentForm.daily_log_tolerance'] = 'required|integer|min:1|max:100';
                 }
             }
         }
@@ -123,6 +120,10 @@ trait InteractsWithEquipmentFormWizard
                 $rules['equipmentForm.preventive_maintainance_period'] = 'required|integer|min:0';
                 $rules['equipmentForm.preventive_maintainance_notification_days'] = 'required|integer|min:0';
             }
+        }
+
+        if ($step === 5 && method_exists($this, 'getDepreciationStepRules')) {
+            return $this->getDepreciationStepRules();
         }
 
         return $rules;
@@ -491,6 +492,7 @@ trait InteractsWithEquipmentFormWizard
             'equipmentForm.asset_type_id' => 'nullable|string',
             'equipmentForm.asset_location_id' => 'nullable|string',
             'equipmentForm.active' => 'boolean',
+            'equipmentForm.has_logbook_tracking' => 'boolean',
             'photo' => 'nullable|image|max:10240',
         ];
 
@@ -503,15 +505,11 @@ trait InteractsWithEquipmentFormWizard
 
             if ($type === 'constant') {
                 $rules['equipmentForm.daily_log_expected_value'] = 'required|string|max:255';
-                if ($nature === 'quantitative') {
-                    $rules['equipmentForm.daily_log_tolerance'] = 'required|integer|min:1|max:100';
-                }
             }
 
             if ($type === 'range') {
                 $rules['equipmentForm.daily_log_expected_min'] = 'required|numeric';
                 $rules['equipmentForm.daily_log_expected_max'] = 'required|numeric|gte:equipmentForm.daily_log_expected_min';
-                $rules['equipmentForm.daily_log_tolerance'] = 'required|integer|min:1|max:100';
             }
 
             $rules['equipmentForm.daily_log_frequency'] = 'required|integer|min:1|max:6';

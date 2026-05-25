@@ -280,19 +280,14 @@
                                                                         </div>
 
                                                                         <ul class="section-meta">
-                                                                            <li><span>Environmental Analysis</span><strong>{{ $section->does_environmental_analysis ? 'Yes' : 'No' }}</strong></li>
+                                                                            <li><span>Environmental Monitoring</span><strong>{{ $section->does_environmental_analysis ? 'Yes' : 'No' }}</strong></li>
                                                                             <li><span>Equipment</span><strong>{{ $section->equipment->name ?? '-' }}</strong></li>
-                                                                            <li><span>Expected Value</span><strong>
-                                                                                @if($section->expected_value_type === 'constant')
-                                                                                    Constant: {{ $section->expected_value ?? '-' }}
-                                                                                @elseif($section->expected_value_type === 'range')
-                                                                                    Range: {{ $section->expected_min ?? '-' }} - {{ $section->expected_max ?? '-' }}
-                                                                                @else
-                                                                                    -
-                                                                                @endif
-                                                                            </strong></li>
-                                                                            <li><span>Optimum Level</span><strong>{{ $section->optimum_level ?? '-' }}</strong></li>
+                                                                            <li><span>Optimum Level</span><strong>{{ $section->formattedOptimumLevel() }}</strong></li>
                                                                             <li><span>Result Nature</span><strong>{{ $section->result_nature ?? '-' }}</strong></li>
+                                                                            <li><span>Reading Frequency</span><strong>{{ $section->reading_frequency ? $section->readingFrequencyLabel() : '-' }}</strong></li>
+                                                                            @if($section->reading_frequency)
+                                                                                <li class="section-meta__wide"><span>Reading Schedule</span><strong>{{ $section->formattedReadingFrequencySchedule() }}</strong></li>
+                                                                            @endif
                                                                             <li><span>Reporting Unit</span><strong>{{ $section->reportingUnit->name ?? $section->reporting_unit ?? '-' }}</strong></li>
                                                                         </ul>
                                                                     </div>
@@ -486,7 +481,7 @@
                                     <label class="lab-switch mb-0" for="modal_env_analysis">
                                         <input type="checkbox" wire:model.live="labSectionForms.{{ $activeLabSectionLabId }}.does_environmental_analysis" class="form-check-input d-none" id="modal_env_analysis">
                                         <span class="lab-switch__track"></span>
-                                        <span class="lab-switch__label">Environmental Analysis</span>
+                                        <span class="lab-switch__label">Environmental Monitoring</span>
                                     </label>
                                 </div>
 
@@ -515,7 +510,7 @@
                                     <div class="lab-section-panel__head">
                                         <div>
                                             <p class="lab-section-panel__kicker mb-1">Monitoring</p>
-                                            <h6 class="mb-0">Environmental Analysis Setup</h6>
+                                            <h6 class="mb-0">Environmental Monitoring</h6>
                                         </div>
                                         <span class="lab-section-chip">Required</span>
                                     </div>
@@ -586,34 +581,94 @@
                                             @error('labSectionForms.' . $activeLabSectionLabId . '.expected_value_type') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                         </div>
 
+                                        <div class="w-100"></div>
+
                                         @if(data_get($labSectionForms, $activeLabSectionLabId . '.expected_value_type') === 'constant')
                                             <div class="col-md-4">
                                                 <label class="form-label form-label--modern">Expected Constant <span class="text-danger">*</span></label>
                                                 <input type="number" step="0.0001" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.expected_value" class="form-control form-control--modern" placeholder="e.g. 7.0000">
                                                 @error('labSectionForms.' . $activeLabSectionLabId . '.expected_value') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                             </div>
-                                        @endif
-
-                                        @if(data_get($labSectionForms, $activeLabSectionLabId . '.expected_value_type') === 'range')
-                                            <div class="col-md-4">
-                                                <label class="form-label form-label--modern">Expected Min <span class="text-danger">*</span></label>
-                                                <input type="number" step="0.0001" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.expected_min" class="form-control form-control--modern" placeholder="e.g. 6.5000">
-                                                @error('labSectionForms.' . $activeLabSectionLabId . '.expected_min') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label form-label--modern">Expected Max <span class="text-danger">*</span></label>
-                                                <input type="number" step="0.0001" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.expected_max" class="form-control form-control--modern" placeholder="e.g. 8.5000">
-                                                @error('labSectionForms.' . $activeLabSectionLabId . '.expected_max') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-                                            </div>
-                                        @endif
-
-                                        @if(data_get($labSectionForms, $activeLabSectionLabId . '.expected_value_type') !== 'range')
                                             <div class="col-md-4">
                                                 <label class="form-label form-label--modern">Optimum Level <span class="text-danger">*</span></label>
                                                 <input type="text" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.optimum_level" class="form-control form-control--modern" placeholder="e.g. WHO Preferred Band">
                                                 @error('labSectionForms.' . $activeLabSectionLabId . '.optimum_level') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                             </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label form-label--modern">Reporting Unit <span class="text-danger">*</span></label>
+                                                <div class="tag-select-container" wire:click="$set('showLabSectionReportingUnitDropdown', true)" wire:click.outside="$set('showLabSectionReportingUnitDropdown', false)">
+                                                    <div class="tag-select-input modern-filter-tag-input lab-tag-select-input">
+                                                        @if($this->selectedLabSectionReportingUnit)
+                                                            <span class="tag-badge">
+                                                                {{ $this->selectedLabSectionReportingUnit->name }}
+                                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.reporting_unit', '')"></i>
+                                                            </span>
+                                                        @endif
+                                                        <input type="text"
+                                                               wire:model.live.debounce.200ms="labSectionReportingUnitSearch"
+                                                               class="tag-input"
+                                                               placeholder="{{ $this->selectedLabSectionReportingUnit ? '' : 'Search reporting unit...' }}"
+                                                               autocomplete="off">
+                                                    </div>
+                                                    @if($showLabSectionReportingUnitDropdown)
+                                                        <div class="tag-dropdown">
+                                                            @forelse($this->filteredLabSectionReportingUnits as $unit)
+                                                                <div class="tag-dropdown-item" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.reporting_unit', '{{ $unit->id }}')">
+                                                                    {{ $unit->name }}
+                                                                </div>
+                                                            @empty
+                                                                <div class="tag-dropdown-item text-muted">No active reporting units found</div>
+                                                            @endforelse
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                @error('labSectionForms.' . $activeLabSectionLabId . '.reporting_unit') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            </div>
+                                        @elseif(data_get($labSectionForms, $activeLabSectionLabId . '.expected_value_type') === 'range')
+                                            <div class="col-md-4">
+                                                <label class="form-label form-label--modern">Low <span class="text-danger">*</span></label>
+                                                <input type="number" step="0.0001" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.expected_min" class="form-control form-control--modern" placeholder="e.g. 6.5000">
+                                                @error('labSectionForms.' . $activeLabSectionLabId . '.expected_min') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label form-label--modern">High <span class="text-danger">*</span></label>
+                                                <input type="number" step="0.0001" wire:model.defer="labSectionForms.{{ $activeLabSectionLabId }}.expected_max" class="form-control form-control--modern" placeholder="e.g. 8.5000">
+                                                @error('labSectionForms.' . $activeLabSectionLabId . '.expected_max') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label form-label--modern">Reporting Unit <span class="text-danger">*</span></label>
+                                                <div class="tag-select-container" wire:click="$set('showLabSectionReportingUnitDropdown', true)" wire:click.outside="$set('showLabSectionReportingUnitDropdown', false)">
+                                                    <div class="tag-select-input modern-filter-tag-input lab-tag-select-input">
+                                                        @if($this->selectedLabSectionReportingUnit)
+                                                            <span class="tag-badge">
+                                                                {{ $this->selectedLabSectionReportingUnit->name }}
+                                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.reporting_unit', '')"></i>
+                                                            </span>
+                                                        @endif
+                                                        <input type="text"
+                                                               wire:model.live.debounce.200ms="labSectionReportingUnitSearch"
+                                                               class="tag-input"
+                                                               placeholder="{{ $this->selectedLabSectionReportingUnit ? '' : 'Search reporting unit...' }}"
+                                                               autocomplete="off">
+                                                    </div>
+                                                    @if($showLabSectionReportingUnitDropdown)
+                                                        <div class="tag-dropdown">
+                                                            @forelse($this->filteredLabSectionReportingUnits as $unit)
+                                                                <div class="tag-dropdown-item" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.reporting_unit', '{{ $unit->id }}')">
+                                                                    {{ $unit->name }}
+                                                                </div>
+                                                            @empty
+                                                                <div class="tag-dropdown-item text-muted">No active reporting units found</div>
+                                                            @endforelse
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                @error('labSectionForms.' . $activeLabSectionLabId . '.reporting_unit') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            </div>
                                         @endif
+
+                                        <div class="w-100"></div>
+
                                         <div class="col-md-6">
                                             <label class="form-label form-label--modern">Result Nature <span class="text-danger">*</span></label>
                                             <div class="tag-select-container" wire:click="$set('showLabSectionResultNatureDropdown', true)" wire:click.outside="$set('showLabSectionResultNatureDropdown', false)">
@@ -645,37 +700,81 @@
                                             @error('labSectionForms.' . $activeLabSectionLabId . '.result_nature') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label form-label--modern">Reporting Unit <span class="text-danger">*</span></label>
-                                            <div class="tag-select-container" wire:click="$set('showLabSectionReportingUnitDropdown', true)" wire:click.outside="$set('showLabSectionReportingUnitDropdown', false)">
-                                                <div class="tag-select-input modern-filter-tag-input lab-tag-select-input">
-                                            @if($this->selectedLabSectionReportingUnit)
-                                                <span class="tag-badge">
-                                                    {{ $this->selectedLabSectionReportingUnit->name }}
-                                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.reporting_unit', '')"></i>
-                                                </span>
-                                            @endif
-
-                                            <input type="text"
-                                                   wire:model.live.debounce.200ms="labSectionReportingUnitSearch"
-                                                   class="tag-input"
-                                                   placeholder="{{ $this->selectedLabSectionReportingUnit ? '' : 'Search reporting unit...' }}"
-                                                   autocomplete="off">
-                                                </div>
-
-                                                @if($showLabSectionReportingUnitDropdown)
-                                                    <div class="tag-dropdown">
-                                                        @forelse($this->filteredLabSectionReportingUnits as $unit)
-                                                            <div class="tag-dropdown-item" wire:click.stop="$set('labSectionForms.{{ $activeLabSectionLabId }}.reporting_unit', '{{ $unit->id }}')">
-                                                                {{ $unit->name }}
-                                                            </div>
-                                                        @empty
-                                                            <div class="tag-dropdown-item text-muted">No active reporting units found</div>
-                                                        @endforelse
-                                                    </div>
-                                                @endif
-                                            </div>
-                                            @error('labSectionForms.' . $activeLabSectionLabId . '.reporting_unit') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                            <label class="form-label form-label--modern" for="lab-section-reading-frequency">Reading Frequency <span class="text-danger">*</span></label>
+                                            <select wire:model.live="labSectionForms.{{ $activeLabSectionLabId }}.reading_frequency"
+                                                    id="lab-section-reading-frequency"
+                                                    class="form-control form-control--modern">
+                                                @for($freq = 1; $freq <= 5; $freq++)
+                                                    <option value="{{ $freq }}">
+                                                        @switch($freq)
+                                                            @case(1) Once daily @break
+                                                            @case(2) Twice daily @break
+                                                            @case(3) Three times daily @break
+                                                            @case(4) Four times daily @break
+                                                            @case(5) Five times daily @break
+                                                        @endswitch
+                                                    </option>
+                                                @endfor
+                                            </select>
+                                            @error('labSectionForms.' . $activeLabSectionLabId . '.reading_frequency') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                         </div>
+
+                                        @php
+                                            $frequencySchedule = data_get($labSectionForms, $activeLabSectionLabId . '.reading_frequency_schedule', []);
+                                        @endphp
+                                        @if(is_array($frequencySchedule) && count($frequencySchedule) > 0)
+                                            <div class="col-12">
+                                                <label class="form-label form-label--modern mb-2">Reading Frequency Schedule</label>
+                                                <div class="frequency-schedule-card">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm mb-0 frequency-schedule-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th style="width: 110px;">Frequency</th>
+                                                                    <th style="width: 160px;">Interval (h)</th>
+                                                                    <th>Label</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach($frequencySchedule as $index => $row)
+                                                                    @php $slot = (int) ($row['frequency'] ?? ($index + 1)); @endphp
+                                                                    <tr wire:key="lab-section-frequency-{{ $activeLabSectionLabId }}-{{ $slot }}">
+                                                                        <td>
+                                                                            <span class="frequency-pill">{{ $slot }}</span>
+                                                                        </td>
+                                                                        <td>
+                                                                            @if($slot === 1)
+                                                                                <span class="frequency-interval-muted">—</span>
+                                                                            @else
+                                                                                <input type="number"
+                                                                                       step="0.01"
+                                                                                       min="0.01"
+                                                                                       wire:model.live="labSectionForms.{{ $activeLabSectionLabId }}.reading_frequency_schedule.{{ $index }}.interval"
+                                                                                       class="form-control form-control--modern frequency-interval-input"
+                                                                                       placeholder="e.g. 4">
+                                                                                @error('labSectionForms.' . $activeLabSectionLabId . '.reading_frequency_schedule.' . $index . '.interval')
+                                                                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                                                                @enderror
+                                                                            @endif
+                                                                        </td>
+                                                                        <td>
+                                                                            <input type="text"
+                                                                                   wire:model.live="labSectionForms.{{ $activeLabSectionLabId }}.reading_frequency_schedule.{{ $index }}.label"
+                                                                                   class="form-control form-control--modern frequency-label-input"
+                                                                                   placeholder="e.g. Morning check">
+                                                                            @error('labSectionForms.' . $activeLabSectionLabId . '.reading_frequency_schedule.' . $index . '.label')
+                                                                                <div class="text-danger small mt-1">{{ $message }}</div>
+                                                                            @enderror
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted d-block mt-2">Assign a label to each reading. For readings after the first, set the interval in hours since the previous reading.</small>
+                                            </div>
+                                        @endif
                                     </div>
                                 </section>
                             @endif
@@ -730,8 +829,8 @@
                                             <td>{{ $deleteDetails['description'] ?? '-' }}</td>
                                         </tr>
                                         <tr>
-                                            <th>Environmental Analysis:</th>
-                                            <td>{{ $deleteDetails['environmental_analysis'] ?? '-' }}</td>
+                                            <th>Environmental Monitoring:</th>
+                                            <td>{{ $deleteDetails['environmental_monitoring'] ?? $deleteDetails['environmental_analysis'] ?? '-' }}</td>
                                         </tr>
                                         <tr>
                                             <th>Equipment:</th>
@@ -1144,6 +1243,10 @@
         color: #64748b;
     }
 
+    .section-meta__wide {
+        grid-column: 1 / -1;
+    }
+
     .section-meta li strong {
         color: #0f172a;
         text-align: right;
@@ -1382,6 +1485,63 @@
         border-radius: 12px;
         padding-inline: 18px;
         box-shadow: 0 14px 26px rgba(37, 99, 235, 0.2);
+    }
+
+    .frequency-schedule-card {
+        border: 1px solid #d8e2ef;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fbfdff 0%, #f8fbff 100%);
+        box-shadow: 0 2px 10px rgba(17, 24, 39, 0.04);
+        overflow: hidden;
+    }
+
+    .frequency-schedule-table thead th {
+        background-color: #f2f7ff;
+        color: #37517a;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        border-bottom: 1px solid #d8e2ef;
+        padding: 10px 14px;
+    }
+
+    .frequency-schedule-table tbody td {
+        vertical-align: middle;
+        border-top: 1px solid #e8eef7;
+        padding: 10px 14px;
+        background-color: #ffffff;
+    }
+
+    .frequency-schedule-table tbody tr:first-child td {
+        border-top: none;
+    }
+
+    .frequency-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background-color: #eaf2ff;
+        color: #295a9b;
+        font-weight: 700;
+        font-size: 0.82rem;
+    }
+
+    .frequency-interval-muted {
+        color: #94a3b8;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .frequency-interval-input,
+    .frequency-label-input {
+        min-height: 40px;
+        border: 1px solid #ccd9ea;
+        border-radius: 10px;
+        font-size: 0.88rem;
     }
 
     @media (max-width: 768px) {

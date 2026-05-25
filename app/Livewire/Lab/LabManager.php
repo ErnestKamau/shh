@@ -152,9 +152,14 @@ class LabManager extends Component
             'expected_max' => null,
             'optimum_level' => '',
             'result_nature' => '',
+            'reading_frequency' => 1,
+            'reading_frequency_interval' => null,
+            'reading_frequency_schedule' => [],
             'reporting_unit' => '',
             'active' => true,
         ];
+
+        $this->syncLabSectionFrequencySchedule($labId);
     }
 
     protected function populateLabSectionForm(string $labId, LabSection $section): void
@@ -171,9 +176,146 @@ class LabManager extends Component
             'expected_max' => $section->expected_max,
             'optimum_level' => $section->optimum_level ?? '',
             'result_nature' => $section->result_nature ?? '',
+            'reading_frequency' => $section->reading_frequency ?? 1,
+            'reading_frequency_interval' => $section->reading_frequency_interval,
+            'reading_frequency_schedule' => $this->scheduleFromSection($section),
             'reporting_unit' => $section->reporting_unit ?? '',
             'active' => (bool) $section->active,
         ];
+
+        $this->syncLabSectionFrequencySchedule($labId);
+    }
+
+    public function updated($property, $value): void
+    {
+        if (preg_match('/^labSectionForms\.([^.]+)\.reading_frequency$/', $property, $matches)) {
+            $this->syncLabSectionFrequencySchedule($matches[1]);
+        }
+
+        if (preg_match('/^labSectionForms\.([^.]+)\.does_environmental_analysis$/', $property, $matches) && $value) {
+            $this->syncLabSectionFrequencySchedule($matches[1]);
+        }
+    }
+
+    protected function syncLabSectionFrequencySchedule(string $labId): void
+    {
+        if (! isset($this->labSectionForms[$labId])) {
+            return;
+        }
+
+        $count = max(1, min(5, (int) ($this->labSectionForms[$labId]['reading_frequency'] ?? 1)));
+        $existing = $this->labSectionForms[$labId]['reading_frequency_schedule'] ?? [];
+
+        if (! is_array($existing)) {
+            $existing = [];
+        }
+
+        $bySlot = [];
+        foreach ($existing as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $slot = (int) ($row['frequency'] ?? $row['slot'] ?? 0);
+            if ($slot > 0) {
+                $bySlot[$slot] = $row;
+            }
+        }
+
+        $legacyInterval = $this->labSectionForms[$labId]['reading_frequency_interval'] ?? null;
+        $schedule = [];
+
+        for ($slot = 1; $slot <= $count; $slot++) {
+            $prev = $bySlot[$slot] ?? [];
+            $interval = $prev['interval'] ?? null;
+
+            if ($slot > 1 && ($interval === null || $interval === '') && $legacyInterval !== null && $legacyInterval !== '') {
+                $interval = $legacyInterval;
+            }
+
+            $schedule[] = [
+                'frequency' => $slot,
+                'interval' => $slot === 1 ? null : ($interval !== null && $interval !== '' ? $interval : ''),
+                'label' => (string) ($prev['label'] ?? ''),
+            ];
+        }
+
+        $this->labSectionForms[$labId]['reading_frequency_schedule'] = $schedule;
+    }
+
+    /**
+     * @return list<array{frequency: int, interval: mixed, label: string}>
+     */
+    protected function scheduleFromSection(LabSection $section): array
+    {
+        $stored = $section->reading_frequency_schedule;
+
+        if (is_array($stored) && $stored !== []) {
+            return array_values($stored);
+        }
+
+        $count = max(1, min(5, (int) ($section->reading_frequency ?? 1)));
+        $legacyInterval = $section->reading_frequency_interval;
+        $schedule = [];
+
+        for ($slot = 1; $slot <= $count; $slot++) {
+            $schedule[] = [
+                'frequency' => $slot,
+                'interval' => $slot === 1 ? null : ($legacyInterval !== null ? (string) $legacyInterval : ''),
+                'label' => '',
+            ];
+        }
+
+        return $schedule;
+    }
+
+    /**
+     * @param  list<array{frequency?: int, interval?: mixed, label?: string}>  $schedule
+     * @return list<array{frequency: int, interval: float|null, label: string}>
+     */
+    protected function normalizeReadingFrequencySchedule(array $schedule, int $count): array
+    {
+        $normalized = [];
+
+        for ($index = 0; $index < $count; $index++) {
+            $row = $schedule[$index] ?? [];
+            $slot = $index + 1;
+            $interval = $row['interval'] ?? null;
+
+            if ($slot === 1) {
+                $interval = null;
+            } elseif ($interval !== null && $interval !== '') {
+                $interval = (float) $interval;
+            } else {
+                $interval = null;
+            }
+
+            $normalized[] = [
+                'frequency' => $slot,
+                'interval' => $interval,
+                'label' => trim((string) ($row['label'] ?? '')),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param  list<array{frequency: int, interval: float|null, label: string}>  $schedule
+     */
+    protected function deriveReadingFrequencyInterval(array $schedule, int $count): ?float
+    {
+        if ($count <= 1) {
+            return null;
+        }
+
+        foreach ($schedule as $row) {
+            if (($row['frequency'] ?? 0) > 1 && $row['interval'] !== null) {
+                return (float) $row['interval'];
+            }
+        }
+
+        return null;
     }
 
     protected function resetLabSectionDropdownState(): void
@@ -449,6 +591,24 @@ class LabManager extends Component
             $rules["labSectionForms.$labId.equipment_id"] = 'required|exists:equipment,id';
             $rules["labSectionForms.$labId.expected_value_type"] = 'required|in:constant,range';
             $rules["labSectionForms.$labId.result_nature"] = 'required|string|max:1000';
+            $rules["labSectionForms.$labId.reading_frequency"] = 'required|integer|min:1|max:5';
+
+            $frequencyCount = (int) ($form['reading_frequency'] ?? 1);
+            $schedule = is_array($form['reading_frequency_schedule'] ?? null)
+                ? $form['reading_frequency_schedule']
+                : [];
+
+            for ($index = 0; $index < $frequencyCount; $index++) {
+                $prefix = "labSectionForms.$labId.reading_frequency_schedule.$index";
+                $rules["$prefix.label"] = 'required|string|max:255';
+
+                if ($index > 0) {
+                    $rules["$prefix.interval"] = 'required|numeric|min:0.01';
+                } else {
+                    $rules["$prefix.interval"] = 'nullable';
+                }
+            }
+
             $rules["labSectionForms.$labId.reporting_unit"] = 'required|exists:reporting_units,id';
 
             if ($valueType === 'constant') {
@@ -463,6 +623,13 @@ class LabManager extends Component
         }
 
         $this->validate($rules);
+
+        $frequencySchedule = $analysisOn
+            ? $this->normalizeReadingFrequencySchedule(
+                is_array($form['reading_frequency_schedule'] ?? null) ? $form['reading_frequency_schedule'] : [],
+                (int) ($form['reading_frequency'] ?? 1)
+            )
+            : [];
 
         try {
             DB::beginTransaction();
@@ -480,6 +647,11 @@ class LabManager extends Component
                 'expected_max' => $analysisOn && $valueType === 'range' ? $form['expected_max'] : null,
                 'optimum_level' => $analysisOn && $valueType !== 'range' ? $form['optimum_level'] : null,
                 'result_nature' => $analysisOn ? $form['result_nature'] : null,
+                'reading_frequency' => $analysisOn ? (int) $form['reading_frequency'] : null,
+                'reading_frequency_interval' => $analysisOn
+                    ? $this->deriveReadingFrequencyInterval($frequencySchedule, (int) ($form['reading_frequency'] ?? 1))
+                    : null,
+                'reading_frequency_schedule' => $analysisOn ? $frequencySchedule : null,
                 'reporting_unit' => $analysisOn ? $form['reporting_unit'] : null,
                 'active' => (bool) ($form['active'] ?? true),
                 'company_id' => getUserCompany(),
@@ -537,14 +709,21 @@ class LabManager extends Component
             'name' => $section->name,
             'code' => $section->code,
             'description' => $section->description,
-            'environmental_analysis' => $section->does_environmental_analysis ? 'Yes' : 'No',
+            'environmental_monitoring' => $section->does_environmental_analysis ? 'Yes' : 'No',
             'equipment' => $section->equipment->name ?? '-',
             'expected_value' => $section->expected_value_type === 'constant'
-                ? 'Constant: ' . ($section->expected_value ?? '-')
+                ? 'Constant: '.($section->expected_value ?? '-')
                 : ($section->expected_value_type === 'range'
-                    ? 'Range: ' . ($section->expected_min ?? '-') . ' - ' . ($section->expected_max ?? '-')
+                    ? 'Range: '.($section->expected_min ?? '-').' - '.($section->expected_max ?? '-')
                     : '-'),
+            'optimum_level' => $section->formattedOptimumLevel(),
             'result_nature' => $section->result_nature ?? '-',
+            'reading_frequency' => $section->does_environmental_analysis
+                ? $section->readingFrequencyLabel()
+                : '-',
+            'reading_frequency_schedule' => $section->does_environmental_analysis
+                ? $section->formattedReadingFrequencySchedule()
+                : '-',
             'reporting_unit' => $section->reportingUnit->name ?? '-',
             'active' => $section->active ? 'Active' : 'Inactive',
         ];

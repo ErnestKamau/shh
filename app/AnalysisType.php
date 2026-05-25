@@ -43,7 +43,10 @@ class AnalysisType extends Model implements Auditable
     'active' => 'boolean',
     'has_no_result' => 'boolean',
     'include_hygiene_score' => 'boolean',
-    'include_sanitizer_efficiency' => 'boolean'
+    'include_sanitizer_efficiency' => 'boolean',
+    'procedure_worksheet_id' => 'string',
+    'grouped_worksheet_holder_id' => 'string',
+    'hybrid_worksheet_id' => 'string',
   ];
   protected $appends = ['labsectionname'];
   public function lab()

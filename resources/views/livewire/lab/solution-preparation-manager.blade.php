@@ -6,7 +6,7 @@
                 <h2 class="scd-title mb-0">Solution preparations</h2>
                 <p class="scd-subtitle mb-0 mt-1">Track and manage solution preparation runs</p>
             </div>
-            <button type="button" wire:click="showNewPreparationModal" class="btn btn-primary spm-new-btn">
+            <button type="button" wire:click="showNewPreparationModal" class="btn btn-outline-primary spm-new-btn">
                 <i class="mdi mdi-plus"></i> New preparation
             </button>
         </div>
@@ -23,7 +23,7 @@
     <div class="card border-0 shadow-sm mb-4 spm-filters">
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="spm-label">Search</label>
                     <input type="text" wire:model.live.debounce.300ms="search" class="form-control spm-input" placeholder="Prep # or batch...">
                 </div>
@@ -95,6 +95,18 @@
                         @endif
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <label for="spm-per-page" class="spm-label">Show</label>
+                    <div class="tag-select-container">
+                        <div class="tag-select-input spm-show-filter-input">
+                            <select wire:model.live="perPage" id="spm-per-page" class="tag-select-native no-select2">
+                                @foreach($perPageOptions as $option)
+                                    <option value="{{ $option }}">{{ $option }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -104,34 +116,19 @@
             <table class="table table-hover mb-0 scd-table">
                 <thead>
                     <tr>
+                        <th style="width: 130px;">Actions</th>
                         <th>Preparation #</th>
                         <th>Solution</th>
                         <th>Status</th>
                         <th>Prepared</th>
                         <th>Qty</th>
-                        <th style="width: 130px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($this->preparations as $prep)
                         <tr>
-                            <td><strong>{{ $prep->preparation_number }}</strong></td>
-                            <td>{{ $prep->solution?->name }}</td>
                             <td>
-                                @php
-                                    $statusClass = match($prep->status) {
-                                        'preparing' => 'scd-status--preparing',
-                                        'awaiting_approval' => 'scd-status--awaiting',
-                                        'completed' => 'scd-status--completed',
-                                        default => 'scd-status--cancelled',
-                                    };
-                                @endphp
-                                <span class="scd-status {{ $statusClass }}">{{ str_replace('_', ' ', ucfirst($prep->status)) }}</span>
-                            </td>
-                            <td>{{ $prep->prepared_at?->format('M j, Y H:i') ?? '—' }}</td>
-                            <td>{{ $prep->quantity_prepared }} {{ $prep->solution?->reportingUnit?->name }}</td>
-                            <td>
-                                <div class="d-flex gap-1 justify-content-end">
+                                <div class="d-flex flex-wrap">
                                     <a href="{{ route('solutions-preparation-show', $prep->id) }}"
                                        class="btn btn-sm rm-act-btn rm-act-btn--view"
                                        title="Open preparation">
@@ -155,6 +152,21 @@
                                     @endif
                                 </div>
                             </td>
+                            <td><strong>{{ $prep->preparation_number }}</strong></td>
+                            <td>{{ $prep->solution?->name }}</td>
+                            <td>
+                                @php
+                                    $statusClass = match($prep->status) {
+                                        'preparing' => 'scd-status--preparing',
+                                        'awaiting_approval' => 'scd-status--awaiting',
+                                        'completed' => 'scd-status--completed',
+                                        default => 'scd-status--cancelled',
+                                    };
+                                @endphp
+                                <span class="scd-status {{ $statusClass }}">{{ str_replace('_', ' ', ucfirst($prep->status)) }}</span>
+                            </td>
+                            <td>{{ $prep->prepared_at?->format('M j, Y H:i') ?? '—' }}</td>
+                            <td>{{ $prep->quantity_prepared }} {{ $prep->solution?->reportingUnit?->name }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -471,6 +483,7 @@
     @endif
 
     @include('livewire.lab.partials.scd-styles')
+    @include('layouts.registry.partials.rm-act-btn-styles')
 
     <style>
     .solution-preparation-manager {
@@ -603,6 +616,37 @@
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
 
+    .solution-preparation-manager .spm-show-filter-input {
+        padding: 0 12px;
+    }
+
+    .solution-preparation-manager .tag-select-native {
+        width: 100%;
+        display: block;
+        border: none;
+        box-shadow: none;
+        background-color: transparent;
+        padding: 10px 32px 10px 0;
+        min-height: 42px;
+        line-height: 1.5;
+        font-size: 0.9rem;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 6px center;
+        background-size: 16px 16px;
+        cursor: pointer;
+    }
+
+    .solution-preparation-manager .tag-select-native:focus {
+        border: none;
+        box-shadow: none;
+        background-color: transparent;
+        outline: none;
+    }
+
     .solution-preparation-manager .tag-input {
         flex: 1;
         min-width: 120px;
@@ -678,42 +722,6 @@
 
     .solution-preparation-manager .tag-select-container.is-invalid .tag-select-input {
         border-color: #dc3545;
-    }
-
-    .solution-preparation-manager .rm-act-btn {
-        border-radius: 8px;
-        padding: 4px 8px;
-        font-size: 12px;
-    }
-
-    .solution-preparation-manager .rm-act-btn--view {
-        border: 1px solid var(--spm-slate-200);
-        color: #475569;
-        background: #fff;
-    }
-
-    .solution-preparation-manager .rm-act-btn--view:hover {
-        background: var(--spm-slate-50);
-    }
-
-    .solution-preparation-manager .rm-act-btn--edit {
-        border: 1px solid #bfdbfe;
-        color: #1d4ed8;
-        background: #eff6ff;
-    }
-
-    .solution-preparation-manager .rm-act-btn--edit:hover {
-        background: #dbeafe;
-    }
-
-    .solution-preparation-manager .rm-act-btn--delete {
-        border: 1px solid #fecaca;
-        color: #b91c1c;
-        background: #fef2f2;
-    }
-
-    .solution-preparation-manager .rm-act-btn--delete:hover {
-        background: #fee2e2;
     }
 
     .spm-solution-locked {

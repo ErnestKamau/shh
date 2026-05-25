@@ -1007,6 +1007,10 @@ Route::post('/remove-user-access/{id}/{user}', 'InventoryLocationController@remo
 Route::get('/equipment/asset-types', [EquipmentAppController::class, 'assetTypeManager'])->name('equipment.asset-types.index')->middleware(['auth', 'can:equipment.components.asset-type.view']);
 Route::get('/equipment/asset-locations', [EquipmentAppController::class, 'assetLocationManager'])->name('equipment.asset-locations.index')->middleware(['auth', 'can:equipment.components.asset-location.view']);
 
+Route::get('/equipment/depreciation', [EquipmentAppController::class, 'depreciationList'])->name('equipment.depreciation.index')->middleware(['auth', 'can:equipment.components.depreciation.view']);
+Route::get('/equipment/depreciation/methods', [EquipmentAppController::class, 'depreciationMethods'])->name('equipment.depreciation.methods.index')->middleware(['auth', 'can:equipment.components.depreciation.methods.view']);
+Route::get('/equipment/depreciation/reports', [EquipmentAppController::class, 'depreciationReports'])->name('equipment.depreciation.reports.index')->middleware(['auth', 'can:equipment.components.depreciation.view']);
+
 //############################################EQUIPMENT##########################################################
 // Equipment Monitoring Routes
 Route::get('/equipment/monitoring', [EquipmentAppController::class, 'monitoring'])
@@ -2131,6 +2135,12 @@ Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(func
     Route::prefix('hybrid-worksheets')->name('hybrid-worksheets.')->group(function () {
         Route::get('/manage', 'HybridWorksheets\HybridWorksheetController@manage')->name('manage');
         Route::get('/{hybridWorksheet}/versions/{hybridWorksheetVersion}/edit', 'HybridWorksheets\HybridWorksheetController@edit')->name('edit');
+    });
+
+    // Log entry worksheets
+    Route::prefix('log-entry-worksheets')->name('log-entry-worksheets.')->group(function () {
+        Route::get('/manage', 'LogEntryWorksheets\LogEntryWorksheetController@manage')->name('manage');
+        Route::get('/{logEntryWorksheet}/edit', 'LogEntryWorksheets\LogEntryWorksheetController@edit')->name('edit');
     });
 });
 

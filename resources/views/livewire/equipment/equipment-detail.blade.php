@@ -7,14 +7,16 @@
                     <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
                         <div>
                             <div class="eq-kicker mb-1">{{ __('equipment.equipment_management') }}</div>
-                            <h2 class="mb-1 eq-hero-title">
-                                <i class="mdi mdi-tools text-primary"></i>
-                                {{ $equipment->name ?? 'Equipment' }}
+                            <h2 class="mb-1 eq-hero-title d-flex align-items-center flex-wrap" style="gap: 10px;">
+                                <span class="d-inline-flex align-items-center" style="gap: 8px;">
+                                    <i class="mdi mdi-tools text-primary"></i>
+                                    {{ $equipment->name ?? 'Equipment' }}
+                                </span>
+                                <span class="badge badge-light border px-3 py-2 fw-normal" style="font-size: 0.85rem;">{{ $equipment->equipment_number }}</span>
                             </h2>
                             <p class="text-muted mb-0">{{ __('equipment.equipment_details_management') }}</p>
                         </div>
                         <div class="d-flex align-items-center" style="gap: 8px;">
-                            <span class="badge badge-light border px-3 py-2">{{ $equipment->equipment_number }}</span>
                             <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm">
                                 <i class="mdi mdi-pencil"></i> Edit
                             </button>
@@ -255,11 +257,35 @@
                             </button>
                         </li>
                         @endif
+                        @if($equipment->has_logbook_tracking && !$fromEquipmentMaintenance)
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'logbook' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('logbook')" type="button">
+                                <i class="mdi mdi-book-open-page-variant"></i> Log Book
+                            </button>
+                        </li>
+                        @endif
+                        @can('equipment.components.depreciation.view')
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'asset-depreciation' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('asset-depreciation')" type="button">
+                                <i class="mdi mdi-finance"></i> Asset Depreciation
+                            </button>
+                        </li>
+                        @endcan
                     </ul>
                 </div>
                 <div class="card-body eq-main-body">
                     @if($activeTab === 'details')
                         @include('livewire.equipment.partials.equipment-details-tab')
+                    @endif
+
+                    @if($activeTab === 'asset-depreciation')
+                        @livewire('equipment.equipment-depreciation-panel', ['equipmentId' => $equipment->id], key('depreciation-'.$equipment->id))
+                    @endif
+
+                    @if($activeTab === 'logbook' && $equipment->has_logbook_tracking)
+                        @livewire('equipment.equipment-logbook-panel', ['equipmentId' => $equipment->id], key('logbook-'.$equipment->id))
                     @endif
 
                     <!-- Maintenance Log Tab -->

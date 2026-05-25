@@ -200,5 +200,28 @@ class EquipmentAppController extends Controller
         ]);
     }
 
+    public function depreciationList()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'depreciation-list',
+            'pageTitle' => 'Depreciation List',
+        ]);
+    }
+
+    public function depreciationMethods()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'depreciation-methods',
+            'pageTitle' => 'Depreciation Methods',
+        ]);
+    }
+
+    public function depreciationReports()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'depreciation-reports',
+            'pageTitle' => 'Depreciation Reports',
+        ]);
+    }
 }
 

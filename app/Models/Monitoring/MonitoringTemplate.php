@@ -60,6 +60,18 @@ class MonitoringTemplate extends Model
         return $this->hasMany(MonitoringFormulaRule::class, 'template_id');
     }
 
+    public function readingSteps(): HasMany
+    {
+        return $this->hasMany(MonitoringReadingStep::class, 'template_id')->orderBy('step_number');
+    }
+
+    public function configuredFields(): HasMany
+    {
+        return $this->hasMany(MonitoringTemplateConfiguredField::class, 'template_id')
+            ->orderBy('placement')
+            ->orderBy('order');
+    }
+
     public function logs(): HasMany
     {
         return $this->hasMany(MonitoringLog::class, 'template_id');

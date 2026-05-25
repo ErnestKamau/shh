@@ -129,7 +129,7 @@ class LabAppController extends Controller
 
         return view('livewire.layout.lab-app', [
             'componentType' => 'elements',
-            'pageTitle' => 'Analysis Elements - ' . $analysisType->name,
+            'pageTitle' => 'Analysis Parameters - ' . $analysisType->name,
             'analysisType' => $analysisType
         ]);
     }
@@ -234,11 +234,6 @@ class LabAppController extends Controller
         return view('livewire.layout.lab-app', [
             'componentType' => 'template-create',
             'pageTitle' => 'Create Monitoring Template',
-            'breadcrumbItems' => [
-                ['label' => 'Home', 'url' => route('home')],
-                ['label' => 'Monitoring', 'url' => route('livewire.monitoring')],
-                ['label' => 'Create Template', 'current' => true],
-            ],
         ]);
     }
 
@@ -251,11 +246,6 @@ class LabAppController extends Controller
             'componentType' => 'template-edit',
             'pageTitle' => 'Edit Monitoring Template',
             'template' => $template,
-            'breadcrumbItems' => [
-                ['label' => 'Home', 'url' => route('home')],
-                ['label' => 'Monitoring', 'url' => route('livewire.monitoring')],
-                ['label' => 'Edit Template', 'current' => true],
-            ],
         ]);
     }
 }

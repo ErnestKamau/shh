@@ -19,11 +19,13 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\File;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\EquipmentImport;
+use App\Livewire\Equipment\Concerns\InteractsWithEquipmentDepreciationWizard;
 use App\Livewire\Equipment\Concerns\InteractsWithEquipmentFormWizard;
 
 class EquipmentManager extends Component
 {
     use InteractsWithEquipmentFormWizard;
+    use InteractsWithEquipmentDepreciationWizard;
     use WithPagination, WithFileUploads;
 
     public bool $embedded = false;
@@ -73,6 +75,7 @@ class EquipmentManager extends Component
         'asset_location_id' => null,
         'active' => true,
         'requires_daily_log' => false,
+        'has_logbook_tracking' => false,
         'daily_log_value_type' => '',
         'daily_log_nature' => '',
         'daily_log_tolerance' => null,
@@ -213,6 +216,7 @@ class EquipmentManager extends Component
     public function showCreateEquipmentModal(): void
     {
         $this->resetEquipmentForm();
+        $this->initDepreciationForm();
         $this->currentStep = 1;
         $this->showEquipmentModal = true;
         $this->editingEquipment = null;
@@ -249,6 +253,7 @@ class EquipmentManager extends Component
             'asset_location_id' => $equipment->asset_location_id,
             'active' => $equipment->active ?? true,
             'requires_daily_log' => $equipment->requires_daily_log ?? false,
+            'has_logbook_tracking' => $equipment->has_logbook_tracking ?? false,
             'daily_log_value_type' => $equipment->daily_log_value_type ?? '',
             'daily_log_nature' => $equipment->daily_log_nature ?? '',
             'daily_log_tolerance' => $equipment->daily_log_tolerance ?? null,
@@ -312,6 +317,7 @@ class EquipmentManager extends Component
             $this->monitoredEquipmentSearch = '';
         }
 
+        $this->loadDepreciationFormFromEquipment($equipment);
         $this->photo = null;
         $this->currentStep = 1;
         $this->showEquipmentModal = true;
@@ -319,7 +325,11 @@ class EquipmentManager extends Component
 
     public function saveEquipment(): void
     {
-        $this->validate($this->getEquipmentFormSaveValidationRules());
+        $rules = array_merge(
+            $this->getEquipmentFormSaveValidationRules(),
+            $this->getDepreciationStepRules()
+        );
+        $this->validate($rules);
 
         try {
             $data = $this->equipmentForm;
@@ -339,13 +349,16 @@ class EquipmentManager extends Component
                     unset($data['picture']);
                 }
                 $this->editingEquipment->update($data);
+                $equipment = $this->editingEquipment->fresh();
+                $this->persistDepreciationConfig($equipment, false);
                 $this->message = 'Equipment updated successfully!';
             } else {
                 // Set default picture if no photo uploaded
                 if (!$this->photo) {
                     $data['picture'] = '/images/default-equipment.png';
                 }
-                Equipment::create($data);
+                $equipment = Equipment::create($data);
+                $this->persistDepreciationConfig($equipment, true);
                 $this->message = 'Equipment created successfully!';
             }
 
@@ -400,6 +413,7 @@ class EquipmentManager extends Component
             'asset_location_id' => null,
             'active' => true,
             'requires_daily_log' => false,
+        'has_logbook_tracking' => false,
             'daily_log_value_type' => '',
             'daily_log_nature' => '',
             'daily_log_tolerance' => null,
@@ -448,6 +462,7 @@ class EquipmentManager extends Component
 
         $this->editingEquipment = null;
         $this->currentStep = 1;
+        $this->initDepreciationForm();
     }
 
     public function clearFilters(): void

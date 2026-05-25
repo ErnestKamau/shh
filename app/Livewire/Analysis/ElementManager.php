@@ -53,6 +53,7 @@ class ElementManager extends Component
         'has_method_sequence' => false,
         'method_sequence_id' => null,
         'stage_header_id' => null,
+        'log_entry_worksheet_id' => null,
     ];
 
     // Supporting Data
@@ -63,6 +64,7 @@ class ElementManager extends Component
     public $remedyHeaders = [];
     public $reportingUnits = [];
     public $formulars = [];
+    public $logEntryWorksheets = [];
     public $methodSequences = [];
 
     public $stageHeaders = [];
@@ -74,6 +76,7 @@ class ElementManager extends Component
     public $operatorSearch = '';
     public $remedyHeaderSearch = '';
     public $formularSearch = '';
+    public $logEntryWorksheetSearch = '';
     public $methodSequenceSearch = '';
     public $reportingUnitSearch = '';
 
@@ -83,6 +86,7 @@ class ElementManager extends Component
     public $showOperatorDropdown = false;
     public $showRemedyHeaderDropdown = false;
     public $showFormularDropdown = false;
+    public $showLogEntryWorksheetDropdown = false;
     public $showMethodSequenceDropdown = false;
     public $showReportingUnitDropdown = false;
 
@@ -92,6 +96,7 @@ class ElementManager extends Component
     public $selectedOperatorName = '';
     public $selectedRemedyHeaderName = '';
     public $selectedFormularName = '';
+    public $selectedLogEntryWorksheetName = '';
     public $selectedMethodSequenceName = '';
 
     public $filteredAnalytes = [];
@@ -100,6 +105,7 @@ class ElementManager extends Component
     public $filteredOperators = [];
     public $filteredRemedyHeaders = [];
     public $filteredFormulars = [];
+    public $filteredLogEntryWorksheets = [];
     public $filteredMethodSequences = [];
     public $filteredReportingUnits = [];
 
@@ -126,6 +132,7 @@ class ElementManager extends Component
         'elementForm.remark_is_manual' => 'boolean',
         'elementForm.result_is_calculated' => 'boolean',
         'elementForm.formular_id' => 'nullable|uuid|exists:formulas,id',
+        'elementForm.log_entry_worksheet_id' => 'nullable|uuid|exists:log_entry_worksheets,id',
         'elementForm.recommend_remedies' => 'boolean',
         'elementForm.remedy_header_id' => 'nullable|uuid|exists:remedy_headers,id',
         'elementForm.has_method_sequence' => 'boolean',
@@ -175,6 +182,7 @@ class ElementManager extends Component
         $this->remedyHeaders = \App\Models\RemedyHeader::all();
         $this->reportingUnits = ReportingUnit::where('active', 1)->get();
         $this->formulars = \App\Models\Formulars\Formula::where('is_active', 1)->get();
+        $this->logEntryWorksheets = \App\Models\LogEntryWorksheets\LogEntryWorksheet::where('is_active', 1)->orderBy('name')->get();
         $this->methodSequences = collect([]);
         $this->stageHeaders = collect([]);
     }
@@ -272,6 +280,7 @@ class ElementManager extends Component
             'has_method_sequence' => $element->has_method_sequence ?? false,
             'method_sequence_id' => $element->method_sequence_id,
             'stage_header_id' => $element->stage_header_id,
+            'log_entry_worksheet_id' => $element->log_entry_worksheet_id,
         ];
         
         // Set selected names for searchable selects
@@ -292,6 +301,11 @@ class ElementManager extends Component
         
         $this->selectedFormularName = $element->formular_id ? \App\Models\Formulars\Formula::find($element->formular_id)?->name : '';
         $this->formularSearch = $this->selectedFormularName;
+
+        $this->selectedLogEntryWorksheetName = $element->log_entry_worksheet_id
+            ? \App\Models\LogEntryWorksheets\LogEntryWorksheet::find($element->log_entry_worksheet_id)?->name
+            : '';
+        $this->logEntryWorksheetSearch = $this->selectedLogEntryWorksheetName;
         
         $this->selectedMethodSequenceName = $element->methodSequence->name ?? '';
         $this->methodSequenceSearch = $this->selectedMethodSequenceName;
@@ -379,7 +393,9 @@ class ElementManager extends Component
             'result_is_calculated' => false,
             'formular_id' => null,
             'has_method_sequence' => false,
-            'method_sequence_id' => null
+            'method_sequence_id' => null,
+            'stage_header_id' => null,
+            'log_entry_worksheet_id' => null,
         ];
         
         // Reset searchable select properties
@@ -433,7 +449,9 @@ class ElementManager extends Component
             'result_is_calculated' => false,
             'formular_id' => null,
             'has_method_sequence' => false,
-            'method_sequence_id' => null
+            'method_sequence_id' => null,
+            'stage_header_id' => null,
+            'log_entry_worksheet_id' => null,
         ];
         
         // Reset searchable select properties
@@ -443,6 +461,7 @@ class ElementManager extends Component
         $this->operatorSearch = '';
         $this->remedyHeaderSearch = '';
         $this->formularSearch = '';
+        $this->logEntryWorksheetSearch = '';
         $this->methodSequenceSearch = '';
         
         $this->selectedAnalyteName = '';
@@ -745,6 +764,40 @@ class ElementManager extends Component
         $this->formularSearch = '';
     }
 
+    public function searchLogEntryWorksheets(): void
+    {
+        $this->showLogEntryWorksheetDropdown = true;
+        $search = $this->logEntryWorksheetSearch;
+
+        $this->filteredLogEntryWorksheets = \App\Models\LogEntryWorksheets\LogEntryWorksheet::where('is_active', true)
+            ->where('name', 'like', '%'.$search.'%')
+            ->orderBy('name')
+            ->limit(10)
+            ->get();
+    }
+
+    public function selectLogEntryWorksheet(string $id): void
+    {
+        $worksheet = \App\Models\LogEntryWorksheets\LogEntryWorksheet::query()
+            ->where('is_active', true)
+            ->find($id);
+        if (! $worksheet) {
+            return;
+        }
+
+        $this->elementForm['log_entry_worksheet_id'] = (string) $worksheet->id;
+        $this->selectedLogEntryWorksheetName = $worksheet->name;
+        $this->logEntryWorksheetSearch = $worksheet->name;
+        $this->showLogEntryWorksheetDropdown = false;
+    }
+
+    public function clearLogEntryWorksheet(): void
+    {
+        $this->elementForm['log_entry_worksheet_id'] = null;
+        $this->selectedLogEntryWorksheetName = '';
+        $this->logEntryWorksheetSearch = '';
+    }
+
     public function searchMethodSequences()
     {
         $this->showMethodSequenceDropdown = true;
@@ -811,6 +864,17 @@ class ElementManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    #[On('worksheets-synced')]
+    public function handleWorksheetsSynced(string $message = '', string $messageType = 'success'): void
+    {
+        if ($message === '') {
+            return;
+        }
+
+        $this->message = $message;
+        $this->messageType = $messageType;
     }
 
     public function closeElementModal()

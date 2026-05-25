@@ -76,6 +76,18 @@ class EquipmentPermissionsSeeder extends Seeder
             'equipment.components.disposal-workflow.add',
             'equipment.components.disposal-workflow.edit',
             'equipment.components.disposal-workflow.delete',
+
+            // Asset depreciation.
+            'equipment.components.depreciation.view',
+            'equipment.components.depreciation.configure',
+            'equipment.components.depreciation.recalculate',
+            'equipment.components.depreciation.appraisal.create',
+            'equipment.components.depreciation.appraisal.approve',
+            'equipment.components.depreciation.export',
+            'equipment.components.depreciation.methods.view',
+            'equipment.components.depreciation.methods.add',
+            'equipment.components.depreciation.methods.edit',
+            'equipment.components.depreciation.methods.delete',
         ];
 
         $permissions = [];
@@ -118,5 +130,7 @@ class EquipmentPermissionsSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->command?->info('Equipment permissions ensured: ' . count($permissionNames));
+
+        $this->call(DepreciationMethodsSeeder::class);
     }
 }

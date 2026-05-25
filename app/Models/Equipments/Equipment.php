@@ -52,6 +52,7 @@ class Equipment extends Model implements Auditable
 		'comment',
 		'is_disposal',
 		'requires_daily_log',
+		'has_logbook_tracking',
 		'daily_log_value_type',
 		'daily_log_nature',
 		'daily_log_tolerance',
@@ -76,6 +77,7 @@ class Equipment extends Model implements Auditable
 
 	protected $casts = [
 		'requires_daily_log' => 'boolean',
+		'has_logbook_tracking' => 'boolean',
 		'daily_log_tolerance' => 'integer',
 		'daily_log_expected_min' => 'float',
 		'daily_log_expected_max' => 'float',
@@ -210,6 +212,26 @@ class Equipment extends Model implements Auditable
 	public function assetLocation(): BelongsTo
 	{
 		return $this->belongsTo(\App\Models\Assets\AssetLocation::class, 'asset_location_id');
+	}
+
+	public function logbookColumns(): \Illuminate\Database\Eloquent\Relations\HasMany
+	{
+		return $this->hasMany(\App\Models\Equipments\Logbook\EquipmentLogbookColumn::class, 'equipment_id')->orderBy('order');
+	}
+
+	public function logbookEntries(): \Illuminate\Database\Eloquent\Relations\HasMany
+	{
+		return $this->hasMany(\App\Models\Equipments\Logbook\EquipmentLogbookEntry::class, 'equipment_id');
+	}
+
+	public function depreciationConfig(): \Illuminate\Database\Eloquent\Relations\HasOne
+	{
+		return $this->hasOne(\App\Models\Equipments\Depreciation\EquipmentDepreciationConfig::class, 'equipment_id');
+	}
+
+	public function appraisals(): \Illuminate\Database\Eloquent\Relations\HasMany
+	{
+		return $this->hasMany(\App\Models\Equipments\Depreciation\EquipmentAppraisal::class, 'equipment_id');
 	}
 
 	public function lab(): BelongsTo

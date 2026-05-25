@@ -855,15 +855,24 @@
     @endif
     {{-- View Parameters Modal (Phase 5) --}}
     @if($showParametersModal)
-    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-xl" role="document">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-chart-box"></i> Parameters for Sample:
-                        <strong>{{ $selectedSampleCode }}</strong>
-                    </h5>
-                    <button type="button" class="close text-white" wire:click="cancelViewParameters">
+    <div class="modal fade show d-block sample-parameters-modal" tabindex="-1" role="dialog"
+        style="background: rgba(15, 23, 42, 0.45);" wire:keydown.escape.window="cancelViewParameters">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
+            <div class="modal-content sample-parameters-modal__content">
+                <div class="modal-header border-0 sample-parameters-modal__header">
+                    <div>
+                        <h5 class="modal-title mb-1">
+                            <i class="mdi mdi-flask-outline text-primary"></i>
+                            Parameters for sample
+                        </h5>
+                        <p class="text-muted small mb-0">
+                            <span class="badge badge-light border font-weight-normal">{{ $selectedSampleCode }}</span>
+                            @if(!empty($sampleParameters))
+                                <span class="ml-1">{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
+                            @endif
+                        </p>
+                    </div>
+                    <button type="button" class="close" wire:click="cancelViewParameters" aria-label="Close">
                         <span>&times;</span>
                     </button>
                 </div>
@@ -876,16 +885,14 @@
                     <p class="mt-2 text-muted">Loading parameters...</p>
                 </div>
 
-                <div wire:loading.remove wire:target="viewParameters" class="modal-body"
-                    style="max-height: 75vh; overflow-y: auto;">
+                <div wire:loading.remove wire:target="viewParameters" class="modal-body sample-parameters-modal__body">
                     @if(!empty($sampleParameters))
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered table-striped table-hover"
-                            style="font-size: 0.85rem;">
-                            <thead class="thead-dark sticky-top">
+                    <div class="table-responsive sample-parameters-modal__table-wrap">
+                        <table class="table table-sm sample-parameters-table mb-0">
+                            <thead>
                                 <tr>
                                     <th style="min-width: 100px;">Sample</th>
-                                    <th style="min-width: 100px;">Analysis Type</th>
+                                    <th style="min-width: 120px;">Analysis type</th>
                                     <th style="min-width: 150px;">Analyte</th>
                                     <th style="min-width: 80px;">Symbol</th>
                                     <th style="min-width: 100px;">Result</th>
@@ -908,9 +915,11 @@
                                 <tr wire:key="param-{{ $id }}">
                                     <td><strong>{{ $param['sample_code'] }}</strong></td>
                                     <td>{{ $param['analysis_type'] }}</td>
-                                    <td>
-                                        <strong>{{ $param['analyte_code'] }}</strong><br>
-                                        <small class="text-muted">{{ $param['analyte_name'] }}</small>
+                                    <td class="sample-parameters-modal__analyte">
+                                        <span class="font-weight-semibold d-block text-dark">{{ $param['analyte_name'] }}</span>
+                                        @if(!empty($param['analyte_code']) && $param['analyte_code'] !== $param['analyte_name'])
+                                            <small class="text-muted">{{ $param['analyte_code'] }}</small>
+                                        @endif
                                     </td>
                                     <td>{{ $param['result_reporting_symbol'] ?? '-' }}</td>
                                     <td style="min-width: 160px;">
@@ -921,7 +930,7 @@
                                                                                                                                                                                                                                                                             let val = $el.value;
                                                                                                                                                                                                                                                                             if(val) {
                                                                                                                                                                                                                                                                                 setTimeout(() => {
-                                                                                                                                                                                                                                                                                    let conf = prompt('Please confirm result for {{ $param['analyte_code'] }}:');
+                                                                                                                                                                                                                                                                                    let conf = prompt('Please confirm result for {{ $param['analyte_name'] }}:');
                                                                                                                                                                                                                                                                                     if(conf != val) {
                                                                                                                                                                                                                                                                                         alert('Result mismatch! Please re-enter.');
                                                                                                                                                                                                                                                                                         $el.value = '';
@@ -1048,22 +1057,113 @@
                         </table>
                     </div>
                     @else
-                    <div class="alert alert-info">
-                        <i class="mdi mdi-information"></i> No captured results found for this sample.
+                    <div class="alert alert-light border text-center py-5 mb-0">
+                        <i class="mdi mdi-flask-empty-outline text-muted" style="font-size: 2.5rem;"></i>
+                        <p class="mb-0 mt-2 text-muted">No captured results found for this sample.</p>
                     </div>
                     @endif
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="cancelViewParameters">
+                <div class="modal-footer border-0 sample-parameters-modal__footer">
+                    <button type="button" class="btn btn-light" wire:click="cancelViewParameters">
                         <i class="mdi mdi-close"></i> Close
                     </button>
-                    <button type="button" class="btn btn-primary" wire:click="saveParameters">
-                        <i class="mdi mdi-content-save"></i> Save Changes
+                    <button type="button" class="btn btn-primary px-4" wire:click="saveParameters"
+                        wire:loading.attr="disabled" wire:target="saveParameters">
+                        <span wire:loading.remove wire:target="saveParameters">
+                            <i class="mdi mdi-content-save"></i> Save changes
+                        </span>
+                        <span wire:loading wire:target="saveParameters">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                            Saving…
+                        </span>
                     </button>
                 </div>
             </div>
         </div>
     </div>
+
+    <style>
+        .sample-parameters-modal__content {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+        }
+
+        .sample-parameters-modal__header {
+            padding: 1.25rem 1.5rem 0.75rem;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+        }
+
+        .sample-parameters-modal__body {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 0 1.5rem 1rem;
+            background: #f8fafc;
+        }
+
+        .sample-parameters-modal__table-wrap {
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            background: #fff;
+            overflow: auto;
+            max-height: 62vh;
+        }
+
+        .sample-parameters-table {
+            font-size: 0.8125rem;
+            margin-bottom: 0;
+        }
+
+        .sample-parameters-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .sample-parameters-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .sample-parameters-table tbody td {
+            vertical-align: middle;
+            border-color: #f1f5f9;
+        }
+
+        .sample-parameters-modal__analyte {
+            min-width: 140px;
+            max-width: 200px;
+        }
+
+        .sample-parameters-modal__analyte .font-weight-semibold {
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .sample-parameters-modal__footer {
+            padding: 1rem 1.5rem 1.25rem;
+            background: #fff;
+        }
+
+        .sample-parameters-table .form-control-sm {
+            border-radius: 8px;
+            border-color: #e2e8f0;
+        }
+
+        .sample-parameters-table .form-control-sm:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
+        }
+    </style>
     @endif
 
     {{-- Comments & Interpretations Modal --}}

@@ -23,6 +23,9 @@ class SolutionPreparationManager extends Component
 
     public $perPage = 25;
 
+    /** @var array<int, int> */
+    public array $perPageOptions = [25, 50, 75, 100];
+
     public bool $showCreateModal = false;
 
     public ?string $editingPreparationId = null;
@@ -80,6 +83,11 @@ class SolutionPreparationManager extends Component
     }
 
     public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingPerPage(): void
     {
         $this->resetPage();
     }

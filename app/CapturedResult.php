@@ -38,7 +38,15 @@ class CapturedResult extends Model implements Auditable
         'third_standard_id' => 'string',
         'ltm_method_id' => 'string',
         'formular_id' => 'string',
-        'method_sequence_id' => 'string'
+        'method_sequence_id' => 'string',
+        'procedure_worksheet_id' => 'string',
+        'grouped_worksheet_holder_id' => 'string',
+        'hybrid_worksheet_id' => 'string',
+        'has_procedure_worksheet' => 'boolean',
+        'has_grouped_worksheet' => 'boolean',
+        'has_hybrid_worksheet' => 'boolean',
+        'log_entry_worksheet_id' => 'string',
+        'has_log_entry_worksheet' => 'boolean',
     ];
 	use \OwenIt\Auditing\Auditable;
 	protected $appends = ['repeatsampleresult', 'isitalic'];
@@ -182,6 +190,21 @@ class CapturedResult extends Model implements Auditable
 	public function procedureWorksheet()
 	{
 		return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
+	}
+
+	public function groupedWorksheetHolder()
+	{
+		return $this->belongsTo(\App\Models\GroupedWorksheets\GroupedWorksheetHolder::class, 'grouped_worksheet_holder_id');
+	}
+
+	public function hybridWorksheet()
+	{
+		return $this->belongsTo(\App\Models\HybridWorksheets\HybridWorksheet::class, 'hybrid_worksheet_id');
+	}
+
+	public function logEntryWorksheet()
+	{
+		return $this->belongsTo(\App\Models\LogEntryWorksheets\LogEntryWorksheet::class, 'log_entry_worksheet_id');
 	}
 	
     public function batchAttachments()
