@@ -197,24 +197,26 @@
 </div>
 
 <style>
-/* Clinical Form Display Styling - Imara LIMS Design */
-
+/* Clinical Form Display Styling - Modern sleek design */
 .clinical-form-display {
     width: 100%;
+    font-family: inherit;
 }
 
 /* Section Card */
 .clinical-section-card {
     background: #ffffff;
-    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 12px;
     margin-bottom: 2rem;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    transition: box-shadow 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .clinical-section-card:hover {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.03);
+    transform: translateY(-1px);
 }
 
 /* Section Header */
@@ -291,48 +293,50 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-weight: 600;
-    color: #414754;
-    margin-bottom: 0.5rem;
+    color: #64748b;
+    margin-bottom: 0.4rem;
 }
 
 .clinical-required {
-    color: #ba1a1a;
+    color: #ef4444;
     margin-left: 0.25rem;
 }
 
 /* Field Value Box */
 .clinical-field-value-box {
     background: #ffffff;
-    border: 1px solid #e1e3e4;
-    border-radius: 4px;
-    padding: 1rem;
-    min-height: 2.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.875rem 1rem;
+    min-height: 2.75rem;
     display: flex;
     align-items: center;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .clinical-field-value-box:hover {
-    border-color: #c1c6d7;
+    border-color: #cbd5e1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .clinical-field-value {
-    color: #191c1d;
+    color: #0f172a;
     font-weight: 500;
-    font-size: 0.9375rem;
+    font-size: 0.95rem;
     word-break: break-word;
 }
 
 /* Table Styles */
 .clinical-rows-holder {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
 }
 
 .clinical-table-wrapper {
     overflow-x: auto;
-    border: 1px solid #e1e3e4;
-    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.01);
 }
 
 .clinical-data-table {
@@ -342,40 +346,36 @@
 }
 
 .clinical-table-header {
-    background: #f3f4f5;
-    border-bottom: 2px solid #e1e3e4;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .clinical-table-th {
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     text-align: left;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    color: #191c1d;
+    color: #64748b;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
     white-space: nowrap;
-    border-right: 1px solid #e1e3e4;
-}
-
-.clinical-table-th:last-child {
-    border-right: none;
 }
 
 .clinical-row-index {
     width: 60px;
     text-align: center;
-    background: #edeeef;
+    background: #f8fafc;
     font-weight: 600;
+    color: #94a3b8;
 }
 
 .clinical-table-row {
-    border-bottom: 1px solid #e1e3e4;
+    border-bottom: 1px solid #f1f5f9;
     transition: background-color 0.15s ease;
 }
 
 .clinical-table-row:hover {
-    background-color: #f8f9fa;
+    background-color: #f8fafc;
 }
 
 .clinical-table-row:last-child {
@@ -383,57 +383,59 @@
 }
 
 .clinical-table-td {
-    padding: 1rem;
-    font-size: 0.9375rem;
-    color: #191c1d;
-    border-right: 1px solid #e1e3e4;
+    padding: 1rem 1.25rem;
+    font-size: 0.95rem;
+    color: #0f172a;
+    font-weight: 500;
     vertical-align: middle;
-}
-
-.clinical-table-td:last-child {
-    border-right: none;
 }
 
 /* Signature Image */
 .clinical-signature {
-    max-width: 150px;
-    max-height: 80px;
-    border: 1px solid #e1e3e4;
+    max-width: 120px;
+    max-height: 60px;
     border-radius: 4px;
     display: block;
 }
 
 .clinical-upload-preview {
-    max-width: 220px;
-    max-height: 180px;
-    border: 1px solid #e1e3e4;
-    border-radius: 4px;
+    max-width: 180px;
+    max-height: 140px;
+    border-radius: 6px;
     display: block;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .clinical-file-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    color: #0059bb;
+    gap: 0.5rem;
+    color: #3b82f6;
     font-weight: 500;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.clinical-file-link:hover {
+    color: #2563eb;
 }
 
 /* Empty State */
 .clinical-empty-state {
     text-align: center;
-    padding: 2rem 1rem;
-    color: #6c757d;
+    padding: 3rem 1rem;
+    color: #94a3b8;
 }
 
 .clinical-empty-state i {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    opacity: 0.6;
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
 }
 
 .clinical-empty-state p {
     margin: 0;
-    font-size: 0.9375rem;
+    font-size: 0.95rem;
+    font-weight: 500;
 }
 </style>

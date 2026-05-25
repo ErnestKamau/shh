@@ -130,7 +130,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
 
         $headHolder = $headSection->elementHolders()->create([
             'holder_type' => 'field',
-            'max_elements' => 3,
+            'max_elements' => 4,
             'sort_order' => 1,
         ]);
 
@@ -158,7 +158,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         ]);
 
         $headHolder->elements()->create([
-            'element_type' => 'select',
+            'element_type' => 'zone_select',
             'label' => 'Lab zone/location',
             'name' => 'lab_zone_location',
             'is_required' => false,
@@ -166,6 +166,14 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'is_mapped' => true,
             'mapping_table' => 'sample_headers',
             'mapping_field' => 'lab_id',
+        ]);
+
+        $headHolder->elements()->create([
+            'element_type' => 'file',
+            'label' => 'Attachments',
+            'name' => 'attachments',
+            'is_required' => false,
+            'sort_order' => 4,
         ]);
 
         // Section 2: Samples (Rows Section)

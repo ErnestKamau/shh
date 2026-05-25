@@ -61,6 +61,17 @@ class Info extends Component
 
     public function render(): \Illuminate\View\View
     {
-        return view('livewire.batch.info');
+        $instance = null;
+        $formData = null;
+        
+        if ($this->batch->hasSubmissionForm()) {
+            $instance = $this->batch->submissionFormInstance;
+            $formData = $instance ? $instance->getFormDataForDisplay() : null;
+        }
+        
+        return view('livewire.batch.info', [
+            'instance' => $instance,
+            'formData' => $formData
+        ]);
     }
 }
