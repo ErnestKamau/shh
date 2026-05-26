@@ -62,13 +62,13 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group sticky-top sticky-offset">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-ticket fa-3x"></i><br>
 				<span class="text-lg text-bold">Help Desk</span>
 			</div>
 			
 			{{-- Dashboard --}}
-			<a href="{{ route('tickets.dashboard') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('tickets.dashboard') ? 'active' : '' }}">
+			<a href="{{ route('tickets.dashboard') }}" class="list-group-item list-group-item-action {{ request()->routeIs('tickets.dashboard') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
@@ -76,7 +76,7 @@
 			</a>
 
 			{{-- All Tickets --}}
-			<a href="{{ route('tickets.index') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('tickets.index') || request()->routeIs('tickets.show') || request()->routeIs('tickets.create') ? 'active' : '' }}">
+			<a href="{{ route('tickets.index') }}" class="list-group-item list-group-item-action {{ request()->routeIs('tickets.index') || request()->routeIs('tickets.show') || request()->routeIs('tickets.create') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-between align-items-center">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class="mdi mdi-ticket-account fa-fw mr-3"></span>
@@ -89,7 +89,7 @@
 			</a>
 
 			{{-- Categories --}}
-			<a href="{{ route('tickets.categories') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('tickets.categories') ? 'active' : '' }}">
+			<a href="{{ route('tickets.categories') }}" class="list-group-item list-group-item-action {{ request()->routeIs('tickets.categories') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-tag fa-fw mr-3"></span>
 					<span class="menu-collapsed">Categories</span>
@@ -97,14 +97,14 @@
 			</a>
 
 			{{-- Archived Tickets --}}
-			<a href="{{ route('tickets.deleted') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('tickets.deleted') ? 'active' : '' }}">
+			<a href="{{ route('tickets.deleted') }}" class="list-group-item list-group-item-action {{ request()->routeIs('tickets.deleted') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-archive fa-fw mr-3"></span>
 					<span class="menu-collapsed">Archived Tickets</span>
 				</div>
 			</a>
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 		</ul>

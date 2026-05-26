@@ -62,7 +62,7 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="fas fa-cogs fa-3x"></i><br>
 				<span class="text-lg text-bold">{{ __('system.system_settings') }}</span>
 			</div>
@@ -73,7 +73,7 @@
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
 
-			<a href="{{ route('system-settings') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('system-settings') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-1"></span>
 					<span class="menu-collapsed">{{ __('system.system_dashboard') }}</span>
@@ -81,7 +81,7 @@
 			</a>
 			
 			@can('system.companies.view')
-			<a href="/companies" class="bg-dark list-group-item list-group-item-action">
+			<a href="/companies" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-domain fa-fw mr-1"></span>
 					<span class="menu-collapsed">{{ __('system.companies') }}</span>
@@ -90,7 +90,7 @@
 			@endcan
 
 			@can('system.module-switching.view')
-			<a href="{{ route('system-settings.module-visibility') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('system-settings.module-visibility') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-swap-horizontal fa-fw mr-1"></span>
 					<span class="menu-collapsed">{{ __('system.module_switching') }}</span>
@@ -99,7 +99,7 @@
 			@endcan
 
 			@if(auth()->user()->can('system.translations.view'))
-			<a href="{{ route('system-settings.translations') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('system-settings.translations') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-translate fa-fw mr-1"></span>
 					<span class="menu-collapsed">{{ __('system.languages_and_translations') }}</span>
@@ -107,14 +107,14 @@
 			</a>
 			@endif
 
-			<a href="{{ route('bulk-import') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('bulk-import') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-upload fa-fw mr-1"></span>
 					<span class="menu-collapsed">Bulk Data Import</span>
 				</div>
 			</a>
 			
-			<a href="#system-defaults" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#system-defaults" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-cogs fa-fw mr-1"></span>
 					<span class="menu-collapsed">{{ __('system.system_defaults') }}</span>
@@ -123,17 +123,20 @@
 			</a>
 			<div id="system-defaults" class="collapse sidebar-submenu">
 				@can('system.configuration_type.view')
-				<a href="{{ route('configuration-type-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('configuration-type-home') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.configuration_type') }}</span>
 				</a>
 				@endcan
 				@can('system.configuration.view')
-				<a href="{{ route('configuration-system-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('configuration-system-home') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> {{ __('system.system_configurations') }}</span>
 				</a>
 				@endcan
+				<a href="{{ route('system-settings.preferences') }}" class="list-group-item list-group-item-action">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> System Theming</span>
+				</a>
 			</div>
-			<div class="list-group-item copyright-lims p-4 text-center text-white">
+			<div class="list-group-item copyright-lims p-4 text-center">
 				{{ __('system.copyright') }} {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->

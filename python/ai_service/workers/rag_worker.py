@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List
 from python.ai_service.services.retrieval_service import RetrievalService
 from python.ai_service.services.ollama_service import OllamaService
 from python.ai_service.core import mode_registry
+from python.ai_service.core.language import language_instruction, localize_fixed_text
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class RagWorker:
         mode: Optional[str] = None,
         trace_id: str = "",
         limit: int = 5,
+        language: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Search the knowledge base and synthesize an answer.
@@ -75,7 +77,7 @@ class RagWorker:
             return None
 
         logger.info(f"RagWorker [{trace_id[:8]}]: Found {len(chunks)} chunks")
-        answer = self._synthesize(message, chunks, mode)
+        answer = self._synthesize(message, chunks, mode, language)
 
         return {
             "answer": answer,
@@ -89,16 +91,20 @@ class RagWorker:
         }
 
     def _synthesize(
-        self, message: str, chunks: List[Dict[str, Any]], mode: Optional[str]
+        self, message: str, chunks: List[Dict[str, Any]], mode: Optional[str], language: Optional[str]
     ) -> str:
         context = "\n\n".join(
             f"Source: {c.get('collection_name')}\nContent: {c['content']}"
             for c in chunks
         )
 
-        system_role = mode_registry.get_persona(mode)
+        system_role = mode_registry.get_persona(mode, language)
+        lang_rule = language_instruction(language)
 
-        prompt = f"""{system_role} Use the following knowledge base context to answer the user's question concisely.
+        prompt = f"""{system_role}
+{lang_rule}
+
+Use the following knowledge base context to answer the user's question concisely.
 
 Context:
 {context}
@@ -131,7 +137,11 @@ Answer:"""
             return answer
         except Exception as exc:
             logger.error(f"RagWorker: synthesis failed: {exc}")
-            return "I found relevant documents but couldn't generate a summary. Please check the sources."
+            return localize_fixed_text(
+                "rag_no_summary",
+                language,
+                "I found relevant documents but couldn't generate a summary. Please check the sources.",
+            )
 
     def _format_sources(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return [

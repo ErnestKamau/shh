@@ -199,35 +199,35 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info("  Migrated {$mpcCount} module_pre_configs row(s).");
 
                 // ----------------------------------------------------------------
-                // STEP 5 — Ensure Kenya country exists, then create Company: Imara
+                // STEP 5 — Ensure Tanzania country exists, then create Company: GCLA
                 // ----------------------------------------------------------------
-                $this->command?->info('Step 5: Creating company Imara...');
+                $this->command?->info('Step 5: Creating company GCLA...');
 
-                $kenyaRecord = \App\Country::where('name', 'like', '%Kenya%')->first();
+                $tanzaniaRecord = \App\Country::where('name', 'like', '%Tanzania%')->first();
 
-                if (! $kenyaRecord) {
-                    $sourceKenya = DB::connection($sourceConnection)
+                if (! $tanzaniaRecord) {
+                    $sourceTanzania = DB::connection($sourceConnection)
                         ->table('countries')
-                        ->where('name', 'like', '%Kenya%')
+                        ->where('name', 'like', '%Tanzania%')
                         ->first();
 
-                    if ($sourceKenya) {
-                        $kenyaRecord = \App\Country::firstOrCreate(
-                            ['name' => $sourceKenya->name],
+                    if ($sourceTanzania) {
+                        $tanzaniaRecord = \App\Country::firstOrCreate(
+                            ['name' => $sourceTanzania->name],
                             [
-                                'iso_code_2'       => $sourceKenya->iso_code_2 ?? 'KE',
-                                'iso_code_3'       => $sourceKenya->iso_code_3 ?? 'KEN',
-                                'address_format'   => $sourceKenya->address_format ?? '{firstname} {lastname}',
-                                'postcode_required' => $sourceKenya->postcode_required ?? 0,
-                                'status'           => $sourceKenya->status ?? 1,
+                                'iso_code_2'       => $sourceTanzania->iso_code_2 ?? 'TZ',
+                                'iso_code_3'       => $sourceTanzania->iso_code_3 ?? 'TZA',
+                                'address_format'   => $sourceTanzania->address_format ?? '{firstname} {lastname}',
+                                'postcode_required' => $sourceTanzania->postcode_required ?? 0,
+                                'status'           => $sourceTanzania->status ?? 1,
                             ]
                         );
                     } else {
-                        $kenyaRecord = \App\Country::firstOrCreate(
-                            ['name' => 'Kenya'],
+                        $tanzaniaRecord = \App\Country::firstOrCreate(
+                            ['name' => 'Tanzania'],
                             [
-                                'iso_code_2'       => 'KE',
-                                'iso_code_3'       => 'KEN',
+                                'iso_code_2'       => 'TZ',
+                                'iso_code_3'       => 'TZA',
                                 'address_format'   => '{firstname} {lastname}',
                                 'postcode_required' => 0,
                                 'status'           => 1,
@@ -236,22 +236,22 @@ class SystemSetupSeeder extends Seeder
                     }
                 }
 
-                $countryId = $kenyaRecord->id;
+                $countryId = $tanzaniaRecord->id;
 
                 $company = Company::updateOrCreate(
                     ['id' => '019dde3f-07d3-73d0-a0f2-a01ac58346b4'],
                     [
-                        'name'           => 'Imara',
+                        'name'           => 'Government Chemist Laboratory Authority',
                         'logo'           => '/images/no-logo.png',
                         'report_logo'    => null,
-                        'location'       => 'Nairobi, Kenya',
-                        'address'        => 'P.O Box 00100, Nairobi',
+                        'location'       => 'Dar es Salaam, Tanzania',
+                        'address'        => 'P.O. Box 164, Dar es Salaam',
                         'country_id'     => $countryId,
-                        'website'        => 'https://imara.co.ke',
-                        'email'          => 'info@imara.co.ke',
-                        'cell_phone'     => '+254700000000',
-                        'telephone'      => '+254200000000',
-                        'street'         => 'Mombasa Road',
+                        'website'        => 'https://www.gcla.go.tz',
+                        'email'          => 'gcla@gcla.go.tz',
+                        'cell_phone'     => '+255222113383',
+                        'telephone'      => '+255222113384',
+                        'street'         => 'Luthuli Street',
                         'active'         => true,
                         'show_on_reports' => true,
                     ]
@@ -260,14 +260,14 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info("  Company '{$company->name}' ready (id: {$company->id}).");
 
                 // ----------------------------------------------------------------
-                // STEP 6 — Inventory Locations: Imara HQ + SystemAdmin
+                // STEP 6 — Inventory Locations: GCLA HQ + SystemAdmin
                 // ----------------------------------------------------------------
                 $this->command?->info('Step 6: Creating inventory locations...');
 
                 $location = InventoryLocation::firstOrCreate(
                     ['id' => '019dde3f-07d9-73bf-86f3-d4fd6df2eece'],
                     [
-                        'name'       => 'Imara HQ',
+                        'name'       => 'GCLA HQ',
                         'company_id' => $company->id,
                         'level'      => 1,
                         'active'     => 1,

@@ -10,6 +10,7 @@ class LabTat extends BaseMasPage
 
     public string|int|null $selectedLabId = null;
     public string|int|null $selectedAnalystId = null;
+    public string|int|null $selectedZoneId = null;
     public ?string $startDate = null;
     public ?string $endDate = null;
 
@@ -18,15 +19,20 @@ class LabTat extends BaseMasPage
     public array $stats = [];
     public array $available_sections = [];
     public array $available_analysts = [];
+    public array $available_zones = [];
     public int $detailedPage = 1;
     public int $perPage = 10;
 
     public int $gridPage = 1;
     public int $perGridPage = 20;
 
+    public int $pivotPage = 1;
+    public int $perPivotPage = 15;
+
     public function mount(): void
     {
         $this->available_sections = app(LabTatDashboardService::class)->getLabSectionOptions();
+        $this->available_zones = app(LabTatDashboardService::class)->getZoneOptions();
         $this->initializeDefaultLabSelection();
         $this->refreshAvailableAnalysts();
         $this->loadPayload();
@@ -37,6 +43,7 @@ class LabTat extends BaseMasPage
         $filters = [
             'lab_id' => $this->selectedLabId,
             'analyst_id' => $this->selectedAnalystId,
+            'zone_id' => $this->selectedZoneId,
             'start_date' => $this->startDate,
             'end_date' => $this->endDate,
         ];
@@ -48,7 +55,9 @@ class LabTat extends BaseMasPage
             $this->perPage,
             self::FIXED_PERIOD,
             $this->gridPage,
-            $this->perGridPage
+            $this->perGridPage,
+            $this->pivotPage,
+            $this->perPivotPage
         );
 
         $this->dispatch('mas-lab-tat-chart-updated', ['slaRate' => (int) ($this->stats['summary']['sla_compliance_rate'] ?? 0)]);
@@ -57,6 +66,7 @@ class LabTat extends BaseMasPage
     public function handleLabSelectionChange(): void
     {
         $this->selectedAnalystId = null;
+        $this->pivotPage = 1;
         $this->refreshAvailableAnalysts();
         $this->loadPayload();
     }
@@ -74,6 +84,7 @@ class LabTat extends BaseMasPage
 
         $this->detailedPage = 1;
         $this->gridPage = 1;
+        $this->pivotPage = 1;
         $this->loadPayload();
     }
 
@@ -87,12 +98,14 @@ class LabTat extends BaseMasPage
     public function resetFilters(): void
     {
         $this->selectedAnalystId = null;
+        $this->selectedZoneId = null;
         $this->startDate = null;
         $this->endDate = null;
         $this->initializeDefaultLabSelection();
         $this->refreshAvailableAnalysts();
         $this->detailedPage = 1;
         $this->gridPage = 1;
+        $this->pivotPage = 1;
         $this->loadPayload();
     }
 
@@ -102,6 +115,7 @@ class LabTat extends BaseMasPage
             'module' => 'lab',
             'lab_id' => $this->selectedLabId,
             'analyst_id' => $this->selectedAnalystId,
+            'zone_id' => $this->selectedZoneId,
             'start_date' => $this->startDate,
             'end_date' => $this->endDate,
             'export_type' => $type,
@@ -124,6 +138,12 @@ class LabTat extends BaseMasPage
     public function setDetailedPage(int $page): void
     {
         $this->detailedPage = $page;
+        $this->loadPayload();
+    }
+
+    public function setPivotPage(int $page): void
+    {
+        $this->pivotPage = $page;
         $this->loadPayload();
     }
 
@@ -152,6 +172,7 @@ class LabTat extends BaseMasPage
             $this->selectedLabId,
             self::FIXED_PERIOD,
             [
+                'zone_id' => $this->selectedZoneId,
                 'start_date' => $this->startDate,
                 'end_date' => $this->endDate,
             ]

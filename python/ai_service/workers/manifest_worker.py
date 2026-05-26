@@ -21,11 +21,13 @@ from python.ai_service.core.manifest_intent_router import ManifestIntentRouter
 from python.ai_service.core.query_classifier import QueryClassifier
 from python.ai_service.core.query_filter_extractor import QueryFilterExtractor, _resolve_date_range
 from python.ai_service.core import mode_registry
+from python.ai_service.core.language import language_instruction, normalize_language
 
 logger = logging.getLogger(__name__)
 
 _SQL_TIMEOUT = 5.0
 _LLM_ROUTE_TIMEOUT = 3.0
+_LOCALIZE_TIMEOUT = 6.0
 
 
 class ManifestWorker:
@@ -56,6 +58,7 @@ class ManifestWorker:
         mode: Optional[str] = None,
         module_context: Optional[str] = None,
         trace_id: str = "",
+        language: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Attempt to answer the query using the manifest.
@@ -108,7 +111,7 @@ class ManifestWorker:
 
         # ── Execute matched intents ────────────────────────────────────────────
         logger.info(f"ManifestWorker [{trace_id[:8]}]: Executing intents={[m[0] for m in all_intents]}")
-        return self._execute_multi(message, all_intents, company_id, use_visuals, trace_id)
+        return self._execute_multi(message, all_intents, company_id, use_visuals, trace_id, language)
 
     def _execute_multi(
         self,
@@ -117,6 +120,7 @@ class ManifestWorker:
         company_id: int,
         use_visuals: bool,
         trace_id: str,
+        language: Optional[str] = None,
     ) -> Dict[str, Any]:
         summaries, all_data = [], {}
         combined_latency, success_count = 0, 0
@@ -154,6 +158,8 @@ class ManifestWorker:
                     summaries.append(f"Failed to retrieve data for `{intent}`.")
 
         answer = "\n\n---\n\n".join(summaries) if summaries else None
+        if answer:
+            answer = self._localize_answer(answer, language)
         return {
             "answer": answer,
             "sources": [],
@@ -211,6 +217,29 @@ Classification:"""
         except Exception as exc:
             logger.warning(f"ManifestWorker LLM classify failed: {exc}")
             return {}
+
+    def _localize_answer(self, answer: str, language: Optional[str]) -> str:
+        if normalize_language(language) != "sw":
+            return answer
+
+        prompt = f"""{language_instruction(language)}
+
+Translate the following LIMS report answer into natural Kiswahili.
+Preserve all numbers, IDs, markdown tables, chart blocks, source labels, and technical terms where clearer.
+Do not add new facts.
+
+Answer:
+{answer}
+
+Kiswahili answer:"""
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                localized = ex.submit(self.ollama.generate, prompt=prompt).result(timeout=_LOCALIZE_TIMEOUT)
+            return localized.strip() or answer
+        except Exception as exc:
+            logger.warning(f"ManifestWorker localization failed: {exc}")
+            return answer
 
     def _assign_granular_filters(self, message: str, matches) -> List[Tuple]:
         segments = re.split(r"\band\b|\balso\b|\bas well as\b|,", message, flags=re.IGNORECASE)

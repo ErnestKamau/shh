@@ -34,7 +34,12 @@
             const aiRes = await fetch('/imara-ai/ask-stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').content },
-                body: JSON.stringify({ question: text, module_context: '{{ $context }}', mode: '{{ $context }}' })
+                body: JSON.stringify({
+                    question: text,
+                    module_context: '{{ $context }}',
+                    mode: '{{ $context }}',
+                    language: '{{ in_array(app()->getLocale(), ['en', 'sw'], true) ? app()->getLocale() : 'auto' }}'
+                })
             });
 
             const reader = aiRes.body.getReader();
@@ -84,7 +89,7 @@
             container.scrollTop = container.scrollHeight;
         }
     }
-}" x-init="window.marked?.setOptions({ breaks: true, gfm: true, headerIds: false, mangle: false });">
+}" x-init="() => { window.marked?.use?.({ breaks: true, gfm: true }); }">
     {{-- Floating Trigger Button --}}
     <div
         class="ai-drawer-trigger" 

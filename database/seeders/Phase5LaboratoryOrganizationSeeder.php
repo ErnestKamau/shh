@@ -1,0 +1,137 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Company;
+use App\Directorate;
+use App\Lab;
+use App\User;
+use App\Zone;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class Phase5LaboratoryOrganizationSeeder extends Seeder
+{
+    public function run(): void
+    {
+        config(['database.default' => 'pgsql']);
+        Model::unguard();
+
+        DB::connection('pgsql')->transaction(function (): void {
+            $this->command?->info('====================================================');
+            $this->command?->info('STARTING PHASE 5 SEEDING: Laboratory Organization');
+            $this->command?->info('====================================================');
+
+            $company = Company::query()->first();
+            if (! $company) {
+                $this->command?->error('Base company not found. Run Phase 1 first.');
+                return;
+            }
+
+            $zones = Zone::query()->get()->keyBy('key');
+            foreach (array_keys(Phase2LocationSeeder::ZONES) as $code) {
+                if (! $zones->has($code)) {
+                    $this->command?->error("Zone {$code} not found. Run Phase 2 first.");
+                    return;
+                }
+            }
+
+            $activeUser = User::query()->where('active', 1)->first() ?? User::query()->first();
+            $activeUserId = $activeUser?->id;
+
+            $directorateData = [
+                'DIR-FS' => ['name' => 'Forensic Science', 'primary_zone' => 'CZO'],
+                'DIR-PED' => ['name' => 'Product and Environmental Department', 'primary_zone' => 'EZO'],
+                'DIR-TSU' => ['name' => 'Technical Service Unit', 'primary_zone' => 'CZO'],
+            ];
+
+            $directorates = [];
+            foreach ($directorateData as $code => $data) {
+                $directorate = Directorate::query()->updateOrCreate(
+                    ['code' => $code],
+                    [
+                        'name' => $data['name'],
+                        'head_id' => $activeUserId,
+                        'section_head_user_id' => $activeUserId,
+                        'zone_id' => $zones[$data['primary_zone']]->id,
+                        'active' => true,
+                    ]
+                );
+
+                $directorates[$code] = $directorate;
+                $this->command?->info("Seeded Directorate: {$directorate->code} - {$directorate->name}");
+            }
+
+            foreach ($directorates as $directorate) {
+                foreach ($zones as $zone) {
+                    if ((string) $directorate->zone_id === (string) $zone->id) {
+                        continue;
+                    }
+
+                    DB::connection('pgsql')->table('directorate_zone')->updateOrInsert(
+                        [
+                            'directorate_id' => $directorate->id,
+                            'zone_id' => $zone->id,
+                        ],
+                        [
+                            'id' => DB::connection('pgsql')->table('directorate_zone')
+                                ->where('directorate_id', $directorate->id)
+                                ->where('zone_id', $zone->id)
+                                ->value('id') ?? (string) Str::uuid(),
+                            'updated_at' => now(),
+                            'created_at' => now(),
+                        ]
+                    );
+                }
+            }
+
+            $labTypes = [
+                ['code' => 'LAB-FCH', 'name' => 'Forensic Chemistry Lab', 'directorate' => 'DIR-FS'],
+                ['code' => 'LAB-FDNA', 'name' => 'Forensic DNA Lab', 'directorate' => 'DIR-FS'],
+                ['code' => 'LAB-FTOX', 'name' => 'Forensic Toxicology Lab', 'directorate' => 'DIR-FS'],
+                ['code' => 'LAB-FD', 'name' => 'Food and Drugs Lab', 'directorate' => 'DIR-PED'],
+                ['code' => 'LAB-MIC', 'name' => 'Microbiology Lab', 'directorate' => 'DIR-PED'],
+                ['code' => 'LAB-ENV', 'name' => 'Environmental Lab', 'directorate' => 'DIR-PED'],
+                ['code' => 'LAB-TSU', 'name' => 'Technical Service Unit Lab', 'directorate' => 'DIR-TSU'],
+            ];
+
+            foreach ($zones as $zone) {
+                foreach ($labTypes as $data) {
+                    $directorate = $directorates[$data['directorate']];
+                    $uniqueCode = $data['code'] . '-' . $zone->key;
+                    $uniqueName = $data['name'] . ' (' . $zone->value . ')';
+
+                    $lab = Lab::query()->updateOrCreate(
+                        [
+                            'code' => $uniqueCode,
+                            'directorate_id' => $directorate->id,
+                        ],
+                        [
+                            'name' => $uniqueName,
+                            'address' => $zone->value,
+                            'location' => $zone->value,
+                            'email' => strtolower($uniqueCode).'@gcla.go.tz',
+                            'company_id' => $company->id,
+                            'zone_id' => $zone->id,
+                            'manager_id' => $activeUserId,
+                            'section_head_user_id' => $activeUserId,
+                            'is_external' => false,
+                            'phone1' => '+255222113383',
+                            'active' => true,
+                        ]
+                    );
+
+                    $this->command?->info("Seeded Lab: {$lab->code} - {$lab->name} ({$directorate->code}, {$zone->key})");
+                }
+            }
+
+            $this->command?->info('====================================================');
+            $this->command?->info('PHASE 5 SEEDING COMPLETED SUCCESSFULLY!');
+            $this->command?->info('====================================================');
+        });
+
+        Model::reguard();
+    }
+}

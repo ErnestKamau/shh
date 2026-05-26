@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboards\Concerns;
 
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -9,6 +10,39 @@ use Illuminate\Support\Collection;
  */
 trait DashboardHelpers
 {
+    /**
+     * Compute a signed TAT offset integer with a 12-hour grace window.
+     *
+     * Returns:
+     *   > 0  late  (finished more than 12 h after the expected deadline)
+     *   = 0  on-time (completed within ±12 h of the deadline)
+     *   < 0  early (finished more than 12 h before the deadline)
+     *
+     * Keeping this as a public static method allows it to be called from
+     * Observers, Controllers, and Service classes without circular deps.
+     */
+    public static function computeSignedTatOffset($expected, $actual): int
+    {
+        if (!$expected || !$actual) {
+            return 0;
+        }
+
+        $expectedAt  = Carbon::parse($expected);
+        $actualAt    = Carbon::parse($actual);
+        $diffMinutes = $expectedAt->diffInMinutes($actualAt, false);
+        $grace       = 12 * 60;   // 720 minutes
+        $day         = 24 * 60;   // 1440 minutes
+
+        if ($diffMinutes > $grace) {
+            return (int) ceil(($diffMinutes - $grace) / $day);
+        }
+        if ($diffMinutes < -$grace) {
+            return -1 * (int) ceil((abs($diffMinutes) - $grace) / $day);
+        }
+
+        return 0;
+    }
+
     protected function toFloat($value): ?float
     {
         if ($value === null || $value === '') {

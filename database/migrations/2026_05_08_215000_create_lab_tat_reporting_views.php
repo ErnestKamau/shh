@@ -52,16 +52,25 @@ return new class extends Migration
             JOIN sample_details sd ON tc.sample_detail_id = sd.id
         ");
 
-        // 2. v_lab_tat_stage_summary (PostgreSQL Compatible)
+        // 2. v_lab_tat_stage_summary
+        // Overdue = CURRENT_TIMESTAMP > date_expected + 12h grace (matches signedTatOffsetDays rule)
+        // Due today = deadline is within the next 12 h (inside grace window)
         DB::statement("
             CREATE OR REPLACE VIEW v_lab_tat_stage_summary AS
             SELECT 
                 sh.status AS workflow_stage,
                 COUNT(sh.id) AS total_batches,
-                SUM(CASE WHEN CURRENT_DATE > COALESCE(sh.date_expected::date, CURRENT_DATE) THEN 1 ELSE 0 END) AS overdue_batches,
-                SUM(CASE WHEN sh.date_expected::date = CURRENT_DATE THEN 1 ELSE 0 END) AS due_today_batches,
-                AVG(COALESCE(sh.date_expected::date, CURRENT_DATE) - sh.created_at::date) AS avg_days_to_target,
-                AVG(CASE WHEN CURRENT_DATE > sh.date_expected::date THEN (CURRENT_DATE - sh.date_expected::date) ELSE NULL END) AS avg_days_overdue,
+                GREATEST(
+                    COUNT(sh.id) - SUM(CASE WHEN CURRENT_TIMESTAMP > (sh.date_expected + INTERVAL '12 hours') THEN 1 ELSE 0 END),
+                    0
+                ) AS completed_batches,
+                SUM(CASE WHEN CURRENT_TIMESTAMP > (sh.date_expected + INTERVAL '12 hours') THEN 1 ELSE 0 END) AS overdue_batches,
+                SUM(CASE WHEN CURRENT_TIMESTAMP BETWEEN sh.date_expected - INTERVAL '12 hours'
+                                              AND     sh.date_expected + INTERVAL '12 hours' THEN 1 ELSE 0 END) AS due_today_batches,
+                AVG(EXTRACT(EPOCH FROM (sh.date_expected - sh.created_at)) / 86400) AS avg_days_to_target,
+                AVG(CASE WHEN CURRENT_TIMESTAMP > (sh.date_expected + INTERVAL '12 hours')
+                         THEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - sh.date_expected)) / 86400
+                         ELSE NULL END) AS avg_days_overdue,
                 (SELECT AVG(completed.updated_at::date - completed.created_at::date) 
                  FROM sample_headers completed 
                  WHERE completed.status = 'Completed' AND completed.isactive = true) AS avg_completion_days,
@@ -76,16 +85,24 @@ return new class extends Migration
             GROUP BY sh.status
         ");
 
-        // 3. v_lab_tat_aging_buckets (PostgreSQL Compatible)
+        // 3. v_lab_tat_aging_buckets
+        // Buckets use hour offsets with 12h grace so a batch 13h past deadline = '1_3_overdue'
+        // and a batch only 11h past deadline = 'due_today' (within grace window).
         DB::statement("
             CREATE OR REPLACE VIEW v_lab_tat_aging_buckets AS
             SELECT 
                 CASE
-                    WHEN date_expected IS NULL THEN 'no_target'
-                    WHEN (CURRENT_DATE - date_expected::date) >= 8 THEN '8_plus_overdue'
-                    WHEN (CURRENT_DATE - date_expected::date) >= 4 THEN '4_7_overdue'
-                    WHEN (CURRENT_DATE - date_expected::date) >= 1 THEN '1_3_overdue'
-                    WHEN date_expected::date = CURRENT_DATE THEN 'due_today'
+                    WHEN date_expected IS NULL
+                        THEN 'no_target'
+                    WHEN CURRENT_TIMESTAMP > (date_expected + INTERVAL '8 days' + INTERVAL '12 hours')
+                        THEN '8_plus_overdue'
+                    WHEN CURRENT_TIMESTAMP > (date_expected + INTERVAL '4 days' + INTERVAL '12 hours')
+                        THEN '4_7_overdue'
+                    WHEN CURRENT_TIMESTAMP > (date_expected + INTERVAL '12 hours')
+                        THEN '1_3_overdue'
+                    WHEN CURRENT_TIMESTAMP BETWEEN (date_expected - INTERVAL '12 hours')
+                                           AND     (date_expected + INTERVAL '12 hours')
+                        THEN 'due_today'
                     ELSE 'on_time'
                 END AS aging_bucket,
                 COUNT(id) AS batch_count
@@ -99,15 +116,22 @@ return new class extends Migration
             GROUP BY aging_bucket
         ");
 
-        // 4. v_lab_tat_overdue_batches (PostgreSQL Compatible)
+        // 4. v_lab_tat_overdue_batches
+        // Only lists batches past their deadline by more than 12h (grace-aware).
+        // days_overdue is the net time past the grace window expressed in days (decimal).
+        // Must DROP first because column type changes from integer → numeric.
+        DB::statement("DROP VIEW IF EXISTS v_lab_tat_overdue_batches");
         DB::statement("
-            CREATE OR REPLACE VIEW v_lab_tat_overdue_batches AS
+            CREATE VIEW v_lab_tat_overdue_batches AS
             SELECT 
                 sh.id AS source_id,
                 sh.batch_code,
                 sh.status AS workflow_stage,
                 sh.date_expected AS target_date,
-                (CURRENT_DATE - sh.date_expected::date) AS days_overdue,
+                ROUND(
+                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - (sh.date_expected + INTERVAL '12 hours'))) / 86400.0,
+                    1
+                ) AS days_overdue,
                 CASE WHEN st.name LIKE '%QC%' OR st.name LIKE '%QA%' THEN 1 ELSE 0 END AS is_qc_batch
             FROM sample_headers sh
             LEFT JOIN sample_types st ON st.id = sh.sample_type_id
@@ -117,7 +141,28 @@ return new class extends Migration
               AND sh.status != 'Received'
               AND sh.status != 'Reports'
               AND sh.status != 'Completed'
-              AND sh.date_expected::date < CURRENT_DATE
+              AND CURRENT_TIMESTAMP > (sh.date_expected + INTERVAL '12 hours')
+        ");
+
+        // 5. Backfill tat_overdue_days to signed convention.
+        //
+        // The old CapturedObserver wrote tat_overdue_days as an *unsigned* positive
+        // integer for both early and late completions; direction was encoded in
+        // tat_remark (1-3 = early, 4-5 = late).
+        //
+        // New signed convention (matches DashboardHelpers::computeSignedTatOffset):
+        //   tat_overdue_days > 0  → finished late  (past deadline beyond 12 h grace)
+        //   tat_overdue_days = 0  → on-time        (within ±12 h grace window)
+        //   tat_overdue_days < 0  → finished early (before deadline beyond 12 h grace)
+        //
+        // Negate rows where tat_remark IN (1,2,3) AND tat_overdue_days > 0.
+        // Those are early completions stored as positive — flip them to negative.
+        // Rows at 0 and late rows (remark 4/5) are already correct in both schemes.
+        DB::statement("
+            UPDATE tat_captured
+            SET tat_overdue_days = -tat_overdue_days
+            WHERE tat_remark IN (1, 2, 3)
+              AND tat_overdue_days > 0
         ");
     }
 
@@ -126,6 +171,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Undo the signed backfill: restore negated values to their original positive state
+        DB::statement("
+            UPDATE tat_captured
+            SET tat_overdue_days = ABS(tat_overdue_days)
+            WHERE tat_overdue_days < 0
+        ");
+
         DB::statement("DROP VIEW IF EXISTS v_lab_tat_overdue_batches");
         DB::statement("DROP VIEW IF EXISTS v_lab_tat_aging_buckets");
         DB::statement("DROP VIEW IF EXISTS v_lab_tat_stage_summary");

@@ -206,7 +206,7 @@
                 <li class="nav-item">
                     <button type="button" class="nav-link {{ $activeTab === 'attachments' ? 'active' : '' }}" wire:click="setTab('attachments')">
                         <i class="mdi mdi-paperclip"></i> Attachments
-                        <span class="badge">{{ $attachmentInstances->count() + $batchAttachments->count() }}</span>
+                        <span class="badge">{{ $attachmentInstances->count() + $batchAttachments->count() + (isset($customAttachments) ? $customAttachments->count() : 0) + (isset($formMediaAttachments) ? $formMediaAttachments->count() : 0) }}</span>
                     </button>
                 </li>
                 <li class="nav-item">
@@ -230,6 +230,7 @@
                         'attachmentInstances' => $attachmentInstances,
                         'batchAttachments' => $batchAttachments,
                         'customAttachments' => $customAttachments,
+                        'formMediaAttachments' => $formMediaAttachments,
                     ])
                 @elseif($activeTab === 'custody')
                     @include('livewire.submission-forms.request-view.tabs.chain-of-custody', [

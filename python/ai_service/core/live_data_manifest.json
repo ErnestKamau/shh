@@ -6,6 +6,12 @@
       "output_format": "count",
       "ttl_seconds": 10
     },
+    "sample_count_absolute_all_time": {
+      "sql": "SELECT COUNT(*) as n FROM public.sample_headers",
+      "description": "Absolute total sample batches ever created since system launch, including deleted, archived, and cancelled records",
+      "output_format": "count",
+      "ttl_seconds": 10
+    },
     "individual_sample_count": {
       "sql": "SELECT COUNT(*) as n FROM public.sample_details sd INNER JOIN public.sample_headers sh ON sh.id = sd.sample_header_id WHERE sh.isactive = true",
       "description": "Total active individual sample items",
@@ -99,8 +105,8 @@
       "ttl_seconds": 60
     },
     "sample_type_distribution": {
-      "sql": "SELECT sample_type_id::text as sample_type, COUNT(*) as count FROM public.sample_headers WHERE isactive = true GROUP BY sample_type_id ORDER BY count DESC",
-      "description": "Sample volume by sample type id",
+      "sql": "SELECT COALESCE(st.name, 'Unspecified') as sample_type, COUNT(*) as count FROM public.sample_headers sh LEFT JOIN public.sample_types st ON sh.sample_type_id = st.id WHERE sh.isactive = true GROUP BY COALESCE(st.name, 'Unspecified') ORDER BY count DESC",
+      "description": "Sample volume by sample type name",
       "output_format": "table",
       "visualize": {"type": "pie", "labels": "sample_type", "values": "count", "title": "Sample Type Distribution"},
       "ttl_seconds": 120
@@ -312,6 +318,12 @@
     }
   },
   "personnel": {
+    "analyst_count_active": {
+      "sql": "SELECT COUNT(*) as n FROM public.users WHERE active = 1 AND COALESCE(is_client, false) = false AND COALESCE(is_support_staff, false) = false AND COALESCE(is_tablet, false) = false AND (lab_id IS NOT NULL OR lab_section_id IS NOT NULL OR COALESCE(analyst_is_gazzetted, false) = true OR LOWER(COALESCE(designation, '')) LIKE '%analyst%')",
+      "description": "Active analyst users in the system",
+      "output_format": "count",
+      "ttl_seconds": 120
+    },
     "analyst_verifications": {
       "sql": "SELECT u.name, COUNT(sh.id) as batches_verified FROM public.users u JOIN public.sample_headers sh ON u.id = sh.verify_user_id WHERE sh.created_at >= (NOW() - INTERVAL '30 days') AND u.active = 1 GROUP BY u.name ORDER BY batches_verified DESC LIMIT 15",
       "description": "Batches verified by analyst in the last 30 days",

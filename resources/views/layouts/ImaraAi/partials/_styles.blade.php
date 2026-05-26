@@ -1038,7 +1038,7 @@ body > nav + * {
 /* ── Input area ──────────────────────────────────────────────────── */
 /* ── Input area ─────────────────────────────────────────────────── */
 .ai-input-area {
-    border-top: 1px solid #ebebeb;
+    border-top: none;
     padding: 12px 20px 14px;
     background: #fff;
     flex-shrink: 0;
@@ -1047,7 +1047,7 @@ body > nav + * {
 
 /* Attachment preview bar */
 #attachPreviewBar {
-    max-width: 950px;
+    max-width: 100%;
     margin: 0 auto 8px;
     display: none;
     align-items: center;
@@ -1096,7 +1096,7 @@ body > nav + * {
 
 /* Input box pill */
 .input-box {
-    max-width: 950px;
+    max-width: 100%;
     margin: 0 auto;
     background: #f8f8f8;
     border: 1.5px solid #e3e3e3;

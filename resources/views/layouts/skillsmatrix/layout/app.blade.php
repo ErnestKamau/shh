@@ -24,7 +24,7 @@
 			$canEvalApprove = $user->can('skills-matrix.components.training-plan.evaluation.approve');
 		@endphp
 		<ul class="list-group">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-star-outline fa-3x"></i><br>
 				<span class="text-lg text-bold">Skills Matrix</span>
 			</div>
@@ -134,7 +134,7 @@
 			</a>
 			@endif
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 		</ul>

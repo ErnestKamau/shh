@@ -63,18 +63,18 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-file-find-outline fa-3x"></i><br>
 				<span class="text-lg text-bold">VGM Certificates</span>
 			</div>
 			
-			<a href="{{ route('dashboard-lab') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('dashboard-lab') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-find-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Certificates</span>
 				</div>
 			</a>
-            <div class="list-group-item copyright-lims p-4 text-center text-white">
+            <div class="list-group-item copyright-lims p-4 text-center">
                 Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
             </div>
 	<!-- Submenu content -->

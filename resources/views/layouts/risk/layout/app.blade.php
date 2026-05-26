@@ -129,13 +129,13 @@
 	<!-- Sidebar -->
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-4 col-md-3 col-lg-2">
 		<ul class="list-group sticky-top sticky-offset">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-alert-octagon fa-3x"></i><br>
 				<span class="text-lg text-bold">RISK MANAGEMENT</span>
 			</div>
 
 			<!-- Dashboard -->
-			<a href="{{ route('risk.dashboard') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'risk.dashboard' ? 'active' : '' }}">
+			<a href="{{ route('risk.dashboard') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'risk.dashboard' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
@@ -144,7 +144,7 @@
 
 		<!-- Risk Workflow Section -->
 		<a href="#risk-workflow-menu" data-toggle="collapse" aria-expanded="{{ str_contains($currentRoute, 'risk.risks') ? 'true' : 'false' }}"
-			   class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			   class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-multiple mr-3"></span>
 					<span class="menu-collapsed">Risk Workflow</span>
@@ -167,7 +167,7 @@
 			</div>
 
 			<!-- Create New Risk -->
-			<a href="{{ route('risk.risks.create') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'risk.risks.create' ? 'active' : '' }}">
+			<a href="{{ route('risk.risks.create') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'risk.risks.create' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-plus-circle mr-3"></span>
 					<span class="menu-collapsed">New Risk</span>
@@ -176,7 +176,7 @@
 
 		<!-- Configuration Section -->
 		<a href="#config-menu" data-toggle="collapse" aria-expanded="{{ str_contains($currentRoute, 'risk.config') || str_contains($currentRoute, 'risk.assessment') || str_contains($currentRoute, 'risk.settings') ? 'true' : 'false' }}"
-			   class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			   class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-cogs mr-3"></span>
 					<span class="menu-collapsed">Settings</span>
@@ -184,33 +184,33 @@
 				</div>
 			</a>
 			<div id="config-menu" class="collapse sidebar-submenu {{ str_contains($currentRoute, 'risk.config') || str_contains($currentRoute, 'risk.assessment') || str_contains($currentRoute, 'risk.settings') ? 'show' : '' }}">
-				<a href="{{ route('risk.config.risk-categories') }}" class="list-group-item list-group-item-action bg-dark text-white {{ str_contains($currentRoute, 'risk-categories') ? 'active' : '' }}">
+				<a href="{{ route('risk.config.risk-categories') }}" class="list-group-item list-group-item-action {{ str_contains($currentRoute, 'risk-categories') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Risk Categories</span>
 				</a>
-				<a href="{{ route('risk.config.risk-sources') }}" class="list-group-item list-group-item-action bg-dark text-white {{ str_contains($currentRoute, 'risk-sources') ? 'active' : '' }}">
+				<a href="{{ route('risk.config.risk-sources') }}" class="list-group-item list-group-item-action {{ str_contains($currentRoute, 'risk-sources') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Risk Sources</span>
 				</a>
-				<a href="{{ route('risk.config.risk-statuses') }}" class="list-group-item list-group-item-action bg-dark text-white {{ str_contains($currentRoute, 'risk-statuses') ? 'active' : '' }}">
+				<a href="{{ route('risk.config.risk-statuses') }}" class="list-group-item list-group-item-action {{ str_contains($currentRoute, 'risk-statuses') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Risk Statuses</span>
 				</a>
-				<a href="{{ route('risk.config.treatment-types') }}" class="list-group-item list-group-item-action bg-dark text-white {{ str_contains($currentRoute, 'treatment-types') ? 'active' : '' }}">
+				<a href="{{ route('risk.config.treatment-types') }}" class="list-group-item list-group-item-action {{ str_contains($currentRoute, 'treatment-types') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Treatment Types</span>
 				</a>
-				<a href="{{ route('risk.assessment.likelihood-scales') }}" class="list-group-item list-group-item-action bg-dark text-white {{ str_contains($currentRoute, 'likelihood-scales') ? 'active' : '' }}">
+				<a href="{{ route('risk.assessment.likelihood-scales') }}" class="list-group-item list-group-item-action {{ str_contains($currentRoute, 'likelihood-scales') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Likelihood Scales</span>
 				</a>
-				<a href="{{ route('risk.assessment.severity-scales') }}" class="list-group-item list-group-item-action bg-dark text-white {{ str_contains($currentRoute, 'severity-scales') ? 'active' : '' }}">
+				<a href="{{ route('risk.assessment.severity-scales') }}" class="list-group-item list-group-item-action {{ str_contains($currentRoute, 'severity-scales') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Severity Scales</span>
 				</a>
-				<a href="{{ route('risk.settings.show', 'evaluation_result') }}" class="list-group-item list-group-item-action bg-dark text-white {{ str_contains($currentRoute, 'evaluation_result') ? 'active' : '' }}">
+				<a href="{{ route('risk.settings.show', 'evaluation_result') }}" class="list-group-item list-group-item-action {{ str_contains($currentRoute, 'evaluation_result') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Evaluation Results</span>
 				</a>
-				<a href="{{ route('risk.config.workflow-approvers') }}" class="list-group-item list-group-item-action bg-dark text-white {{ str_contains($currentRoute, 'workflow-approvers') ? 'active' : '' }}">
+				<a href="{{ route('risk.config.workflow-approvers') }}" class="list-group-item list-group-item-action {{ str_contains($currentRoute, 'workflow-approvers') ? 'active' : '' }}">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Workflow Approvers</span>
 				</a>
 			</div>
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white">
+			<div class="list-group-item copyright-lims p-4 text-center">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 		</ul>

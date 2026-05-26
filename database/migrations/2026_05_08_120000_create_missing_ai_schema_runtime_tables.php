@@ -95,7 +95,7 @@ return new class extends Migration
             CREATE TABLE IF NOT EXISTS ai.ai_sample_features (
                 id BIGSERIAL PRIMARY KEY,
                 sample_id BIGINT NOT NULL,
-                snapshot_id BIGINT NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
+                snapshot_id UUID NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
                 tat_days DOUBLE PRECISION,
                 stage_count INTEGER DEFAULT 0,
                 priority_score INTEGER DEFAULT 0,
@@ -115,7 +115,7 @@ return new class extends Migration
             CREATE TABLE IF NOT EXISTS ai.ai_equipment_features (
                 id BIGSERIAL PRIMARY KEY,
                 equipment_id BIGINT NOT NULL,
-                snapshot_id BIGINT NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
+                snapshot_id UUID NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
                 days_since_service DOUBLE PRECISION,
                 days_until_due DOUBLE PRECISION,
                 failure_rate DOUBLE PRECISION DEFAULT 0,
@@ -135,7 +135,7 @@ return new class extends Migration
             CREATE TABLE IF NOT EXISTS ai.ai_qc_features (
                 id BIGSERIAL PRIMARY KEY,
                 qc_result_id BIGINT NOT NULL,
-                snapshot_id BIGINT NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
+                snapshot_id UUID NOT NULL REFERENCES ai.ai_feature_snapshots(id) ON DELETE CASCADE,
                 cv_percent DOUBLE PRECISION,
                 z_score DOUBLE PRECISION,
                 moving_avg_10 DOUBLE PRECISION,

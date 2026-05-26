@@ -166,6 +166,8 @@ Route::get('/system-settings/database-export/{format}', SystemDatabaseExportCont
     ->middleware(['auth', 'can:system.dashboard.export']);
 Route::get('/system-settings/module-visibility', 'ConfigurationController@moduleVisibility')->name('system-settings.module-visibility')->middleware('can:system.module-switching.view');
 Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware('can:system.translations.view');
+Route::get('/system-settings/preferences', 'ConfigurationController@preferences')->name('system-settings.preferences')->middleware('can:settings.module.access');
+Route::post('/system-settings/preferences', 'ConfigurationController@updatePreferences')->name('system-settings.preferences.update')->middleware('can:settings.module.access');
 
 // Bulk Data Import
 Route::get('/bulk-import', 'ConfigurationController@bulkImport')->name('bulk-import')->middleware('can:settings.module.access');

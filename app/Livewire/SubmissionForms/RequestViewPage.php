@@ -277,11 +277,51 @@ class RequestViewPage extends Component
 
         $customAttachments = $this->instance->customAttachments()->with('uploader')->get();
 
+        $formMediaAttachments = [];
+        $values = collect($formData['sections'] ?? [])
+            ->flatMap(fn($s) => $s['element_holders'] ?? [])
+            ->filter(fn($h) => $h['holder_type'] === 'field')
+            ->flatMap(fn($h) => $h['elements'] ?? [])
+            ->filter(fn($e) => in_array($e['element_type'], ['file', 'camera_photo', 'image_upload']))
+            ->values();
+
+        foreach ($values as $element) {
+            $savedValue = $element['saved_values'][0] ?? null;
+            if ($savedValue && !empty($savedValue['value']) && $savedValue['value'] !== 'N/A') {
+                $candidate = trim((string) $savedValue['value']);
+                $decoded = json_decode($candidate, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    $first = $decoded[0] ?? null;
+                    if (is_string($first)) {
+                        $candidate = trim($first);
+                    } elseif (is_array($first)) {
+                        foreach (['url', 'path', 'file_path', 'value'] as $key) {
+                            if (!empty($first[$key]) && is_string($first[$key])) {
+                                $candidate = trim($first[$key]);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if ($candidate && $candidate !== 'N/A') {
+                    $mediaUrl = $this->instance->resolveUploadedMediaUrl($candidate);
+                    if ($mediaUrl) {
+                        $formMediaAttachments[] = (object) [
+                            'original_name' => $element['label'],
+                            'file_url' => $mediaUrl,
+                            'created_at' => $this->instance->created_at,
+                        ];
+                    }
+                }
+            }
+        }
+
         return view('livewire.submission-forms.request-view-page', [
             'formData' => $formData,
             'attachmentInstances' => $attachmentInstances,
             'batchAttachments' => $batchAttachments,
             'customAttachments' => $customAttachments,
+            'formMediaAttachments' => collect($formMediaAttachments),
             'canCreateSamples' => $canCreateSamples,
             'sampleStatus' => $sampleStatus,
             'acceptanceForm' => $acceptanceForm,

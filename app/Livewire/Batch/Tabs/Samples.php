@@ -463,6 +463,7 @@ class Samples extends Component
                     'sample_condition_id' => $sample->sample_condition_id ?? '',
                     'sample_point_id' => $sample->sample_point_id ?? '',
                     'company_product_id' => $sample->company_product_id ?? '',
+                    'file_no' => $sample->file_no ?? '',
                     'comments' => $sample->comments ?? '',
                     'main_standard' => $sample->main_standard ?? '',
                     'secondary_standard' => $sample->secondary_standard ?? '',
@@ -1576,6 +1577,7 @@ class Samples extends Component
             'sample_condition_id' => '',
             'sample_point_id' => '',
             'company_product_id' => '',
+            'file_no' => '',
             'comments' => '',
             'main_standard' => '',
             'secondary_standard' => '',
@@ -1817,6 +1819,7 @@ class Samples extends Component
             "sampleForms.$index.sample_condition_id" => 'nullable',
             "sampleForms.$index.sample_point_id" => 'nullable',
             "sampleForms.$index.company_product_id" => 'nullable',
+            "sampleForms.$index.file_no" => 'nullable',
             "sampleForms.$index.main_standard" => 'required',
             "sampleForms.$index.quantity" => 'required|numeric|min:0',
         ], [
@@ -1851,6 +1854,7 @@ class Samples extends Component
             $sample->sample_condition_id = !empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
             $sample->sample_point_id = !empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
             $sample->company_product_id = !empty($sampleData['company_product_id']) ? $sampleData['company_product_id'] : null;
+            $sample->file_no = !empty($sampleData['file_no']) ? $sampleData['file_no'] : null;
             $sample->comments = $sampleData['comments'];
             $sample->main_standard = !empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;
             $sample->secondary_standard = !empty($sampleData['secondary_standard']) ? $sampleData['secondary_standard'] : null;
@@ -1893,6 +1897,7 @@ class Samples extends Component
             'sampleForms.*.sample_condition_id' => 'nullable',
             'sampleForms.*.sample_point_id' => 'nullable',
             'sampleForms.*.company_product_id' => 'nullable',
+            'sampleForms.*.file_no' => 'nullable',
             'sampleForms.*.main_standard' => 'required',
             'sampleForms.*.quantity' => 'required|numeric|min:0',
         ], [
@@ -1924,6 +1929,7 @@ class Samples extends Component
                 $sample->sample_condition_id = !empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
                 $sample->sample_point_id = !empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
                 $sample->company_product_id = !empty($sampleData['company_product_id']) ? $sampleData['company_product_id'] : null;
+                $sample->file_no = !empty($sampleData['file_no']) ? $sampleData['file_no'] : null;
                 $sample->comments = $sampleData['comments'];
                 $sample->main_standard = !empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;
                 $sample->secondary_standard = !empty($sampleData['secondary_standard']) ? $sampleData['secondary_standard'] : null;

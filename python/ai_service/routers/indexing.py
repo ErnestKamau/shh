@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Form
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, Dict, Any, List
 import logging
 import json
@@ -29,10 +29,20 @@ class SearchRequest(BaseModel):
     collections: Optional[List[str]] = None
     limit: int = 5
 
+    @field_validator("company_id", mode="before")
+    @classmethod
+    def normalize_company_id(cls, value: Any) -> int:
+        return _runtime_int(value, default=0)
+
 class BulkDeleteRequest(BaseModel):
     entity_type: str
     entity_ids: List[str]
     company_id: int = 0
+
+    @field_validator("company_id", mode="before")
+    @classmethod
+    def normalize_company_id(cls, value: Any) -> int:
+        return _runtime_int(value, default=0)
 
 @router.post("")
 async def index_document(request: IndexingRequest, background_tasks: BackgroundTasks):
@@ -45,7 +55,7 @@ async def index_document(request: IndexingRequest, background_tasks: BackgroundT
         # RagIndexer expects a list of dictionaries with 'source_id' and 'payload'
         
         # company_id is extracted from metadata or default to 0
-        company_id = request.metadata.get("company_id") if request.metadata else 0
+        company_id = _runtime_int(request.metadata.get("company_id") if request.metadata else 0, default=0)
         
         # Cleanup old chunks if entity_id or manual_doc_id exists
         cleanup_ids = []
@@ -70,10 +80,10 @@ async def index_document(request: IndexingRequest, background_tasks: BackgroundT
             "source_id": request.manual_doc_id or request.entity_id or "0",
             "payload": {
                 "full_content": request.content,
-                "company_id": company_id,
                 "name": request.metadata.get("title", f"Manual Doc {request.manual_doc_id}") if request.metadata else "Manual Doc",
                 "manual_doc_id": request.manual_doc_id,
-                ** (request.metadata or {})
+                ** (request.metadata or {}),
+                "company_id": company_id,
             },
             "_source_table": "manual_entry"
         }
@@ -112,7 +122,7 @@ async def delete_knowledge(entity_type: str, entity_id: str, company_id: int = 0
     """
     try:
         count = indexer.cleanup_stale_chunks(
-            company_id=company_id,
+            company_id=_runtime_int(company_id, default=0),
             entity_type=entity_type,
             entity_ids=[entity_id]
         )
@@ -120,6 +130,16 @@ async def delete_knowledge(entity_type: str, entity_id: str, company_id: int = 0
     except Exception as e:
         logger.error(f"Deletion endpoint failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _runtime_int(value: Any, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return default
 
 @router.post("/bulk-delete")
 async def bulk_delete_knowledge(request: BulkDeleteRequest):
@@ -194,7 +214,7 @@ async def upload_document(
             raise HTTPException(status_code=400, detail="No readable text found in document.")
 
         # Prepare for indexing (mirroring index_document logic)
-        company_id = meta_dict.get("company_id", 0)
+        company_id = _runtime_int(meta_dict.get("company_id", 0), default=0)
         
         # Cleanup old chunks
         if manual_doc_id:
@@ -211,10 +231,10 @@ async def upload_document(
             "source_id": str(manual_doc_id) if manual_doc_id else "0",
             "payload": {
                 "full_content": text_content,
-                "company_id": company_id,
                 "name": meta_dict.get("title", file.filename),
                 "manual_doc_id": manual_doc_id,
-                **meta_dict
+                **meta_dict,
+                "company_id": company_id,
             },
             "_source_table": "manual_entry_file"
         }

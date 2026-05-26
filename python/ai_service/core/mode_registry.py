@@ -18,7 +18,10 @@ Adding a new mode:
   No other code changes are required.
 """
 
+import re
+from datetime import datetime
 from typing import Optional, Dict, Any, List
+from python.ai_service.core.language import normalize_language
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Mode definitions
@@ -221,19 +224,152 @@ def get_allowed_domains(mode_key: Optional[str]) -> List[str]:
     return get_mode(mode_key)["domains"]
 
 
-def get_greeting(mode_key: Optional[str]) -> str:
-    """Return the deterministic greeting string for this mode."""
-    return get_mode(mode_key)["greeting"]
+def get_greeting(mode_key: Optional[str], message: Optional[str] = None) -> str:
+    """Return a deterministic, context-aware greeting for this mode."""
+    base = _explicit_time_greeting(message or "") or _current_time_greeting()
+    mode_name = _mode_display_name(mode_key)
+
+    if re.search(r"\bhow\s+are\s+you\b", (message or "").strip().lower()):
+        return f"I'm running well. {base} {mode_name} is ready. How can I help you today?"
+
+    return f"{base} {mode_name} is ready. How can I help you today?"
 
 
-def get_persona(mode_key: Optional[str]) -> str:
+def get_greeting_for_language(
+    mode_key: Optional[str],
+    message: Optional[str] = None,
+    language: Optional[str] = None,
+) -> str:
+    if normalize_language(language) != "sw":
+        return get_greeting(mode_key, message)
+
+    mode_name = _mode_display_name(mode_key)
+    m = (message or "").strip().lower()
+    if re.search(r"\b(habari|mambo|hujambo|shikamoo)\b", m):
+        base = "Habari."
+    elif re.search(r"\basubuhi\b", m):
+        base = "Habari za asubuhi."
+    elif re.search(r"\bmchana\b", m):
+        base = "Habari za mchana."
+    elif re.search(r"\bjioni\b", m):
+        base = "Habari za jioni."
+    else:
+        base = "Habari."
+
+    if re.search(r"\b(hali\s+gani|uko\s+aje|habari\s+yako|how\s+are\s+you)\b", m):
+        return f"Niko tayari kusaidia. {base} {mode_name} iko tayari. Nikusaidieje leo?"
+
+    return f"{base} {mode_name} iko tayari. Nikusaidieje leo?"
+
+
+def _explicit_time_greeting(message: str) -> Optional[str]:
+    m = message.strip().lower()
+    if re.search(r"\bgood\s*morning\b", m):
+        return "Good morning."
+    if re.search(r"\bgood\s*afternoon\b", m):
+        return "Good afternoon."
+    if re.search(r"\bgood\s*evening\b", m):
+        return "Good evening."
+    if re.search(r"\bgood\s*night\b", m):
+        return "Good night."
+    return None
+
+
+def _current_time_greeting() -> str:
+    hour = datetime.now().hour
+
+    if 5 <= hour < 12:
+        return "Good morning."
+    if 12 <= hour < 17:
+        return "Good afternoon."
+    if 17 <= hour < 21:
+        return "Good evening."
+    return "Hello."
+
+
+def _mode_display_name(mode_key: Optional[str]) -> str:
+    mode = mode_key if mode_key in MODES else _DEFAULT_MODE
+    return {
+        "general": "ImaraChat AI",
+        "support": "Customer Support AI",
+        "lab": "Lab Mode",
+        "inventory": "Inventory Mode",
+        "audit": "Audit Mode",
+        "crm": "CRM Mode",
+    }.get(mode, "ImaraChat AI")
+
+
+def get_persona(mode_key: Optional[str], language: Optional[str] = None) -> str:
     """Return the LLM system prompt / persona for this mode."""
-    return get_mode(mode_key)["persona"]
+    persona = get_mode(mode_key)["persona"]
+    if normalize_language(language) == "sw":
+        persona += (
+            " Reply in natural Kiswahili when the user's selected language is Swahili. "
+            "Keep operational terms like LIMS, QC, TAT, sample, batch, analyte, and CAPA "
+            "when they are clearer than translated equivalents."
+        )
+    return persona
 
 
-def get_capabilities(mode_key: Optional[str]) -> str:
+def get_capabilities(mode_key: Optional[str], language: Optional[str] = None) -> str:
     """Return the deterministic 'what can you do' response for this mode."""
+    if normalize_language(language) == "sw":
+        return _get_swahili_capabilities(mode_key)
     return get_mode(mode_key)["capabilities"]
+
+
+def _get_swahili_capabilities(mode_key: Optional[str]) -> str:
+    mode = mode_key if mode_key in MODES else _DEFAULT_MODE
+    capabilities = {
+        "general": (
+            "Katika **General Mode** ninaweza kusaidia kwenye moduli zote za IMARA LIMS:\n\n"
+            "1. **Lab**: Ufuatiliaji wa samples, TAT, na hali ya vifaa.\n"
+            "2. **Inventory**: Viwango vya stock, reagents zinazoisha muda, na manunuzi.\n"
+            "3. **Quality**: Mwenendo wa QC, CAPA, na data ya compliance.\n"
+            "4. **CRM**: Takwimu za wateja na hali ya support tickets.\n\n"
+            "Ungependa kuuliza nini?"
+        ),
+        "support": (
+            "Mimi ni **Customer Support Assistant**. Ninaweza kusaidia na:\n\n"
+            "1. **Submission Tracking**: Kuangalia hali ya submissions na batches zako.\n"
+            "2. **Portal Requests**: Kupata na kupitia maombi uliyowasilisha.\n"
+            "3. **Payments**: Kuangalia salio na rekodi za malipo.\n"
+            "4. **Support Tickets**: Kuangalia hali na kipaumbele cha malalamiko.\n"
+            "5. **Portal Help**: Kujibu maswali ya matumizi ya portal."
+        ),
+        "lab": (
+            "Katika **Lab Mode** ninaweza kusaidia na:\n\n"
+            "1. **Sample Analytics**: Hali, hesabu, na TAT kwa batch au analyte.\n"
+            "2. **Equipment**: Ratiba za maintenance, matumizi, na calibration.\n"
+            "3. **SOPs**: Kutafuta na kufupisha taratibu za maabara.\n"
+            "4. **QC**: Analytes zinazodrift, QC reviews, na CAPA.\n"
+            "5. **Personnel**: Workload, verifications, na approvals za leo."
+        ),
+        "inventory": (
+            "Katika **Inventory Mode** ninaweza kusaidia na:\n\n"
+            "1. **Stock Levels**: Kiasi kilichopo, low-stock alerts, na health ya categories.\n"
+            "2. **Orders**: Hali ya purchase orders na deliveries.\n"
+            "3. **Suppliers**: Supplier performance na lead times.\n"
+            "4. **Expiry**: Items zinazokaribia kuisha muda.\n"
+            "5. **Equipment Reliability**: Hali ya maintenance ya instruments."
+        ),
+        "audit": (
+            "Katika **Audit Mode** ninaweza kusaidia na:\n\n"
+            "1. **QC Metrics**: Pass rates, drifting analytes, na QC stability.\n"
+            "2. **Audit Findings**: Findings zilizo wazi na categories zake.\n"
+            "3. **CAPA**: Ufuatiliaji wa corrective na preventive actions.\n"
+            "4. **Complaints**: Mwenendo wa malalamiko.\n"
+            "5. **SLA Compliance**: Muda wa resolution na kufuata SLA."
+        ),
+        "crm": (
+            "Katika **CRM Mode** ninaweza kusaidia na:\n\n"
+            "1. **Client Analytics**: Wateja wakubwa kwa volume, inactive accounts, na churn risk.\n"
+            "2. **Submissions**: Submissions za leo na rejected batches kwa client.\n"
+            "3. **Support Tickets**: Backlog kwa priority na SLA.\n"
+            "4. **Account Health**: Engagement na clients wasiowasilisha hivi karibuni."
+        ),
+    }
+    return capabilities[mode]
 
 
 def get_rag_filter(mode_key: Optional[str]) -> Dict[str, Any]:

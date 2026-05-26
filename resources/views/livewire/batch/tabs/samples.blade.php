@@ -205,6 +205,7 @@
                         <th style="width: 100px; text-align: center;">Actions</th>
                         <th style="min-width: 100px;">Code</th>
                         <th style="min-width: 150px;">Analysis<sup class="text-danger">*</sup></th>
+                        <th style="min-width: 120px;">File No</th>
                         <th style="min-width: 120px;">Lab<sup class="text-danger">*</sup></th>
                         <th style="min-width: 120px;">Condition</th>
                         <th style="min-width: 150px;">
@@ -411,6 +412,13 @@
                             @endif
                         </td>
 
+                        {{-- File No --}}
+                        <td>
+                            <input type="text" class="form-control form-control-sm modern-input"
+                                wire:model.defer="sampleForms.{{ $index }}.file_no"
+                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
+                        </td>
+
                         {{-- Lab Section --}}
                         <td>
                             @if($isReadOnly)
@@ -606,7 +614,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="18" class="text-center text-muted py-4">
+                        <td colspan="19" class="text-center text-muted py-4">
                             <i class="mdi mdi-information-outline"></i> No items configured yet. Click "Add" to create
                             entries.
                         </td>

@@ -4,14 +4,19 @@
 			<i class="mdi mdi-information-outline"></i>
 			Batch details
 		</h5>
+		@if(!$instance || !$formData)
 		<button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm batch-info-trigger">
 			<i class="mdi mdi-chevron-double-down"></i> Batch info
 		</button>
+		@endif
 	</div>
 	<div class="workflow-board-panel-body flush-top">
-		<form action="{{ route('add-batch-info', ['batch' => $batchID]) }}" class="row {{ $batchID ? 'hidden' : '' }}" id="batch-detail-form"
-			method="POST" autocomplete="off">
-			<?php $maxDate = getTodayDate(); ?>
+		@if($instance && $formData)
+			@include('submission-forms.partials.simple-form-display-clinical', ['instance' => $instance, 'formData' => $formData])
+		@else
+			<form action="{{ route('add-batch-info', ['batch' => $batchID]) }}" class="row {{ $batchID ? 'hidden' : '' }}" id="batch-detail-form"
+				method="POST" autocomplete="off">
+				<?php $maxDate = getTodayDate(); ?>
 			@csrf
 			<div class="row p-2 border-bottom">
 				<div class="form-group col-md-3">
@@ -304,5 +309,6 @@
 				@endif
 			</div>
 		</form>
+		@endif
 	</div>
 </div>
