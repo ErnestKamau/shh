@@ -1,4 +1,117 @@
-<div>
+<div class="equipment-depreciation-panel">
+    <style>
+        .equipment-depreciation-panel .dep-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+        }
+        .equipment-depreciation-panel .dep-kpi-card {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 16px;
+        }
+        .equipment-depreciation-panel .dep-kpi-card.is-primary {
+            border-color: #93c5fd;
+            background: linear-gradient(145deg, #eff6ff 0%, #ffffff 100%);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
+        }
+        .equipment-depreciation-panel .dep-kpi-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        .equipment-depreciation-panel .dep-kpi-value {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+        .equipment-depreciation-panel .dep-kpi-sub {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        .equipment-depreciation-panel .dep-frequency-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 4px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+        }
+        .equipment-depreciation-panel .dep-frequency-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            background: transparent;
+            color: #475569;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+        .equipment-depreciation-panel .dep-frequency-tab:hover {
+            background: #fff;
+            border-color: #c7d7fc;
+            color: #1e293b;
+        }
+        .equipment-depreciation-panel .dep-frequency-tab.is-active {
+            background: #fff;
+            border-color: #3b5fc0;
+            color: #1d4ed8;
+            box-shadow: 0 1px 4px rgba(59, 95, 192, 0.15);
+        }
+        .equipment-depreciation-panel .dep-section-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+            margin-bottom: 1.25rem;
+        }
+        .equipment-depreciation-panel .dep-section-header {
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .equipment-depreciation-panel .dep-table thead th {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            border-top: none;
+            background: #f8fafc;
+        }
+        .equipment-depreciation-panel .dep-row-current {
+            background: #eff6ff !important;
+            box-shadow: inset 3px 0 0 #2563eb;
+        }
+        .equipment-depreciation-panel .dep-row-current td {
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+        .equipment-depreciation-panel .dep-badge-current {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            background: #2563eb;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+    </style>
+
     @if(session('depreciation_message'))
         <div class="alert alert-success">{{ session('depreciation_message') }}</div>
     @endif
@@ -15,8 +128,8 @@
         </div>
     @else
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
-            <h5 class="mb-0"><i class="mdi mdi-finance"></i> Asset Depreciation</h5>
-            <div>
+            <h5 class="mb-0 fw-bold text-dark"><i class="mdi mdi-finance text-primary"></i> Asset Depreciation</h5>
+            <div class="d-flex flex-wrap" style="gap:8px;">
                 @can('equipment.components.depreciation.recalculate')
                     <button type="button" class="btn btn-outline-primary btn-sm" wire:click="recalculateSchedule">
                         <i class="mdi mdi-refresh"></i> Recalculate
@@ -30,77 +143,116 @@
             </div>
         </div>
 
-        {{-- Summary --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Purchase / Capitalized</small>
-                        <strong>{{ number_format((float) $config->capitalized_amount, 2) }} {{ $config->currency }}</strong>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Current Book Value</small>
-                        <strong>{{ number_format((float) ($config->current_book_value ?? 0), 2) }}</strong>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Accumulated Depreciation</small>
-                        <strong>{{ number_format((float) $config->accumulated_depreciation, 2) }}</strong>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Method</small>
-                        <strong>{{ $config->method?->name ?? '—' }}</strong>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Frequencies</small>
-                        <strong>{{ $config->frequenciesLabel() }}</strong>
-                        <small class="text-muted d-block">Summary uses {{ ucfirst($config->resolvedFrequencies()[0] ?? 'monthly') }} (primary)</small>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Useful Life</small>
-                        <strong>{{ $config->useful_life_years }} years</strong>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Salvage Value</small>
-                        <strong>{{ number_format((float) $config->salvage_value, 2) }}</strong>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Current Period Depreciation</small>
-                        <strong>{{ number_format((float) $config->current_period_depreciation, 2) }}</strong>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <small class="text-muted d-block">Status</small>
-                        <span class="badge badge-secondary">{{ ucfirst(str_replace('_', ' ', $config->status?->value ?? $config->status)) }}</span>
-                    </div>
+        {{-- KPI summary --}}
+        <div class="dep-kpi-grid mb-4">
+            <div class="dep-kpi-card is-primary">
+                <div class="dep-kpi-label">Current Book Value</div>
+                <div class="dep-kpi-value">{{ number_format((float) ($config->current_book_value ?? 0), 2) }}</div>
+                <div class="dep-kpi-sub">{{ $config->currency }}</div>
+            </div>
+            <div class="dep-kpi-card">
+                <div class="dep-kpi-label">Capitalized</div>
+                <div class="dep-kpi-value">{{ number_format((float) $config->capitalized_amount, 2) }}</div>
+                <div class="dep-kpi-sub">{{ $config->currency }}</div>
+            </div>
+            <div class="dep-kpi-card">
+                <div class="dep-kpi-label">Accumulated</div>
+                <div class="dep-kpi-value">{{ number_format((float) $config->accumulated_depreciation, 2) }}</div>
+            </div>
+            <div class="dep-kpi-card">
+                <div class="dep-kpi-label">This Period</div>
+                <div class="dep-kpi-value">{{ number_format((float) $config->current_period_depreciation, 2) }}</div>
+            </div>
+            <div class="dep-kpi-card">
+                <div class="dep-kpi-label">Method</div>
+                <div class="dep-kpi-value" style="font-size:0.95rem;">{{ $config->method?->name ?? '—' }}</div>
+            </div>
+            <div class="dep-kpi-card">
+                <div class="dep-kpi-label">Status</div>
+                <div class="dep-kpi-value" style="font-size:0.9rem;">
+                    <span class="badge badge-secondary">{{ ucfirst(str_replace('_', ' ', $config->status?->value ?? $config->status)) }}</span>
                 </div>
+                <div class="dep-kpi-sub">Useful life: {{ $config->useful_life_years }} yrs · Salvage {{ number_format((float) $config->salvage_value, 2) }}</div>
             </div>
         </div>
 
-        {{-- Timeline --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white"><strong>Lifecycle Timeline</strong></div>
-            <div class="card-body">
-                @forelse($this->timelineEvents as $event)
-                    <div class="d-flex align-items-start mb-2">
-                        <span class="badge badge-light border mr-2">{{ $event['date'] }}</span>
-                        <span>{{ $event['label'] }}</span>
-                    </div>
-                @empty
-                    <p class="text-muted mb-0">No timeline events yet.</p>
-                @endforelse
-            </div>
+        {{-- Frequency tabs --}}
+        <div class="dep-frequency-tabs mb-4" role="tablist">
+            @foreach($config->resolvedFrequencies() as $freq)
+                <button type="button"
+                        role="tab"
+                        class="dep-frequency-tab {{ $activeFrequency === $freq ? 'is-active' : '' }}"
+                        wire:click="setActiveFrequency('{{ $freq }}')"
+                        aria-selected="{{ $activeFrequency === $freq ? 'true' : 'false' }}">
+                    {{ ucfirst($freq) }}
+                </button>
+            @endforeach
         </div>
 
-        {{-- Monthly analysis --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap">
-                <strong>Monthly Depreciation Analysis</strong>
-                <div class="d-flex flex-wrap" style="gap:8px;">
-                    <select class="form-control form-control-sm" wire:model.live="scheduleFrequencyFilter" style="width:130px">
-                        <option value="">All frequencies</option>
-                        @foreach($config->resolvedFrequencies() as $freq)
-                            <option value="{{ $freq }}">{{ ucfirst($freq) }}</option>
+        {{-- Depreciation schedule --}}
+        <div class="dep-section-card">
+            <div class="dep-section-header d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                <span>Depreciation Schedule <small class="text-muted fw-normal">({{ ucfirst($activeFrequency) }})</small></span>
+                @if($versions->isNotEmpty())
+                    <select class="form-control form-control-sm" style="max-width:280px" wire:model.live="selectedVersionId">
+                        <option value="">Active version</option>
+                        @foreach($versions as $v)
+                            <option value="{{ $v->id }}">v{{ $v->version_number }} — {{ $v->reason }} {{ $v->is_archived ? '(archived)' : '' }}</option>
                         @endforeach
                     </select>
+                @endif
+            </div>
+            @if($schedules)
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 dep-table">
+                        <thead>
+                            <tr>
+                                <th>#</th><th>Period</th><th>Date</th><th>Opening</th><th>Amount</th><th>Accumulated</th><th>Closing</th><th>Posted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($schedules as $s)
+                                <tr class="{{ $this->isCurrentSchedulePeriod($s) ? 'dep-row-current' : '' }}">
+                                    <td>{{ $s->period_index + 1 }}</td>
+                                    <td>
+                                        {{ $s->period_label }}
+                                        @if($this->isCurrentSchedulePeriod($s))
+                                            <span class="dep-badge-current">Current</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $s->period_date->format('Y-m-d') }}</td>
+                                    <td>{{ number_format((float) $s->opening_book_value, 2) }}</td>
+                                    <td>{{ number_format((float) $s->depreciation_amount, 2) }}</td>
+                                    <td>{{ number_format((float) $s->accumulated_depreciation, 2) }}</td>
+                                    <td>{{ number_format((float) $s->closing_book_value, 2) }}</td>
+                                    <td>@if($s->is_posted)<span class="badge badge-success">Yes</span>@else<span class="badge badge-light border">No</span>@endif</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                    <div class="d-flex align-items-center">
+                        <label for="depPanelPerPage" class="form-label mb-0 me-2 text-muted small">Show:</label>
+                        <select wire:model.live="perPage" id="depPanelPerPage" class="form-select form-select-sm" style="width:auto;">
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="75">75</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    {{ $schedules->links() }}
+                </div>
+            @else
+                <div class="p-4 text-muted">Schedule not generated yet.</div>
+            @endif
+        </div>
+
+        {{-- Period analysis --}}
+        <div class="dep-section-card">
+            <div class="dep-section-header d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                <span>Period Analysis <small class="text-muted fw-normal">({{ ucfirst($activeFrequency) }})</small></span>
+                <div class="d-flex flex-wrap" style="gap:8px;">
                     <input type="number" class="form-control form-control-sm" style="width:100px" wire:model.live="analysisYear" placeholder="Year">
                     <select class="form-control form-control-sm" wire:model.live="analysisQuarter" style="width:120px">
                         <option value="">All quarters</option>
@@ -112,30 +264,37 @@
                 </div>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm mb-0">
-                    <thead><tr><th>Frequency</th><th>Period</th><th>Opening</th><th>Depreciation</th><th>Closing</th></tr></thead>
+                <table class="table table-sm mb-0 dep-table">
+                    <thead><tr><th>Period</th><th>Opening</th><th>Depreciation</th><th>Closing</th></tr></thead>
                     <tbody>
-                        @forelse($this->monthlyAnalysis as $row)
-                            <tr>
-                                <td><span class="badge badge-light border">{{ ucfirst($row->frequency ?? '—') }}</span></td>
-                                <td>{{ $row->period_label }}</td>
+                        @forelse($periodAnalysis ?? [] as $row)
+                            <tr class="{{ $this->isCurrentSchedulePeriod($row) ? 'dep-row-current' : '' }}">
+                                <td>
+                                    {{ $row->period_label }}
+                                    @if($this->isCurrentSchedulePeriod($row))
+                                        <span class="dep-badge-current">Current</span>
+                                    @endif
+                                </td>
                                 <td>{{ number_format((float) $row->opening_book_value, 2) }}</td>
                                 <td>{{ number_format((float) $row->depreciation_amount, 2) }}</td>
                                 <td>{{ number_format((float) $row->closing_book_value, 2) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-muted text-center">No schedule data. Run recalculation or wait for queue processing.</td></tr>
+                            <tr><td colspan="4" class="text-muted text-center py-3">No schedule data for this frequency.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
+            @if($periodAnalysis && $periodAnalysis->hasPages())
+                <div class="card-footer bg-white border-top">{{ $periodAnalysis->links() }}</div>
+            @endif
         </div>
 
-        {{-- Yearly --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white"><strong>Yearly Depreciation Analysis</strong></div>
+        {{-- Yearly analysis --}}
+        <div class="dep-section-card">
+            <div class="dep-section-header">Yearly Summary <small class="text-muted fw-normal">({{ ucfirst($activeFrequency) }})</small></div>
             <div class="table-responsive">
-                <table class="table table-sm mb-0">
+                <table class="table table-sm mb-0 dep-table">
                     <thead><tr><th>Year</th><th>Annual Depreciation</th><th>Year-end Book Value</th><th>Accumulated</th></tr></thead>
                     <tbody>
                         @forelse($this->yearlyAnalysis as $row)
@@ -146,70 +305,33 @@
                                 <td>{{ number_format((float) $row['accumulated'], 2) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-muted text-center">No yearly data available.</td></tr>
+                            <tr><td colspan="4" class="text-muted text-center py-3">No yearly data available.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
 
-        {{-- Schedule viewer --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
-                <strong>Depreciation Schedule</strong>
-                <div class="d-flex flex-wrap align-items-center" style="gap:8px;">
-                    <select class="form-control form-control-sm" wire:model.live="scheduleFrequencyFilter" style="max-width:140px">
-                        <option value="">All frequencies</option>
-                        @foreach($config->resolvedFrequencies() as $freq)
-                            <option value="{{ $freq }}">{{ ucfirst($freq) }}</option>
-                        @endforeach
-                    </select>
-                    @if($versions->isNotEmpty())
-                        <select class="form-control form-control-sm" style="max-width:280px" wire:model.live="selectedVersionId">
-                            <option value="">Active version</option>
-                            @foreach($versions as $v)
-                                <option value="{{ $v->id }}">v{{ $v->version_number }} — {{ $v->reason }} {{ $v->is_archived ? '(archived)' : '' }}</option>
-                            @endforeach
-                        </select>
-                    @endif
-                </div>
+        {{-- Timeline --}}
+        <div class="dep-section-card">
+            <div class="dep-section-header">Lifecycle Timeline</div>
+            <div class="p-3">
+                @forelse($this->timelineEvents as $event)
+                    <div class="d-flex align-items-start mb-2">
+                        <span class="badge badge-light border mr-2">{{ $event['date'] }}</span>
+                        <span>{{ $event['label'] }}</span>
+                    </div>
+                @empty
+                    <p class="text-muted mb-0">No timeline events yet.</p>
+                @endforelse
             </div>
-            @if($schedules)
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>#</th><th>Frequency</th><th>Period</th><th>Date</th><th>Opening</th><th>Amount</th><th>Accumulated</th><th>Closing</th><th>Posted</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($schedules as $s)
-                                <tr>
-                                    <td>{{ $s->period_index + 1 }}</td>
-                                    <td>{{ ucfirst($s->frequency ?? '—') }}</td>
-                                    <td>{{ $s->period_label }}</td>
-                                    <td>{{ $s->period_date->format('Y-m-d') }}</td>
-                                    <td>{{ number_format((float) $s->opening_book_value, 2) }}</td>
-                                    <td>{{ number_format((float) $s->depreciation_amount, 2) }}</td>
-                                    <td>{{ number_format((float) $s->accumulated_depreciation, 2) }}</td>
-                                    <td>{{ number_format((float) $s->closing_book_value, 2) }}</td>
-                                    <td>@if($s->is_posted)<span class="badge badge-success">Yes</span>@else<span class="badge badge-light">No</span>@endif</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <div class="card-footer">{{ $schedules->links() }}</div>
-            @else
-                <div class="card-body text-muted">Schedule not generated yet.</div>
-            @endif
         </div>
 
         {{-- Appraisals --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white"><strong>Appraisal History</strong></div>
+        <div class="dep-section-card">
+            <div class="dep-section-header">Appraisal History</div>
             <div class="table-responsive">
-                <table class="table table-sm mb-0">
+                <table class="table table-sm mb-0 dep-table">
                     <thead>
                         <tr><th>Date</th><th>Prior</th><th>New</th><th>Life +</th><th>Reason</th><th>Status</th><th></th></tr>
                     </thead>
@@ -232,7 +354,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="text-muted text-center">No appraisals recorded.</td></tr>
+                            <tr><td colspan="7" class="text-muted text-center py-3">No appraisals recorded.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

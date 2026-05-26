@@ -11,6 +11,7 @@ use App\Models\Equipments\Depreciation\DepreciationScheduleVersion;
 use App\Models\Equipments\Depreciation\EquipmentAppraisal;
 use App\Models\Equipments\Depreciation\EquipmentDepreciationConfig;
 use App\Models\Equipments\Equipment;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -136,12 +137,11 @@ class DepreciationService
 
             $config->update([
                 'initial_book_value' => $firstRow['opening_book_value'] ?? $config->capitalized_amount,
-                'current_book_value' => $lastRow['closing_book_value'] ?? $config->capitalized_amount,
-                'accumulated_depreciation' => $lastRow['accumulated_depreciation'] ?? 0,
-                'current_period_depreciation' => $firstRow['depreciation_amount'] ?? 0,
                 'active_schedule_version_id' => $version->id,
                 'status' => $this->resolveStatus($config, is_array($lastRow) ? $lastRow : null),
             ]);
+
+            $this->syncBookValueSnapshot($config->fresh());
 
             $this->logAudit(
                 $config->equipment_id,
@@ -165,6 +165,73 @@ class DepreciationService
         ?string $userId = null
     ): DepreciationScheduleVersion {
         return $this->generateSchedule($config, $reason, $userId);
+    }
+
+    public function syncBookValueSnapshot(EquipmentDepreciationConfig $config, ?Carbon $asOf = null): void
+    {
+        $asOf = ($asOf ?? now())->copy()->startOfDay();
+        $config->loadMissing(['activeScheduleVersion']);
+
+        if (! $config->activeScheduleVersion) {
+            return;
+        }
+
+        $primaryFrequency = $config->resolvedFrequencies()[0] ?? 'monthly';
+        $schedules = $config->activeScheduleVersion->schedules()
+            ->where('frequency', $primaryFrequency)
+            ->orderBy('period_index')
+            ->get();
+
+        $currentSchedule = $this->resolveCurrentPeriodSchedule($config, $schedules, $asOf);
+
+        if ($currentSchedule === null) {
+            $config->update([
+                'current_book_value' => $config->capitalized_amount,
+                'accumulated_depreciation' => 0,
+                'current_period_depreciation' => 0,
+                'last_processed_period_date' => null,
+            ]);
+
+            return;
+        }
+
+        $config->update([
+            'current_book_value' => $currentSchedule->closing_book_value,
+            'accumulated_depreciation' => $currentSchedule->accumulated_depreciation,
+            'current_period_depreciation' => $currentSchedule->depreciation_amount,
+            'last_processed_period_date' => $currentSchedule->period_date,
+        ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, DepreciationSchedule>  $schedules
+     */
+    public function resolveCurrentPeriodSchedule(
+        EquipmentDepreciationConfig $config,
+        $schedules,
+        Carbon $asOf
+    ): ?DepreciationSchedule {
+        if ($schedules->isEmpty()) {
+            return null;
+        }
+
+        if ($config->depreciation_start_date) {
+            $start = Carbon::parse($config->depreciation_start_date)->startOfMonth();
+            if ($asOf->lt($start)) {
+                return null;
+            }
+        }
+
+        $current = null;
+        foreach ($schedules as $schedule) {
+            if ($schedule->period_date->copy()->startOfDay()->lte($asOf)) {
+                $current = $schedule;
+            } else {
+                break;
+            }
+        }
+
+        return $current;
     }
 
     public function processAppraisal(EquipmentAppraisal $appraisal, ?string $userId = null): void

@@ -5,10 +5,13 @@ namespace App\Livewire\Equipment;
 use App\Enums\Equipment\AppraisalStatus;
 use App\Jobs\Equipment\ProcessEquipmentAppraisalJob;
 use App\Jobs\Equipment\RecalculateDepreciationScheduleJob;
+use App\Models\Equipments\Depreciation\DepreciationSchedule;
 use App\Models\Equipments\Depreciation\DepreciationScheduleVersion;
 use App\Models\Equipments\Depreciation\EquipmentAppraisal;
 use App\Models\Equipments\Depreciation\EquipmentDepreciationConfig;
 use App\Models\Equipments\Equipment;
+use App\Services\Equipment\Depreciation\DepreciationService;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -24,11 +27,13 @@ class EquipmentDepreciationPanel extends Component
 
     public string $analysisQuarter = '';
 
-    public string $scheduleFrequencyFilter = '';
+    public string $activeFrequency = '';
 
     public ?string $selectedVersionId = null;
 
     public bool $showAppraisalModal = false;
+
+    public int $perPage = 25;
 
     public array $appraisalForm = [
         'appraisal_date' => '',
@@ -40,11 +45,25 @@ class EquipmentDepreciationPanel extends Component
 
     protected $paginationTheme = 'bootstrap';
 
-    public function mount(string $equipmentId): void
+    public function mount(string $equipmentId, DepreciationService $depreciationService): void
     {
         $this->equipmentId = $equipmentId;
         $this->analysisYear = (string) now()->year;
         $this->appraisalForm['appraisal_date'] = now()->format('Y-m-d');
+
+        $config = Equipment::query()
+            ->with('depreciationConfig.activeScheduleVersion')
+            ->findOrFail($equipmentId)
+            ->depreciationConfig;
+
+        if ($config?->enable_depreciation && $config->active_schedule_version_id) {
+            $depreciationService->syncBookValueSnapshot($config);
+            $config->refresh();
+        }
+
+        if ($config) {
+            $this->activeFrequency = $config->resolvedFrequencies()[0] ?? 'monthly';
+        }
     }
 
     public function getEquipmentProperty(): Equipment
@@ -64,14 +83,34 @@ class EquipmentDepreciationPanel extends Component
         return $this->equipment->depreciationConfig;
     }
 
+    public function setActiveFrequency(string $frequency): void
+    {
+        $this->activeFrequency = $frequency;
+        $this->resetPage('schedulePage');
+        $this->resetPage('analysisPage');
+    }
+
     public function updatedSelectedVersionId(): void
     {
         $this->resetPage('schedulePage');
+        $this->resetPage('analysisPage');
     }
 
-    public function updatedScheduleFrequencyFilter(): void
+    public function updatedAnalysisYear(): void
     {
+        $this->resetPage('analysisPage');
+    }
+
+    public function updatedAnalysisQuarter(): void
+    {
+        $this->resetPage('analysisPage');
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->perPage = max(10, min(100, $this->perPage));
         $this->resetPage('schedulePage');
+        $this->resetPage('analysisPage');
     }
 
     public function openAppraisalModal(): void
@@ -104,7 +143,7 @@ class EquipmentDepreciationPanel extends Component
             return;
         }
 
-        $appraisal = EquipmentAppraisal::query()->create([
+        EquipmentAppraisal::query()->create([
             'equipment_id' => $this->equipmentId,
             'equipment_depreciation_config_id' => $config->id,
             'appraisal_date' => $this->appraisalForm['appraisal_date'],
@@ -164,6 +203,37 @@ class EquipmentDepreciationPanel extends Component
         }
     }
 
+    public function currentPeriodScheduleIdForFrequency(string $frequency): ?string
+    {
+        $config = $this->config;
+        $version = $this->activeVersion;
+        if (! $config || ! $version || $frequency === '') {
+            return null;
+        }
+
+        $schedules = $version->schedules
+            ->where('frequency', $frequency)
+            ->sortBy('period_index')
+            ->values();
+
+        $current = app(DepreciationService::class)->resolveCurrentPeriodSchedule(
+            $config,
+            $schedules,
+            now()->startOfDay()
+        );
+
+        return $current?->id;
+    }
+
+    public function isCurrentSchedulePeriod(DepreciationSchedule $schedule): bool
+    {
+        if ($this->activeFrequency !== ($schedule->frequency ?? '')) {
+            return false;
+        }
+
+        return $schedule->id === $this->currentPeriodScheduleIdForFrequency($this->activeFrequency);
+    }
+
     public function getTimelineEventsProperty(): array
     {
         $events = [];
@@ -206,14 +276,12 @@ class EquipmentDepreciationPanel extends Component
     }
 
     /**
-     * @param  Collection<int, \App\Models\Equipments\Depreciation\DepreciationSchedule>  $rows
-     * @return Collection<int, \App\Models\Equipments\Depreciation\DepreciationSchedule>
+     * @param  Collection<int, DepreciationSchedule>  $rows
+     * @return Collection<int, DepreciationSchedule>
      */
     protected function filterSchedulesByContext(Collection $rows): Collection
     {
-        if ($this->scheduleFrequencyFilter !== '') {
-            $rows = $rows->filter(fn ($s) => ($s->frequency ?? '') === $this->scheduleFrequencyFilter);
-        }
+        $rows = $rows->filter(fn ($s) => ($s->frequency ?? '') === $this->activeFrequency);
 
         if ($this->analysisYear) {
             $rows = $rows->filter(fn ($s) => $s->period_date->format('Y') === $this->analysisYear);
@@ -224,16 +292,6 @@ class EquipmentDepreciationPanel extends Component
         }
 
         return $rows;
-    }
-
-    public function getMonthlyAnalysisProperty(): array
-    {
-        $version = $this->activeVersion;
-        if (! $version) {
-            return [];
-        }
-
-        return $this->filterSchedulesByContext($version->schedules)->values()->all();
     }
 
     public function getYearlyAnalysisProperty(): array
@@ -272,22 +330,52 @@ class EquipmentDepreciationPanel extends Component
         return $config?->activeScheduleVersion?->load('schedules');
     }
 
+    /**
+     * @param  Collection<int, DepreciationSchedule>  $items
+     */
+    protected function paginateCollection(Collection $items, string $pageName): LengthAwarePaginator
+    {
+        $page = max(1, (int) $this->getPage($pageName));
+        $perPage = max(10, min(100, $this->perPage));
+        $total = $items->count();
+        $slice = $items->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return new LengthAwarePaginator(
+            $slice,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'pageName' => $pageName,
+            ]
+        );
+    }
+
     public function render()
     {
         $scheduleQuery = $this->activeVersion
             ? $this->activeVersion->schedules()
             : null;
 
-        if ($scheduleQuery && $this->scheduleFrequencyFilter !== '') {
-            $scheduleQuery->where('frequency', $this->scheduleFrequencyFilter);
+        if ($scheduleQuery && $this->activeFrequency !== '') {
+            $scheduleQuery->where('frequency', $this->activeFrequency);
         }
 
         $schedules = $scheduleQuery
-            ? $scheduleQuery->orderBy('period_index')->paginate(12, ['*'], 'schedulePage')
+            ? $scheduleQuery->orderBy('period_index')->paginate($this->perPage, ['*'], 'schedulePage')
             : null;
+
+        $periodAnalysis = null;
+        $version = $this->activeVersion;
+        if ($version) {
+            $analysisRows = $this->filterSchedulesByContext($version->schedules)->sortBy('period_index')->values();
+            $periodAnalysis = $this->paginateCollection($analysisRows, 'analysisPage');
+        }
 
         return view('livewire.equipment.equipment-depreciation-panel', [
             'schedules' => $schedules,
+            'periodAnalysis' => $periodAnalysis,
             'versions' => $this->config?->scheduleVersions ?? collect(),
         ]);
     }

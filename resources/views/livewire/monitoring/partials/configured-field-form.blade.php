@@ -38,12 +38,31 @@
         <div class="row g-3">
             <div class="col-md-8">
                 <label class="cf-label">Type <span class="text-danger">*</span></label>
-                <select wire:model.live="configuredFieldType" class="form-select cf-control @error('configuredFieldType') is-invalid @enderror">
-                    <option value="">Select field type…</option>
-                    @foreach($this->configuredFieldTypeOptions as $value => $label)
-                        <option value="{{ $value }}">{{ $label }}</option>
-                    @endforeach
-                </select>
+                <div class="tag-select-container @error('configuredFieldType') is-invalid @enderror"
+                     wire:click.away="closeConfiguredFieldTypeDropdown">
+                    <div class="tag-select-input" wire:click="openConfiguredFieldTypeDropdown">
+                        @if($this->selectedConfiguredFieldTypeLabel)
+                            <span class="tag-badge">
+                                {{ $this->selectedConfiguredFieldTypeLabel }}
+                            </span>
+                        @endif
+                        <input type="text"
+                               class="tag-input"
+                               readonly
+                               placeholder="{{ $this->selectedConfiguredFieldTypeLabel ? '' : 'Select field type…' }}"
+                               style="cursor: pointer;">
+                    </div>
+                    @if($showConfiguredFieldTypeDropdown)
+                        <div class="tag-dropdown">
+                            @foreach($this->configuredFieldTypeOptions as $value => $label)
+                                <div class="tag-dropdown-item {{ $configuredFieldType === $value ? 'active' : '' }}"
+                                     wire:click.stop="selectConfiguredFieldType('{{ $value }}')">
+                                    {{ $label }}
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
                 @error('configuredFieldType') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-4">

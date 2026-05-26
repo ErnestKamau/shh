@@ -20,7 +20,7 @@
     border: none;
     border-radius: 1rem;
     box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
-    overflow: hidden;
+    overflow: visible;
 }
 .cf-modal-header {
     background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
@@ -28,7 +28,24 @@
     padding: 1.15rem 1.35rem;
 }
 .cf-modal-subtitle { font-size: 0.8rem; color: #64748b; }
-.cf-modal-body { padding: 1.25rem 1.35rem; background: #fff; }
+.cf-modal-body {
+    padding: 1.25rem 1.35rem;
+    background: #fff;
+    max-height: min(70vh, calc(100vh - 12rem));
+    overflow-y: auto;
+    overflow-x: visible;
+}
+.cf-form .tag-select-container {
+    width: 100%;
+}
+.cf-form .tag-dropdown {
+    z-index: 1070;
+}
+.cf-form .tag-dropdown-item.active {
+    background-color: #eef2ff;
+    color: #4338ca;
+    font-weight: 600;
+}
 .cf-modal-footer {
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;

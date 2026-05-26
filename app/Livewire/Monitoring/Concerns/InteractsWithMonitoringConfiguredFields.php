@@ -25,7 +25,7 @@ trait InteractsWithMonitoringConfiguredFields
 
     public string $configuredFieldLabel = '';
 
-    public string $configuredFieldType = 'input';
+    public string $configuredFieldType = '';
 
     public int $configuredFieldOrder = 1;
 
@@ -44,6 +44,8 @@ trait InteractsWithMonitoringConfiguredFields
 
     public string $configuredFieldManagerSource = 'lab_section';
 
+    public bool $showConfiguredFieldTypeDropdown = false;
+
     /**
      * @return array<string, string>
      */
@@ -58,6 +60,36 @@ trait InteractsWithMonitoringConfiguredFields
     public function getConfiguredFieldTypeOptionsProperty(): array
     {
         return MonitoringTemplateConfiguredField::fieldTypeOptions();
+    }
+
+    public function getSelectedConfiguredFieldTypeLabelProperty(): ?string
+    {
+        $options = $this->configuredFieldTypeOptions;
+
+        return $options[$this->configuredFieldType] ?? null;
+    }
+
+    public function openConfiguredFieldTypeDropdown(): void
+    {
+        $this->showConfiguredFieldTypeDropdown = ! $this->showConfiguredFieldTypeDropdown;
+    }
+
+    public function closeConfiguredFieldTypeDropdown(): void
+    {
+        $this->showConfiguredFieldTypeDropdown = false;
+    }
+
+    public function selectConfiguredFieldType(string $type): void
+    {
+        $options = $this->configuredFieldTypeOptions;
+
+        if (! array_key_exists($type, $options)) {
+            return;
+        }
+
+        $this->configuredFieldType = $type;
+        $this->closeConfiguredFieldTypeDropdown();
+        $this->updatedConfiguredFieldType();
     }
 
     /**
@@ -136,6 +168,7 @@ trait InteractsWithMonitoringConfiguredFields
     public function closeCreateConfiguredFieldModal(): void
     {
         $this->showCreateConfiguredFieldModal = false;
+        $this->closeConfiguredFieldTypeDropdown();
     }
 
     public function showEditConfiguredFieldModalInit(string $fieldId): void
@@ -167,6 +200,7 @@ trait InteractsWithMonitoringConfiguredFields
     {
         $this->showEditConfiguredFieldModal = false;
         $this->editingConfiguredFieldId = null;
+        $this->closeConfiguredFieldTypeDropdown();
     }
 
     public function showDeleteConfiguredFieldModalInit(string $fieldId): void
@@ -441,7 +475,7 @@ trait InteractsWithMonitoringConfiguredFields
     protected function resetConfiguredFieldForm(): void
     {
         $this->configuredFieldLabel = '';
-        $this->configuredFieldType = 'input';
+        $this->configuredFieldType = '';
         $this->configuredFieldOrder = 1;
         $this->configuredFieldHelpText = '';
         $this->configuredFieldModelTiedTo = '';
@@ -450,6 +484,7 @@ trait InteractsWithMonitoringConfiguredFields
         $this->configuredFieldCalibrationAttributes = [];
         $this->configuredFieldManagerSource = $this->defaultManagerSource();
         $this->editingConfiguredFieldId = null;
+        $this->closeConfiguredFieldTypeDropdown();
         $this->resetErrorBag([
             'configuredFieldLabel',
             'configuredFieldType',
