@@ -31,4 +31,9 @@ class ChainOfCustody extends Model implements Auditable
 	{
 		return $this->belongsTo('App\SampleAnalysisStage', 'tracking_stage_id');
 	}
+
+	public function sampleHeader()
+	{
+		return $this->belongsTo('App\SampleHeader', 'sample_header_id');
+	}
 }

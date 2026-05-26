@@ -13,7 +13,7 @@
         @error('newAttachment') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
     </div>
 
-    @if($attachmentInstances->isEmpty() && (!isset($batchAttachments) || $batchAttachments->isEmpty()) && (!isset($customAttachments) || $customAttachments->isEmpty()))
+    @if($attachmentInstances->isEmpty() && (!isset($batchAttachments) || $batchAttachments->isEmpty()) && (!isset($customAttachments) || $customAttachments->isEmpty()) && (!isset($formMediaAttachments) || $formMediaAttachments->isEmpty()))
         <p class="text-muted mb-0 py-3 px-3">No linked attachments for this request.</p>
     @else
         <div class="table-responsive">
@@ -38,6 +38,24 @@
                                 <td>
                                     @if($cAttachment->file_url)
                                         <a href="{{ $cAttachment->file_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            Download
+                                        </a>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endif
+
+                    @if(isset($formMediaAttachments))
+                        @foreach($formMediaAttachments as $fAttachment)
+                            <tr>
+                                <td>{{ $fAttachment->original_name }}</td>
+                                <td>Form Attachment</td>
+                                <td><span class="badge badge-success">Submitted</span></td>
+                                <td class="text-nowrap">{{ optional($fAttachment->created_at)->format('Y-m-d H:i') ?? '—' }}</td>
+                                <td>
+                                    @if($fAttachment->file_url)
+                                        <a href="{{ $fAttachment->file_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
                                             Download
                                         </a>
                                     @endif

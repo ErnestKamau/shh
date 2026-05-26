@@ -33,6 +33,8 @@ class Header extends Component
     public $showBulkUpdateModal = false;
     public $showVerificationModal = false;
     public $showApprovalModal = false;
+    
+    public $verificationActiveTab = 'case_file_review';
 
     // Form Data
     public $selectedContact;
@@ -60,6 +62,7 @@ class Header extends Component
         'method_deviation_reason' => '',
         'technical_reviewer_id' => '',
     ];
+    public $caseFormData = [];
 
     protected $listeners = ['batchUpdated' => '$refresh'];
 
@@ -147,6 +150,22 @@ class Header extends Component
 
             // Initialize technical reviewer if exists
             $this->verificationData['technical_reviewer_id'] = $this->batch->approve_user_id ?? '';
+
+            // Initialize Case File Review Form
+            $existingCaseForm = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
+            if ($existingCaseForm) {
+                $this->caseFormData = $existingCaseForm->toArray();
+            } else {
+                $sampleDetail = \App\SampleDetails::where('sample_header_id', $this->batch->id)->first();
+                $this->caseFormData = [
+                    'lab_no' => $this->batch->batch_code,
+                    'file_no' => $sampleDetail ? $sampleDetail->file_no : '',
+                    'date_in' => $this->batch->receipt_date ? date('Y-m-d', strtotime($this->batch->receipt_date)) : date('Y-m-d'),
+                    'client' => $this->batch->customer ? $this->batch->customer->name : '',
+                    'name_of_analyst' => auth()->user() ? auth()->user()->name : '',
+                    'no_of_samples' => $this->batch->samples()->count(),
+                ];
+            }
         }
     }
 
@@ -398,6 +417,11 @@ class Header extends Component
             return;
         }
 
+        // Save Case File Review Form
+        $caseFormModel = \App\Models\CaseFileReviewForm::firstOrNew(['batch_id' => $batch->id]);
+        $caseFormModel->fill($this->caseFormData);
+        $caseFormModel->save();
+
         // We check if at least one laboratory has a manager or we have a manager assigned
         $hasManagers = false;
         foreach ($labs as $lab) {
@@ -562,6 +586,7 @@ class Header extends Component
 
         session()->flash('success', 'Batch move was successful');
         $this->showVerificationModal = false;
+        $this->verificationActiveTab = 'case_file_review';
         $this->dispatch('batchUpdated');
 
         // Redirect back to the workflow column we initiated from (legacy style)
