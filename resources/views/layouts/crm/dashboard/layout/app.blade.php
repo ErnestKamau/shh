@@ -66,7 +66,7 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group sticky-top sticky-offset">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
 				<span class="text-lg text-bold">{{ __('crm.module_name') }}</span>
 			</div>
@@ -76,26 +76,26 @@
 			</li> --}}
 			<!-- /END Separator -->
       <!-- Menu with submenu -->
-      <a href="/dasboard/crm/client-home" class="bg-dark list-group-item list-group-item-action">
+      <a href="/dasboard/crm/client-home" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.dashboard') }}</span>
 				</div>
 			</a>
 
-            <a href="/dashboard/crm/client-details" class="bg-dark list-group-item list-group-item-action">
+            <a href="/dashboard/crm/client-details" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-details fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.client_details') }}</span>
 				</div>
 			</a>
-			<a href="" class="bg-dark list-group-item list-group-item-action">
+			<a href="" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-notebook-edit-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.lab_booking') }}</span>
 				</div>
 			</a>
-			<a href="" class="bg-dark list-group-item list-group-item-action">
+			<a href="" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-google-analytics fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.reports') }}</span>
@@ -104,7 +104,7 @@
 
 			
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center" style="bottom:0">
 				{{ __('crm.copyright') }} {{ date('Y') }} <span class="text-red">{{ __('crm.imara_lims') }}</span>
 			</div>
 			<!-- Submenu content -->

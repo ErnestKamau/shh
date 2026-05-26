@@ -37,4 +37,55 @@ class ConfigurationController extends Controller
   {
     return view('layouts.configuration.bulk-import');
   }
+
+  public function preferences(): View
+  {
+    return view('layouts.configuration.preferences');
+  }
+
+  public function updatePreferences(\Illuminate\Http\Request $request): RedirectResponse
+  {
+    $request->validate([
+      'sys_theme_primary_color' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
+      'sys_theme_secondary_color' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
+      'sys_theme_accent_color' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
+      'sys_sidebar_bg_color' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
+      'sys_sidebar_link_bg' => 'required|string',
+    ]);
+
+    $type = \App\Models\System\SystemConfigurationsType::firstOrCreate(
+      ['configuration_type' => 'Global System Theme Settings'],
+      [
+        'description' => 'Manage colors and aesthetics globally across all modules, including primary highlight colors and sidebar styles.',
+        'status' => true,
+      ]
+    );
+
+    $keys = [
+      'sys_theme_primary_color',
+      'sys_theme_secondary_color',
+      'sys_theme_accent_color',
+      'sys_sidebar_bg_color',
+      'sys_sidebar_link_bg',
+    ];
+
+    foreach ($keys as $key) {
+      if ($request->has($key)) {
+        \App\Models\System\SystemConfiguration::updateOrCreate(
+          ['key' => $key],
+          [
+            'configuration_type_id' => $type->id,
+            'value' => $request->input($key),
+            'status' => true,
+          ]
+        );
+      }
+    }
+
+    \Illuminate\Support\Facades\Cache::forget('global_theme_variables');
+
+    return redirect()
+      ->back()
+      ->with('success', 'System Preferences & Theming updated successfully!');
+  }
 }

@@ -17,7 +17,7 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-file-document-multiple fa-3x"></i><br>
 				<span class="text-lg text-bold">DOCUMENT MANAGEMENT</span>
 			</div>
@@ -27,43 +27,43 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
-			<a href="{{ route('dms.dashboard') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('dms.dashboard') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-desktop-mac-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
 				</div>
 			</a>
-			<a href="{{ route('dms.types') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('dms.types') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-folder-multiple fa-fw mr-3"></span>
 					<span class="menu-collapsed">Document Types</span>
 				</div>
 			</a>
-			<a href="{{ route('dms.active') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('dms.active') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-multiple fa-fw mr-3"></span>
 					<span class="menu-collapsed">Active Documents</span>
 				</div>
 			</a>
-			<a href="{{ route('dms.archived') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('dms.archived') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-archive fa-fw mr-3"></span>
 					<span class="menu-collapsed">Archived Documents</span>
 				</div>
 			</a>
-			<a href="{{ route('dms.amendments') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('dms.amendments') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-pencil fa-fw mr-3"></span>
 					<span class="menu-collapsed">Amendments</span>
 				</div>
 			</a>
-			<a href="{{ route('dms.reports') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('dms.reports') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-chart-bar fa-fw mr-3"></span>
 					<span class="menu-collapsed">Reports</span>
 				</div>
 			</a>
-            <div class="list-group-item copyright-lims p-4 text-center text-white">
+            <div class="list-group-item copyright-lims p-4 text-center">
                 Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
             </div>
 		<!-- Submenu content -->
