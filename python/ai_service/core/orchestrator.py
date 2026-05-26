@@ -36,6 +36,10 @@ import uuid
 from typing import List, Dict, Any, Optional, AsyncGenerator
 
 from python.ai_service.core import mode_registry
+from python.ai_service.core.language import (
+    detect_language,
+    localize_fixed_text,
+)
 from python.ai_service.core.manifest_intent_router import GREETING_PATTERNS
 from python.ai_service.core.request_logger import request_logger
 from python.ai_service.workers.manifest_worker import ManifestWorker
@@ -73,14 +77,16 @@ _ANALYTICS_PHRASES = re.compile(
 )
 
 _CAPABILITIES_PATTERN = re.compile(
-    r"(w+hat\s+can\s+you\s+d[oi]|help|how\s+to\s+use|commands|capabilit(?:y|ies)|features)",
+    r"(w+hat\s+can\s+you\s+d[oi]|help|how\s+to\s+use|commands|capabilit(?:y|ies)|features|"
+    r"unaweza\s+kufanya\s+nini|unaweza\s+nisaidia)",
     re.IGNORECASE,
 )
 
 _LANGUAGE_CAPABILITY_PATTERN = re.compile(
     r"\b(can|do)\s+you\s+(speak|understand|use|reply\s+in|respond\s+in)\s+"
     r"(swahili|kiswahili|english)\b|"
-    r"\b(swahili|kiswahili|english)\b.{0,30}\b(can|do)\s+you\b",
+    r"\b(swahili|kiswahili|english)\b.{0,30}\b(can|do)\s+you\b|"
+    r"\b(unaweza|waweza)\s+(kuongea|kuzungumza|kutumia|kujibu)\s+(kiswahili|swahili|kiingereza)\b",
     re.IGNORECASE,
 )
 
@@ -130,6 +136,7 @@ class AIOrchestrator:
         start = time.time()
         mode = kwargs.get("mode")
         module_context = kwargs.get("module_context")
+        language = detect_language(message, kwargs.get("language"))
         
         # Context Promotion: If mode is general but module_context exists, use module_context
         if (not mode or mode == "general") and module_context:
@@ -139,25 +146,26 @@ class AIOrchestrator:
 
         logger.info(
             f"AIOrchestrator [{trace_id[:8]}]: route_and_process "
-            f"mode='{mode}' query='{m[:60]}'"
+            f"mode='{mode}' language='{language}' query='{m[:60]}'"
         )
 
-        result = self._fast_path(m, messages, mode, trace_id, start)
+        result = self._fast_path(m, messages, mode, language, trace_id, start)
         if result:
             self._log(trace_id, message, result, company_id, kwargs)
             return result
 
         result = await asyncio.to_thread(
             self._run_data_pipeline,
-            message, company_id, use_visuals, mode, module_context, trace_id, kwargs
+            message, company_id, use_visuals, mode, module_context, language, trace_id, kwargs
         )
 
         if result is None:
             # Pure conversational fallback
-            result = self.chat.run(message, messages, mode=mode, model=model, trace_id=trace_id)
+            result = self.chat.run(message, messages, mode=mode, model=model, trace_id=trace_id, language=language)
 
         result["meta"].setdefault("trace_id", trace_id)
         result["meta"].setdefault("mode", mode)
+        result["meta"].setdefault("language", language)
         result["meta"]["latency_ms"] = round((time.time() - start) * 1000)
 
         self._log(trace_id, message, result, company_id, kwargs)
@@ -180,6 +188,7 @@ class AIOrchestrator:
         start = time.time()
         mode = kwargs.get("mode")
         module_context = kwargs.get("module_context")
+        language = detect_language(message, kwargs.get("language"))
         
         # Context Promotion: If mode is general but module_context exists, use module_context
         if (not mode or mode == "general") and module_context:
@@ -189,11 +198,11 @@ class AIOrchestrator:
 
         logger.info(
             f"AIOrchestrator [{trace_id[:8]}]: route_and_stream "
-            f"mode='{mode}' query='{m[:60]}'"
+            f"mode='{mode}' language='{language}' query='{m[:60]}'"
         )
 
         # ── Fast-paths ────────────────────────────────────────────────────────
-        fast = self._fast_path(m, messages, mode, trace_id, start)
+        fast = self._fast_path(m, messages, mode, language, trace_id, start)
         if fast:
             self._log(trace_id, message, fast, company_id, kwargs)
             yield {"kind": "token", "token": fast["answer"]}
@@ -203,12 +212,13 @@ class AIOrchestrator:
         # ── Data pipeline (run in thread) ─────────────────────────────────────
         result = await asyncio.to_thread(
             self._run_data_pipeline,
-            message, company_id, use_visuals, mode, module_context, trace_id, kwargs
+            message, company_id, use_visuals, mode, module_context, language, trace_id, kwargs
         )
 
         if result is not None:
             result["meta"].setdefault("trace_id", trace_id)
             result["meta"].setdefault("mode", mode)
+            result["meta"].setdefault("language", language)
             result["meta"]["latency_ms"] = round((time.time() - start) * 1000)
             yield {"kind": "token", "token": result["answer"]}
             yield {
@@ -219,8 +229,7 @@ class AIOrchestrator:
             return
 
         # ── Streaming conversational fallback ──────────────────────────────────
-        system_prompt = mode_registry.get_persona(mode)
-        stream = self.chat.run_stream(messages, mode=mode, model=model)
+        stream = self.chat.run_stream(messages, mode=mode, model=model, language=language)
 
         async for chunk in self._wrap_stream(stream):
             if "message" in chunk and "content" in chunk["message"]:
@@ -233,6 +242,7 @@ class AIOrchestrator:
             "meta": {
                 "route": "conversational_stream",
                 "mode": mode,
+                "language": language,
                 "trace_id": trace_id,
                 "latency_ms": round((time.time() - start) * 1000),
             },
@@ -249,6 +259,7 @@ class AIOrchestrator:
         use_visuals: bool,
         mode: Optional[str],
         module_context: Optional[str],
+        language: str,
         trace_id: str,
         kwargs: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
@@ -260,7 +271,7 @@ class AIOrchestrator:
         m = message.lower()
 
         if mode == "support":
-            snapshot_result = self._answer_from_portal_snapshot(m, kwargs.get("user_data_snapshot"), trace_id)
+            snapshot_result = self._answer_from_portal_snapshot(m, kwargs.get("user_data_snapshot"), language, trace_id)
             if snapshot_result is not None:
                 return snapshot_result
 
@@ -280,6 +291,7 @@ class AIOrchestrator:
             mode=mode,
             module_context=module_context,
             trace_id=trace_id,
+            language=language,
         )
         if result is not None:
             logger.info(f"AIOrchestrator [{trace_id[:8]}]: Resolved by ManifestWorker")
@@ -294,6 +306,7 @@ class AIOrchestrator:
                 use_visuals=use_visuals,
                 mode=mode,
                 trace_id=trace_id,
+                language=language,
             )
             if result is not None:
                 logger.info(f"AIOrchestrator [{trace_id[:8]}]: Resolved by DynamicSqlWorker")
@@ -310,6 +323,7 @@ class AIOrchestrator:
             company_id=company_id,
             mode=mode,
             trace_id=trace_id,
+            language=language,
         )
         if result is not None:
             logger.info(f"AIOrchestrator [{trace_id[:8]}]: Resolved by RagWorker")
@@ -323,6 +337,7 @@ class AIOrchestrator:
         self,
         message: str,
         snapshot: Optional[Dict[str, Any]],
+        language: str,
         trace_id: str,
     ) -> Optional[Dict[str, Any]]:
         if not snapshot or not _PORTAL_LAST_SUBMISSION_PATTERN.search(message):
@@ -334,7 +349,11 @@ class AIOrchestrator:
         )
 
         if not submissions:
-            answer = "I could not find any recent submissions on your portal account."
+            answer = localize_fixed_text(
+                "portal_no_recent_submission",
+                language,
+                "I could not find any recent submissions on your portal account.",
+            )
         else:
             latest = submissions[0]
             batches = latest.get("batches") or []
@@ -399,6 +418,7 @@ class AIOrchestrator:
         m: str,
         messages: List[Dict[str, str]],
         mode: Optional[str],
+        language: str,
         trace_id: str,
         start: float,
     ) -> Optional[Dict[str, Any]]:
@@ -407,36 +427,44 @@ class AIOrchestrator:
         # Health ping
         if m in {"ping", "health", "status", "alive"}:
             return self._make_fast_result(
-                "IMARA AI is online and connected to the database. Ask a question when ready.",
-                "health_fast", mode, trace_id, start
+                localize_fixed_text(
+                    "health",
+                    language,
+                    "IMARA AI is online and connected to the database. Ask a question when ready.",
+                ),
+                "health_fast", mode, language, trace_id, start
             )
 
         # Language capability
         if _LANGUAGE_CAPABILITY_PATTERN.search(m):
             return self._make_fast_result(
-                "Yes. I can respond in English or Kiswahili. Unaweza kuniuliza kwa Kiswahili, nami nitakujibu kwa Kiswahili.",
-                "language_capability_fast", mode, trace_id, start
+                localize_fixed_text(
+                    "language_capability",
+                    language,
+                    "Yes. I can respond in English or Kiswahili. Unaweza kuniuliza kwa Kiswahili, nami nitakujibu kwa Kiswahili.",
+                ),
+                "language_capability_fast", mode, language, trace_id, start
             )
 
         # Capabilities
         if _CAPABILITIES_PATTERN.search(m):
             target_mode = self._capabilities_mode(m, mode)
             return self._make_fast_result(
-                mode_registry.get_capabilities(target_mode),
-                "capabilities_fast", target_mode, trace_id, start
+                mode_registry.get_capabilities(target_mode, language),
+                "capabilities_fast", target_mode, language, trace_id, start
             )
 
         # Greeting (only on first message)
         if len(messages) <= 1 and GREETING_PATTERNS.search(m):
             return self._make_fast_result(
-                mode_registry.get_greeting(mode, m),
-                "greeting_fast", mode, trace_id, start
+                mode_registry.get_greeting_for_language(mode, m, language),
+                "greeting_fast", mode, language, trace_id, start
             )
 
         return None
 
     def _make_fast_result(
-        self, answer: str, route: str, mode: Optional[str], trace_id: str, start: float
+        self, answer: str, route: str, mode: Optional[str], language: str, trace_id: str, start: float
     ) -> Dict[str, Any]:
         return {
             "answer": answer,
@@ -446,6 +474,7 @@ class AIOrchestrator:
                 "routing_tier": "fast_path",
                 "trace_id": trace_id,
                 "mode": mode,
+                "language": language,
                 "latency_ms": round((time.time() - start) * 1000),
                 "confidence": 1.0,
                 "orchestration_path": [route],

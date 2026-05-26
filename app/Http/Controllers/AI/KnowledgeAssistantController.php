@@ -63,6 +63,21 @@ class KnowledgeAssistantController extends Controller
         return $input;
     }
 
+    private function aiRequestLanguage(?string $language = null): string
+    {
+        $value = strtolower(str_replace('_', '-', trim((string) ($language ?: app()->getLocale()))));
+
+        if (in_array($value, ['sw', 'sw-ke', 'swahili', 'kiswahili'], true)) {
+            return 'sw';
+        }
+
+        if (in_array($value, ['en', 'en-us', 'en-gb', 'english'], true)) {
+            return 'en';
+        }
+
+        return 'auto';
+    }
+
     /**
      * Ask a question and get a grounded answer via RAG or live data.
      *
@@ -80,6 +95,7 @@ class KnowledgeAssistantController extends Controller
     {
         $validated = $request->validate([
             'question' => 'required|string|max:1000',
+            'language' => ['nullable', 'string', Rule::in(['auto', 'en', 'en-us', 'en-gb', 'sw', 'sw-ke', 'english', 'swahili', 'kiswahili'])],
         ]);
 
         $question = $this->normalizeInput($validated['question']);
@@ -91,7 +107,9 @@ class KnowledgeAssistantController extends Controller
         }
 
         try {
-            $response = $this->inferenceService->chat($question);
+            $response = $this->inferenceService->chat($question, [
+                'language' => $this->aiRequestLanguage($validated['language'] ?? null),
+            ]);
 
             return response()->json($response);
         } catch (\Throwable $e) {
@@ -120,6 +138,7 @@ class KnowledgeAssistantController extends Controller
         $validated = $request->validate([
             'query' => 'required|string|max:1000',
             'limit' => 'sometimes|integer|min:1|max:20',
+            'language' => ['nullable', 'string', Rule::in(['auto', 'en', 'en-us', 'en-gb', 'sw', 'sw-ke', 'english', 'swahili', 'kiswahili'])],
         ]);
 
         $query = $this->normalizeInput($validated['query']);
@@ -127,7 +146,8 @@ class KnowledgeAssistantController extends Controller
         try {
             $response = $this->inferenceService->chat($query, [
                 'limit' => $validated['limit'] ?? 5,
-                'search_only' => true
+                'search_only' => true,
+                'language' => $this->aiRequestLanguage($validated['language'] ?? null),
             ]);
 
             return response()->json($response);
@@ -172,6 +192,7 @@ class KnowledgeAssistantController extends Controller
             'model'            => 'nullable|string',
             'module_context'   => 'nullable|string',
             'mode'             => 'nullable|string',
+            'language'         => ['nullable', 'string', Rule::in(['auto', 'en', 'en-us', 'en-gb', 'sw', 'sw-ke', 'english', 'swahili', 'kiswahili'])],
         ]);
 
         $question = $this->normalizeInput($validated['question']);
@@ -193,6 +214,7 @@ class KnowledgeAssistantController extends Controller
                 'model' => $validated['model'] ?? null,
                 'module_context' => $validated['module_context'] ?? null,
                 'mode' => $validated['mode'] ?? null,
+                'language' => $this->aiRequestLanguage($validated['language'] ?? null),
             ];
 
             foreach ($this->inferenceService->streamChat($question, $options) as $chunk) {

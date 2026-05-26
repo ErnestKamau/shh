@@ -27,6 +27,7 @@ from python.ai_service.services.visualization_service import VisualizationServic
 from python.ai_service.core.sql_guardrails import SQLGuardrails
 from python.ai_service.core.schema_catalog import build_prompt_schema, BLOCKED_TABLES, BLOCKED_SCHEMAS
 from python.ai_service.core import mode_registry
+from python.ai_service.core.language import language_instruction, localize_fixed_text
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ class DynamicSqlWorker:
         use_visuals: bool = True,
         mode: Optional[str] = None,
         trace_id: str = "",
+        language: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Attempt to generate and execute a dynamic SQL query.
@@ -80,8 +82,12 @@ class DynamicSqlWorker:
         if not self.guardrails.validate_query(sql):
             logger.warning(f"DynamicSqlWorker [{trace_id[:8]}]: SQL failed guardrail — blocked")
             return {
-                "answer": "I generated a query for that, but it didn't pass the safety checks. "
-                          "Please rephrase your question or ask for a specific report.",
+                "answer": localize_fixed_text(
+                    "dynamic_sql_blocked",
+                    language,
+                    "I generated a query for that, but it didn't pass the safety checks. "
+                    "Please rephrase your question or ask for a specific report.",
+                ),
                 "sources": [],
                 "meta": {
                     "route": "dynamic_sql:blocked",
@@ -94,7 +100,11 @@ class DynamicSqlWorker:
         if self._contains_blocked_table(sql):
             logger.warning(f"DynamicSqlWorker [{trace_id[:8]}]: SQL references blocked table — rejected")
             return {
-                "answer": "That query references restricted data that is not available in this mode.",
+                "answer": localize_fixed_text(
+                    "dynamic_sql_restricted",
+                    language,
+                    "That query references restricted data that is not available in this mode.",
+                ),
                 "sources": [],
                 "meta": {"route": "dynamic_sql:blocked_table", "routing_tier": "dynamic_sql"},
             }
@@ -103,8 +113,12 @@ class DynamicSqlWorker:
         sql, explain_error = self._validate_with_explain(sql, trace_id, message)
         if explain_error and not sql:
             return {
-                "answer": "I tried to answer that analytically, but couldn't construct a valid query. "
-                          "Try rephrasing, or ask for one of the standard reports.",
+                "answer": localize_fixed_text(
+                    "dynamic_sql_invalid",
+                    language,
+                    "I tried to answer that analytically, but couldn't construct a valid query. "
+                    "Try rephrasing, or ask for one of the standard reports.",
+                ),
                 "sources": [],
                 "meta": {"route": "dynamic_sql:explain_failed", "routing_tier": "dynamic_sql"},
             }
@@ -114,7 +128,11 @@ class DynamicSqlWorker:
 
         if result is None:
             return {
-                "answer": "The dynamic query timed out or failed. Try a more specific question.",
+                "answer": localize_fixed_text(
+                    "dynamic_sql_failed",
+                    language,
+                    "The dynamic query timed out or failed. Try a more specific question.",
+                ),
                 "sources": [],
                 "meta": {"route": "dynamic_sql:exec_failed", "routing_tier": "dynamic_sql"},
             }
@@ -122,7 +140,7 @@ class DynamicSqlWorker:
         data, rows = result
 
         # ── Step 6: Synthesize answer ──────────────────────────────────────────
-        answer = self._synthesize(message, data, rows, sql, mode, use_visuals)
+        answer = self._synthesize(message, data, rows, sql, mode, use_visuals, language)
 
         latency = round((time.time() - start) * 1000)
         logger.info(f"DynamicSqlWorker [{trace_id[:8]}]: OK — {rows} rows in {latency}ms")
@@ -301,11 +319,14 @@ Corrected SQL:"""
         sql: str,
         mode: Optional[str],
         use_visuals: bool,
+        language: Optional[str] = None,
     ) -> str:
         if not data:
-            return (
+            return localize_fixed_text(
+                "dynamic_sql_empty",
+                language,
                 "The query ran successfully but returned no matching records. "
-                "The data may not exist for the filters applied."
+                "The data may not exist for the filters applied.",
             )
 
         # Format as markdown table
@@ -326,8 +347,10 @@ Corrected SQL:"""
         else:
             table_md = ""
 
-        persona = mode_registry.get_persona(mode)
+        persona = mode_registry.get_persona(mode, language)
+        lang_rule = language_instruction(language)
         explanation_prompt = f"""{persona}
+{lang_rule}
 
 A database query was run to answer the user's question. Summarise the results briefly and professionally.
 Do not repeat all the table data; provide a 2-3 sentence insight.

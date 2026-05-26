@@ -2173,7 +2173,7 @@
                             ?>
                             <div class="card-body bg-default ">
                                 <div class="table-responsive p-0">
-                                    <table class="table table-condensed my-small-text table-hover table-sm">
+                                    <table class="table table-condensed my-small-text table-hover table-sm livewire-table">
                                         <tbody>
                                             @foreach ($users as $user)
                                             <tr>
