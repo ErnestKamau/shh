@@ -9,11 +9,17 @@
     <?php
     $breadcrumbItems = [];
 
-    // Always start with Dashboard
+    $breadcrumbItems[] = [
+        'link' => route('home'),
+        'name' => 'App',
+        'icon' => null,
+    ];
+
+    // Always include lab dashboard
     $breadcrumbItems[] = [
         'link' => route('dashboard-lab'),
         'name' => 'Dashboard',
-        'icon' => null
+        'icon' => null,
     ];
 
     // Only include Sample Types breadcrumb for sample-related pages
@@ -186,9 +192,35 @@
     }
     if (isset($componentType) && $componentType === 'monitoring') {
         $breadcrumbItems[] = [
+            'link' => null,
+            'name' => 'Monitoring',
+            'icon' => null,
+        ];
+    }
+
+    if (isset($componentType) && $componentType === 'template-create') {
+        $breadcrumbItems[] = [
             'link' => route('livewire.monitoring'),
             'name' => 'Monitoring',
-            'icon' => null
+            'icon' => null,
+        ];
+        $breadcrumbItems[] = [
+            'link' => null,
+            'name' => 'New Template',
+            'icon' => null,
+        ];
+    }
+
+    if (isset($componentType) && $componentType === 'template-edit') {
+        $breadcrumbItems[] = [
+            'link' => route('livewire.monitoring'),
+            'name' => 'Monitoring',
+            'icon' => null,
+        ];
+        $breadcrumbItems[] = [
+            'link' => null,
+            'name' => 'Edit Template',
+            'icon' => null,
         ];
     }
     ?>
@@ -262,4 +294,5 @@
     });
 </script>
 @endif
+@stack('script2')
 @endsection

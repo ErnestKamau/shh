@@ -20,7 +20,12 @@ class TrainingHeader extends Model implements Auditable
 
     protected $appends = ['users'];
 
-    protected $fillable = ['deleted_at'];
+    protected $fillable = [
+        'name',
+        'capability_id',
+        'created_by',
+        'deleted_at',
+    ];
 
     public function creator(){
         return $this->belongsTo(User::class,'created_by');

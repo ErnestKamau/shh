@@ -15,5 +15,6 @@ class SkillsMatrixConfiguration extends Model implements Auditable
     public $incrementing = false;
 
 	use \OwenIt\Auditing\Auditable;
-    //
+
+    protected $table = 'skills_matrix_configurations';
 }

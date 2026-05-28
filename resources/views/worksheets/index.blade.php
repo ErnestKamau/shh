@@ -37,7 +37,7 @@
     <div class="container-fluid pt-4">
       <div class="row">
         <div class="col-12">
-          @livewire('worksheets.worksheet-manager', ['batch' => $batch, 'stageHeaders' => $stageHeaders])
+          @livewire('worksheets.worksheet-manager', ['batch' => $batch])
         </div>
       </div>
     </div>
@@ -120,7 +120,10 @@ document.addEventListener('livewire:init', function () {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    window.scheduleMethodSequencesInit(15);
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'method-sequences') {
+        window.scheduleMethodSequencesInit(15);
+    }
 });
 </script>
 @endsection

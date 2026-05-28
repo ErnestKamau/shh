@@ -6,7 +6,13 @@ use App\CapturedResult;
 use App\Models\Formulars\Formula;
 use App\Models\Formulars\FormulaMandatoryField;
 use App\Models\Formulars\FormulaStep;
+use App\Models\Formulars\FormulaStepTableColumn;
+use App\Models\Formulars\SampleFormulaStepTableCellValue;
+use App\Models\Formulars\SampleFormulaStepTableInstance;
+use App\Models\Formulars\SampleFormulaStepTableRow;
 use App\Models\Worksheets\SampleCapturedWorksheetFormula;
+use App\Services\Formulars\FormulaStepCheckboxOptionsResolver;
+use App\Services\Formulars\FormulaStepTableRowGeneratorService;
 use App\SampleAnalysisDates;
 use App\SampleHeader;
 use App\User;
@@ -28,7 +34,21 @@ class FormulaWorksheet extends Component
     public $worksheetData = [];
     public $formulaSteps = [];
     public $mandatoryFields = [];
+
     public $sharedMandatoryData = [];
+
+    /** @var array<string, list<string>> */
+    public array $sharedCheckboxStepData = [];
+
+    /** @var array<string, \Illuminate\Support\Collection<int, FormulaStepTableColumn>> */
+    public array $formulaStepTableColumnsByStep = [];
+
+    /** @var array<string, array<string, list<array{row: SampleFormulaStepTableRow}>>> */
+    public array $formulaStepTableRowsByCaptured = [];
+
+    /** @var array<string, array<string, array<string, array<string, mixed>>>> */
+    public array $formulaStepTableData = [];
+
     public $equipments = [];
     public $users = [];
     public $methods = [];
@@ -209,7 +229,9 @@ class FormulaWorksheet extends Component
         // Load shared mandatory data (from first captured result if exists)
         $firstCaptured = $this->capturedResults->first();
         if ($firstCaptured) {
-            $existing = SampleCapturedWorksheetFormula::where('captured_result_id', $firstCaptured->id)->first();
+            $existing = SampleCapturedWorksheetFormula::where('captured_result_id', $firstCaptured->id)
+                ->with('stepData')
+                ->first();
             if ($existing && $existing->mandatoryData) {
                 /** @var \Illuminate\Database\Eloquent\Collection $mandatoryData */
                 $mandatoryData = $existing->mandatoryData;
@@ -217,7 +239,24 @@ class FormulaWorksheet extends Component
                     $this->sharedMandatoryData = $mandatoryData->pluck('field_value', 'formula_mandatory_field_id')->toArray();
                 }
             }
+
+            if ($existing && $existing->stepData) {
+                $this->sharedCheckboxStepData = [];
+                foreach ($this->formulaSteps->where('step_type', 'checkbox') as $checkboxStep) {
+                    $raw = $existing->stepData->firstWhere('formula_step_id', $checkboxStep->id)?->step_value;
+                    if ($raw !== null && $raw !== '') {
+                        $decoded = json_decode((string) $raw, true);
+                        $this->sharedCheckboxStepData[$checkboxStep->id] = is_array($decoded)
+                            ? array_values(array_map('strval', $decoded))
+                            : [];
+                    } else {
+                        $this->sharedCheckboxStepData[$checkboxStep->id] = [];
+                    }
+                }
+            }
         }
+
+        $this->loadFormulaStepTableCapture();
     }
 
     public function saveWorksheet(string $capturedResultId): void
@@ -278,6 +317,13 @@ class FormulaWorksheet extends Component
                 $worksheet->mandatoryData()->updateOrCreate(
                     ['formula_mandatory_field_id' => $fieldId],
                     ['field_value' => $value]
+                );
+            }
+
+            foreach ($this->sharedCheckboxStepData as $stepId => $selected) {
+                $worksheet->stepData()->updateOrCreate(
+                    ['formula_step_id' => $stepId],
+                    ['step_value' => json_encode(is_array($selected) ? array_values($selected) : []) ?: '[]']
                 );
             }
 
@@ -467,6 +513,219 @@ class FormulaWorksheet extends Component
         } catch (\Exception $e) {
             Log::error('Auto-save mandatory field error: ' . $e->getMessage());
         }
+    }
+
+    public function toggleMandatoryCheckboxOption(string $fieldId, string $option): void
+    {
+        $current = json_decode((string) ($this->sharedMandatoryData[$fieldId] ?? '[]'), true);
+        if (! is_array($current)) {
+            $current = [];
+        }
+
+        if (in_array($option, $current, true)) {
+            $current = array_values(array_filter($current, fn ($o) => $o !== $option));
+        } else {
+            $current[] = $option;
+        }
+
+        $this->sharedMandatoryData[$fieldId] = json_encode($current);
+        $this->saveMandatoryFields();
+    }
+
+    public function isMandatoryCheckboxSelected(string $fieldId, string $option): bool
+    {
+        $current = json_decode((string) ($this->sharedMandatoryData[$fieldId] ?? '[]'), true);
+
+        return is_array($current) && in_array($option, $current, true);
+    }
+
+    public function updatedSharedCheckboxStepData(): void
+    {
+        try {
+            $this->saveSharedCheckboxSteps();
+            $this->skipRender();
+        } catch (\Exception $e) {
+            Log::error('Auto-save checkbox step error: ' . $e->getMessage());
+        }
+    }
+
+    public function toggleSharedCheckboxOption(string $stepId, string $optionId): void
+    {
+        $current = $this->sharedCheckboxStepData[$stepId] ?? [];
+        if (in_array($optionId, $current, true)) {
+            $current = array_values(array_filter($current, fn ($v) => $v !== $optionId));
+        } else {
+            $current[] = $optionId;
+        }
+        $this->sharedCheckboxStepData[$stepId] = $current;
+        $this->saveSharedCheckboxSteps();
+    }
+
+    protected function saveSharedCheckboxSteps(): void
+    {
+        foreach ($this->capturedResults as $captured) {
+            $worksheet = SampleCapturedWorksheetFormula::firstOrCreate(
+                ['captured_result_id' => $captured->id],
+                [
+                    'sample_header_id' => $this->batch->id,
+                    'sample_detail_id' => $captured->sample_detail_id,
+                    'formular_id' => $this->formula->id,
+                    'lab_no' => $this->batch->batch_code,
+                ]
+            );
+
+            foreach ($this->sharedCheckboxStepData as $stepId => $selected) {
+                $worksheet->stepData()->updateOrCreate(
+                    ['formula_step_id' => $stepId],
+                    ['step_value' => json_encode(is_array($selected) ? array_values($selected) : []) ?: '[]']
+                );
+            }
+        }
+    }
+
+    protected function loadFormulaStepTableCapture(): void
+    {
+        $this->formulaStepTableData = [];
+        $this->formulaStepTableColumnsByStep = [];
+        $this->formulaStepTableRowsByCaptured = [];
+
+        $tableSteps = $this->formulaSteps->where('step_type', 'custom_table');
+        if ($tableSteps->isEmpty()) {
+            return;
+        }
+
+        $service = app(FormulaStepTableRowGeneratorService::class);
+
+        foreach ($tableSteps as $step) {
+            if (! isset($this->formulaStepTableColumnsByStep[$step->id])) {
+                $this->formulaStepTableColumnsByStep[$step->id] = FormulaStepTableColumn::where('formula_step_id', $step->id)
+                    ->orderBy('order')
+                    ->get();
+            }
+        }
+
+        foreach ($this->capturedResults as $captured) {
+            $worksheet = SampleCapturedWorksheetFormula::where('captured_result_id', $captured->id)->first();
+            if (! $worksheet) {
+                continue;
+            }
+
+            $capturedKey = (string) $captured->id;
+            $this->formulaStepTableRowsByCaptured[$capturedKey] = [];
+
+            foreach ($tableSteps as $step) {
+                $instance = $service->firstOrCreateInstance($worksheet, $step);
+                $service->syncRows($instance, $worksheet, $step);
+
+                $columns = $this->formulaStepTableColumnsByStep[$step->id] ?? collect();
+                $columnsById = $columns->keyBy('id');
+
+                $rows = SampleFormulaStepTableRow::where('instance_id', $instance->id)
+                    ->orderBy('row_index')
+                    ->get();
+
+                $rowEntries = [];
+                foreach ($rows as $row) {
+                    $cells = [];
+                    $values = SampleFormulaStepTableCellValue::where('row_id', $row->id)->get();
+                    foreach ($values as $val) {
+                        $col = $columnsById->get($val->column_id);
+                        if ($col) {
+                            $cells[$col->key] = $this->normalizeFormulaStepTableCellForDisplay($col, $val->value);
+                        }
+                    }
+                    if (! isset($this->formulaStepTableData[$capturedKey])) {
+                        $this->formulaStepTableData[$capturedKey] = [];
+                    }
+                    if (! isset($this->formulaStepTableData[$capturedKey][$step->id])) {
+                        $this->formulaStepTableData[$capturedKey][$step->id] = [];
+                    }
+                    $this->formulaStepTableData[$capturedKey][$step->id][$row->id] = $cells;
+                    $rowEntries[] = ['row' => $row];
+                }
+
+                $this->formulaStepTableRowsByCaptured[$capturedKey][$step->id] = $rowEntries;
+            }
+        }
+    }
+
+    public function persistFormulaStepTableCell(
+        string $capturedResultId,
+        string $stepId,
+        string $rowId,
+        string $columnKey,
+        mixed $value,
+    ): void {
+        $worksheet = SampleCapturedWorksheetFormula::where('captured_result_id', $capturedResultId)->first();
+        $step = FormulaStep::find($stepId);
+        if (! $worksheet || ! $step) {
+            return;
+        }
+
+        $column = FormulaStepTableColumn::where('formula_step_id', $stepId)->where('key', $columnKey)->first();
+        if (! $column) {
+            return;
+        }
+
+        $stored = is_array($value) ? json_encode($value) : (string) ($value ?? '');
+
+        SampleFormulaStepTableCellValue::updateOrCreate(
+            [
+                'row_id' => $rowId,
+                'column_id' => $column->id,
+            ],
+            ['value' => $stored],
+        );
+
+        if (! isset($this->formulaStepTableData[$capturedResultId][$stepId][$rowId])) {
+            $this->formulaStepTableData[$capturedResultId][$stepId][$rowId] = [];
+        }
+        $this->formulaStepTableData[$capturedResultId][$stepId][$rowId][$columnKey] = $value;
+    }
+
+    public function syncFormulaStepTableRows(string $capturedResultId, string $stepId): void
+    {
+        $worksheet = SampleCapturedWorksheetFormula::where('captured_result_id', $capturedResultId)->first();
+        $step = FormulaStep::find($stepId);
+        if (! $worksheet || ! $step || ! $step->isCustomTable()) {
+            return;
+        }
+
+        $instance = app(FormulaStepTableRowGeneratorService::class)->firstOrCreateInstance($worksheet, $step);
+        app(FormulaStepTableRowGeneratorService::class)->syncRows($instance, $worksheet, $step);
+        $this->loadFormulaStepTableCapture();
+    }
+
+    public function addFormulaStepTableManualRow(string $capturedResultId, string $stepId): void
+    {
+        $worksheet = SampleCapturedWorksheetFormula::where('captured_result_id', $capturedResultId)->first();
+        $step = FormulaStep::find($stepId);
+        if (! $worksheet || ! $step || ! $step->allow_manual_rows) {
+            return;
+        }
+
+        $instance = app(FormulaStepTableRowGeneratorService::class)->firstOrCreateInstance($worksheet, $step);
+        app(FormulaStepTableRowGeneratorService::class)->addManualRow($instance, $step);
+        $this->loadFormulaStepTableCapture();
+    }
+
+    protected function normalizeFormulaStepTableCellForDisplay(FormulaStepTableColumn $column, mixed $value): mixed
+    {
+        $config = is_array($column->dataset_config) ? $column->dataset_config : [];
+        if (in_array($config['choice_control'] ?? '', ['checkbox'], true) || $column->input_data_type === 'boolean') {
+            if (is_string($value) && $value !== '' && $value[0] === '[') {
+                $decoded = json_decode($value, true);
+
+                return is_array($decoded) ? $decoded : $value;
+            }
+        }
+
+        return $value ?? '';
+    }
+
+    public function checkboxOptionsForStep(FormulaStep $step): \Illuminate\Support\Collection
+    {
+        return app(FormulaStepCheckboxOptionsResolver::class)->optionsForStep($step);
     }
 
     /**

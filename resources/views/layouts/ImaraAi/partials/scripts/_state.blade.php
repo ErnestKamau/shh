@@ -4,6 +4,7 @@ const CSRF_TOKEN            = '{{ csrf_token() }}';
 const CONVOS_URL            = '{{ route('ai.conversations.list') }}';
 const CREATE_CONVO_URL      = '{{ route('ai.conversations.create') }}';
 const CONVO_MESSAGES_BASE   = '/imara-ai/conversations';
+const IMARA_AI_LANGUAGE     = {!! json_encode(in_array(app()->getLocale(), ['en', 'sw'], true) ? app()->getLocale() : 'auto') !!};
 @auth
 const USER_INITIALS = '{{ strtoupper(substr(auth()->user()->name ?? "U", 0, 1)) }}';
 @else

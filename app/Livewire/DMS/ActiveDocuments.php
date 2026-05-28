@@ -68,9 +68,6 @@ class ActiveDocuments extends Component
     public $inheritedPermissions = [];
 
     public $perPageOptions = [10, 25, 50, 100];
-    
-    // Enriched documents with computed properties
-    public $enrichedDocuments = [];
 
     protected $numberGenerator;
     protected $permissionManager;

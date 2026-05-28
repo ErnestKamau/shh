@@ -194,16 +194,17 @@ class Attachments extends Component
             return;
         }
 
-        $configType = SystemConfiguration::where('key', 'attachment_type_config_id')->first();
-        if (! $configType) {
-            session()->flash('error', 'Attachment Type Config not found.');
+        $configurationTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
+            ->resolveAttachmentConfigurationTypeId();
+        if ($configurationTypeId === null) {
+            session()->flash('error', 'Attachment Types configuration is not set up in System Configuration.');
             return;
         }
 
         $config = new SystemConfiguration();
         $config->key = 'attachment_type';
         $config->value = $name;
-        $config->configuration_type_id = $configType->id;
+        $config->configuration_type_id = $configurationTypeId;
         $config->save();
 
         $this->newAttachmentTypeId = $config->id;

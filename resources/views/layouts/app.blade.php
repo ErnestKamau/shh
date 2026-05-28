@@ -22,7 +22,48 @@
     {{-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous"> --}}
 
     {{-- <script src="https://cdn.jsdelivr.net/npm/fullcalendar@3.9.0/dist/fullcalendar.min.js"></script> --}}
+    @php
+        $themeVars = \Illuminate\Support\Facades\Cache::rememberForever('global_theme_variables', function () {
+            $keys = ['sys_theme_primary_color', 'sys_theme_secondary_color', 'sys_theme_accent_color', 'sys_sidebar_bg_color', 'sys_sidebar_link_bg'];
+            $configs = \App\Models\System\SystemConfiguration::whereIn('key', $keys)->get()->keyBy('key');
+            
+            $sidebarBg = optional($configs->get('sys_sidebar_bg_color'))->value ?? '#2a2a2a';
+            
+            // Calculate dynamic contrast color for text in sidebar
+            $hex = str_replace('#', '', $sidebarBg);
+            if (strlen($hex) == 3) {
+                $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+            }
+            $r = hexdec(substr($hex, 0, 2)) ?: 0;
+            $g = hexdec(substr($hex, 2, 2)) ?: 0;
+            $b = hexdec(substr($hex, 4, 2)) ?: 0;
+            $yiq = (($r * 299) + ($g * 587) + ($b * 114)) / 1000;
+            
+            $sidebarText = ($yiq >= 128) ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.95)';
+            $sidebarTextMuted = ($yiq >= 128) ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.6)';
+
+            return [
+                'primary' => optional($configs->get('sys_theme_primary_color'))->value ?? '#4a90e2',
+                'secondary' => optional($configs->get('sys_theme_secondary_color'))->value ?? '#50e3c2',
+                'accent' => optional($configs->get('sys_theme_accent_color'))->value ?? '#f5a623',
+                'sidebar_bg' => $sidebarBg,
+                'sidebar_link_bg' => optional($configs->get('sys_sidebar_link_bg'))->value ?? 'rgba(255, 255, 255, 0.05)',
+                'sidebar_text' => $sidebarText,
+                'sidebar_text_muted' => $sidebarTextMuted,
+            ];
+        });
+    @endphp
     <style type="text/css">
+        :root {
+            --sys-primary-color: {{ $themeVars['primary'] }};
+            --sys-secondary-color: {{ $themeVars['secondary'] }};
+            --sys-accent-color: {{ $themeVars['accent'] }};
+            --sys-sidebar-bg: {{ $themeVars['sidebar_bg'] }};
+            --sys-sidebar-link-bg: {{ $themeVars['sidebar_link_bg'] }};
+            --sys-sidebar-text: {{ $themeVars['sidebar_text'] ?? 'rgba(255, 255, 255, 0.95)' }};
+            --sys-sidebar-text-muted: {{ $themeVars['sidebar_text_muted'] ?? 'rgba(255, 255, 255, 0.6)' }};
+        }
+
         /* html,body{
       background-color: #2a2a2a;
   } */
@@ -781,10 +822,10 @@
         /* Menu item*/
         #sidebar-container .list-group a {
             height: 50px;
-            color: white;
+            color: var(--sys-sidebar-text-muted) !important;
             margin: 2px 0;
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--sys-sidebar-link-bg);
             box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
         }
@@ -806,10 +847,11 @@
         }
 
         #sidebar-container .list-group a:hover {
-            background: linear-gradient(135deg, rgba(74, 144, 226, 0.15) 0%, rgba(80, 227, 194, 0.15) 100%);
+            background: var(--sys-sidebar-link-bg);
             transform: translateX(5px) scale(1.02);
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 6px 20px rgba(74, 144, 226, 0.3);
-            border: 1px solid rgba(74, 144, 226, 0.3);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 6px 20px var(--sys-primary-color);
+            border: 1px solid var(--sys-primary-color);
+            color: var(--sys-sidebar-text) !important;
         }
 
         #sidebar-container .list-group a:hover::before {
@@ -817,11 +859,12 @@
         }
 
         #sidebar-container .list-group a.active {
-            background: linear-gradient(135deg, rgba(74, 144, 226, 0.3) 0%, rgba(80, 227, 194, 0.3) 100%);
-            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15), 0 4px 15px rgba(74, 144, 226, 0.4);
+            background: var(--sys-sidebar-link-bg);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15), 0 4px 15px var(--sys-primary-color);
             border: 2px solid transparent;
             background-clip: padding-box;
             position: relative;
+            color: var(--sys-sidebar-text) !important;
         }
 
         #sidebar-container .list-group a.active::before {
@@ -833,9 +876,13 @@
             bottom: 0;
             border-radius: 8px;
             padding: 2px;
-            background: linear-gradient(135deg, #4a90e2, #50e3c2, #f5a623, #e74c3c);
+            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color), var(--sys-accent-color), var(--sys-primary-color));
             background-size: 300% 300%;
             animation: gradientShift 3s ease infinite;
+            animation-play-state: paused;
+            transform: translateZ(0);
+            will-change: background-position, mask;
+            backface-visibility: hidden;
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: exclude;
             mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -874,6 +921,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            color: var(--sys-sidebar-text-muted) !important;
         }
 
         #sidebar-container .list-group .sidebar-submenu a::before {
@@ -895,18 +943,19 @@
             transform: translateY(-50%);
             width: 3px;
             height: 0;
-            background: linear-gradient(135deg, #4a90e2, #50e3c2);
+            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color));
             border-radius: 0 2px 2px 0;
             transition: all 0.3s ease;
         }
 
         #sidebar-container .list-group .sidebar-submenu a:hover {
-            background: linear-gradient(135deg, rgba(74, 144, 226, 0.06) 0%, rgba(80, 227, 194, 0.03) 100%);
+            background: var(--sys-sidebar-link-bg);
             transform: translateX(1px);
             box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.06),
                 inset 0 -1px 2px rgba(0, 0, 0, 0.06),
-                0 1px 3px rgba(74, 144, 226, 0.1);
-            border-color: rgba(74, 144, 226, 0.15);
+                0 1px 3px var(--sys-sidebar-bg);
+            border-color: transparent;
+            color: var(--sys-sidebar-text) !important;
         }
 
         #sidebar-container .list-group .sidebar-submenu a:hover::before {
@@ -915,19 +964,19 @@
 
         #sidebar-container .list-group .sidebar-submenu a:hover::after {
             height: 30%;
-            background: linear-gradient(135deg, #4a90e2, #50e3c2);
-            box-shadow: 0 0 2px rgba(74, 144, 226, 0.2);
+            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color));
+            box-shadow: 0 0 2px var(--sys-primary-color);
         }
 
         #sidebar-container .list-group .sidebar-submenu a.active {
-            background: linear-gradient(135deg, rgba(74, 144, 226, 0.18) 0%, rgba(80, 227, 194, 0.12) 100%);
+            background: var(--sys-sidebar-link-bg);
             border: 2px solid transparent;
             background-clip: padding-box;
             box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.1),
                 inset 0 -2px 6px rgba(0, 0, 0, 0.1),
-                0 4px 15px rgba(74, 144, 226, 0.3),
                 0 2px 10px rgba(0, 0, 0, 0.2);
             position: relative;
+            color: var(--sys-sidebar-text) !important;
         }
 
         #sidebar-container .list-group .sidebar-submenu a.active::before {
@@ -939,45 +988,62 @@
             bottom: 0;
             border-radius: 8px;
             padding: 2px;
-            background: linear-gradient(135deg, #4a90e2, #50e3c2, #f5a623);
+            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color), var(--sys-accent-color));
             background-size: 200% 200%;
             animation: gradientShift 3s ease infinite;
+            animation-play-state: paused;
+            transform: translateZ(0);
+            will-change: background-position, mask;
+            backface-visibility: hidden;
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: exclude;
             mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             mask-composite: exclude;
         }
 
+        #sidebar-container:hover .list-group a.active::before,
+        #sidebar-container:hover .list-group .sidebar-submenu a.active::before {
+            animation-play-state: running;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #sidebar-container .list-group a.active::before,
+            #sidebar-container .list-group .sidebar-submenu a.active::before {
+                animation: none !important;
+                background-size: 100% 100% !important;
+            }
+        }
+
         #sidebar-container .list-group .sidebar-submenu a.active::after {
             height: 80%;
-            background: linear-gradient(135deg, #4a90e2, #50e3c2);
-            box-shadow: 0 0 12px rgba(74, 144, 226, 0.6);
+            background: linear-gradient(135deg, var(--sys-primary-color), var(--sys-secondary-color));
+            box-shadow: 0 0 12px var(--sys-primary-color);
         }
 
         #sidebar-container .list-group .sidebar-submenu a:hover .mdi {
             transform: scale(1.02);
             opacity: 1;
-            text-shadow: 0 0 3px rgba(74, 144, 226, 0.2);
-            color: #4a90e2;
+            text-shadow: 0 0 3px var(--sys-primary-color);
+            color: var(--sys-primary-color);
         }
 
         #sidebar-container .list-group .sidebar-submenu a.active .mdi {
             transform: scale(1.2) rotate(0deg);
             opacity: 1;
-            text-shadow: 0 0 15px rgba(74, 144, 226, 0.7);
-            color: #4a90e2;
+            text-shadow: 0 0 15px var(--sys-primary-color);
+            color: var(--sys-primary-color);
         }
 
         #sidebar-container .list-group .sidebar-submenu a:hover span {
-            text-shadow: 0 0 2px rgba(74, 144, 226, 0.1);
-            color: #4a90e2;
+            text-shadow: 0 0 2px var(--sys-primary-color);
+            color: var(--sys-primary-color);
             font-weight: 500;
         }
 
         #sidebar-container .list-group .sidebar-submenu a.active span {
-            text-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
+            text-shadow: 0 0 10px var(--sys-primary-color);
             font-weight: 600;
-            color: #4a90e2;
+            color: var(--sys-primary-color);
         }
 
         .sidebar-submenu {
@@ -1307,7 +1373,7 @@
 
         .copyright-lims,
         #sidebar-container {
-            background-color: #2a2a2a !important;
+            background-color: var(--sys-sidebar-bg) !important;
         }
 
         .sidebar-module-div {
@@ -1323,6 +1389,7 @@
             position: relative;
             overflow: hidden;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--sys-sidebar-text) !important;
         }
 
         .sidebar-module-div::before {
@@ -1350,13 +1417,8 @@
 
         .sidebar-module-div i {
             font-size: 3.5rem !important;
-            background: linear-gradient(135deg, #4a90e2, #50e3c2, #f5a623);
-            background-size: 200% 200%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: gradientShift 3s ease infinite;
-            text-shadow: 0 0 20px rgba(74, 144, 226, 0.5);
+            color: var(--sys-primary-color) !important;
+            text-shadow: 0 0 20px var(--sys-primary-color);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: block;
             margin-bottom: 8px;
@@ -1364,10 +1426,11 @@
 
         .sidebar-module-div:hover i {
             transform: scale(1.1) rotate(5deg);
-            text-shadow: 0 0 30px rgba(74, 144, 226, 0.8);
+            text-shadow: 0 0 30px var(--sys-primary-color);
         }
 
         .sidebar-module-div span {
+            color: var(--sys-sidebar-text) !important;
             font-size: 1.1rem !important;
             font-weight: 700 !important;
             letter-spacing: 1px;
@@ -1381,9 +1444,12 @@
         }
 
         .copyright-lims {
-            background-color: #2a2a2a !important;
+            background-color: var(--sys-sidebar-bg) !important;
+            color: var(--sys-sidebar-text-muted) !important;
             margin: 4px 0;
             border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.03);
         }
 
         /* Modern list group styling */
@@ -2173,7 +2239,7 @@
                             ?>
                             <div class="card-body bg-default ">
                                 <div class="table-responsive p-0">
-                                    <table class="table table-condensed my-small-text table-hover table-sm">
+                                    <table class="table table-condensed my-small-text table-hover table-sm livewire-table">
                                         <tbody>
                                             @foreach ($users as $user)
                                             <tr>

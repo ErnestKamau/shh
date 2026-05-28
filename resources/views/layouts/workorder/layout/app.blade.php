@@ -114,56 +114,56 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-briefcase-outline fa-3x"></i><br>
 				<span class="text-lg text-bold">WORKORDER MANAGEMENT</span>
 			</div>
-			<a href="/workorder-home" class="bg-dark list-group-item list-group-item-action">
+			<a href="/workorder-home" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
 				</div>
 			</a>
-			<a href="/workorders" class="bg-dark list-group-item list-group-item-action">
+			<a href="/workorders" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clipboard-text fa-fw mr-3"></span>
 					<span class="menu-collapsed">WorkOrders</span>
 				</div>
 			</a>
-			<a href="/workorders/REQUEST" class="bg-dark list-group-item list-group-item-action" >
+			<a href="/workorders/REQUEST" class="list-group-item list-group-item-action" >
 				<div class="w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clipboard-check-multiple fa-fw mr-3 text-info"></span>
 					<span class="menu-collapsed">Requests</span>
 					<span class="float-right pull-right badge badge-info badge-pill">{{ $STATUSES['REQUEST'] }}</span>
 				</div>
 			</a>
-			<a href="/workorders/REQUEST_REJECTION" class="bg-dark list-group-item list-group-item-action">
+			<a href="/workorders/REQUEST_REJECTION" class="list-group-item list-group-item-action">
 				<div class="w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clipboard-alert fa-fw mr-3 text-danger"></span>
 					<span class="menu-collapsed">Rejections</span>
 					<span class="float-right pull-right badge badge-danger badge-pill">{{ $STATUSES['REQUEST_REJECTION'] }}</span>
 				</div>
 			</a>
-			<a href="/topology" class="bg-dark list-group-item list-group-item-action">
+			<a href="/topology" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-lan fa-fw mr-3"></span>
 					<span class="menu-collapsed">Topology</span>
 				</div>
 			</a>
-			<a href="/workorder-services" class="bg-dark list-group-item list-group-item-action">
+			<a href="/workorder-services" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-toolbox-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Services</span>
 				</div>
 			</a>
-			<a href="/working-schedules" class="bg-dark list-group-item list-group-item-action">
+			<a href="/working-schedules" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-calendar-arrow-right fa-fw mr-3"></span>
 					<span class="menu-collapsed">Working Schedule</span>
 				</div>
 			</a>
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->

@@ -43,7 +43,7 @@ class RiskConfigurationOption extends Model implements Auditable
         'order_index' => 'integer',
         'is_active' => 'boolean',
         'metadata' => 'array',
-        'company_id' => 'integer',
+        'company_id' => 'string',
     ];
 
     // Relationships
@@ -68,12 +68,13 @@ class RiskConfigurationOption extends Model implements Auditable
         return $query->where('option_type', $type);
     }
 
-    public function scopeForCompany(Builder $query, int $companyId): Builder
+    public function scopeForCompany(Builder $query, int|string|null $companyId = null): Builder
     {
-        return $query->where(function ($q) use ($companyId) {
-            $q->where('company_id', $companyId)
-              ->orWhere('company_id', 0); // Include global options
-        });
+        if ($companyId === null || $companyId === '' || $companyId === 0 || $companyId === '0') {
+            $companyId = riskCompanyId();
+        }
+
+        return riskApplyCompanyScope($query, $companyId !== null ? (string) $companyId : null);
     }
 
     public function scopeOrdered(Builder $query): Builder

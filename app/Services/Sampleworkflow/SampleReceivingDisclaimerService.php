@@ -4,8 +4,8 @@ namespace App\Services\Sampleworkflow;
 
 use App\BatchAttachment;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
-use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
+use App\Services\System\AttachmentTypeResolver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
@@ -255,7 +255,7 @@ class SampleReceivingDisclaimerService
 
         \Illuminate\Support\Facades\Storage::disk('public')->put($pdfStoragePath, $pdf->output());
 
-        $attachmentTypeId = $this->resolveAttachmentTypeId();
+        $attachmentTypeId = app(AttachmentTypeResolver::class)->resolveOrCreateAttachmentTypeId(self::ATTACHMENT_TITLE);
 
         $attachment = BatchAttachment::query()
             ->where('batch_id', $batch->id)

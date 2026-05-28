@@ -41,6 +41,7 @@ use App\Models\RequestWorkflowForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SupportingDocumentInstance;
 use App\Models\SupportingDocumentTemplate;
+use App\Services\Billing\InvoiceNumberGenerator;
 use App\Services\SupportingDocumentInstanceFormService;
 use App\Services\SampleCreationService;
 use App\Models\System\SystemConfiguration;
@@ -4050,15 +4051,7 @@ class SampleWorkFlowController extends Controller
                 $date = date('Y-m-d', strtotime($invoice->created_at . '+ 30 days'));
             }
             $invoice->due_date = $date;
-            $id_str = strval($invoice->id);
-            if (strlen($id_str) < 4) {
-                $count = 4 - strlen($id_str);
-                $zeros = str_repeat('0', $count);
-                $number = 'INV-' . $zeros . $id_str;
-            } else {
-                $number = 'INV-' . $id_str;
-            }
-            $invoice->invoice_number = $number;
+            $invoice->invoice_number = app(InvoiceNumberGenerator::class)->next();
             $invoice->save();
             foreach ($request->batch_code as $code) {
                 $batch = SampleHeader::where('batch_code', $code)->first();
@@ -8200,16 +8193,16 @@ class SampleWorkFlowController extends Controller
             return response()->json(['success' => false, 'message' => 'Attachment Type already exists']);
         }
 
-        $config_type = SystemConfiguration::where('key', 'attachment_type_config_id')->first();
-        if (!isset($config_type->id)) {
-            return response()->json(['success' => false, 'message' => 'Attachment Type Config not found']);
+        $configurationTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
+            ->resolveAttachmentConfigurationTypeId();
+        if ($configurationTypeId === null) {
+            return response()->json(['success' => false, 'message' => 'Attachment Types configuration is not set up in System Configuration.']);
         }
 
         $config = new SystemConfiguration();
         $config->key = 'attachment_type';
         $config->value = $request->value;
-
-        $config->configuration_type_id = $config_type->id;
+        $config->configuration_type_id = $configurationTypeId;
         $config->save();
 
         return response()->json([

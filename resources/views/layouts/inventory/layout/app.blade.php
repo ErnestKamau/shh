@@ -105,7 +105,7 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-package-variant fa-3x"></i><br>
 				<span class="text-lg text-bold">INVENTORY MANAGEMENT</span>
 			</div>
@@ -117,13 +117,13 @@
 			<!-- Menu with submenu -->
 
 
-			<a href="/inventory-home" class="bg-dark list-group-item list-group-item-action">
+			<a href="/inventory-home" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-desktop-mac-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
 				</div>
 			</a>
-			<a href="{{ route('my-approvals') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('my-approvals') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-draw fa-fw mr-3"></span>
 					<span class="menu-collapsed">Approval Requests
@@ -131,7 +131,7 @@
 					</span>
 				</div>
 			</a>
-			<a href="#request-to-order" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#request-to-order" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-tree mr-3"></span>
 					<span class="menu-collapsed">Request to Order</span>
@@ -143,14 +143,14 @@
 					$menuTotals = getRequisitionWorkflowTotals();
 				?>
 				@foreach (getRequisitionWorkflow() as $item)
-					<a href="{{ route('go_to_stage', ['stage'=>$item]) }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<a href="{{ route('go_to_stage', ['stage'=>$item]) }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}
 						<small class="float-right badge badge-pill">{{ $menuTotals[$item] ?? 0 }}</small>
 					</span>
 					</a>
 				@endforeach
 			</div>
-			<a href="#request-to-store" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#request-to-store" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-tree mr-3"></span>
 					<span class="menu-collapsed">Request to Store</span>
@@ -159,7 +159,7 @@
 			</a>
 			<div id="request-to-store" class="collapse sidebar-submenu">
 				@foreach (getRequestToStoreWorkflow() as $item)
-					<a href="{{ route('go_to_stage', ['stage'=>$item]) }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<a href="{{ route('go_to_stage', ['stage'=>$item]) }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}
 						<small class="float-right badge badge-pill">{{ $menuTotals[$item] ?? 0 }}</small>
 					</span>
@@ -167,7 +167,7 @@
 				@endforeach
 			</div>
 			@if(isETCU())
-				<a href="#loan-lend" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+				<a href="#loan-lend" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class="mdi mdi-file-tree mr-3"></span>
 						<span class="menu-collapsed">Loan/Lend</span>
@@ -175,79 +175,79 @@
 					</div>
 				</a>
 				<div id="loan-lend" class="collapse sidebar-submenu">
-					<a href="{{ route('go_to_stage', ['stage'=>'Lend']) }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<a href="{{ route('go_to_stage', ['stage'=>'Lend']) }}" class="list-group-item list-group-item-action">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Lend
 							<small class="float-right badge badge-pill">{{ $menuTotals['Lend'] ?? 0 }}</small>
 						</span>
 					</a>
-					<a href="{{ route('go_to_stage', ['stage'=>'Loan']) }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<a href="{{ route('go_to_stage', ['stage'=>'Loan']) }}" class="list-group-item list-group-item-action">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Loan
 							<small class="float-right badge badge-pill">{{ $menuTotals['Loan'] ?? 0 }}</small>
 						</span>
 					</a>
 				</div>
 			@endif
-			{{-- <a href="{{route('user-detail-supplier')}}" class="bg-dark list-group-item list-group-item-action">
+			{{-- <a href="{{route('user-detail-supplier')}}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-chat-processing fa-fw mr-3"></span>
 					<span class="menu-collapsed">Chat</span>
 				</div>
 			</a> --}}
-			<a href="/inventory-categories" class="bg-dark list-group-item list-group-item-action">
+			<a href="/inventory-categories" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-format-list-bulleted-type fa-fw mr-3"></span>
 					<span class="menu-collapsed">Categories</span>
 				</div>
 			</a>
-			<a href="/inventory-activity" class="bg-dark list-group-item list-group-item-action">
+			<a href="/inventory-activity" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-chart-areaspline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Inventory Movement</span>
 				</div>
 			</a>
-			<a href="/inventory-departments" class="bg-dark list-group-item list-group-item-action">
+			<a href="/inventory-departments" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-home-group fa-fw mr-3"></span>
 					<span class="menu-collapsed">Departments</span>
 				</div>
 			</a>
-			<a href="/inventory-suppliers" class="bg-dark list-group-item list-group-item-action">
+			<a href="/inventory-suppliers" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-group fa-fw mr-3"></span>
 					<span class="menu-collapsed">Suppliers</span>
 				</div>
 			</a>
-			<a href="/inventory-stores" class="bg-dark list-group-item list-group-item-action">
+			<a href="/inventory-stores" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-package-variant-closed fa-fw mr-3"></span>
 					<span class="menu-collapsed">Store</span>
 				</div>
 			</a>
-			<a href="{{ route('stock-taking-list') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('stock-taking-list') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-replace fa-fw mr-3"></span>
 					<span class="menu-collapsed">Stock Taking</span>
 				</div>
 			</a>
-			<a href="{{ route('stock-transfer-list') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('stock-transfer-list') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-bank-transfer-out fa-fw mr-3"></span>
 					<span class="menu-collapsed">Stock Transfer</span>
 				</div>
 			</a>
-			<a href="{{ route('inventory-reports') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('inventory-reports') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-chart fa-fw mr-3"></span>
 					<span class="menu-collapsed">Reports</span>
 				</div>
 			</a>
-			<a href="{{ route('inventory-reporting-units', ['module'=>'inventory']) }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('inventory-reporting-units', ['module'=>'inventory']) }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
 					<span class="menu-collapsed">Unit of Measure</span>
 				</div>
 			</a>
-			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
 					<span class="menu-collapsed">Configurations</span>
@@ -259,20 +259,20 @@
 					$menuTotals = array("Material Type", "Currency");
 				?>
 				@foreach ($menuTotals as $item)
-					<a href="{{ route('module-pre-configs', ['config'=>$item, 'module'=>'Inventory-Management']) }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<a href="{{ route('module-pre-configs', ['config'=>$item, 'module'=>'Inventory-Management']) }}" class="list-group-item list-group-item-action">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}</span>
 					</a>
 				@endforeach
-				<a href="{{ route('view-currency-conversions') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('view-currency-conversions') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Currency Conversion</span>
 				</a>
-				<a href="{{ route('view-uom-conversions') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('view-uom-conversions') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>UoM Conversion</span>
 				</a>
 			</div>
 
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white">
+			<div class="list-group-item copyright-lims p-4 text-center">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->

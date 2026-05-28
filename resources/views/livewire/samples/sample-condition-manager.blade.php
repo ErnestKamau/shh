@@ -48,6 +48,17 @@
                         </div>
                         <div class="col-md-3">
                             <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Sample Type</label>
+                                <select wire:model.live="sampleTypeFilter" class="form-control" style="border-radius: 10px;">
+                                    <option value="">All Sample Types</option>
+                                    @foreach($sampleTypes as $sampleType)
+                                        <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Status</label>
                                 <select wire:model.live="statusFilter" class="form-control" style="border-radius: 10px;">
                                     <option value="">All Status</option>
@@ -90,6 +101,7 @@
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Name</th>
+                                        <th>Sample Type</th>
                                         <th>Status</th>
                                         <th>Created At</th>
                                         <th>Actions</th>
@@ -99,6 +111,7 @@
                                     @foreach($conditions as $condition)
                                         <tr>
                                             <td>{{ $condition->name }}</td>
+                                            <td>{{ $condition->sample_type?->name ?? '—' }}</td>
                                             <td>
                                                 @if($condition->active)
                                                     <span class="badge badge-success p-2">Active</span>
@@ -109,12 +122,12 @@
                                             <td>{{ optional($condition->created_at)->format('Y-m-d') ?? '-' }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <button wire:click="showEditModal({{ $condition->id }})" 
+                                                    <button wire:click="showEditModal(@js($condition->id))" 
                                                             class="btn btn-sm mr-2 btn-outline-warning" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="delete({{ $condition->id }})" 
+                                                    <button wire:click="delete(@js($condition->id))" 
                                                             class="btn btn-sm btn-outline-danger" 
                                                             title="Delete"
                                                             onclick="return confirm('Are you sure you want to delete this condition?')">
@@ -157,6 +170,17 @@
                     </div>
                     <div class="modal-body">
                         <form wire:submit.prevent="save">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Sample Type <span class="text-danger">*</span></label>
+                                <select wire:model="sampleTypeId" class="form-control">
+                                    <option value="">Select sample type...</option>
+                                    @foreach($sampleTypes as $sampleType)
+                                        <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('sampleTypeId') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+
                             <div class="form-group mb-3">
                                 <label class="form-label">Name <span class="text-danger">*</span></label>
                                 <input type="text" wire:model="name" class="form-control" placeholder="Enter condition name">

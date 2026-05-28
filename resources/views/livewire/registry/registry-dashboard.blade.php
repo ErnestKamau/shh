@@ -65,13 +65,239 @@
             border-radius: 10px;
             font-weight: 500;
         }
-        .registry-dashboard .activity-item {
-            padding: 0.65rem 0;
-            border-bottom: 1px solid #e2e8f0;
+        .registry-dashboard {
+            --rd-primary: #2563eb;
+            --rd-primary-soft: #eff6ff;
+            --rd-slate-50: #f8fafc;
+            --rd-slate-100: #f1f5f9;
+            --rd-slate-200: #e2e8f0;
+            --rd-slate-500: #64748b;
+            --rd-slate-800: #1e293b;
         }
-        .registry-dashboard .activity-item:last-child { border-bottom: none; }
-        .registry-dashboard .chart-wrap { position: relative; height: 260px; }
-        .registry-dashboard .chart-wrap--category { height: 320px; }
+        .registry-dashboard .rd-section {
+            margin-bottom: 1.5rem;
+        }
+        .registry-dashboard .rd-section__head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .registry-dashboard .rd-section__eyebrow {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--rd-slate-500);
+            margin: 0 0 0.2rem;
+        }
+        .registry-dashboard .rd-section__title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--rd-slate-800);
+            margin: 0;
+        }
+        .registry-dashboard .rd-panel {
+            background: #fff;
+            border: 1px solid var(--rd-slate-200);
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            height: 100%;
+            overflow: hidden;
+        }
+        .registry-dashboard .rd-panel__head {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            background: linear-gradient(135deg, var(--rd-slate-50) 0%, var(--rd-primary-soft) 100%);
+            border-bottom: 1px solid var(--rd-slate-200);
+        }
+        .registry-dashboard .rd-panel__icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid var(--rd-slate-200);
+            color: var(--rd-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        .registry-dashboard .rd-panel__title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--rd-slate-800);
+            margin: 0;
+        }
+        .registry-dashboard .rd-panel__sub {
+            font-size: 0.78rem;
+            color: var(--rd-slate-500);
+            margin: 0.1rem 0 0;
+        }
+        .registry-dashboard .rd-panel__body {
+            padding: 1.25rem;
+        }
+        .registry-dashboard .rd-panel__body--flush {
+            padding: 0;
+        }
+        .registry-dashboard .rd-chart-wrap {
+            position: relative;
+            height: 280px;
+        }
+        .registry-dashboard .rd-chart-wrap--tall {
+            height: 300px;
+        }
+        .registry-dashboard .rd-chart-wrap--category { height: 320px; }
+        .registry-dashboard .rd-status-legend {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem;
+            margin-top: 1rem;
+        }
+        .registry-dashboard .rd-status-legend__item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 0.65rem;
+            background: var(--rd-slate-50);
+            border: 1px solid var(--rd-slate-200);
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+        .registry-dashboard .rd-status-legend__dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .registry-dashboard .rd-status-legend__value {
+            margin-left: auto;
+            font-weight: 700;
+            color: var(--rd-slate-800);
+        }
+        .registry-dashboard .rd-feed {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .registry-dashboard .rd-feed__item {
+            display: block;
+            padding: 0.9rem 1.25rem;
+            border-bottom: 1px solid var(--rd-slate-200);
+            text-decoration: none;
+            color: inherit;
+            transition: background 0.15s ease;
+        }
+        .registry-dashboard .rd-feed__item:hover {
+            background: var(--rd-primary-soft);
+            text-decoration: none;
+            color: inherit;
+        }
+        .registry-dashboard .rd-feed__item:last-child {
+            border-bottom: none;
+        }
+        .registry-dashboard .rd-feed__top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+        .registry-dashboard .rd-feed__ref {
+            font-weight: 700;
+            font-size: 0.88rem;
+            color: var(--rd-primary);
+        }
+        .registry-dashboard .rd-feed__subject {
+            font-size: 0.82rem;
+            color: var(--rd-slate-500);
+            margin: 0 0 0.35rem;
+            line-height: 1.4;
+        }
+        .registry-dashboard .rd-feed__meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--rd-slate-500);
+        }
+        .registry-dashboard .rd-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .registry-dashboard .rd-badge--open {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .registry-dashboard .rd-badge--pending {
+            background: #ffedd5;
+            color: #c2410c;
+        }
+        .registry-dashboard .rd-badge--priority-high,
+        .registry-dashboard .rd-badge--priority-urgent {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .registry-dashboard .rd-badge--category {
+            background: var(--rd-slate-100);
+            color: #475569;
+        }
+        .registry-dashboard .rd-empty {
+            padding: 2.5rem 1.25rem;
+            text-align: center;
+            color: var(--rd-slate-500);
+        }
+        .registry-dashboard .rd-empty__icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 0.75rem;
+            border-radius: 14px;
+            background: var(--rd-primary-soft);
+            color: var(--rd-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .registry-dashboard .rd-panel__footer-link {
+            display: block;
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--rd-primary);
+            background: var(--rd-slate-50);
+            border-top: 1px solid var(--rd-slate-200);
+            text-decoration: none;
+        }
+        .registry-dashboard .rd-panel__footer-link:hover {
+            background: var(--rd-primary-soft);
+            text-decoration: none;
+        }
+        .registry-dashboard .rd-activity-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--rd-primary);
+            margin-top: 0.35rem;
+            flex-shrink: 0;
+        }
+        .registry-dashboard .rd-activity-row {
+            display: flex;
+            gap: 0.65rem;
+        }
     </style>
 
     {{-- Page title & description --}}
@@ -211,72 +437,167 @@
             </div>
         </div>
     </div>
-    <div class="row mb-4">
-        <div class="col-lg-6 mb-3">
-            <div class="registry-card h-100">
-                <div class="registry-card-header">
-                    <i class="mdi mdi-chart-pie"></i> Request Status Overview
-                </div>
-                <div class="registry-card-body">
-                    <div class="chart-wrap">
-                        <canvas id="registryStatusChart" wire:ignore></canvas>
-                    </div>
-                </div>
+    {{-- Analytics: status, turnaround & activity --}}
+    <section class="rd-section">
+        <div class="rd-section__head">
+            <div>
+                <p class="rd-section__eyebrow">Workflow analytics</p>
+                <h3 class="rd-section__title">Status, turnaround &amp; activity</h3>
             </div>
         </div>
-    </div>
 
-    <div class="row mb-4">
-        <div class="col-lg-8 mb-3">
-            <div class="registry-card h-100">
-                <div class="registry-card-header">
-                    <i class="mdi mdi-chart-bar"></i> Average Stage Turnaround (hours)
+        <div class="row g-3 mb-3">
+            <div class="col-lg-5">
+                <div class="rd-panel">
+                    <div class="rd-panel__head">
+                        <span class="rd-panel__icon"><i class="mdi mdi-chart-donut"></i></span>
+                        <div>
+                            <h4 class="rd-panel__title">Request status overview</h4>
+                            <p class="rd-panel__sub">Distribution of open, pending, completed &amp; delayed</p>
+                        </div>
+                    </div>
+                    <div class="rd-panel__body">
+                        <div class="rd-chart-wrap">
+                            <canvas id="registryStatusChart" wire:ignore></canvas>
+                        </div>
+                        @php
+                            $statusLegend = [
+                                ['label' => 'Open', 'key' => 'open', 'color' => '#0288d1'],
+                                ['label' => 'Pending approval', 'key' => 'pending_approval', 'color' => '#f57c00'],
+                                ['label' => 'Completed', 'key' => 'completed', 'color' => '#2e7d32'],
+                                ['label' => 'Delayed', 'key' => 'delayed', 'color' => '#c62828'],
+                            ];
+                        @endphp
+                        <div class="rd-status-legend">
+                            @foreach($statusLegend as $item)
+                                <div class="rd-status-legend__item">
+                                    <span class="rd-status-legend__dot" style="background: {{ $item['color'] }};"></span>
+                                    <span>{{ $item['label'] }}</span>
+                                    <span class="rd-status-legend__value">{{ $kpis[$item['key']] ?? 0 }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
                 </div>
-                <div class="registry-card-body">
-                    <div class="chart-wrap">
-                        <canvas id="registryStageChart" wire:ignore></canvas>
+            </div>
+            <div class="col-lg-7">
+                <div class="rd-panel">
+                    <div class="rd-panel__head">
+                        <span class="rd-panel__icon"><i class="mdi mdi-timer-sand"></i></span>
+                        <div>
+                            <h4 class="rd-panel__title">Average stage turnaround</h4>
+                            <p class="rd-panel__sub">Mean hours spent per workflow stage</p>
+                        </div>
+                    </div>
+                    <div class="rd-panel__body">
+                        <div class="rd-chart-wrap rd-chart-wrap--tall">
+                            <canvas id="registryStageChart" wire:ignore></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 mb-3">
-            <div class="registry-card h-100 mb-3">
-                <div class="registry-card-header">
-                    <i class="mdi mdi-clipboard-list"></i> Pending Tasks
-                </div>
-                <div class="registry-card-body p-0">
-                    <ul class="list-group list-group-flush">
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="rd-panel">
+                    <div class="rd-panel__head">
+                        <span class="rd-panel__icon"><i class="mdi mdi-clipboard-clock-outline"></i></span>
+                        <div>
+                            <h4 class="rd-panel__title">Pending tasks</h4>
+                            <p class="rd-panel__sub">Requests awaiting action or approval</p>
+                        </div>
+                    </div>
+                    <div class="rd-panel__body rd-panel__body--flush">
                         @forelse($pendingTasks as $item)
-                        <li class="list-group-item bg-transparent activity-item d-flex justify-content-between align-items-center">
-                            <a href="{{ route('registry.requests.show', $item->id) }}" class="text-dark">{{ $item->reference_no }}</a>
-                            <span class="badge badge-warning badge-pill">{{ str_replace('_', ' ', $item->status) }}</span>
-                        </li>
+                            <a href="{{ route('registry.requests.show', $item->id) }}" class="rd-feed__item">
+                                <div class="rd-feed__top">
+                                    <span class="rd-feed__ref">{{ $item->reference_no }}</span>
+                                    <span class="rd-badge {{ $item->status === 'pending_approval' ? 'rd-badge--pending' : 'rd-badge--open' }}">
+                                        {{ ucwords(str_replace('_', ' ', $item->status)) }}
+                                    </span>
+                                </div>
+                                <p class="rd-feed__subject mb-0">{{ Str::limit($item->subject, 52) }}</p>
+                                <div class="rd-feed__meta">
+                                    @if($item->category)
+                                        <span class="rd-badge rd-badge--category">{{ $item->category->name }}</span>
+                                    @endif
+                                    @if(in_array($item->priority, ['high', 'urgent'], true))
+                                        <span class="rd-badge rd-badge--priority-{{ $item->priority }}">{{ ucfirst($item->priority) }}</span>
+                                    @endif
+                                    @if($item->current_stage)
+                                        <span><i class="mdi mdi-source-branch"></i> {{ ucwords(str_replace('_', ' ', $item->current_stage)) }}</span>
+                                    @endif
+                                    <span><i class="mdi mdi-clock-outline"></i> {{ $item->updated_at?->diffForHumans() }}</span>
+                                </div>
+                            </a>
                         @empty
-                        <li class="list-group-item bg-transparent text-muted">No pending tasks.</li>
+                            <div class="rd-empty">
+                                <div class="rd-empty__icon"><i class="mdi mdi-check-circle-outline"></i></div>
+                                <p class="mb-0 font-weight-medium">All caught up</p>
+                                <small>No open or pending requests right now.</small>
+                            </div>
                         @endforelse
-                    </ul>
+                        @if($pendingTasks->isNotEmpty())
+                            @can('registry.components.approval queue.view')
+                            <a href="{{ route('registry.approvals.index') }}" class="rd-panel__footer-link">
+                                View approval queue <i class="mdi mdi-arrow-right"></i>
+                            </a>
+                            @endcan
+                        @endif
+                    </div>
                 </div>
             </div>
-            <div class="registry-card">
-                <div class="registry-card-header">
-                    <i class="mdi mdi-history"></i> Recent Activity
-                </div>
-                <div class="registry-card-body p-0">
-                    <ul class="list-group list-group-flush">
+            <div class="col-lg-6">
+                <div class="rd-panel">
+                    <div class="rd-panel__head">
+                        <span class="rd-panel__icon"><i class="mdi mdi-history"></i></span>
+                        <div>
+                            <h4 class="rd-panel__title">Recent activity</h4>
+                            <p class="rd-panel__sub">Latest updates across the registry</p>
+                        </div>
+                    </div>
+                    <div class="rd-panel__body rd-panel__body--flush">
                         @forelse($activities as $item)
-                        <li class="list-group-item bg-transparent activity-item">
-                            <a href="{{ route('registry.requests.show', $item->id) }}" class="font-weight-medium">{{ $item->reference_no }}</a>
-                            <div class="small text-muted">{{ Str::limit($item->subject, 45) }}</div>
-                            <small class="text-muted">{{ $item->updated_at?->diffForHumans() }}</small>
-                        </li>
+                            <a href="{{ route('registry.requests.show', $item->id) }}" class="rd-feed__item">
+                                <div class="rd-activity-row">
+                                    <span class="rd-activity-dot"></span>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <div class="rd-feed__top">
+                                            <span class="rd-feed__ref">{{ $item->reference_no }}</span>
+                                            <span class="rd-badge rd-badge--category">
+                                                {{ $item->category?->name ?? 'Uncategorised' }}
+                                            </span>
+                                        </div>
+                                        <p class="rd-feed__subject mb-0">{{ Str::limit($item->subject, 52) }}</p>
+                                        <div class="rd-feed__meta">
+                                            <span><i class="mdi mdi-update"></i> {{ $item->updated_at?->diffForHumans() }}</span>
+                                            @if($item->direction)
+                                                <span><i class="mdi mdi-{{ $item->direction === 'outgoing' ? 'arrow-top-right' : 'arrow-bottom-left' }}"></i> {{ ucfirst($item->direction) }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
                         @empty
-                        <li class="list-group-item bg-transparent text-muted">No recent activity.</li>
+                            <div class="rd-empty">
+                                <div class="rd-empty__icon"><i class="mdi mdi-inbox-outline"></i></div>
+                                <p class="mb-0 font-weight-medium">No recent activity</p>
+                                <small>Updates will appear here as requests move through workflows.</small>
+                            </div>
                         @endforelse
-                    </ul>
+                        @if(count($activities) > 0)
+                            @can('registry.components.requests.view')
+                            <a href="{{ route('registry.requests.index') }}" class="rd-panel__footer-link">
+                                View all requests <i class="mdi mdi-arrow-right"></i>
+                            </a>
+                            @endcan
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
     @php
         $chartConfig = [
@@ -355,24 +676,38 @@
                     });
                 }
 
+                const chartFont = { family: "'Inter', system-ui, -apple-system, sans-serif", size: 12 };
+                const gridColor = 'rgba(148, 163, 184, 0.25)';
+
                 const statusCtx = document.getElementById('registryStatusChart');
                 if (statusCtx) {
                     if (statusChart) statusChart.destroy();
                     statusChart = new Chart(statusCtx, {
-                        type: 'pie',
+                        type: 'doughnut',
                         data: {
                             labels: chartData.status.labels,
                             datasets: [{
                                 data: chartData.status.values,
                                 backgroundColor: ['#0288d1', '#f57c00', '#2e7d32', '#c62828'],
-                                borderWidth: 2,
+                                borderWidth: 3,
                                 borderColor: '#fff',
+                                hoverOffset: 6,
                             }],
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } },
+                            cutout: '62%',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: '#1e293b',
+                                    padding: 12,
+                                    cornerRadius: 8,
+                                    titleFont: chartFont,
+                                    bodyFont: chartFont,
+                                },
+                            },
                         },
                     });
                 }
@@ -380,24 +715,47 @@
                 const stageCtx = document.getElementById('registryStageChart');
                 if (stageCtx) {
                     if (stageChart) stageChart.destroy();
+                    const stageLabels = chartData.stages.labels.length ? chartData.stages.labels : ['No data'];
+                    const stageValues = chartData.stages.values.length ? chartData.stages.values : [0];
                     stageChart = new Chart(stageCtx, {
                         type: 'bar',
                         data: {
-                            labels: chartData.stages.labels.length ? chartData.stages.labels : ['No data'],
+                            labels: stageLabels.map((l) => String(l).replace(/_/g, ' ')),
                             datasets: [{
                                 label: 'Avg hours',
-                                data: chartData.stages.values.length ? chartData.stages.values : [0],
-                                backgroundColor: 'rgba(21, 101, 192, 0.75)',
-                                borderRadius: 8,
+                                data: stageValues,
+                                backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                                borderRadius: 6,
+                                borderSkipped: false,
+                                maxBarThickness: 28,
                             }],
                         },
                         options: {
+                            indexAxis: 'y',
                             responsive: true,
                             maintainAspectRatio: false,
                             scales: {
-                                y: { beginAtZero: true, title: { display: true, text: 'Hours' } },
+                                x: {
+                                    beginAtZero: true,
+                                    grid: { color: gridColor },
+                                    ticks: { font: chartFont, color: '#64748b' },
+                                    title: { display: true, text: 'Hours', font: chartFont, color: '#64748b' },
+                                },
+                                y: {
+                                    grid: { display: false },
+                                    ticks: { font: chartFont, color: '#334155' },
+                                },
                             },
-                            plugins: { legend: { display: false } },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: '#1e293b',
+                                    padding: 12,
+                                    cornerRadius: 8,
+                                    titleFont: chartFont,
+                                    bodyFont: chartFont,
+                                },
+                            },
                         },
                     });
                 }

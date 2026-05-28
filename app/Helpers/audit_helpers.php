@@ -239,3 +239,95 @@ if (!function_exists('getWorkflowActionById')) {
             ->find($id);
     }
 }
+
+if (!function_exists('auditConfigurationForCompany')) {
+    /**
+     * Scope configuration rows to current company or global (null company_id).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    function auditConfigurationForCompany($query)
+    {
+        $companyId = getUserCompany();
+
+        return $query->where(function ($q) use ($companyId) {
+            $q->whereNull('company_id');
+            if ($companyId !== null && $companyId !== '') {
+                $q->orWhere('company_id', $companyId);
+            }
+        });
+    }
+}
+
+if (!function_exists('getActiveRootCauseMethods')) {
+    /**
+     * Get all active root cause analysis methods for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveRootCauseMethods()
+    {
+        return \App\Models\AuditModule\RootCauseMethod::active()
+            ->forCompany()
+            ->orderBy('name')
+            ->get();
+    }
+}
+
+if (!function_exists('getActiveCapaCategories')) {
+    /**
+     * Get all active CAPA categories for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveCapaCategories()
+    {
+        return \App\Models\AuditModule\CapaCategory::active()
+            ->forCompany()
+            ->orderBy('name')
+            ->get();
+    }
+}
+
+if (!function_exists('getActiveCapaActionTypes')) {
+    /**
+     * Get all active CAPA action types for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveCapaActionTypes()
+    {
+        return auditConfigurationForCompany(
+            \App\Models\AuditModule\CapaActionType::active()
+        )->orderBy('name')->get();
+    }
+}
+
+if (!function_exists('getActiveCapaPriorities')) {
+    /**
+     * Get all active CAPA priorities for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveCapaPriorities()
+    {
+        return auditConfigurationForCompany(
+            \App\Models\AuditModule\CapaPriority::active()
+        )->ordered()->get();
+    }
+}
+
+if (!function_exists('getActiveNcOrigins')) {
+    /**
+     * Get all active NC origins for the current company.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function getActiveNcOrigins()
+    {
+        return auditConfigurationForCompany(
+            \App\Models\AuditModule\NcOrigin::active()
+        )->orderBy('name')->get();
+    }
+}

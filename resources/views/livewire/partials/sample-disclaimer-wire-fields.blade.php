@@ -85,9 +85,10 @@
                 @error($wirePrefix.'claimant_signed_at')<small class="text-danger">{{ $message }}</small>@enderror
             </div>
         </div>
+        <div class="acc-collapsible-signature-field">
         <label class="acc-label d-block">Signature</label>
         @if($readOnly && !empty($claimantSignatureDisplay))
-            <div class="bg-white border rounded p-2" style="max-width: 560px;">
+            <div class="acc-signature-review-box bg-white border rounded p-2">
                 <img src="{{ $claimantSignatureDisplay }}" alt="Claimant signature" style="max-width: 100%; max-height: 140px;">
             </div>
         @else
@@ -100,6 +101,7 @@
         <input type="hidden" id="{{ $canvasPrefix }}-claimant-input" wire:model.defer="{{ $wirePrefix }}claimant_signature">
         @endif
         @error($wirePrefix.'claimant_signature')<small class="text-danger d-block mt-1">{{ $message }}</small>@enderror
+        </div>
 
         @unless($claimantOnly)
         <hr class="my-4">
@@ -117,9 +119,10 @@
                 @error($wirePrefix.'analyst_signed_at')<small class="text-danger">{{ $message }}</small>@enderror
             </div>
         </div>
+        <div class="acc-collapsible-signature-field">
         <label class="acc-label d-block">Signature</label>
         @if($readOnly && !empty($analystSignatureDisplay))
-            <div class="bg-white border rounded p-2" style="max-width: 560px;">
+            <div class="acc-signature-review-box bg-white border rounded p-2">
                 <img src="{{ $analystSignatureDisplay }}" alt="Analyst signature" style="max-width: 100%; max-height: 140px;">
             </div>
         @else
@@ -132,6 +135,7 @@
         <input type="hidden" id="{{ $canvasPrefix }}-analyst-input" wire:model.defer="{{ $wirePrefix }}analyst_signature">
         @endif
         @error($wirePrefix.'analyst_signature')<small class="text-danger d-block mt-1">{{ $message }}</small>@enderror
+        </div>
         @endunless
     </div>
 

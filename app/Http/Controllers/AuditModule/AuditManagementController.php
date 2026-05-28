@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class AuditManagementController extends Controller
@@ -94,23 +95,32 @@ class AuditManagementController extends Controller
 
     public function show($id)
     {
+        $eagerLoad = [
+            'auditType',
+            'checklist.items',
+            'checklists.items',
+            'checklists.auditType',
+            'leadAuditor',
+            'teamMembers.user',
+            'teamMembers.role',
+            'findings.findingCategory',
+            'findings.riskLevel',
+            'findings.nonConformance',
+            'nonConformances.rootCauseAnalyses',
+            'nonConformances.correctiveActions.latestVerification',
+            'attachments.uploadedByUser',
+        ];
+
+        if (Schema::hasTable('audit_activity_logs')) {
+            $eagerLoad[] = 'activityLogs.performedBy';
+        }
+
+        if (Schema::hasTable('audit_workflow_approvals')) {
+            $eagerLoad[] = 'workflowApprovals.approver';
+        }
+
         $audit = Audit::forCompany()
-            ->with([
-                'auditType',
-                'checklist.items',
-                'checklists.items',
-                'checklists.auditType',
-                'leadAuditor',
-                'teamMembers.user',
-                'teamMembers.role',
-                'findings.findingCategory',
-                'findings.riskLevel',
-                'findings.nonConformance',
-                'nonConformances.correctiveActions',
-                'attachments.uploadedByUser',
-                'activityLogs.performedBy',
-                'workflowApprovals.approver'
-            ])
+            ->with($eagerLoad)
             ->findOrFail($id);
 
         // Get available users (excluding already assigned team members and lead auditor)

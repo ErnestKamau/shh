@@ -19,6 +19,7 @@ use App\Analyte;
 use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
+use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
@@ -118,6 +119,16 @@ class Samples extends Component
     /** Unique lab sections in current parameters (for Date of Analysis row): [ id => name ] */
     public $parameterLabSections = [];
 
+    /** @var array<string, array<int, array<string, mixed>>> */
+    public array $sampleWorksheetMap = [];
+
+    public bool $showGroupedWorksheetsModal = false;
+
+    public string $groupedWorksheetsModalSampleCode = '';
+
+    /** @var array<int, array<string, mixed>> */
+    public array $groupedWorksheetsModalItems = [];
+
     // Assign Samples Modal Data
     public $showAssignSamplesModal = false;
     public $assignStagingId = null;
@@ -203,6 +214,65 @@ class Samples extends Component
         $this->loadIncompleteCapturedResults();
         $this->loadDropdownData();
         $this->loadSamples();
+        $this->loadSampleGroupedWorksheets();
+    }
+
+    protected function loadSampleGroupedWorksheets(): void
+    {
+        try {
+            $this->sampleWorksheetMap = app(GroupedWorksheetAssignmentService::class)
+                ->buildSampleWorksheetMap($this->batch);
+        } catch (\Exception $e) {
+            Log::error('Error loading sample grouped worksheets for batch ' . $this->batchId . ': ' . $e->getMessage());
+            $this->sampleWorksheetMap = [];
+        }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function worksheetsForSampleRow(int $index): array
+    {
+        if (! isset($this->sampleForms[$index])) {
+            return [];
+        }
+
+        $sampleId = $this->sampleForms[$index]['id'] ?? null;
+
+        if ($sampleId && isset($this->sampleWorksheetMap[(string) $sampleId])) {
+            return $this->sampleWorksheetMap[(string) $sampleId];
+        }
+
+        $analysisIds = $this->sampleForms[$index]['analysis_type_id'] ?? [];
+
+        if (! is_array($analysisIds) || $analysisIds === []) {
+            return [];
+        }
+
+        return app(GroupedWorksheetAssignmentService::class)
+            ->summariesForAnalysisTypeIds($analysisIds, $this->batch);
+    }
+
+    public function openGroupedWorksheetsModal(int $index): void
+    {
+        $worksheets = $this->worksheetsForSampleRow($index);
+
+        if ($worksheets === []) {
+            session()->flash('error', 'No grouped worksheets are linked to this sample\'s analysis types.');
+
+            return;
+        }
+
+        $this->groupedWorksheetsModalSampleCode = $this->sampleForms[$index]['sample_code'] ?? 'Sample';
+        $this->groupedWorksheetsModalItems = $worksheets;
+        $this->showGroupedWorksheetsModal = true;
+    }
+
+    public function closeGroupedWorksheetsModal(): void
+    {
+        $this->showGroupedWorksheetsModal = false;
+        $this->groupedWorksheetsModalSampleCode = '';
+        $this->groupedWorksheetsModalItems = [];
     }
 
     /**
@@ -413,6 +483,7 @@ class Samples extends Component
             }
 
             $this->samples = $samples;
+            $this->loadSampleGroupedWorksheets();
         } catch (\Exception $e) {
             Log::error('Error loading samples: ' . $e->getMessage());
             $this->sampleForms = [];
@@ -1719,6 +1790,8 @@ class Samples extends Component
             // Add if not selected
             $this->sampleForms[$index]['analysis_type_id'][] = $analysisTypeId;
         }
+
+        $this->loadSampleGroupedWorksheets();
     }
 
     /**
@@ -2014,19 +2087,15 @@ class Samples extends Component
 
             $this->uncertaintyRequired = $this->batch->require_mu == 1;
 
-            // Fetch all captured results for this sample with relationships
-            $capturedResultsQuery = DB::table('captured_results')
+            // Use Eloquent so SafeEncrypted casts decrypt analyte_code, result, remark, etc.
+            $capturedResultsQuery = CapturedResult::query()
                 ->where('sample_detail_code', $sampleCode)
                 ->where('sample_header_id', $this->batch->id)
                 ->orderBy('analysis_type_order')
                 ->orderBy('parameters_order');
 
             if ($hasAttachmentColumn) {
-                $capturedResultsQuery
-                    ->leftJoin('batch_attachments', 'batch_attachments.id', '=', 'captured_results.batch_attachment_id')
-                    ->selectRaw('captured_results.*, batch_attachments.attachment_url as batch_attachment_url');
-            } else {
-                $capturedResultsQuery->selectRaw('captured_results.*, null as batch_attachment_id, null as batch_attachment_url');
+                $capturedResultsQuery->with('batchAttachment');
             }
 
             $capturedResults = $capturedResultsQuery->get();
@@ -2042,6 +2111,9 @@ class Samples extends Component
             foreach ($capturedResults as $result) {
                 // Get analysis type
                 $analysisType = AnalysisType::find($result->analysis_type_id);
+                $batchAttachmentUrl = $hasAttachmentColumn
+                    ? $result->batchAttachment?->attachment_url
+                    : null;
 
                 // Get operator
                 $operator = \App\User::find($result->operator_id);
@@ -2094,14 +2166,25 @@ class Samples extends Component
                     }
                 }
 
+                $analyteName = $analyte?->name;
+                $analyteCode = $result->analyte_code;
+                if (! $analyteName && $analyte) {
+                    $analyteName = $analyte->code;
+                }
+                if (! $analyteName) {
+                    $analyteName = is_string($analyteCode) && ! str_starts_with($analyteCode, 'eyJ')
+                        ? $analyteCode
+                        : '—';
+                }
+
                 $parameters[$result->id] = [
                     'id' => $result->id,
                     'sample_code' => $result->sample_detail_code,
-                    'analysis_type' => $analysisType->code ?? '-',
+                    'analysis_type' => $analysisType->name ?? $analysisType->code ?? '-',
                     'analysis_type_id' => $result->analysis_type_id,
-                    'analyte_code' => $result->analyte_code,
+                    'analyte_code' => is_string($analyteCode) && ! str_starts_with($analyteCode, 'eyJ') ? $analyteCode : ($analyte?->code ?? ''),
                     'analyte_id' => $result->analyte_id,
-                    'analyte_name' => $analyte->name ?? $result->analyte_code,
+                    'analyte_name' => $analyteName,
                     'result_reporting_symbol' => $result->result_reporting_symbol,
                     'result' => $result->result,
                     'measure_uncertanity' => $result->measure_uncertanity,
@@ -2130,7 +2213,7 @@ class Samples extends Component
                     'limit_high' => $limitHigh,
                     'standard_editable' => false,
                     'batch_attachment_id' => $result->batch_attachment_id,
-                    'batch_attachment_url' => $result->batch_attachment_url,
+                    'batch_attachment_url' => $batchAttachmentUrl,
                 ];
             }
 
@@ -2418,7 +2501,12 @@ class Samples extends Component
     {
         try {
             foreach ($this->parametersForm as $id => $data) {
-                $updateData = [
+                $captured = CapturedResult::query()->find($id);
+                if (! $captured) {
+                    continue;
+                }
+
+                $captured->update([
                     'result' => $data['result'],
                     'measure_uncertanity' => $data['measure_uncertanity'],
                     'remark' => $data['remark'],
@@ -2429,12 +2517,7 @@ class Samples extends Component
                     'lab_section_id' => $data['lab_section_id'] ?? null,
                     'analyte_status_contracted' => $data['subcontracted'] ? 1 : 0,
                     'analyte_accredited' => $data['accredited'] ? 1 : 0,
-                    'updated_at' => now(),
-                ];
-
-                DB::table('captured_results')
-                    ->where('id', $id)
-                    ->update($updateData);
+                ]);
             }
 
             session()->flash('message', 'Parameters saved successfully.');

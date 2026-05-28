@@ -6,15 +6,15 @@ use App\Models\Monitoring\MonitoringAuditTrail;
 use App\Models\Monitoring\MonitoringLog;
 use App\Models\Monitoring\MonitoringLogEntry;
 use App\Models\Monitoring\MonitoringTemplate;
-use App\Services\Monitoring\CalibrationSnapshotService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class StoreMonitoringLogAction
 {
     public function __construct(
-        protected CalibrationSnapshotService $calibrationSnapshotService,
+        protected SyncMonitoringLogCalibrationSnapshotAction $syncCalibrationSnapshot,
     ) {
     }
 
@@ -28,7 +28,27 @@ class StoreMonitoringLogAction
                 $equipmentId = null;
             }
 
-            $log = MonitoringLog::create([
+            $logPayload = Arr::get($payload, 'payload', []);
+            if (! is_array($logPayload)) {
+                $logPayload = [];
+            }
+
+            $frequencySlot = Arr::get($payload, 'frequency_slot');
+            if ($frequencySlot !== null && $frequencySlot !== '') {
+                $logPayload['frequency_slot'] = (int) $frequencySlot;
+            }
+
+            $labSectionId = Arr::get($payload, 'lab_section_id');
+            if (filled($labSectionId)) {
+                $logPayload['lab_section_id'] = (string) $labSectionId;
+            }
+
+            $remark = Arr::get($payload, 'remark');
+            if ($remark !== null && $remark !== '') {
+                $logPayload['remark'] = (string) $remark;
+            }
+
+            $attributes = [
                 'template_id' => $template->id,
                 'template_version' => (int) $template->version,
                 'lab_id' => Arr::get($payload, 'lab_id'),
@@ -38,11 +58,34 @@ class StoreMonitoringLogAction
                 'status' => Arr::get($payload, 'status', 'completed'),
                 'overall_result' => Arr::get($payload, 'overall_result'),
                 'deviation_triggered' => (bool) Arr::get($payload, 'deviation_triggered', false),
-                'payload' => Arr::get($payload, 'payload', []),
+                'payload' => $logPayload,
                 'executed_by' => $user?->id,
                 'executed_at' => now(),
                 'company_id' => Arr::get($payload, 'company_id', $template->company_id),
-            ]);
+            ];
+
+            if (Schema::hasColumn('monitoring_logs', 'remark')) {
+                $attributes['remark'] = $remark ?: null;
+            }
+
+            if (Schema::hasColumn('monitoring_logs', 'lab_section_id')) {
+                $attributes['lab_section_id'] = filled($labSectionId) ? (string) $labSectionId : null;
+            }
+
+            if (Schema::hasColumn('monitoring_logs', 'frequency_slot')) {
+                $attributes['frequency_slot'] = isset($logPayload['frequency_slot'])
+                    ? (int) $logPayload['frequency_slot']
+                    : null;
+            }
+
+            $existingColumns = array_flip(Schema::getColumnListing('monitoring_logs'));
+            $attributes = array_filter(
+                $attributes,
+                static fn (string $key): bool => isset($existingColumns[$key]),
+                ARRAY_FILTER_USE_KEY
+            );
+
+            $log = MonitoringLog::create($attributes);
 
             foreach (Arr::get($payload, 'entries', []) as $entry) {
                 MonitoringLogEntry::create([
@@ -58,14 +101,7 @@ class StoreMonitoringLogAction
                 ]);
             }
 
-            if ($equipmentId) {
-                $snapshot = $this->calibrationSnapshotService->latestForEquipment($equipmentId);
-                if ($snapshot !== null) {
-                    $log->calibrationSnapshots()->create(array_merge([
-                        'equipment_id' => $equipmentId,
-                    ], $snapshot->toArray()));
-                }
-            }
+            $this->syncCalibrationSnapshot->execute($log, $equipmentId);
 
             MonitoringAuditTrail::create([
                 'auditable_type' => MonitoringLog::class,

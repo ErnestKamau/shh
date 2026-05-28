@@ -36,13 +36,17 @@ class AnalysisType extends Model implements Auditable
     'invoicable_item_id',
     'procedure_worksheet_id',
     'grouped_worksheet_holder_id',
+    'hybrid_worksheet_id',
   ];
 
   protected $casts = [
     'active' => 'boolean',
     'has_no_result' => 'boolean',
     'include_hygiene_score' => 'boolean',
-    'include_sanitizer_efficiency' => 'boolean'
+    'include_sanitizer_efficiency' => 'boolean',
+    'procedure_worksheet_id' => 'string',
+    'grouped_worksheet_holder_id' => 'string',
+    'hybrid_worksheet_id' => 'string',
   ];
   protected $appends = ['labsectionname'];
   public function lab()
@@ -123,6 +127,11 @@ class AnalysisType extends Model implements Auditable
   public function groupedWorksheetHolder()
   {
       return $this->belongsTo(\App\Models\GroupedWorksheets\GroupedWorksheetHolder::class, 'grouped_worksheet_holder_id');
+  }
+
+  public function hybridWorksheet()
+  {
+      return $this->belongsTo(\App\Models\HybridWorksheets\HybridWorksheet::class, 'hybrid_worksheet_id');
   }
 
 }

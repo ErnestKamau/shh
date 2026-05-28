@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Models\CRM\CustomerContact;
 use App\Models\CRM\CustomerNotification;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Services\Sampleworkflow\AcceptanceFormService;
@@ -131,6 +132,49 @@ class CustomerAcceptanceSignModal extends Component
         $this->dispatch('customer-acceptance-sign-step2');
     }
 
+    public function continueToReceiptStep(): void
+    {
+        $this->authorizeLabAccess();
+
+        if (!$this->verifiedContactId) {
+            $this->currentStep = 1;
+
+            return;
+        }
+
+        $this->validate([
+            'customerSignature' => ['required', 'string'],
+        ], [
+            'customerSignature.required' => 'Please sign the Analysis Acceptance Form before continuing.',
+        ]);
+
+        if ($this->showDisclaimerClaimantSign) {
+            $this->validate([
+                'disclaimerForm.claimant_name' => ['required', 'string', 'max:255'],
+                'disclaimerForm.claimant_signature' => ['required', 'string'],
+                'disclaimerForm.claimant_signed_at' => ['nullable', 'date'],
+            ]);
+        }
+
+        if (($this->receiptNotificationForm['submitter_name'] ?? '') === '') {
+            $this->receiptNotificationForm['submitter_name'] = $this->customerSignerName;
+        }
+
+        if (trim((string) ($this->receiptNotificationForm['submitter_designation'] ?? '')) === '' && $this->verifiedContactId) {
+            $contact = CustomerContact::query()->find($this->verifiedContactId);
+            $designation = trim((string) ($contact?->job_occupation ?? ''));
+            if ($designation !== '') {
+                $this->receiptNotificationForm['submitter_designation'] = $designation;
+            }
+        }
+
+        $this->receiptNotificationForm = app(SampleReceiptNotificationService::class)
+            ->applyReceivingPersonFromAuth($this->receiptNotificationForm);
+
+        $this->currentStep = 3;
+        $this->dispatch('customer-acceptance-sign-step3');
+    }
+
     public function goToStep(int $step): void
     {
         if ($step === 1) {
@@ -141,6 +185,14 @@ class CustomerAcceptanceSignModal extends Component
 
         if ($step === 2 && $this->verifiedContactId) {
             $this->currentStep = 2;
+            $this->dispatch('customer-acceptance-sign-step2');
+
+            return;
+        }
+
+        if ($step === 3 && $this->verifiedContactId && $this->customerSignature !== '') {
+            $this->currentStep = 3;
+            $this->dispatch('customer-acceptance-sign-step3');
         }
     }
 
@@ -180,10 +232,20 @@ class CustomerAcceptanceSignModal extends Component
             return;
         }
 
-        $this->validate([
-            'customerSignerName' => ['required', 'string', 'max:255'],
-            'customerSignature' => ['required', 'string'],
-        ]);
+        $this->receiptNotificationForm = $receiptService->applyReceivingPersonFromAuth($this->receiptNotificationForm);
+
+        $this->validate(array_merge(
+            [
+                'customerSignerName' => ['required', 'string', 'max:255'],
+                'customerSignature' => ['required', 'string'],
+            ],
+            $receiptService->labAssistedCustomerSignValidationRules()
+        ), array_merge(
+            $receiptService->labAssistedCustomerSignValidationMessages(),
+            [
+                'customerSignature.required' => 'Please sign the Analysis Acceptance Form.',
+            ]
+        ));
 
         $signedForm = $acceptanceFormService->recordCustomerSignature(
             $form,

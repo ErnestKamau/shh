@@ -167,7 +167,8 @@ class LaboratoryAnalysisAcceptance extends Component
 
         Storage::disk('public')->put($pdfStoragePath, $pdf->output());
 
-        $attachmentTypeId = $this->resolveAcceptanceAttachmentTypeId();
+        $attachmentTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
+            ->resolveOrCreateAttachmentTypeId('Laboratory Analysis Acceptance Form');
         $title = 'Laboratory Analysis Acceptance Form (GCLA/F/03)';
 
         $attachment = BatchAttachment::where('batch_id', $this->batch->id)
@@ -614,29 +615,4 @@ class LaboratoryAnalysisAcceptance extends Component
         return array_values(array_filter($this->parameters, static fn ($row) => ! ((bool) ($row['selected'] ?? false))));
     }
 
-    private function resolveAcceptanceAttachmentTypeId(): ?int
-    {
-        $label = 'Laboratory Analysis Acceptance Form';
-
-        $existingId = SystemConfiguration::query()->where('key', 'attachment_type')
-            ->where('value', $label)
-            ->value('id');
-
-        if ($existingId !== null) {
-            return (int) $existingId;
-        }
-
-        $typeConfig = SystemConfiguration::query()->where('key', 'attachment_type_config_id')->first();
-        if (! $typeConfig) {
-            return null;
-        }
-
-        $newConfig = new SystemConfiguration();
-        $newConfig->key = 'attachment_type';
-        $newConfig->value = $label;
-        $newConfig->configuration_type_id = $typeConfig->id;
-        $newConfig->save();
-
-        return (int) $newConfig->id;
-    }
 }

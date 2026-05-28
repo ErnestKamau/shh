@@ -8,7 +8,7 @@
         --scd-slate-800: #1e293b;
         --scd-radius-sm: 8px;
     }
-    .scd-hero { border-radius: 12px; background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); }
+    .scd-hero { border-radius: 12px; background: #fff; }
     .scd-eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
     .scd-title { font-size: 1.5rem; font-weight: 700; color: var(--scd-slate-800); }
     .scd-subtitle { color: #64748b; font-size: 0.95rem; }

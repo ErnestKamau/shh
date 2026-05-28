@@ -250,7 +250,15 @@
                         @endif
 
                         @if($activeStep === 'manager')
+                            @include('livewire.partials.manager-assignment-fields', [
+                                'analystOptions' => $analystOptions,
+                                'signatoryOptions' => $signatoryOptions,
+                                'assignedAnalystIds' => $assignedAnalystIds,
+                                'leadAnalystOptions' => $this->leadAnalystOptions,
+                            ])
+
                             <section class="acc-wizard-section">
+                                <h6 class="acc-wizard-section-title">Laboratory manager — approval &amp; signature <span class="text-danger">*</span></h6>
                                 <div class="acc-cert-card">
                                     <p class="acc-cert-quote">{{ \App\Services\Sampleworkflow\AcceptanceFormService::MANAGER_CERTIFICATION_TEXT }}</p>
                                 </div>
@@ -1150,6 +1158,118 @@
             margin-bottom: 1rem;
         }
 
+        .acc-manager-assignments-section {
+            background: #f8fafc;
+            border: 1px solid var(--acc-border);
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+        }
+
+        .acc-wizard-root .tag-select-container {
+            position: relative;
+            width: 100%;
+            cursor: text;
+        }
+
+        .acc-wizard-root .tag-select-container--disabled {
+            opacity: 0.65;
+            pointer-events: none;
+        }
+
+        .acc-wizard-root .tag-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            min-height: 42px;
+            padding: 6px 12px;
+            background: #fff;
+            border: 1px solid var(--acc-border);
+            border-radius: 10px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .acc-wizard-root .tag-select-input:focus-within {
+            border-color: var(--acc-accent);
+            box-shadow: 0 0 0 3px rgba(59, 95, 192, 0.12);
+        }
+
+        .acc-wizard-root .tag-input {
+            flex: 1;
+            min-width: 140px;
+            border: none;
+            outline: none;
+            padding: 4px 0;
+            font-size: 0.9rem;
+            background: transparent;
+        }
+
+        .acc-wizard-root .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .acc-wizard-root .tag-badge--success {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+        }
+
+        .acc-wizard-root .tag-badge--primary {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        .acc-wizard-root .tag-badge i {
+            cursor: pointer;
+            font-size: 1rem;
+            opacity: 0.75;
+        }
+
+        .acc-wizard-root .tag-badge i:hover {
+            opacity: 1;
+        }
+
+        .acc-wizard-root .tag-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            z-index: 1200;
+            background: #fff;
+            border: 1px solid var(--acc-border);
+            border-radius: 10px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .acc-wizard-root .tag-dropdown-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .acc-wizard-root .tag-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .acc-wizard-root .tag-dropdown-item:hover {
+            background: #f8fafc;
+        }
+
+        .acc-wizard-root .tag-select-container.is-invalid .tag-select-input {
+            border-color: #dc3545;
+        }
+
         .acc-status-banner {
             display: flex;
             align-items: flex-start;
@@ -1487,6 +1607,19 @@
             });
 
             $('#acceptance-manager-sign-submit').off('click.acceptance').on('click.acceptance', function () {
+                const assignedCount = (@this.get('assignedAnalystIds') || []).length;
+                if (assignedCount === 0) {
+                    alert('Select at least one analyst assigned to this batch.');
+                    return;
+                }
+                if (!@this.get('leadAnalystId')) {
+                    alert('Select the lead analyst from the assigned analysts.');
+                    return;
+                }
+                if (!@this.get('technicalSignatoryId')) {
+                    alert('Select the technical signatory.');
+                    return;
+                }
                 if (!managerSignaturePad || managerSignaturePad.isEmpty()) {
                     alert('Please provide a manager signature.');
                     return;

@@ -3,6 +3,7 @@
 namespace App\Models\Sampleworkflow;
 
 use App\SampleDetails;
+use App\Zone;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +19,7 @@ class InterzoneTransferSample extends Model
     protected $fillable = [
         'interzone_transfer_id',
         'sample_detail_id',
+        'to_zone_id',
     ];
 
     public function transfer(): BelongsTo
@@ -28,5 +30,10 @@ class InterzoneTransferSample extends Model
     public function sampleDetail(): BelongsTo
     {
         return $this->belongsTo(SampleDetails::class, 'sample_detail_id');
+    }
+
+    public function toZone(): BelongsTo
+    {
+        return $this->belongsTo(Zone::class, 'to_zone_id');
     }
 }

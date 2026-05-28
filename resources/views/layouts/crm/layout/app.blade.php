@@ -47,7 +47,7 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group sticky-top sticky-offset">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
 				<span class="text-lg text-bold">{{ __('crm.module_name') }}</span>
 			</div>
@@ -57,19 +57,19 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
-			<a href="{{ route('crm-dashboard') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('crm-dashboard') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.dashboard') }}</span>
 				</div>
 			</a>
-			<a href="/crm-home" class="bg-dark list-group-item list-group-item-action">
+			<a href="/crm-home" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-multiple fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.customer_register') }}</span>
 				</div>
 			</a>
-			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.complaint_workflow') }}</span>
@@ -84,7 +84,7 @@
 						: (getComplaintsInWorkflow($loop->iteration - 1) ?? 0);
 					$complaintBadgeClass = $item === 'Samples Request Review' ? 'badge-danger' : 'badge-dark';
 				@endphp
-				<a href="{{ route('crm.complaints-manager', ['stage' => $item]) }}" class="list-group-item list-group-item-action bg-dark text-white crm-sidebar-complaint-stage-link">
+				<a href="{{ route('crm.complaints-manager', ['stage' => $item]) }}" class="list-group-item list-group-item-action crm-sidebar-complaint-stage-link">
 					<div class="d-flex w-100 align-items-center justify-content-between menu-collapsed" style="gap: 0.5rem;">
 						<span class="text-truncate d-flex align-items-center min-w-0">
 							<i class="mdi mdi-circle-medium flex-shrink-0"></i>
@@ -95,32 +95,32 @@
 				</a>
 				@endforeach
 			</div>
-			<a href="{{ route('complaint-type-home') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('complaint-type-home') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-message-cog fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.complaint_type') }}</span>
 				</div>
 			</a>
-			<a href="{{ route('crm-batch-reports') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('crm-batch-reports') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-chart fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.batch_reports') }}</span>
 				</div>
 			</a>
-			<a href="{{ route('feedback-home') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('feedback-home') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-account fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.customer_feedback') }}</span>
 				</div>
 			</a>
-			<a href="{{ route('feedback-config') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('feedback-config') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-cog-refresh-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">{{ __('crm.feedback_configuration') }}</span>
 				</div>
 			</a>
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center" style="bottom:0">
 				{{ __('crm.copyright') }} {{ date('Y') }} <span class="text-red">{{ __('crm.imara_lims') }}</span>
 			</div>
 			<!-- Submenu content -->

@@ -42,7 +42,7 @@ class SkillsMatrixController extends Controller
 	public function index()
 	{
 		$module = 'Skills Matrix';
-		$matrix_info = SkillsMatrix::leftJoin('inventory_departments as c', DB::raw('c.id::varchar'), '=', DB::raw('skillsmatrices.department_id::varchar'))->selectRaw('skillsmatrices.*, c.name as department')->get();
+		$matrix_info = SkillsMatrix::withDepartmentName()->get();
 		// return response()->json($matrix_info);
 		$user = Auth::user();
 		$module_text = "organizational";
@@ -104,7 +104,7 @@ class SkillsMatrixController extends Controller
 	}
 
 	public function show($id){
-		$matrix = SkillsMatrix::where('skillsmatrices.id',$id)->leftJoin('inventory_departments as c', 'c.id', '=', 'skillsmatrices.department_id')->selectRaw('skillsmatrices.*, c.name as department')->first();
+		$matrix = SkillsMatrix::where('skillsmatrices.id', $id)->withDepartmentName()->first();
 		$roles = SkillMarixRole::with('jobdescription')->where('skills_matrix_id',$id)->orderBy('job_description_id','ASC')->get();
 		$module = 'Skills Matrix - Show';
 		$skills_proficiency =  ModulePreConfigs::where('type', 'Proficiency')->where('module','Skills-Matrix')

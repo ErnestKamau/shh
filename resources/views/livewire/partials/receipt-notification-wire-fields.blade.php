@@ -6,6 +6,8 @@
     $showSubmitterSection = $showSubmitterSection ?? false;
     $submitterReadOnly = $submitterReadOnly ?? $readOnly;
     $showSubmitterSigningNotice = $showSubmitterSigningNotice ?? ! $showSubmitterSection;
+    $submitterSignatureDisplay = $submitterSignatureDisplay ?? '';
+    $receiverSignatureDisplay = $receiverSignatureDisplay ?? '';
     $mode = $mode ?? 'wire';
     $isStatic = $mode === 'static';
     $staticNamePrefix = $staticNamePrefix ?? 'receipt_notification';
@@ -123,6 +125,7 @@
             border-radius: 6px;
         }
 
+        .receipt-notif-form__submitter-sig,
         .receipt-notif-form__receiver-sig {
             display: flex;
             flex-direction: column;
@@ -131,7 +134,15 @@
             margin-top: 0.25rem;
         }
 
+        .receipt-notif-form__submitter-sig .receipt-notif-form__label,
         .receipt-notif-form__receiver-sig .receipt-notif-form__label {
+            width: 100%;
+            max-width: 560px;
+            text-align: left;
+        }
+
+        .receipt-notif-form__submitter-sig .text-danger,
+        .receipt-notif-form__receiver-sig .text-danger {
             width: 100%;
             max-width: 560px;
             text-align: left;
@@ -250,19 +261,27 @@
                     </div>
                 </div>
 
-                <label class="receipt-notif-form__label d-block">Signature</label>
-                <div class="receipt-notif-form__sig-pad mb-3" @if(! $isStatic) wire:ignore @endif>
-                    <canvas id="{{ $canvasPrefix }}-submitter-canvas"></canvas>
-                    <div class="receipt-notif-form__sig-actions">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="{{ $canvasPrefix }}-submitter-clear" @if($submitterReadOnly || $isStatic) disabled @endif>Clear</button>
-                    </div>
+                <div class="receipt-notif-form__submitter-sig">
+                    <label class="receipt-notif-form__label d-block">Signature</label>
+                    @if(($readOnly || $submitterReadOnly) && $submitterSignatureDisplay !== '' && str_starts_with($submitterSignatureDisplay, 'data:image'))
+                        <div class="receipt-notif-form__sig-pad mb-3">
+                            <img src="{{ $submitterSignatureDisplay }}" alt="Submitter signature" style="max-width: 100%; max-height: 140px;">
+                        </div>
+                    @else
+                        <div class="receipt-notif-form__sig-pad mb-3" @if(! $isStatic) wire:ignore @endif>
+                            <canvas id="{{ $canvasPrefix }}-submitter-canvas"></canvas>
+                            <div class="receipt-notif-form__sig-actions">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="{{ $canvasPrefix }}-submitter-clear" @if($submitterReadOnly || $isStatic) disabled @endif>Clear</button>
+                            </div>
+                        </div>
+                    @endif
+                    @if($isStatic)
+                        <input type="hidden" id="{{ $canvasPrefix }}-submitter-input" name="{{ $staticNamePrefix }}[submitter_signature]">
+                    @else
+                        <input type="hidden" id="{{ $canvasPrefix }}-submitter-input" wire:model.defer="{{ $wirePrefix }}submitter_signature">
+                        @error($wirePrefix.'submitter_signature')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                    @endif
                 </div>
-                @if($isStatic)
-                    <input type="hidden" id="{{ $canvasPrefix }}-submitter-input" name="{{ $staticNamePrefix }}[submitter_signature]">
-                @else
-                    <input type="hidden" id="{{ $canvasPrefix }}-submitter-input" wire:model.defer="{{ $wirePrefix }}submitter_signature">
-                    @error($wirePrefix.'submitter_signature')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                @endif
             @endif
 
             <hr class="receipt-notif-form__divider">
@@ -299,12 +318,18 @@
 
             <div class="receipt-notif-form__receiver-sig">
                 <label class="receipt-notif-form__label d-block">Signature</label>
-                <div class="receipt-notif-form__sig-pad" @if(! $isStatic) wire:ignore @endif>
-                    <canvas id="{{ $canvasPrefix }}-receiver-canvas"></canvas>
-                    <div class="receipt-notif-form__sig-actions">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="{{ $canvasPrefix }}-receiver-clear" @if($readOnly && ! $isStatic) disabled @endif>Clear</button>
+                @if($readOnly && $receiverSignatureDisplay !== '' && str_starts_with($receiverSignatureDisplay, 'data:image'))
+                    <div class="receipt-notif-form__sig-pad">
+                        <img src="{{ $receiverSignatureDisplay }}" alt="Receiving person signature" style="max-width: 100%; max-height: 140px;">
                     </div>
-                </div>
+                @else
+                    <div class="receipt-notif-form__sig-pad" @if(! $isStatic) wire:ignore @endif>
+                        <canvas id="{{ $canvasPrefix }}-receiver-canvas"></canvas>
+                        <div class="receipt-notif-form__sig-actions">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="{{ $canvasPrefix }}-receiver-clear" @if($readOnly && ! $isStatic) disabled @endif>Clear</button>
+                        </div>
+                    </div>
+                @endif
                 @if($isStatic)
                     <input type="hidden" id="{{ $canvasPrefix }}-receiver-input" name="{{ $staticNamePrefix }}[receiver_signature]">
                 @else

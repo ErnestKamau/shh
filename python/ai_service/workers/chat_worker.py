@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List
 
 from python.ai_service.services.ollama_service import OllamaService
 from python.ai_service.core import mode_registry
+from python.ai_service.core.language import language_instruction, localize_fixed_text
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +37,13 @@ class ChatWorker:
         mode: Optional[str] = None,
         model: Optional[str] = None,
         trace_id: str = "",
+        language: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate a conversational response. Always returns a result dict.
         """
-        system_prompt = mode_registry.get_persona(mode)
+        system_prompt = mode_registry.get_persona(mode, language)
+        system_prompt = f"{system_prompt}\n\n{language_instruction(language)}"
 
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
@@ -68,8 +71,12 @@ class ChatWorker:
             logger.error(f"ChatWorker [{trace_id[:8]}]: Chat failed: {exc}")
             return {
                 "answer": (
-                    "I'm having trouble generating a response right now. "
-                    "Please try again in a moment, or ask a more specific question."
+                    localize_fixed_text(
+                        "chat_error",
+                        language,
+                        "I'm having trouble generating a response right now. "
+                        "Please try again in a moment, or ask a more specific question.",
+                    )
                 ),
                 "sources": [],
                 "meta": {
@@ -85,12 +92,14 @@ class ChatWorker:
         messages: List[Dict[str, str]],
         mode: Optional[str] = None,
         model: Optional[str] = None,
+        language: Optional[str] = None,
     ):
         """
         Streaming version. Yields tokens from the Ollama stream.
         Returns the stream object provided by OllamaService, which may be async.
         """
-        system_prompt = mode_registry.get_persona(mode)
+        system_prompt = mode_registry.get_persona(mode, language)
+        system_prompt = f"{system_prompt}\n\n{language_instruction(language)}"
         return self.ollama.chat_stream(
             messages=[{"role": "system", "content": system_prompt}] + messages,
             model=model or self.chat_model,

@@ -28,8 +28,8 @@
 	<?php
 	$items = [
 		[
-			'link' => route('lab-home'),
-			'name' => 'Lab',
+			'link' => route('dashboard-lab'),
+			'name' => 'Dashboard',
 			'icon' => null,
 		],
 		[

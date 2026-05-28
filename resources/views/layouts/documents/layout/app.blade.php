@@ -79,7 +79,7 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group sticky-top sticky-offset">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-book-open-page-variant fa-3x"></i><br>
 				<span class="text-lg text-bold">Documents</span>
 			</div>
@@ -89,7 +89,7 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
-			<a href="/documents/dashboard" class="bg-dark list-group-item list-group-item-action">
+			<a href="/documents/dashboard" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
@@ -97,7 +97,7 @@
 			</a>
 
 			<!-- COAs & Reports -->
-			<a href="{{ route('documents.coas') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('documents.coas') }}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate fa-fw mr-3"></span>
 					<span class="menu-collapsed">COAs & Reports</span>
@@ -105,7 +105,7 @@
 			</a>
 			
 			<!-- Document Management -->
-			<a href="#document-management-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#document-management-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-multiple mr-3"></span>
 					<span class="menu-collapsed">Document Management</span>
@@ -113,16 +113,16 @@
 				</div>
 			</a>
 			<div id="document-management-menu" class="collapse sidebar-submenu">
-				<a href="/documents" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="/documents" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-view-list"></i> All Documents</span>
 				</a>
-				<a href="/documents/create" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="/documents/create" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-plus"></i> Upload Document</span>
 				</a>
 			</div>
 
 			<!-- Configuration -->
-			<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-cog mr-3"></span>
 					<span class="menu-collapsed">Configuration</span>
@@ -130,15 +130,15 @@
 				</div>
 			</a>
 			<div id="configuration-menu" class="collapse sidebar-submenu">
-				<a href="/documents/types" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="/documents/types" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-tag"></i> Document Types</span>
 				</a>
-				<a href="/documents/notification-frequencies" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="/documents/notification-frequencies" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-bell"></i> Notification Frequencies</span>
 				</a>
 			</div>
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 		</ul>

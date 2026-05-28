@@ -5,6 +5,7 @@ const CSRF_TOKEN            = '{{ csrf_token() }}';
 const CONVOS_URL            = '{{ route('ai.conversations.list') }}';
 const CREATE_CONVO_URL      = '{{ route('ai.conversations.create') }}';
 const CONVO_MESSAGES_BASE   = '/imara-ai/conversations';
+const IMARA_AI_LANGUAGE     = {!! json_encode(in_array(app()->getLocale(), ['en', 'sw'], true) ? app()->getLocale() : 'auto') !!};
 
 let selectedReferences      = []; 
 let mentionSearchActive     = false;
@@ -598,7 +599,7 @@ window.removeReference = removeReference;
 
 async function fetchKnowledge(userInput, attachmentId, manualReferenceIds) {
     currentAbortController = new AbortController();
-    const body = { query: userInput, limit: 5 };
+    const body = { query: userInput, limit: 5, language: IMARA_AI_LANGUAGE };
     if (attachmentId) body.attachment_id = attachmentId;
     
     // Support passed manualReferenceIds (for retries) or use currently selected ones
@@ -1236,7 +1237,8 @@ async function sendMessage() {
                 reference_ids: refIdsToSend,
                 conversation_id: currentConvoId || null,
                 use_visuals: toolsMasterEnabled && visualsEnabled,
-                model: document.getElementById('modelSelector')?.value || null
+                model: document.getElementById('modelSelector')?.value || null,
+                language: IMARA_AI_LANGUAGE
             }),
             signal: currentAbortController.signal,
         });

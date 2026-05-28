@@ -24,6 +24,7 @@ class ProcedureWorksheet extends Model implements Auditable
         'document_control_no',
         'revision',
         'issue_date',
+        'config_fields_placement',
     ];
 
     protected $casts = [
@@ -49,6 +50,16 @@ class ProcedureWorksheet extends Model implements Auditable
     public function configFields()
     {
         return $this->hasMany(ProcedureConfigField::class)->orderBy('order');
+    }
+
+    public function configFieldSections()
+    {
+        return $this->hasMany(ProcedureConfigFieldSection::class)->orderBy('order');
+    }
+
+    public function stepGroups()
+    {
+        return $this->hasMany(ProcedureWorksheetStepGroup::class)->orderBy('order');
     }
 
     public function testKitColumns()

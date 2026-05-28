@@ -20,7 +20,7 @@ class RiskAssessmentConfigController extends Controller
      */
     public function likelihoodScales()
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
         $scales = LikelihoodScale::forCompany()
             ->ordered()
             ->get();
@@ -33,7 +33,7 @@ class RiskAssessmentConfigController extends Controller
      */
     public function severityScales()
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
         $scales = SeverityScale::forCompany()
             ->ordered()
             ->get();
@@ -56,7 +56,7 @@ class RiskAssessmentConfigController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
 
         // Auto-generate code if not provided
         if (empty($validated['code'])) {
@@ -88,7 +88,7 @@ class RiskAssessmentConfigController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $companyId = getUserCompany() ?? 0;
+        $companyId = getUserCompany();
 
         // Auto-generate code if not provided
         if (empty($validated['code'])) {

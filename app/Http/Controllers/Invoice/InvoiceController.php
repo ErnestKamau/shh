@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 
 
 use App\Http\Controllers\Controller;
+use App\Services\Billing\InvoiceNumberGenerator;
 use Illuminate\Http\Request;
 use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
 
@@ -104,16 +105,7 @@ class InvoiceController extends Controller
         }
         // return response()->json($date,200);
         $invoice->due_date = $date;
-        $invoice->save();
-        $id_str = strval($invoice->id);
-        if(strlen($id_str)<4){
-            $count = 4-strlen($id_str);
-            $zeros = str_repeat('0',$count);
-            $number = 'INV-'.$zeros.$id_str;
-        }else{
-            $number = 'INV-'.$id_str;
-        }
-        $invoice->invoice_number = $number;
+        $invoice->invoice_number = app(InvoiceNumberGenerator::class)->next();
         $invoice->save();
 
         

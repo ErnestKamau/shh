@@ -150,7 +150,7 @@ class RiskManagementController extends Controller
         $validated['created_by'] = Auth::id();
         $validated['identified_by_user_id'] = Auth::id();
         $validated['identified_by'] = Auth::user()->name;
-        $validated['company_id'] = getUserCompany() ?? 0;
+        $validated['company_id'] = getUserCompany();
 
         // Set category and other source names if IDs provided
         if (isset($validated['category_id'])) {
@@ -560,7 +560,7 @@ class RiskManagementController extends Controller
             'reassessment_reason' => $validated['reassessment_reason'] ?? null,
             'created_by' => Auth::id(),
             'updated_by' => Auth::id(),
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ]);
 
         // Mark previous assessments as not current
@@ -718,7 +718,7 @@ class RiskManagementController extends Controller
             'escalation_reason' => $validated['escalation_reason'] ?? null,
             'created_by' => Auth::id(),
             'updated_by' => Auth::id(),
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ]);
 
         // Mark previous evaluations as not current
@@ -1112,7 +1112,7 @@ class RiskManagementController extends Controller
                         'original_name' => $file->getClientOriginalName(),
                         'description' => 'Implementation evidence',
                         'uploaded_by' => Auth::id(),
-                        'company_id' => getUserCompany() ?? 0,
+                        'company_id' => getUserCompany(),
                     ]);
                     
                     $uploadedFiles[] = $file->getClientOriginalName();
@@ -2061,7 +2061,7 @@ class RiskManagementController extends Controller
                     'iso_role' => $approverConfig->iso_role,
                     'remarks' => $validated['remarks'],
                     'approved_at' => now(),
-                    'company_id' => getUserCompany() ?? 0,
+                    'company_id' => getUserCompany(),
                 ]);
 
                 // Check if all required approvers have approved (for multiple approvers)
@@ -2296,7 +2296,7 @@ class RiskManagementController extends Controller
                 'original_name' => $originalName,
                 'description' => $validated['description'] ?? null,
                 'uploaded_by' => Auth::id(),
-                'company_id' => getUserCompany() ?? 0,
+                'company_id' => getUserCompany(),
             ]);
 
             // Log attachment upload activity
@@ -2401,7 +2401,7 @@ class RiskManagementController extends Controller
             'original_name' => $file->getClientOriginalName(),
             'description' => $validated['description'] ?? null,
             'uploaded_by' => Auth::id(),
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => getUserCompany(),
         ]);
 
         // Log attachment upload activity for treatment plan

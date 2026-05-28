@@ -28,6 +28,10 @@
 	}
 </style>
 @include('layouts.registry.partials.rm-act-btn-styles')
+<style type="text/css">
+@include('layouts.registry.partials.status-badge-styles')
+@include('layouts.registry.partials.stage-badge-styles')
+</style>
 @yield('title2')
 @endsection
 
@@ -36,24 +40,24 @@
 <div class="row" id="body-row">
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-4 col-md-3 col-lg-2">
 		<ul class="list-group sticky-top sticky-offset">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-email-multiple fa-3x"></i><br>
 				<span class="text-lg text-bold">REGISTRY</span>
 			</div>
-			<a href="{{ route('registry.dashboard') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'registry.dashboard' ? 'active' : '' }}">
+			<a href="{{ route('registry.dashboard') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'registry.dashboard' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
 				</div>
 			</a>
 			@can('registry.components.requests.view')
-			<a href="{{ route('registry.requests.index') }}" class="bg-dark list-group-item list-group-item-action {{ in_array($currentRoute, ['registry.requests.index'], true) ? 'active' : '' }}">
+			<a href="{{ route('registry.requests.index') }}" class="list-group-item list-group-item-action {{ in_array($currentRoute, ['registry.requests.index'], true) ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-multiple fa-fw mr-3"></span>
 					<span class="menu-collapsed">Requests</span>
 				</div>
 			</a>
-			<a href="{{ route('registry.approved.index') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'registry.approved.index' ? 'active' : '' }}">
+			<a href="{{ route('registry.approved.index') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'registry.approved.index' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-check-all fa-fw mr-3"></span>
 					<span class="menu-collapsed">Approved Requests</span>
@@ -61,7 +65,7 @@
 			</a>
 			@endcan
 			@can('registry.components.approval queue.view')
-			<a href="{{ route('registry.approvals.index') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'registry.approvals.index' ? 'active' : '' }}">
+			<a href="{{ route('registry.approvals.index') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'registry.approvals.index' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-check-decagram fa-fw mr-3"></span>
 					<span class="menu-collapsed">Approval Queue</span>
@@ -69,7 +73,7 @@
 			</a>
 			@endcan
 			@can('registry.components.correspondence register.view')
-			<a href="{{ route('registry.correspondence.index') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'registry.correspondence.index' ? 'active' : '' }}">
+			<a href="{{ route('registry.correspondence.index') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'registry.correspondence.index' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-book-open-page-variant fa-fw mr-3"></span>
 					<span class="menu-collapsed">Correspondence Register</span>
@@ -77,7 +81,7 @@
 			</a>
 			@endcan
 			@can('registry.components.workflow configuration.view')
-			<a href="{{ route('registry.workflows.index') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'registry.workflows.index' ? 'active' : '' }}">
+			<a href="{{ route('registry.workflows.index') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'registry.workflows.index' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
 					<span class="menu-collapsed">Workflow Configuration</span>
@@ -85,14 +89,14 @@
 			</a>
 			@endcan
 			@can('registry.components.requests.add')
-			<a href="{{ route('registry.requests.create') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'registry.requests.create' ? 'active' : '' }}">
+			<a href="{{ route('registry.requests.create') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'registry.requests.create' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-plus-circle fa-fw mr-3"></span>
 					<span class="menu-collapsed">New Request</span>
 				</div>
 			</a>
 			@endcan
-			<div class="list-group-item copyright-lims p-4 text-center text-white">
+			<div class="list-group-item copyright-lims p-4 text-center">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 		</ul>

@@ -134,12 +134,14 @@
 	</div>
 
 	@if($showCreateModal || $showEditModal)
-		<div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-			<div class="modal-dialog">
+		<div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" wire:click.self="closeModal">
+			<div class="modal-dialog" wire:click.stop>
 				<div class="modal-content">
 					<div class="modal-header">
 						<h5 class="modal-title">{{ $showEditModal ? 'Edit' : 'Create' }} procedure worksheet</h5>
-						<button type="button" class="btn-close" wire:click="resetForm; $set('showCreateModal', false); $set('showEditModal', false)"></button>
+						<button type="button" class="close" wire:click="closeModal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
 					</div>
 					<div class="modal-body">
 						<form wire:submit.prevent="{{ $showEditModal ? 'update' : 'save' }}">
@@ -160,7 +162,7 @@
 								</div>
 							</div>
 							<div class="text-end">
-								<button type="button" class="btn btn-secondary btn-sm btn-action-sm me-2" wire:click="resetForm; $set('showCreateModal', false); $set('showEditModal', false)">Cancel</button>
+								<button type="button" class="btn btn-secondary btn-sm btn-action-sm me-2" wire:click="closeModal">Cancel</button>
 								<button type="submit" class="btn btn-primary btn-sm btn-action-sm">{{ $showEditModal ? 'Update' : 'Create' }}</button>
 							</div>
 						</form>

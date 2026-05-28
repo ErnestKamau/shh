@@ -17,13 +17,15 @@
         background-repeat: no-repeat;
         background-size: cover;
         background-position: 100% 100%;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
         z-index: 1000;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: center;
         padding-top: 140px;
+        padding-bottom: 2rem;
     }
 
     .floating-particles {
@@ -432,6 +434,7 @@
     .app-card.risk { background: linear-gradient(135deg, rgba(244, 67, 54, 0.2), rgba(244, 67, 54, 0.1)); }
     .app-card.settings { background: linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1)); }
     .app-card.dms { background: linear-gradient(135deg, rgba(103, 58, 183, 0.2), rgba(103, 58, 183, 0.1)); }
+    .app-card.registry { background: linear-gradient(135deg, rgba(21, 101, 192, 0.2), rgba(13, 71, 161, 0.1)); }
 </style>
 @endsection
 
@@ -555,7 +558,7 @@
 
         @if(isSystemModuleVisible('matrix'))
         @can('matrix.module.access')
-        <a class="app-card matrix" href="{{route('matrix')}}" data-app="matrix">
+        <a class="app-card matrix" href="{{ route('matrix.dashboard') }}" data-app="matrix">
             <div class="app-icon" style="background: linear-gradient(135deg, #9E9E9E, #616161);">
                 <i class="mdi mdi-account-star-outline"></i>
             </div>

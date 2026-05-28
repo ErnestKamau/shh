@@ -161,8 +161,8 @@ class ConfigurationOptionsManager extends Component
             $this->code = strtolower(trim($this->code));
             
             $uniqueRule = $this->isEdit 
-                ? 'unique:risk_configuration_options,code,' . $this->editId . ',id,option_type,' . $this->optionType . ',company_id,' . (getUserCompany() ?? 0)
-                : 'unique:risk_configuration_options,code,NULL,id,option_type,' . $this->optionType . ',company_id,' . (getUserCompany() ?? 0);
+                ? 'unique:risk_configuration_options,code,'.$this->editId.',id,option_type,'.$this->optionType.',company_id,'.(riskCompanyId() ?? 'NULL')
+                : 'unique:risk_configuration_options,code,NULL,id,option_type,'.$this->optionType.',company_id,'.(riskCompanyId() ?? 'NULL');
             
             $rules['code'] = 'required|string|max:255|' . $uniqueRule;
         }
@@ -180,7 +180,7 @@ class ConfigurationOptionsManager extends Component
             'is_active' => $this->is_active,
             'color_code' => $this->color_code,
             'order_index' => $this->order_index ?? 0,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => riskCompanyId(),
         ];
         
         // Build metadata
@@ -270,12 +270,9 @@ class ConfigurationOptionsManager extends Component
 
     public function render()
     {
-        $companyId = getUserCompany() ?? 0;
-        
-        $query = RiskConfigurationOption::where('option_type', $this->optionType)
-            ->where(function($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhere('company_id', 0);
-            });
+        $query = riskApplyCompanyScope(
+            RiskConfigurationOption::where('option_type', $this->optionType)
+        );
         
         if ($this->search) {
             $query->where(function($q) {

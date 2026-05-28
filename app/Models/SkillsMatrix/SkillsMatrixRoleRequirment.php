@@ -15,5 +15,6 @@ class SkillsMatrixRoleRequirment extends Model implements Auditable
     public $incrementing = false;
 
 	use \OwenIt\Auditing\Auditable;
-    //
+
+    protected $table = 'skills_matrix_role_requirments';
 }

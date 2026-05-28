@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Arr;
 
 class MonitoringTemplate extends Model
 {
@@ -60,8 +61,58 @@ class MonitoringTemplate extends Model
         return $this->hasMany(MonitoringFormulaRule::class, 'template_id');
     }
 
+    public function readingSteps(): HasMany
+    {
+        return $this->hasMany(MonitoringReadingStep::class, 'template_id')->orderBy('step_number');
+    }
+
+    public function configuredFields(): HasMany
+    {
+        return $this->hasMany(MonitoringTemplateConfiguredField::class, 'template_id')
+            ->orderBy('placement')
+            ->orderBy('order');
+    }
+
     public function logs(): HasMany
     {
         return $this->hasMany(MonitoringLog::class, 'template_id');
+    }
+
+    /**
+     * Lab IDs this template applies to (multi-lab support via scope metadata).
+     *
+     * @return list<string>
+     */
+    public function scopeLabIds(): array
+    {
+        $metaField = $this->relationLoaded('fields')
+            ? $this->fields->firstWhere('field_key', '__meta_scope_items')
+            : $this->fields()->where('field_key', '__meta_scope_items')->first();
+
+        $labs = Arr::get($metaField?->field_config ?? [], 'labs', []);
+
+        if (is_array($labs) && $labs !== []) {
+            return array_values(array_unique(array_map(
+                fn ($id) => (string) $id,
+                $labs,
+            )));
+        }
+
+        return $this->lab_id !== null ? [(string) $this->lab_id] : [];
+    }
+
+    public function appliesToLab(?string $labId): bool
+    {
+        if ($labId === null || $labId === '') {
+            return true;
+        }
+
+        $scopeLabIds = $this->scopeLabIds();
+
+        if ($scopeLabIds !== []) {
+            return in_array((string) $labId, $scopeLabIds, true);
+        }
+
+        return $this->lab_id === null || (string) $this->lab_id === (string) $labId;
     }
 }

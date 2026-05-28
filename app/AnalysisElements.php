@@ -54,7 +54,8 @@ class AnalysisElements extends Model implements Auditable
     'has_method_sequence',
     'method_sequence_id',
     'stage_header_id',
-    'procedure_worksheet_id'
+    'procedure_worksheet_id',
+    'log_entry_worksheet_id',
   ];
   
   protected $casts = [
@@ -125,5 +126,10 @@ class AnalysisElements extends Model implements Auditable
   public function procedureWorksheet()
   {
       return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
+  }
+
+  public function logEntryWorksheet()
+  {
+      return $this->belongsTo(\App\Models\LogEntryWorksheets\LogEntryWorksheet::class, 'log_entry_worksheet_id');
   }
 }

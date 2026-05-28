@@ -41,7 +41,7 @@ class RiskConfigurationController extends Controller
      */
     public function show($optionType)
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = riskCompanyId();
         
         $options = RiskConfigurationOption::forType($optionType)
             ->forCompany($companyId)
@@ -85,7 +85,7 @@ class RiskConfigurationController extends Controller
             'required_actions' => 'nullable|string',
         ]);
 
-        $companyId = getUserCompany() ?? 0;
+        $companyId = riskCompanyId();
 
         // Check for uniqueness
         $exists = RiskConfigurationOption::where('option_type', $validated['option_type'])

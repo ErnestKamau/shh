@@ -7,14 +7,16 @@
                     <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
                         <div>
                             <div class="eq-kicker mb-1">{{ __('equipment.equipment_management') }}</div>
-                            <h2 class="mb-1 eq-hero-title">
-                                <i class="mdi mdi-tools text-primary"></i>
-                                {{ $equipment->name ?? 'Equipment' }}
+                            <h2 class="mb-1 eq-hero-title d-flex align-items-center flex-wrap" style="gap: 10px;">
+                                <span class="d-inline-flex align-items-center" style="gap: 8px;">
+                                    <i class="mdi mdi-tools text-primary"></i>
+                                    {{ $equipment->name ?? 'Equipment' }}
+                                </span>
+                                <span class="badge badge-light border px-3 py-2 fw-normal" style="font-size: 0.85rem;">{{ $equipment->equipment_number }}</span>
                             </h2>
                             <p class="text-muted mb-0">{{ __('equipment.equipment_details_management') }}</p>
                         </div>
                         <div class="d-flex align-items-center" style="gap: 8px;">
-                            <span class="badge badge-light border px-3 py-2">{{ $equipment->equipment_number }}</span>
                             <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm">
                                 <i class="mdi mdi-pencil"></i> Edit
                             </button>
@@ -170,60 +172,83 @@
         <div class="col-md-9">
             <div class="card shadow-sm border-0 eq-main-card">
                 <div class="card-header bg-light border-0 eq-main-header">
-                    <ul class="nav nav-tabs eq-main-tabs">
+                    <div class="eq-main-tabs-wrap">
+                        <button type="button" class="eq-tabs-scroll-btn eq-tabs-scroll-btn--prev" aria-label="Scroll tabs left" tabindex="-1">
+                            <i class="mdi mdi-chevron-left"></i>
+                        </button>
+                        <div class="eq-main-tabs-scroll" data-eq-tabs-scroll>
+                    <ul class="nav nav-tabs eq-main-tabs flex-nowrap" role="tablist">
                         @if(!$fromEquipmentChecks && !$fromEquipmentMaintenance)
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'details' ? 'active' : '' }}"
-                                    wire:click="setActiveTab('details')" type="button">
-                                <i class="mdi mdi-clipboard-text-outline"></i> {{ __('equipment.details') }}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'details' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('details')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'details' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-clipboard-text-outline"></i>
+                                <span>{{ __('equipment.details') }}</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'maintenance' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('maintenance')" type="button">
-                                {{ __('equipment.maintenance_log') }}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'maintenance' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('maintenance')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'maintenance' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-wrench"></i>
+                                <span>{{ __('equipment.maintenance_log') }}</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'calibration' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('calibration')" type="button">
-                                {{ __('equipment.calibration_log') }}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'calibration' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('calibration')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'calibration' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-tune-vertical"></i>
+                                <span>{{ __('equipment.calibration_log') }}</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'verification' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('verification')" type="button">
-                                {{ __('equipment.verification_log') }}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'verification' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('verification')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'verification' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-check-decagram" aria-hidden="true"></i>
+                                <span>{{ __('equipment.verification_log') }}</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'operators' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('operators')" type="button">
-                                {{ __('equipment.operators') }}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'operators' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('operators')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'operators' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-account-group-outline"></i>
+                                <span>{{ __('equipment.operators') }}</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'attachments' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('attachments')" type="button">
-                                {{ __('equipment.attachments') }}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'attachments' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('attachments')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'attachments' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-paperclip"></i>
+                                <span>{{ __('equipment.attachments') }}</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'notifications' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('notifications')" type="button">
-                                {{ __('equipment.notifications') }}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'notifications' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('notifications')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'notifications' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-bell-outline"></i>
+                                <span>{{ __('equipment.notifications') }}</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'accessories' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('accessories')" type="button">
-                                <i class="mdi mdi-layers-outline"></i> Accessories
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'accessories' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('accessories')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'accessories' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-layers-outline"></i>
+                                <span>Accessories</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'spareparts' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('spareparts')" type="button">
-                                <i class="mdi mdi-wrench-outline"></i> Spare Parts
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'spareparts' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('spareparts')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'spareparts' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-cog-outline"></i>
+                                <span>Spare Parts</span>
                             </button>
                         </li>
                         @endif
@@ -248,18 +273,55 @@
                         </li>
                         @endif
                         @if($equipment->requires_daily_log && !$fromEquipmentMaintenance)
-                        <li class="nav-item">
-                            <button class="nav-link {{ $activeTab === 'dailylog' ? 'active' : '' }}" 
-                                    wire:click="setActiveTab('dailylog')" type="button">
-                                <i class="mdi mdi-notebook-check-outline"></i> {{ __('equipment.daily_log_config') }}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'dailylog' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('dailylog')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'dailylog' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-notebook-check-outline" aria-hidden="true"></i>
+                                <span>{{ __('equipment.daily_log_config') }}</span>
                             </button>
                         </li>
                         @endif
+                        @if($equipment->has_logbook_tracking && !$fromEquipmentMaintenance)
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'logbook' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('logbook')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'logbook' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-book-open-page-variant" aria-hidden="true"></i>
+                                <span>Log Book</span>
+                            </button>
+                        </li>
+                        @endif
+                        @can('equipment.components.depreciation.view')
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link eq-tab-link {{ $activeTab === 'asset-depreciation' ? 'active' : '' }}"
+                                    wire:click="setActiveTab('asset-depreciation')" type="button" role="tab"
+                                    aria-selected="{{ $activeTab === 'asset-depreciation' ? 'true' : 'false' }}">
+                                <i class="mdi mdi-finance"></i>
+                                <span>Asset Depreciation</span>
+                            </button>
+                        </li>
+                        @endcan
                     </ul>
+                        </div>
+                        <div class="eq-tabs-fade eq-tabs-fade--start" aria-hidden="true"></div>
+                        <div class="eq-tabs-fade eq-tabs-fade--end" aria-hidden="true"></div>
+                        <button type="button" class="eq-tabs-scroll-btn eq-tabs-scroll-btn--next" aria-label="Scroll tabs right" tabindex="-1">
+                            <i class="mdi mdi-chevron-right"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body eq-main-body">
                     @if($activeTab === 'details')
                         @include('livewire.equipment.partials.equipment-details-tab')
+                    @endif
+
+                    @if($activeTab === 'asset-depreciation')
+                        @livewire('equipment.equipment-depreciation-panel', ['equipmentId' => $equipment->id], key('depreciation-'.$equipment->id))
+                    @endif
+
+                    @if($activeTab === 'logbook' && $equipment->has_logbook_tracking)
+                        @livewire('equipment.equipment-logbook-panel', ['equipmentId' => $equipment->id], key('logbook-'.$equipment->id))
                     @endif
 
                     <!-- Maintenance Log Tab -->
@@ -2216,9 +2278,92 @@
         box-shadow: 0 8px 20px rgba(10, 33, 68, 0.08);
     }
     .eq-main-header {
-        padding: 0.55rem 1rem 0;
-        background: linear-gradient(120deg, #f7f9fc 0%, #edf2f8 100%);
+        padding: 0;
+        background: #f8fafc;
         border-bottom: 1px solid #e2e8f0;
+    }
+    .eq-main-tabs-wrap {
+        position: relative;
+        display: flex;
+        align-items: stretch;
+    }
+    .eq-main-tabs-scroll {
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .eq-main-tabs-scroll::-webkit-scrollbar {
+        display: none;
+        height: 0;
+        width: 0;
+    }
+    .eq-tabs-fade {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 56px;
+        pointer-events: none;
+        z-index: 2;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    .eq-tabs-fade--start {
+        left: 0;
+        background: linear-gradient(to right, #f8fafc 45%, rgba(248, 250, 252, 0));
+    }
+    .eq-tabs-fade--end {
+        right: 0;
+        background: linear-gradient(to left, #f8fafc 20%, rgba(248, 250, 252, 0.85) 55%, transparent);
+    }
+    .eq-main-tabs-wrap.has-overflow-start .eq-tabs-fade--start {
+        opacity: 1;
+    }
+    .eq-main-tabs-wrap.has-overflow-end .eq-tabs-fade--end {
+        opacity: 1;
+    }
+    .eq-tabs-scroll-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 3;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid #cbd5e1;
+        border-radius: 50%;
+        background: #ffffff;
+        color: #475569;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .eq-tabs-scroll-btn:hover {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        color: #1d4ed8;
+    }
+    .eq-tabs-scroll-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+    }
+    .eq-tabs-scroll-btn--prev {
+        left: 6px;
+    }
+    .eq-tabs-scroll-btn--next {
+        right: 6px;
+    }
+    .eq-main-tabs-wrap.has-overflow-start .eq-tabs-scroll-btn--prev {
+        display: inline-flex;
+    }
+    .eq-main-tabs-wrap.has-overflow-end .eq-tabs-scroll-btn--next {
+        display: inline-flex;
     }
     .eq-main-body {
         background: #ffffff;
@@ -2320,31 +2465,67 @@
     }
     .eq-main-tabs {
         border-bottom: none;
-        gap: 6px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        padding: 0 2.5rem 0 1rem;
+        margin-bottom: 0;
+        min-width: min-content;
+        align-items: stretch;
     }
     .eq-main-tabs .nav-item {
         margin-bottom: 0;
+        flex-shrink: 0;
+        display: flex;
+        align-items: stretch;
     }
-    .eq-main-tabs .nav-link {
-        border: 1px solid transparent;
-        border-radius: 8px 8px 0 0;
-        padding: 0.45rem 0.8rem;
-        color: #4f5d6b;
-        font-size: 0.82rem;
+    .eq-main-tabs .eq-tab-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: none;
+        border-bottom: 3px solid transparent;
+        border-radius: 0;
+        padding: 0 14px;
+        min-height: 48px;
+        color: #64748b;
+        font-size: 0.8125rem;
         font-weight: 600;
+        line-height: 1.25;
         background: transparent;
+        white-space: nowrap;
+        vertical-align: middle;
+        transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     }
-    .eq-main-tabs .nav-link:hover {
-        border-color: #d8e0eb;
-        background: #f6f9fd;
-        color: #2d3b49;
+    .eq-main-tabs .eq-tab-link i {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.125rem;
+        height: 1.125rem;
+        font-size: 1.125rem;
+        line-height: 1;
+        flex-shrink: 0;
+        opacity: 0.9;
     }
-    .eq-main-tabs .nav-link.active {
-        color: #0b4fb3;
-        border-color: #c9d8ef;
+    .eq-main-tabs .eq-tab-link span {
+        display: inline-block;
+        line-height: 1.25;
+        vertical-align: middle;
+    }
+    .eq-main-tabs .eq-tab-link:hover {
+        color: #1d4ed8;
+        border-bottom-color: #93c5fd;
+        background: rgba(255, 255, 255, 0.6);
+    }
+    .eq-main-tabs .eq-tab-link.active {
+        color: #1d4ed8;
+        border-bottom-color: #2563eb;
         background: #ffffff;
-        box-shadow: 0 -1px 0 #ffffff;
+        margin-bottom: -1px;
+    }
+    .eq-main-tabs .eq-tab-link:focus {
+        outline: none;
+        box-shadow: none;
     }
     @media (max-width: 768px) {
         .eq-hero-title {
@@ -3369,15 +3550,92 @@
             }, 120);
         }
 
+        function initEquipmentTabScroller() {
+            document.querySelectorAll('.eq-main-tabs-wrap').forEach(function (wrap) {
+                if (wrap.dataset.eqTabsBound === '1') {
+                    return;
+                }
+                wrap.dataset.eqTabsBound = '1';
+
+                var scroller = wrap.querySelector('[data-eq-tabs-scroll]');
+                if (!scroller) {
+                    return;
+                }
+
+                function updateOverflow() {
+                    var maxScroll = scroller.scrollWidth - scroller.clientWidth;
+                    var scrollLeft = scroller.scrollLeft;
+                    wrap.classList.toggle('has-overflow-start', scrollLeft > 4);
+                    wrap.classList.toggle('has-overflow-end', maxScroll > 4 && scrollLeft < maxScroll - 4);
+                }
+
+                scroller.addEventListener('scroll', updateOverflow, { passive: true });
+
+                scroller.addEventListener('wheel', function (event) {
+                    if (scroller.scrollWidth <= scroller.clientWidth) {
+                        return;
+                    }
+                    var delta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+                        ? event.deltaX
+                        : event.deltaY;
+                    if (delta === 0) {
+                        return;
+                    }
+                    event.preventDefault();
+                    // Subtract so trackpad/mouse direction matches finger movement (pan right → content moves right).
+                    scroller.scrollLeft -= delta;
+                    updateOverflow();
+                }, { passive: false });
+
+                var prevBtn = wrap.querySelector('.eq-tabs-scroll-btn--prev');
+                var nextBtn = wrap.querySelector('.eq-tabs-scroll-btn--next');
+
+                if (prevBtn) {
+                    prevBtn.addEventListener('click', function () {
+                        scroller.scrollBy({ left: -240, behavior: 'smooth' });
+                        setTimeout(updateOverflow, 320);
+                    });
+                }
+
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', function () {
+                        scroller.scrollBy({ left: 240, behavior: 'smooth' });
+                        setTimeout(updateOverflow, 320);
+                    });
+                }
+
+                wrap.querySelectorAll('.eq-tab-link').forEach(function (tabBtn) {
+                    tabBtn.addEventListener('click', function () {
+                        setTimeout(function () {
+                            tabBtn.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+                            updateOverflow();
+                        }, 80);
+                    });
+                });
+
+                window.addEventListener('resize', updateOverflow);
+                updateOverflow();
+                setTimeout(updateOverflow, 150);
+                setTimeout(updateOverflow, 500);
+            });
+        }
+
+        initEquipmentTabScroller();
+
         if (!window._dlPerfChartBindings) {
             window._dlPerfChartBindings = true;
 
             document.addEventListener('livewire:initialized', function () {
                 scheduleBuild();
+                initEquipmentTabScroller();
 
                 if (window.Livewire && typeof window.Livewire.hook === 'function') {
                     window.Livewire.hook('morph.updated', function () {
                         scheduleBuild();
+                        document.querySelectorAll('.eq-main-tabs-wrap').forEach(function (wrap) {
+                            delete wrap.dataset.eqTabsBound;
+                        });
+                        initEquipmentTabScroller();
                     });
                 }
             });

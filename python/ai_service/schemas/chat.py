@@ -13,6 +13,7 @@ class ChatRequest(BaseModel):
     use_visuals: bool = True
     module_context: Optional[str] = None
     mode: Optional[str] = None          # e.g. 'general' | 'support' | 'lab' | 'inventory' | 'audit' | 'crm'
+    language: Optional[str] = None      # 'auto' | 'en' | 'sw'
     portal_user_id: Optional[int] = None
     crm_customer_id: Optional[int] = None
     user_data_snapshot: Optional[Dict[str, Any]] = None
@@ -49,6 +50,7 @@ class ChatStreamRequest(BaseModel):
     use_visuals: bool = True
     module_context: Optional[str] = None
     mode: Optional[str] = None          # e.g. 'general' | 'support' | 'lab' | 'inventory' | 'audit' | 'crm'
+    language: Optional[str] = None      # 'auto' | 'en' | 'sw'
     portal_user_id: Optional[int] = None
     crm_customer_id: Optional[int] = None
     user_data_snapshot: Optional[Dict[str, Any]] = None

@@ -215,6 +215,13 @@
 						</a>
 					</div>
 					<div class="col-md-4 col-lg-3 mb-3">
+						<a href="{{ route('formulars.log-entry-worksheets.manage') }}" class="formulars-module-tile tile-accent-purple">
+							<i class="mdi mdi-table-edit tile-icon"></i>
+							<div class="tile-title">Log entry worksheets</div>
+							<p class="tile-desc">Dynamic log tables with configurable columns</p>
+						</a>
+					</div>
+					<div class="col-md-4 col-lg-3 mb-3">
 						<a href="{{ route('formulars.history') }}" class="formulars-module-tile tile-accent-warning">
 							<i class="mdi mdi-history tile-icon"></i>
 							<div class="tile-title">Execution history</div>

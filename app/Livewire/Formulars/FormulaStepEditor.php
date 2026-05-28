@@ -11,12 +11,18 @@ use App\Analyte;
 use App\Models\Equipments\Equipment;
 use App\User;
 use App\AnalysisMethod;
+use App\Enums\Procedures\ProcedureTableRowDriver;
+use App\Livewire\Formulars\Concerns\InteractsWithFormulaStepTableConfiguration;
+use App\Models\Formulars\FormulaStepTableColumn;
 use App\Services\Formulars\FormulaEvaluator;
+use App\Services\LogEntryWorksheets\LogEntryDatabaseSchemaService;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class FormulaStepEditor extends Component
 {
+    use InteractsWithFormulaStepTableConfiguration;
     use WithPagination;
 
     public $formulaVersion;
@@ -41,6 +47,91 @@ class FormulaStepEditor extends Component
     public $lookupConfig = [];
     public $analyteId = null;
 
+    public array $stepConfig = [];
+
+    public string $staticTextContent = '';
+
+    public string $checkboxOptionsMode = 'static';
+
+    /** @var list<string> */
+    public array $checkboxStaticOptions = [];
+
+    public string $checkboxNewOption = '';
+
+    public string $checkboxPresetModel = 'equipments';
+
+    public string $checkboxDatasetSourceTable = '';
+
+    public string $checkboxDatasetDisplayMode = 'direct';
+
+    public string $checkboxDatasetSourceColumn = '';
+
+    public string $checkboxDatasetFkColumn = '';
+
+    public string $checkboxDatasetReferencedTable = '';
+
+    public string $checkboxDatasetReferencedKeyColumn = 'id';
+
+    public string $checkboxDatasetReferencedDisplayColumn = '';
+
+    public string $table_mode = 'dynamic';
+
+    public string $row_driver = 'captured_result';
+
+    public bool $allow_manual_rows = false;
+
+    public bool $showConfigureTableModal = false;
+
+    public int $configureTableWizardStep = 1;
+
+    public ?string $configuringStepId = null;
+
+    /** @var list<string> */
+    public array $expandedCustomTableStepIds = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $stepTableColumns = [];
+
+    public bool $showCreateStepColumnModal = false;
+
+    public bool $showEditStepColumnModal = false;
+
+    public bool $showInlineStaticRowForm = false;
+
+    public ?FormulaStepTableColumn $editingStepColumn = null;
+
+    public string $stepColumnLabel = '';
+
+    public string $stepColumnKey = '';
+
+    public string $stepColumnType = 'input';
+
+    public string $stepColumnInputDataType = 'string';
+
+    public string $stepColumnExpression = '';
+
+    public string $stepColumnModelTiedTo = '';
+
+    public int $stepColumnOrder = 1;
+
+    public bool $stepColumnIsRequired = false;
+
+    public string $stepColumnHelpText = '';
+
+    public string $stepColumnChoiceControl = 'radio';
+
+    public string $stepColumnStaticOptions = '';
+
+    public ?string $stepColumnValidationMessage = null;
+
+    /** @var array<int, array<string, mixed>> */
+    public array $stepStaticRows = [];
+
+    /** @var array<string, array<string, string>> */
+    public array $stepStaticCellValues = [];
+
+    public string $newStaticRowLabel = '';
+
     // Mandatory Fields
     public $mandatoryFields = [];
     public $showCreateFieldModal = false;
@@ -48,7 +139,8 @@ class FormulaStepEditor extends Component
     public $showDeleteFieldModal = false;
     public $editingField = null;
     public $deletingField = null;
-    
+    public string $mandatoryFieldsPlacement = 'bottom';
+
     // Mandatory Field form fields
     public $fieldLabel = '';
     public $fieldType = 'input';
@@ -58,6 +150,14 @@ class FormulaStepEditor extends Component
     public $fieldIsRequired = true;
     public $fieldValueName = '';
     public $fieldSearch = '';
+    public string $fieldNewChoice = '';
+
+    /** @var array<int, string> */
+    public array $fieldChoiceOptions = [];
+
+    public string $fieldFormPlacement = 'bottom';
+
+    public bool $showFieldFormPlacementDropdown = false;
 
     // Search and Filter
     public $search = '';
@@ -77,7 +177,7 @@ class FormulaStepEditor extends Component
     protected $rules = [
         'stepNumber' => 'required|integer|min:1',
         'variableName' => 'required|string|max:255',
-        'stepType' => 'required|in:input,derived,lookup,parameter_result',
+        'stepType' => 'required|in:input,derived,lookup,parameter_result,static_text,checkbox,custom_table',
         'expression' => 'nullable|string',
         'label' => 'required|string|max:255',
         'description' => 'nullable|string',
@@ -89,17 +189,46 @@ class FormulaStepEditor extends Component
     {
         return [
             'fieldLabel' => 'required|string|max:255',
-            'fieldType' => 'required|in:input,datetime,date,dataset_related',
+            'fieldType' => 'required|in:input,datetime,date,checkbox,dataset_related',
             'fieldValueName' => 'required|string|max:255',
             'fieldHelpText' => 'nullable|string',
             'fieldModelTiedTo' => 'nullable|required_if:fieldType,dataset_related|in:equipments,users,methods',
             'fieldIsRequired' => 'boolean',
+            'fieldFormPlacement' => 'required|in:top,bottom',
+            'fieldChoiceOptions' => 'nullable|array',
+            'fieldChoiceOptions.*' => 'nullable|string|max:255',
         ];
+    }
+
+    public function getFieldFormPlacementOptionsProperty(): array
+    {
+        return FormulaMandatoryField::formPlacementOptions();
+    }
+
+    public function getSelectedFieldFormPlacementLabelProperty(): string
+    {
+        return $this->fieldFormPlacementOptions[$this->fieldFormPlacement] ?? '';
+    }
+
+    public function closeFieldFormPlacementDropdown(): void
+    {
+        $this->showFieldFormPlacementDropdown = false;
+    }
+
+    public function selectFieldFormPlacement(string $placement): void
+    {
+        if (! array_key_exists($placement, $this->fieldFormPlacementOptions)) {
+            return;
+        }
+
+        $this->fieldFormPlacement = $placement;
+        $this->showFieldFormPlacementDropdown = false;
     }
 
     public function mount(FormulaVersion $formulaVersion)
     {
         $this->formulaVersion = $formulaVersion;
+        $this->mandatoryFieldsPlacement = $formulaVersion->mandatory_fields_placement ?? 'bottom';
         $this->loadSteps();
         $this->loadMandatoryFields();
     }
@@ -112,6 +241,9 @@ class FormulaStepEditor extends Component
         $globalVariables = GlobalVariable::active()->get();
         $availableVariables = $this->getAvailableVariables();
         $analytes = Analyte::orderBy('name')->get();
+        $rowDriverOptions = ProcedureTableRowDriver::options();
+        $logEntrySchema = app(LogEntryDatabaseSchemaService::class);
+        $checkboxDatasetTables = $logEntrySchema->tableOptions();
         
         // Get dataset options
         $equipments = Equipment::orderBy('name')->get();
@@ -122,10 +254,22 @@ class FormulaStepEditor extends Component
             'lookupTables' => $lookupTables,
             'globalVariables' => $globalVariables,
             'availableVariables' => $availableVariables,
+            'mandatoryFieldTypes' => FormulaMandatoryField::getFieldTypes(),
             'analytes' => $analytes,
             'equipments' => $equipments,
             'users' => $users,
             'methods' => $methods,
+            'rowDriverOptions' => $rowDriverOptions,
+            'checkboxDatasetTables' => $checkboxDatasetTables,
+            'checkboxDatasetColumns' => $this->checkboxDatasetSourceTable !== ''
+                ? $logEntrySchema->columnOptions($this->checkboxDatasetSourceTable)
+                : [],
+            'checkboxDatasetForeignKeys' => $this->checkboxDatasetSourceTable !== ''
+                ? $logEntrySchema->foreignKeyOptions($this->checkboxDatasetSourceTable)
+                : [],
+            'checkboxDatasetReferencedColumns' => $this->checkboxDatasetReferencedTable !== ''
+                ? $logEntrySchema->columnOptions($this->checkboxDatasetReferencedTable)
+                : [],
         ]);
     }
 
@@ -159,6 +303,16 @@ class FormulaStepEditor extends Component
         $this->showCreateStepModal = true;
     }
 
+    public function closeCreateStepModal(): void
+    {
+        $this->showCreateStepModal = false;
+    }
+
+    public function closeEditStepModal(): void
+    {
+        $this->showEditStepModal = false;
+    }
+
     public function showEditStepModalInit($stepId)
     {
         $step = FormulaStep::findOrFail($stepId);
@@ -172,12 +326,16 @@ class FormulaStepEditor extends Component
         $this->lookupConfig = $step->lookup_config ?? [];
         $this->lookupTableId = $step->lookup_config['lookup_table_id'] ?? '';
         $this->analyteId = $step->analyte_id;
+        $this->loadStepTypeConfigFromStep($step);
         $this->showEditStepModal = true;
     }
 
     public function createStep()
     {
         $this->validate();
+        if (! $this->validateStepTypeConfig()) {
+            return;
+        }
 
         try {
             // Check for duplicate variable name
@@ -212,17 +370,7 @@ class FormulaStepEditor extends Component
                 }
             }
 
-            FormulaStep::create([
-                'formula_version_id' => $this->formulaVersion->id,
-                'step_number' => $this->stepNumber,
-                'variable_name' => $this->variableName,
-                'step_type' => $this->stepType,
-                'expression' => $this->expression,
-                'label' => $this->label,
-                'description' => $this->description,
-                'lookup_config' => $lookupConfig,
-                'analyte_id' => $this->stepType === 'parameter_result' ? $this->analyteId : null,
-            ]);
+            FormulaStep::create($this->buildStepPayload($lookupConfig));
 
             $this->showCreateStepModal = false;
             $this->resetStepForm();
@@ -236,6 +384,9 @@ class FormulaStepEditor extends Component
     public function updateStep()
     {
         $this->validate();
+        if (! $this->validateStepTypeConfig()) {
+            return;
+        }
 
         try {
             // Check for duplicate variable name (excluding current step)
@@ -271,16 +422,7 @@ class FormulaStepEditor extends Component
                 }
             }
 
-            $this->editingStep->update([
-                'step_number' => $this->stepNumber,
-                'variable_name' => $this->variableName,
-                'step_type' => $this->stepType,
-                'expression' => $this->expression,
-                'label' => $this->label,
-                'description' => $this->description,
-                'lookup_config' => $lookupConfig,
-                'analyte_id' => $this->stepType === 'parameter_result' ? $this->analyteId : null,
-            ]);
+            $this->editingStep->update($this->buildStepPayload($lookupConfig));
 
             $this->showEditStepModal = false;
             $this->resetStepForm();
@@ -521,13 +663,71 @@ class FormulaStepEditor extends Component
         }
     }
 
-    public function updatedStepType()
+    public function updatedStepType(): void
     {
-        // Reset fields when step type changes
         $this->expression = '';
         $this->lookupTableId = '';
         $this->lookupConfig = [];
         $this->analyteId = null;
+        $this->staticTextContent = '';
+        $this->checkboxOptionsMode = 'static';
+        $this->checkboxStaticOptions = [];
+        $this->checkboxNewOption = '';
+        $this->checkboxPresetModel = 'equipments';
+        $this->resetCheckboxDatasetFields();
+        $this->table_mode = 'dynamic';
+        $this->row_driver = 'captured_result';
+        $this->allow_manual_rows = false;
+    }
+
+    public function updatedCheckboxDatasetSourceTable(): void
+    {
+        $this->checkboxDatasetSourceColumn = '';
+        $this->checkboxDatasetFkColumn = '';
+        $this->checkboxDatasetReferencedTable = '';
+        $this->checkboxDatasetReferencedDisplayColumn = '';
+    }
+
+    public function updatedCheckboxDatasetFkColumn(): void
+    {
+        if ($this->checkboxDatasetFkColumn === '') {
+            return;
+        }
+
+        $fks = app(LogEntryDatabaseSchemaService::class)->foreignKeyOptions($this->checkboxDatasetSourceTable);
+        $match = collect($fks)->firstWhere('column', $this->checkboxDatasetFkColumn);
+        if ($match) {
+            $this->checkboxDatasetReferencedTable = $match['referenced_table'];
+            $this->checkboxDatasetReferencedKeyColumn = $match['referenced_column'];
+            $this->checkboxDatasetReferencedDisplayColumn = '';
+        }
+    }
+
+    public function addCheckboxStaticOption(): void
+    {
+        $label = trim($this->checkboxNewOption);
+        if ($label === '') {
+            return;
+        }
+
+        if (! in_array($label, $this->checkboxStaticOptions, true)) {
+            $this->checkboxStaticOptions[] = $label;
+        }
+
+        $this->checkboxNewOption = '';
+    }
+
+    public function removeCheckboxStaticOption(int $index): void
+    {
+        if (isset($this->checkboxStaticOptions[$index])) {
+            unset($this->checkboxStaticOptions[$index]);
+            $this->checkboxStaticOptions = array_values($this->checkboxStaticOptions);
+        }
+    }
+
+    public function openConfigureTableModalForStep(string $stepId): void
+    {
+        $this->openConfigureTableModal($stepId);
     }
 
     public function updatedLookupTableId()
@@ -571,7 +771,165 @@ class FormulaStepEditor extends Component
         $this->lookupTableId = '';
         $this->lookupConfig = [];
         $this->analyteId = null;
+        $this->staticTextContent = '';
+        $this->checkboxOptionsMode = 'static';
+        $this->checkboxStaticOptions = [];
+        $this->checkboxNewOption = '';
+        $this->resetCheckboxDatasetFields();
+        $this->table_mode = 'dynamic';
+        $this->row_driver = 'captured_result';
+        $this->allow_manual_rows = false;
         $this->editingStep = null;
+    }
+
+    protected function resetCheckboxDatasetFields(): void
+    {
+        $this->checkboxDatasetSourceTable = '';
+        $this->checkboxDatasetDisplayMode = 'direct';
+        $this->checkboxDatasetSourceColumn = '';
+        $this->checkboxDatasetFkColumn = '';
+        $this->checkboxDatasetReferencedTable = '';
+        $this->checkboxDatasetReferencedKeyColumn = 'id';
+        $this->checkboxDatasetReferencedDisplayColumn = '';
+    }
+
+    protected function loadStepTypeConfigFromStep(FormulaStep $step): void
+    {
+        $config = is_array($step->step_config) ? $step->step_config : [];
+        $this->staticTextContent = (string) ($config['content'] ?? '');
+        $this->checkboxOptionsMode = (string) ($config['options_mode'] ?? 'static');
+        $this->checkboxStaticOptions = array_values($config['static_options'] ?? []);
+        $this->checkboxPresetModel = (string) ($config['preset_model'] ?? 'equipments');
+        $this->resetCheckboxDatasetFields();
+        if (! empty($config['dataset_config']) && is_array($config['dataset_config'])) {
+            $dc = $config['dataset_config'];
+            $this->checkboxDatasetSourceTable = $dc['source_table'] ?? '';
+            $this->checkboxDatasetDisplayMode = $dc['display_mode'] ?? 'direct';
+            $this->checkboxDatasetSourceColumn = $dc['source_display_column'] ?? '';
+            $this->checkboxDatasetFkColumn = $dc['foreign_key_column'] ?? '';
+            $this->checkboxDatasetReferencedTable = $dc['referenced_table'] ?? '';
+            $this->checkboxDatasetReferencedKeyColumn = $dc['referenced_key_column'] ?? 'id';
+            $this->checkboxDatasetReferencedDisplayColumn = $dc['referenced_display_column'] ?? '';
+        }
+        $this->table_mode = $step->table_mode ?? 'dynamic';
+        $this->row_driver = $step->row_driver ?? 'captured_result';
+        $this->allow_manual_rows = (bool) $step->allow_manual_rows;
+    }
+
+    protected function validateStepTypeConfig(): bool
+    {
+        if ($this->stepType === 'static_text' && trim($this->staticTextContent) === '') {
+            $this->addError('staticTextContent', 'Enter the static text to display on the worksheet.');
+
+            return false;
+        }
+
+        if ($this->stepType === 'checkbox') {
+            if ($this->checkboxOptionsMode === 'static' && count($this->checkboxStaticOptions) === 0) {
+                $this->addError('checkboxStaticOptions', 'Add at least one checkbox option.');
+
+                return false;
+            }
+
+            if ($this->checkboxOptionsMode === 'preset' && $this->checkboxPresetModel === '') {
+                $this->addError('checkboxPresetModel', 'Select a preset data source.');
+
+                return false;
+            }
+
+            if ($this->checkboxOptionsMode === 'dataset' && $this->checkboxDatasetSourceTable === '') {
+                $this->addError('checkboxDatasetSourceTable', 'Select a source table for dataset options.');
+
+                return false;
+            }
+        }
+
+        if ($this->stepType === 'custom_table') {
+            if ($this->table_mode === 'dynamic' && $this->row_driver === '') {
+                $this->addError('row_driver', 'Select a row driver for dynamic tables.');
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function buildStepConfigPayload(): array
+    {
+        return match ($this->stepType) {
+            'static_text' => ['content' => trim($this->staticTextContent)],
+            'checkbox' => [
+                'options_mode' => $this->checkboxOptionsMode,
+                'static_options' => $this->checkboxOptionsMode === 'static'
+                    ? array_values($this->checkboxStaticOptions)
+                    : [],
+                'preset_model' => $this->checkboxOptionsMode === 'preset'
+                    ? $this->checkboxPresetModel
+                    : null,
+                'dataset_config' => $this->checkboxOptionsMode === 'dataset'
+                    ? $this->buildCheckboxDatasetConfig()
+                    : null,
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function buildCheckboxDatasetConfig(): array
+    {
+        return [
+            'source_table' => $this->checkboxDatasetSourceTable,
+            'display_mode' => $this->checkboxDatasetDisplayMode,
+            'source_display_column' => $this->checkboxDatasetDisplayMode === 'direct'
+                ? $this->checkboxDatasetSourceColumn
+                : null,
+            'foreign_key_column' => $this->checkboxDatasetDisplayMode === 'foreign_key'
+                ? $this->checkboxDatasetFkColumn
+                : null,
+            'referenced_table' => $this->checkboxDatasetDisplayMode === 'foreign_key'
+                ? $this->checkboxDatasetReferencedTable
+                : null,
+            'referenced_key_column' => $this->checkboxDatasetReferencedKeyColumn ?: 'id',
+            'referenced_display_column' => $this->checkboxDatasetDisplayMode === 'foreign_key'
+                ? $this->checkboxDatasetReferencedDisplayColumn
+                : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $lookupConfig
+     * @return array<string, mixed>
+     */
+    protected function buildStepPayload(array $lookupConfig): array
+    {
+        $isCalculable = in_array($this->stepType, ['input', 'derived', 'lookup', 'parameter_result'], true);
+
+        return [
+            'formula_version_id' => $this->formulaVersion->id,
+            'step_number' => $this->stepNumber,
+            'variable_name' => $this->variableName,
+            'step_type' => $this->stepType,
+            'expression' => $this->stepType === 'derived' ? $this->expression : null,
+            'label' => $this->label,
+            'description' => $this->description,
+            'lookup_config' => $this->stepType === 'lookup' ? $lookupConfig : [],
+            'step_config' => $isCalculable ? null : $this->buildStepConfigPayload(),
+            'table_mode' => $this->stepType === 'custom_table' ? $this->table_mode : null,
+            'row_driver' => $this->stepType === 'custom_table' && $this->table_mode === 'dynamic'
+                ? $this->row_driver
+                : null,
+            'row_driver_filters' => null,
+            'allow_manual_rows' => $this->stepType === 'custom_table' && $this->table_mode === 'dynamic'
+                ? $this->allow_manual_rows
+                : false,
+            'analyte_id' => $this->stepType === 'parameter_result' ? $this->analyteId : null,
+        ];
     }
 
     protected function resetTestForm()
@@ -596,7 +954,10 @@ class FormulaStepEditor extends Component
             || $this->showDeletionBlockedModal
             || $this->showCreateFieldModal
             || $this->showEditFieldModal
-            || $this->showDeleteFieldModal;
+            || $this->showDeleteFieldModal
+            || $this->showConfigureTableModal
+            || $this->showCreateStepColumnModal
+            || $this->showEditStepColumnModal;
     }
 
     /**
@@ -609,6 +970,9 @@ class FormulaStepEditor extends Component
             'derived' => 'Derived',
             'lookup' => 'Lookup',
             'parameter_result' => 'Parameter Result',
+            'static_text' => 'Static Text',
+            'checkbox' => 'Checkbox',
+            'custom_table' => 'Custom Table',
         ];
     }
 
@@ -632,7 +996,7 @@ class FormulaStepEditor extends Component
         
         // Get variables from previous steps
         foreach ($this->formulaVersion->formulaSteps as $step) {
-            if ($step->step_number < $this->stepNumber) {
+            if ($step->step_number < $this->stepNumber && $step->isExpressionVariable()) {
                 $variables[$step->variable_name] = [
                     'name' => $step->variable_name,
                     'label' => $step->label,
@@ -666,13 +1030,24 @@ class FormulaStepEditor extends Component
 
     public function showCreateFieldModalInit()
     {
+        $this->showEditFieldModal = false;
         $this->resetFieldForm();
         $this->fieldOrder = count($this->mandatoryFields) + 1;
+        $this->fieldFormPlacement = $this->mandatoryFieldsPlacement;
+        $this->showFieldFormPlacementDropdown = false;
         $this->showCreateFieldModal = true;
+    }
+
+    public function closeMandatoryFieldModal(): void
+    {
+        $this->showCreateFieldModal = false;
+        $this->showEditFieldModal = false;
+        $this->showFieldFormPlacementDropdown = false;
     }
 
     public function showEditFieldModalInit($fieldId)
     {
+        $this->showCreateFieldModal = false;
         $field = FormulaMandatoryField::findOrFail($fieldId);
         $this->editingField = $field;
         $this->fieldLabel = $field->label;
@@ -682,24 +1057,70 @@ class FormulaStepEditor extends Component
         $this->fieldModelTiedTo = $field->model_tied_to ?? '';
         $this->fieldIsRequired = $field->is_required;
         $this->fieldValueName = $field->field_value_name;
+        $options = $field->field_options['options'] ?? [];
+        $this->fieldChoiceOptions = is_array($options) ? array_values($options) : [];
+        $this->fieldNewChoice = '';
+        $this->fieldFormPlacement = $field->form_placement ?? $this->mandatoryFieldsPlacement;
+        $this->showFieldFormPlacementDropdown = false;
         $this->showEditFieldModal = true;
+    }
+
+    public function updatedMandatoryFieldsPlacement(): void
+    {
+        $this->validate([
+            'mandatoryFieldsPlacement' => 'required|in:top,bottom',
+        ]);
+
+        try {
+            $this->formulaVersion->update([
+                'mandatory_fields_placement' => $this->mandatoryFieldsPlacement,
+            ]);
+            $this->formulaVersion->refresh();
+            $this->setMessage('Mandatory fields placement updated.', 'success');
+        } catch (\Exception $e) {
+            $this->setMessage('Error updating placement: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    public function addFieldChoice(): void
+    {
+        $value = trim($this->fieldNewChoice);
+        if ($value === '') {
+            $this->addError('fieldNewChoice', 'Enter a choice before adding.');
+
+            return;
+        }
+
+        foreach ($this->fieldChoiceOptions as $existing) {
+            if (strcasecmp(trim((string) $existing), $value) === 0) {
+                $this->addError('fieldNewChoice', 'This choice already exists.');
+
+                return;
+            }
+        }
+
+        $this->fieldChoiceOptions[] = $value;
+        $this->fieldNewChoice = '';
+        $this->resetErrorBag('fieldNewChoice');
+    }
+
+    public function removeFieldChoice(int $index): void
+    {
+        if (! array_key_exists($index, $this->fieldChoiceOptions)) {
+            return;
+        }
+
+        unset($this->fieldChoiceOptions[$index]);
+        $this->fieldChoiceOptions = array_values($this->fieldChoiceOptions);
     }
 
     public function createMandatoryField()
     {
         $this->validate($this->mandatoryFieldRules());
+        $this->validateChoiceOptionsForCheckbox();
 
         try {
-            FormulaMandatoryField::create([
-                'formula_version_id' => $this->formulaVersion->id,
-                'label' => $this->fieldLabel,
-                'field_type' => $this->fieldType,
-                'order' => $this->fieldOrder,
-                'help_text' => $this->fieldHelpText,
-                'model_tied_to' => $this->fieldType === 'dataset_related' ? $this->fieldModelTiedTo : null,
-                'is_required' => $this->fieldIsRequired,
-                'field_value_name' => $this->fieldValueName,
-            ]);
+            FormulaMandatoryField::create($this->buildMandatoryFieldPayload());
 
             $this->showCreateFieldModal = false;
             $this->resetFieldForm();
@@ -713,17 +1134,12 @@ class FormulaStepEditor extends Component
     public function updateMandatoryField()
     {
         $this->validate($this->mandatoryFieldRules());
+        $this->validateChoiceOptionsForCheckbox();
 
         try {
-            $this->editingField->update([
-                'label' => $this->fieldLabel,
-                'field_type' => $this->fieldType,
-                'order' => $this->fieldOrder,
-                'help_text' => $this->fieldHelpText,
-                'model_tied_to' => $this->fieldType === 'dataset_related' ? $this->fieldModelTiedTo : null,
-                'is_required' => $this->fieldIsRequired,
-                'field_value_name' => $this->fieldValueName,
-            ]);
+            $payload = $this->buildMandatoryFieldPayload();
+            unset($payload['formula_version_id']);
+            $this->editingField->update($payload);
 
             $this->showEditFieldModal = false;
             $this->resetFieldForm();
@@ -783,10 +1199,58 @@ class FormulaStepEditor extends Component
 
     public function updatedFieldType()
     {
-        // Reset model_tied_to when field type changes
         if ($this->fieldType !== 'dataset_related') {
             $this->fieldModelTiedTo = '';
         }
+
+        if ($this->fieldType !== 'checkbox') {
+            $this->fieldChoiceOptions = [];
+            $this->fieldNewChoice = '';
+        }
+    }
+
+    protected function validateChoiceOptionsForCheckbox(): void
+    {
+        if ($this->fieldType !== 'checkbox') {
+            return;
+        }
+
+        $choices = array_values(array_filter(array_map(
+            fn ($option) => trim((string) $option),
+            $this->fieldChoiceOptions
+        )));
+
+        if ($choices === []) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'fieldChoiceOptions' => ['Add at least one checkbox option.'],
+            ]);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function buildMandatoryFieldPayload(): array
+    {
+        $choices = array_values(array_filter(array_map(
+            fn ($option) => trim((string) $option),
+            $this->fieldChoiceOptions
+        )));
+
+        return [
+            'formula_version_id' => $this->formulaVersion->id,
+            'label' => $this->fieldLabel,
+            'field_type' => $this->fieldType,
+            'order' => $this->fieldOrder,
+            'form_placement' => $this->fieldFormPlacement,
+            'help_text' => $this->fieldHelpText ?: null,
+            'model_tied_to' => $this->fieldType === 'dataset_related' ? $this->fieldModelTiedTo : null,
+            'is_required' => $this->fieldIsRequired,
+            'field_value_name' => $this->fieldValueName,
+            'field_options' => $this->fieldType === 'checkbox'
+                ? ['options' => $choices]
+                : null,
+        ];
     }
 
     protected function resetFieldForm()
@@ -798,6 +1262,10 @@ class FormulaStepEditor extends Component
         $this->fieldModelTiedTo = '';
         $this->fieldIsRequired = true;
         $this->fieldValueName = '';
+        $this->fieldNewChoice = '';
+        $this->fieldChoiceOptions = [];
+        $this->fieldFormPlacement = $this->mandatoryFieldsPlacement;
+        $this->showFieldFormPlacementDropdown = false;
         $this->editingField = null;
     }
 }

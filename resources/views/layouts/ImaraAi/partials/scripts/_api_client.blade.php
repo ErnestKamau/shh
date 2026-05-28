@@ -15,7 +15,7 @@ async function persistMessage(convoId, role, content, sources, metadata = {}) {
 
 async function fetchKnowledge(userInput, attachmentId) {
     currentAbortController = new AbortController();
-    const body = { query: userInput, limit: 5 };
+    const body = { query: userInput, limit: 5, language: IMARA_AI_LANGUAGE };
     if (attachmentId) body.attachment_id = attachmentId;
     try {
         const response = await fetch(KNOWLEDGE_SEARCH_URL, {
@@ -114,7 +114,8 @@ async function sendMessage(manualText = null) {
                 use_visuals: (typeof toolsMasterEnabled !== 'undefined' ? toolsMasterEnabled : true) && 
                              (typeof visualsEnabled !== 'undefined' ? visualsEnabled : true),
                 model: document.getElementById('modelSelector')?.value || null,
-                module_context: (typeof ImaraAiState !== 'undefined' ? ImaraAiState.module_context : null)
+                module_context: (typeof ImaraAiState !== 'undefined' ? ImaraAiState.module_context : null),
+                language: IMARA_AI_LANGUAGE
             }),
             signal: currentAbortController.signal,
         });

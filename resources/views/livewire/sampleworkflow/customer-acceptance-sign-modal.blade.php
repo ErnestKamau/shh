@@ -1,4 +1,4 @@
-<div class="acc-wizard-root">
+<div class="acc-wizard-root acc-wizard-root--customer-sign">
     @if($showModal && $acceptanceForm)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-lg acc-wizard-dialog" role="document">
@@ -22,15 +22,20 @@
                         </button>
                     </div>
 
-                    <div class="acc-wizard-steps acc-wizard-steps--two" role="tablist">
+                    <div class="acc-wizard-steps acc-wizard-steps--three" role="tablist">
                         @foreach([
                             1 => ['label' => 'Verify identity', 'icon' => 'mdi-account-key-outline'],
-                            2 => ['label' => 'Sign & submit', 'icon' => 'mdi-draw'],
+                            2 => ['label' => 'Sign Acceptance Form', 'icon' => 'mdi-file-sign'],
+                            3 => ['label' => 'Sign Sample Receipt Notification Form', 'icon' => 'mdi-clipboard-text-outline'],
                         ] as $step => $meta)
                             @php
                                 $isActive = $currentStep === $step;
                                 $isDone = $currentStep > $step;
-                                $stepDisabled = $step === 2 && !$verifiedContactId;
+                                $stepDisabled = match (true) {
+                                    $step === 2 => ! $verifiedContactId,
+                                    $step === 3 => ! $verifiedContactId || $customerSignature === '',
+                                    default => false,
+                                };
                             @endphp
                             <button
                                 type="button"
@@ -97,7 +102,7 @@
                                     </div>
                                 </div>
                             </section>
-                        @else
+                        @elseif($currentStep === 2)
                             <section class="acc-wizard-section">
                                 <h6 class="acc-wizard-section-title">Request summary</h6>
                                 <div class="row acc-wizard-fields mb-0">
@@ -157,20 +162,6 @@
                                 </div>
                             </section>
 
-                            <section class="acc-wizard-section">
-                                <div class="acc-pricing-toolbar mb-2">
-                                    <h6 class="acc-wizard-section-title mb-0">Sample Receipt Notification (GCLA 01)</h6>
-                                </div>
-                                @include('livewire.partials.receipt-notification-wire-fields', [
-                                    'wirePrefix' => 'receiptNotificationForm.',
-                                    'canvasPrefix' => 'cust-acc-receipt',
-                                    'readOnly' => false,
-                                    'partLabel' => null,
-                                    'showSubmitterSection' => true,
-                                    'showSubmitterSigningNotice' => false,
-                                ])
-                            </section>
-
                             @if($showDisclaimerClaimantSign)
                                 <section class="acc-wizard-section">
                                     <h6 class="acc-wizard-section-title">Sample receiving disclaimer — claimant</h6>
@@ -202,6 +193,21 @@
                                 <input type="hidden" id="customer-acceptance-signature-input" wire:model="customerSignature">
                                 @error('customerSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
                             </section>
+                        @else
+                            <section class="acc-wizard-section">
+                                <h6 class="acc-wizard-section-title">Sample Receipt Notification (GCLA 01)</h6>
+                                <p class="acc-wizard-hint mb-3">
+                                    Review the receipt details and sign as the person submitting the sample or exhibit.
+                                </p>
+                                @include('livewire.partials.receipt-notification-wire-fields', [
+                                    'wirePrefix' => 'receiptNotificationForm.',
+                                    'canvasPrefix' => 'cust-acc-receipt',
+                                    'readOnly' => false,
+                                    'partLabel' => null,
+                                    'showSubmitterSection' => true,
+                                    'showSubmitterSigningNotice' => false,
+                                ])
+                            </section>
                         @endif
                     </div>
 
@@ -217,8 +223,19 @@
                                 <span wire:loading.remove wire:target="verifyIdentity">Continue</span>
                                 <span wire:loading wire:target="verifyIdentity">Verifying…</span>
                             </button>
-                        @else
+                        @elseif($currentStep === 2)
                             <button type="button" class="btn btn-light acc-btn-ghost" wire:click="goToStep(1)">Back</button>
+                            <button
+                                type="button"
+                                class="btn acc-btn-primary"
+                                id="customer-acceptance-continue-receipt"
+                                wire:loading.attr="disabled"
+                            >
+                                <span wire:loading.remove wire:target="continueToReceiptStep">Continue</span>
+                                <span wire:loading wire:target="continueToReceiptStep">Saving…</span>
+                            </button>
+                        @else
+                            <button type="button" class="btn btn-light acc-btn-ghost" wire:click="goToStep(2)">Back</button>
                             <button
                                 type="button"
                                 class="btn acc-btn-success"
@@ -236,8 +253,57 @@
     @endif
 
     <style>
-        .acc-wizard-steps--two {
-            grid-template-columns: repeat(2, 1fr);
+        .acc-wizard-root--customer-sign .acc-wizard-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.25rem 1.5rem;
+            background: #fff !important;
+            color: var(--acc-text, #0f172a) !important;
+            border-bottom: 1px solid var(--acc-border, #e2e8f0);
+        }
+
+        .acc-wizard-root--customer-sign .acc-wizard-header .acc-wizard-eyebrow {
+            color: var(--acc-muted, #64748b);
+            opacity: 1;
+        }
+
+        .acc-wizard-root--customer-sign .acc-wizard-header .acc-wizard-title {
+            color: var(--acc-text, #0f172a);
+        }
+
+        .acc-wizard-root--customer-sign .acc-wizard-header .acc-wizard-hint {
+            color: var(--acc-muted, #64748b);
+        }
+
+        .acc-wizard-root--customer-sign .acc-wizard-close {
+            border: none;
+            background: #f1f5f9 !important;
+            color: var(--acc-muted, #64748b) !important;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .acc-wizard-root--customer-sign .acc-wizard-close:hover {
+            background: #e2e8f0 !important;
+            color: var(--acc-text, #0f172a) !important;
+        }
+
+        .acc-wizard-steps--three {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .acc-wizard-root--customer-sign .acc-wizard-step-label {
+            font-size: 0.72rem;
+            line-height: 1.25;
+            text-align: center;
         }
 
         .acc-summary-value {
@@ -432,14 +498,71 @@
                 customerSignaturePad?.clear();
             });
 
-            $('#customer-acceptance-sign-submit').off('click.customerSign').on('click.customerSign', function () {
+            $('#customer-acceptance-continue-receipt').off('click.customerSign').on('click.customerSign', function () {
                 if (!customerSignaturePad || customerSignaturePad.isEmpty()) {
-                    alert('Please provide a customer signature.');
+                    alert('Please provide your signature on the Analysis Acceptance Form.');
                     return;
                 }
                 @this.set('customerSignature', customerSignaturePad.toDataURL('image/png'));
-                @this.call('submitCustomerSign');
+                @this.call('continueToReceiptStep');
             });
+        }
+
+        function padSignatureValue(pad, input) {
+            if (pad && !pad.isEmpty()) {
+                return pad.toDataURL('image/png');
+            }
+            if (input && input.value) {
+                return input.value;
+            }
+
+            return '';
+        }
+
+        function initCustomerSignSubmitButton() {
+            const btn = document.getElementById('customer-acceptance-sign-submit');
+            if (!btn) {
+                return;
+            }
+
+            if (btn._custSubmitClickHandler) {
+                btn.removeEventListener('click', btn._custSubmitClickHandler);
+            }
+
+            btn._custSubmitClickHandler = function () {
+                const submitterInput = document.getElementById('cust-acc-receipt-submitter-input');
+                const receiverInput = document.getElementById('cust-acc-receipt-receiver-input');
+                const submitterSig = padSignatureValue(customerReceiptSubmitterPad, submitterInput);
+                const receiverSig = padSignatureValue(customerReceiptReceiverPad, receiverInput);
+
+                if (!submitterSig) {
+                    alert('Please sign as the person submitting the sample or exhibit.');
+                    return;
+                }
+
+                if (!receiverSig) {
+                    alert('Receiving person signature is required.');
+                    return;
+                }
+
+                const dateInput = document.querySelector('[wire\\:model\\.live="receiptNotificationForm.sample_receiving_date"], [wire\\:model="receiptNotificationForm.sample_receiving_date"]');
+                const receivingDate = dateInput && dateInput.value
+                    ? dateInput.value
+                    : new Date().toISOString().slice(0, 10);
+
+                @this.set('receiptNotificationForm.submitter_signature', submitterSig)
+                    .then(function () {
+                        return @this.set('receiptNotificationForm.receiver_signature', receiverSig);
+                    })
+                    .then(function () {
+                        return @this.set('receiptNotificationForm.sample_receiving_date', receivingDate);
+                    })
+                    .then(function () {
+                        @this.call('submitCustomerSign');
+                    });
+            };
+
+            btn.addEventListener('click', btn._custSubmitClickHandler);
         }
 
         document.addEventListener('livewire:init', function () {
@@ -485,8 +608,14 @@
 
             Livewire.on('customer-acceptance-sign-step2', function () {
                 setTimeout(initCustomerSignaturePad, 300);
-                setTimeout(initCustomerReceiptPads, 350);
-                setTimeout(initCustomerDisclaimerClaimantPad, 380);
+                setTimeout(initCustomerDisclaimerClaimantPad, 350);
+            });
+
+            Livewire.on('customer-acceptance-sign-step3', function () {
+                setTimeout(function () {
+                    initCustomerReceiptPads();
+                    initCustomerSignSubmitButton();
+                }, 300);
             });
 
             Livewire.hook('morph.updated', function () {
@@ -497,7 +626,13 @@
                     setTimeout(initCustomerSignaturePad, 200);
                 }
                 if (document.getElementById('cust-acc-receipt-submitter-canvas')) {
-                    setTimeout(initCustomerReceiptPads, 220);
+                    setTimeout(function () {
+                        initCustomerReceiptPads();
+                        initCustomerSignSubmitButton();
+                    }, 220);
+                }
+                if (document.getElementById('customer-acceptance-sign-submit')) {
+                    setTimeout(initCustomerSignSubmitButton, 240);
                 }
                 if (document.getElementById('cust-acc-disclaimer-claimant-canvas')) {
                     const c = document.getElementById('cust-acc-disclaimer-claimant-canvas');

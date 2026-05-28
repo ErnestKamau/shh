@@ -28,6 +28,7 @@ class FormulaVersion extends Model implements Auditable
         'formula_id',
         'version_number',
         'is_active',
+        'mandatory_fields_placement',
         'created_by',
         'approved_by',
         'approved_at',
@@ -37,6 +38,17 @@ class FormulaVersion extends Model implements Auditable
         'is_active' => 'boolean',
         'approved_at' => 'datetime',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    public static function mandatoryFieldsPlacementOptions(): array
+    {
+        return [
+            'top' => 'Top of worksheet (above sample table)',
+            'bottom' => 'Bottom of worksheet (below sample table)',
+        ];
+    }
 
     /**
      * Get the formula that owns this version.

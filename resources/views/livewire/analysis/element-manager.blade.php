@@ -8,13 +8,22 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-flask text-primary"></i>
-                                Analysis Elements Management
+                                Analysis Parameter Management
                             </h2>
-                            <p class="text-muted mb-0">Manage analysis elements for this analysis type</p>
+                            <p class="text-muted mb-0">Manage analysis parameters for this analysis type</p>
                         </div>
-                        <button wire:click="showCreateElementModal" class="btn btn-outline-primary element-add-btn">
-                            <i class="mdi mdi-plus"></i> Add Element
-                        </button>
+                        <div class="d-flex flex-wrap align-items-center element-header-actions">
+                            <button wire:click="showCreateElementModal" class="btn btn-outline-primary element-add-btn">
+                                <i class="mdi mdi-plus"></i> Add Parameter
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-outline-success element-add-btn"
+                                wire:click="$dispatch('open-sync-worksheets-modal')"
+                            >
+                                <i class="mdi mdi-sync"></i> Sync Worksheets
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -23,7 +32,7 @@
 
     <!-- Message Alert -->
     @if($message)
-        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+        <div class="alert element-manager-page-alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
             {{ $message }}
             <button type="button" class="btn-close" wire:click="dismissMessage"></button>
         </div>
@@ -81,7 +90,7 @@
         </div>
     </div>
 
-    <!-- Elements Table -->
+    <!-- Parameters Table -->
     <div class="row">
         <div class="col-12">
             <div class="card" style="border-radius: 15px;">
@@ -136,14 +145,14 @@
                                                     <button type="button"
                                                         wire:click="showEditElementModal('{{ $element->id }}')"
                                                         class="btn btn-sm rm-act-btn rm-act-btn--edit"
-                                                        title="Edit">
+                                                        title="Edit parameter">
                                                         <i class="mdi mdi-pencil-outline"></i>
                                                     </button>
                                                     <button type="button"
                                                         wire:click="deleteElement('{{ $element->id }}')"
                                                         class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                         title="Delete"
-                                                        onclick="return confirm('Are you sure you want to delete this element?')">
+                                                        onclick="return confirm('Are you sure you want to delete this parameter?')">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>
@@ -210,8 +219,8 @@
                     @else
                         <div class="text-center py-4">
                             <i class="mdi mdi-flask-outline text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No elements found</h5>
-                            <p class="text-muted">Start by adding your first analysis element.</p>
+                            <h5 class="text-muted mt-3">No parameters found</h5>
+                            <p class="text-muted">Start by adding your first analysis parameter.</p>
                         </div>
                     @endif
                 </div>
@@ -219,7 +228,7 @@
         </div>
     </div>
 
-    <!-- Element Modal -->
+    <!-- Parameter Modal -->
     @if($showElementModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -227,7 +236,7 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingElement ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingElement ? 'Edit' : 'Create' }} Analysis Element
+                            {{ $editingElement ? 'Edit' : 'Create' }} Analysis Parameter
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeElementModal"></button>
                     </div>
@@ -241,7 +250,7 @@
                                                  <i class="mdi mdi-file-document-outline fs-4 me-2"></i>
                                                  <div>
                                                      <h6 class="mb-0">Procedure Worksheet Assigned</h6>
-                                                     <small>Elements will be linked to <strong>{{ $this->analysisType->procedureWorksheet->name }}</strong></small>
+                                                     <small>Parameters will be linked to <strong>{{ $this->analysisType->procedureWorksheet->name }}</strong></small>
                                                  </div>
                                              </div>
                                          </div>
@@ -549,6 +558,41 @@
                                                     </small>
                                                 </div>
                                             @endif
+
+                                            <div class="form-group mb-0 mt-3">
+                                                <label class="form-label">
+                                                    <i class="mdi mdi-table-edit text-primary"></i> Log entry worksheet
+                                                </label>
+                                                <div class="tag-select-container" wire:click="$set('showLogEntryWorksheetDropdown', true)">
+                                                    <div class="tag-select-input">
+                                                        @if($selectedLogEntryWorksheetName)
+                                                            <span class="tag-badge">
+                                                                {{ $selectedLogEntryWorksheetName }}
+                                                                <i class="mdi mdi-close-circle" wire:click.stop="clearLogEntryWorksheet"></i>
+                                                            </span>
+                                                        @endif
+                                                        <input type="text"
+                                                               wire:model.live="logEntryWorksheetSearch"
+                                                               wire:keyup="searchLogEntryWorksheets"
+                                                               class="tag-input"
+                                                               placeholder="{{ $selectedLogEntryWorksheetName ? '' : 'Search log entry worksheets...' }}"
+                                                               autocomplete="off">
+                                                    </div>
+                                                    @if($showLogEntryWorksheetDropdown && count($filteredLogEntryWorksheets) > 0)
+                                                        <div class="tag-dropdown">
+                                                            @foreach($filteredLogEntryWorksheets as $lew)
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectLogEntryWorksheet('{{ $lew->id }}')">
+                                                                    {{ $lew->name }}
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                @error('elementForm.log_entry_worksheet_id')
+                                                    <span class="text-danger">{{ $message }}</span>
+                                                @enderror
+                                                <small class="form-text text-muted">Optional dynamic log table for batch worksheet capture.</small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -604,7 +648,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeElementModal">Cancel</button>
                         <button type="button" class="btn btn-primary" wire:click="saveElement">
-                            <i class="mdi mdi-content-save"></i> Save
+                            <i class="mdi mdi-content-save"></i> Save Parameter
                         </button>
                     </div>
                 </div>
@@ -622,7 +666,11 @@
     padding: 0.48rem 1rem;
 }
 
-/* Elements table: gray header, white body rows */
+.element-header-actions {
+    gap: 0.75rem;
+}
+
+/* Parameters table: gray header, white body rows */
 #elements-table.elements-data-table {
     margin-bottom: 0;
     border: 1px solid #e9ecef;
@@ -818,6 +866,18 @@ document.addEventListener('livewire:init', () => {
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
     });
+
+    Livewire.on('worksheets-synced', () => {
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+
+        window.requestAnimationFrame(() => {
+            const alert = document.querySelector('.element-manager-page-alert');
+            if (alert) {
+                alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+    });
     
     // Initialize drag and drop functionality
     initializeSortable();
@@ -882,20 +942,31 @@ function formatMessage(text) {
     }
 }
 
-// Close dropdowns when clicking outside
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.tag-select-container')) {
-        Livewire.all().forEach(component => {
-            component.set('showAnalyteDropdown', false);
-            component.set('showMethodDropdown', false);
-            component.set('showEquipmentDropdown', false);
-            component.set('showOperatorDropdown', false);
-            component.set('showRemedyHeaderDropdown', false);
-            component.set('showFormularDropdown', false);
-            component.set('showMethodSequenceDropdown', false);
-            component.set('showReportingUnitDropdown', false);
-        });
+// Close ElementManager tag-select dropdowns when clicking outside (this component only).
+document.addEventListener('click', function (e) {
+    if (e.target.closest('.tag-select-container')) {
+        return;
     }
+
+    // Do not interfere with the nested Sync Worksheets modal or its actions.
+    if (e.target.closest('.sync-worksheets-modal')) {
+        return;
+    }
+
+    const dropdownProperties = [
+        'showAnalyteDropdown',
+        'showMethodDropdown',
+        'showEquipmentDropdown',
+        'showOperatorDropdown',
+        'showRemedyHeaderDropdown',
+        'showFormularDropdown',
+        'showMethodSequenceDropdown',
+        'showReportingUnitDropdown',
+    ];
+
+    dropdownProperties.forEach(function (property) {
+        @this.set(property, false);
+    });
 });
 </script>
 
@@ -1150,4 +1221,6 @@ document.addEventListener('click', function(e) {
     margin-bottom: 8px;
 }
 </style>
+
+    @livewire('analysis.sync-worksheets-modal', ['analysisTypeId' => $analysisTypeId], key('sync-worksheets-'.$analysisTypeId))
 </div>

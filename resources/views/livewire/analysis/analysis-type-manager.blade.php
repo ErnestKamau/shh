@@ -299,108 +299,148 @@
                             </div>
                             
                             <!-- Analysis Options Section -->
-                            <div class="card bg-light mb-3">
-                                <div class="card-header">
-                                    <h6 class="mb-0 text-muted">
-                                        <i class="mdi mdi-cog"></i> Analysis Options
-                                    </h6>
-                                    <small class="text-muted">Configure analysis type settings and features</small>
+                            <div class="at-options-panel mb-3">
+                                <div class="at-options-head">
+                                    <span class="at-options-head-icon" aria-hidden="true">
+                                        <i class="mdi mdi-tune-variant"></i>
+                                    </span>
+                                    <div>
+                                        <h6 class="at-options-heading">Analysis Options</h6>
+                                        <p class="at-options-subheading">Configure analysis type settings and worksheet behaviour</p>
+                                    </div>
                                 </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-2">
-                                            <div class="form-check form-switch">
-                                                <input type="checkbox" wire:model="analysisTypeForm.active" class="form-check-input" id="analysis_active" role="switch">
-                                                <label class="form-check-label" for="analysis_active">
-                                                    <i class="mdi mdi-check-circle text-success"></i> Active
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 mb-2">
-                                            <div class="form-check form-switch">
-                                    <input type="checkbox" wire:model.live="analysisTypeForm.has_no_result" class="form-check-input" id="has_no_result" role="switch">
-                                                <label class="form-check-label" for="has_no_result">
-                                                    <i class="mdi mdi-flask-empty-off-outline text-warning"></i> Has Attachable Result
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="col-md-12 mb-2">
-                                            <div class="form-group mb-3">
-                                                <label class="form-label">
-                                                    <i class="mdi mdi-folder-multiple-outline text-success"></i> Grouped worksheet pipeline
-                                                </label>
-                                                <div class="tag-select-container" wire:click="$set('showGroupedHolderDropdown', true)" wire:click.outside="$set('showGroupedHolderDropdown', false)">
-                                                    <div class="tag-select-input">
-                                                        @if($this->selectedGroupedHolder)
-                                                            <span class="tag-badge">
-                                                                {{ $this->selectedGroupedHolder->name }}
-                                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.grouped_worksheet_holder_id', null)"></i>
-                                                            </span>
-                                                        @endif
-                                                        <input type="text"
-                                                               wire:model.live="groupedHolderSearch"
-                                                               class="tag-input"
-                                                               placeholder="{{ $this->selectedGroupedHolder ? '' : 'Search grouped pipelines (e.g. DNA Analysis)...' }}"
-                                                               autocomplete="off">
-                                                    </div>
-                                                    @if($showGroupedHolderDropdown && count($this->filteredGroupedHolders) > 0)
-                                                        <div class="tag-dropdown">
-                                                            @foreach($this->filteredGroupedHolders as $holder)
-                                                                <div class="tag-dropdown-item" wire:click.stop="selectGroupedWorksheetHolder('{{ $holder->id }}')">
-                                                                    <strong>{{ $holder->name }}</strong>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                                <small class="form-text text-muted">Multi-stage ordered worksheets. Replaces a single procedure worksheet when set.</small>
-                                                @error('analysisTypeForm.grouped_worksheet_holder_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                            </div>
-                                        </div>
 
-                                        <!-- Conditional Procedure Worksheet Dropdown -->
-                                        @if(($analysisTypeForm['has_no_result'] ?? false) && empty($analysisTypeForm['grouped_worksheet_holder_id']))
-                                            <div class="col-md-12 mb-2">
-                                                <div class="form-group mb-3">
-                                                    <label class="form-label">
-                                                        <i class="mdi mdi-file-document-outline text-primary"></i> Procedure Worksheet <span class="text-danger">*</span>
+                                <div class="at-options-body">
+                                    <ul class="at-option-list">
+                                        <li>
+                                            <label class="at-option-card" for="analysis_active">
+                                                <span class="at-option-card-body">
+                                                    <span class="at-option-icon at-option-icon--success">
+                                                        <i class="mdi mdi-check-circle-outline"></i>
+                                                    </span>
+                                                    <span class="at-option-text">
+                                                        <span class="at-option-title">Active</span>
+                                                        <span class="at-option-desc">Make this analysis type available for sample assignment</span>
+                                                    </span>
+                                                </span>
+                                                <span class="at-option-toggle">
+                                                    <input type="checkbox" wire:model="analysisTypeForm.active" class="at-switch-input" id="analysis_active">
+                                                    <span class="at-switch-track"></span>
+                                                </span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label class="at-option-card" for="has_no_result">
+                                                <span class="at-option-card-body">
+                                                    <span class="at-option-icon at-option-icon--amber">
+                                                        <i class="mdi mdi-flask-empty-outline"></i>
+                                                    </span>
+                                                    <span class="at-option-text">
+                                                        <span class="at-option-title">Has attachable result</span>
+                                                        <span class="at-option-desc">Results are captured via a procedure worksheet rather than analyte elements</span>
+                                                    </span>
+                                                </span>
+                                                <span class="at-option-toggle">
+                                                    <input type="checkbox" wire:model.live="analysisTypeForm.has_no_result" class="at-switch-input" id="has_no_result">
+                                                    <span class="at-switch-track"></span>
+                                                </span>
+                                            </label>
+                                        </li>
+                                        <li class="at-option-stack {{ ($analysisTypeForm['uses_grouped_procedures'] ?? false) ? 'is-expanded' : '' }}">
+                                            <label class="at-option-card {{ ($analysisTypeForm['uses_grouped_procedures'] ?? false) ? 'is-expanded' : '' }}" for="uses_grouped_procedures">
+                                                <span class="at-option-card-body">
+                                                    <span class="at-option-icon at-option-icon--teal">
+                                                        <i class="mdi mdi-file-tree-outline"></i>
+                                                    </span>
+                                                    <span class="at-option-text">
+                                                        <span class="at-option-title">Analysis done by grouped procedures</span>
+                                                        <span class="at-option-desc">Use a multi-stage grouped pipeline or a hybrid worksheet instead of a single procedure worksheet</span>
+                                                    </span>
+                                                </span>
+                                                <span class="at-option-toggle">
+                                                    <input type="checkbox" wire:model.live="analysisTypeForm.uses_grouped_procedures" class="at-switch-input" id="uses_grouped_procedures">
+                                                    <span class="at-switch-track"></span>
+                                                </span>
+                                            </label>
+
+                                            @if($analysisTypeForm['uses_grouped_procedures'] ?? false)
+                                                <div class="at-options-nested">
+                                                    <label class="at-nested-label">
+                                                        Grouped or hybrid worksheet <span class="text-danger">*</span>
                                                     </label>
-                                                    <div class="tag-select-container" wire:click="$set('showProcedureWorksheetDropdown', true)" wire:click.outside="$set('showProcedureWorksheetDropdown', false)">
+                                                    <div class="tag-select-container at-nested-select" wire:click="$set('showPipelineWorksheetDropdown', true)" wire:click.outside="$set('showPipelineWorksheetDropdown', false)">
                                                         <div class="tag-select-input">
-                                                            @if($this->selectedProcedureWorksheet)
+                                                            @if($this->selectedPipelineWorksheet)
                                                                 <span class="tag-badge">
-                                                                    {{ $this->selectedProcedureWorksheet->name }}
-                                                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.procedure_worksheet_id', null)"></i>
+                                                                    {{ $this->selectedPipelineWorksheet['name'] }}
+                                                                    <small class="ms-1 opacity-75">({{ $this->selectedPipelineWorksheet['subtitle'] }})</small>
+                                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearPipelineWorksheetSelection"></i>
                                                                 </span>
                                                             @endif
-                                                            
-                                                            <input type="text" 
-                                                                   wire:model.live="procedureWorksheetSearch" 
-                                                                   class="tag-input" 
-                                                                   placeholder="{{ $this->selectedProcedureWorksheet ? '' : 'Search procedure worksheets...' }}"
+                                                            <input type="text"
+                                                                   wire:model.live="pipelineWorksheetSearch"
+                                                                   class="tag-input"
+                                                                   placeholder="{{ $this->selectedPipelineWorksheet ? '' : 'Search grouped pipelines or hybrid worksheets...' }}"
                                                                    autocomplete="off">
                                                         </div>
-                                                        
-                                                        @if($showProcedureWorksheetDropdown && count($this->filteredProcedureWorksheets) > 0)
+                                                        @if($showPipelineWorksheetDropdown && count($this->filteredPipelineWorksheets) > 0)
                                                             <div class="tag-dropdown">
-                                                                @foreach($this->filteredProcedureWorksheets as $worksheet)
-                                                                    <div class="tag-dropdown-item" wire:click.stop="selectProcedureWorksheet('{{ $worksheet->id }}')">
-                                                                        <strong>{{ $worksheet->name }}</strong>
-                                                                        @if($worksheet->description)
-                                                                            <br><small class="text-muted">{{ Str::limit($worksheet->description, 50) }}</small>
-                                                                        @endif
+                                                                @foreach($this->filteredPipelineWorksheets as $option)
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectPipelineWorksheet('{{ $option['type'] }}', '{{ $option['id'] }}')">
+                                                                        <strong>{{ $option['name'] }}</strong>
+                                                                        <span class="at-pipeline-badge">{{ $option['subtitle'] }}</span>
                                                                     </div>
                                                                 @endforeach
                                                             </div>
                                                         @endif
                                                     </div>
-                                                    <small class="form-text text-muted">Select the procedure worksheet for this analysis type</small>
-                                                    @error('analysisTypeForm.procedure_worksheet_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    @error('analysisTypeForm.grouped_worksheet_holder_id')
+                                                        <span class="at-field-error">{{ $message }}</span>
+                                                    @enderror
                                                 </div>
+                                            @endif
+                                        </li>
+                                    </ul>
+
+                                    @if(($analysisTypeForm['has_no_result'] ?? false) && !($analysisTypeForm['uses_grouped_procedures'] ?? false))
+                                        <div class="at-options-nested at-options-nested--standalone">
+                                            <label class="at-nested-label">
+                                                <i class="mdi mdi-file-document-outline"></i>
+                                                Procedure worksheet <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="tag-select-container at-nested-select" wire:click="$set('showProcedureWorksheetDropdown', true)" wire:click.outside="$set('showProcedureWorksheetDropdown', false)">
+                                                <div class="tag-select-input">
+                                                    @if($this->selectedProcedureWorksheet)
+                                                        <span class="tag-badge">
+                                                            {{ $this->selectedProcedureWorksheet->name }}
+                                                            <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.procedure_worksheet_id', null)"></i>
+                                                        </span>
+                                                    @endif
+                                                    <input type="text"
+                                                           wire:model.live="procedureWorksheetSearch"
+                                                           class="tag-input"
+                                                           placeholder="{{ $this->selectedProcedureWorksheet ? '' : 'Search procedure worksheets...' }}"
+                                                           autocomplete="off">
+                                                </div>
+                                                @if($showProcedureWorksheetDropdown && count($this->filteredProcedureWorksheets) > 0)
+                                                    <div class="tag-dropdown">
+                                                        @foreach($this->filteredProcedureWorksheets as $worksheet)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectProcedureWorksheet('{{ $worksheet->id }}')">
+                                                                <strong>{{ $worksheet->name }}</strong>
+                                                                @if($worksheet->description)
+                                                                    <br><small class="text-muted">{{ Str::limit($worksheet->description, 50) }}</small>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
                                             </div>
-                                        @endif
-                                    </div>
+                                            <p class="at-nested-hint">Select the procedure worksheet used when capturing results for this analysis type.</p>
+                                            @error('analysisTypeForm.procedure_worksheet_id')
+                                                <span class="at-field-error">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </form>
@@ -419,6 +459,283 @@
     <style>
     .modal.show {
         display: block !important;
+    }
+
+    /* Analysis Options panel */
+    .at-options-panel {
+        --at-slate-50: #f8fafc;
+        --at-slate-100: #f1f5f9;
+        --at-slate-200: #e2e8f0;
+        --at-slate-500: #64748b;
+        --at-slate-700: #334155;
+        --at-slate-900: #0f172a;
+        --at-blue-500: #3b82f6;
+        --at-blue-600: #2563eb;
+        background: linear-gradient(165deg, var(--at-slate-50) 0%, #ffffff 52%, var(--at-slate-100) 100%);
+        border: 1px solid rgba(226, 232, 240, 0.95);
+        border-radius: 0.875rem;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+        overflow: hidden;
+    }
+
+    .at-options-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 1rem 1.15rem 0.9rem;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.75);
+        background: rgba(255, 255, 255, 0.55);
+    }
+
+    .at-options-head-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: 0.6rem;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        color: var(--at-blue-600);
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .at-options-heading {
+        margin: 0 0 0.2rem;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--at-slate-900);
+        letter-spacing: -0.02em;
+    }
+
+    .at-options-subheading {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--at-slate-500);
+        line-height: 1.45;
+    }
+
+    .at-options-body {
+        padding: 1rem 1.15rem 1.15rem;
+    }
+
+    .at-option-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+
+    .at-option-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.85rem;
+        margin: 0;
+        padding: 0.85rem 0.95rem;
+        background: #fff;
+        border: 1px solid var(--at-slate-200);
+        border-radius: 0.65rem;
+        cursor: pointer;
+        user-select: none;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    .at-option-card:hover {
+        border-color: #bfdbfe;
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.08);
+    }
+
+    .at-option-card:has(.at-switch-input:checked),
+    .at-option-card.is-expanded {
+        border-color: rgba(59, 130, 246, 0.32);
+        background: linear-gradient(90deg, #ffffff 0%, #f8fbff 100%);
+        box-shadow: 0 2px 10px rgba(59, 130, 246, 0.07);
+    }
+
+    .at-option-stack.is-expanded .at-option-card.is-expanded {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        border-bottom-color: rgba(226, 232, 240, 0.6);
+    }
+
+    .at-option-card-body {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .at-option-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 0.5rem;
+        font-size: 1.15rem;
+        flex-shrink: 0;
+    }
+
+    .at-option-icon--success {
+        background: #ecfdf5;
+        color: #059669;
+    }
+
+    .at-option-icon--amber {
+        background: #fffbeb;
+        color: #d97706;
+    }
+
+    .at-option-icon--teal {
+        background: #f0fdfa;
+        color: #0d9488;
+    }
+
+    .at-option-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+
+    .at-option-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--at-slate-900);
+        line-height: 1.3;
+    }
+
+    .at-option-desc {
+        font-size: 0.78rem;
+        color: var(--at-slate-500);
+        line-height: 1.4;
+    }
+
+    .at-option-toggle {
+        position: relative;
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+    }
+
+    .at-switch-input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+        margin: 0;
+        pointer-events: none;
+    }
+
+    .at-switch-track {
+        position: relative;
+        display: block;
+        width: 2.75rem;
+        height: 1.5rem;
+        background: #cbd5e1;
+        border-radius: 999px;
+        transition: background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
+    }
+
+    .at-switch-track::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 1.125rem;
+        height: 1.125rem;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+        transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .at-switch-input:checked + .at-switch-track {
+        background: linear-gradient(135deg, var(--at-blue-500) 0%, var(--at-blue-600) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    .at-switch-input:checked + .at-switch-track::after {
+        transform: translateX(1.25rem);
+    }
+
+    .at-switch-input:focus-visible + .at-switch-track {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+    }
+
+    .at-options-nested {
+        margin: 0;
+        padding: 0.95rem 1rem 1rem;
+        background: #fff;
+        border: 1px solid rgba(59, 130, 246, 0.22);
+        border-top: none;
+        border-radius: 0 0 0.65rem 0.65rem;
+        box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.02);
+    }
+
+    .at-options-nested--standalone {
+        margin-top: 0.65rem;
+        border-top: 1px solid var(--at-slate-200);
+        border-radius: 0.65rem;
+    }
+
+    .at-nested-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--at-slate-700);
+        letter-spacing: 0.01em;
+    }
+
+    .at-nested-label .mdi {
+        font-size: 1rem;
+        vertical-align: -2px;
+        margin-right: 0.15rem;
+        color: var(--at-blue-600);
+    }
+
+    .at-nested-hint {
+        margin: 0.45rem 0 0;
+        font-size: 0.76rem;
+        color: var(--at-slate-500);
+        line-height: 1.4;
+    }
+
+    .at-nested-select .tag-select-input {
+        border-color: var(--at-slate-200);
+        border-radius: 0.55rem;
+        background: var(--at-slate-50);
+    }
+
+    .at-nested-select .tag-select-input:focus-within {
+        border-color: var(--at-blue-500);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .at-pipeline-badge {
+        float: right;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.45rem;
+        border-radius: 0.35rem;
+        background: #eff6ff;
+        color: var(--at-blue-600);
+    }
+
+    .at-field-error {
+        display: block;
+        margin-top: 0.4rem;
+        font-size: 0.78rem;
+        color: #dc3545;
     }
 
     .analysis-add-btn {

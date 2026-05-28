@@ -40,6 +40,8 @@ class RiskAttachment extends Model implements Auditable
 
     protected $casts = [
         'file_size' => 'integer',
+        'attachable_id' => 'string',
+        'uploaded_by' => 'string',
     ];
 
     // Relationships

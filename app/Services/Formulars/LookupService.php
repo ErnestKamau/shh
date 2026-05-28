@@ -11,7 +11,7 @@ class LookupService
     /**
      * Get a value from a lookup table by keys (supports both types).
      */
-    public function getValue(int $lookupTableId, $input): mixed
+    public function getValue(string $lookupTableId, $input): mixed
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -35,7 +35,7 @@ class LookupService
     /**
      * Get a value from a key-value comparison lookup table.
      */
-    protected function getKeyValue(int $lookupTableId, array $keys): ?string
+    protected function getKeyValue(string $lookupTableId, array $keys): ?string
     {
         // Sort keys for consistent comparison
         ksort($keys);
@@ -49,11 +49,11 @@ class LookupService
 
     /**
      * proper comparison for key-value lookup
-     * @param int $lookupTableId
+     * @param string $lookupTableId
      * @param array $keys
      * @return string|null
      */
-    protected function findLooseMatch(int $lookupTableId, array $keys): ?string
+    protected function findLooseMatch(string $lookupTableId, array $keys): ?string
     {
         // Fallback: Fetch all entries and compare keys loosely (php types)
         $entries = LookupTableEntry::where('lookup_table_id', $lookupTableId)->get();
@@ -81,7 +81,7 @@ class LookupService
     /**
      * Get a value from a range-based lookup table.
      */
-    public function getRangeValue(int $lookupTableId, float $inputValue): ?array
+    public function getRangeValue(string $lookupTableId, float $inputValue): ?array
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -133,7 +133,7 @@ class LookupService
     /**
      * Get all values from a lookup table.
      */
-    public function getAllValues(int $lookupTableId): array
+    public function getAllValues(string $lookupTableId): array
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -155,7 +155,7 @@ class LookupService
     /**
      * Add or update a lookup table entry.
      */
-    public function setValue(int $lookupTableId, array $keys, string $value): LookupTableEntry
+    public function setValue(string $lookupTableId, array $keys, string $value): LookupTableEntry
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -186,7 +186,7 @@ class LookupService
     /**
      * Delete a lookup table entry.
      */
-    public function deleteValue(int $lookupTableId, array $keys): bool
+    public function deleteValue(string $lookupTableId, array $keys): bool
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -205,7 +205,7 @@ class LookupService
     /**
      * Clear all entries from a lookup table.
      */
-    public function clearTable(int $lookupTableId): int
+    public function clearTable(string $lookupTableId): int
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -219,7 +219,7 @@ class LookupService
     /**
      * Validate lookup table structure.
      */
-    public function validateTableStructure(int $lookupTableId, array $sampleData): array
+    public function validateTableStructure(string $lookupTableId, array $sampleData): array
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -250,7 +250,7 @@ class LookupService
     /**
      * Import data into a lookup table.
      */
-    public function importData(int $lookupTableId, array $data): array
+    public function importData(string $lookupTableId, array $data): array
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -305,7 +305,7 @@ class LookupService
     /**
      * Export data from a lookup table.
      */
-    public function exportData(int $lookupTableId): array
+    public function exportData(string $lookupTableId): array
     {
         $lookupTable = LookupTable::find($lookupTableId);
         

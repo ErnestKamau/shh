@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\LabStockMovement;
 use App\LabSubCategory;
+use App\ReportingUnit;
 use App\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -73,6 +74,11 @@ class SolutionPreparation extends Model implements Auditable
     public function solution(): BelongsTo
     {
         return $this->belongsTo(LabSubCategory::class, 'solution_id');
+    }
+
+    public function preparedUom(): BelongsTo
+    {
+        return $this->belongsTo(ReportingUnit::class, 'uom_id');
     }
 
     public function preparer(): BelongsTo

@@ -26,6 +26,7 @@ class PreparationStepResult extends Model implements Auditable
         'is_control',
         'control_solution_id',
         'result',
+        'remark',
         'method_id',
         'analyst_id',
         'standard_limit',

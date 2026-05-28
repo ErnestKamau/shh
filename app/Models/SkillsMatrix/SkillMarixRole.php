@@ -18,7 +18,10 @@ class SkillMarixRole extends Model implements Auditable
     public $incrementing = false;
 
     use \OwenIt\Auditing\Auditable;
-    protected $table = "skills_matrix_role";
+
+    protected $table = 'skills_matrix_role';
+
+    protected $fillable = ['skills_matrix_id', 'job_description_id'];
 
     public function jobdescription(){
         return $this->belongsTo(ModulePreConfigs::class,'job_description_id');

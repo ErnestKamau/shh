@@ -255,13 +255,13 @@
 	<!-- Sidebar -->
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-4 col-md-3 col-lg-2">
 		<ul class="list-group sticky-top sticky-offset">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-clipboard-check-multiple fa-3x"></i><br>
 				<span class="text-lg text-bold">AUDIT & CAPA</span>
 			</div>
 
 			<!-- Dashboard -->
-			<a href="{{ route('audit.dashboard') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'audit.dashboard' ? 'active' : '' }}">
+			<a href="{{ route('audit.dashboard') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'audit.dashboard' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
@@ -271,7 +271,7 @@
 		<!-- Audit Management Section -->
 		<!-- Audit Workflow (Status-based) -->
 		<a href="#audit-workflow-menu" data-toggle="collapse" aria-expanded="{{ str_contains($currentRoute, 'audit.audits') || str_contains($currentRoute, 'audit.nc') || str_contains($currentRoute, 'audit.capa') ? 'true' : 'false' }}"
-			   class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			   class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-multiple mr-3"></span>
 					<span class="menu-collapsed">Audit Workflow</span>
@@ -284,7 +284,7 @@
 				@endphp
 				@foreach($workflowSteps as $stepNum => $stepName)
 					<a href="{{ route('audit.audits.index', ['status' => $stepName]) }}" 
-					   class="list-group-item list-group-item-action bg-dark text-white {{ ($currentStatus === $stepName) ? 'active' : '' }}">
+					   class="list-group-item list-group-item-action {{ ($currentStatus === $stepName) ? 'active' : '' }}">
 						<span class="menu-collapsed">
 							{{ $stepName }}
 							<small class="float-right badge badge-pill badge-secondary workflow-count">
@@ -296,7 +296,7 @@
 			</div>
 
 			<!-- Create New Audit -->
-			<a href="{{ route('audit.audits.create') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'audit.audits.create' ? 'active' : '' }}">
+			<a href="{{ route('audit.audits.create') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'audit.audits.create' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-plus-circle mr-3"></span>
 					<span class="menu-collapsed">New Audit</span>
@@ -304,7 +304,7 @@
 			</a>
 
 		<!-- Reports Section -->
-		<a href="{{ route('audit.reports.index') }}" class="bg-dark list-group-item list-group-item-action {{ $currentRoute === 'audit.reports.index' ? 'active' : '' }}">
+		<a href="{{ route('audit.reports.index') }}" class="list-group-item list-group-item-action {{ $currentRoute === 'audit.reports.index' ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-chart mr-3"></span>
 					<span class="menu-collapsed">Reports & KPIs</span>
@@ -313,7 +313,7 @@
 
 		<!-- Configuration Section -->
 		<a href="#config-menu" data-toggle="collapse" aria-expanded="{{ str_contains($currentRoute, 'audit.config') ? 'true' : 'false' }}"
-			   class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			   class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-cogs mr-3"></span>
 					<span class="menu-collapsed">Settings</span>
@@ -321,51 +321,51 @@
 				</div>
 			</a>
 			<div id="config-menu" class="collapse sidebar-submenu {{ str_contains($currentRoute, 'audit.config') ? 'show' : '' }}">
-				<a href="{{ route('audit.config.audit-types') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.audit-types') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Audit Types</span>
 				</a>
-				<a href="{{ route('audit.config.audit-statuses') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.audit-statuses') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Audit Statuses</span>
 				</a>
-				<a href="{{ route('audit.config.workflow-actions') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.workflow-actions') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Workflow Actions</span>
 				</a>
-				<a href="{{ route('audit.config.workflow-action-rules') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.workflow-action-rules') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Workflow Action Rules</span>
 				</a>
-				<a href="{{ route('audit.config.finding-categories') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.finding-categories') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Finding Categories</span>
 				</a>
-				<a href="{{ route('audit.config.risk-levels') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.risk-levels') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Risk Levels</span>
 				</a>
-				<a href="{{ route('audit.config.severity-scales') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.severity-scales') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Severity Scales</span>
 				</a>
-				<a href="{{ route('audit.config.likelihood-scales') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.likelihood-scales') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Likelihood Scales</span>
 				</a>
-				<a href="{{ route('audit.config.rca-methods') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.rca-methods') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> RCA Methods</span>
 				</a>
-				<a href="{{ route('audit.config.capa-categories') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.capa-categories') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> CAPA Categories</span>
 				</a>
-				<a href="{{ route('audit.config.compliance-statuses') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.compliance-statuses') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Compliance Statuses</span>
 				</a>
-				<a href="{{ route('audit.config.email-templates.index') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.email-templates.index') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Email Templates</span>
 				</a>
-				<a href="{{ route('audit.config.verification-results') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.verification-results') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Verification Results</span>
 				</a>
-				<a href="{{ route('audit.config.approval-config') }}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('audit.config.approval-config') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Approval Configuration</span>
 				</a>
 			</div>
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white">
+			<div class="list-group-item copyright-lims p-4 text-center">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 		</ul>

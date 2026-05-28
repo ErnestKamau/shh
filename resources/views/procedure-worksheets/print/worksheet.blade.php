@@ -393,6 +393,21 @@
                                         return $value;
                                     }
                                 })(),
+                                'method_select' => (function () use ($value): string {
+                                    $method = \App\AnalysisMethod::find($value);
+
+                                    return $method
+                                        ? trim($method->name . ($method->code ? ' (' . $method->code . ')' : ''))
+                                        : $value;
+                                })(),
+                                'equipment_select' => (function () use ($value): string {
+                                    $equipment = \App\Models\Equipments\Equipment::find($value);
+
+                                    return $equipment
+                                        ? trim($equipment->name . ($equipment->equipment_number ? ' (' . $equipment->equipment_number . ')' : ''))
+                                        : $value;
+                                })(),
+                                'custom_select' => $value,
                                 default => $value,
                             };
                         };

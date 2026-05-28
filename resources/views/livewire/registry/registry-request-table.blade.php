@@ -80,8 +80,12 @@
                                         <td>{{ $r->reference_no }}</td>
                                         <td>{{ Str::limit($r->subject, 50) }}</td>
                                         <td>{{ $r->category?->name }}</td>
-                                        <td><span class="badge badge-secondary">{{ $r->status }}</span></td>
-                                        <td>{{ $r->current_stage }}</td>
+                                        <td>
+                                            @include('layouts.registry.partials.status-badge', ['status' => $r->status])
+                                        </td>
+                                        <td>
+                                            @include('layouts.registry.partials.stage-badge', ['stage' => $r->current_stage])
+                                        </td>
                                         <td>
                                             <a href="{{ route('registry.requests.show', $r->id) }}"
                                                class="btn btn-sm rm-act-btn rm-act-btn--view"

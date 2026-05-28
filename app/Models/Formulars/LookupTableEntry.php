@@ -37,14 +37,18 @@ class LookupTableEntry extends Model implements Auditable
      */
     public function scopeWhereKeys($query, array $keys)
     {
-        // Sort keys for consistent comparison
         ksort($keys);
-        
-        // Use JSON comparison for the PostgreSQL JSON column.
-        return $query->whereRaw('JSON_CONTAINS(`keys`, ?) AND JSON_CONTAINS(?, `keys`)', [
-            json_encode($keys),
-            json_encode($keys)
-        ]);
+
+        $encoded = json_encode($keys);
+
+        return match ($query->getConnection()->getDriverName()) {
+            'pgsql' => $query->whereRaw('keys::jsonb = ?::jsonb', [$encoded]),
+            'mysql' => $query->whereRaw(
+                'JSON_CONTAINS(`keys`, ?) AND JSON_CONTAINS(?, `keys`)',
+                [$encoded, $encoded]
+            ),
+            default => $query->where('keys', $encoded),
+        };
     }
 
     /**

@@ -107,11 +107,18 @@ class ProcedureWorksheetManager extends Component
         session()->flash('message', 'Procedure Worksheet deleted successfully.');
     }
 
-    public function resetForm()
+    public function resetForm(): void
     {
         $this->editingId = null;
         $this->name = '';
         $this->description = '';
         $this->is_active = true;
+    }
+
+    public function closeModal(): void
+    {
+        $this->showCreateModal = false;
+        $this->showEditModal = false;
+        $this->resetForm();
     }
 }

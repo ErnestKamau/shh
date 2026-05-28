@@ -12,7 +12,7 @@ class WorkflowRepository
         return WorkflowDefinition::query()
             ->forCompany()
             ->active()
-            ->with(['steps', 'transitions.fromStep', 'transitions.toStep'])
+            ->with(['steps', 'categories', 'transitions.fromStep', 'transitions.toStep'])
             ->orderBy('name')
             ->get();
     }

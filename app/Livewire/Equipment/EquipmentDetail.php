@@ -24,6 +24,7 @@ use Illuminate\Http\File;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
+use App\Livewire\Equipment\Concerns\InteractsWithEquipmentDepreciationWizard;
 use App\Livewire\Equipment\Concerns\InteractsWithEquipmentFormWizard;
 use App\Models\Equipments\EquipmentAccessory;
 use App\Models\Equipments\EquipmentSparePart;
@@ -34,6 +35,7 @@ use App\Models\Equipments\EquipmentMaintenanceRegister;
 class EquipmentDetail extends Component
 {
     use InteractsWithEquipmentFormWizard;
+    use InteractsWithEquipmentDepreciationWizard;
     use WithPagination;
     use WithFileUploads;
 
@@ -281,6 +283,10 @@ class EquipmentDetail extends Component
         if ($fromEquipmentMaintenance) {
             $this->activeTab = 'annual-maintenance';
         }
+        $tab = request()->query('tab');
+        if (is_string($tab) && $tab !== '') {
+            $this->activeTab = $tab;
+        }
         $this->loadEquipment();
         $this->loadInitialData();
 
@@ -406,6 +412,7 @@ class EquipmentDetail extends Component
             'asset_location_id' => $e->asset_location_id,
             'active' => $e->active ?? true,
             'requires_daily_log' => $e->requires_daily_log ?? false,
+            'has_logbook_tracking' => $e->has_logbook_tracking ?? false,
             'daily_log_value_type' => $e->daily_log_value_type ?? '',
             'daily_log_nature' => $e->daily_log_nature ?? '',
             'daily_log_tolerance' => $e->daily_log_tolerance ?? null,
@@ -470,6 +477,8 @@ class EquipmentDetail extends Component
                 : '';
         }
 
+        $this->equipment->load('depreciationConfig');
+        $this->loadDepreciationFormFromEquipment($this->equipment);
         $this->photo = null;
         $this->currentStep = 1;
         $this->showEditModal = true;
@@ -504,7 +513,11 @@ class EquipmentDetail extends Component
 
     public function saveEquipment(): void
     {
-        $this->validate($this->getEquipmentFormSaveValidationRules());
+        $rules = array_merge(
+            $this->getEquipmentFormSaveValidationRules(),
+            $this->getDepreciationStepRules()
+        );
+        $this->validate($rules);
 
         try {
             $data = $this->equipmentForm;
@@ -520,6 +533,7 @@ class EquipmentDetail extends Component
             }
 
             $this->equipment->update($data);
+            $this->persistDepreciationConfig($this->equipment->fresh(), false);
             $this->loadEquipment();
             $this->message = 'Equipment updated successfully!';
             $this->messageType = 'success';

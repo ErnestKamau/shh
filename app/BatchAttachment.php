@@ -11,7 +11,11 @@ class BatchAttachment extends Model implements Auditable
 {
     use HasUuids;
     use \OwenIt\Auditing\Auditable;
-    
+
+    protected $keyType = 'string';
+
+    public $incrementing = false;
+
     protected $table = 'batch_attachments';
     public $incrementing = false;
     protected $keyType = 'string';

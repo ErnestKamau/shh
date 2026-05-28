@@ -19,7 +19,7 @@ class CapabilityMatrix extends Model implements Auditable
     
     protected $table = "skills_capability_matrix";
 
-    protected $fillable = ['deleted_at'];
+    protected $fillable = ['name', 'matrix_id', 'created_by', 'status', 'deleted_at'];
 
     public function roles(){
         return $this->hasMany(CapabilityMatrixRoles::class,'capability_id')->whereNull('deleted_at');

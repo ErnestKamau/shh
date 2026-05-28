@@ -787,6 +787,10 @@ function getSampleWorkFLowTotals()
 		$arr['All Samples'] += intval($batch->count);
 	}
 
+	// Form-centric stages: match WorkflowBoard queue logic, not batch status alone.
+	$arr['Samples Receiving'] = \App\Livewire\Sampleworkflow\WorkflowBoard::sidebarReceivingRequestCount();
+	$arr['Samples Request Review'] = \App\Livewire\Sampleworkflow\WorkflowBoard::sidebarRequestReviewCount();
+
 	return $arr;
 }
 function getSampleTypeQualificationById($id)
@@ -1274,7 +1278,7 @@ function getActiveUsersByRole(string|array $roleNames): \Illuminate\Database\Elo
 		->values();
 
 	if ($roleNames->isEmpty()) {
-		return collect();
+		return new \Illuminate\Database\Eloquent\Collection();
 	}
 
 	$existingRoleNames = App\Models\Auth\Role::query()
@@ -1283,7 +1287,7 @@ function getActiveUsersByRole(string|array $roleNames): \Illuminate\Database\Elo
 		->pluck('name');
 
 	if ($existingRoleNames->isEmpty()) {
-		return collect();
+		return new \Illuminate\Database\Eloquent\Collection();
 	}
 
 	return App\User::role($existingRoleNames->all())
@@ -2277,7 +2281,7 @@ function getTrainerName($training_type, $trainer_id) {
 }
 
 function getMatrixRolesValues($skills_matrix_config_id,$skills_matrix_id){			 
-	  $role_values =  App\Models\Skillsmatrix\SkillsMatrixRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_role_requirments.skills_matrix_config_id')
+	  $role_values =  App\Models\SkillsMatrix\SkillsMatrixRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_role_requirments.skills_matrix_config_id')
 		  ->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_role_requirments.color_code')
 		  ->where('skills_matrix_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
 		->where('skills_matrix_role_requirments.skills_matrix_id', $skills_matrix_id)
@@ -2302,7 +2306,7 @@ function getUserRolesValues($user_id,$user_role,$skills_matrix_config_id,$skills
 
 	if(isset($competence_history_date) && !empty($competence_history_date)){
 
-		$role_values =  App\Models\Skillsmatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
+		$role_values =  App\Models\SkillsMatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
 		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_user_role_requirments.color_code')
 		->where('skills_matrix_user_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
 		->where('skills_matrix_user_role_requirments.skills_matrix_id', $skills_matrix_id)
@@ -2313,7 +2317,7 @@ function getUserRolesValues($user_id,$user_role,$skills_matrix_config_id,$skills
 		->selectRaw('skills_matrix_user_role_requirments.id as role_auto_id,role_id, color_code,color')
 		->orderBy('version_id', 'desc')->first();
 	
-		$role_total_cnt =  App\Models\Skillsmatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
+		$role_total_cnt =  App\Models\SkillsMatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
 		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_user_role_requirments.color_code')
 		->where('skills_matrix_user_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
 		->where('skills_matrix_user_role_requirments.skills_matrix_id', $skills_matrix_id)
@@ -2324,7 +2328,7 @@ function getUserRolesValues($user_id,$user_role,$skills_matrix_config_id,$skills
 
 	}else{
 
-		$role_values =  App\Models\Skillsmatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
+		$role_values =  App\Models\SkillsMatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
 		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_user_role_requirments.color_code')
 		->where('skills_matrix_user_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
 		->where('skills_matrix_user_role_requirments.skills_matrix_id', $skills_matrix_id)
@@ -2334,7 +2338,7 @@ function getUserRolesValues($user_id,$user_role,$skills_matrix_config_id,$skills
 		->selectRaw('skills_matrix_user_role_requirments.id as role_auto_id,role_id, color_code,color')
 		->orderBy('version_id', 'desc')->first();
 			
-		$role_total_cnt =  App\Models\Skillsmatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
+		$role_total_cnt =  App\Models\SkillsMatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
 		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_user_role_requirments.color_code')
 		->where('skills_matrix_user_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
 		->where('skills_matrix_user_role_requirments.skills_matrix_id', $skills_matrix_id)

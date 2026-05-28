@@ -63,7 +63,7 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
 				<span class="text-lg text-bold">Skills Matrix</span>
 			</div>
@@ -73,7 +73,7 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
-			<a href="#" class="bg-dark list-group-item list-group-item-action">
+			<a href="#" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-multiple fa-fw mr-3"></span>
 					<span class="menu-collapsed">Capability Matrix</span>
@@ -81,13 +81,13 @@
 			</a>
 						
 			
-			<a href="#" class="bg-dark list-group-item list-group-item-action">
+			<a href="#" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-account fa-fw mr-3"></span>
 					<span class="menu-collapsed">Customer Feedback</span>
 				</div>
 			</a>
-			<a href="#matrix-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#matrix-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
 					<span class="menu-collapsed">Matrix</span>
@@ -95,13 +95,13 @@
 				</div>
 			</a>
 			<div id="matrix-menu" class="collapse sidebar-submenu">
-				<a href="{{route('matrix')}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{route('matrix')}}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Skills Matrix
 						<small class="float-right badge badge-pill"></small></span>
 				</a>				
 			</div>
 
-			<a href="#training-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#training-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
 					<span class="menu-collapsed">Training</span>
@@ -109,13 +109,13 @@
 				</div>
 			</a>
 			<div id="training-menu" class="collapse sidebar-submenu">
-				<a href="{{route('other-training')}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{route('other-training')}}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Training Plan
 						<small class="float-right badge badge-pill"></small></span>
 				</a>				
 			</div>
 
-            <a href="#skills-confflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+            <a href="#skills-confflow-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit-outline mr-3"></span>
 					<span class="menu-collapsed">Configurations</span>
@@ -128,7 +128,7 @@
                     "Competence Description");
 				?>
 				@foreach ($menuTotals as $item)
-					<a href="{{ route('module-skills-pre-configs', ['config'=>$item, 'module'=>'Skills-Matrix']) }}" class="list-group-item list-group-item-action bg-dark text-white">
+					<a href="{{ route('module-skills-pre-configs', ['config'=>$item, 'module'=>'Skills-Matrix']) }}" class="list-group-item list-group-item-action">
 					@if ($item=='Proficiency')
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Skills Proficiency</span>
 					@elseif ($item=='Training')
@@ -142,7 +142,7 @@
 				@endforeach					
 			</div>
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->

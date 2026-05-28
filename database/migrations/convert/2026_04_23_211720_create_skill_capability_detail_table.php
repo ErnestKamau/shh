@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('skill_capability_detail', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('capability_id');
+            $table->uuid('capability_id');
             $table->integer('competency_id');
             $table->uuid('user_id')->index('idx_skill_capability_detail_user_id_c7bdcea1');
             $table->integer('proficiency_id');

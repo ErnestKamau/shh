@@ -92,6 +92,16 @@ class PageLayoutRegistry
             ],
         ],
 
+        'billing.invoices.show' => [
+            'label'   => 'Draft Invoice Details',
+            'slots'   => [
+                ['id' => 'before_page_content',  'label' => 'Before main content',     'selector' => null],
+                ['id' => 'after_breadcrumb',     'label' => 'After breadcrumb navigation', 'selector' => '.breadcrumb-container'],
+                ['id' => 'after_page_content',   'label' => 'After main content',      'selector' => null],
+            ],
+            'buttons' => [],
+        ],
+
         // ─── Quotations ──────────────────────────────────────────────────────────────
         'quotation-index' => [
             'label'   => 'Quotations',

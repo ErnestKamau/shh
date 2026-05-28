@@ -115,7 +115,7 @@ class RiskDashboard extends Component
 
     private function loadDashboardStats($startDateTime, $endDateTime)
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = riskCompanyId();
         
         $risksQuery = Risk::where('company_id', $companyId)
             ->whereBetween('date_identified', [$startDateTime, $endDateTime]);
@@ -212,7 +212,7 @@ class RiskDashboard extends Component
 
     private function loadRiskHotspots()
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = riskCompanyId();
         $startDateTime = Carbon::parse($this->startDate)->startOfDay();
         $endDateTime = Carbon::parse($this->endDate)->endOfDay();
         
@@ -268,7 +268,7 @@ class RiskDashboard extends Component
 
     private function loadRiskTrends($startDateTime, $endDateTime)
     {
-        $companyId = getUserCompany() ?? 0;
+        $companyId = riskCompanyId();
         $startDate = Carbon::parse($this->startDate);
         $endDate = Carbon::parse($this->endDate);
         $daysDiff = $startDate->diffInDays($endDate) + 1;

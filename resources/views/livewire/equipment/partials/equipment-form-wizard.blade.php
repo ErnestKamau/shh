@@ -23,10 +23,17 @@
                                 </div>
                                 <div class="step-line {{ $currentStep > 3 ? 'completed' : '' }}"></div>
                                 <div class="text-center flex-grow-1">
-                                    <div class="step-indicator {{ $currentStep >= 4 ? 'active' : '' }} {{ $currentStep > 4 ? 'completed' : '' }}">
+                                    <div class="step-indicator {{ $currentStep >= 4 ? 'active' : '' }} {{ $currentStep > 4 ? 'completed' : '' }}" wire:click="goToStep(4)" style="cursor: pointer;">
                                         <span class="step-number">4</span>
                                     </div>
                                     <small class="d-block mt-2 fw-bold">Maintenance</small>
+                                </div>
+                                <div class="step-line {{ $currentStep > 4 ? 'completed' : '' }}"></div>
+                                <div class="text-center flex-grow-1">
+                                    <div class="step-indicator {{ $currentStep >= 5 ? 'active' : '' }}">
+                                        <span class="step-number">5</span>
+                                    </div>
+                                    <small class="d-block mt-2 fw-bold">Depreciation</small>
                                 </div>
                             </div>
                         </div>
@@ -107,6 +114,17 @@
                                         </label>
                                         <textarea wire:model="equipmentForm.description" class="form-control" rows="2" required></textarea>
                                         @error('equipmentForm.description') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-check mb-3">
+                                        <input type="checkbox" wire:model.live="equipmentForm.has_logbook_tracking" class="form-check-input" id="equipment_has_logbook_tracking">
+                                        <label class="form-check-label" for="equipment_has_logbook_tracking">
+                                            Equipment has logbook tracking
+                                        </label>
+                                        <small class="form-text text-muted d-block">When enabled, a Log Book tab appears on the equipment profile to configure columns and capture logs.</small>
                                     </div>
                                 </div>
                             </div>
@@ -616,7 +634,7 @@
                                 </div>
                             </div>
                             @endif
-                            {{-- Constant + Quantitative: numeric expected value + tolerance --}}
+                            {{-- Constant + Quantitative: numeric expected value --}}
                             @if($dlType === 'constant' && $dlNature === 'quantitative')
                             <div class="row">
                                 <div class="col-md-6">
@@ -626,17 +644,9 @@
                                         @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Uncertainty Measure (&plusmn;) <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="{{ __('equipment.daily_log_tolerance_example') }}">
-                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">{{ __('equipment.acceptable_deviation_from_expected_value') }}</small>
-                                    </div>
-                                </div>
                             </div>
                             @endif
-                            {{-- Range + Quantitative: min, max and tolerance --}}
+                            {{-- Range + Quantitative: min and max --}}
                             @if($dlType === 'range' && $dlNature === 'quantitative')
                             <div class="row">
                                 <div class="col-md-6">
@@ -651,16 +661,6 @@
                                         <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
                                         <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_max_value_example') }}">
                                         @error('equipmentForm.daily_log_expected_max') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Uncertainty Measure (&plusmn;) <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="{{ __('equipment.daily_log_tolerance_example') }}">
-                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">{{ __('equipment.acceptable_deviation') }}</small>
                                     </div>
                                 </div>
                             </div>
@@ -772,5 +772,9 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
+
+                            @if($currentStep === 5)
+                                @include('livewire.equipment.partials.equipment-depreciation-wizard-step')
                             @endif
                         </form>

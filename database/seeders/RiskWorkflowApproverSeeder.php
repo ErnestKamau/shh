@@ -12,7 +12,11 @@ class RiskWorkflowApproverSeeder extends Seeder
      */
     public function run(): void
     {
-        $companyId = auth()->check() ? (auth()->user()->company_id ?? 1) : 1;
+        $company = \App\Company::query()->where('active', true)->orderBy('name')->first()
+            ?? \App\Company::query()->orderBy('name')->first();
+        $companyId = auth()->check()
+            ? (auth()->user()->company_id ?? $company?->id)
+            : ($company?->id ?? 0);
         $defaultUserId = User::query()->orderBy('id')->value('id');
 
         if (!$defaultUserId) {

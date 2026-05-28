@@ -9,6 +9,7 @@ use App\Models\PreparationStep;
 use App\Models\SolutionPreparation;
 use App\Models\SolutionPreparationStepTemplate;
 use App\Services\Preparation\PreparationRunService;
+use App\Services\Preparation\PreparationSummaryBuilder;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -25,6 +26,18 @@ class SolutionPreparationWorkbench extends Component
     public $rejectReason = '';
 
     public $showAdHocModal = false;
+
+    public bool $showCompleteStepModal = false;
+
+    public ?string $completingStepId = null;
+
+    public bool $completeWithSaveResults = false;
+
+    public bool $goToNextStepAfterComplete = true;
+
+    public ?string $highlightedNextStepId = null;
+
+    public ?string $activeStepId = null;
 
     public $adHocForm = [
         'step_name' => '',
@@ -46,15 +59,20 @@ class SolutionPreparationWorkbench extends Component
         $preparation = SolutionPreparation::findOrFail($preparationId);
         $runService->moveToAwaitingApprovalIfEligible($preparation);
         $this->loadResultInputs();
+        $this->ensureActiveStep();
     }
 
     public function getPreparationProperty(): SolutionPreparation
     {
         return SolutionPreparation::with([
             'solution.reportingUnit',
+            'solution.alternativeSolution',
+            'preparedUom',
             'preparer',
             'approver',
+            'sourcePreparation',
             'steps.ingredient.reagent',
+            'steps.ingredient.unitMeasure',
             'steps.controls.controlSolution',
             'steps.results',
             'steps.media',
@@ -69,9 +87,125 @@ class SolutionPreparationWorkbench extends Component
             ->get();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function getPreparationPanelProperty(): array
+    {
+        return app(PreparationSummaryBuilder::class)->build($this->preparation);
+    }
+
     public function getControlSolutionsProperty()
     {
         return LabSubCategory::where('active', 1)->orderBy('name')->get();
+    }
+
+    public function getActiveStepProperty(): ?PreparationStep
+    {
+        if ($this->activeStepId === null) {
+            return null;
+        }
+
+        return $this->preparation->steps->first(fn (PreparationStep $step) => (string) $step->id === (string) $this->activeStepId);
+    }
+
+    public function setActiveStep(string $stepId): void
+    {
+        if (! $this->preparation->steps->contains(fn (PreparationStep $step) => (string) $step->id === (string) $stepId)) {
+            return;
+        }
+
+        $this->activeStepId = $stepId;
+        $this->highlightedNextStepId = null;
+    }
+
+    public function getCompletingStepProperty(): ?PreparationStep
+    {
+        if ($this->completingStepId === null) {
+            return null;
+        }
+
+        return $this->preparation->steps->first(
+            fn (PreparationStep $step) => (string) $step->id === (string) $this->completingStepId
+        );
+    }
+
+    public function getNextStepAfterCompletingProperty(): ?PreparationStep
+    {
+        if ($this->completingStepId === null) {
+            return null;
+        }
+
+        return $this->findFollowingStep($this->completingStepId);
+    }
+
+    public function dismissMessage(): void
+    {
+        $this->message = '';
+        $this->messageType = '';
+    }
+
+    public function openAdHocModal(): void
+    {
+        $this->showAdHocModal = true;
+    }
+
+    public function closeAdHocModal(): void
+    {
+        $this->showAdHocModal = false;
+    }
+
+    public function openCompleteStepModal(string $stepId, bool $withSaveResults = false): void
+    {
+        if (! $this->preparation->steps->contains(fn (PreparationStep $step) => (string) $step->id === (string) $stepId)) {
+            return;
+        }
+
+        $this->completingStepId = $stepId;
+        $this->completeWithSaveResults = $withSaveResults;
+        $this->goToNextStepAfterComplete = true;
+        $this->showCompleteStepModal = true;
+    }
+
+    public function closeCompleteStepModal(): void
+    {
+        $this->showCompleteStepModal = false;
+        $this->completingStepId = null;
+        $this->completeWithSaveResults = false;
+    }
+
+    public function confirmCompleteStep(PreparationRunService $runService): void
+    {
+        if ($this->completingStepId === null) {
+            return;
+        }
+
+        $stepId = $this->completingStepId;
+        $nextInSequence = $this->findFollowingStep($stepId);
+
+        try {
+            $step = PreparationStep::where('preparation_id', $this->preparationId)->findOrFail($stepId);
+
+            if ($this->completeWithSaveResults && $step->isAnalysisStep()) {
+                $rows = [];
+                foreach ($this->resultInputs as $row) {
+                    if ((string) ($row['preparation_step_id'] ?? '') === (string) $stepId) {
+                        $rows[] = $row;
+                    }
+                }
+                $runService->saveStepResults($step, $rows);
+                $this->loadResultInputs();
+            }
+
+            $runService->completeStep($step);
+            $this->closeCompleteStepModal();
+            $this->applyPostCompleteNavigation($nextInSequence);
+            $this->message = 'Step completed.';
+            $this->messageType = 'success';
+        } catch (ValidationException $e) {
+            $this->message = collect($e->errors())->flatten()->first();
+            $this->messageType = 'danger';
+        }
     }
 
     protected function loadResultInputs(): void
@@ -90,6 +224,7 @@ class SolutionPreparationWorkbench extends Component
                     'is_control' => false,
                     'control_solution_id' => null,
                     'result' => $existing?->result ?? '',
+                    'remark' => $existing?->remark ?? '',
                 ];
             }
             foreach ($step->controls as $control) {
@@ -102,6 +237,7 @@ class SolutionPreparationWorkbench extends Component
                         'is_control' => true,
                         'control_solution_id' => $control->control_solution_id,
                         'result' => $existing?->result ?? '',
+                        'remark' => $existing?->remark ?? '',
                     ];
                 }
             }
@@ -122,24 +258,31 @@ class SolutionPreparationWorkbench extends Component
         $this->messageType = 'success';
     }
 
-    public function completeStep(string $stepId, PreparationRunService $runService): void
+
+    public function saveStepResultsForStep(string $stepId, PreparationRunService $runService): void
     {
-        try {
-            $step = PreparationStep::where('preparation_id', $this->preparationId)->findOrFail($stepId);
-            $runService->completeStep($step);
-            $this->message = 'Step completed.';
-            $this->messageType = 'success';
-        } catch (ValidationException $e) {
-            $this->message = collect($e->errors())->flatten()->first();
-            $this->messageType = 'danger';
+        $rows = [];
+        foreach ($this->resultInputs as $row) {
+            if ((string) ($row['preparation_step_id'] ?? '') === (string) $stepId) {
+                $rows[] = $row;
+            }
         }
+
+        $step = PreparationStep::where('preparation_id', $this->preparationId)->findOrFail($stepId);
+        $runService->saveStepResults($step, $rows);
+        $this->loadResultInputs();
+        $this->message = 'Results saved for this step.';
+        $this->messageType = 'success';
     }
+
 
     public function uncompleteStep(string $stepId, PreparationRunService $runService): void
     {
         try {
             $step = PreparationStep::where('preparation_id', $this->preparationId)->findOrFail($stepId);
             $runService->uncompleteStep($step);
+            $this->activeStepId = $stepId;
+            $this->highlightedNextStepId = null;
             $this->message = 'Step reopened.';
             $this->messageType = 'success';
         } catch (ValidationException $e) {
@@ -238,6 +381,9 @@ class SolutionPreparationWorkbench extends Component
                 (bool) ($this->adHocForm['save_to_template'] ?? false)
             );
             $this->showAdHocModal = false;
+            $this->activeStepId = null;
+            $this->ensureActiveStep();
+            $this->loadResultInputs();
             $this->message = 'Step added.';
             $this->messageType = 'success';
         } catch (ValidationException $e) {
@@ -249,6 +395,63 @@ class SolutionPreparationWorkbench extends Component
     public function getAnalyteName(string $id): string
     {
         return Analyte::find($id)?->name ?? $id;
+    }
+
+    protected function ensureActiveStep(): void
+    {
+        $steps = $this->preparation->steps;
+
+        if ($this->activeStepId !== null && $steps->contains(fn (PreparationStep $step) => (string) $step->id === (string) $this->activeStepId)) {
+            return;
+        }
+
+        $next = $steps->first(fn (PreparationStep $step) => ! $step->isCompleted());
+
+        $this->activeStepId = $next?->id ?? $steps->first()?->id;
+    }
+
+    protected function findFollowingStep(string $stepId): ?PreparationStep
+    {
+        $steps = $this->preparation->steps->values();
+        $index = $steps->search(fn (PreparationStep $step) => (string) $step->id === (string) $stepId);
+
+        if ($index === false || $index >= $steps->count() - 1) {
+            return null;
+        }
+
+        return $steps[$index + 1];
+    }
+
+    protected function applyPostCompleteNavigation(?PreparationStep $nextInSequence): void
+    {
+        $steps = SolutionPreparation::with('steps')
+            ->findOrFail($this->preparationId)
+            ->steps;
+
+        $nextIncomplete = null;
+
+        if ($nextInSequence !== null) {
+            $following = $steps->first(
+                fn (PreparationStep $step) => (string) $step->id === (string) $nextInSequence->id
+            );
+            if ($following !== null && ! $following->isCompleted()) {
+                $nextIncomplete = $following;
+            }
+        }
+
+        if ($nextIncomplete === null) {
+            $nextIncomplete = $steps->first(fn (PreparationStep $step) => ! $step->isCompleted());
+        }
+
+        if ($this->goToNextStepAfterComplete && $nextIncomplete !== null) {
+            $this->activeStepId = $nextIncomplete->id;
+            $this->highlightedNextStepId = null;
+
+            return;
+        }
+
+        $this->activeStepId = null;
+        $this->highlightedNextStepId = $nextIncomplete?->id;
     }
 
     public function render()

@@ -102,12 +102,60 @@
         </div>
     </div>
 
+    <!-- Payment status tabs -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 invoice-list-tabs-card">
+                <div class="invoice-list-tabs px-3 px-md-4 py-3">
+                    <button type="button"
+                            wire:click="setPaymentStatusTab('all')"
+                            class="invoice-list-tab {{ $paymentStatusTab === 'all' ? 'active' : '' }}">
+                        <i class="mdi mdi-format-list-bulleted"></i>
+                        <span>All</span>
+                        <span class="invoice-list-tab__count">{{ $paymentTabCounts['all'] }}</span>
+                    </button>
+                    <button type="button"
+                            wire:click="setPaymentStatusTab('unpaid')"
+                            class="invoice-list-tab invoice-list-tab--unpaid {{ $paymentStatusTab === 'unpaid' ? 'active' : '' }}">
+                        <i class="mdi mdi-clock-alert-outline"></i>
+                        <span>Unpaid</span>
+                        <span class="invoice-list-tab__count">{{ $paymentTabCounts['unpaid'] }}</span>
+                    </button>
+                    <button type="button"
+                            wire:click="setPaymentStatusTab('partially_paid')"
+                            class="invoice-list-tab invoice-list-tab--partial {{ $paymentStatusTab === 'partially_paid' ? 'active' : '' }}">
+                        <i class="mdi mdi-progress-clock"></i>
+                        <span>Partially Paid</span>
+                        <span class="invoice-list-tab__count">{{ $paymentTabCounts['partially_paid'] }}</span>
+                    </button>
+                    <button type="button"
+                            wire:click="setPaymentStatusTab('completely_paid')"
+                            class="invoice-list-tab invoice-list-tab--paid {{ $paymentStatusTab === 'completely_paid' ? 'active' : '' }}">
+                        <i class="mdi mdi-check-circle-outline"></i>
+                        <span>Completely Paid</span>
+                        <span class="invoice-list-tab__count">{{ $paymentTabCounts['completely_paid'] }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Invoices Table -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Draft Invoices</h5>
+            <div class="card shadow-sm border-0 draft-invoices-card">
+                <div class="card-header d-flex justify-content-between align-items-center border-0">
+                    <h5 class="card-title mb-0">
+                        @if($paymentStatusTab === 'unpaid')
+                            Unpaid Invoices
+                        @elseif($paymentStatusTab === 'partially_paid')
+                            Partially Paid Invoices
+                        @elseif($paymentStatusTab === 'completely_paid')
+                            Completely Paid Invoices
+                        @else
+                            Draft Invoices
+                        @endif
+                    </h5>
                     <div class="d-flex align-items-center">
                         <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
                         <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
@@ -120,9 +168,10 @@
                 <div class="card-body">
                     @if($this->invoices->count() > 0)
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table id="draft-invoices-table" class="table table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
+                                        <th>Actions</th>
                                         <th>Draft Invoice #</th>
                                         <th>Customer</th>
                                         <th>Reference</th>
@@ -131,12 +180,45 @@
                                         <th>Currency</th>
                                         <th>Total</th>
                                         <th>Tax</th>
-                                        <th>Actions</th>
+                                        <th>Payment</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->invoices as $invoice)
+                                        @php
+                                            $invoiceTotal = (float) ($invoice->line_items_total ?? $invoice->invoicetotal);
+                                            $invoiceTax = (float) ($invoice->line_items_tax ?? $invoice->total_tax);
+                                            $paidTotal = (float) ($invoice->paid_total ?? 0);
+                                            if ($paidTotal <= 0) {
+                                                $paymentLabel = 'Unpaid';
+                                                $paymentChipClass = 'payment-chip--unpaid';
+                                            } elseif ($paidTotal >= $invoiceTotal && $invoiceTotal > 0) {
+                                                $paymentLabel = 'Completely Paid';
+                                                $paymentChipClass = 'payment-chip--paid';
+                                            } elseif ($paidTotal > 0) {
+                                                $paymentLabel = 'Partially Paid';
+                                                $paymentChipClass = 'payment-chip--partial';
+                                            } else {
+                                                $paymentLabel = 'Unpaid';
+                                                $paymentChipClass = 'payment-chip--unpaid';
+                                            }
+                                        @endphp
                                         <tr>
+                                            <td>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    <a href="{{ route('billing.invoices.show', $invoice->id) }}"
+                                                       class="btn btn-sm rm-act-btn rm-act-btn--view"
+                                                       title="View">
+                                                        <i class="mdi mdi-eye"></i>
+                                                    </a>
+                                                    <a href="{{ route('print-invoice', ['id' => $invoice->id]) }}"
+                                                       class="btn btn-sm rm-act-btn rm-act-btn--muted"
+                                                       title="Print"
+                                                       target="_blank">
+                                                        <i class="mdi mdi-printer"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
                                             <td>
                                                 <strong>{{ $invoice->invoice_number }}</strong>
                                             </td>
@@ -160,33 +242,16 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                {{ $invoice->currencyinfo->name ?? 'N/A' }}
+                                                {{ $invoice->currency_label }}
                                             </td>
                                             <td>
-                                                <strong>{{ number_format($invoice->total, 2) }}</strong>
+                                                <strong>{{ number_format($invoiceTotal, 2) }}</strong>
                                             </td>
                                             <td>
-                                                {{ number_format($invoice->total_tax, 2) }}
+                                                {{ number_format($invoiceTax, 2) }}
                                             </td>
                                             <td>
-                                                <div class="d-flex">
-                                                    <button wire:click="viewInvoice({{ $invoice->id }})" 
-                                                            class="btn btn-sm btn-outline-primary mr-1" 
-                                                            title="View Details">
-                                                        <i class="mdi mdi-eye"></i>
-                                                    </button>
-                                                    <a href="{{ route('print-invoice', ['id' => $invoice->id]) }}" 
-                                                       class="btn btn-sm btn-outline-secondary mr-1" 
-                                                       title="Print"
-                                                       target="_blank">
-                                                        <i class="mdi mdi-printer"></i>
-                                                    </a>
-                                                    <a href="{{ route('invoice-sample-header', ['id' => $invoice->id]) }}" 
-                                                       class="btn btn-sm btn-outline-info" 
-                                                       title="View Full Details">
-                                                        <i class="mdi mdi-open-in-new"></i>
-                                                    </a>
-                                                </div>
+                                                <span class="payment-chip {{ $paymentChipClass }}">{{ $paymentLabel }}</span>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -216,108 +281,153 @@
         </div>
     </div>
 
-    <!-- Invoice Details Modal -->
-    @if($showInvoiceDetails && $this->selectedInvoice)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-file-document-outline"></i>
-                            Invoice Details - {{ $this->selectedInvoice->invoice_number }}
-                        </h5>
-                        <button type="button" class="btn-close" wire:click="closeInvoiceDetails"></button>
-                    </div>
-                    <div class="modal-body">
-                        <!-- Invoice Header Info -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <h6 class="text-muted">Customer Information</h6>
-                                <p class="mb-1"><strong>Customer:</strong> {{ $this->selectedInvoice->crmCustomer->name ?? 'N/A' }}</p>
-                                <p class="mb-1"><strong>Reference:</strong> {{ $this->selectedInvoice->reference_number ?? '-' }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <h6 class="text-muted">Invoice Information</h6>
-                                <p class="mb-1"><strong>Invoice Date:</strong> {{ $this->selectedInvoice->created_at->format('Y-m-d') }}</p>
-                                <p class="mb-1"><strong>Due Date:</strong> {{ $this->selectedInvoice->due_date ? \Carbon\Carbon::parse($this->selectedInvoice->due_date)->format('Y-m-d') : 'N/A' }}</p>
-                                <p class="mb-1"><strong>Currency:</strong> {{ $this->selectedInvoice->currencyinfo->name ?? 'N/A' }}</p>
-                            </div>
-                        </div>
-
-                        <!-- Invoice Line Items -->
-                        <h6 class="text-muted mb-3">Line Items</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered">
-                                <thead style="background-color: rgba(0, 0, 0, .05);">
-                                    <tr>
-                                        <th>Analysis Type</th>
-                                        <th>Invoicable Item</th>
-                                        <th>Quantity</th>
-                                        <th>Unit Price</th>
-                                        <th>Tax Rate</th>
-                                        <th>Tax Amount</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($this->selectedInvoice->details as $detail)
-                                        <tr>
-                                            <td>
-                                                <strong>{{ $detail->analysis_type_name }}</strong>
-                                                @if($detail->analysisType)
-                                                    <br><small class="text-muted">{{ $detail->analysisType->code }}</small>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($detail->invoicableItem)
-                                                    {{ $detail->invoicableItem->item_code }} - {{ $detail->invoicableItem->item_name }}
-                                                @else
-                                                    <span class="text-muted">Not mapped</span>
-                                                @endif
-                                            </td>
-                                            <td>{{ $detail->quantity }}</td>
-                                            <td>{{ number_format($detail->selling_price, 2) }}</td>
-                                            <td>{{ $detail->tax_rate }}%</td>
-                                            <td>{{ number_format($detail->tax_amount, 2) }}</td>
-                                            <td><strong>{{ number_format($detail->total, 2) }}</strong></td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                                <tfoot style="background-color: rgba(0, 0, 0, .03);">
-                                    <tr>
-                                        <th colspan="6" class="text-end">Subtotal:</th>
-                                        <th>{{ number_format($this->selectedInvoice->total - $this->selectedInvoice->total_tax, 2) }}</th>
-                                    </tr>
-                                    <tr>
-                                        <th colspan="6" class="text-end">Tax:</th>
-                                        <th>{{ number_format($this->selectedInvoice->total_tax, 2) }}</th>
-                                    </tr>
-                                    <tr>
-                                        <th colspan="6" class="text-end">Total:</th>
-                                        <th>{{ number_format($this->selectedInvoice->total, 2) }}</th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeInvoiceDetails">Close</button>
-                        <a href="{{ route('print-invoice', ['id' => $this->selectedInvoice->id]) }}" 
-                           class="btn btn-primary" 
-                           target="_blank">
-                            <i class="mdi mdi-printer"></i> Print Invoice
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
     <style>
-    .modal.show {
-        display: block !important;
+    .invoice-list-tabs-card {
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
     }
-    
+
+    .invoice-list-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .invoice-list-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #475569;
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .invoice-list-tab i {
+        font-size: 18px;
+        opacity: 0.85;
+    }
+
+    .invoice-list-tab:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #334155;
+    }
+
+    .invoice-list-tab.active {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        border-color: #1d4ed8;
+        color: #fff;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
+    }
+
+    .invoice-list-tab.active i {
+        opacity: 1;
+    }
+
+    .invoice-list-tab--unpaid.active {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border-color: #d97706;
+        box-shadow: 0 8px 20px rgba(217, 119, 6, 0.28);
+    }
+
+    .invoice-list-tab--partial.active {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        border-color: #0284c7;
+        box-shadow: 0 8px 20px rgba(2, 132, 199, 0.28);
+    }
+
+    .invoice-list-tab--paid.active {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border-color: #16a34a;
+        box-shadow: 0 8px 20px rgba(22, 163, 74, 0.28);
+    }
+
+    .invoice-list-tab__count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 22px;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.08);
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .invoice-list-tab.active .invoice-list-tab__count {
+        background: rgba(255, 255, 255, 0.22);
+        color: #fff;
+    }
+
+    .payment-chip {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
+
+    .payment-chip--unpaid {
+        background: #fef3c7;
+        color: #b45309;
+        border: 1px solid #fde68a;
+    }
+
+    .payment-chip--partial {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+
+    .payment-chip--paid {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+
+    .draft-invoices-card {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    #draft-invoices-table .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    #draft-invoices-table .rm-act-btn--view {
+        border: 1px solid #bbf7d0;
+        color: #15803d;
+        background: #f0fdf4;
+    }
+
+    #draft-invoices-table .rm-act-btn--view:hover {
+        background: #dcfce7;
+        border-color: #86efac;
+    }
+
+    #draft-invoices-table .rm-act-btn--muted {
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        background: #f8fafc;
+    }
+
+    #draft-invoices-table .rm-act-btn--muted:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
     /* Modern Select Styling */
     .modern-select {
         border: 2px solid #e9ecef;
@@ -335,6 +445,17 @@
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         background-color: #ffffff;
         outline: none;
+    }
+
+    @media (max-width: 767.98px) {
+        .invoice-list-tabs {
+            flex-direction: column;
+        }
+
+        .invoice-list-tab {
+            width: 100%;
+            justify-content: flex-start;
+        }
     }
     </style>
 </div>

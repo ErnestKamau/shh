@@ -162,6 +162,21 @@
         ];
     }
 
+    if (isset($componentType) && str_starts_with($componentType, 'depreciation-')) {
+        $breadcrumbItems[] = [
+            'link' => route('equipment.depreciation.index'),
+            'name' => 'Asset Depreciation',
+            'icon' => null
+        ];
+        if ($componentType === 'depreciation-methods') {
+            $breadcrumbItems[] = ['link' => '#', 'name' => 'Depreciation Methods', 'icon' => null];
+        } elseif ($componentType === 'depreciation-reports') {
+            $breadcrumbItems[] = ['link' => '#', 'name' => 'Depreciation Reports', 'icon' => null];
+        } elseif ($componentType === 'depreciation-list') {
+            $breadcrumbItems[] = ['link' => '#', 'name' => 'Depreciation List', 'icon' => null];
+        }
+    }
+
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
     
@@ -202,7 +217,17 @@
         @livewire('monitoring.create-monitoring-template', ['templateType' => 'equipment', 'module' => 'equipment'])
     @elseif($componentType === 'template-edit')
         @livewire('monitoring.edit-monitoring-template', ['template' => $template, 'module' => 'equipment'])
+    @elseif($componentType === 'depreciation-list')
+        @livewire('equipment.depreciation.depreciation-list-manager')
+    @elseif($componentType === 'depreciation-methods')
+        @livewire('equipment.depreciation.depreciation-method-manager')
+    @elseif($componentType === 'depreciation-reports')
+        @livewire('equipment.depreciation.depreciation-reports-manager')
     @endif
 </main>
+@endsection
+
+@section('script2')
+@stack('script2')
 @endsection
 

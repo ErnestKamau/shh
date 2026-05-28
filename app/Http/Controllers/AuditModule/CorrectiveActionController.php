@@ -10,6 +10,7 @@ use App\Models\AuditModule\AuditAttachment;
 use App\Services\AuditModule\AuditNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -97,19 +98,27 @@ class CorrectiveActionController extends Controller
 
     public function show($id)
     {
+        $eagerLoad = [
+            'nonConformance.audit',
+            'nonConformance.rootCauseAnalysis',
+            'category',
+            'actionOwnerUser',
+            'createdBy',
+            'updatedBy',
+            'latestVerification.verifiedByUser',
+            'attachments',
+        ];
+
+        if (Schema::hasTable('audit_activity_logs')) {
+            $eagerLoad[] = 'activityLogs.performedBy';
+        }
+
+        if (Schema::hasTable('audit_workflow_approvals')) {
+            $eagerLoad[] = 'workflowApprovals.approver';
+        }
+
         $capa = CorrectiveAction::forCompany()
-            ->with([
-                'nonConformance.audit',
-                'nonConformance.rootCauseAnalysis',
-                'category',
-                'actionOwnerUser',
-                'createdBy',
-                'updatedBy',
-                'latestVerification.verifiedByUser',
-                'attachments',
-                'activityLogs.performedBy',
-                'workflowApprovals.approver',
-            ])
+            ->with($eagerLoad)
             ->findOrFail($id);
 
         $currentWorkflowStep = $capa->getCurrentWorkflowStep();

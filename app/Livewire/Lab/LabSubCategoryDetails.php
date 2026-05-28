@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Lab;
 
+use App\InventoryCategories;
 use App\InventorySubCategories;
 use App\LabCategoryItems;
 use App\LabInventoryCategory;
@@ -68,6 +69,17 @@ class LabSubCategoryDetails extends Component
     public $showReagentDropdown = false;
 
     public $showItemUnitDropdown = false;
+
+    public bool $editingConfiguration = false;
+
+    public bool $showCreateReagentForm = false;
+
+    public array $newReagentForm = [
+        'name' => '',
+        'code' => '',
+        'description' => '',
+        'unit_type' => '',
+    ];
 
     public string $activeTab = 'reagents';
 
@@ -171,6 +183,154 @@ class LabSubCategoryDetails extends Component
         return $this->filterCollection($this->reportingUnits, $this->itemUnitSearch, $this->itemForm['unit_measure_id'] ?? null);
     }
 
+    public function getShouldOfferCreateReagentProperty(): bool
+    {
+        if ($this->showCreateReagentForm || $this->itemForm['reagent_id']) {
+            return false;
+        }
+
+        return trim($this->reagentSearch) !== '' && $this->filteredReagents->isEmpty();
+    }
+
+    public function setActiveTab(string $tab): void
+    {
+        if (in_array($tab, ['reagents', 'templates'], true)) {
+            $this->activeTab = $tab;
+        }
+    }
+
+    public function startEditingConfiguration(): void
+    {
+        $this->editingConfiguration = true;
+        $this->syncSelectSearchLabels();
+    }
+
+    public function cancelEditingConfiguration(): void
+    {
+        $this->editingConfiguration = false;
+        $this->imageUpload = null;
+        $this->loadSubCategory();
+        $this->resetValidation();
+    }
+
+    public function openCategoryDropdown(): void
+    {
+        $this->showCategoryDropdown = true;
+    }
+
+    public function closeCategoryDropdown(): void
+    {
+        $this->showCategoryDropdown = false;
+    }
+
+    public function openReportingUnitDropdown(): void
+    {
+        $this->showReportingUnitDropdown = true;
+    }
+
+    public function closeReportingUnitDropdown(): void
+    {
+        $this->showReportingUnitDropdown = false;
+    }
+
+    public function openReagentDropdown(): void
+    {
+        $this->showReagentDropdown = true;
+        $this->showCreateReagentForm = false;
+    }
+
+    public function closeReagentDropdown(): void
+    {
+        $this->showReagentDropdown = false;
+    }
+
+    public function openItemUnitDropdown(): void
+    {
+        $this->showItemUnitDropdown = true;
+    }
+
+    public function closeItemUnitDropdown(): void
+    {
+        $this->showItemUnitDropdown = false;
+    }
+
+    public function openCreateReagentForm(): void
+    {
+        $this->newReagentForm = [
+            'name' => trim($this->reagentSearch),
+            'code' => '',
+            'description' => '',
+            'unit_type' => $this->selectedItemUnit?->name ?? '',
+        ];
+        $this->showCreateReagentForm = true;
+        $this->showReagentDropdown = false;
+        $this->resetValidation(['newReagentForm.name', 'newReagentForm.code']);
+    }
+
+    public function cancelCreateReagentForm(): void
+    {
+        $this->showCreateReagentForm = false;
+        $this->newReagentForm = [
+            'name' => '',
+            'code' => '',
+            'description' => '',
+            'unit_type' => '',
+        ];
+        $this->resetValidation();
+    }
+
+    public function createReagent(): void
+    {
+        $this->validate([
+            'newReagentForm.name' => 'required|string|max:255',
+            'newReagentForm.code' => 'nullable|string|max:100',
+            'newReagentForm.description' => 'nullable|string|max:500',
+            'newReagentForm.unit_type' => 'nullable|string|max:100',
+        ], [
+            'newReagentForm.name.required' => 'Reagent name is required.',
+        ]);
+
+        try {
+            $location = getCurrentUserLocation();
+            if (! $location) {
+                $this->addError('newReagentForm.name', 'Your user location is required to create inventory items.');
+
+                return;
+            }
+
+            $inventoryCategory = $this->resolveReagentsInventoryCategory($location);
+
+            $code = trim((string) ($this->newReagentForm['code'] ?? ''));
+            if ($code === '') {
+                $code = getNamingConventionCode('SubCategories', false, 'IM');
+            }
+
+            $reagent = new InventorySubCategories();
+            $reagent->code = $code;
+            $reagent->name = trim($this->newReagentForm['name']);
+            $reagent->description = trim((string) ($this->newReagentForm['description'] ?? '')) ?: 'n/a';
+            $reagent->inventory_category_id = $inventoryCategory->id;
+            $reagent->manufacturer = 'Any';
+            $reagent->unit_type = trim((string) ($this->newReagentForm['unit_type'] ?? '')) ?: null;
+            $reagent->company_id = getUserCompany();
+            $reagent->location_id = $location->id;
+            $reagent->active = 1;
+            $reagent->save();
+
+            $this->reagents = InventorySubCategories::where('active', 1)->orderBy('name')->get();
+            $this->selectReagent((string) $reagent->id);
+            $this->showCreateReagentForm = false;
+            $this->newReagentForm = [
+                'name' => '',
+                'code' => '',
+                'description' => '',
+                'unit_type' => '',
+            ];
+        } catch (\Exception $e) {
+            $this->addError('newReagentForm.name', 'Could not create reagent: ' . $e->getMessage());
+        }
+    }
+
     public function selectCategory(string $categoryId): void
     {
         $this->subCategoryForm['category_id'] = $categoryId;
@@ -255,6 +415,7 @@ class LabSubCategoryDetails extends Component
 
             $this->message = 'Sub-category updated successfully!';
             $this->messageType = 'success';
+            $this->editingConfiguration = false;
             $this->loadSubCategory();
         } catch (\Exception $e) {
             $this->message = 'Error updating sub-category: ' . $e->getMessage();
@@ -351,6 +512,13 @@ class LabSubCategoryDetails extends Component
         $this->itemUnitSearch = '';
         $this->showReagentDropdown = false;
         $this->showItemUnitDropdown = false;
+        $this->showCreateReagentForm = false;
+        $this->newReagentForm = [
+            'name' => '',
+            'code' => '',
+            'description' => '',
+            'unit_type' => '',
+        ];
         $this->resetValidation();
     }
 
@@ -370,6 +538,64 @@ class LabSubCategoryDetails extends Component
     public function render()
     {
         return view('livewire.lab.lab-sub-category-details');
+    }
+
+    /**
+     * Find or create the Laboratory Reagents inventory category for the current location.
+     */
+    protected function resolveReagentsInventoryCategory(object $location): InventoryCategories
+    {
+        $locationId = $location->id;
+        $companyId = getUserCompany();
+
+        $category = InventoryCategories::query()
+            ->where('name', 'Laboratory Reagents')
+            ->where(function ($query) use ($locationId) {
+                $query->where('inventory_location_id', $locationId)
+                    ->orWhereNull('inventory_location_id');
+            })
+            ->when($companyId, function ($query) use ($companyId) {
+                $query->where(function ($inner) use ($companyId) {
+                    $inner->where('company_id', $companyId)
+                        ->orWhereNull('company_id');
+                });
+            })
+            ->first();
+
+        if ($category) {
+            if ($category->inventory_location_id === null) {
+                $category->inventory_location_id = $locationId;
+                $category->save();
+            }
+
+            return $category;
+        }
+
+        $category = InventoryCategories::query()
+            ->where('inventory_location_id', $locationId)
+            ->where(function ($query) {
+                $query->where('name', 'ilike', '%reagent%')
+                    ->orWhere('name', 'ilike', '%reagents%');
+            })
+            ->orderBy('name')
+            ->first();
+
+        if ($category) {
+            return $category;
+        }
+
+        $category = new InventoryCategories();
+        $category->name = 'Laboratory Reagents';
+        $category->description = 'Holds all the reagents required for sample analysis';
+        $category->company_id = $companyId;
+        $category->inventory_location_id = $locationId;
+        $category->category_type = 'normal';
+        $category->is_lab = false;
+        $category->active = true;
+        $category->image = 'no-logo.png';
+        $category->save();
+
+        return $category;
     }
 
     protected function syncSelectSearchLabels(): void

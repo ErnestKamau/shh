@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Equipments\Equipment;
 use App\User;
 
@@ -21,28 +23,68 @@ class ProcedureWorksheetStep extends Model implements Auditable
 
     protected $fillable = [
         'procedure_worksheet_id',
+        'procedure_worksheet_step_group_id',
         'step',
         'value_type',
         'is_active',
+        'is_result_step',
+        'attracts_equipment_logbook',
+        'logbook_equipment_ids',
         'default_equipment_id',
         'default_analyst_id',
         'default_measurand_ids',
         'default_value',
         'default_measurand_values',
+        'select_options',
         'order',
+        'table_mode',
+        'row_driver',
+        'row_driver_filters',
+        'allow_manual_rows',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_result_step' => 'boolean',
+        'attracts_equipment_logbook' => 'boolean',
+        'logbook_equipment_ids' => 'array',
         'default_measurand_ids' => 'array',
         'default_equipment_id' => 'array',
         'default_analyst_id' => 'array',
         'default_measurand_values' => 'array',
+        'select_options' => 'array',
+        'row_driver_filters' => 'array',
+        'allow_manual_rows' => 'boolean',
     ];
 
     public function worksheet()
     {
         return $this->belongsTo(ProcedureWorksheet::class, 'procedure_worksheet_id');
+    }
+
+    public function stepGroup(): BelongsTo
+    {
+        return $this->belongsTo(ProcedureWorksheetStepGroup::class, 'procedure_worksheet_step_group_id');
+    }
+
+    public function tableColumns(): HasMany
+    {
+        return $this->hasMany(ProcedureStepTableColumn::class, 'procedure_worksheet_step_id')->orderBy('order');
+    }
+
+    public function staticRows(): HasMany
+    {
+        return $this->hasMany(ProcedureStepTableStaticRow::class, 'procedure_worksheet_step_id')->orderBy('order');
+    }
+
+    public function isCustomTable(): bool
+    {
+        return $this->value_type === 'custom_table';
+    }
+
+    public function isStaticText(): bool
+    {
+        return $this->value_type === 'static_text';
     }
 
     public function getEquipmentAttribute()
@@ -101,5 +143,16 @@ class ProcedureWorksheetStep extends Model implements Auditable
             return collect([]);
         }
         return \App\ReportingUnit::whereIn('id', $this->default_measurand_ids)->get();
+    }
+
+    public function getLogbookEquipmentAttribute()
+    {
+        if (empty($this->logbook_equipment_ids)) {
+            return collect([]);
+        }
+
+        $ids = is_array($this->logbook_equipment_ids) ? $this->logbook_equipment_ids : [];
+
+        return Equipment::whereIn('id', $ids)->get();
     }
 }

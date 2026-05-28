@@ -2,6 +2,9 @@
 
 @section('title2')
     <title>Workflow Configuration</title>
+    <style type="text/css">
+        @include('layouts.registry.partials.workflow-config-styles')
+    </style>
 @endsection
 
 @section('content2')

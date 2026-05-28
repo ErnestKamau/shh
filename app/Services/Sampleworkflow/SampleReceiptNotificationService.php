@@ -6,8 +6,8 @@ use App\BatchAttachment;
 use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SubmissionFormInstance;
-use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
+use App\Services\System\AttachmentTypeResolver;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -127,6 +127,7 @@ class SampleReceiptNotificationService
         $pending = $this->loadPendingDraft($instanceId, $requestId);
         $merged = $this->mergeFormPayloads($pending, $wizardReceiptFields);
         $merged = $this->mergeFormPayloads($merged, $this->hydrateDefaultsFromAcceptanceForm($form));
+        $merged = $this->applyReceivingPersonFromAuth($merged);
         $form->update(['receipt_notification_payload' => $merged]);
         $this->deletePendingDraft($instanceId, $requestId);
     }
@@ -293,10 +294,49 @@ class SampleReceiptNotificationService
 
         $user->loadMissing('roles');
 
-        $form['receiver_name'] = (string) $user->name;
-        $form['receiver_designation'] = (string) ($user->roles->first()?->name ?? '');
+        if (trim((string) ($form['receiver_name'] ?? '')) === '') {
+            $form['receiver_name'] = (string) $user->name;
+        }
+
+        if (trim((string) ($form['receiver_designation'] ?? '')) === '') {
+            $form['receiver_designation'] = (string) ($user->roles->first()?->name ?? '');
+        }
+
+        if (trim((string) ($form['sample_receiving_date'] ?? '')) === '') {
+            $form['sample_receiving_date'] = now()->format('Y-m-d');
+        }
 
         return $form;
+    }
+
+    /**
+     * Validation for lab-assisted customer sign (step 3 receipt notification).
+     *
+     * @return array<string, array<int, string>>
+     */
+    public function labAssistedCustomerSignValidationRules(): array
+    {
+        return [
+            'receiptNotificationForm.submitter_name' => ['required', 'string', 'max:255'],
+            'receiptNotificationForm.submitter_designation' => ['required', 'string', 'max:255'],
+            'receiptNotificationForm.submitter_signature' => ['required', 'string'],
+            'receiptNotificationForm.receiver_name' => ['required', 'string', 'max:255'],
+            'receiptNotificationForm.receiver_designation' => ['required', 'string', 'max:255'],
+            'receiptNotificationForm.receiver_signature' => ['required', 'string'],
+            'receiptNotificationForm.sample_receiving_date' => ['required', 'date'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function labAssistedCustomerSignValidationMessages(): array
+    {
+        return [
+            'receiptNotificationForm.submitter_signature.required' => 'Please sign as the person submitting the sample or exhibit.',
+            'receiptNotificationForm.receiver_signature.required' => 'Receiving person signature is required.',
+            'receiptNotificationForm.sample_receiving_date.required' => 'Sample receiving date is required.',
+        ];
     }
 
     private function resolveClientNameForInstance(SubmissionFormInstance $instance): string
@@ -341,7 +381,7 @@ class SampleReceiptNotificationService
         return trim((string) ($instance->title ?? ''));
     }
 
-    private function findLinkedSubmissionRequest(SubmissionFormInstance $instance): ?SampleSubmissionRequest
+    public function findLinkedSubmissionRequest(SubmissionFormInstance $instance): ?SampleSubmissionRequest
     {
         $candidateIds = collect([
             $instance->portal_request_id,
@@ -464,18 +504,52 @@ class SampleReceiptNotificationService
             (string) ($form->sample_submission_request_id ?? '')
         );
 
-        $merged = $this->mergeFormPayloads(self::emptyForm(), $pending);
-        $merged = $this->mergeFormPayloads($merged, $this->hydrateDefaultsFromAcceptanceForm($form));
-        $merged = $this->mergeFormPayloads($merged, $fromColumn);
+        $merged = $this->mergePrefillWithUserDraft(self::emptyForm(), $pending);
+        $merged = $this->mergePrefillWithUserDraft($merged, $this->hydrateDefaultsFromAcceptanceForm($form));
+        $merged = $this->mergePrefillWithUserDraft($merged, $fromColumn);
 
         if ($form->sample_header_id) {
             $batch = SampleHeader::query()->find((string) $form->sample_header_id);
             if ($batch) {
-                $merged = $this->mergeFormPayloads($merged, $this->hydrateDefaultsFromBatch($batch));
+                $merged = $this->mergePrefillWithUserDraft($merged, $this->hydrateDefaultsFromBatch($batch));
             }
         }
 
-        return $merged;
+        $merged = $this->enrichResolvedFormFromAcceptanceForm($form, $merged);
+
+        return $this->applyReceivingPersonFromAuth($merged);
+    }
+
+    /**
+     * Backfill fields missing from stored payload (e.g. after batch merge wiped blanks).
+     *
+     * @param  array<string, mixed>  $form
+     * @return array<string, mixed>
+     */
+    public function enrichResolvedFormFromAcceptanceForm(AnalysisAcceptanceForm $form, array $formState): array
+    {
+        if (trim((string) ($formState['client_or_authority_name'] ?? '')) === '') {
+            $formState['client_or_authority_name'] = (string) ($form->customer_name ?? '');
+        }
+
+        if (trim((string) ($formState['submitter_name'] ?? '')) === '') {
+            $formState['submitter_name'] = (string) ($form->customer_signer_name ?? '');
+        }
+
+        if ((int) ($formState['number_of_samples'] ?? 0) < 1) {
+            $formState['number_of_samples'] = (int) ($form->number_of_samples ?? 0);
+        }
+
+        if (trim((string) ($formState['sample_description'] ?? '')) === '') {
+            $wizardPrefill = $this->hydrateDefaultsFromWizardSelection(
+                (string) ($form->submission_form_instance_id ?? ''),
+                (string) ($form->sample_submission_request_id ?? ''),
+                ['number_of_samples' => (int) ($form->number_of_samples ?? 0)]
+            );
+            $formState['sample_description'] = (string) ($wizardPrefill['sample_description'] ?? '');
+        }
+
+        return $formState;
     }
 
     /**
@@ -494,7 +568,7 @@ class SampleReceiptNotificationService
         }
 
         $existing = is_array($form->receipt_notification_payload) ? $form->receipt_notification_payload : [];
-        $merged = $this->mergeFormPayloads($existing, $this->hydrateDefaultsFromBatch($batch));
+        $merged = $this->mergePrefillWithUserDraft($existing, $this->hydrateDefaultsFromBatch($batch));
         $form->update(['receipt_notification_payload' => $merged]);
     }
 
@@ -565,7 +639,7 @@ class SampleReceiptNotificationService
 
         Storage::disk('public')->put($pdfStoragePath, $pdf->output());
 
-        $attachmentTypeId = $this->resolveAttachmentTypeId();
+        $attachmentTypeId = app(AttachmentTypeResolver::class)->resolveOrCreateAttachmentTypeId(self::ATTACHMENT_TITLE);
         $title = self::ATTACHMENT_TITLE;
 
         $attachment = BatchAttachment::where('batch_id', $batch->id)

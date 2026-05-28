@@ -57,7 +57,7 @@ class RiskConfigController extends Controller
             'code' => strtoupper($validated['code']),
             'description' => $validated['description'] ?? null,
             'is_active' => $request->has('is_active') ? 1 : 1,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => riskCompanyId(),
         ]);
 
         return redirect()->route('risk.config.risk-categories')
@@ -66,10 +66,7 @@ class RiskConfigController extends Controller
 
     public function updateRiskCategory(Request $request, $id)
     {
-        $category = RiskCategory::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $category = RiskCategory::forCompany()->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -91,10 +88,7 @@ class RiskConfigController extends Controller
 
     public function deleteRiskCategory($id)
     {
-        $category = RiskCategory::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $category = RiskCategory::forCompany()->findOrFail($id);
 
         $category->delete();
 
@@ -117,7 +111,7 @@ class RiskConfigController extends Controller
             'code' => strtoupper($validated['code']),
             'description' => $validated['description'] ?? null,
             'is_active' => $request->has('is_active') ? 1 : 1,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => riskCompanyId(),
         ]);
 
         return redirect()->route('risk.config.risk-sources')
@@ -126,10 +120,7 @@ class RiskConfigController extends Controller
 
     public function updateRiskSource(Request $request, $id)
     {
-        $source = RiskSource::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $source = RiskSource::forCompany()->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -151,10 +142,7 @@ class RiskConfigController extends Controller
 
     public function deleteRiskSource($id)
     {
-        $source = RiskSource::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $source = RiskSource::forCompany()->findOrFail($id);
 
         $source->delete();
 
@@ -183,7 +171,7 @@ class RiskConfigController extends Controller
             'order_index' => $validated['order_index'] ?? 0,
             'workflow_step' => $validated['workflow_step'] ?? null,
             'is_active' => $request->has('is_active') ? 1 : 1,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => riskCompanyId(),
         ]);
 
         return redirect()->route('risk.config.risk-statuses')
@@ -192,10 +180,7 @@ class RiskConfigController extends Controller
 
     public function updateRiskStatus(Request $request, $id)
     {
-        $status = RiskStatus::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $status = RiskStatus::forCompany()->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -223,10 +208,7 @@ class RiskConfigController extends Controller
 
     public function deleteRiskStatus($id)
     {
-        $status = RiskStatus::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $status = RiskStatus::forCompany()->findOrFail($id);
 
         $status->delete();
 
@@ -249,7 +231,7 @@ class RiskConfigController extends Controller
             'code' => strtoupper($validated['code']),
             'description' => $validated['description'] ?? null,
             'is_active' => $request->has('is_active') ? 1 : 1,
-            'company_id' => getUserCompany() ?? 0,
+            'company_id' => riskCompanyId(),
         ]);
 
         return redirect()->route('risk.config.treatment-types')
@@ -258,10 +240,7 @@ class RiskConfigController extends Controller
 
     public function updateTreatmentType(Request $request, $id)
     {
-        $type = TreatmentType::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $type = TreatmentType::forCompany()->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -283,10 +262,7 @@ class RiskConfigController extends Controller
 
     public function deleteTreatmentType($id)
     {
-        $type = TreatmentType::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $type = TreatmentType::forCompany()->findOrFail($id);
 
         $type->delete();
 
@@ -297,40 +273,28 @@ class RiskConfigController extends Controller
     // AJAX endpoints for getting single records
     public function getRiskCategory($id)
     {
-        $category = RiskCategory::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $category = RiskCategory::forCompany()->findOrFail($id);
 
         return response()->json($category);
     }
 
     public function getRiskSource($id)
     {
-        $source = RiskSource::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $source = RiskSource::forCompany()->findOrFail($id);
 
         return response()->json($source);
     }
 
     public function getRiskStatus($id)
     {
-        $status = RiskStatus::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $status = RiskStatus::forCompany()->findOrFail($id);
 
         return response()->json($status);
     }
 
     public function getTreatmentType($id)
     {
-        $type = TreatmentType::where(function($q) {
-            $companyId = getUserCompany() ?? 0;
-            $q->where('company_id', $companyId)->orWhere('company_id', 0);
-        })->findOrFail($id);
+        $type = TreatmentType::forCompany()->findOrFail($id);
 
         return response()->json($type);
     }

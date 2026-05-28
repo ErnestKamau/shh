@@ -42,6 +42,8 @@ class AuditWorkflowApproval extends Model implements Auditable
     protected $casts = [
         'workflow_step' => 'integer',
         'approved_at' => 'datetime',
+        'approvable_id' => 'string',
+        'approver_id' => 'string',
     ];
 
     // Relationships

@@ -1,4 +1,113 @@
 <div>
+    <style>
+        .sample-gw-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #dbeafe;
+            text-decoration: none !important;
+            margin: 0.15rem 0.25rem 0.15rem 0;
+            white-space: nowrap;
+        }
+        .sample-gw-pill:hover {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .sample-gw-pill--done {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #d1fae5;
+        }
+        .sample-gw-pill--progress {
+            background: #fff7ed;
+            color: #c2410c;
+            border-color: #ffedd5;
+        }
+        .sample-gw-timeline {
+            list-style: none;
+            margin: 0.75rem 0 0;
+            padding: 0 0 0 0.25rem;
+        }
+        .sample-gw-timeline__item {
+            display: flex;
+            gap: 0.75rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+        .sample-gw-timeline__item:not(:last-child)::before {
+            content: '';
+            position: absolute;
+            left: 13px;
+            top: 28px;
+            bottom: 0;
+            width: 2px;
+            background: #e2e8f0;
+        }
+        .sample-gw-timeline__dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.72rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px #e2e8f0;
+            z-index: 1;
+        }
+        .sample-gw-timeline__dot--final {
+            background: #d1fae5;
+            color: #047857;
+        }
+        .sample-gw-timeline__card {
+            flex: 1;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.55rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        .sample-gw-timeline__title {
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0 0 0.15rem;
+        }
+        .sample-gw-timeline__meta {
+            color: #64748b;
+            margin: 0;
+            font-size: 0.75rem;
+        }
+        .sample-gw-holder {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem 1.15rem;
+            margin-bottom: 1rem;
+            background: #fff;
+        }
+        .sample-gw-holder:last-child {
+            margin-bottom: 0;
+        }
+        .sample-gw-status {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .sample-gw-status--in_progress { background: #fff7ed; color: #c2410c; }
+        .sample-gw-status--completed { background: #ecfdf5; color: #047857; }
+    </style>
     <div wire:ignore>
         <script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
     </div>
@@ -168,6 +277,15 @@
                                 </button>
                                 @endif
 
+                                @php $rowWorksheets = $this->worksheetsForSampleRow($index); @endphp
+                                @if(count($rowWorksheets) > 0)
+                                <button type="button" wire:click="openGroupedWorksheetsModal({{ $index }})"
+                                    class="btn btn-sm btn-icon btn-light text-primary mx-1"
+                                    title="Grouped worksheets ({{ count($rowWorksheets) }})">
+                                    <i class="mdi mdi-folder-multiple-outline"></i>
+                                </button>
+                                @endif
+
                                 {{-- Comment Button --}}
                                 @if($sampleForm['id'])
                                 <button type="button" wire:click="openCommentsModal('{{ $sampleForm['id'] }}')"
@@ -282,6 +400,20 @@
                             @error("sampleForms.$index.analysis_type_id")
                             <small class="text-danger">{{ $message }}</small>
                             @enderror
+                            @endif
+                            @php $rowWorksheets = $this->worksheetsForSampleRow($index); @endphp
+                            @if(count($rowWorksheets) > 0)
+                                <div class="mt-1">
+                                    @foreach($rowWorksheets as $ws)
+                                        <a href="{{ $ws['capture_url'] }}"
+                                           class="sample-gw-pill {{ $ws['run_status'] === 'completed' ? 'sample-gw-pill--done' : ($ws['run_status'] === 'in_progress' ? 'sample-gw-pill--progress' : '') }}"
+                                           title="Open {{ $ws['holder_name'] }} — {{ implode(', ', $ws['analysis_names']) }}"
+                                           target="_blank" rel="noopener">
+                                            <i class="mdi mdi-folder-multiple-outline"></i>
+                                            {{ Str::limit($ws['holder_name'], 22) }}
+                                        </a>
+                                    @endforeach
+                                </div>
                             @endif
                         </td>
 
@@ -775,15 +907,24 @@
     @endif
     {{-- View Parameters Modal (Phase 5) --}}
     @if($showParametersModal)
-    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-xl" role="document">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-chart-box"></i> Parameters for Sample:
-                        <strong>{{ $selectedSampleCode }}</strong>
-                    </h5>
-                    <button type="button" class="close text-white" wire:click="cancelViewParameters">
+    <div class="modal fade show d-block sample-parameters-modal" tabindex="-1" role="dialog"
+        style="background: rgba(15, 23, 42, 0.45);" wire:keydown.escape.window="cancelViewParameters">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
+            <div class="modal-content sample-parameters-modal__content">
+                <div class="modal-header border-0 sample-parameters-modal__header">
+                    <div>
+                        <h5 class="modal-title mb-1">
+                            <i class="mdi mdi-flask-outline text-primary"></i>
+                            Parameters for sample
+                        </h5>
+                        <p class="text-muted small mb-0">
+                            <span class="badge badge-light border font-weight-normal">{{ $selectedSampleCode }}</span>
+                            @if(!empty($sampleParameters))
+                                <span class="ml-1">{{ count($sampleParameters) }} parameter{{ count($sampleParameters) === 1 ? '' : 's' }}</span>
+                            @endif
+                        </p>
+                    </div>
+                    <button type="button" class="close" wire:click="cancelViewParameters" aria-label="Close">
                         <span>&times;</span>
                     </button>
                 </div>
@@ -796,16 +937,14 @@
                     <p class="mt-2 text-muted">Loading parameters...</p>
                 </div>
 
-                <div wire:loading.remove wire:target="viewParameters" class="modal-body"
-                    style="max-height: 75vh; overflow-y: auto;">
+                <div wire:loading.remove wire:target="viewParameters" class="modal-body sample-parameters-modal__body">
                     @if(!empty($sampleParameters))
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered table-striped table-hover"
-                            style="font-size: 0.85rem;">
-                            <thead class="thead-dark sticky-top">
+                    <div class="table-responsive sample-parameters-modal__table-wrap">
+                        <table class="table table-sm sample-parameters-table mb-0">
+                            <thead>
                                 <tr>
                                     <th style="min-width: 100px;">Sample</th>
-                                    <th style="min-width: 100px;">Analysis Type</th>
+                                    <th style="min-width: 120px;">Analysis type</th>
                                     <th style="min-width: 150px;">Analyte</th>
                                     <th style="min-width: 80px;">Symbol</th>
                                     <th style="min-width: 100px;">Result</th>
@@ -828,9 +967,11 @@
                                 <tr wire:key="param-{{ $id }}">
                                     <td><strong>{{ $param['sample_code'] }}</strong></td>
                                     <td>{{ $param['analysis_type'] }}</td>
-                                    <td>
-                                        <strong>{{ $param['analyte_code'] }}</strong><br>
-                                        <small class="text-muted">{{ $param['analyte_name'] }}</small>
+                                    <td class="sample-parameters-modal__analyte">
+                                        <span class="font-weight-semibold d-block text-dark">{{ $param['analyte_name'] }}</span>
+                                        @if(!empty($param['analyte_code']) && $param['analyte_code'] !== $param['analyte_name'])
+                                            <small class="text-muted">{{ $param['analyte_code'] }}</small>
+                                        @endif
                                     </td>
                                     <td>{{ $param['result_reporting_symbol'] ?? '-' }}</td>
                                     <td style="min-width: 160px;">
@@ -841,7 +982,7 @@
                                                                                                                                                                                                                                                                             let val = $el.value;
                                                                                                                                                                                                                                                                             if(val) {
                                                                                                                                                                                                                                                                                 setTimeout(() => {
-                                                                                                                                                                                                                                                                                    let conf = prompt('Please confirm result for {{ $param['analyte_code'] }}:');
+                                                                                                                                                                                                                                                                                    let conf = prompt('Please confirm result for {{ $param['analyte_name'] }}:');
                                                                                                                                                                                                                                                                                     if(conf != val) {
                                                                                                                                                                                                                                                                                         alert('Result mismatch! Please re-enter.');
                                                                                                                                                                                                                                                                                         $el.value = '';
@@ -968,22 +1109,113 @@
                         </table>
                     </div>
                     @else
-                    <div class="alert alert-info">
-                        <i class="mdi mdi-information"></i> No captured results found for this sample.
+                    <div class="alert alert-light border text-center py-5 mb-0">
+                        <i class="mdi mdi-flask-empty-outline text-muted" style="font-size: 2.5rem;"></i>
+                        <p class="mb-0 mt-2 text-muted">No captured results found for this sample.</p>
                     </div>
                     @endif
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="cancelViewParameters">
+                <div class="modal-footer border-0 sample-parameters-modal__footer">
+                    <button type="button" class="btn btn-light" wire:click="cancelViewParameters">
                         <i class="mdi mdi-close"></i> Close
                     </button>
-                    <button type="button" class="btn btn-primary" wire:click="saveParameters">
-                        <i class="mdi mdi-content-save"></i> Save Changes
+                    <button type="button" class="btn btn-primary px-4" wire:click="saveParameters"
+                        wire:loading.attr="disabled" wire:target="saveParameters">
+                        <span wire:loading.remove wire:target="saveParameters">
+                            <i class="mdi mdi-content-save"></i> Save changes
+                        </span>
+                        <span wire:loading wire:target="saveParameters">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                            Saving…
+                        </span>
                     </button>
                 </div>
             </div>
         </div>
     </div>
+
+    <style>
+        .sample-parameters-modal__content {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+        }
+
+        .sample-parameters-modal__header {
+            padding: 1.25rem 1.5rem 0.75rem;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+        }
+
+        .sample-parameters-modal__body {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 0 1.5rem 1rem;
+            background: #f8fafc;
+        }
+
+        .sample-parameters-modal__table-wrap {
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            background: #fff;
+            overflow: auto;
+            max-height: 62vh;
+        }
+
+        .sample-parameters-table {
+            font-size: 0.8125rem;
+            margin-bottom: 0;
+        }
+
+        .sample-parameters-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .sample-parameters-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .sample-parameters-table tbody td {
+            vertical-align: middle;
+            border-color: #f1f5f9;
+        }
+
+        .sample-parameters-modal__analyte {
+            min-width: 140px;
+            max-width: 200px;
+        }
+
+        .sample-parameters-modal__analyte .font-weight-semibold {
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .sample-parameters-modal__footer {
+            padding: 1rem 1.5rem 1.25rem;
+            background: #fff;
+        }
+
+        .sample-parameters-table .form-control-sm {
+            border-radius: 8px;
+            border-color: #e2e8f0;
+        }
+
+        .sample-parameters-table .form-control-sm:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
+        }
+    </style>
     @endif
 
     {{-- Comments & Interpretations Modal --}}
@@ -1823,6 +2055,79 @@
             </div>
         </div>
     </div>
+    </div>
+    @endif
+
+    {{-- Grouped worksheets modal (per sample, from linked analysis types) --}}
+    @if($showGroupedWorksheetsModal)
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1095;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+            <div class="modal-content" style="border-radius: 15px; border: none;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">
+                        <i class="mdi mdi-folder-multiple-outline text-primary"></i>
+                        Grouped worksheets — {{ $groupedWorksheetsModalSampleCode }}
+                    </h5>
+                    <button type="button" class="close" wire:click="closeGroupedWorksheetsModal" aria-label="Close">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body pt-2">
+                    <p class="text-muted small mb-3">
+                        Pipelines linked via this sample's analysis types. Open a worksheet to capture results for the batch.
+                    </p>
+                    @foreach($groupedWorksheetsModalItems as $ws)
+                        <div class="sample-gw-holder">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                <div>
+                                    <h6 class="mb-1 font-weight-bold">{{ $ws['holder_name'] }}</h6>
+                                    <p class="text-muted small mb-0">
+                                        <i class="mdi mdi-flask-outline"></i>
+                                        {{ implode(' · ', $ws['analysis_names']) }}
+                                        <span class="mx-1">·</span>
+                                        {{ $ws['step_count'] }} {{ Str::plural('stage', $ws['step_count']) }}
+                                    </p>
+                                </div>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="sample-gw-status {{ $ws['run_status'] ? 'sample-gw-status--' . $ws['run_status'] : '' }}">
+                                        {{ $ws['run_status_label'] }}
+                                    </span>
+                                    <a href="{{ $ws['capture_url'] }}" class="btn btn-sm btn-primary" target="_blank" rel="noopener">
+                                        <i class="mdi mdi-clipboard-edit-outline"></i> Capture worksheet
+                                    </a>
+                                </div>
+                            </div>
+                            @if(!empty($ws['stages']))
+                                <ul class="sample-gw-timeline">
+                                    @foreach($ws['stages'] as $stage)
+                                        <li class="sample-gw-timeline__item">
+                                            <div class="sample-gw-timeline__dot {{ $loop->last ? 'sample-gw-timeline__dot--final' : '' }}">
+                                                {{ $stage['sequence'] }}
+                                            </div>
+                                            <div class="sample-gw-timeline__card">
+                                                <p class="sample-gw-timeline__title">{{ $stage['label'] }}</p>
+                                                <p class="sample-gw-timeline__meta mb-0">
+                                                    {{ ucwords(str_replace('_', ' ', $stage['item_type'])) }}
+                                                    @if($stage['reference_name'] && $stage['reference_name'] !== '—')
+                                                        — {{ $stage['reference_name'] }}
+                                                    @endif
+                                                    @if($stage['is_required'])
+                                                        <span class="text-danger">· Required</span>
+                                                    @endif
+                                                </p>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary" wire:click="closeGroupedWorksheetsModal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
     @endif
 

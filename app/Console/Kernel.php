@@ -65,6 +65,13 @@ class Kernel extends ConsoleKernel
                 \Log::error('Equipment maintenance chase failed');
             });
 
+        $schedule->command('equipment:process-depreciation')
+            ->dailyAt('02:00')
+            ->withoutOverlapping()
+            ->onFailure(function (): void {
+                \Log::error('Equipment depreciation processing failed');
+            });
+
         // Audit CAPA Chase (Daily)
         $schedule->command('workflow:audit-capa-chase')
             ->dailyAt('07:00')

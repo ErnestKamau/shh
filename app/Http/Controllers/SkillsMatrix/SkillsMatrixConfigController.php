@@ -33,7 +33,7 @@ class SkillsMatrixConfigController extends Controller
 		
 		$module = "Matrix Configuration";
 				
-		$matrix_data =  SkillsMatrix::leftJoin('inventory_departments as c', 'c.id', '=', 'skillsmatrices.department_id')->where('skillsmatrices.id',$id)->selectRaw('skillsmatrices.*, c.name as department')->get();
+		$matrix_data = SkillsMatrix::where('skillsmatrices.id', $id)->withDepartmentName()->get();
 		foreach($matrix_data as $aType){			
 			$matrix_info = $aType;
 		}

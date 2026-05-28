@@ -123,7 +123,7 @@ class EquipmentDashboard extends Component
 
     private function getDaysUntilCalibration(Equipment $equipment): int
     {
-        $lastDate = $equipment->latestCalibration?->last_calibration_date ?? $equipment->date_purchased;
+        $lastDate = $equipment->latestCalibration?->date ?? $equipment->date_purchased;
         if (!$lastDate) {
             return PHP_INT_MAX;
         }
@@ -134,7 +134,7 @@ class EquipmentDashboard extends Component
 
     private function getDaysUntilMaintenance(Equipment $equipment): int
     {
-        $lastDate = $equipment->latestMaintenance?->last_maintainance_date ?? $equipment->date_purchased;
+        $lastDate = $equipment->latestMaintenance?->date ?? $equipment->date_purchased;
         if (!$lastDate) {
             return PHP_INT_MAX;
         }

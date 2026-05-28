@@ -1,4 +1,4 @@
-<div class="acc-wizard-root">
+<div class="acc-wizard-root acc-wizard-root--rejection">
     @if($showModal)
         <div class="acc-wizard-backdrop" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-lg acc-wizard-dialog" role="document">
@@ -160,7 +160,7 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
         }
 
-        .acc-wizard-header {
+        .acc-wizard-root--rejection .acc-wizard-header {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
@@ -169,7 +169,7 @@
             color: #fff;
         }
 
-        .acc-wizard-eyebrow {
+        .acc-wizard-root--rejection .acc-wizard-eyebrow {
             display: block;
             font-size: 0.7rem;
             letter-spacing: 0.12em;
@@ -177,15 +177,15 @@
             opacity: 0.85;
         }
 
-        .acc-wizard-title {
+        .acc-wizard-root--rejection .acc-wizard-title {
             margin: 0.15rem 0 0;
             font-size: 1.2rem;
             font-weight: 700;
         }
 
-        .acc-wizard-title i { margin-right: 0.35rem; }
+        .acc-wizard-root--rejection .acc-wizard-title i { margin-right: 0.35rem; }
 
-        .acc-wizard-close {
+        .acc-wizard-root--rejection .acc-wizard-close {
             border: none;
             background: rgba(255, 255, 255, 0.15);
             color: #fff;

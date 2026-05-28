@@ -65,7 +65,7 @@
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
-			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
+			<div class="list-group-item p-4 text-center text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
 				<span class="text-lg text-bold">Suppliers</span>
 			</div>
@@ -77,7 +77,7 @@
 			<!-- Menu with submenu -->
 			
      
-            <a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+            <a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-details mr-3 menu-collapsed"></span>Supplier Details
 					<span class="submenu-icon ml-auto"></span>
@@ -90,28 +90,28 @@
 					$lpos_sup = getSupplierlpos(auth()->user()->supplier_id);
 					$goods = getSupplierGoodReceipt(auth()->user()->supplier_id);
 					?>
-					<a href="{{route('supplier-dashboard-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<a href="{{route('supplier-dashboard-home')}}" class="list-group-item list-group-item-action">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Dashboard
 						
 						<small class="float-right badge badge-pill badge-dark"></small>
 						
 						</span>
 					</a>
-					<a href="#Categories" data-toggle="tab" class="list-group-item list-group-item-action bg-dark text-white">
+					<a href="#Categories" data-toggle="tab" class="list-group-item list-group-item-action">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Request For Quotations
 						
 						<small class="float-right badge badge-pill badge-dark">{{count($rf)}}</small>
 						
                         </span>
                     </a>
-                    <a href="#Activity" data-toggle="tab" class="list-group-item list-group-item-action bg-dark text-white">
+                    <a href="#Activity" data-toggle="tab" class="list-group-item list-group-item-action">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Local Purchase order
 						
 						<small class="float-right badge badge-pill badge-dark">{{count($lpos_sup)}}</small>
 						
                         </span>
                     </a>
-                    <a href="#Orders" data-toggle="tab" class="list-group-item list-group-item-action bg-dark text-white">
+                    <a href="#Orders" data-toggle="tab" class="list-group-item list-group-item-action">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Goods Receipts
 						
 						<small class="float-right badge badge-pill badge-dark">{{count($goods)}}</small>
@@ -119,7 +119,7 @@
                         </span>
                     </a>
 					
-                    <a href="#Ratings" data-toggle="tab" class="list-group-item list-group-item-action bg-dark text-white">
+                    <a href="#Ratings" data-toggle="tab" class="list-group-item list-group-item-action">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Ratings
 						
 						<small class="float-right badge badge-pill badge-dark">{{count($supplier->ratings)}}</small>
@@ -129,14 +129,14 @@
 				
       </div>
 		
-		<a href="{{route('user-detail')}}" class="bg-dark list-group-item list-group-item-action">
+		<a href="{{route('user-detail')}}" class="list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-chat-processing fa-fw mr-3"></span>
 					<span class="menu-collapsed">Chat</span>
 				</div>
 			</a>
 
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->

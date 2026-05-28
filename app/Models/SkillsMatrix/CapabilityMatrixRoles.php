@@ -27,4 +27,9 @@ class CapabilityMatrixRoles extends Model implements Auditable
     public function user(){
         return $this->belongsTo(User::class,'user_id');
     }
+
+    public function capability(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(CapabilityMatrix::class, 'capability_id');
+    }
 }

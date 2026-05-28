@@ -134,7 +134,18 @@
                                                     <strong>{{ $step['variable_name'] }}</strong>
                                                 </td>
                                                 <td>
-                                                    <span class="badge badge-{{ $step['step_type'] === 'input' ? 'success' : ($step['step_type'] === 'derived' ? 'info' : ($step['step_type'] === 'parameter_result' ? 'dark' : 'warning')) }}">
+                                                    @php
+                                                        $typeBadge = match($step['step_type']) {
+                                                            'input' => 'success',
+                                                            'derived' => 'info',
+                                                            'parameter_result' => 'dark',
+                                                            'static_text' => 'secondary',
+                                                            'checkbox' => 'primary',
+                                                            'custom_table' => 'warning',
+                                                            default => 'warning',
+                                                        };
+                                                    @endphp
+                                                    <span class="badge badge-{{ $typeBadge }}">
                                                         {{ ucfirst(str_replace('_', ' ', $step['step_type'])) }}
                                                     </span>
                                                 </td>
@@ -150,6 +161,12 @@
                                                         <small class="text-muted">
                                                             Analyte ID: {{ $step['analyte_id'] ?? 'N/A' }}
                                                         </small>
+                                                    @elseif($step['step_type'] === 'static_text')
+                                                        <small class="text-muted">{{ Str::limit($step['step_config']['content'] ?? '-', 50) }}</small>
+                                                    @elseif($step['step_type'] === 'checkbox')
+                                                        <small class="text-muted">{{ ucfirst($step['step_config']['options_mode'] ?? 'static') }} options</small>
+                                                    @elseif($step['step_type'] === 'custom_table')
+                                                        <small class="text-muted">{{ ucfirst($step['table_mode'] ?? 'dynamic') }} table</small>
                                                     @else
                                                         <span class="text-muted">-</span>
                                                     @endif
@@ -158,13 +175,24 @@
                                                     <span class="text-muted">{{ Str::limit($step['description'], 50) }}</span>
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button wire:click="showEditStepModalInit(@js($step['id']))" 
-                                                                class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <div class="d-flex flex-wrap">
+                                                        @if(($step['step_type'] ?? '') === 'custom_table')
+                                                        <button type="button"
+                                                                wire:click="openConfigureTableModalForStep(@js($step['id']))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--view"
+                                                                title="Configure table">
+                                                            <i class="mdi mdi-table-cog"></i>
+                                                        </button>
+                                                        @endif
+                                                        <button type="button"
+                                                                wire:click="showEditStepModalInit(@js($step['id']))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                                                title="Edit">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
-                                                        <button wire:click="showDeleteStepModal(@js($step['id']))" 
-                                                                class="btn btn-sm btn-outline-danger" 
+                                                        <button type="button"
+                                                                wire:click="showDeleteStepModal(@js($step['id']))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                                 title="Delete">
                                                             <i class="mdi mdi-delete"></i>
                                                         </button>
@@ -209,6 +237,30 @@
                         </div>
                     </div>
                     <div class="card-body p-4">
+                        <div class="fm-placement-bar fm-placement-bar--inline mb-4" role="radiogroup" aria-label="Default placement for new mandatory fields">
+                            <div class="fm-placement-bar__text">
+                                <i class="mdi mdi-arrow-collapse-vertical text-primary" aria-hidden="true"></i>
+                                <span class="fm-placement-bar__title">Form placement</span>
+                                <span class="fm-placement-bar__desc text-muted">
+                                    Default for new fields — appear
+                                    <strong>{{ $mandatoryFieldsPlacement === 'top' ? 'above' : 'below' }}</strong>
+                                    the sample table during batch capture.
+                                </span>
+                            </div>
+                            <div class="fm-placement-options fm-placement-options--compact">
+                                <label class="fm-placement-chip {{ $mandatoryFieldsPlacement === 'top' ? 'is-active' : '' }}" title="Above the sample table">
+                                    <input type="radio" wire:model.live="mandatoryFieldsPlacement" value="top" class="fm-placement-input">
+                                    <i class="mdi mdi-arrow-up-bold"></i>
+                                    <span>Top</span>
+                                </label>
+                                <label class="fm-placement-chip {{ $mandatoryFieldsPlacement === 'bottom' ? 'is-active' : '' }}" title="Below the sample table">
+                                    <input type="radio" wire:model.live="mandatoryFieldsPlacement" value="bottom" class="fm-placement-input">
+                                    <i class="mdi mdi-arrow-down-bold"></i>
+                                    <span>Bottom</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <!-- Search Bar -->
                         <div class="row mb-3">
                             <div class="col-md-10">
@@ -232,9 +284,10 @@
                                             <th style="width: 60px;">Order</th>
                                             <th>Label</th>
                                             <th>Field Type</th>
+                                            <th>Placement</th>
                                             <th>Value Name</th>
                                             <th>Required</th>
-                                            <th>Dataset Model</th>
+                                            <th>Configuration</th>
                                             <th style="width: 200px;">Actions</th>
                                         </tr>
                                     </thead>
@@ -257,6 +310,13 @@
                                                     <span class="badge badge-info">{{ ucfirst(str_replace('_', ' ', $field['field_type'])) }}</span>
                                                 </td>
                                                 <td>
+                                                    @php $placement = $field['form_placement'] ?? 'bottom'; @endphp
+                                                    <span class="badge badge-{{ $placement === 'top' ? 'primary' : 'secondary' }}">
+                                                        <i class="mdi mdi-arrow-{{ $placement === 'top' ? 'up' : 'down' }}-bold"></i>
+                                                        {{ ucfirst($placement) }}
+                                                    </span>
+                                                </td>
+                                                <td>
                                                     <code>{{ $field['field_value_name'] }}</code>
                                                 </td>
                                                 <td>
@@ -267,10 +327,16 @@
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    @if($field['model_tied_to'])
+                                                    @if($field['field_type'] === 'checkbox')
+                                                        @php
+                                                            $opts = $field['field_options']['options'] ?? [];
+                                                            $optCount = is_array($opts) ? count($opts) : 0;
+                                                        @endphp
+                                                        <span class="badge badge-primary">{{ $optCount }} {{ $optCount === 1 ? 'option' : 'options' }}</span>
+                                                    @elseif($field['model_tied_to'])
                                                         <span class="badge badge-warning">{{ ucfirst($field['model_tied_to']) }}</span>
                                                     @else
-                                                        <span class="text-muted">-</span>
+                                                        <span class="text-muted">—</span>
                                                     @endif
                                                 </td>
                                                 <td>
@@ -307,17 +373,19 @@
         </div>
 
         @if($showCreateStepModal)
-            <div class="modal fade show d-block formula-step-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="mdi mdi-plus"></i>
-                                Create New Step
-                            </h5>
-                            <button type="button" class="btn-close" wire:click="$set('showCreateStepModal', false)"></button>
+            <div class="fs-modal show d-block formula-step-modal" tabindex="-1" wire:click.self="closeCreateStepModal">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable fs-modal-dialog" wire:click.stop>
+                    <div class="modal-content fs-modal-content">
+                        <div class="modal-header fs-modal-header">
+                            <div>
+                                <h5 class="modal-title mb-1">Create New Step</h5>
+                                <p class="fs-modal-subtitle mb-0">Define how this step captures or calculates data in the formula pipeline.</p>
+                            </div>
+                            <button type="button" class="close fs-modal-close" wire:click="closeCreateStepModal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body fs-modal-body">
                             @if($message)
                                 <div class="alert alert-{{ $this->messageAlertClass() }} alert-dismissible fade show mb-3" role="alert">
                                     {{ $message }}
@@ -339,319 +407,15 @@
                                 </div>
                             @endif
                             
-                            <form wire:submit.prevent="createStep">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <label for="stepNumber" class="form-label">Step Number *</label>
-                                            <input type="number" wire:model="stepNumber" class="form-control @error('stepNumber') is-invalid @enderror" id="stepNumber" required min="1">
-                                            @error('stepNumber') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                    </div>
-                                    <div class="col-md-8">
-                                        <div class="mb-3">
-                                            <label class="form-label d-block"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
-                                            <div class="step-type-picker @error('stepType') is-invalid @enderror" id="stepType">
-                                                @foreach($this->stepTypeOptions as $value => $label)
-                                                    <label class="step-type-option {{ $stepType === $value ? 'active' : '' }}">
-                                                        <input type="radio"
-                                                               wire:model.live="stepType"
-                                                               value="{{ $value }}"
-                                                               class="step-type-option-input"
-                                                               name="create_step_type">
-                                                        <span>{{ $label }}</span>
-                                                    </label>
-                                                @endforeach
-                                            </div>
-                                            @error('stepType') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="variableName" class="form-label">Variable Name *</label>
-                                            <input type="text" wire:model="variableName" class="form-control @error('variableName') is-invalid @enderror" id="variableName" required>
-                                            @error('variableName') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="label" class="form-label">Label *</label>
-                                            <input type="text" wire:model="label" class="form-control @error('label') is-invalid @enderror" id="label" required>
-                                            @error('label') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="formula-step-modal-scroll">
-                                @if($stepType === 'derived')
-                                    <!-- Derived Step Configuration -->
-                                    <div class="card bg-light mb-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0 text-muted">
-                                                <i class="mdi mdi-function"></i> Expression Configuration
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label for="expression" class="form-label">Expression *</label>
-                                                <div class="input-group">
-                                                    <textarea wire:model="expression" class="form-control @error('expression') is-invalid @enderror" id="expression" rows="3" required placeholder="e.g., (temperature * 1.8) + 32"></textarea>
-                                                    <button type="button" wire:click="validateExpression" class="btn btn-outline-info">
-                                                        <i class="mdi mdi-check"></i> Validate
-                                                    </button>
-                                                </div>
-                                                @error('expression') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                                <div class="form-text">Use variable names from previous steps in your expression</div>
-                                            </div>
-                                            
-                                            <!-- Available Variables Reference -->
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <h6 class="text-muted mb-2">Available Variables</h6>
-                                                    @if(count($availableVariables) > 0)
-                                                        <div class="list-group list-group-flush">
-                                                            @foreach($availableVariables as $var)
-                                                                <div class="list-group-item px-0 py-1 border-0">
-                                                                    <div class="d-flex justify-content-between align-items-center">
-                                                                        <div>
-                                                                            <code class="text-primary">{{ $var['name'] }}</code>
-                                                                            <small class="text-muted d-block">{{ $var['label'] }}</small>
-                                                                        </div>
-                                                                        <span class="badge badge-{{ $var['type'] === 'input' ? 'success' : ($var['type'] === 'derived' ? 'info' : 'warning') }} badge-sm">
-                                                                            {{ ucfirst($var['type']) }}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-                                                    @else
-                                                        <p class="text-muted small">No variables available from previous steps</p>
-                                                    @endif
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <h6 class="text-muted mb-2">Global Constants</h6>
-                                                    @if(count($globalVariables) > 0)
-                                                        <div class="list-group list-group-flush">
-                                                            @foreach($globalVariables as $constant)
-                                                                <div class="list-group-item px-0 py-1 border-0">
-                                                                    <div class="d-flex justify-content-between align-items-center">
-                                                                        <div>
-                                                                            <code class="text-success">{{ $constant->name }}</code>
-                                                                            <small class="text-muted d-block">{{ $constant->description }}</small>
-                                                                        </div>
-                                                                        <span class="badge badge-secondary badge-sm">
-                                                                            {{ $constant->value }}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-                                                    @else
-                                                        <p class="text-muted small">No global constants defined</p>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endif
-        
-                                @if($stepType === 'lookup')
-                                    <!-- Lookup Step Configuration -->
-                                    <div class="card bg-light mb-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0 text-muted">
-                                                <i class="mdi mdi-table-search"></i> Lookup Configuration
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="lookupTableId" class="form-label"><i class="mdi mdi-table-search text-primary"></i> Lookup Table *</label>
-                                        <select wire:model.live="lookupTableId" class="form-select modern-select no-select2 @error('lookupTableId') is-invalid @enderror" id="lookupTableId" required>
-                                            <option value="">Select Lookup Table</option>
-                                            @foreach($lookupTables as $table)
-                                                <option value="{{ $table->id }}">{{ $table->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('lookupTableId') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                            
-                                            @if($lookupTableId)
-                                                @php
-                                                    $selectedTable = $lookupTables->firstWhere('id', $lookupTableId);
-                                                @endphp
-                                                @if($selectedTable)
-                                                    <div class="alert alert-{{ $selectedTable->lookup_type === 'range_based' ? 'warning' : 'info' }}">
-                                                        <h6 class="alert-heading">
-                                                            <i class="mdi mdi-information"></i> Table Information
-                                                        </h6>
-                                                        <div class="mb-2">
-                                                            <strong>Type:</strong>
-                                                            @if($selectedTable->lookup_type === 'range_based')
-                                                                <span class="badge badge-warning">
-                                                                    <i class="mdi mdi-chart-line"></i> Range-Based
-                                                                </span>
-                                                                <br><small class="text-muted">Variable: {{ $selectedTable->range_variable_name }}</small>
-                                                            @else
-                                                                <span class="badge badge-primary">
-                                                                    <i class="mdi mdi-key"></i> Key-Value Comparison
-                                                                </span>
-                                                            @endif
-                                                        </div>
-                                                        <div class="row">
-                                                            <div class="col-md-6">
-                                                                <strong>{{ $selectedTable->lookup_type === 'range_based' ? 'Range Keys:' : 'Key Columns:' }}</strong>
-                                                                @foreach($selectedTable->key_columns as $column)
-                                                                    <span class="badge badge-secondary me-1">{{ $column }}</span>
-                                                                @endforeach
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <strong>Value Column:</strong>
-                                                                <span class="badge badge-primary">{{ $selectedTable->value_column }}</span>
-                                                                @if($selectedTable->value_interpretation_column)
-                                                                    <br><small>+ {{ $selectedTable->value_interpretation_column }}</small>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                                
-                                                @if($selectedTable && $selectedTable->lookup_type === 'range_based')
-                                                    <!-- Range-Based Configuration -->
-                                                    <div class="alert alert-warning mb-3">
-                                                        <i class="mdi mdi-information"></i>
-                                                        <strong>Range-Based Lookup:</strong> Select which variable to check against the ranges.
-                                                    </div>
-                                                    
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-bold">Variable to Check *</label>
-                                                        <select wire:model="lookupConfig.range_variable" class="form-select modern-select no-select2">
-                                                            <option value="">Select Variable...</option>
-                                                            @foreach($availableVariables as $varName => $varData)
-                                                                <option value="{{ $varName }}">{{ $varData['label'] }} ({{ $varName }})</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <small class="text-muted">
-                                                            Select which formula variable to check against ranges in "{{ $selectedTable->name }}"
-                                                            <br>(Expected range variable: <code>{{ $selectedTable->range_variable_name }}</code>)
-                                                        </small>
-                                                    </div>
-                                                    
-                                                    @if($selectedTable->value_interpretation_column)
-                                                        <div class="mb-3">
-                                                            <div class="form-check">
-                                                                <input type="checkbox" 
-                                                                       wire:model="lookupConfig.return_interpretation" 
-                                                                       class="form-check-input" 
-                                                                       id="returnInterpretation">
-                                                                <label class="form-check-label" for="returnInterpretation">
-                                                                    Return Interpretation Text
-                                                                    <span class="badge badge-info">{{ $selectedTable->value_interpretation_column }}</span>
-                                                                </label>
-                                                            </div>
-                                                            <small class="text-muted">
-                                                                If checked, returns the text interpretation instead of the numeric value
-                                                            </small>
-                                                        </div>
-                                                    @endif
-                                                    
-                                                    <!-- Preview -->
-                                                    <div class="card bg-light">
-                                                        <div class="card-body">
-                                                            <h6 class="text-muted">Preview</h6>
-                                                            <code>
-                                                                IF {{ $lookupConfig['range_variable'] ?? 'variable' }} is in range → 
-                                                                Return {{ ($lookupConfig['return_interpretation'] ?? false) ? 'interpretation' : 'value' }}
-                                                            </code>
-                                                        </div>
-                                                    </div>
-                                                @elseif(!empty($lookupConfig))
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Key Configuration</label>
-                                                        <div class="card bg-white">
-                                                            <div class="card-body">
-                                                                @foreach($lookupConfig['key_expressions'] as $key => $value)
-                                                                    <div class="mb-3">
-                                                                        <label class="form-label small">
-                                                                            {{ $selectedTable->key_label ?: $key }}
-                                                                            <span class="text-muted">({{ $key }})</span>
-                                                                        </label>
-                                                                        <div class="row">
-                                                                            <div class="col-md-8">
-                                                                                <div class="input-group">
-                                                                                    <span class="input-group-text">
-                                                                                        <i class="mdi mdi-key"></i>
-                                                                                    </span>
-                                                                                    <input type="text" 
-                                                                                           wire:model="lookupConfig.key_expressions.{{ $key }}" 
-                                                                                           class="form-control lookup-key-input" 
-                                                                                           id="lookup-key-{{ $key }}-create"
-                                                                                           data-key="{{ $key }}"
-                                                                                           placeholder="Expression or value (e.g., temperature, {{ $key }})">
-                                                                                </div>
-                                                                                <div class="form-text">Use variable names or direct values</div>
-                                                                            </div>
-                                                                            <div class="col-md-4">
-                                                                                <label class="form-label small text-muted">Quick Select</label>
-                                                                                <select class="form-select form-select-sm modern-select-sm quick-select-variable" 
-                                                                                        data-target-input="lookup-key-{{ $key }}-create">
-                                                                                    <option value="">Select Variable</option>
-                                                                                    @foreach($availableVariables as $varName => $varData)
-                                                                                        <option value="{{ $varName }}">{{ $varData['label'] }} ({{ $varName }})</option>
-                                                                                    @endforeach
-                                                                                    @foreach($globalVariables as $constant)
-                                                                                        <option value="{{ $constant->name }}">{{ $constant->name }} ({{ $constant->value }})</option>
-                                                                                    @endforeach
-                                                                                </select>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                @endforeach
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                            @endif
-                                        </div>
-                                    </div>
-                                @endif
-
-                                @if($stepType === 'parameter_result')
-                                    <!-- Parameter Result Step Configuration -->
-                                    <div class="card bg-light mb-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0 text-muted">
-                                                <i class="mdi mdi-flask"></i> Analyte Selection
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="analyteId" class="form-label"><i class="mdi mdi-flask text-primary"></i> Select Analyte *</label>
-                                        <select wire:model.live="analyteId" class="form-select modern-select no-select2 @error('analyteId') is-invalid @enderror" id="analyteId" required>
-                                            <option value="">Select Analyte</option>
-                                            @foreach($analytes as $analyte)
-                                                <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
-                                            @endforeach
-                                        </select>
-                                        @error('analyteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                        </div>
-                                    </div>
-                                @endif
-        
-                                <div class="mb-3">
-                                    <label for="description" class="form-label">Description</label>
-                                    <textarea wire:model="description" class="form-control @error('description') is-invalid @enderror" id="description" rows="2"></textarea>
-                                    @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                                </div>
+                            <form id="create-formula-step-form" wire:submit.prevent="createStep" class="fs-step-form">
+                                @include('livewire.formulars.partials.formula-step-form-fields', ['stepFormMode' => 'create'])
                             </form>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" wire:click="$set('showCreateStepModal', false)">Cancel</button>
-                            <button type="button" class="btn btn-primary" wire:click="createStep">Create Step</button>
+                        <div class="modal-footer fs-modal-footer">
+                            <button type="button" class="btn btn-light" wire:click="closeCreateStepModal">Cancel</button>
+                            <button type="submit" form="create-formula-step-form" class="btn btn-primary px-4">
+                                <i class="mdi mdi-content-save-outline mr-1"></i> Create Step
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -663,17 +427,19 @@
 
 <!-- Edit Step Modal -->
 @if($showEditStepModal)
-    <div class="modal fade show d-block formula-step-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-pencil"></i>
-                        Edit Step
-                    </h5>
-                    <button type="button" class="btn-close" wire:click="$set('showEditStepModal', false)"></button>
+    <div class="fs-modal show d-block formula-step-modal" tabindex="-1" wire:click.self="closeEditStepModal">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable fs-modal-dialog" wire:click.stop>
+            <div class="modal-content fs-modal-content">
+                <div class="modal-header fs-modal-header">
+                    <div>
+                        <h5 class="modal-title mb-1">Edit Step</h5>
+                        <p class="fs-modal-subtitle mb-0">Update how this step captures or calculates data in the formula pipeline.</p>
+                    </div>
+                    <button type="button" class="close fs-modal-close" wire:click="closeEditStepModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body fs-modal-body">
                     @if($message)
                         <div class="alert alert-{{ $this->messageAlertClass() }} alert-dismissible fade show mb-3" role="alert">
                             {{ $message }}
@@ -681,7 +447,6 @@
                         </div>
                     @endif
 
-                    <!-- Error Display -->
                     @if($errors->any())
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             <h6 class="alert-heading">
@@ -694,320 +459,16 @@
                             </ul>
                         </div>
                     @endif
-                    
-                    <form wire:submit.prevent="updateStep">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="editStepNumber" class="form-label">Step Number *</label>
-                                    <input type="number" wire:model="stepNumber" class="form-control @error('stepNumber') is-invalid @enderror" id="editStepNumber" required min="1">
-                                    @error('stepNumber') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label class="form-label d-block"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
-                                    <div class="step-type-picker @error('stepType') is-invalid @enderror" id="editStepType">
-                                        @foreach($this->stepTypeOptions as $value => $label)
-                                            <label class="step-type-option {{ $stepType === $value ? 'active' : '' }}">
-                                                <input type="radio"
-                                                       wire:model.live="stepType"
-                                                       value="{{ $value }}"
-                                                       class="step-type-option-input"
-                                                       name="edit_step_type">
-                                                <span>{{ $label }}</span>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                    @error('stepType') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="editVariableName" class="form-label">Variable Name *</label>
-                                    <input type="text" wire:model="variableName" class="form-control @error('variableName') is-invalid @enderror" id="editVariableName" required>
-                                    @error('variableName') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="editLabel" class="form-label">Label *</label>
-                                    <input type="text" wire:model="label" class="form-control @error('label') is-invalid @enderror" id="editLabel" required>
-                                    @error('label') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="formula-step-modal-scroll">
-                        @if($stepType === 'derived')
-                            <!-- Derived Step Configuration -->
-                            <div class="card bg-light mb-3">
-                                <div class="card-header">
-                                    <h6 class="mb-0 text-muted">
-                                        <i class="mdi mdi-function"></i> Expression Configuration
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="editExpression" class="form-label">Expression *</label>
-                                        <div class="input-group">
-                                            <textarea wire:model="expression" class="form-control @error('expression') is-invalid @enderror" id="editExpression" rows="3" required placeholder="e.g., (temperature * 1.8) + 32"></textarea>
-                                            <button type="button" wire:click="validateExpression" class="btn btn-outline-info">
-                                                <i class="mdi mdi-check"></i> Validate
-                                            </button>
-                                        </div>
-                                        @error('expression') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        <div class="form-text">Use variable names from previous steps in your expression</div>
-                                    </div>
-                                    
-                                    <!-- Available Variables Reference -->
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <h6 class="text-muted mb-2">Available Variables</h6>
-                                            @if(count($availableVariables) > 0)
-                                                <div class="list-group list-group-flush">
-                                                    @foreach($availableVariables as $var)
-                                                        <div class="list-group-item px-0 py-1 border-0">
-                                                            <div class="d-flex justify-content-between align-items-center">
-                                                                <div>
-                                                                    <code class="text-primary">{{ $var['name'] }}</code>
-                                                                    <small class="text-muted d-block">{{ $var['label'] }}</small>
-                                                                </div>
-                                                                <span class="badge badge-{{ $var['type'] === 'input' ? 'success' : ($var['type'] === 'derived' ? 'info' : 'warning') }} badge-sm">
-                                                                    {{ ucfirst($var['type']) }}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @else
-                                                <p class="text-muted small">No variables available from previous steps</p>
-                                            @endif
-                                        </div>
-                                        <div class="col-md-6">
-                                            <h6 class="text-muted mb-2">Global Constants</h6>
-                                            @if(count($globalVariables) > 0)
-                                                <div class="list-group list-group-flush">
-                                                    @foreach($globalVariables as $constant)
-                                                        <div class="list-group-item px-0 py-1 border-0">
-                                                            <div class="d-flex justify-content-between align-items-center">
-                                                                <div>
-                                                                    <code class="text-success">{{ $constant->name }}</code>
-                                                                    <small class="text-muted d-block">{{ $constant->description }}</small>
-                                                                </div>
-                                                                <span class="badge badge-secondary badge-sm">
-                                                                    {{ $constant->value }}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @else
-                                                <p class="text-muted small">No global constants defined</p>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-
-                        @if($stepType === 'lookup')
-                            <!-- Lookup Step Configuration -->
-                            <div class="card bg-light mb-3">
-                                <div class="card-header">
-                                    <h6 class="mb-0 text-muted">
-                                        <i class="mdi mdi-table-search"></i> Lookup Configuration
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="editLookupTableId" class="form-label">Lookup Table *</label>
-                                        <select wire:model.live="lookupTableId" class="form-select modern-select no-select2 @error('lookupTableId') is-invalid @enderror" id="editLookupTableId" required>
-                                            <option value="">Select a lookup table</option>
-                                            @foreach($lookupTables as $table)
-                                                <option value="{{ $table->id }}">{{ $table->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('lookupTableId') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                    
-                                    @if($lookupTableId)
-                                        @php
-                                            $selectedTable = $lookupTables->firstWhere('id', $lookupTableId);
-                                        @endphp
-                                        @if($selectedTable)
-                                            <div class="alert alert-{{ $selectedTable->lookup_type === 'range_based' ? 'warning' : 'info' }}">
-                                                <h6 class="alert-heading">
-                                                    <i class="mdi mdi-information"></i> Table Information
-                                                </h6>
-                                                <div class="mb-2">
-                                                    <strong>Type:</strong>
-                                                    @if($selectedTable->lookup_type === 'range_based')
-                                                        <span class="badge badge-warning">
-                                                            <i class="mdi mdi-chart-line"></i> Range-Based
-                                                        </span>
-                                                        <br><small class="text-muted">Variable: {{ $selectedTable->range_variable_name }}</small>
-                                                    @else
-                                                        <span class="badge badge-primary">
-                                                            <i class="mdi mdi-key"></i> Key-Value Comparison
-                                                        </span>
-                                                    @endif
-                                                </div>
-                                                <div class="row">
-                                                    <div class="col-md-6">
-                                                        <strong>{{ $selectedTable->lookup_type === 'range_based' ? 'Range Keys:' : 'Key Columns:' }}</strong>
-                                                        @foreach($selectedTable->key_columns as $column)
-                                                            <span class="badge badge-secondary me-1">{{ $column }}</span>
-                                                        @endforeach
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <strong>Value Column:</strong>
-                                                        <span class="badge badge-primary">{{ $selectedTable->value_column }}</span>
-                                                        @if($selectedTable->value_interpretation_column)
-                                                            <br><small>+ {{ $selectedTable->value_interpretation_column }}</small>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endif
-                                        
-                                        @if($selectedTable && $selectedTable->lookup_type === 'range_based')
-                                            <!-- Range-Based Configuration -->
-                                            <div class="alert alert-warning mb-3">
-                                                <i class="mdi mdi-information"></i>
-                                                <strong>Range-Based Lookup:</strong> Select which variable to check against the ranges.
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Variable to Check *</label>
-                                                <select wire:model="lookupConfig.range_variable" class="form-select modern-select no-select2">
-                                                    <option value="">Select Variable...</option>
-                                                    @foreach($availableVariables as $varName => $varData)
-                                                        <option value="{{ $varName }}">{{ $varData['label'] }} ({{ $varName }})</option>
-                                                    @endforeach
-                                                </select>
-                                                <small class="text-muted">
-                                                    Select which formula variable to check against ranges in "{{ $selectedTable->name }}"
-                                                    <br>(Expected range variable: <code>{{ $selectedTable->range_variable_name }}</code>)
-                                                </small>
-                                            </div>
-                                            
-                                            @if($selectedTable->value_interpretation_column)
-                                                <div class="mb-3">
-                                                    <div class="form-check">
-                                                        <input type="checkbox" 
-                                                               wire:model="lookupConfig.return_interpretation" 
-                                                               class="form-check-input" 
-                                                               id="editReturnInterpretation">
-                                                        <label class="form-check-label" for="editReturnInterpretation">
-                                                            Return Interpretation Text
-                                                            <span class="badge badge-info">{{ $selectedTable->value_interpretation_column }}</span>
-                                                        </label>
-                                                    </div>
-                                                    <small class="text-muted">
-                                                        If checked, returns the text interpretation instead of the numeric value
-                                                    </small>
-                                                </div>
-                                            @endif
-                                            
-                                            <!-- Preview -->
-                                            <div class="card bg-light">
-                                                <div class="card-body">
-                                                    <h6 class="text-muted">Preview</h6>
-                                                    <code>
-                                                        IF {{ $lookupConfig['range_variable'] ?? 'variable' }} is in range → 
-                                                        Return {{ ($lookupConfig['return_interpretation'] ?? false) ? 'interpretation' : 'value' }}
-                                                    </code>
-                                                </div>
-                                            </div>
-                                        @elseif(!empty($lookupConfig))
-                                            <div class="mb-3">
-                                                <label class="form-label">Key Configuration</label>
-                                                <div class="card bg-white">
-                                                    <div class="card-body">
-                                                        @foreach($lookupConfig['key_expressions'] as $key => $value)
-                                                            <div class="mb-3">
-                                                                <label class="form-label small">
-                                                                    {{ $selectedTable->key_label ?: $key }}
-                                                                    <span class="text-muted">({{ $key }})</span>
-                                                                </label>
-                                                                <div class="row">
-                                                                    <div class="col-md-8">
-                                                                        <div class="input-group">
-                                                                            <span class="input-group-text">
-                                                                                <i class="mdi mdi-key"></i>
-                                                                            </span>
-                                                                            <input type="text" 
-                                                                                   wire:model="lookupConfig.key_expressions.{{ $key }}" 
-                                                                                   class="form-control lookup-key-input" 
-                                                                                   id="lookup-key-{{ $key }}-edit"
-                                                                                   data-key="{{ $key }}"
-                                                                                   placeholder="Expression or value (e.g., temperature, {{ $key }})">
-                                                                        </div>
-                                                                        <div class="form-text">Use variable names or direct values</div>
-                                                                    </div>
-                                                                    <div class="col-md-4">
-                                                                        <label class="form-label small text-muted">Quick Select</label>
-                                                                        <select class="form-select form-select-sm modern-select-sm quick-select-variable" 
-                                                                                data-target-input="lookup-key-{{ $key }}-edit">
-                                                                            <option value="">Select Variable</option>
-                                                                            @foreach($availableVariables as $varName => $varData)
-                                                                                <option value="{{ $varName }}">{{ $varData['label'] }} ({{ $varName }})</option>
-                                                                            @endforeach
-                                                                            @foreach($globalVariables as $constant)
-                                                                                <option value="{{ $constant->name }}">{{ $constant->name }} ({{ $constant->value }})</option>
-                                                                            @endforeach
-                                                                        </select>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endif
-                                    @endif
-                                </div>
-                            </div>
-                        @endif
-
-                        @if($stepType === 'parameter_result')
-                            <!-- Parameter Result Step Configuration -->
-                            <div class="card bg-light mb-3">
-                                <div class="card-header">
-                                    <h6 class="mb-0 text-muted">
-                                        <i class="mdi mdi-flask"></i> Analyte Selection
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="editAnalyteId" class="form-label">Select Analyte *</label>
-                                        <select wire:model.live="analyteId" class="form-select modern-select no-select2 @error('analyteId') is-invalid @enderror" id="editAnalyteId" required>
-                                            <option value="">Select Analyte</option>
-                                            @foreach($analytes as $analyte)
-                                                <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
-                                            @endforeach
-                                        </select>
-                                        @error('analyteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-
-                        <div class="mb-3">
-                            <label for="editDescription" class="form-label">Description</label>
-                            <textarea wire:model="description" class="form-control @error('description') is-invalid @enderror" id="editDescription" rows="2"></textarea>
-                            @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        </div>
+                    <form id="edit-formula-step-form" wire:submit.prevent="updateStep" class="fs-step-form">
+                        @include('livewire.formulars.partials.formula-step-form-fields', ['stepFormMode' => 'edit'])
                     </form>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="$set('showEditStepModal', false)">Cancel</button>
-                    <button type="button" class="btn btn-primary" wire:click="updateStep">Update Step</button>
+                <div class="modal-footer fs-modal-footer">
+                    <button type="button" class="btn btn-light" wire:click="closeEditStepModal">Cancel</button>
+                    <button type="submit" form="edit-formula-step-form" class="btn btn-primary px-4">
+                        <i class="mdi mdi-content-save-outline mr-1"></i> Update Step
+                    </button>
                 </div>
             </div>
         </div>
@@ -1312,217 +773,7 @@
     </div>
 @endif
 
-<!-- Create Mandatory Field Modal -->
-@if($showCreateFieldModal)
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-plus"></i>
-                        Create Mandatory Field
-                    </h5>
-                    <button type="button" class="btn-close" wire:click="$set('showCreateFieldModal', false)"></button>
-                </div>
-                <div class="modal-body">
-                    @if($errors->any())
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <h6 class="alert-heading">
-                                <i class="mdi mdi-alert-circle"></i> Please fix the following errors:
-                            </h6>
-                            <ul class="mb-0">
-                                @foreach($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
-                    <form wire:submit.prevent="createMandatoryField">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="fieldLabel" class="form-label">Label *</label>
-                                    <input type="text" wire:model="fieldLabel" class="form-control @error('fieldLabel') is-invalid @enderror" id="fieldLabel" required>
-                                    @error('fieldLabel') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="fieldValueName" class="form-label">Value Name *</label>
-                                    <input type="text" wire:model="fieldValueName" class="form-control @error('fieldValueName') is-invalid @enderror" id="fieldValueName" required>
-                                    @error('fieldValueName') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    <div class="form-text">Used as key when storing field values (e.g., equipment_id, test_date)</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="fieldType" class="form-label">Field Type *</label>
-                                    <select wire:model.live="fieldType" class="form-select modern-select no-select2 @error('fieldType') is-invalid @enderror" id="fieldType" required>
-                                        <option value="">Select Field Type</option>
-                                        <option value="input">Text Input</option>
-                                        <option value="datetime">Date & Time</option>
-                                        <option value="date">Date</option>
-                                        <option value="dataset_related">Dataset Related</option>
-                                    </select>
-                                    @error('fieldType') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="fieldOrder" class="form-label">Order</label>
-                                    <input type="number" wire:model="fieldOrder" class="form-control @error('fieldOrder') is-invalid @enderror" id="fieldOrder" min="1">
-                                    @error('fieldOrder') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        @if($fieldType === 'dataset_related')
-                            <div class="mb-3">
-                                <label for="fieldModelTiedTo" class="form-label">Dataset Model *</label>
-                                <select wire:model="fieldModelTiedTo" class="form-select modern-select no-select2 @error('fieldModelTiedTo') is-invalid @enderror" id="fieldModelTiedTo" required>
-                                    <option value="">Select Dataset Model</option>
-                                    <option value="equipments">Equipments</option>
-                                    <option value="users">Users</option>
-                                    <option value="methods">Methods</option>
-                                </select>
-                                @error('fieldModelTiedTo') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                        @endif
-
-                        <div class="mb-3">
-                            <label for="fieldHelpText" class="form-label">Help Text</label>
-                            <textarea wire:model="fieldHelpText" class="form-control @error('fieldHelpText') is-invalid @enderror" id="fieldHelpText" rows="2" placeholder="Optional help text to guide users"></textarea>
-                            @error('fieldHelpText') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input type="checkbox" wire:model="fieldIsRequired" class="form-check-input" id="fieldIsRequired">
-                                <label class="form-check-label" for="fieldIsRequired">
-                                    This field is required
-                                </label>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="$set('showCreateFieldModal', false)">Cancel</button>
-                    <button type="button" class="btn btn-primary" wire:click="createMandatoryField">Create Field</button>
-                </div>
-            </div>
-        </div>
-    </div>
-@endif
-
-<!-- Edit Mandatory Field Modal -->
-@if($showEditFieldModal)
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-pencil"></i>
-                        Edit Mandatory Field
-                    </h5>
-                    <button type="button" class="btn-close" wire:click="$set('showEditFieldModal', false)"></button>
-                </div>
-                <div class="modal-body">
-                    @if($errors->any())
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <h6 class="alert-heading">
-                                <i class="mdi mdi-alert-circle"></i> Please fix the following errors:
-                            </h6>
-                            <ul class="mb-0">
-                                @foreach($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
-                    <form wire:submit.prevent="updateMandatoryField">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="editFieldLabel" class="form-label">Label *</label>
-                                    <input type="text" wire:model="fieldLabel" class="form-control @error('fieldLabel') is-invalid @enderror" id="editFieldLabel" required>
-                                    @error('fieldLabel') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="editFieldValueName" class="form-label">Value Name *</label>
-                                    <input type="text" wire:model="fieldValueName" class="form-control @error('fieldValueName') is-invalid @enderror" id="editFieldValueName" required>
-                                    @error('fieldValueName') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    <div class="form-text">Used as key when storing field values</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="editFieldType" class="form-label">Field Type *</label>
-                                    <select wire:model.live="fieldType" class="form-select modern-select no-select2 @error('fieldType') is-invalid @enderror" id="editFieldType" required>
-                                        <option value="">Select Field Type</option>
-                                        <option value="input">Text Input</option>
-                                        <option value="datetime">Date & Time</option>
-                                        <option value="date">Date</option>
-                                        <option value="dataset_related">Dataset Related</option>
-                                    </select>
-                                    @error('fieldType') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="editFieldOrder" class="form-label">Order</label>
-                                    <input type="number" wire:model="fieldOrder" class="form-control @error('fieldOrder') is-invalid @enderror" id="editFieldOrder" min="1">
-                                    @error('fieldOrder') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        @if($fieldType === 'dataset_related')
-                            <div class="mb-3">
-                                <label for="editFieldModelTiedTo" class="form-label">Dataset Model *</label>
-                                <select wire:model="fieldModelTiedTo" class="form-select modern-select no-select2 @error('fieldModelTiedTo') is-invalid @enderror" id="editFieldModelTiedTo" required>
-                                    <option value="">Select Dataset Model</option>
-                                    <option value="equipments">Equipments</option>
-                                    <option value="users">Users</option>
-                                    <option value="methods">Methods</option>
-                                </select>
-                                @error('fieldModelTiedTo') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                        @endif
-
-                        <div class="mb-3">
-                            <label for="editFieldHelpText" class="form-label">Help Text</label>
-                            <textarea wire:model="fieldHelpText" class="form-control @error('fieldHelpText') is-invalid @enderror" id="editFieldHelpText" rows="2" placeholder="Optional help text to guide users"></textarea>
-                            @error('fieldHelpText') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input type="checkbox" wire:model="fieldIsRequired" class="form-check-input" id="editFieldIsRequired">
-                                <label class="form-check-label" for="editFieldIsRequired">
-                                    This field is required
-                                </label>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="$set('showEditFieldModal', false)">Cancel</button>
-                    <button type="button" class="btn btn-primary" wire:click="updateMandatoryField">Update Field</button>
-                </div>
-            </div>
-        </div>
-    </div>
-@endif
+@include('livewire.formulars.partials.formula-mandatory-field-modal')
 
 <!-- Delete Mandatory Field Modal -->
 @if($showDeleteFieldModal && $deletingField)
@@ -1580,6 +831,39 @@
 @endif
 
     <style>
+    #steps-table .rm-act-btn {
+        border-radius: 7px;
+        padding: 4px 8px;
+        margin-right: 3px;
+        font-size: 12px;
+    }
+
+    #steps-table .rm-act-btn:last-child {
+        margin-right: 0;
+    }
+
+    #steps-table .rm-act-btn--edit {
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    #steps-table .rm-act-btn--edit:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+
+    #steps-table .rm-act-btn--delete {
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    #steps-table .rm-act-btn--delete:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
+
     .modal.show {
         display: block !important;
     }
@@ -2079,8 +1363,379 @@
         overflow: hidden;
     }
 
+    /* Create step modal — modern form shell */
+    .fs-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1055;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(2px);
+        overflow-y: auto;
+    }
+
+    .fs-modal-dialog {
+        margin: auto;
+        width: 100%;
+        max-width: 920px;
+    }
+
+    .fs-modal-content {
+        border: none;
+        border-radius: 1rem;
+        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28);
+        overflow: hidden;
+    }
+
+    .fs-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .fs-modal-subtitle {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+
+    .fs-modal-close {
+        flex-shrink: 0;
+        margin: -0.25rem -0.25rem 0 0;
+        padding: 0.25rem 0.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #64748b;
+        opacity: 0.75;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+    }
+
+    .fs-modal-close:hover {
+        color: #0f172a;
+        opacity: 1;
+    }
+
+    .fs-modal-body {
+        padding: 1.25rem 1.5rem;
+        background: #fff;
+    }
+
+    .fs-modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 1rem 1.5rem;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .fs-form-section {
+        margin-bottom: 1.25rem;
+        padding-bottom: 1.15rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .fs-form-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .fs-form-section-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin: 0 0 0.75rem;
+    }
+
+    .fs-form-section-hint {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        margin: -0.35rem 0 0.75rem;
+    }
+
+    .fs-form-label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 0.35rem;
+    }
+
+    .fs-input,
+    .fs-step-form .form-control,
+    .fs-step-form .form-select {
+        border-radius: 0.5rem;
+        border: 1px solid #d1d5db;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .fs-input:focus,
+    .fs-step-form .form-control:focus,
+    .fs-step-form .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        outline: none;
+    }
+
+    .fs-step-type-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+    }
+
+    .fs-step-type-grid.is-invalid {
+        padding: 0.35rem;
+        border-radius: 0.65rem;
+        border: 1px solid #dc3545;
+    }
+
+    .fs-step-type-tile {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+        margin: 0;
+        padding: 0.85rem 0.9rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.65rem;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        text-align: left;
+    }
+
+    .fs-step-type-tile:hover {
+        border-color: #93c5fd;
+        background: #f8fafc;
+    }
+
+    .fs-step-type-tile.is-active {
+        border-color: #3b82f6;
+        background: linear-gradient(180deg, #ffffff 0%, #f0f7ff 100%);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+    }
+
+    .fs-step-type-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .fs-step-type-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .fs-step-type-tile--input .fs-step-type-icon { background: #ecfdf5; color: #059669; }
+    .fs-step-type-tile--derived .fs-step-type-icon { background: #eff6ff; color: #2563eb; }
+    .fs-step-type-tile--lookup .fs-step-type-icon { background: #fffbeb; color: #d97706; }
+    .fs-step-type-tile--result .fs-step-type-icon { background: #f5f3ff; color: #7c3aed; }
+
+    .fs-step-type-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .fs-step-type-hint {
+        font-size: 0.72rem;
+        color: #64748b;
+        line-height: 1.35;
+    }
+
+    .fs-form-scroll {
+        overflow-y: auto;
+        max-height: calc(90vh - 380px);
+        padding-right: 0.25rem;
+        margin-right: -0.25rem;
+    }
+
+    .fs-config-panel {
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        background: #fafbfc;
+    }
+
+    .fs-config-panel-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        background: #fff;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .fs-config-panel-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.5rem;
+        font-size: 1.15rem;
+        flex-shrink: 0;
+    }
+
+    .fs-config-panel--derived .fs-config-panel-icon { background: #eff6ff; color: #2563eb; }
+    .fs-config-panel--lookup .fs-config-panel-icon { background: #fffbeb; color: #d97706; }
+    .fs-config-panel--result .fs-config-panel-icon { background: #f5f3ff; color: #7c3aed; }
+
+    .fs-config-panel-body {
+        padding: 1rem;
+    }
+
+    .fs-config-panel--checkbox .fs-config-panel-icon {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .fs-checkbox-options-source {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    @media (max-width: 575px) {
+        .fs-checkbox-options-source {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .fs-checkbox-source-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0.65rem 0.85rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.5rem;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .fs-checkbox-source-option:hover {
+        border-color: #93c5fd;
+        background: #f8fafc;
+    }
+
+    .fs-checkbox-source-option.is-active {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .fs-checkbox-source-option-input {
+        flex-shrink: 0;
+        margin: 0;
+        accent-color: #2563eb;
+    }
+
+    .fs-checkbox-source-option-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #334155;
+        line-height: 1.3;
+    }
+
+    .fs-checkbox-source-option.is-active .fs-checkbox-source-option-label {
+        color: #1d4ed8;
+    }
+
+    .fs-checkbox-option-add {
+        display: flex;
+        align-items: stretch;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .fs-checkbox-option-add-input {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .fs-checkbox-option-add-btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .fs-checkbox-options-list {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .fs-checkbox-options-list-item {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .fs-checkbox-options-list-item:last-child {
+        border-bottom: none;
+    }
+
+    .fs-checkbox-options-list-text {
+        flex: 1 1 auto;
+        font-size: 0.875rem;
+        color: #334155;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    .fs-checkbox-options-list-remove {
+        flex-shrink: 0;
+        line-height: 1;
+    }
+
+    @media (min-width: 768px) {
+        .fs-step-type-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    @media (max-width: 767px) {
+        .fs-modal {
+            padding: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .fs-form-scroll {
+            max-height: calc(100vh - 360px);
+        }
+    }
+
     /* Step modals: keep header fields outside scroll so native select lists are not clipped */
-    .formula-step-modal.modal {
+    .formula-step-modal.modal,
+    .formula-step-modal.fs-modal {
         overflow-y: auto;
     }
 
@@ -2376,6 +2031,500 @@
         transform: rotate(2deg);
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
     }
+
+    /* Mandatory fields: placement + modal */
+    .fm-placement-bar--inline {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.65rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        background: #f8fafc;
+    }
+
+    @media (max-width: 767px) {
+        .fm-placement-bar--inline {
+            flex-wrap: wrap;
+        }
+    }
+
+    .fm-placement-bar__text {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem 0.5rem;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .fm-placement-bar__title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #0f172a;
+        white-space: nowrap;
+    }
+
+    .fm-placement-bar__desc {
+        font-size: 0.8125rem;
+        line-height: 1.4;
+    }
+
+    .fm-placement-options--compact {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 0.35rem;
+        margin-left: auto;
+    }
+
+    .fm-placement-chip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin: 0;
+        padding: 0.3rem 0.65rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        background: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .fm-placement-chip:hover {
+        border-color: #93c5fd;
+        color: #2563eb;
+    }
+
+    .fm-placement-chip.is-active {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .fm-placement-chip i {
+        font-size: 0.9rem;
+        line-height: 1;
+    }
+
+    .fm-placement-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .fm-mandatory-modal .fm-placement-tag-select {
+        display: block;
+        width: 100%;
+    }
+
+    .fm-mandatory-modal .fm-placement-tag-select .tag-select-input {
+        min-height: 38px;
+        padding: 4px 10px;
+        width: 100%;
+    }
+
+    .fm-mandatory-modal .fm-placement-tag-select .tag-dropdown {
+        width: 100%;
+        z-index: 1060;
+    }
+
+    .fm-mandatory-modal .tag-badge {
+        background-color: #3b82f6;
+        font-size: 0.8125rem;
+        padding: 3px 10px;
+    }
+
+    .fm-mandatory-modal .fs-modal-dialog {
+        max-width: 52rem;
+    }
+
+    .fm-field-hint {
+        display: block;
+        margin-top: 0.35rem;
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+
+    .fm-checkbox-card {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0.65rem 0.85rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        background: #fff;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+
+    .fm-field-type-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+
+    @media (min-width: 768px) {
+        .fm-field-type-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    .fm-field-type-tile {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        margin: 0;
+        padding: 0.75rem 0.85rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.65rem;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        text-align: left;
+    }
+
+    .fm-field-type-tile:hover {
+        border-color: #93c5fd;
+    }
+
+    .fm-field-type-tile.is-active {
+        border-color: #3b82f6;
+        background: #f0f7ff;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+    }
+
+    .fm-field-type-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .fm-field-type-icon {
+        font-size: 1.15rem;
+        color: #2563eb;
+    }
+
+    .fm-field-type-name {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .fm-field-type-hint {
+        font-size: 0.7rem;
+        color: #64748b;
+        line-height: 1.35;
+    }
+
+    .fm-choices-list__item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .fm-choices-list__order {
+        flex-shrink: 0;
+        width: 1.5rem;
+        height: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .fm-choices-list__remove {
+        flex-shrink: 0;
+        padding: 0.2rem 0.45rem;
+    }
+
+    .fm-choices-empty {
+        border: 1px dashed #cbd5e1;
+        border-radius: 0.5rem;
+        background: #f8fafc;
+    }
+
+    .fm-mandatory-card {
+        border-radius: 12px;
+    }
+
+    /* Custom table configure wizard (ported from procedure editor) */
+    .pw-table-config-modal.fs-modal .fs-modal-dialog {
+        max-width: min(1200px, calc(100vw - 2rem));
+    }
+
+    .pw-table-config-modal .fs-modal-body.pw-table-wizard__body {
+        padding: 0;
+        max-height: min(70vh, 720px);
+        overflow-y: auto;
+    }
+
+    .pw-table-wizard__header .modal-title {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .pw-table-wizard__stepper {
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .pw-table-wizard__steps {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        max-width: 100%;
+    }
+
+    .pw-table-wizard__step {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        text-align: left;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .pw-table-wizard__step:hover:not(:disabled) {
+        background: #f1f5f9;
+    }
+
+    .pw-table-wizard__step:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    .pw-table-wizard__step--active {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
+
+    .pw-table-wizard__step--done .pw-table-wizard__step-index {
+        background: #dcfce7;
+        color: #15803d;
+        border-color: #bbf7d0;
+    }
+
+    .pw-table-wizard__step-index {
+        flex-shrink: 0;
+        width: 2rem;
+        height: 2rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        color: #64748b;
+    }
+
+    .pw-table-wizard__step--active .pw-table-wizard__step-index {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+    }
+
+    .pw-table-wizard__step-label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+
+    .pw-table-wizard__step-hint {
+        display: block;
+        font-size: 0.72rem;
+        color: #64748b;
+        margin-top: 0.1rem;
+    }
+
+    .pw-table-wizard__connector {
+        flex: 0 0 1.5rem;
+        align-self: center;
+        height: 2px;
+        background: #e2e8f0;
+        margin: 0 0.15rem;
+    }
+
+    .pw-table-wizard__connector--done {
+        background: #86efac;
+    }
+
+    .pw-table-wizard__body {
+        background: #f8fafc;
+    }
+
+    .pw-table-wizard__panel {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin: 1.25rem 1.5rem;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .pw-table-wizard__panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .pw-table-wizard__panel-head h6 {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .pw-table-wizard__cta {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    .pw-table-wizard__empty {
+        text-align: center;
+        padding: 2.5rem 1.5rem;
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        color: #64748b;
+    }
+
+    .pw-table-wizard__empty > i {
+        font-size: 2.25rem;
+        color: #94a3b8;
+        display: block;
+        margin-bottom: 0.75rem;
+    }
+
+    .pw-table-wizard__hint-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        color: #0c4a6e;
+        font-size: 0.85rem;
+    }
+
+    .pw-table-wizard__hint-box--warn {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+    }
+
+    .pw-modal-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 1rem;
+    }
+
+    .pw-modal-card-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: #475569;
+        margin-bottom: 0.85rem;
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+    }
+
+    .pw-table-wizard__inline-form {
+        background: #f8fafc;
+        border-style: dashed;
+    }
+
+    .pw-table-shell {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .pw-table-key {
+        font-size: 0.78rem;
+        color: #be185d;
+        background: #fdf2f8;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+    }
+
+    .pw-col-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .pw-col-type-badge--static {
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .pw-col-type-badge--capture {
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .pw-pill {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .pw-pill--yes {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .pw-pill--muted {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .pw-table-wizard__col-actions {
+        width: 88px;
+        white-space: nowrap;
+    }
+
+    .pw-inline-column-form__grid > [class*="col-"] {
+        margin-bottom: 1rem;
+    }
+
+    .pw-inline-column-form__actions .btn + .btn {
+        margin-left: 0.5rem;
+    }
     </style>
     
     <!-- SortableJS CDN -->
@@ -2663,4 +2812,6 @@
         font-size: 18px;
     }
     </style>
+
+    @include('livewire.formulars.partials.formula-step-table-modals')
 </div>

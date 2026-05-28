@@ -236,6 +236,7 @@ class PreparationRunService
                 ],
                 [
                     'result' => $row['result'] ?? null,
+                    'remark' => $this->normalizeResultRemark($row['remark'] ?? null),
                     'method_id' => $row['method_id'] ?? null,
                     'analyst_id' => $row['analyst_id'] ?? auth()->id(),
                     'standard_limit' => $row['standard_limit'] ?? null,
@@ -323,9 +324,22 @@ class PreparationRunService
     {
         $preparation->refresh();
 
-        if ($preparation->canMoveToAwaitingApproval()) {
-            $preparation->update(['status' => 'awaiting_approval']);
+        if (! $preparation->canMoveToAwaitingApproval() || $preparation->isAwaitingApproval()) {
+            return;
         }
+
+        $preparation->update(['status' => 'awaiting_approval']);
+    }
+
+    protected function normalizeResultRemark(mixed $remark): ?string
+    {
+        if ($remark === null || $remark === '') {
+            return null;
+        }
+
+        $value = strtolower((string) $remark);
+
+        return in_array($value, ['pass', 'fail'], true) ? $value : null;
     }
 
     public function approve(SolutionPreparation $preparation, ?string $notes = null, ?string $userId = null): SolutionPreparation
@@ -357,6 +371,32 @@ class PreparationRunService
         ]);
 
         return $preparation->fresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function updatePreparationRecord(SolutionPreparation $preparation, array $data): SolutionPreparation
+    {
+        if ($preparation->status === 'completed') {
+            throw ValidationException::withMessages(['preparation' => 'Cannot update a completed preparation.']);
+        }
+
+        if ($preparation->status === 'cancelled') {
+            throw ValidationException::withMessages(['preparation' => 'Cannot update a cancelled preparation.']);
+        }
+
+        return DB::transaction(function () use ($preparation, $data) {
+            $preparation->update([
+                'quantity_prepared' => $data['quantity_prepared'] ?? null,
+                'uom_id' => $data['uom_id'] ?? null,
+                'batch_number' => $data['batch_number'] ?? null,
+                'is_new_batch' => (bool) ($data['is_new_batch'] ?? false),
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            return $preparation->fresh(['solution', 'steps.controls', 'steps.results']);
+        });
     }
 
     public function deletePreparation(SolutionPreparation $preparation): void
