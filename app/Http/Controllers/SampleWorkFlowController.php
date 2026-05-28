@@ -1423,6 +1423,8 @@ class SampleWorkFlowController extends Controller
     {
         $batchID = $batch;
 
+
+
         // Automatically configure and seed required report formats in the database if they do not exist
         try {
             // Ensure samples_by_category view exists in PostgreSQL
@@ -3803,6 +3805,7 @@ class SampleWorkFlowController extends Controller
             'include_pesticide' => $include_pesticide,
             'merge_with_attachments' => $merge_with_attachments ? 1 : 0,
             'attachment_ids' => $attachment_ids,
+            'gcla_language' => $request->input('gcla_language', 'sw'),
         ]);
     }
 

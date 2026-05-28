@@ -180,7 +180,11 @@ class CompanyManager extends Component
         $company->maintenance_end_month = $validated['maintenanceEndMonth'];
 
         if ($this->logoFile) {
-            $company->logo = '/storage/' . $this->logoFile->store('companies', 'public');
+            $logoPath = '/storage/' . $this->logoFile->store('companies', 'public');
+            $company->logo = $logoPath;
+            $company->report_logo = $logoPath;
+        } elseif (empty($company->report_logo) && $company->logo) {
+            $company->report_logo = $company->logo;
         }
 
         $company->save();
@@ -196,14 +200,19 @@ class CompanyManager extends Component
             }
 
             if ($logoPath) {
-                \App\CompanyReportLogo::updateOrCreate(
-                    ['id' => $logoData['id'] ?? null],
-                    [
+                if (empty($logoData['id'])) {
+                    \App\CompanyReportLogo::create([
                         'company_id' => $company->id,
                         'name' => $logoData['name'],
                         'logo_path' => $logoPath,
-                    ]
-                );
+                    ]);
+                } else {
+                    \App\CompanyReportLogo::where('id', $logoData['id'])->update([
+                        'company_id' => $company->id,
+                        'name' => $logoData['name'],
+                        'logo_path' => $logoPath,
+                    ]);
+                }
             }
         }
 

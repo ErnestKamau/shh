@@ -58,7 +58,11 @@
                                             <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Acceptance Form</h6>
                                             <small class="text-muted">{{ $acceptanceForm->submitted_at ? $acceptanceForm->submitted_at->format('Y-m-d H:i') : 'Completed' }}</small>
                                         </div>
-                                        <div>
+                                        <div class="d-flex align-items-center" style="gap: 5px;">
+                                            <button wire:click="regenerateAcceptanceForm" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Regenerate PDF with Dynamic Logo">
+                                                <i wire:loading.remove wire:target="regenerateAcceptanceForm" class="mdi mdi-refresh text-primary"></i>
+                                                <span wire:loading wire:target="regenerateAcceptanceForm" class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                                            </button>
                                             <a href="{{ $acceptanceForm->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View PDF">
                                                 <i class="mdi mdi-eye text-dark"></i>
                                             </a>
@@ -102,7 +106,11 @@
                                             <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Receipt Notification</h6>
                                             <small class="text-muted">{{ $receiptNotification->created_at->format('Y-m-d H:i') }}</small>
                                         </div>
-                                        <div>
+                                        <div class="d-flex align-items-center" style="gap: 5px;">
+                                            <button wire:click="regenerateReceiptNotification" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Regenerate PDF with Dynamic Logo">
+                                                <i wire:loading.remove wire:target="regenerateReceiptNotification" class="mdi mdi-refresh text-info"></i>
+                                                <span wire:loading wire:target="regenerateReceiptNotification" class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></span>
+                                            </button>
                                             <a href="{{ $receiptNotification->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Document">
                                                 <i class="mdi mdi-eye text-dark"></i>
                                             </a>
@@ -264,9 +272,6 @@
                         <div class="col-12">
                             <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Generate Reports</h6>
                             <div class="d-flex gap-2" style="gap: 10px;">
-                                <button wire:click="openGclaLanguageModal" class="btn btn-outline-success border-2 shadow-sm rounded-pill px-4 font-weight-bold">
-                                    <i class="mdi mdi-certificate mr-1"></i> Generate GCLA 02 Form
-                                </button>
                                 <a href="#" onclick="alert('Analysis Report generation route to be implemented')" class="btn btn-outline-primary border-2 shadow-sm rounded-pill px-4 font-weight-bold">
                                     <i class="mdi mdi-chart-box mr-1"></i> Generate Analysis Report
                                 </a>
@@ -953,36 +958,4 @@
             }
         });
     </script>
-
-    <!-- ========================================== -->
-    <!-- GCLA 02 Form Language Selection Modal -->
-    <!-- ========================================== -->
-    <div class="modal fade {{ $showGclaLanguageModal ? 'show' : '' }}" tabindex="-1" role="dialog" style="display: {{ $showGclaLanguageModal ? 'block' : 'none' }}; background: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
-                <div class="modal-header bg-success text-white" style="border-top-left-radius: 12px; border-top-right-radius: 12px;">
-                    <h5 class="modal-title font-weight-bold">
-                        <i class="mdi mdi-translate mr-2"></i> Choose Report Language
-                    </h5>
-                    <button type="button" class="close text-white" wire:click="closeGclaLanguageModal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body p-4 text-center">
-                    <p class="mb-4 text-muted">Select the language for the GCLA 02 Form (Certificate of Analysis).</p>
-                    <div class="d-flex justify-content-center gap-3" style="gap: 15px;">
-                        <button type="button" wire:click="generateGCLA02Form('en')" class="btn btn-outline-primary px-4 py-2 font-weight-bold" style="border-radius: 8px;">
-                            <i class="mdi mdi-earth"></i> English
-                        </button>
-                        <button type="button" wire:click="generateGCLA02Form('sw')" class="btn btn-outline-success px-4 py-2 font-weight-bold" style="border-radius: 8px;">
-                            <i class="mdi mdi-earth"></i> Kiswahili
-                        </button>
-                    </div>
-                    <div wire:loading wire:target="generateGCLA02Form" class="mt-3 text-success">
-                        <i class="mdi mdi-loading mdi-spin mr-1"></i> Generating PDF...
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>

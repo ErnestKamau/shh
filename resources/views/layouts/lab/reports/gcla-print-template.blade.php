@@ -228,9 +228,14 @@
     </div>
 
     <!-- Official Document Title -->
-    <div class="doc-title">
+    <div class="doc-title" style="margin-bottom: 5px;">
         {{ strtoupper($reportTitle) }}
     </div>
+    @if(isset($filters['category']) && $filters['category'] !== 'all')
+        <div style="text-align: center; font-size: 10px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; color: #15803d; letter-spacing: 0.05em;">
+            Category: {{ ucwords(str_replace('_', ' ', $filters['category'])) }}
+        </div>
+    @endif
 
     <!-- SECTION 1.0: UTANGULIZI -->
     <div class="section-title">1.0 UTANGULIZI (INTRODUCTION)</div>

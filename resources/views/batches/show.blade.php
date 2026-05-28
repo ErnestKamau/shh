@@ -401,6 +401,7 @@
                         <label for="" class="control-label">Report Format</label>
                         <select name="report_format" id="report_format" class="form-control no-select2">
                             <option value="">Choose Report Format</option>
+                            <option value="gcla_02">GCLA 02 Form (Certificate of Analysis)</option>
                             @if(isset($report_formats) && $report_formats->isNotEmpty())
                                 @foreach($report_formats as $format)
                                 <option value="{{ $format->id }}" {{ isset($format->is_default) && $format->is_default ? 'selected' : '' }}>
@@ -410,6 +411,13 @@
                             @else
                                 <option value="" disabled>No report formats configured for this batch's lab section</option>
                             @endif
+                        </select>
+                    </div>
+                    <div class="form-group hidden" id="gcla_language_group" style="margin-top: 10px;">
+                        <label for="gcla_language" class="control-label">Report Language</label>
+                        <select name="gcla_language" id="gcla_language" class="form-control no-select2">
+                            <option value="sw" selected>Kiswahili (Swahili)</option>
+                            <option value="en">English</option>
                         </select>
                     </div>
                     <div class="form-group mt-2">
@@ -483,6 +491,7 @@
                             <label for="" class="control-label">Report Format</label>
                             <select name="report_format" id="report_format_select_again" class="form-control no-select2" required>
                                 <option value="">Select Report Format</option>
+                                <option value="gcla_02">GCLA 02 Form (Certificate of Analysis)</option>
                                 @if(isset($report_formats) && $report_formats->isNotEmpty())
                                     @foreach($report_formats as $format)
                                     <option value="{{ $format->id }}" {{ isset($format->is_default) && $format->is_default ? 'selected' : '' }}>
@@ -492,6 +501,13 @@
                                 @else
                                     <option value="" disabled>No report formats configured for this batch's lab section</option>
                                 @endif
+                            </select>
+                        </div>
+                        <div class="form-group hidden" id="gcla_language_group_again" style="margin-top: 10px;">
+                            <label for="gcla_language_again" class="control-label">Report Language</label>
+                            <select name="gcla_language_again" id="gcla_language_again" class="form-control no-select2">
+                                <option value="sw" selected>Kiswahili (Swahili)</option>
+                                <option value="en">English</option>
                             </select>
                         </div>
                         <input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -734,6 +750,15 @@
 			}
 			$modal.find('#report_format').val('').trigger('change');
 
+			// Show/hide language choice group based on format selection
+			$modal.find('#report_format').off('change').on('change', function () {
+				if ($(this).val() === 'gcla_02') {
+					$modal.find('#gcla_language_group').removeClass('hidden');
+				} else {
+					$modal.find('#gcla_language_group').addClass('hidden');
+				}
+			});
+
 			// Reset merge with attachments UI
 			$modal.find('#merge_with_attachments').prop('checked', false);
 			$modal.find('#attachment-selection-group').addClass('hidden');
@@ -769,6 +794,7 @@
 				if (merge_with_attachments) {
 					attachment_ids = $modal.find('#attachment_ids').val() || [];
 				}
+				var gcla_language = $modal.find('#gcla_language').val() || 'sw';
 				
 				// Disable the button to prevent double-clicks
 				$(this).prop('disabled', true).addClass('disabled').html('<i class="mdi mdi-loading mdi-spin"></i> Generating...');
@@ -780,7 +806,8 @@
 						report_format : selectedFormat,
 						include_pesticide : include_pesticide,
 						merge_with_attachments: merge_with_attachments,
-						attachment_ids: attachment_ids.join(',')
+						attachment_ids: attachment_ids.join(','),
+						gcla_language: gcla_language
 					},
 					method:'GET',
 					success: function(data){
@@ -796,7 +823,9 @@
 							</center>
 						`).clone();
 						$modal.find('.modal-body').append(success_tag);
-	
+						if (typeof Livewire !== 'undefined') {
+							Livewire.dispatch('attachmentsUpdated');
+						}
 					},
 					error: function(data){
 						console.log(data);
@@ -820,6 +849,14 @@
 				});
 			}
 			$modal.find('#report_format_select_again').val('').trigger('change');
+
+			$modal.find('#report_format_select_again').off('change').on('change', function () {
+				if ($(this).val() === 'gcla_02') {
+					$modal.find('#gcla_language_group_again').removeClass('hidden');
+				} else {
+					$modal.find('#gcla_language_group_again').addClass('hidden');
+				}
+			});
 		});
 
 		// Handle COA report generation
@@ -836,6 +873,11 @@
 			var url = '{{ route("process-pdf-report", ["batch_id" => ":batch_id", "report_format" => ":report_format"]) }}';
 			url = url.replace(':batch_id', batchId);
 			url = url.replace(':report_format', reportFormat);
+
+			if (reportFormat === 'gcla_02') {
+				var lang = $('#gcla_language_again').val() || 'sw';
+				url += '?gcla_language=' + lang;
+			}
 
 			// Open the PDF in a new window/tab
 			window.open(url, '_blank');

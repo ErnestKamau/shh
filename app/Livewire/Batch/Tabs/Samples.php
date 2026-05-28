@@ -455,6 +455,7 @@ class Samples extends Component
     protected function loadSamples()
     {
         try {
+            $this->batch->unsetRelation('samples');
             $samples = $this->batch->samples;
 
             $this->sampleForms = [];

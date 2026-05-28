@@ -31,9 +31,6 @@ class Attachments extends Component
     public bool $showCaseFileModal = false;
     public array $caseFileForm = [];
 
-    // GCLA 02 Form Language Selection Modal
-    public bool $showGclaLanguageModal = false;
-
     protected $listeners = ['attachmentsUpdated' => '$refresh'];
     protected $paginationTheme = 'bootstrap';
 
@@ -560,14 +557,198 @@ class Attachments extends Component
         return redirect()->route('view-case-file-pdf', \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->value('id'));
     }
 
-    public function openGclaLanguageModal()
+    public function regenerateAcceptanceForm()
     {
-        $this->showGclaLanguageModal = true;
+        // 1. Check if there is an AnalysisAcceptanceForm first
+        $analysisForm = \App\Models\Sampleworkflow\AnalysisAcceptanceForm::where('sample_header_id', $this->batch->id)->first();
+        if ($analysisForm) {
+            $pdfService = app(\App\Services\Sampleworkflow\AcceptanceFormPdfService::class);
+            $url = $pdfService->generatePdfAndStoreAttachment($analysisForm);
+            
+            // If the attachment is already in BatchAttachment, update its URL just in case
+            $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+                ->where('title', 'like', '%Acceptance%')
+                ->first();
+            if ($attachment && $url) {
+                $attachment->attachment_url = $url;
+                $attachment->save();
+            }
+            
+            session()->flash('success', 'Laboratory Analysis Acceptance Form PDF regenerated successfully!');
+            $this->dispatch('attachmentsUpdated');
+            return;
+        }
+
+        // 2. If no AnalysisAcceptanceForm exists, but a draft json exists in public storage
+        $draftPath = 'batch-attachments/laboratory-analysis-acceptance-batch-' . $this->batch->id . '.json';
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($draftPath)) {
+            $decoded = json_decode((string) \Illuminate\Support\Facades\Storage::disk('public')->get($draftPath), true);
+            if (is_array($decoded)) {
+                $form = $decoded['form'] ?? [];
+                $parameters = $decoded['parameters'] ?? [];
+                
+                $pdfFilename = 'laboratory-analysis-acceptance-batch-' . $this->batch->id . '.pdf';
+                $pdfStoragePath = 'batch-attachments/' . $pdfFilename;
+                $pdfPublicUrl = '/storage/batch-attachments/' . urlencode($pdfFilename);
+
+                $acceptedParameters = array_values(array_filter($parameters, static fn ($row) => (bool) ($row['selected'] ?? false)));
+                $rejectedParameters = array_values(array_filter($parameters, static fn ($row) => ! ((bool) ($row['selected'] ?? false))));
+                $acceptedTotal = round(array_sum(array_map(static fn ($row) => (float) ($row['price'] ?? 0), $acceptedParameters)), 2);
+
+                $pdf = app('dompdf.wrapper');
+                $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+                
+                $logoSrc = $this->resolveLogoAsDataUri();
+
+                $pdf->loadView('batch.attachments.laboratory-analysis-acceptance-pdf', [
+                    'batch' => $this->batch,
+                    'form' => $form,
+                    'requestedParameters' => $parameters,
+                    'acceptedParameters' => $acceptedParameters,
+                    'rejectedParameters' => $rejectedParameters,
+                    'acceptedTotal' => $acceptedTotal,
+                    'logoSrc' => $logoSrc,
+                ]);
+
+                \Illuminate\Support\Facades\Storage::disk('public')->put($pdfStoragePath, $pdf->output());
+
+                $attachmentTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
+                    ->resolveOrCreateAttachmentTypeId('Laboratory Analysis Acceptance Form');
+                $title = 'Laboratory Analysis Acceptance Form (GCLA/F/03)';
+
+                $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+                    ->where('title', $title)
+                    ->orderByDesc('created_at')
+                    ->first();
+
+                if (! $attachment) {
+                    $attachment = new BatchAttachment();
+                    $attachment->batch_id = $this->batch->id;
+                    $attachment->uploaded_by = Auth::id();
+                    $attachment->title = $title;
+                    $attachment->is_internal = 0;
+                    $attachment->show_on_coa = 0;
+                }
+
+                $attachment->attachment_type = $attachmentTypeId;
+                $attachment->attachment_url = $pdfPublicUrl;
+                $attachment->save();
+
+                session()->flash('success', 'Laboratory Analysis Acceptance Form PDF regenerated successfully!');
+                $this->dispatch('attachmentsUpdated');
+                return;
+            }
+        }
+
+        session()->flash('error', 'Could not find source form data to regenerate PDF.');
     }
 
-    public function closeGclaLanguageModal()
+    public function regenerateReceiptNotification()
     {
-        $this->showGclaLanguageModal = false;
+        $service = app(\App\Services\Sampleworkflow\SampleReceiptNotificationService::class);
+        $acceptance = $service->findAcceptanceFormForBatch($this->batch);
+        
+        if ($acceptance instanceof \App\Models\Sampleworkflow\AnalysisAcceptanceForm && $acceptance->receipt_notification_payload) {
+            $formData = is_array($acceptance->receipt_notification_payload)
+                ? $acceptance->receipt_notification_payload
+                : (json_decode((string) $acceptance->receipt_notification_payload, true) ?: []);
+            $service->generatePdfAndStoreAttachment($this->batch, $formData, Auth::id());
+            
+            session()->flash('success', 'Sample Receipt Notification PDF regenerated successfully!');
+            $this->dispatch('attachmentsUpdated');
+            return;
+        }
+
+        // Try fallback payload from system
+        $formData = $service->resolveFormStateForBatch($this->batch);
+        if (!empty($formData)) {
+            $service->generatePdfAndStoreAttachment($this->batch, $formData, Auth::id());
+            session()->flash('success', 'Sample Receipt Notification PDF regenerated successfully!');
+            $this->dispatch('attachmentsUpdated');
+            return;
+        }
+
+        session()->flash('error', 'Could not resolve Receipt Notification data to regenerate PDF.');
+    }
+
+    private function resolveLogoAsDataUri(): string
+    {
+        $company = getActiveCompany();
+
+        if ($company && !empty($company->logo)) {
+            $path = $company->logo;
+
+            // Strip URL prefix if stored as a full URL
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                $path = parse_url($path, PHP_URL_PATH) ?? $path;
+            }
+            $path = ltrim($path, '/');
+            $filename = basename($path);
+
+            if ($filename !== '') {
+                // 1) Public storage disk (storage/app/public/...)
+                $relative = preg_replace('#^storage/#', '', $path);
+                if ($relative !== $path) {
+                    $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relative);
+                    if (file_exists($fullPath)) {
+                        return $this->imagePathToDataUri($fullPath);
+                    }
+                }
+
+                // 2) App convention: storage/app/companies/<filename>
+                $fullPath = storage_path('app/companies/' . $filename);
+                if (file_exists($fullPath)) {
+                    return $this->imagePathToDataUri($fullPath);
+                }
+
+                // 3) The company logo field may also be a public/ relative path
+                if (file_exists(public_path($path))) {
+                    return $this->imagePathToDataUri(public_path($path));
+                }
+
+                // 4) public/ ltrim fallback
+                if (file_exists(public_path(ltrim($path, '/')))) {
+                    return $this->imagePathToDataUri(public_path(ltrim($path, '/')));
+                }
+            }
+        }
+
+        // Fallback: default logo
+        $defaultLogo = public_path('images/logo.png');
+        if (file_exists($defaultLogo)) {
+            return $this->imagePathToDataUri($defaultLogo);
+        }
+
+        $defaultReportLogo = public_path('images/logo-report.png');
+        if (file_exists($defaultReportLogo)) {
+            return $this->imagePathToDataUri($defaultReportLogo);
+        }
+
+        return '';
+    }
+
+    private function imagePathToDataUri(string $absolutePath): string
+    {
+        if ($absolutePath === '' || !is_readable($absolutePath)) {
+            return '';
+        }
+
+        $contents = @file_get_contents($absolutePath);
+        if ($contents === false) {
+            return '';
+        }
+
+        $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'png'        => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif'        => 'image/gif',
+            'webp'       => 'image/webp',
+            'svg'        => 'image/svg+xml',
+            default      => 'image/png',
+        };
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 
     private function resolveImageAsDataUri(string $absolutePath): string
@@ -594,161 +775,5 @@ class Attachments extends Component
         return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 
-    public function generateGCLA02Form($language)
-    {
-        $this->closeGclaLanguageModal();
-
-        $batch = SampleHeader::with(['customer', 'sample_type'])->find($this->batch->id);
-
-        $samplesData = [];
-        $samples = SampleDetails::where('sample_header_id', $batch->id)->get();
-        $allCapturedResults = CapturedResult::where('captured_results.sample_header_id', $batch->id)
-                                ->join('analytes', 'analytes.id', '=', 'captured_results.analyte_id')
-                                ->leftJoin('analysis_methods', 'analysis_methods.id', '=', 'captured_results.method_id')
-                                ->leftJoin('reporting_units', 'reporting_units.id', '=', 'captured_results.reporting_unit_id')
-                                ->select('captured_results.*', 'analytes.name as analyte_name', 'analysis_methods.name as method_name', 'reporting_units.name as unit_name')
-                                ->get()
-                                ->groupBy('sample_detail_id');
-
-        $testsRequested = [];
-        $sampleDescParts = [];
-
-        foreach ($samples as $sample) {
-            $sampleResults = $allCapturedResults->get($sample->id, collect());
-            
-            $mappedResults = $sampleResults->map(function($res) use (&$testsRequested) {
-                if ($res->analyte_name) {
-                    $testsRequested[] = $res->analyte_name;
-                }
-                return [
-                    'analyte' => $res->analyte_name ?? $res->analyte_code,
-                    'value' => $res->result ?? 'N/A',
-                    'unit' => $res->unit_name ?? '',
-                    'method' => $res->method_name ?? 'N/A'
-                ];
-            })->toArray();
-
-            $desc = $sample->comments ?? $sample->sample_condition_name ?? 'N/A';
-            if (!in_array($desc, $sampleDescParts) && $desc !== 'N/A') {
-                $sampleDescParts[] = $desc;
-            }
-
-            $samplesData[] = [
-                'sample_code' => $sample->sample_code,
-                'appearance' => $desc,
-                'results' => $mappedResults
-            ];
-        }
-
-        $testsRequestedStr = !empty($testsRequested) ? implode(', ', array_unique($testsRequested)) : 'N/A';
-        $sampleDescStr = !empty($sampleDescParts) ? implode(', ', $sampleDescParts) : 'N/A';
-        
-        $customer = $batch->customer;
-        
-        // Approvers
-        $analystData = null;
-        $verifierData = null;
-        $approverData = null;
-        
-        $approvers = \App\BatchLabSectionApprover::where('batch_id', $batch->id)->get();
-        
-        foreach ($approvers as $appr) {
-            $apprUser = $appr->getApproverDetails();
-            if ($apprUser) {
-                $sig = null;
-                if ($apprUser->signature && file_exists(public_path($apprUser->signature))) {
-                    $sig = $this->resolveImageAsDataUri(public_path($apprUser->signature));
-                }
-                
-                $data = [
-                    'name' => $apprUser->name,
-                    'signature' => $sig,
-                    'title' => $apprUser->designation ?? ''
-                ];
-                
-                if (strtolower($appr->batch_status) === 'sample verification' || $appr->is_approver == 1) {
-                    $verifierData = $data;
-                } else if (strtolower($appr->batch_status) === 'sample approval') {
-                    $approverData = $data;
-                } else {
-                    $analystData = $data;
-                }
-            }
-        }
-
-        // If no analyst found via approvers table, try to get from user who completed analysis
-        if (!$analystData) {
-            $user = Auth::user();
-            $sig = null;
-            if ($user->signature && file_exists(public_path($user->signature))) {
-                $sig = $this->resolveImageAsDataUri(public_path($user->signature));
-            }
-            $analystData = [
-                'name' => $user->name,
-                'signature' => $sig,
-                'title' => $user->designation ?? ''
-            ];
-        }
-
-        // Get comments from ReportHeaderDetail if exists
-        $reportDetail = \App\ReportHeaderDetail::where('sample_header_id', $batch->id)->first();
-        $comments = $reportDetail ? $reportDetail->main_body : '';
-
-        // Logos
-        $gclaLogoPath = base_path('gclalogo.png');
-        $gclaLogo = file_exists($gclaLogoPath) ? $this->resolveImageAsDataUri($gclaLogoPath) : null;
-        
-        $coatOfArmsPath = base_path('tanzanialogo.jpeg');
-        $coatOfArms = file_exists($coatOfArmsPath) ? $this->resolveImageAsDataUri($coatOfArmsPath) : null;
-
-        $data = [
-            'language' => $language,
-            'batch' => $batch,
-            'customer' => $customer,
-            'samples_data' => $samplesData,
-            'processing_date' => date('d/m/Y'),
-            'receipt_date' => $batch->receipt_date ? date('d/m/Y', strtotime($batch->receipt_date)) : '',
-            'tests_requested' => $testsRequestedStr,
-            'sample_description' => $sampleDescStr,
-            'nb_notes' => '',
-            'comments' => $comments,
-            'analyst' => $analystData,
-            'verifier' => $verifierData,
-            'approver' => $approverData,
-            'gcla_logo' => $gclaLogo,
-            'coat_of_arms' => $coatOfArms
-        ];
-
-        // Generate PDF
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('batch.attachments.gcla-02-form-pdf', $data);
-        $pdf->setPaper('A4', 'portrait');
-
-        $customer_name = preg_replace('/[^A-Za-z0-9]/', '', $customer->name ?? 'Client');
-        $batch_code = preg_replace('/[^A-Za-z0-9]/', '', $batch->batch_code);
-        $filename = 'GCLA02-' . $customer_name . '-' . $batch_code . '-' . date("d-M-Y-H-i-s") . '.pdf';
-
-        $storagePath = 'reports/' . $customer_name;
-        if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($storagePath)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory($storagePath);
-        }
-
-        $fullPath = $storagePath . '/' . $filename;
-        \Illuminate\Support\Facades\Storage::disk('public')->put($fullPath, $pdf->output());
-
-        // Create Attachment Record
-        $attTypeConfig = \App\Models\System\SystemConfiguration::where('key', 'attachment_type')->where('value', 'Report')->first();
-
-        $attachment = new BatchAttachment();
-        $attachment->batch_id = $batch->id;
-        $attachment->uploaded_by = Auth::id() ?? 1;
-        $attachment->title = 'GCLA 02 Form (' . strtoupper($language) . ')';
-        $attachment->attachment_type = $attTypeConfig ? $attTypeConfig->id : null;
-        $attachment->attachment_url = '/storage/' . $fullPath;
-        $attachment->is_internal = 0;
-        $attachment->save();
-
-        session()->flash('success', 'GCLA 02 Form generated successfully.');
-        $this->dispatch('attachmentsUpdated');
-    }
 }
 

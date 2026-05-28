@@ -182,7 +182,7 @@
                 </button>
             </div>
             <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
-                @if(in_array($batch->status ?? '', ['Samples Reception', 'Samples En-Route']))
+                @if(in_array($batch->status ?? '', ['Samples Reception', 'Samples En-Route']) || empty($sampleForms))
                 <button type="button" wire:click="addSample" class="btn btn-success btn-sm btn-action-sm"
                     wire:loading.attr="disabled">
                     <i class="mdi mdi-plus"></i> Add

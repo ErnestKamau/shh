@@ -635,6 +635,8 @@ class SampleReceiptNotificationService
         $pdf->loadView('batch.attachments.sample-receipt-notification-pdf', [
             'batch' => $batch,
             'form' => $formData,
+            'logoSrc' => $this->resolveLogoAsDataUri(),
+            'reportLogoSrc' => $this->resolveReportLogoAsDataUri(),
         ]);
 
         Storage::disk('public')->put($pdfStoragePath, $pdf->output());
@@ -850,5 +852,158 @@ class SampleReceiptNotificationService
         $newConfig->save();
 
         return $newConfig->id;
+    }
+
+    /**
+     * Resolve the active company's logo to a base64 data URI.
+     */
+    private function resolveLogoAsDataUri(): string
+    {
+        $company = getActiveCompany();
+
+        if ($company && !empty($company->logo)) {
+            $path = $company->logo;
+
+            // Strip URL prefix if stored as a full URL
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                $path = parse_url($path, PHP_URL_PATH) ?? $path;
+            }
+            $path = ltrim($path, '/');
+            $filename = basename($path);
+
+            if ($filename !== '') {
+                // 1) Public storage disk (storage/app/public/...)
+                $relative = preg_replace('#^storage/#', '', $path);
+                if ($relative !== $path) {
+                    $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relative);
+                    if (file_exists($fullPath)) {
+                        return $this->imagePathToDataUri($fullPath);
+                    }
+                }
+
+                // 2) App convention: storage/app/companies/<filename>
+                $fullPath = storage_path('app/companies/' . $filename);
+                if (file_exists($fullPath)) {
+                    return $this->imagePathToDataUri($fullPath);
+                }
+
+                // 3) The company logo field may also be a public/ relative path
+                if (file_exists(public_path($path))) {
+                    return $this->imagePathToDataUri(public_path($path));
+                }
+
+                // 4) public/ ltrim fallback
+                if (file_exists(public_path(ltrim($path, '/')))) {
+                    return $this->imagePathToDataUri(public_path(ltrim($path, '/')));
+                }
+            }
+        }
+
+        // Fallback: default logo
+        $defaultLogo = public_path('images/logo.png');
+        if (file_exists($defaultLogo)) {
+            return $this->imagePathToDataUri($defaultLogo);
+        }
+
+        $defaultReportLogo = public_path('images/logo-report.png');
+        if (file_exists($defaultReportLogo)) {
+            return $this->imagePathToDataUri($defaultReportLogo);
+        }
+
+        return '';
+    }
+
+    /**
+     * Resolve the active company's report logo to a base64 data URI.
+     */
+    private function resolveReportLogoAsDataUri(): string
+    {
+        $company = getActiveCompany();
+
+        if ($company) {
+            $path = null;
+            $reportLogo = $company->reportLogos()->first();
+            if ($reportLogo && !empty($reportLogo->logo_path)) {
+                $path = $reportLogo->logo_path;
+            } elseif (!empty($company->report_logo)) {
+                $path = $company->report_logo;
+            }
+
+            if (!empty($path)) {
+                // Strip URL prefix if stored as a full URL
+                if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                    $path = parse_url($path, PHP_URL_PATH) ?? $path;
+                }
+                $path = ltrim($path, '/');
+                $filename = basename($path);
+
+                if ($filename !== '') {
+                    // 1) Public storage disk (storage/app/public/...)
+                    $relative = preg_replace('#^storage/#', '', $path);
+                    if ($relative !== $path) {
+                        $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relative);
+                        if (file_exists($fullPath)) {
+                            return $this->imagePathToDataUri($fullPath);
+                        }
+                    }
+
+                    // 2) App convention: storage/app/companies/<filename>
+                    $fullPath = storage_path('app/companies/' . $filename);
+                    if (file_exists($fullPath)) {
+                        return $this->imagePathToDataUri($fullPath);
+                    }
+
+                    // 3) The company logo field may also be a public/ relative path
+                    if (file_exists(public_path($path))) {
+                        return $this->imagePathToDataUri(public_path($path));
+                    }
+
+                    // 4) public/ ltrim fallback
+                    if (file_exists(public_path(ltrim($path, '/')))) {
+                        return $this->imagePathToDataUri(public_path(ltrim($path, '/')));
+                    }
+                }
+            }
+        }
+
+        // Fallback: default report logo
+        $defaultReportLogo = public_path('images/logo-report.png');
+        if (file_exists($defaultReportLogo)) {
+            return $this->imagePathToDataUri($defaultReportLogo);
+        }
+
+        $defaultLogo = public_path('images/logo.png');
+        if (file_exists($defaultLogo)) {
+            return $this->imagePathToDataUri($defaultLogo);
+        }
+
+        return '';
+    }
+
+    /**
+     * Convert an image path to a base64 data URI.
+     */
+    private function imagePathToDataUri(string $absolutePath): string
+    {
+        if ($absolutePath === '' || !is_readable($absolutePath)) {
+            return '';
+        }
+
+        $contents = @file_get_contents($absolutePath);
+        if ($contents === false) {
+            return '';
+        }
+
+        $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'png'        => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif'        => 'image/gif',
+            'webp'       => 'image/webp',
+            'svg'        => 'image/svg+xml',
+            default      => 'image/png',
+        };
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 }

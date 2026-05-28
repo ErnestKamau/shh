@@ -318,6 +318,27 @@ class ReportHeaderDetailController extends Controller
 
 		$tempFiles = [];
 
+		if ($report_format === 'gcla_02' || (string) $report_format === 'gcla_02') {
+			return $this->processGCLA02Report(
+				$batch,
+				$customer,
+				$company,
+				$report_logo,
+				$stamp,
+				$is_stamp,
+				$filename,
+				$customer_name,
+				$mergeWithAttachments,
+				$attachmentIds,
+				$batch_approvers,
+				$analysis_date,
+				$report_type,
+				$ammendment,
+				$disclaimer,
+				$date
+			);
+		}
+
 		// Resolve report format: First try by ID, then fallback to report_code for legacy support
 		$formatModel = null;
 		$reportCode = null;
@@ -1060,6 +1081,259 @@ class ReportHeaderDetailController extends Controller
 		}
 		$pdf->save($publicReportPath);
 		$batch->save();
+
+		if ($mergeWithAttachments && !empty($attachmentIds)) {
+			$mergedContent = $this->mergeCoaWithAttachments($tempFile, $batch, $attachmentIds, $customer_name, $filename);
+			@file_put_contents($tempFile, $mergedContent);
+			@file_put_contents($publicReportPath, $mergedContent);
+			return response($mergedContent, 200, ['Content-Type' => 'application/pdf']);
+		}
+
+		return $pdf->stream($filename);
+	}
+
+	private function processGCLA02Report($batch, $customer, $company, $report_logo, $stamp, $is_stamp, $filename, $customer_name, $mergeWithAttachments, $attachmentIds, $batch_approvers, $analysis_date, $report_type, $ammendment, $disclaimer, $date)
+	{
+		$language = request('gcla_language', 'sw');
+
+		// 1. Resolve Coat of Arms and GCLA Logos as Base64 Data URIs
+		$tanzaniaCandidates = [
+			public_path('images/forms/tanzanialogo.jpeg'),
+			public_path('images/forms/tanzanialogo.jpg'),
+			'/home/kaarr/Downloads/tanzanialogo.jpeg',
+		];
+		$tanzaniaLogo = null;
+		foreach ($tanzaniaCandidates as $candidate) {
+			if (is_file($candidate)) {
+				$tanzaniaLogo = $this->resolveImageAsDataUri($candidate);
+				break;
+			}
+		}
+
+		$gclaCandidates = [
+			public_path('images/forms/gclalogo.png'),
+			public_path('images/forms/gclalogo.jpg'),
+			'/home/kaarr/Downloads/gclalogo.png',
+		];
+		$gclaLogo = null;
+		foreach ($gclaCandidates as $candidate) {
+			if (is_file($candidate)) {
+				$gclaLogo = $this->resolveImageAsDataUri($candidate);
+				break;
+			}
+		}
+
+		// 2. Resolve Samples Data and Captured Results
+		$samples = \App\SampleDetails::where('sample_header_id', $batch->id)->get();
+		$samplesData = [];
+		foreach ($samples as $sample) {
+			$capturedResults = \App\CapturedResult::where('sample_detail_id', $sample->id)
+				->whereNotNull('result')
+				->get();
+			
+			$results = [];
+			foreach ($capturedResults as $cr) {
+				$methodName = '-';
+				if ($cr->method_id) {
+					$method = \App\AnalysisMethod::find($cr->method_id);
+					if ($method) {
+						$methodName = $method->code ?? $method->name;
+					}
+				}
+				$results[] = [
+					'analyte' => $cr->analyte_code ?? ($cr->analyte?->name ?? ''),
+					'value' => $cr->result,
+					'unit' => $cr->reporting_unit_id ? (\App\ReportingUnit::find($cr->reporting_unit_id)->name ?? '') : '',
+					'method' => $methodName,
+				];
+			}
+			
+			$samplesData[] = [
+				'sample_code' => $sample->sample_code,
+				'appearance' => $sample->notes_body ?? ($sample->material_status ?? 'Liquid'),
+				'results' => $results,
+			];
+		}
+
+		// 3. Dynamically compile the "NB:" section underneath the main results table
+		$uniqueMethodIds = \App\CapturedResult::where('sample_header_id', $batch->id)
+			->whereNotNull('method_id')
+			->pluck('method_id')
+			->unique()
+			->toArray();
+			
+		$nbNotesParts = [];
+		$methodIndex = 1;
+		foreach ($uniqueMethodIds as $mId) {
+			$method = \App\AnalysisMethod::find($mId);
+			if ($method) {
+				$desc = !empty($method->description) ? $method->description : 'Analytical test method';
+				$nbNotesParts[] = $methodIndex . '. ' . $method->code . ' - ' . $desc;
+				$methodIndex++;
+			}
+		}
+		$nbNotes = implode("\n", $nbNotesParts);
+
+		// 4. Resolve unique Analytes for "Tests Requested"
+		$uniqueAnalytes = \App\CapturedResult::where('sample_header_id', $batch->id)
+			->join('analytes as a', 'a.id', '=', 'captured_results.analyte_id')
+			->pluck('a.name')
+			->unique()
+			->toArray();
+		$tests_requested = !empty($uniqueAnalytes) ? implode(', ', $uniqueAnalytes) : ($batch->description ?? 'Analysis');
+
+		// 5. Resolve Comments
+		$comments = $batch->approval_comment ?? ($batch->comments ?? ($batch->batch_instructions ?? ''));
+		if (is_array($comments)) {
+			$comments = implode("\n", array_filter($comments));
+		}
+		if (is_string($comments)) {
+			$comments = trim($comments);
+			if ($comments === '[]' || $comments === '[""]') {
+				$comments = '';
+			}
+		}
+
+		// 6. Resolve User Signatures and details
+		$resolveUserSignature = function($user) {
+			if (!$user) return null;
+			$path = $user->signature_path ?? ($user->signature ?? null);
+			if (!$path) return null;
+			
+			$candidates = [
+				public_path($path),
+				public_path('storage/' . $path),
+				storage_path('app/public/' . $path),
+				$path
+			];
+			foreach ($candidates as $cand) {
+				if (is_file($cand)) {
+					return $this->resolveImageAsDataUri($cand);
+				}
+			}
+			return null;
+		};
+
+		// Resolve signatures dynamically from custody flow
+		$analystUser = null;
+		if ($batch->specialist_analyst) {
+			$analystUser = $batch->specialist_analyst;
+		} else {
+			$custodyAnalyst = \App\ChainOfCustody::join('users as u', 'u.id', '=', 'chain_of_custodies.moved_out_by')
+				->where('sample_header_id', $batch->id)
+				->select('u.*')
+				->where('workflow_stage', "Sample Analysis")
+				->orderBy('chain_of_custodies.created_at', 'desc')
+				->first();
+			if ($custodyAnalyst) {
+				$analystUser = $custodyAnalyst;
+			}
+		}
+		$analystName = $analystUser ? $analystUser->name : 'Dr. Elias S. Alute';
+		$analystTitle = $analystUser ? $analystUser->designation : 'Chemist';
+
+		$verifiedByUser = \App\ChainOfCustody::join('users as u', 'u.id', '=', 'chain_of_custodies.moved_out_by')
+			->where('sample_header_id', $batch->id)
+			->select('u.*')
+			->where('workflow_stage', "Sample Verification")
+			->orderBy('chain_of_custodies.created_at', 'desc')
+			->first();
+		$verifierName = $verifiedByUser ? $verifiedByUser->name : 'Mwanahawa H. Msangi';
+		$verifierTitle = $verifiedByUser ? $verifiedByUser->designation : 'Senior Chemist II';
+
+		$approvedByUser = \App\ChainOfCustody::join('users as u', 'u.id', '=', 'chain_of_custodies.moved_out_by')
+			->where('sample_header_id', $batch->id)
+			->select('u.*')
+			->where('workflow_stage', "Sample Approval")
+			->orderBy('chain_of_custodies.created_at', 'desc')
+			->first();
+		if (!$approvedByUser) {
+			$batchApprover = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+				->where('show_report', 1)
+				->where('status', 1)
+				->first();
+			if ($batchApprover) {
+				$approvedByUser = \App\User::find($batchApprover->user_id);
+			}
+		}
+		$approverName = $approvedByUser ? $approvedByUser->name : 'Dr. Elias S. Alute';
+		$approverTitle = $approvedByUser ? $approvedByUser->designation : 'Acting Director of Forensic Science Services';
+
+		// 7. Compile $data
+		$data = [
+			'batch' => $batch,
+			'customer' => $customer,
+			'company' => $company,
+			'language' => $language,
+			'processing_date' => date('d/m/Y', strtotime(getTodayDate())),
+			'receipt_date' => $batch->receipt_date ? date('d/m/Y', strtotime($batch->receipt_date)) : '-',
+			'tests_requested' => $tests_requested,
+			'sample_description' => $batch->sample_type?->name ?? 'Sampuli',
+			'samples_data' => $samplesData,
+			'nb_notes' => $nbNotes,
+			'comments' => $comments,
+			'analyst' => [
+				'name' => $analystName,
+				'title' => $analystTitle,
+				'signature' => $resolveUserSignature($analystUser),
+			],
+			'verifier' => [
+				'name' => $verifierName,
+				'title' => $verifierTitle,
+				'signature' => $resolveUserSignature($verifiedByUser),
+			],
+			'approver' => [
+				'name' => $approverName,
+				'title' => $approverTitle,
+				'signature' => $resolveUserSignature($approvedByUser),
+			],
+			'coat_of_arms' => $tanzaniaLogo,
+			'gcla_logo' => $gclaLogo,
+		];
+
+		ini_set('max_execution_time', 300);
+		$pdf = app('dompdf.wrapper');
+		$pdf->getDomPDF()->set_option("enable_php", true);
+		$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
+		$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
+
+		$pdf = PDF::loadView('batch.attachments.gcla-02-form-pdf', $data);
+
+		$filename = $filename ?? ($customer_name . '-' . preg_replace('/[^A-Za-z0-9]/', '', $batch->batch_code) . '-' . date('d-M-Y-H-i-s') . '.pdf');
+		$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
+		if (!is_dir(storage_path() . '/app/reports/' . $customer_name)) {
+			mkdir(storage_path() . '/app/reports/' . $customer_name, 0755, true);
+		}
+		$pdf->save($tempFile);
+
+		$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
+		$publicReportPath = storage_path('app/public' . $batch->batch_report_url);
+		if (!is_dir(dirname($publicReportPath))) {
+			mkdir(dirname($publicReportPath), 0755, true);
+		}
+		$pdf->save($publicReportPath);
+		$batch->save();
+
+		// Save GCLA 02 Form PDF as a Batch Attachment so that it lists under Attachments tab!
+		try {
+			$attachmentTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
+				->resolveOrCreateAttachmentTypeId('GCLA 02 Form');
+			
+			$fallbackUser = \App\User::first();
+			
+			// Save database record in batch_attachments
+			$attachment = new \App\BatchAttachment();
+			$attachment->batch_id = $batch->id;
+			$attachment->title = 'GCLA 02 Form - ' . ($language === 'sw' ? 'Kiswahili' : 'English');
+			$attachment->attachment_url = $batch->batch_report_url;
+			$attachment->attachment_type = $attachmentTypeId;
+			$attachment->is_internal = 0;
+			$attachment->show_on_coa = 0;
+			$attachment->uploaded_by = auth()->id() ?? ($fallbackUser ? $fallbackUser->id : null);
+			$attachment->save();
+		} catch (\Exception $attEx) {
+			\Log::error("Failed to auto-save GCLA 02 report as attachment: " . $attEx->getMessage());
+		}
 
 		if ($mergeWithAttachments && !empty($attachmentIds)) {
 			$mergedContent = $this->mergeCoaWithAttachments($tempFile, $batch, $attachmentIds, $customer_name, $filename);
