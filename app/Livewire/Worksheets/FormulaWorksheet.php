@@ -728,6 +728,67 @@ class FormulaWorksheet extends Component
         return app(FormulaStepCheckboxOptionsResolver::class)->optionsForStep($step);
     }
 
+    public function resolveCustomTableDatasetValue(
+        FormulaStepTableColumn $column,
+        CapturedResult $captured,
+    ): string {
+        if (($column->column_type ?? '') !== 'dataset' || ($column->model_tied_to ?? '') !== 'samples') {
+            return '';
+        }
+
+        $config = is_array($column->dataset_config) ? $column->dataset_config : [];
+        $sourceTable = (string) ($config['source_table'] ?? 'sample_details');
+        $displayMode = (string) ($config['display_mode'] ?? 'direct');
+        if ($sourceTable === '' || ! $captured->sample_detail_id) {
+            return '';
+        }
+
+        try {
+            $sourceRecord = DB::table($sourceTable)
+                ->where('id', $captured->sample_detail_id)
+                ->first();
+
+            if (! $sourceRecord) {
+                return '';
+            }
+
+            if ($displayMode === 'foreign_key') {
+                $fkColumn = (string) ($config['foreign_key_column'] ?? '');
+                $refTable = (string) ($config['referenced_table'] ?? '');
+                $refKey = (string) ($config['referenced_key_column'] ?? 'id');
+                $refDisplay = (string) ($config['referenced_display_column'] ?? '');
+                if ($fkColumn === '' || $refTable === '' || $refDisplay === '') {
+                    return '';
+                }
+
+                $fkValue = data_get($sourceRecord, $fkColumn);
+                if ($fkValue === null || $fkValue === '') {
+                    return '';
+                }
+
+                $refRecord = DB::table($refTable)
+                    ->where($refKey, $fkValue)
+                    ->first();
+
+                return (string) (data_get($refRecord, $refDisplay) ?? '');
+            }
+
+            $sourceDisplayColumn = (string) ($config['source_display_column'] ?? '');
+            if ($sourceDisplayColumn === '') {
+                return '';
+            }
+
+            return (string) (data_get($sourceRecord, $sourceDisplayColumn) ?? '');
+        } catch (\Throwable $e) {
+            Log::warning('Failed resolving custom table dataset value: '.$e->getMessage(), [
+                'column_id' => $column->id,
+                'captured_result_id' => $captured->id,
+            ]);
+
+            return '';
+        }
+    }
+
     /**
      * Save mandatory fields to all captured results in this worksheet
      */

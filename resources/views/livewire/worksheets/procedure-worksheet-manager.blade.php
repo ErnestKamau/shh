@@ -23,7 +23,7 @@
     @php
         $canShowGroupedCapture = $groupedCaptureLayout && $this->selectedWorksheet && $this->hasGroupedProcedureSteps;
     @endphp
-    @if($this->paramsWithWorksheets->isEmpty() && !$canShowGroupedCapture)
+    @if($this->paramsWithWorksheets->isEmpty() && $this->tiedProcedureWorksheets->isEmpty() && !$canShowGroupedCapture)
     <div class="alert alert-info m-3">
         <i class="mdi mdi-information"></i> No procedure worksheets found for the samples in this batch.
         @if($groupedCaptureLayout && !$this->hasGroupedProcedureSteps)
@@ -77,7 +77,7 @@
                     @endforeach
                 </ul>
                 @endif
-                @if(!empty($activeTabs) && (!$groupedCaptureLayout || $this->paramsWithWorksheets->count() > 1))
+                @if(($this->worksheetsForParam->count() > 0 || $this->selectedWorksheet) && (!$groupedCaptureLayout || $this->paramsWithWorksheets->count() > 1))
                 <div class="procedure-tab-worksheet">
                     @if($this->worksheetsForParam->count() === 1)
                     <span class="procedure-worksheet-name">{{ $this->worksheetsForParam->first()->name }}</span>

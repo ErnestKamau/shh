@@ -56,6 +56,7 @@ class FormulaStepTableColumn extends Model implements Auditable
             'users' => 'Users',
             'methods' => 'Methods',
             'analytes' => 'Analytes',
+            'samples' => 'Samples',
         ];
     }
 }

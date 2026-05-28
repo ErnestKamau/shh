@@ -362,10 +362,20 @@ class ProcedureWorksheetManager extends Component
 
     public function initActiveTab()
     {
+        if ($this->groupedInitialWorksheetId) {
+            return;
+        }
+
         $params = $this->paramsWithWorksheets;
         if ($params->isNotEmpty() && empty($this->activeTabs)) {
             $this->activeTabs = [$params->first()->id];
             $this->updatedActiveTabs();
+            return;
+        }
+
+        if ($params->isEmpty() && $this->tiedProcedureWorksheets->isNotEmpty() && ! $this->selectedWorksheetId) {
+            $this->selectedWorksheetId = (string) $this->tiedProcedureWorksheets->first()->id;
+            $this->loadSamples();
         }
     }
 
@@ -375,17 +385,44 @@ class ProcedureWorksheetManager extends Component
             return $this->paramsForProcedureWorksheet($this->groupedInitialWorksheetId);
         }
 
-        // Get analytes that have captured results tied to an ACTIVE procedure worksheet.
-        return CapturedResult::query()
-            ->where('captured_results.sample_header_id', $this->batchId)
-            ->whereValidUuidAnalyteId()
-            ->whereHas('procedureWorksheet', fn ($q) => $q->where('is_active', true))
-            ->with('my_analyte')
+        if ($this->tiedProcedureWorksheetIds->isEmpty()) {
+            return collect();
+        }
+
+        return Analyte::query()
+            ->whereIn('id', function ($query) {
+                $query->select('analysis_elements.analyte_id')
+                    ->from('analysis_elements')
+                    ->whereIn('analysis_elements.procedure_worksheet_id', $this->tiedProcedureWorksheetIds)
+                    ->whereNotNull('analysis_elements.analyte_id');
+            })
+            ->orderBy('name')
             ->get()
-            ->pluck('my_analyte')
-            ->filter()
-            ->unique('id')
             ->values();
+    }
+
+    public function getTiedProcedureWorksheetIdsProperty(): Collection
+    {
+        return CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->whereNotNull('procedure_worksheet_id')
+            ->distinct()
+            ->pluck('procedure_worksheet_id')
+            ->filter()
+            ->values();
+    }
+
+    public function getTiedProcedureWorksheetsProperty(): Collection
+    {
+        if ($this->tiedProcedureWorksheetIds->isEmpty()) {
+            return collect();
+        }
+
+        return ProcedureWorksheet::query()
+            ->whereIn('id', $this->tiedProcedureWorksheetIds)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     public function getHasGroupedProcedureStepsProperty(): bool
@@ -401,18 +438,18 @@ class ProcedureWorksheetManager extends Component
 
     public function getWorksheetsForParamProperty()
     {
-        if (empty($this->activeTabs)) return collect();
+        if (empty($this->activeTabs)) {
+            return $this->tiedProcedureWorksheets;
+        }
 
-        // Get unique procedure worksheets for the selected analytes in this batch
-        $worksheetIds = CapturedResult::where('sample_header_id', $this->batchId)
-            ->whereIn('analyte_id', $this->activeTabs)
-            ->whereNotNull('procedure_worksheet_id')
-            ->pluck('procedure_worksheet_id')
-            ->unique();
-
-        return ProcedureWorksheet::whereIn('id', $worksheetIds)
-            ->where('is_active', true)
-            ->get();
+        return $this->tiedProcedureWorksheets
+            ->filter(function (ProcedureWorksheet $worksheet): bool {
+                return AnalysisElements::query()
+                    ->where('procedure_worksheet_id', $worksheet->id)
+                    ->whereIn('analyte_id', $this->activeTabs)
+                    ->exists();
+            })
+            ->values();
     }
 
     public function setActiveTab($tabId)
@@ -492,14 +529,6 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        if (empty($this->activeTabs)) {
-            $this->selectedSamples = [];
-            $this->testKitRows = [];
-            $this->testKitData = [];
-
-            return;
-        }
-
         // Persist external samples per (batch, worksheet, analyte, user) so they survive reloads.
         $activeAnalyteIdForExternal = count($this->activeTabs) > 0 ? $this->activeTabs[0] : null;
         $externalCacheKey = $activeAnalyteIdForExternal
@@ -536,8 +565,11 @@ class ProcedureWorksheetManager extends Component
 
         // Base query for captured results for these analytes and worksheet
         $query = CapturedResult::query()
-            ->whereIn('analyte_id', $this->activeTabs)
             ->where('procedure_worksheet_id', $this->selectedWorksheetId);
+
+        if (! empty($this->activeTabs)) {
+            $query->whereIn('analyte_id', $this->activeTabs);
+        }
 
         // Always include current batch, optionally include explicitly selected external captured_results
         if (! empty($this->externalCapturedResultIds)) {

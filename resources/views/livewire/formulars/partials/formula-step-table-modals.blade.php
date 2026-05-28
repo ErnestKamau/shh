@@ -15,13 +15,22 @@
                 </button>
             </div>
 
-            <div class="pw-table-wizard__stepper px-4 pt-3 pb-0">
-                <div class="pw-table-wizard__steps">
-                    @foreach([
+            @php
+                $wizardSteps = $this->isStaticTableConfiguration()
+                    ? [
                         1 => ['icon' => 'mdi-table-column', 'label' => 'Columns', 'hint' => 'Structure'],
                         2 => ['icon' => 'mdi-table-row-plus-after', 'label' => 'Static rows', 'hint' => 'Fixed values'],
                         3 => ['icon' => 'mdi-eye-check-outline', 'label' => 'Preview', 'hint' => 'Review & save'],
-                    ] as $stepNum => $stepMeta)
+                    ]
+                    : [
+                        1 => ['icon' => 'mdi-table-column', 'label' => 'Columns', 'hint' => 'Structure'],
+                        2 => ['icon' => 'mdi-eye-check-outline', 'label' => 'Preview', 'hint' => 'Review & save'],
+                    ];
+                $maxStep = $this->configureTableMaxStep();
+            @endphp
+            <div class="pw-table-wizard__stepper px-4 pt-3 pb-0">
+                <div class="pw-table-wizard__steps">
+                    @foreach($wizardSteps as $stepNum => $stepMeta)
                     @php
                         $isActive = $configureTableWizardStep === $stepNum;
                         $isDone = $configureTableWizardStep > $stepNum;
@@ -43,7 +52,7 @@
                             <span class="pw-table-wizard__step-hint">{{ $stepMeta['hint'] }}</span>
                         </span>
                     </button>
-                    @if($stepNum < 3)
+                    @if($stepNum < $maxStep)
                     <span class="pw-table-wizard__connector {{ $configureTableWizardStep > $stepNum ? 'pw-table-wizard__connector--done' : '' }}"></span>
                     @endif
                     @endforeach
@@ -56,7 +65,13 @@
                     <div class="pw-table-wizard__panel-head">
                         <div>
                             <h6 class="mb-1"><i class="mdi mdi-table-column text-primary"></i> Table columns</h6>
-                            <p class="text-muted small mb-0">Define each column. <strong>Static</strong> columns get values per row in the next step; <strong>user input</strong> columns are filled during capture.</p>
+                            <p class="text-muted small mb-0">
+                                Define each column.
+                                @if($this->isStaticTableConfiguration())
+                                    <strong>Static</strong> columns get values per row in the next step;
+                                @endif
+                                <strong>user input</strong> columns are filled during capture.
+                            </p>
                         </div>
                         <button type="button" class="btn btn-sm btn-primary pw-table-wizard__cta" wire:click="showCreateStepColumnModalInit">
                             <i class="mdi mdi-plus"></i> Add column
@@ -179,6 +194,53 @@
                                 </select>
                                 @error('stepColumnModelTiedTo') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
+                            @if($stepColumnModelTiedTo === 'samples')
+                            <div class="col-md-6">
+                                <label class="form-label">Sample source table</label>
+                                <input type="text" class="form-control" value="sample_details" readonly>
+                                <small class="text-muted">Values are pulled from the sample details table.</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Column source mode</label>
+                                <select class="form-control" wire:model.live="stepColumnDatasetDisplayMode">
+                                    <option value="direct">Normal columns</option>
+                                    <option value="foreign_key">Foreign key columns</option>
+                                </select>
+                            </div>
+                            @if($stepColumnDatasetDisplayMode === 'foreign_key')
+                            <div class="col-md-6">
+                                <label class="form-label">Foreign key column <span class="text-danger">*</span></label>
+                                <select class="form-control" wire:model.live="stepColumnDatasetFkColumn">
+                                    <option value="">Select foreign key...</option>
+                                    @foreach($stepColumnDatasetForeignKeys as $fk)
+                                    <option value="{{ $fk['column'] }}">{{ $fk['label'] }}</option>
+                                    @endforeach
+                                </select>
+                                @error('stepColumnDatasetFkColumn') <small class="text-danger">{{ $message }}</small> @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Referenced display column <span class="text-danger">*</span></label>
+                                <select class="form-control" wire:model="stepColumnDatasetReferencedDisplayColumn" @disabled($stepColumnDatasetReferencedTable === '')>
+                                    <option value="">Select column...</option>
+                                    @foreach($stepColumnDatasetReferencedColumns as $col)
+                                    <option value="{{ $col['value'] }}">{{ $col['label'] }}</option>
+                                    @endforeach
+                                </select>
+                                @error('stepColumnDatasetReferencedDisplayColumn') <small class="text-danger">{{ $message }}</small> @enderror
+                            </div>
+                            @else
+                            <div class="col-md-6">
+                                <label class="form-label">Display column <span class="text-danger">*</span></label>
+                                <select class="form-control" wire:model="stepColumnDatasetSourceColumn">
+                                    <option value="">Select column...</option>
+                                    @foreach($stepColumnDatasetColumns as $col)
+                                    <option value="{{ $col['value'] }}">{{ $col['label'] }}</option>
+                                    @endforeach
+                                </select>
+                                @error('stepColumnDatasetSourceColumn') <small class="text-danger">{{ $message }}</small> @enderror
+                            </div>
+                            @endif
+                            @endif
                             @endif
                             @if($stepColumnType === 'derived')
                             <div class="col-12">
@@ -215,7 +277,7 @@
                 </section>
                 @endif
 
-                @if($configureTableWizardStep === 2)
+                @if($this->isStaticTableConfiguration() && $configureTableWizardStep === 2)
                 <section class="pw-table-wizard__panel">
                     <div class="pw-table-wizard__panel-head">
                         <div>
@@ -297,7 +359,7 @@
                 </section>
                 @endif
 
-                @if($configureTableWizardStep === 3)
+                @if((! $this->isStaticTableConfiguration() && $configureTableWizardStep === 2) || ($this->isStaticTableConfiguration() && $configureTableWizardStep === 3))
                 <section class="pw-table-wizard__panel">
                     <div class="pw-table-wizard__panel-head mb-3">
                         <div>
@@ -379,7 +441,7 @@
                         <i class="mdi mdi-arrow-left"></i> Back
                     </button>
                     @endif
-                    @if($configureTableWizardStep < 3)
+                    @if($configureTableWizardStep < $maxStep)
                     <button type="button" class="btn btn-primary" wire:click="configureTableWizardNext" @disabled($configureTableWizardStep === 1 && count($stepTableColumns) === 0)>
                         Next <i class="mdi mdi-arrow-right"></i>
                     </button>

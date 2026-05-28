@@ -99,6 +99,7 @@
                             </a>
                         </li>
                         @endif
+                        @if($procedureWorksheets->count() > 0)
                         <li class="nav-item">
                             <a class="nav-link {{ $activeTab === 'procedures' ? 'active' : '' }}"
                                href="#"
@@ -110,8 +111,10 @@
                                 <span class="badge badge-light ml-1 d-none" wire:loading.class.remove="d-none" wire:target="switchTab">
                                     <i class="mdi mdi-loading mdi-spin"></i> Loading...
                                 </span>
+                                <span class="badge badge-success">{{ $procedureWorksheets->count() }}</span>
                             </a>
                         </li>
+                        @endif
                         @if($hasNoCaptureSamples)
                         <li class="nav-item">
                             <a class="nav-link {{ $activeTab === 'ser' ? 'active' : '' }}"

@@ -5,6 +5,7 @@ namespace App\Livewire\Worksheets;
 use App\CapturedResult;
 use App\Models\Formulars\Formula;
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
+use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\StageHeader;
 use App\SampleHeader;
@@ -25,6 +26,8 @@ class WorksheetManager extends Component
     /** @var Collection<int, GroupedWorksheetHolder> */
     public Collection $groupedHolders;
 
+    public ?string $pipeline = null;
+
     public ?string $activeGroupedHolderId = null;
 
     public $formulas;
@@ -39,6 +42,9 @@ class WorksheetManager extends Component
     public $logEntryWorksheets;
 
     public ?string $activeLogEntryWorksheetId = null;
+
+    /** @var \Illuminate\Support\Collection<int, ProcedureWorksheet> */
+    public $procedureWorksheets;
 
     protected bool $formulaDataLoaded = false;
 
@@ -55,10 +61,12 @@ class WorksheetManager extends Component
         $this->stageHeaders = collect();
         $this->formulas = collect();
         $this->logEntryWorksheets = collect();
+        $this->procedureWorksheets = collect();
         $this->groupedHolders = app(GroupedWorksheetAssignmentService::class)->resolveHoldersForBatch($batch);
 
         if ($this->groupedHolders->isNotEmpty()) {
             $this->activeGroupedHolderId = (string) ($this->groupedHolders->first()->id);
+            $this->pipeline = $this->activeGroupedHolderId;
         }
 
         $requestedTab = request()->query('tab', $this->groupedHolders->isNotEmpty() ? 'grouped-pipelines' : 'formulas');
@@ -73,6 +81,7 @@ class WorksheetManager extends Component
         if ($requestedPipeline && $this->groupedHolders->contains('id', $requestedPipeline)) {
             $this->activeTab = 'grouped-pipelines';
             $this->activeGroupedHolderId = (string) $requestedPipeline;
+            $this->pipeline = (string) $requestedPipeline;
         }
 
         $requestedFormulaId = request()->query('formula');
@@ -81,6 +90,7 @@ class WorksheetManager extends Component
             $this->activeFormulaId = $requestedFormulaId;
         }
 
+        $this->loadProcedureWorksheetData();
         $this->loadLogEntryWorksheetData();
         $this->ensureTabDataLoaded();
     }
@@ -103,7 +113,6 @@ class WorksheetManager extends Component
     public function loadLogEntryWorksheetData(): void
     {
         $ids = CapturedResult::where('sample_header_id', $this->batch->id)
-            ->where('has_log_entry_worksheet', true)
             ->whereNotNull('log_entry_worksheet_id')
             ->distinct()
             ->pluck('log_entry_worksheet_id');
@@ -116,6 +125,21 @@ class WorksheetManager extends Component
         if ($this->activeLogEntryWorksheetId === null && $this->logEntryWorksheets->isNotEmpty()) {
             $this->activeLogEntryWorksheetId = (string) $this->logEntryWorksheets->first()->id;
         }
+    }
+
+    public function loadProcedureWorksheetData(): void
+    {
+        $ids = CapturedResult::query()
+            ->where('sample_header_id', $this->batch->id)
+            ->whereNotNull('procedure_worksheet_id')
+            ->distinct()
+            ->pluck('procedure_worksheet_id');
+
+        $this->procedureWorksheets = ProcedureWorksheet::query()
+            ->whereIn('id', $ids)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     protected function loadStageHeaders(): void
@@ -217,6 +241,7 @@ class WorksheetManager extends Component
     {
         $this->activeTab = 'grouped-pipelines';
         $this->activeGroupedHolderId = $holderId;
+        $this->pipeline = $holderId;
     }
 
     public function updatedActiveTab(string $tab): void
