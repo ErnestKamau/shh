@@ -23,16 +23,40 @@
         
         .signature-img { max-height: 30px; max-width: 150px; vertical-align: bottom; }
         .stamp-area { text-align: right; margin-top: 60px; margin-right: 30px; font-style: italic; }
+        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .header-table td { vertical-align: middle; }
+        .logo-td { width: 80px; }
+        .logo { width: 70px; height: auto; }
+        .title-td { text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="text-center main-header">THE UNITED REPUBLIC OF TANZANIA</div>
-    <div class="text-center main-header">GOVERNMENT CHEMIST LABORATORY AUTHORITY</div>
+    <table class="header-table">
+        <tr>
+            <td class="logo-td">
+                @if(!empty($logoSrc))
+                    <img src="{{ $logoSrc }}" class="logo" alt="Logo">
+                @else
+                    <img src="{{ public_path('images/logo.png') }}" class="logo" alt="Logo">
+                @endif
+            </td>
+            <td class="title-td">
+                <div class="main-header">THE UNITED REPUBLIC OF TANZANIA</div>
+                <div class="main-header" style="font-size: 15px;">GOVERNMENT CHEMIST LABORATORY AUTHORITY</div>
+            </td>
+            <td style="width: 100px; text-align: right; vertical-align: middle;">
+                <div class="form-code" style="margin-bottom: 5px;">GCLA 01</div>
+                @if(!empty($reportLogoSrc))
+                    <img src="{{ $reportLogoSrc }}" class="logo" alt="Report Logo" style="width: 70px; height: auto;">
+                @else
+                    <img src="{{ public_path('images/logo-report.png') }}" class="logo" alt="Report Logo" style="width: 70px; height: auto;">
+                @endif
+            </td>
+        </tr>
+    </table>
     
-    <div class="text-right form-code">GCLA 01</div>
-    
-    <div class="text-center sub-header">SAMPLE RECEIPT NOTIFICATION</div>
+    <div class="text-center sub-header" style="margin-top: 10px;">SAMPLE RECEIPT NOTIFICATION</div>
     
     <div class="list-container">
         

@@ -5,7 +5,7 @@
             <button type="button"
                     class="btn btn-sm btn-outline-secondary btn-action-sm"
                     data-toggle="modal"
-                    data-target="#process-raw-results">
+                    data-target="#process-results-modal">
                 <i class="mdi mdi-cog"></i> Process results
             </button>
         </div>

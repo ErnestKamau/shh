@@ -21,12 +21,15 @@ use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class Samples extends Component
 {
+    use WithFileUploads;
+
     public $batchId;
     public SampleHeader $batch;
     public $not_captured = [];
@@ -101,6 +104,7 @@ class Samples extends Component
     public $storageLocations = [];
 
     public $sampleForms = [];
+    public $samplePhotos = [];
     public $samples = [];
     // View parameters modal
     public $showParametersModal = false;
@@ -451,6 +455,7 @@ class Samples extends Component
     protected function loadSamples()
     {
         try {
+            $this->batch->unsetRelation('samples');
             $samples = $this->batch->samples;
 
             $this->sampleForms = [];
@@ -462,7 +467,10 @@ class Samples extends Component
                     'lab_id' => $sample->lab_id ?? '',
                     'sample_condition_id' => $sample->sample_condition_id ?? '',
                     'sample_point_id' => $sample->sample_point_id ?? '',
-                    'company_product_id' => $sample->company_product_id ?? '',
+                    'photo_url' => $sample->photo_url ?? '',
+                    'sample_no' => $sample->sample_no ?? '',
+                    'sample_type_id' => $sample->sample_type_id ?? '',
+                    'matrix' => $sample->matrix ?? '',
                     'file_no' => $sample->file_no ?? '',
                     'comments' => $sample->comments ?? '',
                     'main_standard' => $sample->main_standard ?? '',
@@ -1576,7 +1584,10 @@ class Samples extends Component
             'lab_id' => '',
             'sample_condition_id' => '',
             'sample_point_id' => '',
-            'company_product_id' => '',
+            'photo_url' => '',
+            'sample_no' => '',
+            'sample_type_id' => '',
+            'matrix' => '',
             'file_no' => '',
             'comments' => '',
             'main_standard' => '',
@@ -1818,7 +1829,10 @@ class Samples extends Component
             "sampleForms.$index.lab_id" => 'required',
             "sampleForms.$index.sample_condition_id" => 'nullable',
             "sampleForms.$index.sample_point_id" => 'nullable',
-            "sampleForms.$index.company_product_id" => 'nullable',
+            "sampleForms.$index.photo_url" => 'nullable',
+            "sampleForms.$index.sample_no" => 'nullable',
+            "sampleForms.$index.sample_type_id" => 'nullable',
+            "sampleForms.$index.matrix" => 'nullable',
             "sampleForms.$index.file_no" => 'nullable',
             "sampleForms.$index.main_standard" => 'required',
             "sampleForms.$index.quantity" => 'required|numeric|min:0',
@@ -1853,7 +1867,19 @@ class Samples extends Component
             $sample->lab_id = $sampleData['lab_id'];
             $sample->sample_condition_id = !empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
             $sample->sample_point_id = !empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
-            $sample->company_product_id = !empty($sampleData['company_product_id']) ? $sampleData['company_product_id'] : null;
+
+            // Handle photo upload
+            if (isset($this->samplePhotos[$index])) {
+                $path = $this->samplePhotos[$index]->store('sample_photos', 'public');
+                $sampleData['photo_url'] = $path;
+                $this->sampleForms[$index]['photo_url'] = $path;
+                unset($this->samplePhotos[$index]);
+            }
+
+            $sample->photo_url = !empty($sampleData['photo_url']) ? $sampleData['photo_url'] : null;
+            $sample->sample_no = !empty($sampleData['sample_no']) ? $sampleData['sample_no'] : null;
+            $sample->sample_type_id = !empty($sampleData['sample_type_id']) ? $sampleData['sample_type_id'] : null;
+            $sample->matrix = !empty($sampleData['matrix']) ? $sampleData['matrix'] : null;
             $sample->file_no = !empty($sampleData['file_no']) ? $sampleData['file_no'] : null;
             $sample->comments = $sampleData['comments'];
             $sample->main_standard = !empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;
@@ -1896,7 +1922,10 @@ class Samples extends Component
             'sampleForms.*.lab_id' => 'required',
             'sampleForms.*.sample_condition_id' => 'nullable',
             'sampleForms.*.sample_point_id' => 'nullable',
-            'sampleForms.*.company_product_id' => 'nullable',
+            'sampleForms.*.photo_url' => 'nullable',
+            'sampleForms.*.sample_no' => 'nullable',
+            'sampleForms.*.sample_type_id' => 'nullable',
+            'sampleForms.*.matrix' => 'nullable',
             'sampleForms.*.file_no' => 'nullable',
             'sampleForms.*.main_standard' => 'required',
             'sampleForms.*.quantity' => 'required|numeric|min:0',
@@ -1928,7 +1957,19 @@ class Samples extends Component
                 $sample->lab_id = $sampleData['lab_id'];
                 $sample->sample_condition_id = !empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
                 $sample->sample_point_id = !empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
-                $sample->company_product_id = !empty($sampleData['company_product_id']) ? $sampleData['company_product_id'] : null;
+
+                // Handle photo upload
+                if (isset($this->samplePhotos[$index])) {
+                    $path = $this->samplePhotos[$index]->store('sample_photos', 'public');
+                    $sampleData['photo_url'] = $path;
+                    $this->sampleForms[$index]['photo_url'] = $path;
+                    unset($this->samplePhotos[$index]);
+                }
+
+                $sample->photo_url = !empty($sampleData['photo_url']) ? $sampleData['photo_url'] : null;
+                $sample->sample_no = !empty($sampleData['sample_no']) ? $sampleData['sample_no'] : null;
+                $sample->sample_type_id = !empty($sampleData['sample_type_id']) ? $sampleData['sample_type_id'] : null;
+                $sample->matrix = !empty($sampleData['matrix']) ? $sampleData['matrix'] : null;
                 $sample->file_no = !empty($sampleData['file_no']) ? $sampleData['file_no'] : null;
                 $sample->comments = $sampleData['comments'];
                 $sample->main_standard = !empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;

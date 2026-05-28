@@ -75,6 +75,7 @@ class SystemTranslationsSeeder extends Seeder
             'company_logo'                  => ['en' => 'Company Logo',                  'sw' => 'Nembo ya Kampuni'],
             'leave_blank_keep_logo'         => ['en' => '*Leave blank to maintain current logo', 'sw' => '*Acha wazi kubaki na nembo ya sasa'],
             'report_logo'                   => ['en' => 'Report Logo',                   'sw' => 'Nembo ya Ripoti'],
+            'report_logos'                  => ['en' => 'Report Logos',                  'sw' => 'Nembo za Ripoti'],
             'company_country'               => ['en' => 'Company Country',               'sw' => 'Nchi ya Kampuni'],
             'company_postal_address'        => ['en' => 'Company Postal Address',        'sw' => 'Anwani ya Posta ya Kampuni'],
             'company_location'              => ['en' => 'Company Location',              'sw' => 'Mahali pa Kampuni'],

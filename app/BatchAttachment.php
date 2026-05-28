@@ -17,6 +17,7 @@ class BatchAttachment extends Model implements Auditable
     public $incrementing = false;
 
     protected $table = 'batch_attachments';
+    
     protected $appends = ['uploaduser', 'attachtypename', 'file_name', 'file_type'];
 
     public function getUploadUserAttribute()

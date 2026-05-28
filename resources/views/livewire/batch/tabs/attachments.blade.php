@@ -20,117 +20,320 @@
                     placeholder="Search attachments by filename, type, or uploader...">
             </div>
 
-            <div class="table-responsive" id="attachments-container">
-                <table class="table table-bordered table-hover workflow-table mb-0" id="attachments-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 30px;">
-                                <input type="checkbox" id="check-all-attachments">
-                            </th>
-                            <th>Type</th>
-                            <th>Title</th>
-                            <th>Upload Date</th>
-                            <th>Uploaded By</th>
-                            <th>File</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if($attachments->count() > 0)
-                        @if(Auth::user()->is_client == 1)
-                        @foreach($attachments as $a)
-                        @if($a->is_internal == 0)
-                        <tr>
-                            <td>
-                                <input type="checkbox" class="attachment-checkbox" value="{{$a->id}}"
-                                    data-title="{{$a->title ?? 'N/a'}}" data-type="{{$a->attachtypename ?? 'General'}}">
-                            </td>
-                            <td>{{ $a->attachtypename}}</td>
-                            <td>{{$a->title ?? 'N/a'}}</td>
-                            <td>{{date('Y-m-d', strtotime($a->created_at))}}</td>
-                            <td>{{$a->uploaduser}}</td>
-                            <td class="text-center">
-                                <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip"
-                                    data-title="View Attachment" class="btn-sm btn btn-outline-dark">
-                                    <i class="mdi mdi-eye"></i>
-                                </a>
-                                @if(strtolower($a->file_type) == 'pdf')
-                                <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
-                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Comment on PDF">
-                                    <i class="mdi mdi-comment-text"></i>
-                                    @if($a->annotations && $a->annotations->count() > 0)
-                                    <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
-                                    @endif
-                                </a>
-                                @endif
-                            </td>
-                            <td>
-                                <button type="button" wire:click="deleteAttachment({{$a->id}})"
-                                    wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?"
-                                    class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
-                                    title="Delete Attachment">
-                                    <i class="mdi mdi-delete-empty"></i>
-                                </button>
-                            </td>
-                        </tr>
+            <ul class="nav nav-tabs nav-tabs-custom nav-justified mb-4" role="tablist" style="border-radius: 10px; background: #f8f9fa; padding: 5px;">
+                <li class="nav-item">
+                    <a class="nav-link active font-weight-bold" data-toggle="tab" href="#request-attachments" role="tab" style="border-radius: 8px;">
+                        <i class="mdi mdi-file-document-box text-primary mr-1"></i> Request Attachments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link font-weight-bold" data-toggle="tab" href="#sample-attachments" role="tab" style="border-radius: 8px;">
+                        <i class="mdi mdi-test-tube text-info mr-1"></i> Sample Attachments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link font-weight-bold" data-toggle="tab" href="#reports" role="tab" style="border-radius: 8px;">
+                        <i class="mdi mdi-file-chart text-success mr-1"></i> Reports
+                    </a>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="attachments-container">
+                <!-- ============================================== -->
+                <!-- 1. REQUEST ATTACHMENTS TAB -->
+                <!-- ============================================== -->
+                <div class="tab-pane active" id="request-attachments" role="tabpanel">
+                    <div class="mb-4">
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Workflow Documents</h6>
+                        <div class="row">
+                            <!-- Acceptance Form -->
+                            @if($acceptanceForm)
+                            <div class="col-md-4 mb-3">
+                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body p-3 d-flex align-items-center">
+                                        <div class="mr-3 text-success bg-success-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                            <i class="mdi mdi-check-decagram mdi-24px"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Acceptance Form</h6>
+                                            <small class="text-muted">{{ $acceptanceForm->submitted_at ? $acceptanceForm->submitted_at->format('Y-m-d H:i') : 'Completed' }}</small>
+                                        </div>
+                                        <div class="d-flex align-items-center" style="gap: 5px;">
+                                            <button wire:click="regenerateAcceptanceForm" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Regenerate PDF with Dynamic Logo">
+                                                <i wire:loading.remove wire:target="regenerateAcceptanceForm" class="mdi mdi-refresh text-primary"></i>
+                                                <span wire:loading wire:target="regenerateAcceptanceForm" class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                                            </button>
+                                            <a href="{{ $acceptanceForm->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View PDF">
+                                                <i class="mdi mdi-eye text-dark"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- Rejection Form -->
+                            @if($rejectionForm)
+                            <div class="col-md-4 mb-3">
+                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body p-3 d-flex align-items-center">
+                                        <div class="mr-3 text-danger bg-danger-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                            <i class="mdi mdi-close-octagon mdi-24px"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Rejection Form</h6>
+                                            <small class="text-muted">{{ $rejectionForm->submitted_at ? $rejectionForm->submitted_at->format('Y-m-d H:i') : 'Completed' }}</small>
+                                        </div>
+                                        <div>
+                                            <a href="{{ $rejectionForm->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View PDF">
+                                                <i class="mdi mdi-eye text-dark"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- Receipt Notification -->
+                            @if($receiptNotification)
+                            <div class="col-md-4 mb-3">
+                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body p-3 d-flex align-items-center">
+                                        <div class="mr-3 text-info bg-info-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                            <i class="mdi mdi-receipt mdi-24px"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Receipt Notification</h6>
+                                            <small class="text-muted">{{ $receiptNotification->created_at->format('Y-m-d H:i') }}</small>
+                                        </div>
+                                        <div class="d-flex align-items-center" style="gap: 5px;">
+                                            <button wire:click="regenerateReceiptNotification" wire:loading.attr="disabled" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="Regenerate PDF with Dynamic Logo">
+                                                <i wire:loading.remove wire:target="regenerateReceiptNotification" class="mdi mdi-refresh text-info"></i>
+                                                <span wire:loading wire:target="regenerateReceiptNotification" class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></span>
+                                            </button>
+                                            <a href="{{ $receiptNotification->attachment_url }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Document">
+                                                <i class="mdi mdi-eye text-dark"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- Invoice -->
+                            @if($batch->invoice_id)
+                            <div class="col-md-4 mb-3">
+                                <div class="card border-0 shadow-sm" style="border-radius: 12px; background: #fff; border: 1px solid #e0e6ed !important;">
+                                    <div class="card-body p-3 d-flex align-items-center">
+                                        <div class="mr-3 text-primary bg-primary-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                            <i class="mdi mdi-file-document mdi-24px"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0 font-weight-bold" style="font-size: 14px;">Invoice</h6>
+                                            <small class="text-muted">ID: {{ $batch->invoice_id }}</small>
+                                        </div>
+                                        <div>
+                                            <a href="{{ route('print-invoice', $batch->invoice_id) }}" target="_blank" class="btn btn-sm btn-light rounded-pill px-3 shadow-none border" title="View Invoice">
+                                                <i class="mdi mdi-eye text-dark"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+
+                        @if(!$acceptanceForm && !$rejectionForm && !$receiptNotification && !$batch->invoice_id)
+                        <div class="alert alert-light border text-center py-4" style="border-radius: 10px;">
+                            <i class="mdi mdi-file-hidden text-muted" style="font-size: 24px;"></i>
+                            <p class="mb-0 mt-2 text-muted small">No workflow documents generated yet.</p>
+                        </div>
                         @endif
-                        @endforeach
-                        @else
-                        @foreach($attachments as $a)
-                        <tr>
-                            <td><input type="checkbox" class="attachment-checkbox" value="{{$a->id}}"
-                                    data-title="{{$a->title}}" data-type="{{$a->attachtypename}}"></td>
-                            <td>{{ $a->attachtypename}}</td>
-                            <td>{{$a->title ?? 'N/a'}}</td>
-                            <td>{{date('Y-m-d', strtotime($a->created_at))}}</td>
-                            <td>{{$a->uploaduser}}</td>
-                            <td class="text-center">
-                                <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip"
-                                    data-title="View Attachment" class="btn-sm btn btn-outline-dark">
-                                    <i class="mdi mdi-eye"></i>
-                                </a>
-                                <a href="{{ route('download-attachment', $a->id) }}" data-toggle="tooltip"
-                                    data-title="Download Attachment" class="btn-sm btn btn-outline-primary ml-1">
-                                    <i class="mdi mdi-download"></i>
-                                </a>
-                                @if(strtolower($a->file_type) == 'pdf')
-                                <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
-                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Comment on PDF">
-                                    <i class="mdi mdi-comment-text"></i>
-                                    @if($a->annotations && $a->annotations->count() > 0)
-                                    <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
+                    </div>
+
+                    <div>
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Customer & SRO Attachments (Portal)</h6>
+                        <div class="table-responsive" style="border-radius: 10px; border: 1px solid #e0e6ed;">
+                            <table class="table table-hover workflow-table mb-0">
+                                <thead style="background: #f8f9fa;">
+                                    <tr>
+                                        <th>File Name</th>
+                                        <th>Uploaded Date</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if($customerAttachments && $customerAttachments->count() > 0)
+                                        @foreach($customerAttachments as $ca)
+                                        <tr>
+                                            <td class="align-middle font-weight-bold">{{ $ca->file_name ?? 'Attachment' }}</td>
+                                            <td class="align-middle text-muted">{{ $ca->created_at ? $ca->created_at->format('Y-m-d H:i') : 'N/A' }}</td>
+                                            <td class="text-center align-middle">
+                                                <a href="{{ $ca->file_url ?? '#' }}" target="_blank" class="btn btn-sm btn-light border rounded-pill px-3">
+                                                    <i class="mdi mdi-download text-primary mr-1"></i> Download
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        @endforeach
+                                    @else
+                                        <tr>
+                                            <td colspan="3" class="text-center py-4">
+                                                <i class="mdi mdi-folder-open text-muted" style="font-size: 32px;"></i>
+                                                <p class="mt-2 mb-0 text-muted small">No customer attachments found from the portal.</p>
+                                            </td>
+                                        </tr>
                                     @endif
-                                </a>
-                                @endif
-                            </td>
-                            <td>
-                                <button type="button" wire:click="deleteAttachment({{$a->id}})"
-                                    wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?"
-                                    class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
-                                    title="Delete Attachment">
-                                    <i class="mdi mdi-delete-empty"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        @endforeach
-                        @endif
-                        @else
-                        <tr>
-                            <td colspan="7" class="text-center py-5">
-                                <i class="mdi mdi-paperclip text-muted" style="font-size: 48px;"></i>
-                                <h6 class="mt-3 text-muted">No Attachments Found</h6>
-                                <p class="text-muted mb-0"><small>
-                                        @if($search)
-                                        No attachments match your search criteria
-                                        @else
-                                        There are no batch attachments to display
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- 2. SAMPLE ATTACHMENTS TAB -->
+                <!-- ============================================== -->
+                <div class="tab-pane" id="sample-attachments" role="tabpanel">
+                    <div class="table-responsive" style="border-radius: 10px; border: 1px solid #e0e6ed;">
+                        <table class="table table-hover workflow-table mb-0" id="attachments-table">
+                            <thead style="background: #f8f9fa;">
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">
+                                        <input type="checkbox" id="check-all-attachments">
+                                    </th>
+                                    <th>Type</th>
+                                    <th>Title</th>
+                                    <th>Upload Date</th>
+                                    <th>Uploaded By</th>
+                                    <th class="text-center">File</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if($sampleAttachments->count() > 0)
+                                    @foreach($sampleAttachments as $a)
+                                        @if(Auth::user()->is_client == 0 || $a->is_internal == 0)
+                                        <tr>
+                                            <td class="text-center align-middle">
+                                                <input type="checkbox" class="attachment-checkbox" value="{{$a->id}}" data-title="{{$a->title ?? 'N/a'}}" data-type="{{$a->attachtypename ?? 'General'}}">
+                                            </td>
+                                            <td class="align-middle">
+                                                <span class="badge badge-light border">{{ $a->attachtypename}}</span>
+                                            </td>
+                                            <td class="align-middle font-weight-bold">{{$a->title ?? 'N/a'}}</td>
+                                            <td class="align-middle text-muted">{{date('Y-m-d', strtotime($a->created_at))}}</td>
+                                            <td class="align-middle">{{$a->uploaduser}}</td>
+                                            <td class="text-center align-middle">
+                                                <div class="btn-group">
+                                                    <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip" title="View Attachment" class="btn btn-sm btn-light border">
+                                                        <i class="mdi mdi-eye text-dark"></i>
+                                                    </a>
+                                                    @if(Auth::user()->is_client == 0)
+                                                    <a href="{{ route('download-attachment', $a->id) }}" data-toggle="tooltip" title="Download" class="btn btn-sm btn-light border">
+                                                        <i class="mdi mdi-download text-primary"></i>
+                                                    </a>
+                                                    @endif
+                                                    @if(strtolower($a->file_type) == 'pdf')
+                                                    <a href="{{ route('show-pdf-annotation-page', $a->id) }}" class="btn btn-sm btn-light border" data-toggle="tooltip" title="Comment on PDF">
+                                                        <i class="mdi mdi-comment-text text-info"></i>
+                                                        @if($a->annotations && $a->annotations->count() > 0)
+                                                        <span class="badge badge-primary ml-1">{{ $a->annotations->count() }}</span>
+                                                        @endif
+                                                    </a>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td class="text-center align-middle">
+                                                <button type="button" wire:click="deleteAttachment({{$a->id}})" wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?" class="btn btn-sm btn-light border text-danger" data-toggle="tooltip" title="Delete">
+                                                    <i class="mdi mdi-delete-empty"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
                                         @endif
-                                    </small></p>
-                            </td>
-                        </tr>
-                        @endif
-                    </tbody>
-                </table>
+                                    @endforeach
+                                @else
+                                <tr>
+                                    <td colspan="7" class="text-center py-5">
+                                        <i class="mdi mdi-camera-burst text-muted" style="font-size: 48px;"></i>
+                                        <h6 class="mt-3 text-muted">No Sample Attachments</h6>
+                                        <p class="text-muted mb-0"><small>Sample photos and other generic attachments will appear here.</small></p>
+                                    </td>
+                                </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- 3. REPORTS TAB -->
+                <!-- ============================================== -->
+                <div class="tab-pane" id="reports" role="tabpanel">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Generate Reports</h6>
+                            <div class="d-flex gap-2" style="gap: 10px;">
+                                <a href="#" onclick="alert('Analysis Report generation route to be implemented')" class="btn btn-outline-primary border-2 shadow-sm rounded-pill px-4 font-weight-bold">
+                                    <i class="mdi mdi-chart-box mr-1"></i> Generate Analysis Report
+                                </a>
+                                <button wire:click="openCaseFileModal" class="btn btn-outline-dark border-2 shadow-sm rounded-pill px-4 font-weight-bold">
+                                    <i class="mdi mdi-folder-account mr-1"></i> Generate Case File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 small" style="letter-spacing: 0.5px;">Uploaded Reports</h6>
+                        <div class="table-responsive" style="border-radius: 10px; border: 1px solid #e0e6ed;">
+                            <table class="table table-hover workflow-table mb-0">
+                                <thead style="background: #f8f9fa;">
+                                    <tr>
+                                        <th>Report Title</th>
+                                        <th>Type</th>
+                                        <th>Upload Date</th>
+                                        <th>Uploaded By</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if($reportAttachments->count() > 0)
+                                        @foreach($reportAttachments as $ra)
+                                        <tr>
+                                            <td class="align-middle font-weight-bold text-success">{{ $ra->title }}</td>
+                                            <td class="align-middle"><span class="badge badge-light border">{{ $ra->attachtypename }}</span></td>
+                                            <td class="align-middle text-muted">{{ $ra->created_at->format('Y-m-d H:i') }}</td>
+                                            <td class="align-middle">{{ $ra->uploaduser }}</td>
+                                            <td class="text-center align-middle">
+                                                <div class="btn-group">
+                                                    @if(isset($ra->is_mock) && $ra->is_mock)
+                                                    <a href="{{ $ra->attachment_url }}" target="_blank" class="btn btn-sm btn-light shadow-sm" title="View PDF">
+                                                        <i class="mdi mdi-eye text-primary"></i> View
+                                                    </a>
+                                                    @else
+                                                    <a href="{{ url($ra->attachment_url) }}" target="_blank" class="btn btn-sm btn-light shadow-sm" title="View PDF">
+                                                        <i class="mdi mdi-eye text-primary"></i> View
+                                                    </a>
+                                                    @endif
+                                                    <button type="button" wire:click="deleteAttachment({{$ra->id}})" wire:confirm="Are you sure you want to delete this report?" class="btn btn-sm btn-light border text-danger" title="Delete">
+                                                        <i class="mdi mdi-delete-empty"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        @endforeach
+                                    @else
+                                        <tr>
+                                            <td colspan="5" class="text-center py-5">
+                                                <i class="mdi mdi-file-document-box-multiple-outline text-muted" style="font-size: 40px;"></i>
+                                                <p class="mt-2 mb-0 text-muted small">No saved reports found.</p>
+                                            </td>
+                                        </tr>
+                                    @endif
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

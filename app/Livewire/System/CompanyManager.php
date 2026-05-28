@@ -32,9 +32,9 @@ class CompanyManager extends Component
     public ?string $street = null;
     public ?string $fax = null;
     public $logoFile = null;
-    public $reportLogoFile = null;
     public ?string $existingLogo = null;
-    public ?string $existingReportLogo = null;
+    public array $reportLogos = [];
+    public array $reportLogosToDelete = [];
 
     // Maintenance period (global equipment maintenance year range)
     public ?int $maintenanceStartYear = null;
@@ -84,6 +84,8 @@ class CompanyManager extends Component
 
         $this->resetCompanyForm();
         $this->editingCompanyId = null;
+        $this->reportLogos = [];
+        $this->reportLogosToDelete = [];
         $this->showCompanyModal = true;
     }
 
@@ -105,9 +107,17 @@ class CompanyManager extends Component
         $this->street = $company->street;
         $this->fax = $company->fax;
         $this->logoFile = null;
-        $this->reportLogoFile = null;
         $this->existingLogo = $company->logo;
-        $this->existingReportLogo = $company->report_logo;
+        
+        $this->reportLogos = $company->reportLogos->map(function ($logo) {
+            return [
+                'id' => $logo->id,
+                'name' => $logo->name,
+                'existing_path' => $logo->logo_path,
+                'file' => null,
+            ];
+        })->toArray();
+        $this->reportLogosToDelete = [];
         $this->maintenanceStartYear = $company->maintenance_start_year;
         $this->maintenanceStartMonth = $company->maintenance_start_month;
         $this->maintenanceEndYear = $company->maintenance_end_year;
@@ -142,7 +152,8 @@ class CompanyManager extends Component
             'street' => ['nullable', 'string', 'max:255'],
             'fax' => ['nullable', 'string', 'max:255'],
             'logoFile' => ['nullable', 'image', 'max:5120'],
-            'reportLogoFile' => ['nullable', 'image', 'max:5120'],
+            'reportLogos.*.name' => ['required', 'string', 'max:255'],
+            'reportLogos.*.file' => ['nullable', 'image', 'max:5120'],
             'maintenanceStartYear' => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'maintenanceStartMonth' => ['nullable', 'integer', 'min:1', 'max:12'],
             'maintenanceEndYear' => ['nullable', 'integer', 'min:2000', 'max:2100'],
@@ -169,14 +180,41 @@ class CompanyManager extends Component
         $company->maintenance_end_month = $validated['maintenanceEndMonth'];
 
         if ($this->logoFile) {
-            $company->logo = '/storage/' . $this->logoFile->store('companies', 'public');
-        }
-
-        if ($this->reportLogoFile) {
-            $company->report_logo = '/storage/' . $this->reportLogoFile->store('companies', 'public');
+            $logoPath = '/storage/' . $this->logoFile->store('companies', 'public');
+            $company->logo = $logoPath;
+            $company->report_logo = $logoPath;
+        } elseif (empty($company->report_logo) && $company->logo) {
+            $company->report_logo = $company->logo;
         }
 
         $company->save();
+
+        if (!empty($this->reportLogosToDelete)) {
+            \App\CompanyReportLogo::whereIn('id', $this->reportLogosToDelete)->delete();
+        }
+
+        foreach ($this->reportLogos as $index => $logoData) {
+            $logoPath = $logoData['existing_path'] ?? null;
+            if (isset($logoData['file']) && $logoData['file']) {
+                $logoPath = '/storage/' . $logoData['file']->store('companies', 'public');
+            }
+
+            if ($logoPath) {
+                if (empty($logoData['id'])) {
+                    \App\CompanyReportLogo::create([
+                        'company_id' => $company->id,
+                        'name' => $logoData['name'],
+                        'logo_path' => $logoPath,
+                    ]);
+                } else {
+                    \App\CompanyReportLogo::where('id', $logoData['id'])->update([
+                        'company_id' => $company->id,
+                        'name' => $logoData['name'],
+                        'logo_path' => $logoPath,
+                    ]);
+                }
+            }
+        }
 
         session()->flash('success', $this->editingCompanyId === null
             ? 'Company added.'
@@ -229,6 +267,25 @@ class CompanyManager extends Component
         $this->resetPage();
     }
 
+    public function addReportLogo(): void
+    {
+        $this->reportLogos[] = [
+            'id' => null,
+            'name' => '',
+            'existing_path' => null,
+            'file' => null,
+        ];
+    }
+
+    public function removeReportLogo(int $index): void
+    {
+        if (!empty($this->reportLogos[$index]['id'])) {
+            $this->reportLogosToDelete[] = $this->reportLogos[$index]['id'];
+        }
+        unset($this->reportLogos[$index]);
+        $this->reportLogos = array_values($this->reportLogos);
+    }
+
     public function getCountriesProperty()
     {
         return Country::query()->orderBy('name')->get(['id', 'name']);
@@ -271,9 +328,9 @@ class CompanyManager extends Component
         $this->street = null;
         $this->fax = null;
         $this->logoFile = null;
-        $this->reportLogoFile = null;
         $this->existingLogo = null;
-        $this->existingReportLogo = null;
+        $this->reportLogos = [];
+        $this->reportLogosToDelete = [];
         $this->maintenanceStartYear = null;
         $this->maintenanceStartMonth = null;
         $this->maintenanceEndYear = null;

@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        config(['audit.enabled' => false]);
     }
 
     /**

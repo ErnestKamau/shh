@@ -164,37 +164,39 @@ class SubmissionFormSubmissionService
 
         while ($retryCount < $maxRetries) {
             $retryCount++;
+            $savepoint = 'assign_form_number_' . $retryCount . '_' . uniqid();
 
             try {
-                $assignFormNumber = function () use ($instance, $submissionForm): void {
-                    $formNumber = \App\Services\FormNumberGenerator::generate($submissionForm);
+                // Manually create a PostgreSQL savepoint to isolate this attempt
+                DB::statement("SAVEPOINT {$savepoint}");
 
-                    SubmissionFormInstance::withoutAuditing(function () use ($instance, $formNumber): void {
-                        $instance->update([
-                            'form_number' => $formNumber['format'],
-                            'sequence_number' => $formNumber['sequence_no'],
-                        ]);
-                    });
-                };
+                $formNumber = \App\Services\FormNumberGenerator::generate($submissionForm);
 
-                if (DB::transactionLevel() > 0) {
-                    $assignFormNumber();
-                } else {
-                    DB::transaction($assignFormNumber);
-                }
+                SubmissionFormInstance::withoutAuditing(function () use ($instance, $formNumber): void {
+                    $instance->update([
+                        'form_number' => $formNumber['format'],
+                        'sequence_number' => $formNumber['sequence_no'],
+                    ]);
+                });
+
+                // Success - release the savepoint
+                DB::statement("RELEASE SAVEPOINT {$savepoint}");
 
                 return;
             } catch (\Illuminate\Database\QueryException $e) {
-                $isDuplicateFormNumber = in_array((string) $e->getCode(), ['23000', '23505'], true)
-                    && str_contains($e->getMessage(), 'submission_form_instances_form_number_unique');
+                // If a constraint violation (or any error) occurs, rollback to the savepoint
+                // This clears the PostgreSQL aborted state (25P02), allowing the transaction to continue
+                DB::statement("ROLLBACK TO SAVEPOINT {$savepoint}");
 
-                if ($isDuplicateFormNumber) {
+                // In Laravel 10+, this might be a UniqueConstraintViolationException which extends QueryException.
+                $isDuplicate = in_array((string) $e->getCode(), ['23000', '23505'], true);
+
+                if ($isDuplicate) {
                     if ($retryCount >= $maxRetries) {
                         throw new \RuntimeException('Failed to assign form number after maximum retries', 0, $e);
                     }
 
-                    usleep(100000);
-
+                    usleep(100000); // 100ms
                     continue;
                 }
 

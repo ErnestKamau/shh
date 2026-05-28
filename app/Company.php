@@ -56,4 +56,18 @@ class Company extends Model implements Auditable
   public function labs(){
     return $this->hasMany('App\Lab');
   }
+
+  public function reportLogos()
+  {
+      return $this->hasMany(CompanyReportLogo::class);
+  }
+
+  public function getReportLogoPath(string $name): ?string
+  {
+      $logo = $this->reportLogos()->where('name', $name)->first();
+      if ($logo) {
+          return $logo->logo_path;
+      }
+      return $this->report_logo; // fallback
+  }
 }

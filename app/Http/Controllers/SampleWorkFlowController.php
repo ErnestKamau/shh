@@ -1423,6 +1423,8 @@ class SampleWorkFlowController extends Controller
     {
         $batchID = $batch;
 
+
+
         // Automatically configure and seed required report formats in the database if they do not exist
         try {
             // Ensure samples_by_category view exists in PostgreSQL
@@ -3803,6 +3805,7 @@ class SampleWorkFlowController extends Controller
             'include_pesticide' => $include_pesticide,
             'merge_with_attachments' => $merge_with_attachments ? 1 : 0,
             'attachment_ids' => $attachment_ids,
+            'gcla_language' => $request->input('gcla_language', 'sw'),
         ]);
     }
 
@@ -8617,5 +8620,39 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('success', 'Staging detail deleted successfully.');
         }
         return redirect()->back()->with('error', 'Staging record not found.');
+    }
+
+    public function viewAcceptancePdf($id)
+    {
+        $form = \App\Models\Sampleworkflow\AnalysisAcceptanceForm::findOrFail($id);
+        $pdfService = app(\App\Services\Sampleworkflow\AcceptanceFormPdfService::class);
+        $url = $pdfService->generatePdfAndStoreAttachment($form);
+        return redirect($url);
+    }
+
+    public function viewReceiptNotificationPdf($id)
+    {
+        $form = \App\Models\Sampleworkflow\AnalysisAcceptanceForm::findOrFail($id);
+        $pdfService = app(\App\Services\Sampleworkflow\SampleReceiptNotificationService::class);
+        $batch = \App\SampleHeader::find($form->sample_header_id);
+        $payload = is_array($form->receipt_notification_payload) ? $form->receipt_notification_payload : [];
+        $url = $pdfService->generatePdfAndStoreAttachment($batch, $payload, auth()->id());
+        return redirect($url);
+    }
+
+    public function viewCaseFilePdf($id)
+    {
+        $form = \App\Models\CaseFileReviewForm::findOrFail($id);
+        $batch = \App\SampleHeader::findOrFail($form->batch_id);
+
+        $pdf = app('dompdf.wrapper');
+        $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+        
+        $pdf->loadView('batch.attachments.case-file-pdf', [
+            'batch' => $batch,
+            'form' => $form
+        ]);
+        
+        return $pdf->stream('case-file-' . $batch->batch_code . '.pdf');
     }
 }

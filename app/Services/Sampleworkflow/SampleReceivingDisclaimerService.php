@@ -305,4 +305,29 @@ class SampleReceivingDisclaimerService
         ];
     }
 
+    private function resolveAttachmentTypeId(): ?string
+    {
+        $label = self::ATTACHMENT_TITLE;
+
+        $existingId = SystemConfiguration::query()->where('key', 'attachment_type')
+            ->where('value', $label)
+            ->value('id');
+
+        if ($existingId !== null) {
+            return $existingId;
+        }
+
+        $existingType = SystemConfiguration::query()->where('key', 'attachment_type')->whereNotNull('configuration_type_id')->first();
+        if (! $existingType) {
+            return null;
+        }
+
+        $newConfig = new SystemConfiguration();
+        $newConfig->key = 'attachment_type';
+        $newConfig->value = $label;
+        $newConfig->configuration_type_id = $existingType->configuration_type_id;
+        $newConfig->save();
+
+        return $newConfig->id;
+    }
 }

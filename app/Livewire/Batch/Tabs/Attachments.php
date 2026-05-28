@@ -7,6 +7,7 @@ use App\SampleDetails;
 use App\CapturedResult;
 use App\BatchAttachment;
 use App\Models\System\SystemConfiguration;
+use App\Models\RequestWorkflowForm;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -25,6 +26,10 @@ class Attachments extends Component
     public ?int $newAttachmentTypeId = null;
     public string $newAttachmentTypeName = '';
     public ?int $selectedAttachmentTypeId = null;
+
+    // Case File Review Form state
+    public bool $showCaseFileModal = false;
+    public array $caseFileForm = [];
 
     protected $listeners = ['attachmentsUpdated' => '$refresh'];
     protected $paginationTheme = 'bootstrap';
@@ -265,6 +270,188 @@ class Attachments extends Component
         }
     }
 
+    public function getAcceptanceFormProperty()
+    {
+        // Check for attached Acceptance Form via BatchAttachment
+        $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+            ->where('title', 'like', '%Acceptance%')
+            ->first();
+
+        if ($attachment) {
+            return (object) [
+                'id' => $attachment->id,
+                'is_batch_attachment' => true,
+                'submitted_at' => $attachment->created_at,
+                'attachment_url' => $attachment->attachment_url,
+            ];
+        }
+
+        // Fallback to workflow form
+        $form = RequestWorkflowForm::where('sample_header_id', $this->batch->id)
+            ->where('form_type', 'laboratory_analysis_acceptance')
+            ->first();
+
+        if ($form) {
+            $url = $form->pdf_path ? (str_starts_with($form->pdf_path, 'http') ? $form->pdf_path : url('storage/' . $form->pdf_path)) : '#';
+            return (object) [
+                'id' => $form->id,
+                'is_batch_attachment' => false,
+                'submitted_at' => $form->created_at,
+                'attachment_url' => $url,
+            ];
+        }
+
+        $analysisForm = \App\Models\Sampleworkflow\AnalysisAcceptanceForm::where('sample_header_id', $this->batch->id)->first();
+        if ($analysisForm) {
+            return (object) [
+                'id' => $analysisForm->id,
+                'is_batch_attachment' => false,
+                'submitted_at' => $analysisForm->created_at,
+                'attachment_url' => route('view-acceptance-pdf', $analysisForm->id),
+            ];
+        }
+
+        return null;
+    }
+
+    public function getRejectionFormProperty()
+    {
+        $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+            ->where('title', 'like', '%Rejection%')
+            ->first();
+
+        if ($attachment) {
+            return (object) [
+                'id' => $attachment->id,
+                'is_batch_attachment' => true,
+                'submitted_at' => $attachment->created_at,
+                'attachment_url' => $attachment->attachment_url,
+            ];
+        }
+
+        $form = RequestWorkflowForm::where('sample_header_id', $this->batch->id)
+            ->where('form_type', 'sample_rejection')
+            ->first();
+
+        if ($form) {
+            $url = $form->pdf_path ? (str_starts_with($form->pdf_path, 'http') ? $form->pdf_path : url('storage/' . $form->pdf_path)) : '#';
+            return (object) [
+                'id' => $form->id,
+                'is_batch_attachment' => false,
+                'submitted_at' => $form->created_at,
+                'attachment_url' => $url,
+            ];
+        }
+
+        return null;
+    }
+
+    public function getReceiptNotificationProperty()
+    {
+        $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+            ->where(function ($q) {
+                $q->where('title', 'like', '%Receipt Notification%')
+                  ->orWhere('title', 'like', '%Sample Receipt%');
+            })
+            ->first();
+            
+        if ($attachment) return $attachment;
+        
+        $form = RequestWorkflowForm::where('sample_header_id', $this->batch->id)
+            ->where('form_type', 'sample_receipt_notification')
+            ->first();
+
+        if ($form) {
+            $url = $form->pdf_path ? (str_starts_with($form->pdf_path, 'http') ? $form->pdf_path : url('storage/' . $form->pdf_path)) : '#';
+            return (object) [
+                'id' => $form->id,
+                'is_batch_attachment' => false,
+                'created_at' => $form->created_at,
+                'attachment_url' => $url,
+            ];
+        }
+
+        $analysisForm = \App\Models\Sampleworkflow\AnalysisAcceptanceForm::where('sample_header_id', $this->batch->id)
+            ->whereNotNull('receipt_notification_payload')
+            ->first();
+            
+        if ($analysisForm) {
+            return (object) [
+                'id' => $analysisForm->id,
+                'is_batch_attachment' => false,
+                'created_at' => $analysisForm->created_at,
+                'attachment_url' => route('view-receipt-notification-pdf', $analysisForm->id),
+            ];
+        }
+        
+        return null;
+    }
+
+    public function getCustomerAttachmentsProperty()
+    {
+        return $this->batch->submissionFormInstance ? $this->batch->submissionFormInstance->customAttachments : collect();
+    }
+
+    public function getReportAttachmentsProperty()
+    {
+        $reportTitles = ['Certificate of Analysis', 'Analysis Report', 'Case File', 'COA', 'GCLA 02'];
+        $reports = $this->attachments->filter(function($a) use ($reportTitles) {
+            $name = str_replace('_', ' ', strtolower($a->title));
+            $type = str_replace('_', ' ', strtolower($a->attachtypename ?? ''));
+            foreach($reportTitles as $title) {
+                if (stripos($name, strtolower($title)) !== false || stripos($type, strtolower($title)) !== false) return true;
+            }
+            return false;
+        })->values();
+
+        // Check if there is an existing CaseFileReviewForm
+        $hasCaseFileAttachment = $reports->contains(function($a) {
+            return stripos(str_replace('_', ' ', strtolower($a->title)), 'case file') !== false;
+        });
+        
+        if (!$hasCaseFileAttachment) {
+            $caseForm = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
+            if ($caseForm) {
+                $reports->push((object)[
+                    'id' => 'cf_' . $caseForm->id,
+                    'title' => 'Case File Review Form',
+                    'attachtypename' => 'Case File',
+                    'created_at' => $caseForm->created_at ?? now(),
+                    'uploaduser' => 'System',
+                    'attachment_url' => route('view-case-file-pdf', $caseForm->id),
+                    'is_mock' => true,
+                ]);
+            }
+        }
+
+        return $reports;
+    }
+
+    public function getSampleAttachmentsProperty()
+    {
+        $excludedTitles = [
+            'Receipt Notification', 
+            'Sample Receipt',
+            'Certificate of Analysis', 
+            'Analysis Report', 
+            'Case File', 
+            'Acceptance Form', 
+            'Sample Rejection', 
+            'COA',
+            'GCLA 02',
+            'SRO',
+            'Disclaimer'
+        ];
+        return $this->attachments->filter(function($a) use ($excludedTitles) {
+            $name = str_replace('_', ' ', strtolower($a->title));
+            $type = str_replace('_', ' ', strtolower($a->attachtypename ?? ''));
+            foreach($excludedTitles as $title) {
+                if (stripos($name, strtolower($title)) !== false || stripos($type, strtolower($title)) !== false) return false;
+            }
+            return true;
+        });
+    }
+
     public function render(): \Illuminate\View\View
     {
         return view('livewire.batch.tabs.attachments', [
@@ -273,6 +460,12 @@ class Attachments extends Component
             'showSamplesWithResultsSection' => $this->showSamplesWithResultsSection,
             'selectedAttachmentTypeId'      => $this->selectedAttachmentTypeId,
             'samplesWithResults'            => $this->samplesWithResults,
+            'acceptanceForm'                => $this->acceptanceForm,
+            'rejectionForm'                 => $this->rejectionForm,
+            'receiptNotification'           => $this->receiptNotification,
+            'customerAttachments'           => $this->customerAttachments,
+            'reportAttachments'             => $this->reportAttachments,
+            'sampleAttachments'             => $this->sampleAttachments,
         ]);
     }
 
@@ -284,4 +477,303 @@ class Attachments extends Component
 
         return $this->hasCapturedResultAttachmentColumn;
     }
+
+    public function openCaseFileModal()
+    {
+        $caseFile = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
+        
+        if ($caseFile) {
+            $this->caseFileForm = $caseFile->toArray();
+        } else {
+            // Default initialization
+            $this->caseFileForm = [
+                'batch_id' => $this->batch->id,
+                'lab_no' => $this->batch->batch_code,
+                'client' => $this->batch->client->name ?? '',
+                'no_of_samples' => $this->batch->sample_details()->count(),
+                'date_in' => now()->format('Y-m-d'),
+                
+                // Booleans defaults
+                'sample_condition_sealed' => false,
+                'sample_condition_labelled' => false,
+                'screening_sample_type_blood' => false,
+                'screening_sample_type_object_with_blood' => false,
+                'screening_sample_type_semen' => false,
+                'screening_sample_type_object_with_semen' => false,
+                'extraction_method_chelex' => false,
+                'extraction_method_prepfiler' => false,
+                'quantification_no_of_cycles_40' => false,
+                'quantification_kit_used_quant_trio' => false,
+                'pcr_no_of_cycles_28' => false,
+                'pcr_no_of_cycles_29' => false,
+                'pcr_no_of_cycles_30' => false,
+                'pcr_no_of_cycles_32' => false,
+                'pcr_kit_used_identifiler_plus' => false,
+                'pcr_kit_used_globalfiler' => false,
+                'pcr_kit_used_yfiler_plus' => false,
+                'injection_instrument_3500' => false,
+                'reporting_reviewed' => false,
+                'reporting_corrected' => false,
+                'reporting_attachment_real_time_data' => false,
+                'reporting_attachment_converge' => false,
+                'reporting_attachment_statistical_analysis' => false,
+                'manager_review_technical' => false,
+                'manager_review_administrative' => false,
+                'manager_comments_verified' => false,
+                'manager_comments_not_verified' => false,
+            ];
+        }
+
+        $this->showCaseFileModal = true;
+    }
+
+    public function closeCaseFileModal()
+    {
+        $this->showCaseFileModal = false;
+        $this->caseFileForm = [];
+    }
+
+    public function saveCaseFile()
+    {
+        // Simple required validation, mostly boolean and nullable string fields so validation is light
+        $this->validate([
+            'caseFileForm.lab_no' => 'required',
+        ]);
+
+        $data = $this->caseFileForm;
+        $data['batch_id'] = $this->batch->id;
+        
+        \App\Models\CaseFileReviewForm::updateOrCreate(
+            ['batch_id' => $this->batch->id],
+            $data
+        );
+
+        $this->closeCaseFileModal();
+        
+        // Use Livewire dispatch to notify success or just let it refresh
+        $this->dispatch('attachmentsUpdated');
+        
+        // This alerts the browser if needed, or simply re-renders
+        return redirect()->route('view-case-file-pdf', \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->value('id'));
+    }
+
+    public function regenerateAcceptanceForm()
+    {
+        // 1. Check if there is an AnalysisAcceptanceForm first
+        $analysisForm = \App\Models\Sampleworkflow\AnalysisAcceptanceForm::where('sample_header_id', $this->batch->id)->first();
+        if ($analysisForm) {
+            $pdfService = app(\App\Services\Sampleworkflow\AcceptanceFormPdfService::class);
+            $url = $pdfService->generatePdfAndStoreAttachment($analysisForm);
+            
+            // If the attachment is already in BatchAttachment, update its URL just in case
+            $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+                ->where('title', 'like', '%Acceptance%')
+                ->first();
+            if ($attachment && $url) {
+                $attachment->attachment_url = $url;
+                $attachment->save();
+            }
+            
+            session()->flash('success', 'Laboratory Analysis Acceptance Form PDF regenerated successfully!');
+            $this->dispatch('attachmentsUpdated');
+            return;
+        }
+
+        // 2. If no AnalysisAcceptanceForm exists, but a draft json exists in public storage
+        $draftPath = 'batch-attachments/laboratory-analysis-acceptance-batch-' . $this->batch->id . '.json';
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($draftPath)) {
+            $decoded = json_decode((string) \Illuminate\Support\Facades\Storage::disk('public')->get($draftPath), true);
+            if (is_array($decoded)) {
+                $form = $decoded['form'] ?? [];
+                $parameters = $decoded['parameters'] ?? [];
+                
+                $pdfFilename = 'laboratory-analysis-acceptance-batch-' . $this->batch->id . '.pdf';
+                $pdfStoragePath = 'batch-attachments/' . $pdfFilename;
+                $pdfPublicUrl = '/storage/batch-attachments/' . urlencode($pdfFilename);
+
+                $acceptedParameters = array_values(array_filter($parameters, static fn ($row) => (bool) ($row['selected'] ?? false)));
+                $rejectedParameters = array_values(array_filter($parameters, static fn ($row) => ! ((bool) ($row['selected'] ?? false))));
+                $acceptedTotal = round(array_sum(array_map(static fn ($row) => (float) ($row['price'] ?? 0), $acceptedParameters)), 2);
+
+                $pdf = app('dompdf.wrapper');
+                $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+                
+                $logoSrc = $this->resolveLogoAsDataUri();
+
+                $pdf->loadView('batch.attachments.laboratory-analysis-acceptance-pdf', [
+                    'batch' => $this->batch,
+                    'form' => $form,
+                    'requestedParameters' => $parameters,
+                    'acceptedParameters' => $acceptedParameters,
+                    'rejectedParameters' => $rejectedParameters,
+                    'acceptedTotal' => $acceptedTotal,
+                    'logoSrc' => $logoSrc,
+                ]);
+
+                \Illuminate\Support\Facades\Storage::disk('public')->put($pdfStoragePath, $pdf->output());
+
+                $attachmentTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
+                    ->resolveOrCreateAttachmentTypeId('Laboratory Analysis Acceptance Form');
+                $title = 'Laboratory Analysis Acceptance Form (GCLA/F/03)';
+
+                $attachment = BatchAttachment::where('batch_id', $this->batch->id)
+                    ->where('title', $title)
+                    ->orderByDesc('created_at')
+                    ->first();
+
+                if (! $attachment) {
+                    $attachment = new BatchAttachment();
+                    $attachment->batch_id = $this->batch->id;
+                    $attachment->uploaded_by = Auth::id();
+                    $attachment->title = $title;
+                    $attachment->is_internal = 0;
+                    $attachment->show_on_coa = 0;
+                }
+
+                $attachment->attachment_type = $attachmentTypeId;
+                $attachment->attachment_url = $pdfPublicUrl;
+                $attachment->save();
+
+                session()->flash('success', 'Laboratory Analysis Acceptance Form PDF regenerated successfully!');
+                $this->dispatch('attachmentsUpdated');
+                return;
+            }
+        }
+
+        session()->flash('error', 'Could not find source form data to regenerate PDF.');
+    }
+
+    public function regenerateReceiptNotification()
+    {
+        $service = app(\App\Services\Sampleworkflow\SampleReceiptNotificationService::class);
+        $acceptance = $service->findAcceptanceFormForBatch($this->batch);
+        
+        if ($acceptance instanceof \App\Models\Sampleworkflow\AnalysisAcceptanceForm && $acceptance->receipt_notification_payload) {
+            $formData = is_array($acceptance->receipt_notification_payload)
+                ? $acceptance->receipt_notification_payload
+                : (json_decode((string) $acceptance->receipt_notification_payload, true) ?: []);
+            $service->generatePdfAndStoreAttachment($this->batch, $formData, Auth::id());
+            
+            session()->flash('success', 'Sample Receipt Notification PDF regenerated successfully!');
+            $this->dispatch('attachmentsUpdated');
+            return;
+        }
+
+        // Try fallback payload from system
+        $formData = $service->resolveFormStateForBatch($this->batch);
+        if (!empty($formData)) {
+            $service->generatePdfAndStoreAttachment($this->batch, $formData, Auth::id());
+            session()->flash('success', 'Sample Receipt Notification PDF regenerated successfully!');
+            $this->dispatch('attachmentsUpdated');
+            return;
+        }
+
+        session()->flash('error', 'Could not resolve Receipt Notification data to regenerate PDF.');
+    }
+
+    private function resolveLogoAsDataUri(): string
+    {
+        $company = getActiveCompany();
+
+        if ($company && !empty($company->logo)) {
+            $path = $company->logo;
+
+            // Strip URL prefix if stored as a full URL
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                $path = parse_url($path, PHP_URL_PATH) ?? $path;
+            }
+            $path = ltrim($path, '/');
+            $filename = basename($path);
+
+            if ($filename !== '') {
+                // 1) Public storage disk (storage/app/public/...)
+                $relative = preg_replace('#^storage/#', '', $path);
+                if ($relative !== $path) {
+                    $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relative);
+                    if (file_exists($fullPath)) {
+                        return $this->imagePathToDataUri($fullPath);
+                    }
+                }
+
+                // 2) App convention: storage/app/companies/<filename>
+                $fullPath = storage_path('app/companies/' . $filename);
+                if (file_exists($fullPath)) {
+                    return $this->imagePathToDataUri($fullPath);
+                }
+
+                // 3) The company logo field may also be a public/ relative path
+                if (file_exists(public_path($path))) {
+                    return $this->imagePathToDataUri(public_path($path));
+                }
+
+                // 4) public/ ltrim fallback
+                if (file_exists(public_path(ltrim($path, '/')))) {
+                    return $this->imagePathToDataUri(public_path(ltrim($path, '/')));
+                }
+            }
+        }
+
+        // Fallback: default logo
+        $defaultLogo = public_path('images/logo.png');
+        if (file_exists($defaultLogo)) {
+            return $this->imagePathToDataUri($defaultLogo);
+        }
+
+        $defaultReportLogo = public_path('images/logo-report.png');
+        if (file_exists($defaultReportLogo)) {
+            return $this->imagePathToDataUri($defaultReportLogo);
+        }
+
+        return '';
+    }
+
+    private function imagePathToDataUri(string $absolutePath): string
+    {
+        if ($absolutePath === '' || !is_readable($absolutePath)) {
+            return '';
+        }
+
+        $contents = @file_get_contents($absolutePath);
+        if ($contents === false) {
+            return '';
+        }
+
+        $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'png'        => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif'        => 'image/gif',
+            'webp'       => 'image/webp',
+            'svg'        => 'image/svg+xml',
+            default      => 'image/png',
+        };
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    }
+
+    private function resolveImageAsDataUri(string $absolutePath): string
+    {
+        if ($absolutePath === '' || !is_readable($absolutePath)) {
+            return $absolutePath;
+        }
+
+        $contents = @file_get_contents($absolutePath);
+        if ($contents === false) {
+            return $absolutePath;
+        }
+
+        $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'png'        => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif'        => 'image/gif',
+            'webp'       => 'image/webp',
+            'svg'        => 'image/svg+xml',
+            default      => 'image/png',
+        };
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    }
+
 }
+

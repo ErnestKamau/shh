@@ -33,6 +33,10 @@ class Header extends Component
     public $showBulkUpdateModal = false;
     public $showVerificationModal = false;
     public $showApprovalModal = false;
+    public $showCaseFileModal = false;
+    public $showChecklistRequiredModal = false;
+    public $checklistRequiredMessage = '';
+    public $checklistStageName = '';
     
     public $verificationActiveTab = 'case_file_review';
 
@@ -593,6 +597,31 @@ class Header extends Component
         return redirect()->route('sample-workflow', ['status' => $previousWorkflow]);
     }
 
+    public function openApprovalModal()
+    {
+        $batch = $this->batch;
+
+        if ($batch->status === 'Sample Verification') {
+            try {
+                app(WorkflowService::class)->assertStageApprovalsCompleted((string) $batch->id, 'Sample Verification');
+            } catch (ValidationException $exception) {
+                $this->checklistRequiredMessage = $exception->validator->errors()->first()
+                    ?: 'Complete and approve the checklist before sending this batch for approval.';
+                $this->checklistStageName = 'Sample Verification';
+                $this->showChecklistRequiredModal = true;
+                return;
+            }
+        }
+
+        $this->showApprovalModal = true;
+    }
+
+    public function closeChecklistRequiredModal()
+    {
+        $this->showChecklistRequiredModal = false;
+        $this->checklistStageName = '';
+    }
+
     public function sendForApproval()
     {
         $this->validate([
@@ -601,21 +630,6 @@ class Header extends Component
         ]);
 
         $batch = $this->batch;
-
-        if ($batch->status === 'Sample Verification') {
-            try {
-                app(WorkflowService::class)->assertStageApprovalsCompleted((string) $batch->id, 'Sample Verification');
-            } catch (ValidationException $exception) {
-                $message = $exception->validator->errors()->first();
-                $checklistUrl = route('sample-approval-checklist.show', [
-                    'sample' => $batch->id,
-                    'stage_name' => 'Sample Verification',
-                ]);
-
-                session()->flash('error', $message . ' Complete checklist here: ' . $checklistUrl);
-                return;
-            }
-        }
 
         // Lab section check removed per user request
         
@@ -786,4 +800,26 @@ class Header extends Component
             ->whereIn('status', [2, 0])
             ->count();
     }
+
+    public function saveStandaloneCaseFile()
+    {
+        $this->validate([
+            'caseFormData.lab_no' => 'required',
+        ]);
+
+        $data = $this->caseFormData;
+        $data['batch_id'] = $this->batch->id;
+        
+        $caseFile = \App\Models\CaseFileReviewForm::updateOrCreate(
+            ['batch_id' => $this->batch->id],
+            $data
+        );
+
+        $this->showCaseFileModal = false;
+        
+        $this->dispatch('batchUpdated');
+        
+        return redirect()->route('view-case-file-pdf', $caseFile->id);
+    }
 }
+

@@ -2293,6 +2293,83 @@
         }
     }
 
+    // Dynamic Forensic Category Filtering Engine
+    const categoriesByLab = {
+        'FCH': [
+            { value: 'cannabis', text: 'Zinazohusiana na Cannabis' },
+            { value: 'catha_edulis', text: 'Catha edulis' },
+            { value: 'cocaine', text: 'Cocaine' },
+            { value: 'heroin', text: 'Heroin' },
+            { value: 'amphetamine', text: 'Amphetamine' },
+            { value: 'methamphetamine', text: 'Methamphetamine' },
+            { value: 'fentanyl', text: 'Fentanyl' },
+            { value: 'foods_drugs', text: 'Foods containing drugs' },
+            { value: 'drinks_drugs', text: 'Drinks containing drugs' },
+            { value: 'blood', text: 'Blood' },
+            { value: 'urine', text: 'Urine' },
+            { value: 'misc_chemistry', text: 'Miscellaneous investigation' },
+            { value: 'others_chemistry', text: 'Others' }
+        ],
+        'FDNA': [
+            { value: 'rape_dna', text: 'Rape cases' },
+            { value: 'murder_dna', text: 'Murder cases' },
+            { value: 'robbery_dna', text: 'Armed robbery cases' },
+            { value: 'attempted_murder_dna', text: 'Attempted murder' },
+            { value: 'attempted_homicide_dna', text: 'Attempted homicide' },
+            { value: 'disaster_dna', text: 'Disaster Victims identification' },
+            { value: 'misc_dna', text: 'Miscellaneous investigation' },
+            { value: 'others_dna', text: 'Others' }
+        ],
+        'FTOX': [
+            { value: 'murder_tox', text: 'Murder cases' },
+            { value: 'attempted_murder_tox', text: 'Attempted Murder' },
+            { value: 'attempted_homicide_tox', text: 'Attempted homicide' },
+            { value: 'misc_tox', text: 'Miscellaneous investigation' },
+            { value: 'others_tox', text: 'Others' }
+        ]
+    };
+
+    function updateCategoryDropdown(labSelect) {
+        const form = labSelect.closest('form');
+        if (!form) return;
+
+        const categoryGroup = form.querySelector('.category-filter-group');
+        const categorySelect = form.querySelector('.category-select');
+        if (!categoryGroup || !categorySelect) return;
+
+        const selectedOption = labSelect.options[labSelect.selectedIndex];
+        const optionText = selectedOption ? selectedOption.text : '';
+        const labCode = selectedOption ? (selectedOption.getAttribute('data-code') || '') : '';
+        
+        let matchingKey = null;
+        if (labCode.includes('FCH') || optionText.includes('FCH') || optionText.includes('Chemistry')) {
+            matchingKey = 'FCH';
+        } else if (labCode.includes('FDNA') || optionText.includes('FDNA') || optionText.includes('DNA')) {
+            matchingKey = 'FDNA';
+        } else if (labCode.includes('FTOX') || optionText.includes('FTOX') || optionText.includes('Toxicology')) {
+            matchingKey = 'FTOX';
+        }
+
+        if (matchingKey) {
+            const selectedVal = categorySelect.getAttribute('data-selected') || 'all';
+            categorySelect.innerHTML = '<option value="all">-- All Categories --</option>';
+            
+            categoriesByLab[matchingKey].forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.value;
+                opt.text = cat.text;
+                if (cat.value === selectedVal) {
+                    opt.selected = true;
+                }
+                categorySelect.appendChild(opt);
+            });
+            categoryGroup.style.display = 'flex';
+        } else {
+            categorySelect.innerHTML = '<option value="all">-- All Categories --</option>';
+            categoryGroup.style.display = 'none';
+        }
+    }
+
     // Scroll to preview if results loaded
     document.addEventListener("DOMContentLoaded", function() {
         if (hasQueriedResults) {
@@ -2301,6 +2378,42 @@
                 previewSection.scrollIntoView({ behavior: 'smooth' });
             }
         }
+
+        // Dynamically inject category filter controls right after each lab select element
+        document.querySelectorAll('select[name="lab_id"]').forEach(select => {
+            const formGroup = select.closest('.form-group');
+            if (formGroup) {
+                const existingGroup = formGroup.parentNode.querySelector('.category-filter-group');
+                if (!existingGroup) {
+                    const catGroup = document.createElement('div');
+                    catGroup.className = 'form-group category-filter-group';
+                    catGroup.style.display = 'none';
+                    catGroup.style.flexDirection = 'column';
+                    catGroup.style.gap = '4px';
+                    
+                    const label = document.createElement('label');
+                    label.innerHTML = '<i class="mdi mdi-tag-multiple"></i> Category';
+                    
+                    const catSelect = document.createElement('select');
+                    catSelect.name = 'category';
+                    catSelect.className = 'form-control-custom category-select';
+                    catSelect.setAttribute('data-selected', @json($filters['category'] ?? 'all'));
+                    catSelect.innerHTML = '<option value="all">-- All Categories --</option>';
+                    
+                    catGroup.appendChild(label);
+                    catGroup.appendChild(catSelect);
+                    
+                    formGroup.parentNode.insertBefore(catGroup, formGroup.nextSibling);
+                }
+            }
+
+            select.addEventListener('change', function() {
+                updateCategoryDropdown(this);
+            });
+            
+            // Trigger initial check
+            updateCategoryDropdown(select);
+        });
     });
 </script>
 @endsection

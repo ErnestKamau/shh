@@ -703,6 +703,10 @@ Route::post('/merge-attachments', 'SampleWorkFlowController@merge_attachments')-
 Route::get('/batch/attachments/{id}/download', 'SampleWorkFlowController@downloadBatchAttachment')->name('download-attachment')->middleware('can:laboratory.components.all samples.view');
 
 // PDF Annotation routes
+Route::get('/batch/acceptance-pdf/{id}', 'SampleWorkFlowController@viewAcceptancePdf')->name('view-acceptance-pdf');
+Route::get('/batch/receipt-notification-pdf/{id}', 'SampleWorkFlowController@viewReceiptNotificationPdf')->name('view-receipt-notification-pdf');
+Route::get('/batch/case-file-pdf/{id}', 'SampleWorkFlowController@viewCaseFilePdf')->name('view-case-file-pdf');
+
 Route::get('/batch/attachments/{id}/annotate', 'SampleWorkFlowController@showAnnotationPage')->name('show-pdf-annotation-page')->middleware('can:laboratory.components.all samples.edit');
 Route::post('/batch/attachments/annotate/save', 'SampleWorkFlowController@saveAnnotatedPdf')->name('save-annotated-pdf')->middleware('can:laboratory.components.all samples.edit');
 Route::post('/batch/attachments/annotate/upload-image', 'SampleWorkFlowController@uploadAnnotationImage')->name('upload-annotation-image')->middleware('can:laboratory.components.all samples.edit');

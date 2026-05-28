@@ -38,7 +38,11 @@
     <table class="header-table">
         <tr>
             <td class="logo-td">
-                <img src="{{ public_path('images/logo.png') }}" class="logo" alt="Logo">
+                @if(!empty($logoSrc))
+                    <img src="{{ $logoSrc }}" class="logo" alt="Logo">
+                @else
+                    <img src="{{ public_path('images/logo.png') }}" class="logo" alt="Logo">
+                @endif
             </td>
             <td class="title-td">
                 <div class="title">Laboratory Analysis Acceptance Form</div>
