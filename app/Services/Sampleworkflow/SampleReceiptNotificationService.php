@@ -752,7 +752,7 @@ class SampleReceiptNotificationService
         return $defaults;
     }
 
-    private function resolveAttachmentTypeId(): ?int
+    private function resolveAttachmentTypeId(): ?string
     {
         $label = 'Sample Receipt Notification Form';
 
@@ -761,20 +761,20 @@ class SampleReceiptNotificationService
             ->value('id');
 
         if ($existingId !== null) {
-            return (int) $existingId;
+            return $existingId;
         }
 
-        $typeConfig = SystemConfiguration::query()->where('key', 'attachment_type_config_id')->first();
-        if (! $typeConfig) {
+        $existingType = SystemConfiguration::query()->where('key', 'attachment_type')->whereNotNull('configuration_type_id')->first();
+        if (! $existingType) {
             return null;
         }
 
         $newConfig = new SystemConfiguration();
         $newConfig->key = 'attachment_type';
         $newConfig->value = $label;
-        $newConfig->configuration_type_id = $typeConfig->id;
+        $newConfig->configuration_type_id = $existingType->configuration_type_id;
         $newConfig->save();
 
-        return (int) $newConfig->id;
+        return $newConfig->id;
     }
 }

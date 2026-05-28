@@ -130,7 +130,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
 
         $headHolder = $headSection->elementHolders()->create([
             'holder_type' => 'field',
-            'max_elements' => 4,
+            'max_elements' => 3,
             'sort_order' => 1,
         ]);
 
@@ -168,13 +168,6 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'mapping_field' => 'lab_id',
         ]);
 
-        $headHolder->elements()->create([
-            'element_type' => 'file',
-            'label' => 'Attachments',
-            'name' => 'attachments',
-            'is_required' => false,
-            'sort_order' => 4,
-        ]);
 
         // Section 2: Samples (Rows Section)
         $this->command->info('Creating Samples section...');
@@ -293,7 +286,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
 
         $additionalHolder = $additionalSection->elementHolders()->create([
             'holder_type' => 'field',
-            'max_elements' => 8,
+            'max_elements' => 9,
             'sort_order' => 1,
         ]);
 
@@ -353,7 +346,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         ]);
 
         $additionalHolder->elements()->create([
-            'element_type' => 'checkbox',
+            'element_type' => 'select',
             'label' => 'Mode of payment',
             'name' => 'mode_of_payment',
             'options' => [
@@ -373,7 +366,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         ]);
 
         $additionalHolder->elements()->create([
-            'element_type' => 'checkbox',
+            'element_type' => 'select',
             'label' => 'Mode of Service',
             'name' => 'mode_of_service',
             'options' => [
@@ -383,6 +376,14 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             ],
             'is_required' => false,
             'sort_order' => 8,
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'file',
+            'label' => 'Attachments',
+            'name' => 'attachments',
+            'is_required' => false,
+            'sort_order' => 9,
         ]);
     }
 

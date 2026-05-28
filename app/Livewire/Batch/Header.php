@@ -33,6 +33,7 @@ class Header extends Component
     public $showBulkUpdateModal = false;
     public $showVerificationModal = false;
     public $showApprovalModal = false;
+    public $showCaseFileModal = false;
     
     public $verificationActiveTab = 'case_file_review';
 
@@ -786,4 +787,26 @@ class Header extends Component
             ->whereIn('status', [2, 0])
             ->count();
     }
+
+    public function saveStandaloneCaseFile()
+    {
+        $this->validate([
+            'caseFormData.lab_no' => 'required',
+        ]);
+
+        $data = $this->caseFormData;
+        $data['batch_id'] = $this->batch->id;
+        
+        $caseFile = \App\Models\CaseFileReviewForm::updateOrCreate(
+            ['batch_id' => $this->batch->id],
+            $data
+        );
+
+        $this->showCaseFileModal = false;
+        
+        $this->dispatch('batchUpdated');
+        
+        return redirect()->route('view-case-file-pdf', $caseFile->id);
+    }
 }
+

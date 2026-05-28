@@ -107,11 +107,16 @@
                             </button>
                         </th>
                         <th style="min-width: 150px;">
-                            Product
-                            <button type="button" class="btn btn-xs btn-outline-primary ml-1"
-                                wire:click="openAddModal('company_product_id', null)" title="Add New Product">
-                                <i class="mdi mdi-plus"></i>
-                            </button>
+                            Sample photo
+                        </th>
+                        <th style="min-width: 150px;">
+                            Sample ID
+                        </th>
+                        <th style="min-width: 150px;">
+                            Sample Type
+                        </th>
+                        <th style="min-width: 150px;">
+                            Matrix
                         </th>
                         <th style="min-width: 150px;">Description</th>
                         <th style="min-width: 100px;">Time Sampled</th>
@@ -347,24 +352,63 @@
                             @endif
                         </td>
 
-                        {{-- Product --}}
+                        {{-- Sample photo --}}
+                        <td>
+                            @if($isReadOnly)
+                                @if(!empty($sampleForm['photo_url']))
+                                    <a href="{{ Storage::url($sampleForm['photo_url']) }}" target="_blank" class="btn btn-xs btn-outline-info" title="View Photo">
+                                        <i class="mdi mdi-image"></i> View
+                                    </a>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            @else
+                                <div class="d-flex align-items-center flex-wrap" style="gap: 5px;">
+                                    <input type="file" class="form-control-file" style="font-size: 0.8rem; max-width: 150px;"
+                                        wire:model="samplePhotos.{{ $index }}" accept="image/*">
+                                    <div wire:loading wire:target="samplePhotos.{{ $index }}">
+                                        <i class="mdi mdi-loading mdi-spin"></i>
+                                    </div>
+                                    @if(!empty($sampleForm['photo_url']))
+                                        <a href="{{ Storage::url($sampleForm['photo_url']) }}" target="_blank" class="text-info" style="font-size: 0.8rem;">Current</a>
+                                    @endif
+                                </div>
+                                @error('samplePhotos.'.$index) <small class="text-danger">{{ $message }}</small> @enderror
+                            @endif
+                        </td>
+
+                        {{-- Sample ID --}}
+                        <td>
+                            <input type="text" class="form-control form-control-sm modern-input"
+                                wire:model.defer="sampleForms.{{ $index }}.sample_no"
+                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
+                        </td>
+
+                        {{-- Sample Type --}}
                         <td>
                             @if($isReadOnly)
                             <input type="text" class="form-control form-control-sm readonly-input"
-                                value="{{ collect($products)->firstWhere('id', $sampleForm['company_product_id'])['name'] ?? '-' }}"
+                                value="{{ collect($sampleTypes)->firstWhere('id', $sampleForm['sample_type_id'])['name'] ?? '-' }}"
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.company_product_id">
+                                wire:model.defer="sampleForms.{{ $index }}.sample_type_id">
                                 <option value="">Select...</option>
-                                @foreach($products as $product)
-                                <option value="{{ $product['id'] }}">{{ $product['name'] }}</option>
+                                @foreach($sampleTypes as $type)
+                                <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
                                 @endforeach
                             </select>
-                            @error("sampleForms.$index.company_product_id")
+                            @error("sampleForms.$index.sample_type_id")
                             <small class="text-danger">{{ $message }}</small>
                             @enderror
                             @endif
+                        </td>
+
+                        {{-- Matrix --}}
+                        <td>
+                            <input type="text" class="form-control form-control-sm modern-input"
+                                wire:model.defer="sampleForms.{{ $index }}.matrix"
+                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
                         </td>
 
                         {{-- Description --}}

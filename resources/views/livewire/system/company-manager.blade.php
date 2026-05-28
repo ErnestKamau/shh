@@ -210,17 +210,50 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('system.report_logo') }}</label>
-                                        <input type="file" wire:model="reportLogoFile" class="form-control @error('reportLogoFile') is-invalid @enderror">
-                                        @error('reportLogoFile') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        @if($existingReportLogo && !$reportLogoFile)
-                                            <small class="text-muted d-block mt-1">{{ __('system.current_label') }}:</small>
-                                            <img src="{{ $existingReportLogo }}" alt="Current report logo" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">
-                                        @endif
-                                    </div>
+                                    <!-- Placeholder to keep grid balanced, or we can move it below -->
                                 </div>
                             </div>
+
+                            <hr class="my-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="text-primary font-weight-bold mb-0">
+                                    <i class="mdi mdi-image-multiple mr-1"></i> {{ __('system.report_logos') ?? 'Report Logos' }}
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="addReportLogo">
+                                    <i class="mdi mdi-plus"></i> Add Logo
+                                </button>
+                            </div>
+                            <p class="text-muted small mb-3">Add multiple report logos and assign them names to easily reference them in reports.</p>
+                            
+                            @foreach($reportLogos as $index => $logo)
+                                <div class="row align-items-center mb-3 p-3 border rounded bg-light">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label small">Logo Name <span class="text-danger">*</span></label>
+                                            <input type="text" wire:model="reportLogos.{{ $index }}.name" class="form-control form-control-sm @error('reportLogos.'.$index.'.name') is-invalid @enderror" placeholder="e.g. GCLA_02">
+                                            @error('reportLogos.'.$index.'.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label small">Upload File</label>
+                                            <input type="file" wire:model="reportLogos.{{ $index }}.file" class="form-control form-control-sm @error('reportLogos.'.$index.'.file') is-invalid @enderror">
+                                            @error('reportLogos.'.$index.'.file') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 text-center">
+                                        @if($logo['existing_path'] && !$logo['file'])
+                                            <img src="{{ $logo['existing_path'] }}" alt="Logo" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">
+                                        @endif
+                                    </div>
+                                    <div class="col-md-1 text-right">
+                                        <button type="button" class="btn btn-sm btn-danger" wire:click="removeReportLogo({{ $index }})" title="Remove">
+                                            <i class="mdi mdi-delete"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                            <hr class="my-3">
 
                             <div class="row">
                                 <div class="col-md-6">
