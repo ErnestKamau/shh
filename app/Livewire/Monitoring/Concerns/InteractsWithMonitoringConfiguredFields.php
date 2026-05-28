@@ -44,6 +44,8 @@ trait InteractsWithMonitoringConfiguredFields
 
     public string $configuredFieldManagerSource = 'lab_section';
 
+    public string $configuredFieldLimitsSource = 'lab_section';
+
     public bool $showConfiguredFieldTypeDropdown = false;
 
     /**
@@ -114,6 +116,14 @@ trait InteractsWithMonitoringConfiguredFields
     public function getConfiguredFieldManagerSourceOptionsProperty(): array
     {
         return MonitoringTemplateConfiguredField::managerSourceOptions();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getConfiguredFieldLimitsSourceOptionsProperty(): array
+    {
+        return MonitoringTemplateConfiguredField::limitsSourceOptions();
     }
 
     /**
@@ -192,6 +202,7 @@ trait InteractsWithMonitoringConfiguredFields
         $config = is_array($field['field_config'] ?? null) ? $field['field_config'] : [];
         $this->configuredFieldCalibrationAttributes = $config['calibration_attributes'] ?? [];
         $this->configuredFieldManagerSource = (string) ($config['manager_source'] ?? $this->defaultManagerSource());
+        $this->configuredFieldLimitsSource = (string) ($config['limits_source'] ?? $this->defaultLimitsSource());
 
         $this->showEditConfiguredFieldModal = true;
     }
@@ -271,6 +282,10 @@ trait InteractsWithMonitoringConfiguredFields
         if (! in_array($this->configuredFieldType, ['manager_dropdown', 'user_signature'], true)) {
             $this->configuredFieldManagerSource = $this->defaultManagerSource();
         }
+
+        if ($this->configuredFieldType !== 'scope_expected_limits') {
+            $this->configuredFieldLimitsSource = $this->defaultLimitsSource();
+        }
     }
 
     public function clearConfiguredFieldSearch(): void
@@ -289,6 +304,7 @@ trait InteractsWithMonitoringConfiguredFields
             'manager_dropdown', 'user_signature' => 'Manager from: '.str_replace('_', ' ', (string) ($config['manager_source'] ?? '—')),
             'monitoring_equipment' => 'Selected monitoring equipment',
             'lab_section_select' => 'Active lab section at capture',
+            'scope_expected_limits' => 'Limits from: '.(MonitoringTemplateConfiguredField::limitsSourceOptions()[$config['limits_source'] ?? ''] ?? str_replace('_', ' ', (string) ($config['limits_source'] ?? '—'))),
             default => MonitoringTemplateConfiguredField::fieldTypeOptions()[$type] ?? ucfirst(str_replace('_', ' ', $type)),
         };
     }
@@ -378,8 +394,19 @@ trait InteractsWithMonitoringConfiguredFields
             'lab_section_select' => [
                 'source' => 'template_scope',
             ],
+            'scope_expected_limits' => [
+                'limits_source' => $this->configuredFieldLimitsSource ?: $this->defaultLimitsSource(),
+                'resolve_mode' => 'auto',
+            ],
             default => null,
         };
+    }
+
+    protected function defaultLimitsSource(): string
+    {
+        return property_exists($this, 'templateType') && $this->templateType === 'equipment'
+            ? 'equipment'
+            : 'lab_section';
     }
 
     protected function defaultManagerSource(): string
@@ -419,10 +446,31 @@ trait InteractsWithMonitoringConfiguredFields
                 },
             ],
             'configuredFieldHelpText' => 'nullable|string|max:2000',
-            'configuredFieldModelTiedTo' => 'nullable|required_if:configuredFieldType,dataset_related|in:equipments,users,methods',
-            'configuredFieldCalibrationAttributes' => 'nullable|required_if:configuredFieldType,equipment_calibration|array|min:1',
-            'configuredFieldCalibrationAttributes.*' => Rule::in(array_keys(MonitoringTemplateConfiguredField::calibrationAttributeOptions())),
-            'configuredFieldManagerSource' => 'nullable|required_if:configuredFieldType,manager_dropdown|required_if:configuredFieldType,user_signature|in:lab_section,equipment_location',
+            'configuredFieldModelTiedTo' => [
+                'exclude_unless:configuredFieldType,dataset_related',
+                'required',
+                'in:equipments,users,methods',
+            ],
+            'configuredFieldCalibrationAttributes' => [
+                'exclude_unless:configuredFieldType,equipment_calibration',
+                'required',
+                'array',
+                'min:1',
+            ],
+            'configuredFieldCalibrationAttributes.*' => [
+                'exclude_unless:configuredFieldType,equipment_calibration',
+                Rule::in(array_keys(MonitoringTemplateConfiguredField::calibrationAttributeOptions())),
+            ],
+            'configuredFieldManagerSource' => [
+                Rule::excludeIf(fn () => ! in_array($this->configuredFieldType, ['manager_dropdown', 'user_signature'], true)),
+                'required',
+                'in:lab_section,equipment_location',
+            ],
+            'configuredFieldLimitsSource' => [
+                Rule::excludeIf(fn () => $this->configuredFieldType !== 'scope_expected_limits'),
+                'required',
+                Rule::in(array_keys(MonitoringTemplateConfiguredField::limitsSourceOptions())),
+            ],
             'configuredFieldOrder' => 'required|integer|min:1',
             'configuredFieldIsRequired' => 'boolean',
         ];
@@ -483,6 +531,7 @@ trait InteractsWithMonitoringConfiguredFields
         $this->configuredFieldValueName = '';
         $this->configuredFieldCalibrationAttributes = [];
         $this->configuredFieldManagerSource = $this->defaultManagerSource();
+        $this->configuredFieldLimitsSource = $this->defaultLimitsSource();
         $this->editingConfiguredFieldId = null;
         $this->closeConfiguredFieldTypeDropdown();
         $this->resetErrorBag([
@@ -494,6 +543,7 @@ trait InteractsWithMonitoringConfiguredFields
             'configuredFieldOrder',
             'configuredFieldCalibrationAttributes',
             'configuredFieldManagerSource',
+            'configuredFieldLimitsSource',
         ]);
     }
 }

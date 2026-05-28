@@ -97,135 +97,81 @@
                                 </div>
                             </div>
 
-                            <div class="pw-toolbar">
-                                <div class="pw-search-wrap">
+                            <div class="pw-toolbar d-flex flex-wrap align-items-center gap-2">
+                                <div class="pw-search-wrap flex-grow-1" style="min-width: 200px;">
                                     <i class="mdi mdi-magnify pw-search-icon"></i>
                                     <input type="text" wire:model.live="search" class="form-control pw-input" placeholder="Search steps...">
                                 </div>
-                                <div class="pw-toolbar-actions">
-                                    <label class="pw-toolbar-label">Show</label>
-                                    <select wire:model.live="perPage" class="form-select pw-select-sm">
-                                        <option value="25">25</option>
-                                        <option value="50">50</option>
-                                        <option value="75">75</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="showCreateStepGroupModalInit">
+                                    <i class="mdi mdi-folder-plus-outline"></i> Add step group
+                                </button>
                             </div>
 
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover workflow-table">
-                                    <thead style="background-color: rgba(0, 0, 0, .03);">
-                                        <tr>
-                                            <th style="width: 50px;">Order</th>
-                                            <th>Step</th>
-                                            <th>Default Measurands</th>
-                                            <th>Default Equipment</th>
-                                            <th>Default Analyst</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="sortable-steps">
-                                        @forelse($steps as $stepItem)
-                                            <tr class="sortable-row" data-step-id="{{ $stepItem->id }}">
-                                                <td class="drag-handle text-center">
-                                                    <i class="mdi mdi-drag-vertical text-muted" style="cursor: move; font-size: 18px;"></i>
-                                                    <span class="text-muted small ms-1">{{ $stepItem->order }}</span>
-                                                </td>
-                                                <td>
-                                                    <div>{{ $stepItem->step }}</div>
-                                                    @php
-                                                        $valueTypeLabels = [
-                                                            'text' => 'Text',
-                                                            'number' => 'Number',
-                                                            'date' => 'Date',
-                                                            'time' => 'Time',
-                                                            'datetime' => 'Date & Time',
-                                                            'method_select' => 'Method',
-                                                            'equipment_select' => 'Equipment',
-                                                            'custom_select' => 'Custom List',
-                                                        ];
-                                                        $vt = $stepItem->value_type ?: 'text';
-                                                    @endphp
-                                                    <span class="tag-badge tag-badge--neutral mt-1">{{ $valueTypeLabels[$vt] ?? $vt }}</span>
-                                                </td>
-                                                <td>
-                                                    @if($stepItem->measurands && $stepItem->measurands->count() > 0)
-                                                        <div class="d-flex flex-wrap">
-                                                            @foreach($stepItem->measurands as $measurand)
-                                                                <span class="tag-badge tag-badge--info mr-1 mb-1">{{ $measurand->name }}</span>
-                                                            @endforeach
-                                                        </div>
-                                                    @else
-                                                        <span class="text-muted">-</span>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    @php
-                                                        $equipmentDisplay = $stepItem->equipment
-                                                            ? $stepItem->equipment
-                                                                ->map(function ($equipment) {
-                                                                    $number = $equipment->equipment_number ?? null;
-                                                                    return $number
-                                                                        ? "{$equipment->name} ({$number})"
-                                                                        : $equipment->name;
-                                                                })
-                                                                ->filter()
-                                                                ->join(', ')
-                                                            : '';
-                                                    @endphp
-                                                    {{ $equipmentDisplay !== '' ? $equipmentDisplay : '-' }}
-                                                </td>
-                                                <td>
-                                                    @php
-                                                        $analystNames = $stepItem->analysts?->pluck('name')->filter()->join(', ');
-                                                    @endphp
-                                                    {{ $analystNames !== '' ? $analystNames : '-' }}
-                                                </td>
-                                                <td>
-                                                    <div class="d-flex flex-wrap gap-1">
-                                                        <span class="tag-badge {{ $stepItem->is_active ? 'tag-badge--success' : 'tag-badge--neutral' }}">
-                                                            {{ $stepItem->is_active ? 'Active' : 'Inactive' }}
-                                                        </span>
-                                                        @if($stepItem->is_result_step)
-                                                            <span class="tag-badge tag-badge--warning">Result</span>
-                                                        @endif
-                                                        @if($stepItem->attracts_equipment_logbook)
-                                                            <span class="tag-badge tag-badge--info" title="Attracts equipment logbook">Logbook</span>
-                                                        @endif
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="d-flex flex-wrap">
-                                                        <button wire:click="edit(@js($stepItem->id))" class="btn btn-sm rm-act-btn rm-act-btn--edit" title="Edit">
-                                                            <i class="mdi mdi-pencil"></i>
-                                                        </button>
-                                                        <button wire:click="confirmDelete(@js($stepItem->id))" class="btn btn-sm rm-act-btn rm-act-btn--delete" title="Delete">
-                                                            <i class="mdi mdi-delete"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @empty
+                            @if(count($stepGroups) > 0)
+                            <div class="mb-3 d-flex flex-wrap gap-2">
+                                @foreach($stepGroups as $grp)
+                                <span class="tag-badge tag-badge--neutral">
+                                    {{ $grp['title'] }}
+                                    <button type="button" class="btn-tag-remove border-0 bg-transparent p-0 ml-1" wire:click="showEditStepGroupModalInit(@js($grp['id']))" title="Edit group"><i class="mdi mdi-pencil"></i></button>
+                                    <button type="button" class="btn-tag-remove border-0 bg-transparent p-0" wire:click="showDeleteStepGroupModal(@js($grp['id']))" title="Delete group"><i class="mdi mdi-delete"></i></button>
+                                </span>
+                                @endforeach
+                            </div>
+                            @endif
+
+                            @forelse($stepDisplayBlocks as $blockIndex => $block)
+                            <div class="pw-step-group-block mb-4" wire:key="step-block-{{ $blockIndex }}">
+                                @if(!empty($block['step_group']))
+                                <div class="pw-step-group-block__header">
+                                    <i class="mdi mdi-folder-outline"></i>
+                                    <div>
+                                        <strong>{{ $block['step_group']->title }}</strong>
+                                        @if($block['step_group']->description)
+                                        <div class="text-muted small">{{ $block['step_group']->description }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @elseif($block['type'] === 'scalar' && count($stepDisplayBlocks) > 1)
+                                <div class="pw-step-group-block__header pw-step-group-block__header--muted">
+                                    <i class="mdi mdi-format-list-bulleted"></i>
+                                    <strong>Ungrouped steps</strong>
+                                </div>
+                                @endif
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover workflow-table mb-0">
+                                        <thead style="background-color: rgba(0, 0, 0, .03);">
                                             <tr>
-                                                <td colspan="7" class="text-center py-4">No steps found. Add your first step!</td>
+                                                <th style="width: 50px;">Order</th>
+                                                <th>Step</th>
+                                                <th>Default Measurands</th>
+                                                <th>Default Equipment</th>
+                                                <th>Default Analyst</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
                                             </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between align-items-center mt-4">
-                                <div>
-                                    <span class="text-muted">
-                                        Showing {{ $steps->firstItem() ?? 0 }} to {{ $steps->lastItem() ?? 0 }} of {{ $steps->total() }} entries
-                                    </span>
-                                </div>
-                                <div>
-                                    {{ $steps->links() }}
+                                        </thead>
+                                        <tbody class="sortable-steps-group">
+                                            @if($block['type'] === 'custom_table')
+                                                @include('livewire.procedures.partials.procedure-step-row', ['stepItem' => $block['step']])
+                                            @else
+                                                @foreach($block['steps'] as $stepItem)
+                                                    @include('livewire.procedures.partials.procedure-step-row', ['stepItem' => $stepItem])
+                                                @endforeach
+                                            @endif
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
+                            @empty
+                            <div class="text-center py-5 text-muted">
+                                <p class="mb-2">No steps found. Add your first step or create optional groups first.</p>
+                                <button wire:click="create" class="btn btn-primary btn-sm"><i class="mdi mdi-plus"></i> Add step</button>
+                            </div>
+                            @endforelse
+
+                            @if($steps->count() > 0)
+                            <p class="text-muted small mt-3 mb-0">{{ $steps->count() }} step(s) total</p>
+                            @endif
                         </div>
 
                         <div class="tab-pane fade {{ $activeTab === 'config' ? 'show active' : '' }}" id="configurable-fields-tab-pane" role="tabpanel" aria-labelledby="configurable-fields-tab">
@@ -239,12 +185,18 @@
                                             </h5>
                                             <p class="text-muted small mb-0">Define dynamic fields like Date Recorded or Temperature for this procedure.</p>
                                         </div>
-                                        <button wire:click="showCreateConfigFieldModalInit" class="btn btn-primary">
-                                            <i class="mdi mdi-plus"></i> Add Field
-                                        </button>
+                                        <div class="d-flex align-items-center">
+                                            <button type="button" wire:click="showCreateConfigSectionModalInit" class="btn btn-outline-primary mr-2">
+                                                <i class="mdi mdi-folder-plus-outline"></i> Add section
+                                            </button>
+                                            <button wire:click="showCreateConfigFieldModalInit" class="btn btn-primary">
+                                                <i class="mdi mdi-plus"></i> Add Field
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                 <div class="workflow-board-panel-body p-4">
+                                    @include('livewire.procedures.partials.config-fields-capture-layout', ['showSaveButton' => true])
                                     <div class="row mb-3">
                                         <div class="col-md-10">
                                             <input type="text" wire:model.live="configFieldSearch" class="form-control" placeholder="Search by label or value name...">
@@ -256,71 +208,82 @@
                                         </div>
                                     </div>
 
-                                    @if(count($configFields) > 0)
-                                        <div class="table-responsive">
-                                            <table class="table table-striped table-hover workflow-table">
-                                                <thead style="background-color: rgba(0, 0, 0, .03);">
-                                                    <tr>
-                                                        <th style="width: 40px;">
-                                                            <i class="mdi mdi-drag text-muted"></i>
-                                                        </th>
-                                                        <th style="width: 60px;">Order</th>
-                                                        <th>Label</th>
-                                                        <th>Field Type</th>
-                                                        <th>Value Name</th>
-                                                        <th>Required</th>
-                                                        <th style="width: 200px;">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="sortable-config-fields">
-                                                    @foreach($configFields as $field)
+                                    @if(count($configFieldDisplayBlocks) > 0)
+                                        @foreach($configFieldDisplayBlocks as $cfgBlockIndex => $cfgBlock)
+                                        <div class="pw-step-group-block mb-4" wire:key="cfg-block-{{ $cfgBlockIndex }}">
+                                            @if($cfgBlock['section'])
+                                            <div class="pw-step-group-block__header d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <i class="mdi mdi-folder-outline"></i>
+                                                    <strong>{{ $cfgBlock['section']->title }}</strong>
+                                                    @if($cfgBlock['section']->description)
+                                                    <div class="text-muted small">{{ $cfgBlock['section']->description }}</div>
+                                                    @endif
+                                                </div>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--edit" wire:click="showEditConfigSectionModalInit(@js($cfgBlock['section']->id))" title="Edit section"><i class="mdi mdi-pencil"></i></button>
+                                                    <button type="button" class="btn btn-sm rm-act-btn rm-act-btn--delete" wire:click="showDeleteConfigSectionModal(@js($cfgBlock['section']->id))" title="Delete section"><i class="mdi mdi-delete"></i></button>
+                                                </div>
+                                            </div>
+                                            @else
+                                            <div class="pw-step-group-block__header pw-step-group-block__header--muted">
+                                                <i class="mdi mdi-form-select"></i>
+                                                <strong>Fields without section</strong>
+                                            </div>
+                                            @endif
+                                            <div class="table-responsive">
+                                                <table class="table table-striped table-hover workflow-table mb-0">
+                                                    <thead style="background-color: rgba(0, 0, 0, .03);">
+                                                        <tr>
+                                                            <th style="width: 40px;"></th>
+                                                            <th style="width: 60px;">Order</th>
+                                                            <th>Label</th>
+                                                            <th>Field Type</th>
+                                                            <th>Value Name</th>
+                                                            <th>Required</th>
+                                                            <th style="width: 200px;">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="sortable-config-fields-{{ $cfgBlockIndex }}">
+                                                        @foreach($cfgBlock['fields'] as $field)
                                                         <tr class="sortable-row" data-config-field-id="{{ $field['id'] }}">
-                                                            <td class="drag-handle text-center">
-                                                                <i class="mdi mdi-drag-vertical text-muted" style="cursor: move; font-size: 18px;"></i>
-                                                            </td>
-                                                            <td>
-                                                                <span class="badge badge-secondary">{{ $field['order'] }}</span>
-                                                            </td>
+                                                            <td class="drag-handle text-center"><i class="mdi mdi-drag-vertical text-muted"></i></td>
+                                                            <td><span class="badge badge-secondary">{{ $field['order'] }}</span></td>
                                                             <td>
                                                                 <strong>{{ $field['label'] }}</strong>
                                                                 @if($field['help_text'])
-                                                                    <br><small class="text-muted">{{ \Illuminate\Support\Str::limit($field['help_text'], 50) }}</small>
+                                                                <br><small class="text-muted">{{ \Illuminate\Support\Str::limit($field['help_text'], 50) }}</small>
                                                                 @endif
                                                             </td>
                                                             <td>
-                                                                <span class="badge badge-info">{{ ucfirst($field['field_type']) }}</span>
-                                                                @if(in_array($field['field_type'] ?? '', ['dataset', 'dataset_multiselect']) && !empty($field['model_tied_to']))
-                                                                    <br><small class="text-muted">{{ \App\Models\Procedures\ProcedureConfigField::getDatasetModels()[$field['model_tied_to']] ?? $field['model_tied_to'] }}</small>
+                                                                <span class="badge badge-info">{{ \App\Models\Procedures\ProcedureConfigField::getFieldTypes()[$field['field_type']] ?? $field['field_type'] }}</span>
+                                                                @if($field['field_type'] === 'sample_select' && !empty($field['model_tied_to']))
+                                                                <br><small class="text-muted">{{ $field['model_tied_to'] }}</small>
                                                                 @endif
                                                             </td>
-                                                            <td>
-                                                                <code>{{ $field['field_value_name'] }}</code>
-                                                            </td>
+                                                            <td><code>{{ $field['field_value_name'] }}</code></td>
                                                             <td>
                                                                 @if($field['is_required'])
-                                                                    <span class="badge badge-danger">Required</span>
+                                                                <span class="badge badge-danger">Required</span>
                                                                 @else
-                                                                    <span class="badge badge-secondary">Optional</span>
+                                                                <span class="badge badge-secondary">Optional</span>
                                                                 @endif
                                                             </td>
                                                             <td>
-                                                                <div class="btn-group" role="group">
-                                                                    <button wire:click="showEditConfigFieldModalInit(@js($field['id']))"
-                                                                            class="btn btn-sm btn-outline-primary" title="Edit">
-                                                                        <i class="mdi mdi-pencil"></i>
-                                                                    </button>
-                                                                    <button wire:click="showDeleteConfigFieldModal(@js($field['id']))"
-                                                                            class="btn btn-sm btn-outline-danger"
-                                                                            title="Delete">
-                                                                        <i class="mdi mdi-delete"></i>
-                                                                    </button>
+                                                                <div class="d-flex flex-wrap">
+                                                                    <button wire:click="showEditConfigFieldModalInit(@js($field['id']))" class="btn btn-sm rm-act-btn rm-act-btn--edit" title="Edit"><i class="mdi mdi-pencil"></i></button>
+                                                                    <button wire:click="showDeleteConfigFieldModal(@js($field['id']))" class="btn btn-sm rm-act-btn rm-act-btn--delete" title="Delete"><i class="mdi mdi-delete"></i></button>
                                                                 </div>
                                                             </td>
                                                         </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
+                                        @endforeach
+                                    @elseif(count($configFieldSections) > 0)
+                                        <div class="alert alert-info">Sections exist but have no fields yet. Add fields and assign them to a section.</div>
                                     @else
                                         <div class="text-center py-5">
                                             <i class="mdi mdi-text-box-check fa-3x text-muted mb-3"></i>
@@ -350,6 +313,7 @@
                                                 </button>
                                             </div>
                                             <div class="modal-body pw-modal-body">
+                                                @include('livewire.procedures.partials.config-fields-capture-layout', ['showSaveButton' => false])
                                                 <form id="config-field-form" wire:submit.prevent="{{ $showEditConfigFieldModal ? 'updateConfigField' : 'createConfigField' }}" class="pw-form">
                                                     <div class="mb-3">
                                                         <label class="form-label fw-semibold">Label <span class="text-danger">*</span></label>
@@ -362,30 +326,203 @@
                                                         @error('configFieldValueName') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                                     </div>
                                                     <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Section <span class="text-muted fw-normal">(optional)</span></label>
+                                                        @include('livewire.procedures.partials.config-search-select', [
+                                                            'options' => $this->configSectionSelectOptions,
+                                                            'wireModel' => 'configFieldSectionId',
+                                                            'placeholder' => 'Select section...',
+                                                            'emptyMessage' => 'No section matches your search.',
+                                                            'inputRef' => 'sectionSearch',
+                                                            'pickerKey' => 'config-field-section-' . count($configFieldSections) . '-' . ($showEditConfigFieldModal ? 'edit-' . ($editingConfigField?->id ?? '0') : 'create') . '-' . ($configFieldSectionId ?? 'none'),
+                                                        ])
+                                                    </div>
+                                                    <div class="mb-3">
                                                         <label class="form-label fw-semibold">Field Type <span class="text-danger">*</span></label>
-                                                        <select wire:model.live="configFieldType" class="form-control pw-input modern-select">
-                                                            <option value="input">Text</option>
-                                                            <option value="number">Number</option>
-                                                            <option value="checkbox">Checkbox</option>
-                                                            <option value="textarea">Textarea</option>
-                                                            <option value="date">Date</option>
-                                                            <option value="datetime">Date &amp; Time</option>
-                                                            <option value="dataset">Dataset (select from list)</option>
-                                                            <option value="dataset_multiselect">Dataset (multi-select)</option>
-                                                        </select>
+                                                        @php
+                                                            $configFieldTypeOptions = collect(\App\Models\Procedures\ProcedureConfigField::getFieldTypes())
+                                                                ->map(fn ($label, $value) => ['value' => (string) $value, 'label' => (string) $label])
+                                                                ->values()
+                                                                ->all();
+                                                        @endphp
+                                                        @include('livewire.procedures.partials.config-search-select', [
+                                                            'options' => $configFieldTypeOptions,
+                                                            'wireModel' => 'configFieldType',
+                                                            'placeholder' => 'Search field type...',
+                                                            'emptyMessage' => 'No field type matches your search.',
+                                                            'inputRef' => 'typeSearch',
+                                                            'live' => true,
+                                                            'pickerKey' => 'config-field-type-' . ($showEditConfigFieldModal ? 'edit-' . ($editingConfigField?->id ?? '0') : 'create') . '-' . $configFieldType,
+                                                        ])
                                                         @error('configFieldType') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                                     </div>
+                                                    @if(in_array($configFieldType, ['customer_select', 'lab_select'], true))
+                                                    <div class="alert alert-light border small mb-3">
+                                                        @if($configFieldType === 'customer_select')
+                                                        <strong>Customer (from sample)</strong> — During capture, shows the CRM customer from the sample’s batch. Read-only; no extra configuration.
+                                                        @else
+                                                        <strong>Lab (from sample)</strong> — During capture, shows the lab linked on the sample record. Read-only; no extra configuration.
+                                                        @endif
+                                                    </div>
+                                                    @endif
+                                                    @if($configFieldType === 'sample_select')
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Column type <span class="text-danger">*</span></label>
+                                                        <select class="form-control pw-input" wire:model.live="configFieldSampleDisplayMode">
+                                                            <option value="direct">Normal column (direct)</option>
+                                                            <option value="foreign_key">Foreign key → related table column</option>
+                                                        </select>
+                                                        @error('configFieldSampleDisplayMode') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Sample column <span class="text-danger">*</span></label>
+                                                        @include('livewire.procedures.partials.config-search-select', [
+                                                            'options' => $this->configFieldSampleColumnOptions,
+                                                            'wireModel' => 'configFieldSampleColumn',
+                                                            'placeholder' => 'Search sample column...',
+                                                            'emptyMessage' => 'No sample column matches your search.',
+                                                            'inputRef' => 'sampleColumnSearch',
+                                                            'live' => true,
+                                                            'pickerKey' => 'config-field-sample-column-' . $configFieldSampleDisplayMode . '-' . $configFieldSampleColumn,
+                                                        ])
+                                                        @error('configFieldSampleColumn') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+                                                    @if($configFieldSampleDisplayMode === 'foreign_key' && $configFieldSampleColumn !== '' && count($this->configFieldSampleRelationOptions) > 0)
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">
+                                                            Related display column
+                                                            <span class="text-muted fw-normal">(for {{ \App\Services\Procedures\ProcedureConfigFieldSampleCatalog::foreignKeyLabel($configFieldSampleColumn) }})</span>
+                                                        </label>
+                                                        @php
+                                                            $sampleRelationOptions = collect($this->configFieldSampleRelationOptions)
+                                                                ->map(fn ($label, $value) => ['value' => (string) $value, 'label' => (string) $label])
+                                                                ->prepend(['value' => '', 'label' => 'Use ID only'])
+                                                                ->values()
+                                                                ->all();
+                                                        @endphp
+                                                        @include('livewire.procedures.partials.config-search-select', [
+                                                            'options' => $sampleRelationOptions,
+                                                            'wireModel' => 'configFieldSampleRelationColumn',
+                                                            'placeholder' => 'Search related field...',
+                                                            'emptyMessage' => 'No related field matches your search.',
+                                                            'inputRef' => 'sampleRelationSearch',
+                                                            'pickerKey' => 'config-field-sample-relation-' . $configFieldSampleColumn . '-' . $configFieldSampleRelationColumn,
+                                                        ])
+                                                        <p class="text-muted small mb-0 mt-1">Pick a field from the linked record (e.g. product name instead of product ID).</p>
+                                                    </div>
+                                                    @elseif($configFieldSampleDisplayMode === 'foreign_key' && $configFieldSampleColumn !== '')
+                                                    <p class="text-muted small mb-3">No related display columns were found for this foreign key — value falls back to ID.</p>
+                                                    @endif
+                                                    @endif
                                                     @if($configFieldType === 'dataset' || $configFieldType === 'dataset_multiselect')
                                                     <div class="mb-3">
                                                         <label class="form-label fw-semibold">Dataset source <span class="text-danger">*</span></label>
-                                                        <select wire:model="configFieldModelTiedTo" class="form-control pw-input modern-select">
-                                                            <option value="">Select...</option>
-                                                            @foreach(\App\Models\Procedures\ProcedureConfigField::getDatasetModels() as $value => $label)
-                                                                <option value="{{ $value }}">{{ $label }}</option>
-                                                            @endforeach
-                                                        </select>
+                                                        @php
+                                                            $datasetSourceOptions = collect(\App\Models\Procedures\ProcedureConfigField::getDatasetModels())
+                                                                ->map(fn ($label, $value) => ['value' => (string) $value, 'label' => (string) $label])
+                                                                ->prepend(['value' => '', 'label' => 'Select...'])
+                                                                ->values()
+                                                                ->all();
+                                                        @endphp
+                                                        @include('livewire.procedures.partials.config-search-select', [
+                                                            'options' => $datasetSourceOptions,
+                                                            'wireModel' => 'configFieldModelTiedTo',
+                                                            'placeholder' => 'Search dataset source...',
+                                                            'emptyMessage' => 'No dataset source matches your search.',
+                                                            'inputRef' => 'datasetSourceSearch',
+                                                            'pickerKey' => 'config-field-dataset-' . $configFieldModelTiedTo,
+                                                        ])
                                                         @error('configFieldModelTiedTo') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                                     </div>
+
+                                                    @if($configFieldModelTiedTo !== '')
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Column type <span class="text-danger">*</span></label>
+                                                        <select class="form-control pw-input" wire:model.live="configFieldDatasetDisplayMode">
+                                                            <option value="direct">Normal column (direct)</option>
+                                                            <option value="foreign_key">Foreign key → related table column</option>
+                                                        </select>
+                                                        @error('configFieldDatasetDisplayMode') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+
+                                                    @if($configFieldDatasetDisplayMode === 'direct')
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Display column <span class="text-danger">*</span></label>
+                                                        @php
+                                                            $datasetDisplayColumns = collect($this->configFieldDatasetSourceColumnOptions)
+                                                                ->map(fn ($option) => [
+                                                                    'value' => (string) ($option['value'] ?? ''),
+                                                                    'label' => (string) ($option['label'] ?? ($option['value'] ?? ''))
+                                                                        . (!empty($option['type']) ? ' · ' . (string) $option['type'] : ''),
+                                                                ])
+                                                                ->prepend(['value' => '', 'label' => 'Select column...'])
+                                                                ->values()
+                                                                ->all();
+                                                        @endphp
+                                                        @include('livewire.procedures.partials.config-search-select', [
+                                                            'options' => $datasetDisplayColumns,
+                                                            'wireModel' => 'configFieldDatasetSourceColumn',
+                                                            'placeholder' => 'Search source column...',
+                                                            'emptyMessage' => 'No source column matches your search.',
+                                                            'inputRef' => 'datasetDisplayColumnSearch',
+                                                            'live' => true,
+                                                            'pickerKey' => 'config-field-dataset-source-column-' . $configFieldModelTiedTo . '-' . $configFieldDatasetSourceColumn,
+                                                        ])
+                                                        @error('configFieldDatasetSourceColumn') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+                                                    @else
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Foreign key column <span class="text-danger">*</span></label>
+                                                        @php
+                                                            $datasetForeignKeys = collect($this->configFieldDatasetForeignKeyOptions)
+                                                                ->map(fn ($option) => [
+                                                                    'value' => (string) ($option['column'] ?? ''),
+                                                                    'label' => (string) ($option['label'] ?? ''),
+                                                                ])
+                                                                ->prepend(['value' => '', 'label' => 'Select foreign key...'])
+                                                                ->values()
+                                                                ->all();
+                                                        @endphp
+                                                        @include('livewire.procedures.partials.config-search-select', [
+                                                            'options' => $datasetForeignKeys,
+                                                            'wireModel' => 'configFieldDatasetFkColumn',
+                                                            'placeholder' => 'Search foreign keys...',
+                                                            'emptyMessage' => 'No foreign key matches your search.',
+                                                            'inputRef' => 'datasetForeignKeySearch',
+                                                            'live' => true,
+                                                            'pickerKey' => 'config-field-dataset-fk-column-' . $configFieldModelTiedTo . '-' . $configFieldDatasetFkColumn,
+                                                        ])
+                                                        @error('configFieldDatasetFkColumn') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+
+                                                    @if($configFieldDatasetReferencedTable !== '')
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Referenced display column <span class="text-danger">*</span></label>
+                                                        <p class="text-muted small mb-2">Related table: <code>{{ $configFieldDatasetReferencedTable }}</code></p>
+                                                        @php
+                                                            $datasetRefColumns = collect($this->configFieldDatasetReferencedColumnOptions)
+                                                                ->map(fn ($option) => [
+                                                                    'value' => (string) ($option['value'] ?? ''),
+                                                                    'label' => (string) ($option['label'] ?? ($option['value'] ?? ''))
+                                                                        . (!empty($option['type']) ? ' · ' . (string) $option['type'] : ''),
+                                                                ])
+                                                                ->prepend(['value' => '', 'label' => 'Select related display column...'])
+                                                                ->values()
+                                                                ->all();
+                                                        @endphp
+                                                        @include('livewire.procedures.partials.config-search-select', [
+                                                            'options' => $datasetRefColumns,
+                                                            'wireModel' => 'configFieldDatasetReferencedDisplayColumn',
+                                                            'placeholder' => 'Search related display column...',
+                                                            'emptyMessage' => 'No related display column matches your search.',
+                                                            'inputRef' => 'datasetReferencedDisplaySearch',
+                                                            'live' => true,
+                                                            'pickerKey' => 'config-field-dataset-ref-column-' . $configFieldDatasetReferencedTable . '-' . $configFieldDatasetReferencedDisplayColumn,
+                                                        ])
+                                                        @error('configFieldDatasetReferencedDisplayColumn') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                                    </div>
+                                                    @endif
+                                                    @endif
+                                                    @endif
                                                     @endif
                                                     <div class="row g-3">
                                                         <div class="col-md-4">
@@ -799,6 +936,18 @@
                                 @error('step') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
 
+                            @if(count($stepGroups) > 0)
+                            <div class="form-section mb-4">
+                                <label class="form-label fw-semibold">Step group <span class="text-muted fw-normal">(optional)</span></label>
+                                <select wire:model="stepGroupId" class="form-control procedure-step-input modern-select">
+                                    <option value="">No group — standalone step</option>
+                                    @foreach($stepGroups as $grp)
+                                    <option value="{{ $grp['id'] }}">{{ $grp['title'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endif
+
                             <div class="form-section mb-4">
                                 <label class="form-label fw-semibold d-block mb-2">
                                     Value Type <span class="text-danger">*</span>
@@ -813,6 +962,8 @@
                                         'method_select' => ['label' => 'Method', 'icon' => 'mdi-flask-outline'],
                                         'equipment_select' => ['label' => 'Equipment', 'icon' => 'mdi-tools'],
                                         'custom_select' => ['label' => 'Custom List', 'icon' => 'mdi-playlist-edit'],
+                                        'custom_table' => ['label' => 'Custom Table', 'icon' => 'mdi-table-large'],
+                                        'static_text' => ['label' => 'Static Text', 'icon' => 'mdi-text-box-outline'],
                                     ] as $typeKey => $typeMeta)
                                         <label class="value-type-option {{ $value_type === $typeKey ? 'active' : '' }}">
                                             <input type="radio" class="value-type-option-input" wire:model.live="value_type" value="{{ $typeKey }}">
@@ -823,6 +974,40 @@
                                 </div>
                                 @error('value_type') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
+
+                            @if($value_type === 'custom_table')
+                                <div class="form-section mb-4">
+                                    <label class="form-label fw-semibold d-block mb-2">Table mode <span class="text-danger">*</span></label>
+                                    <div class="d-flex flex-wrap gap-3 mb-3">
+                                        <label class="lec-radio-card mb-0">
+                                            <input type="radio" wire:model.live="table_mode" value="dynamic">
+                                            <span>Dynamic rows</span>
+                                        </label>
+                                        <label class="lec-radio-card mb-0">
+                                            <input type="radio" wire:model.live="table_mode" value="static">
+                                            <span>Static rows</span>
+                                        </label>
+                                    </div>
+                                    @error('table_mode') <div class="text-danger small">{{ $message }}</div> @enderror
+                                    @if($table_mode === 'dynamic')
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-semibold">Row driver</label>
+                                            <select class="form-control procedure-step-input" wire:model="row_driver">
+                                                @foreach($rowDriverOptions as $value => $label)
+                                                    <option value="{{ $value }}">{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('row_driver') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox" class="custom-control-input" id="step-allow-manual-rows" wire:model="allow_manual_rows">
+                                            <label class="custom-control-label" for="step-allow-manual-rows">Allow manual rows at capture</label>
+                                        </div>
+                                    @else
+                                        <p class="text-muted small mb-0">After saving, use <strong>Configure table</strong> in the steps list to define columns and static body rows.</p>
+                                    @endif
+                                </div>
+                            @endif
 
                             @if($value_type === 'custom_select')
                                 <div class="form-section mb-4">
@@ -853,6 +1038,19 @@
                                 </div>
                             @endif
 
+                            @if($value_type === 'static_text')
+                                <div class="form-section mb-4">
+                                    <label class="form-label fw-semibold">Static Text <span class="text-danger">*</span></label>
+                                    <p class="text-muted small mb-2">This text is shown on the worksheet as read-only guidance or instructions. Analysts do not enter a value for this step.</p>
+                                    <textarea
+                                        wire:model="default_value"
+                                        class="form-control procedure-step-input"
+                                        rows="5"
+                                        placeholder="Enter the text to display on the worksheet…"
+                                    ></textarea>
+                                    @error('default_value') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                                </div>
+                            @elseif($value_type !== 'custom_table')
                             <div class="form-section mb-4">
                                 @php
                                     $defaultInputType = match($value_type) {
@@ -929,7 +1127,9 @@
                                 @endif
                                 @error('default_value') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
+                            @endif
 
+                            @if($value_type !== 'custom_table')
                             <div class="form-section-divider">
                                 <span>Worksheet defaults</span>
                             </div>
@@ -1048,7 +1248,7 @@
                                 </div>
                             </div>
 
-                            @if(count($selectedMeasurands) > 0)
+                            @if(count($selectedMeasurands) > 0 && $value_type !== 'static_text')
                                 <div class="form-section mb-4">
                                     <label class="form-label fw-semibold">
                                         Default Values (per measurand)
@@ -1114,6 +1314,7 @@
                                     </div>
                                 </div>
                             @endif
+                            @endif
 
                             <div class="form-section pw-step-options">
                                 <div class="pw-step-options-head">
@@ -1144,6 +1345,7 @@
                                             </span>
                                         </label>
                                     </li>
+                                    @if($value_type !== 'custom_table' && $value_type !== 'static_text')
                                     <li>
                                         <label class="pw-option-card" for="isResultStep">
                                             <div class="pw-option-card-body">
@@ -1161,6 +1363,7 @@
                                             </span>
                                         </label>
                                     </li>
+                                    @endif
                                     <li class="pw-option-stack">
                                         <label class="pw-option-card pw-option-card--logbook {{ $attracts_equipment_logbook ? 'is-expanded' : '' }}" for="attractsEquipmentLogbook">
                                             <div class="pw-option-card-body">
@@ -1295,8 +1498,31 @@
             </div>
         </div>
     @endif
-    
+
+    @include('livewire.procedures.partials.step-table-modals')
+    @include('livewire.procedures.partials.procedure-section-group-modals')
+
     <style>
+        .procedure-editor-page .pw-capture-layout-panel {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+        }
+
+        .procedure-editor-page .pw-capture-layout-panel__icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 10px;
+            background: #e0f2fe;
+            color: #0369a1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
         .procedure-editor-page {
             --pw-slate-50: #f8fafc;
             --pw-slate-100: #f1f5f9;
@@ -1471,6 +1697,10 @@
             max-width: 900px;
         }
 
+        .procedure-editor-page .pw-modal-dialog--xl {
+            max-width: 1200px;
+        }
+
         .procedure-editor-page .pw-modal-dialog--sm {
             max-width: 440px;
         }
@@ -1548,6 +1778,17 @@
             border-color: var(--pw-blue-500);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
             outline: none;
+        }
+
+        .procedure-editor-page .pw-combobox .pw-measurand-field {
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            background: #fff;
+        }
+
+        .procedure-editor-page .pw-combobox:focus-within .pw-measurand-field {
+            border-color: var(--pw-blue-500);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
         }
 
         .procedure-editor-page .pw-switch .form-check-input:checked {
@@ -2123,6 +2364,10 @@
             font-size: 0.875rem;
         }
 
+        .procedure-editor-page .config-search-picker--open {
+            z-index: 1070;
+        }
+
         .procedure-editor-page .pw-measurand-dropdown {
             position: absolute;
             z-index: 1060;
@@ -2168,6 +2413,530 @@
             color: #dc2626;
         }
 
+        .procedure-editor-page .pw-step-group-block {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .procedure-editor-page .pw-step-group-block__header {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .procedure-editor-page .pw-step-group-block__header--muted {
+            color: #64748b;
+        }
+
+        .pw-table-config-modal .pw-modal-content,
+        .pw-step-column-modal .pw-modal-content {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16);
+            overflow: hidden;
+        }
+
+        .pw-table-config-modal .pw-modal-header,
+        .pw-step-column-modal .pw-modal-header {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .pw-modal-section h6 {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .pw-modal-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 1rem;
+        }
+
+        .pw-modal-card-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #475569;
+            margin-bottom: 0.85rem;
+            display: flex;
+            gap: 0.4rem;
+            align-items: center;
+        }
+
+        .procedure-editor-page .pw-inline-column-form__grid > [class*="col-"] {
+            margin-bottom: 1.25rem;
+            padding-top: 0.15rem;
+            padding-bottom: 0.15rem;
+        }
+
+        .procedure-editor-page .pw-inline-column-form .form-label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .procedure-editor-page .pw-inline-column-form .form-control {
+            min-height: 2.5rem;
+        }
+
+        .procedure-editor-page .pw-inline-column-form__actions .btn + .btn {
+            margin-left: 0.5rem;
+        }
+
+        .procedure-editor-page .pw-inline-row-form__grid > [class*="col-"] {
+            margin-bottom: 0.75rem;
+        }
+
+        .procedure-editor-page .pw-inline-row-form__actions .btn + .btn {
+            margin-left: 0.5rem;
+        }
+
+        .pw-table-shell {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .pw-modern-table {
+            margin-bottom: 0;
+        }
+
+        .pw-modern-table thead th {
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #334155;
+            font-weight: 600;
+            font-size: 0.82rem;
+        }
+
+        .pw-modern-table tbody td {
+            vertical-align: middle;
+            border-color: #eef2f7;
+        }
+
+        .pw-table-config-modal .pw-modern-table .rm-act-btn,
+        .pw-table-config-modal .workflow-table .rm-act-btn {
+            border-radius: 7px;
+            padding: 4px 8px;
+            margin-right: 3px;
+            font-size: 12px;
+        }
+
+        .pw-table-config-modal .pw-modern-table .rm-act-btn--edit,
+        .pw-table-config-modal .workflow-table .rm-act-btn--edit {
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            background: #eff6ff;
+        }
+
+        .pw-table-config-modal .pw-modern-table .rm-act-btn--edit:hover,
+        .pw-table-config-modal .workflow-table .rm-act-btn--edit:hover {
+            background: #dbeafe;
+        }
+
+        .pw-table-config-modal .pw-modern-table .rm-act-btn--delete,
+        .pw-table-config-modal .workflow-table .rm-act-btn--delete {
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            background: #fef2f2;
+        }
+
+        .pw-table-config-modal .pw-modern-table .rm-act-btn--delete:hover,
+        .pw-table-config-modal .workflow-table .rm-act-btn--delete:hover {
+            background: #fee2e2;
+        }
+
+        .pw-table-config-modal .pw-static-table-cell--boolean {
+            text-align: center;
+        }
+
+        .pw-table-config-modal .pw-static-table-cell-checkbox {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2rem;
+        }
+
+        .pw-table-config-modal .pw-static-table-cell-checkbox .form-check-input {
+            float: none;
+            position: static;
+            width: 1.1rem;
+            height: 1.1rem;
+            margin: 0;
+        }
+
+        .pw-table-wizard__header .modal-title {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .pw-table-wizard__stepper {
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .pw-table-wizard__steps {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            max-width: 100%;
+        }
+
+        .pw-table-wizard__step {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: transparent;
+            text-align: left;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .pw-table-wizard__step:hover:not(:disabled) {
+            background: #f1f5f9;
+        }
+
+        .pw-table-wizard__step:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .pw-table-wizard__step--active {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .pw-table-wizard__step--done .pw-table-wizard__step-index {
+            background: #dcfce7;
+            color: #15803d;
+            border-color: #bbf7d0;
+        }
+
+        .pw-table-wizard__step-index {
+            flex-shrink: 0;
+            width: 2rem;
+            height: 2rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .pw-table-wizard__step--active .pw-table-wizard__step-index {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+
+        .pw-table-wizard__step-label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+
+        .pw-table-wizard__step-hint {
+            display: block;
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-top: 0.1rem;
+        }
+
+        .pw-table-wizard__connector {
+            flex: 0 0 1.5rem;
+            align-self: center;
+            height: 2px;
+            background: #e2e8f0;
+            margin: 0 0.15rem;
+        }
+
+        .pw-table-wizard__connector--done {
+            background: #86efac;
+        }
+
+        .pw-table-wizard__body {
+            background: #f8fafc;
+        }
+
+        .pw-table-wizard__panel {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .pw-table-wizard__panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .pw-table-wizard__panel-head h6 {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .pw-table-wizard__cta {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .pw-table-wizard__table-wrap {
+            margin-top: 0.25rem;
+        }
+
+        .pw-table-wizard__empty {
+            text-align: center;
+            padding: 2.5rem 1.5rem;
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            color: #64748b;
+        }
+
+        .pw-table-wizard__empty > i {
+            font-size: 2.25rem;
+            color: #94a3b8;
+            display: block;
+            margin-bottom: 0.75rem;
+        }
+
+        .pw-table-wizard__hint-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            color: #0c4a6e;
+            font-size: 0.85rem;
+        }
+
+        .pw-table-wizard__hint-box--warn {
+            background: #fffbeb;
+            border-color: #fde68a;
+            color: #92400e;
+        }
+
+        .pw-table-wizard__hint-box > i {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-top: 0.1rem;
+        }
+
+        .pw-table-wizard__inline-form {
+            background: #f8fafc;
+            border-style: dashed;
+        }
+
+        .pw-table-wizard__preview-wrap {
+            background: #fff;
+        }
+
+        .pw-table-wizard__preview-table thead th {
+            vertical-align: bottom;
+        }
+
+        .pw-table-wizard__summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .pw-table-wizard__summary-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.85rem;
+            background: #f1f5f9;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .pw-table-wizard__summary-item > i {
+            color: #64748b;
+        }
+
+        .pw-table-wizard__footer {
+            background: #fff;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .pw-table-key {
+            font-size: 0.78rem;
+            color: #be185d;
+            background: #fdf2f8;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        .pw-col-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .pw-col-type-badge--static {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+        }
+
+        .pw-col-type-badge--capture {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        .pw-col-type-badge--readonly {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .pw-col-type-badge--xs {
+            font-size: 0.68rem;
+            padding: 0.12rem 0.4rem;
+            font-weight: 500;
+        }
+
+        .pw-pill {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .pw-pill--yes {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .pw-pill--muted {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .pw-preview-capture-placeholder {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .pw-table-wizard__col-actions {
+            width: 1%;
+            white-space: nowrap;
+        }
+
+        .pw-table-wizard__action-btns {
+            gap: 0.25rem;
+        }
+
+        .pw-table-wizard__action-btns .rm-act-btn {
+            flex-shrink: 0;
+        }
+
+        .procedure-editor-page .pw-custom-table-step-row {
+            cursor: pointer;
+        }
+
+        .procedure-editor-page .pw-custom-table-step-row:hover {
+            background-color: #f8fafc;
+        }
+
+        .procedure-editor-page .pw-custom-table-step-row--expanded {
+            background-color: #eff6ff;
+        }
+
+        .procedure-editor-page .pw-step-expand-btn {
+            color: #2563eb;
+            line-height: 1;
+            min-width: 1.25rem;
+        }
+
+        .procedure-editor-page .pw-step-expand-btn:hover {
+            color: #1d4ed8;
+        }
+
+        .procedure-editor-page .pw-step-expand-btn .mdi {
+            font-size: 1.35rem;
+        }
+
+        .procedure-editor-page .pw-custom-table-step-preview-row > td {
+            background: #f8fafc;
+            border-top: none !important;
+            box-shadow: inset 0 3px 6px -4px rgba(15, 23, 42, 0.08);
+        }
+
+        .procedure-editor-page .pw-step-table-preview {
+            padding: 0.75rem 1rem 1rem 2.5rem;
+        }
+
+        .procedure-editor-page .pw-step-table-preview__table {
+            background: #fff;
+            border-radius: 8px;
+        }
+
+        .procedure-editor-page .pw-step-row-actions {
+            gap: 0.25rem;
+        }
+
+        .procedure-editor-page .workflow-table .rm-act-btn--view {
+            border: 1px solid #c7d2fe;
+            color: #4338ca;
+            background: #eef2ff;
+        }
+
+        .procedure-editor-page .workflow-table .rm-act-btn--view:hover {
+            background: #e0e7ff;
+        }
+
+        @media (max-width: 768px) {
+            .pw-table-wizard__steps {
+                flex-direction: column;
+            }
+
+            .pw-table-wizard__connector {
+                display: none;
+            }
+
+            .pw-table-wizard__panel-head {
+                flex-direction: column;
+            }
+        }
+
         .procedure-editor-page .drag-handle:hover {
             background-color: #f8fafc;
             cursor: move;
@@ -2194,7 +2963,8 @@
                 align-items: flex-end;
             }
 
-            .procedure-editor-page .pw-modal-dialog--lg {
+            .procedure-editor-page .pw-modal-dialog--lg,
+            .procedure-editor-page .pw-modal-dialog--xl {
                 max-width: 100%;
             }
 
@@ -2223,60 +2993,180 @@
             initializeConfigFieldSortable();
         });
 
-        function initializeStepSortable() {
-            const sortableElement = document.getElementById('sortable-steps');
-            if (sortableElement && typeof Sortable !== 'undefined') {
-                if (sortableElement.sortableInstance) {
-                    sortableElement.sortableInstance.destroy();
-                }
+        function collectOrderedIds(pane, rowSelector, attr) {
+            if (!pane) {
+                return [];
+            }
+            return Array.from(pane.querySelectorAll(rowSelector)).map(function (row) {
+                return row.getAttribute(attr);
+            }).filter(Boolean);
+        }
 
-                sortableElement.sortableInstance = Sortable.create(sortableElement, {
+        function callLivewireOnPane(pane, method, payload) {
+            if (!pane || !window.Livewire) {
+                return;
+            }
+            var host = pane.closest('[wire\\:id]');
+            var wireId = host ? host.getAttribute('wire:id') : null;
+            if (!wireId) {
+                return;
+            }
+            var component = window.Livewire.find(wireId);
+            if (component) {
+                component.call(method, payload);
+            }
+        }
+
+        function initializeStepSortable() {
+            if (typeof Sortable === 'undefined') {
+                return;
+            }
+            var pane = document.getElementById('steps-tab-pane');
+            document.querySelectorAll('#steps-tab-pane tbody.sortable-steps-group').forEach(function (tbody) {
+                if (tbody.sortableInstance) {
+                    tbody.sortableInstance.destroy();
+                }
+                tbody.sortableInstance = Sortable.create(tbody, {
                     handle: '.drag-handle',
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     chosenClass: 'sortable-chosen',
                     dragClass: 'sortable-drag',
-                    onEnd: function(evt) {
-                        var stepIds = Array.from(sortableElement.children).map(function (row) {
-                            return parseInt(row.getAttribute('data-step-id'));
-                        });
-                        if (window.livewire && window.livewire.find) {
-                            var component = window.livewire.find(sortableElement.getAttribute('wire:id'));
-                            if (component) {
-                                component.call('updateStepOrder', stepIds);
-                            }
-                        }
+                    group: 'procedure-steps',
+                    onEnd: function () {
+                        var stepIds = collectOrderedIds(pane, 'tr.sortable-row[data-step-id]', 'data-step-id');
+                        callLivewireOnPane(pane, 'updateStepOrder', stepIds);
                     }
                 });
-            }
+            });
         }
 
         function initializeConfigFieldSortable() {
-            const sortableFieldsElement = document.getElementById('sortable-config-fields');
-            if (sortableFieldsElement && typeof Sortable !== 'undefined') {
-                if (sortableFieldsElement.sortableInstance) {
-                    sortableFieldsElement.sortableInstance.destroy();
+            if (typeof Sortable === 'undefined') {
+                return;
+            }
+            var pane = document.getElementById('configurable-fields-tab-pane');
+            document.querySelectorAll('#configurable-fields-tab-pane tbody[id^="sortable-config-fields"]').forEach(function (tbody) {
+                if (tbody.sortableInstance) {
+                    tbody.sortableInstance.destroy();
                 }
-
-                sortableFieldsElement.sortableInstance = Sortable.create(sortableFieldsElement, {
+                tbody.sortableInstance = Sortable.create(tbody, {
                     handle: '.drag-handle',
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     chosenClass: 'sortable-chosen',
                     dragClass: 'sortable-drag',
-                    onEnd: function(evt) {
-                        var fieldIds = Array.from(sortableFieldsElement.children).map(function (row) {
-                            return parseInt(row.getAttribute('data-config-field-id'));
-                        });
-                        if (window.livewire && window.livewire.find) {
-                            var component = window.livewire.find(sortableFieldsElement.getAttribute('wire:id'));
-                            if (component) {
-                                component.call('updateConfigFieldOrder', fieldIds);
-                            }
-                        }
+                    group: 'procedure-config-fields',
+                    onEnd: function () {
+                        var fieldIds = collectOrderedIds(pane, 'tr.sortable-row[data-config-field-id]', 'data-config-field-id');
+                        callLivewireOnPane(pane, 'updateConfigFieldOrder', fieldIds);
                     }
                 });
-            }
+            });
         }
+
+        function configSearchSelectFromEl() {
+            return {
+                open: false,
+                search: '',
+                selected: '',
+                options: [],
+                wireModel: '',
+                placeholderText: 'Search...',
+                emptyText: 'No matches found.',
+                pickerId: '',
+                init() {
+                    var self = this;
+                    this.loadConfigFromElement();
+                    this.refreshFromWire();
+                    this.$nextTick(function () {
+                        self.loadConfigFromElement();
+                        self.refreshFromWire();
+                    });
+                    this._onDocumentMouseDown = function (event) {
+                        if (!self.open) {
+                            return;
+                        }
+                        if (!self.$el.contains(event.target)) {
+                            self.close();
+                        }
+                    };
+                    this._onPickerOpen = function (event) {
+                        if (event.detail !== self.pickerId) {
+                            self.close();
+                        }
+                    };
+                    window.addEventListener('config-search-picker-open', this._onPickerOpen);
+                },
+                loadConfigFromElement() {
+                    try {
+                        this.options = JSON.parse(this.$el.getAttribute('data-picker-options') || '[]');
+                    } catch (e) {
+                        this.options = [];
+                    }
+                    this.wireModel = this.$el.getAttribute('data-wire-model') || '';
+                    this.placeholderText = this.$el.getAttribute('data-placeholder') || 'Search...';
+                    this.emptyText = this.$el.getAttribute('data-empty-message') || 'No matches found.';
+                    this.pickerId = this.$el.getAttribute('wire:key') || '';
+                },
+                readWireValue() {
+                    var wireValue = this.$wire.get(this.wireModel);
+                    return wireValue === null || wireValue === undefined ? '' : String(wireValue);
+                },
+                refreshFromWire() {
+                    this.selected = this.readWireValue();
+                    this.syncSearchFromSelected();
+                },
+                selectedLabel() {
+                    var found = this.options.find(function (option) {
+                        return String(option.value) === String(this.selected);
+                    }.bind(this));
+                    return found ? found.label : '';
+                },
+                filteredOptions() {
+                    var query = String(this.search || '').toLowerCase().trim();
+                    if (query === '') {
+                        return this.options;
+                    }
+                    return this.options.filter(function (option) {
+                        return String(option.label).toLowerCase().includes(query);
+                    });
+                },
+                bindOutsideClose() {
+                    document.addEventListener('mousedown', this._onDocumentMouseDown, true);
+                },
+                unbindOutsideClose() {
+                    document.removeEventListener('mousedown', this._onDocumentMouseDown, true);
+                },
+                openDropdown(refName) {
+                    window.dispatchEvent(new CustomEvent('config-search-picker-open', { detail: this.pickerId }));
+                    // Show full list on open; filtering starts only after user types.
+                    this.search = '';
+                    this.open = true;
+                    this.bindOutsideClose();
+                    var self = this;
+                    this.$nextTick(function () {
+                        if (self.$refs && self.$refs[refName]) {
+                            self.$refs[refName].focus();
+                        }
+                    });
+                },
+                close() {
+                    this.open = false;
+                    this.unbindOutsideClose();
+                    this.syncSearchFromSelected();
+                },
+                choose(value) {
+                    var normalized = value === null || value === undefined ? '' : String(value);
+                    this.selected = normalized;
+                    this.$wire.set(this.wireModel, normalized);
+                    this.close();
+                },
+                syncSearchFromSelected() {
+                    this.search = this.selectedLabel() || '';
+                },
+            };
+        }
+
     </script>
 </div>

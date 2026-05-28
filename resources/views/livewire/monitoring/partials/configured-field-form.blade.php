@@ -135,7 +135,23 @@
         @if($configuredFieldType === 'month_day')
             <div class="cf-type-panel mt-3">
                 <i class="mdi mdi-calendar-month text-primary"></i>
-                <span>Captures month and day only (no year)—useful for recurring annual logs.</span>
+                <span>Captures month and year for the reading—useful for recurring or period-based logs.</span>
+            </div>
+        @endif
+
+        @if($configuredFieldType === 'scope_expected_limits')
+            <div class="cf-type-panel mt-3">
+                <label class="cf-label">Resolve limits from <span class="text-danger">*</span></label>
+                <select wire:model="configuredFieldLimitsSource" class="form-select cf-control @error('configuredFieldLimitsSource') is-invalid @enderror">
+                    @foreach($this->configuredFieldLimitsSourceOptions as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('configuredFieldLimitsSource') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                <div class="cf-hint mt-2">
+                    Read-only at capture: shows the <strong>min–max range</strong>, <strong>constant</strong>, or <strong>optimum level</strong>
+                    configured on the selected lab section or equipment (based on its expected value type).
+                </div>
             </div>
         @endif
     </section>

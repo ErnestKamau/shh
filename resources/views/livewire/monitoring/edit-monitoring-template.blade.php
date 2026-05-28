@@ -201,10 +201,10 @@
                                         </thead>
                                         <tbody>
                                             @foreach($this->environmentalSectionsByLab as $section)
-                                                <tr class="{{ in_array($section->id, $selectedSectionIds) ? 'table-active' : '' }}">
+                                                <tr class="{{ in_array((string) $section->id, $selectedSectionIds, true) ? 'table-active' : '' }}">
                                                     <td>
                                                         <div class="form-check">
-                                                            <input type="checkbox" class="form-check-input" id="section_{{ $section->id }}" {{ in_array($section->id, $selectedSectionIds) ? 'checked' : '' }} wire:change="toggleSection('{{ $section->id }}')">
+                                                            <input type="checkbox" class="form-check-input" id="section_{{ $section->id }}" {{ in_array((string) $section->id, $selectedSectionIds, true) ? 'checked' : '' }} wire:change="toggleSection('{{ $section->id }}')">
                                                         </div>
                                                     </td>
                                                     <td>

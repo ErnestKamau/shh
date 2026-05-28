@@ -27,16 +27,22 @@ class FormulaMandatoryField extends Model implements Auditable
         'label',
         'field_type',
         'order',
+        'form_placement',
         'help_text',
         'model_tied_to',
         'is_required',
         'field_value_name',
+        'field_options',
     ];
 
-    protected $casts = [
-        'is_required' => 'boolean',
-        'order' => 'integer',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'is_required' => 'boolean',
+            'order' => 'integer',
+            'field_options' => 'array',
+        ];
+    }
 
     /**
      * Get the formula version that owns this mandatory field.
@@ -55,8 +61,30 @@ class FormulaMandatoryField extends Model implements Auditable
             'input' => 'Text Input',
             'datetime' => 'Date & Time',
             'date' => 'Date',
+            'checkbox' => 'Checkbox (options)',
             'dataset_related' => 'Dataset Related',
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function formPlacementOptions(): array
+    {
+        return [
+            'top' => 'Top of form (above sample table)',
+            'bottom' => 'Bottom of form (below sample table)',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function checkboxOptionLabels(): array
+    {
+        $options = $this->field_options['options'] ?? [];
+
+        return is_array($options) ? array_values(array_filter(array_map('strval', $options))) : [];
     }
 
     /**

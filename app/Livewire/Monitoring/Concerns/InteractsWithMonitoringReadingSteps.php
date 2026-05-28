@@ -57,6 +57,8 @@ trait InteractsWithMonitoringReadingSteps
 
     public string $readingVariableSlug = '';
 
+    public bool $readingStepShowInMonitoringLogs = true;
+
     public string $readingStepMessage = '';
 
     public string $readingStepMessageType = '';
@@ -113,6 +115,7 @@ trait InteractsWithMonitoringReadingSteps
         $this->readingLookupTableId = (string) ($this->readingLookupConfig['lookup_table_id'] ?? '');
         $this->readingAnalyteId = $step['analyte_id'] ?? null;
         $this->readingVariableSlug = (string) ($step['variable_slug'] ?? '');
+        $this->readingStepShowInMonitoringLogs = (bool) ($step['show_in_monitoring_logs'] ?? true);
         $this->readingStepMessage = '';
         $this->applyDerivedConfigToForm(is_array($step['derived_config'] ?? null) ? $step['derived_config'] : null);
         $this->showEditReadingStepModal = true;
@@ -622,6 +625,7 @@ trait InteractsWithMonitoringReadingSteps
             'readingStepType' => 'required|in:input,derived,lookup,parameter_result',
             'readingLabel' => 'required|string|max:255',
             'readingDescription' => 'nullable|string|max:2000',
+            'readingStepShowInMonitoringLogs' => 'boolean',
         ];
 
         if ($this->readingStepType === 'derived') {
@@ -696,6 +700,7 @@ trait InteractsWithMonitoringReadingSteps
             'description' => $this->readingDescription ?: null,
             'lookup_config' => $lookupConfig !== [] ? $lookupConfig : null,
             'analyte_id' => $this->readingStepType === 'parameter_result' ? $this->readingAnalyteId : null,
+            'show_in_monitoring_logs' => (bool) $this->readingStepShowInMonitoringLogs,
             'variable_slug' => $this->readingStepType === 'input' && $this->readingVariableSlug !== ''
                 ? $this->readingVariableSlug
                 : null,
@@ -714,6 +719,7 @@ trait InteractsWithMonitoringReadingSteps
         $this->readingLookupConfig = [];
         $this->readingAnalyteId = null;
         $this->readingVariableSlug = '';
+        $this->readingStepShowInMonitoringLogs = true;
         $this->editingReadingStepId = null;
         $this->resetDerivedLimitForm();
         $this->resetErrorBag();
@@ -779,6 +785,7 @@ trait InteractsWithMonitoringReadingSteps
                 'derived_config' => $step->derived_config,
                 'analyte_id' => $step->analyte_id,
                 'variable_slug' => $step->variable_slug,
+                'show_in_monitoring_logs' => (bool) $step->show_in_monitoring_logs,
             ])->values()->all();
 
             return;
@@ -813,6 +820,7 @@ trait InteractsWithMonitoringReadingSteps
                     'lookup_config' => null,
                     'analyte_id' => null,
                     'variable_slug' => null,
+                    'show_in_monitoring_logs' => true,
                 ];
 
                 continue;
@@ -829,6 +837,7 @@ trait InteractsWithMonitoringReadingSteps
                 'lookup_config' => null,
                 'analyte_id' => null,
                 'variable_slug' => $config['variable_slug'] ?? null,
+                'show_in_monitoring_logs' => true,
             ];
         }
     }
@@ -859,6 +868,7 @@ trait InteractsWithMonitoringReadingSteps
                 'derived_config' => $step['derived_config'] ?? null,
                 'analyte_id' => $step['analyte_id'],
                 'variable_slug' => $step['variable_slug'],
+                'show_in_monitoring_logs' => (bool) ($step['show_in_monitoring_logs'] ?? true),
             ]);
 
             $fieldKey = (string) $step['variable_name'];
@@ -909,6 +919,7 @@ trait InteractsWithMonitoringReadingSteps
                     'lookup_config' => $step['lookup_config'] ?? null,
                     'derived_config' => $step['derived_config'] ?? null,
                     'analyte_id' => $step['analyte_id'] ?? null,
+                    'show_in_monitoring_logs' => (bool) ($step['show_in_monitoring_logs'] ?? true),
                 ],
             ]);
         }

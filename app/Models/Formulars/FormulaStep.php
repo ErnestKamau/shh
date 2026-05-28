@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class FormulaStep extends Model implements Auditable
 {
@@ -31,11 +32,19 @@ class FormulaStep extends Model implements Auditable
         'label',
         'description',
         'lookup_config',
+        'step_config',
+        'table_mode',
+        'row_driver',
+        'row_driver_filters',
+        'allow_manual_rows',
         'analyte_id',
     ];
 
     protected $casts = [
         'lookup_config' => 'array',
+        'step_config' => 'array',
+        'row_driver_filters' => 'array',
+        'allow_manual_rows' => 'boolean',
     ];
 
     /**
@@ -64,7 +73,20 @@ class FormulaStep extends Model implements Auditable
             'derived' => 'Calculated',
             'lookup' => 'Lookup Value',
             'parameter_result' => 'Parameter Result',
+            'static_text' => 'Static Text',
+            'checkbox' => 'Checkbox',
+            'custom_table' => 'Custom Table',
         ];
+    }
+
+    public function tableColumns(): HasMany
+    {
+        return $this->hasMany(FormulaStepTableColumn::class, 'formula_step_id')->orderBy('order');
+    }
+
+    public function staticRows(): HasMany
+    {
+        return $this->hasMany(FormulaStepTableStaticRow::class, 'formula_step_id')->orderBy('order');
     }
 
     /**
@@ -97,5 +119,37 @@ class FormulaStep extends Model implements Auditable
     public function isParameterResult(): bool
     {
         return $this->step_type === 'parameter_result';
+    }
+
+    public function isStaticText(): bool
+    {
+        return $this->step_type === 'static_text';
+    }
+
+    public function isCheckbox(): bool
+    {
+        return $this->step_type === 'checkbox';
+    }
+
+    public function isCustomTable(): bool
+    {
+        return $this->step_type === 'custom_table';
+    }
+
+    public function isCalculable(): bool
+    {
+        return in_array($this->step_type, ['input', 'derived', 'lookup', 'parameter_result'], true);
+    }
+
+    public function isExpressionVariable(): bool
+    {
+        return in_array($this->step_type, ['input', 'derived', 'lookup', 'parameter_result', 'checkbox'], true);
+    }
+
+    public function staticTextContent(): string
+    {
+        $config = is_array($this->step_config) ? $this->step_config : [];
+
+        return (string) ($config['content'] ?? $this->description ?? '');
     }
 }

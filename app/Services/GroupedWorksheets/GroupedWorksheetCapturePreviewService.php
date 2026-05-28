@@ -97,10 +97,7 @@ class GroupedWorksheetCapturePreviewService
                 'title' => $step->label ?: $step->variable_name,
                 'subtitle' => ucfirst(str_replace('_', ' ', (string) $step->step_type)),
                 'badges' => array_filter([$step->step_type !== 'input' ? ucfirst((string) $step->step_type) : null]),
-                'capture_field' => [
-                    'type' => 'text',
-                    'placeholder' => 'Analyst enters value…',
-                ],
+                'capture_field' => $this->formulaCaptureField((string) $step->step_type),
             ];
         })->values()->all();
 
@@ -304,6 +301,9 @@ class GroupedWorksheetCapturePreviewService
             'method_select' => 'Method',
             'equipment_select' => 'Equipment',
             'custom_select' => 'Custom List',
+            'static_text' => 'Static Text',
+            'checkbox' => 'Checkbox',
+            'custom_table' => 'Custom Table',
         ];
 
         $badges = [];
@@ -331,6 +331,24 @@ class GroupedWorksheetCapturePreviewService
     /**
      * @return array{type: string, placeholder: string}
      */
+    /**
+     * @return array{type: string, placeholder: string}
+     */
+    protected function formulaCaptureField(string $stepType): array
+    {
+        return match ($stepType) {
+            'derived', 'lookup' => ['type' => 'readonly', 'placeholder' => 'Calculated automatically…'],
+            'parameter_result' => ['type' => 'result', 'placeholder' => 'Posted result…'],
+            'static_text' => ['type' => 'static', 'placeholder' => ''],
+            'checkbox' => ['type' => 'checkbox', 'placeholder' => 'Worksheet checklist…'],
+            'custom_table' => ['type' => 'table', 'placeholder' => 'Per-sample table…'],
+            default => ['type' => 'text', 'placeholder' => 'Analyst enters value…'],
+        };
+    }
+
+    /**
+     * @return array{type: string, placeholder: string}
+     */
     protected function procedureCaptureField(string $valueType): array
     {
         return match ($valueType) {
@@ -341,6 +359,9 @@ class GroupedWorksheetCapturePreviewService
             'method_select' => ['type' => 'select', 'placeholder' => 'Select method…'],
             'equipment_select' => ['type' => 'select', 'placeholder' => 'Select equipment…'],
             'custom_select' => ['type' => 'select', 'placeholder' => 'Select option…'],
+            'static_text' => ['type' => 'static', 'placeholder' => ''],
+            'checkbox' => ['type' => 'checkbox', 'placeholder' => 'Select options…'],
+            'custom_table' => ['type' => 'table', 'placeholder' => ''],
             default => ['type' => 'text', 'placeholder' => 'Enter value…'],
         };
     }

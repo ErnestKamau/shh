@@ -202,15 +202,34 @@
                 @else
                 @php
                 $selectedResults = $this->analysisSamples->filter(fn($r) => $r->sample && in_array($r->sample->id, $selectedSamples))->values();
+                $configPlacementTop = ($selectedProcedureWorksheet?->config_fields_placement ?? 'top') === 'top';
                 @endphp
-                <section class="procedure-section mb-4">
+
+                @if($configPlacementTop && count($configFieldsGroupedForCapture) > 0)
+                    @include('livewire.worksheets.partials.procedure-config-fields-section')
+                @endif
+
+                @foreach($captureSections as $sectionIndex => $section)
+                @if($section['type'] === 'custom_table')
+                    @include('livewire.worksheets.partials.procedure-step-custom-table', ['step' => $section['step'], 'stepGroup' => $section['step_group'] ?? null])
+                @elseif($section['type'] === 'scalar' && $section['steps']->isNotEmpty())
+                @php $scalarSteps = $section['steps']; @endphp
+                <section class="procedure-section mb-4" wire:key="scalar-steps-{{ $sectionIndex }}-ws-{{ $this->selectedWorksheetId }}">
                     <div class="card shadow-sm border-0 procedure-section-card mb-4">
                         <div class="card-header procedure-section-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h6 class="mb-0 d-flex align-items-center gap-2">
                                 <span>
+                                    @if(!empty($section['step_group']))
+                                    <i class="mdi mdi-folder-outline text-success"></i>
+                                    {{ $section['step_group']->title }}
+                                    @else
                                     <i class="mdi mdi-timeline text-success"></i>
                                     Steps &amp; Measurands
+                                    @endif
                                 </span>
+                                @if(!empty($section['step_group']) && $section['step_group']->description)
+                                <small class="text-muted d-block fw-normal w-100">{{ $section['step_group']->description }}</small>
+                                @endif
                                 @if($worksheetAlreadyPosted)
                                 <span class="badge badge-success">
                                     <i class="mdi mdi-check-circle-outline"></i> Posted
@@ -294,7 +313,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($this->getStepsProperty() as $step)
+                                        @foreach($scalarSteps as $step)
                                         <tr wire:key="step-{{ $step->id }}-ws-{{ $this->selectedWorksheetId }}-tab-{{ implode('-', $activeTabs) }}-hash-{{ $this->importHash }}">
                                             <td class="step-info-cell">{{ $step->step }}</td>
                                             <td>
@@ -341,9 +360,14 @@
                                                 $selectedMeasurandIds = $stepMeasurandOverrides[$step->id] ?? [];
                                                 $measurandLookup = collect($this->measurandOptions ?? [])->keyBy('id');
                                                 $resultId = $selectedResults->first()->id;
+                                                $isStaticTextStep = ($step->value_type ?? '') === 'static_text';
                                                 @endphp
 
-                                                @if(!empty($selectedMeasurandIds))
+                                                @if($isStaticTextStep)
+                                                    <div class="procedure-static-text text-secondary small mb-0" style="white-space: pre-wrap;">
+                                                        {{ $step->default_value ?? '' }}
+                                                    </div>
+                                                @elseif(!empty($selectedMeasurandIds))
                                                     @foreach($selectedMeasurandIds as $mId)
                                                         @php
                                                             $label = optional($measurandLookup->get($mId))->label ?? $mId;
@@ -377,6 +401,8 @@
                         </div>
                     </div>
                 </section>
+                @endif
+                @endforeach
 
                 @if($this->getTestKitColumnsProperty()->isNotEmpty())
                 <section class="procedure-section mb-4">
@@ -454,114 +480,8 @@
                 </section>
                 @endif
 
-                @if($configFields->count() > 0)
-                <section class="procedure-section mb-4">
-                    <div class="card shadow-sm border-0 procedure-section-card mb-4">
-                        <div class="card-header procedure-section-header bg-white">
-                            <h6 class="mb-0">
-                                <i class="mdi mdi-cog-outline text-success"></i>
-                                Configurable Fields
-                            </h6>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="row g-4">
-                                @foreach($configFields as $field)
-                                <div class="col-xl-4 col-lg-6 mb-0" wire:key="cfg-{{ $field->id }}-ws-{{ $this->selectedWorksheetId }}-cr-{{ $selectedResults->isNotEmpty() ? $selectedResults->first()->id : 'none' }}">
-                                    <div class="config-field-block">
-                                        <label class="form-label fw-medium">
-                                            {{ $field->label }}
-                                            @if($field->is_required)
-                                            <span class="text-danger">*</span>
-                                            @endif
-                                        </label>
-                                        @if($field->help_text)
-                                        <small class="text-muted d-block mb-2">{{ $field->help_text }}</small>
-                                        @endif
-                                        @if($selectedResults->isNotEmpty())
-                                        <div class="config-field-row mb-3">
-                                            @if($selectedResults->count() > 1)
-                                            <small class="text-muted d-block mb-1">Same value for {{ $selectedResults->count() }} selected samples</small>
-                                            @endif
-                                            @php(
-                                            $type = $field->field_type ?: (
-                                            in_array($field->model_tied_to ?? '', ['users','sample_details','sample_types','methods','captured_results','report_formats'])
-                                            ? 'dataset'
-                                            : 'input'
-                                            )
-                                            )
-                                            @if($type === 'datetime')
-                                            <input type="datetime-local"
-                                                class="form-control"
-                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
-                                                wire:blur="autosaveConfigField({{ $field->id }})">
-                                            @elseif($type === 'date')
-                                            <input type="date"
-                                                class="form-control"
-                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
-                                                wire:blur="autosaveConfigField({{ $field->id }})">
-                                            @elseif($type === 'number')
-                                            <input type="number"
-                                                class="form-control"
-                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
-                                                wire:blur="autosaveConfigField({{ $field->id }})">
-                                            @elseif($type === 'checkbox')
-                                            <div class="form-check">
-                                                <input type="checkbox"
-                                                    class="form-check-input"
-                                                    wire:model.live="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
-                                                    value="1"
-                                                    wire:blur="autosaveConfigField({{ $field->id }})">
-                                            </div>
-                                            @elseif($type === 'textarea')
-                                            <textarea
-                                                class="form-control"
-                                                rows="2"
-                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
-                                                wire:blur="autosaveConfigField({{ $field->id }})"></textarea>
-                                            @elseif($type === 'input' || $type === '' || $type === null)
-                                            <input type="text"
-                                                class="form-control"
-                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
-                                                wire:blur="autosaveConfigField({{ $field->id }})">
-                                            @elseif($type === 'dataset')
-                                            <div wire:ignore
-                                                class="procedure-select2-wrap"
-                                                data-select-type="config"
-                                                data-config-mode="single"
-                                                data-captured-result-id="{{ $selectedResults->first()->id }}"
-                                                data-field-id="{{ $field->id }}"
-                                                data-initial='@json(isset($configFieldValues[$selectedResults->first()->id][$field->id]) && $configFieldValues[$selectedResults->first()->id][$field->id] ? [$configFieldValues[$selectedResults->first()->id][$field->id]] : [])'>
-                                                <select class="form-control procedure-select2 no-select2" data-placeholder="Select...">
-                                                    <option value="">Select...</option>
-                                                    @foreach($this->getDatasetOptions($field->model_tied_to ?? '', $field) as $option)
-                                                    <option value="{{ $option->id }}" @if(isset($configFieldValues[$selectedResults->first()->id][$field->id]) && $configFieldValues[$selectedResults->first()->id][$field->id] == $option->id) selected @endif>{{ $option->label }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                            @elseif($type === 'dataset_multiselect')
-                                            <div wire:ignore
-                                                class="procedure-select2-wrap"
-                                                data-select-type="config"
-                                                data-config-mode="multiple"
-                                                data-captured-result-id="{{ $selectedResults->first()->id }}"
-                                                data-field-id="{{ $field->id }}"
-                                                data-initial='@json($configFieldValues[$selectedResults->first()->id][$field->id] ?? [])'>
-                                                <select class="form-control procedure-select2 no-select2" multiple="multiple" data-placeholder="Select...">
-                                                    @foreach($this->getDatasetOptions($field->model_tied_to ?? '', $field) as $option)
-                                                    <option value="{{ $option->id }}" @if(isset($configFieldValues[$selectedResults->first()->id][$field->id]) && is_array($configFieldValues[$selectedResults->first()->id][$field->id]) && in_array($option->id, $configFieldValues[$selectedResults->first()->id][$field->id])) selected @endif>{{ $option->label }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                            @endif
-                                        </div>
-                                        @endif
-                                    </div>
-                                </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                @if(! $configPlacementTop && count($configFieldsGroupedForCapture) > 0)
+                    @include('livewire.worksheets.partials.procedure-config-fields-section')
                 @endif
 
                 {{-- Autosave is enabled per step and per config field; no manual Save button needed. --}}
@@ -727,6 +647,11 @@
 
         .procedure-steps-table .step-header-cell {
             font-weight: 600;
+        }
+
+        .procedure-static-text {
+            line-height: 1.45;
+            padding: 0.35rem 0;
         }
 
         .procedure-steps-table input.form-control {

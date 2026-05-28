@@ -77,4 +77,9 @@ class Lab extends Model implements Auditable
   {
     return $this->hasMany(LabSection::class);
   }
+
+  public function decontaminationAreas(): HasMany
+  {
+    return $this->hasMany(LabDecontaminationArea::class);
+  }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Models\Monitoring;
 
+use App\LabSection;
+use App\Models\Equipments\Equipment;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -58,11 +60,12 @@ class MonitoringTemplateConfiguredField extends Model
             'input' => 'Text input',
             'textarea' => 'Text area',
             'date' => 'Date',
-            'month_day' => 'Month & day',
+            'month_day' => 'Month & Year',
             'datetime' => 'Date & time',
             'dataset_related' => 'Dataset related',
             'monitoring_equipment' => 'Monitoring equipment',
             'lab_section_select' => 'Lab section',
+            'scope_expected_limits' => 'Expected limits (min/max/optimum)',
             'equipment_calibration' => 'Equipment calibration',
             'manager_dropdown' => 'Manager',
             'user_signature' => 'Manager signature',
@@ -108,5 +111,54 @@ class MonitoringTemplateConfiguredField extends Model
             'lab_section' => 'Lab section (environmental)',
             'equipment_location' => 'Equipment location (equipment monitoring)',
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function limitsSourceOptions(): array
+    {
+        return [
+            'lab_section' => 'Lab section (environmental)',
+            'equipment' => 'Monitoring equipment',
+        ];
+    }
+
+    /**
+     * Human-readable expected limits for the active lab section or equipment at capture.
+     */
+    public static function formatExpectedLimitsDisplay(LabSection|Equipment $scope): string
+    {
+        if ($scope instanceof LabSection) {
+            return $scope->formattedOptimumLevel();
+        }
+
+        $unitSuffix = filled($scope->daily_log_reporting_unit)
+            ? ' '.(\App\ReportingUnit::find($scope->daily_log_reporting_unit)?->name ?? '')
+            : '';
+
+        if ($scope->daily_log_value_type === 'range') {
+            if ($scope->daily_log_expected_min !== null || $scope->daily_log_expected_max !== null) {
+                $min = self::formatLimitNumber($scope->daily_log_expected_min) ?? '…';
+                $max = self::formatLimitNumber($scope->daily_log_expected_max) ?? '…';
+
+                return "{$min} – {$max}{$unitSuffix}";
+            }
+        }
+
+        if ($scope->daily_log_value_type === 'constant' && $scope->daily_log_expected_value !== null) {
+            return self::formatLimitNumber((float) $scope->daily_log_expected_value).$unitSuffix;
+        }
+
+        return '—';
+    }
+
+    protected static function formatLimitNumber(float|int|string|null $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return rtrim(rtrim(number_format((float) $value, 4, '.', ''), '0'), '.');
     }
 }

@@ -2,9 +2,7 @@
 
 namespace App\Livewire\Worksheets;
 
-use App\AnalysisMethod;
 use App\CapturedResult;
-use App\Models\Equipments\Equipment;
 use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\LogEntryWorksheets\LogEntryWorksheetColumn;
 use App\Models\LogEntryWorksheets\LogEntryWorksheetMandatoryField;
@@ -15,8 +13,8 @@ use App\Models\LogEntryWorksheets\SampleLogEntryWorksheetRow;
 use App\SampleHeader;
 use App\Services\LogEntryWorksheets\LogEntryColumnEvaluator;
 use App\Services\LogEntryWorksheets\LogEntryDatasetResolverService;
+use App\Services\LogEntryWorksheets\LogEntryMandatoryFieldOptionsResolver;
 use App\Services\LogEntryWorksheets\LogEntryRowGeneratorService;
-use App\User;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -247,18 +245,25 @@ class LogEntryWorksheetManager extends Component
             return app(LogEntryDatasetResolverService::class)->dropdownOptions($field->dataset_config);
         }
 
-        return $this->getDatasetOptions($field->model_tied_to ?? '');
+        $modelTiedTo = LogEntryWorksheetMandatoryField::isPresetLookupType($field->field_type)
+            ? $field->field_type
+            : ($field->model_tied_to ?? '');
+
+        if (in_array($modelTiedTo, ['sample_details', 'captured_results'], true)) {
+            return $this->getBatchScopedDatasetOptions($modelTiedTo);
+        }
+
+        return app(LogEntryMandatoryFieldOptionsResolver::class)->optionsForModel($modelTiedTo);
     }
 
-    public function getDatasetOptions(string $modelTiedTo): Collection
+    public function mandatoryFieldUsesSelectList(LogEntryWorksheetMandatoryField $field): bool
+    {
+        return app(LogEntryMandatoryFieldOptionsResolver::class)->mandatoryFieldUsesSelectList($field);
+    }
+
+    protected function getBatchScopedDatasetOptions(string $modelTiedTo): Collection
     {
         return match ($modelTiedTo) {
-            'users' => User::where('active', 1)->orderBy('name')->get()
-                ->map(fn ($u) => (object) ['id' => (string) $u->id, 'label' => $u->name ?: $u->email]),
-            'equipments' => Equipment::orderBy('name')->get()
-                ->map(fn ($e) => (object) ['id' => (string) $e->id, 'label' => $e->name]),
-            'methods' => AnalysisMethod::orderBy('name')->get()
-                ->map(fn ($m) => (object) ['id' => (string) $m->id, 'label' => $m->name]),
             'sample_details' => \App\SampleDetails::where('sample_header_id', $this->batch->id)
                 ->orderBy('sample_code')
                 ->get()

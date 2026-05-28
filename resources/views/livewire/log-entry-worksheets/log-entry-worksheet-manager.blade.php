@@ -26,7 +26,7 @@
 				<table class="table workflow-table table-hover log-entry-data-table mb-0">
 					<thead>
 						<tr>
-							<th class="text-right">Actions</th>
+							<th class="log-entry-table-actions-col">Actions</th>
 							<th>Name</th>
 							<th>Row driver</th>
 							<th>Columns</th>
@@ -37,8 +37,15 @@
 					<tbody>
 						@forelse($worksheets as $ws)
 							<tr>
-								<td>
-									<div class="d-flex flex-wrap gap-1">
+								<td class="log-entry-table-actions-col">
+									<div class="d-flex gap-1 log-entry-table-actions">
+										<a href="{{ route('formulars.log-entry-worksheets.preview', $ws->id) }}"
+											class="btn btn-sm rm-act-btn rm-act-btn--preview"
+											title="Preview template"
+											target="_blank"
+											rel="noopener">
+											<i class="mdi mdi-eye-outline"></i>
+										</a>
 										<a href="{{ route('formulars.log-entry-worksheets.edit', $ws->id) }}"
 											class="btn btn-sm rm-act-btn rm-act-btn--edit"
 											title="Edit template">
@@ -114,14 +121,37 @@
 		</div>
 	</div>
 	@endif
-</div>
 
-<style>
-	.log-entry-btn-outline { border-radius: 6px; }
-	.log-entry-data-table .rm-act-btn { padding: 0.2rem 0.45rem; line-height: 1.2; border-radius: 6px; }
-	.log-entry-data-table .rm-act-btn--edit { color: #0d6efd; border: 1px solid rgba(13, 110, 253, 0.35); background: #fff; }
-	.log-entry-data-table .rm-act-btn--edit:hover { background: rgba(13, 110, 253, 0.08); }
-	.log-entry-data-table .rm-act-btn--delete { color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.35); background: #fff; }
-	.log-entry-data-table .rm-act-btn--delete:hover { background: rgba(220, 53, 69, 0.06); }
-	.log-entry-data-table .rm-act-btn--muted { color: #64748b; border: 1px solid #e2e8f0; background: #fff; }
-</style>
+	<style>
+		.log-entry-data-table .log-entry-table-actions-col {
+			width: 11.5rem;
+			min-width: 11.5rem;
+			max-width: 11.5rem;
+			white-space: nowrap;
+			vertical-align: middle;
+			text-align: left;
+		}
+
+		.log-entry-data-table thead .log-entry-table-actions-col,
+		.log-entry-data-table tbody .log-entry-table-actions-col {
+			padding-left: 0.75rem;
+			padding-right: 0.75rem;
+		}
+
+		.log-entry-data-table .log-entry-table-actions {
+			flex-wrap: nowrap;
+			justify-content: flex-start;
+			align-items: center;
+		}
+
+		.log-entry-btn-outline { border-radius: 6px; }
+		.log-entry-data-table .rm-act-btn { padding: 0.2rem 0.45rem; line-height: 1.2; border-radius: 6px; }
+		.log-entry-data-table .rm-act-btn--preview { color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.35); background: #fff; }
+		.log-entry-data-table .rm-act-btn--preview:hover { background: rgba(99, 102, 241, 0.08); }
+		.log-entry-data-table .rm-act-btn--edit { color: #0d6efd; border: 1px solid rgba(13, 110, 253, 0.35); background: #fff; }
+		.log-entry-data-table .rm-act-btn--edit:hover { background: rgba(13, 110, 253, 0.08); }
+		.log-entry-data-table .rm-act-btn--delete { color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.35); background: #fff; }
+		.log-entry-data-table .rm-act-btn--delete:hover { background: rgba(220, 53, 69, 0.06); }
+		.log-entry-data-table .rm-act-btn--muted { color: #64748b; border: 1px solid #e2e8f0; background: #fff; }
+	</style>
+</div>

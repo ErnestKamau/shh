@@ -18,4 +18,11 @@ class LogEntryWorksheetController extends Controller
             'worksheet' => $logEntryWorksheet,
         ]);
     }
+
+    public function preview(LogEntryWorksheet $logEntryWorksheet)
+    {
+        return view('formulars.log-entry-worksheets.preview', [
+            'worksheet' => $logEntryWorksheet,
+        ]);
+    }
 }

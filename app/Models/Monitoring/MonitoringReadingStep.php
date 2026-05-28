@@ -27,12 +27,14 @@ class MonitoringReadingStep extends Model
         'lookup_config',
         'analyte_id',
         'variable_slug',
+        'show_in_monitoring_logs',
     ];
 
     protected $casts = [
         'lookup_config' => 'array',
         'derived_config' => 'array',
         'step_number' => 'integer',
+        'show_in_monitoring_logs' => 'boolean',
     ];
 
     public function template(): BelongsTo

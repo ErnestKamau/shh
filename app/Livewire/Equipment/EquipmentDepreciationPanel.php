@@ -29,6 +29,8 @@ class EquipmentDepreciationPanel extends Component
 
     public string $activeFrequency = '';
 
+    public string $activeSection = 'schedule';
+
     public ?string $selectedVersionId = null;
 
     public bool $showAppraisalModal = false;
@@ -37,7 +39,7 @@ class EquipmentDepreciationPanel extends Component
 
     public array $appraisalForm = [
         'appraisal_date' => '',
-        'new_appraised_value' => '',
+        'appraisal_value' => '',
         'useful_life_extension_years' => 0,
         'reason' => '',
         'notes' => '',
@@ -90,6 +92,14 @@ class EquipmentDepreciationPanel extends Component
         $this->resetPage('analysisPage');
     }
 
+    public function setActiveSection(string $section): void
+    {
+        $allowed = ['schedule', 'analysis', 'yearly', 'timeline', 'appraisals'];
+        if (in_array($section, $allowed, true)) {
+            $this->activeSection = $section;
+        }
+    }
+
     public function updatedSelectedVersionId(): void
     {
         $this->resetPage('schedulePage');
@@ -113,12 +123,38 @@ class EquipmentDepreciationPanel extends Component
         $this->resetPage('analysisPage');
     }
 
-    public function openAppraisalModal(): void
+    public function getAppraisalCurrentBookValueProperty(): float
     {
         $config = $this->config;
+
+        return (float) ($config?->current_book_value ?? $config?->capitalized_amount ?? 0);
+    }
+
+    public function getAppraisalNewBookValueProperty(): ?float
+    {
+        if ($this->appraisalForm['appraisal_value'] === '' || $this->appraisalForm['appraisal_value'] === null) {
+            return null;
+        }
+
+        $appraisalAmount = (float) $this->appraisalForm['appraisal_value'];
+
+        return max(0, round($this->appraisalCurrentBookValue + $appraisalAmount, 2));
+    }
+
+    public function getAppraisalValueChangeProperty(): ?float
+    {
+        if ($this->appraisalForm['appraisal_value'] === '' || $this->appraisalForm['appraisal_value'] === null) {
+            return null;
+        }
+
+        return round((float) $this->appraisalForm['appraisal_value'], 2);
+    }
+
+    public function openAppraisalModal(): void
+    {
         $this->appraisalForm = [
             'appraisal_date' => now()->format('Y-m-d'),
-            'new_appraised_value' => $config?->current_book_value ?? $config?->capitalized_amount ?? '',
+            'appraisal_value' => '',
             'useful_life_extension_years' => 0,
             'reason' => '',
             'notes' => '',
@@ -130,7 +166,7 @@ class EquipmentDepreciationPanel extends Component
     {
         $this->validate([
             'appraisalForm.appraisal_date' => 'required|date',
-            'appraisalForm.new_appraised_value' => 'required|numeric|min:0',
+            'appraisalForm.appraisal_value' => 'required|numeric|min:0',
             'appraisalForm.useful_life_extension_years' => 'nullable|integer|min:0|max:50',
             'appraisalForm.reason' => 'required|string|max:500',
             'appraisalForm.notes' => 'nullable|string',
@@ -143,12 +179,19 @@ class EquipmentDepreciationPanel extends Component
             return;
         }
 
+        $newBookValue = $this->appraisalNewBookValue;
+        if ($newBookValue === null) {
+            session()->flash('depreciation_error', 'Enter a valid appraisal value.');
+
+            return;
+        }
+
         EquipmentAppraisal::query()->create([
             'equipment_id' => $this->equipmentId,
             'equipment_depreciation_config_id' => $config->id,
             'appraisal_date' => $this->appraisalForm['appraisal_date'],
-            'prior_book_value' => $config->current_book_value ?? $config->capitalized_amount,
-            'new_appraised_value' => $this->appraisalForm['new_appraised_value'],
+            'prior_book_value' => $this->appraisalCurrentBookValue,
+            'new_appraised_value' => $newBookValue,
             'useful_life_extension_years' => (int) ($this->appraisalForm['useful_life_extension_years'] ?? 0),
             'reason' => $this->appraisalForm['reason'],
             'notes' => $this->appraisalForm['notes'] ?? null,

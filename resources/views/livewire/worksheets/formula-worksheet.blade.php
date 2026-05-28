@@ -61,6 +61,18 @@
     @endif
 
     @if($capturedResults->count() > 0)
+        @php
+            $mandatoryFieldsTop = $mandatoryFields->filter(fn ($f) => ($f->form_placement ?? 'bottom') === 'top');
+            $mandatoryFieldsBottom = $mandatoryFields->filter(fn ($f) => ($f->form_placement ?? 'bottom') !== 'top');
+        @endphp
+
+        @if($mandatoryFieldsTop->isNotEmpty())
+            @include('livewire.worksheets.partials.formula-mandatory-fields', [
+                'mandatoryFields' => $mandatoryFieldsTop,
+                'title' => 'Mandatory Fields — Top of Form',
+            ])
+        @endif
+
         <!-- Worksheet Table -->
         <div class="table-responsive mb-4">
             <table class="table table-bordered table-sm" style="font-size: 0.9rem;">
@@ -257,62 +269,23 @@
             </table>
         </div>
 
-        <!-- Mandatory Fields Section -->
-        @if($mandatoryFields->count() > 0)
-            <div class="card border mt-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">
-                        <i class="mdi mdi-asterisk text-danger"></i> Mandatory Fields (Applies to All Samples)
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        @foreach($mandatoryFields as $field)
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">
-                                    {{ $field->label }}
-                                    @if($field->is_required)
-                                        <span class="text-danger">*</span>
-                                    @endif
-                                </label>
-                                @if($field->help_text)
-                                    <small class="text-muted d-block">{{ $field->help_text }}</small>
-                                @endif
-                                
-                                @if($field->field_type === 'datetime')
-                                    <input type="datetime-local" 
-                                           class="form-control" 
-                                           wire:model="sharedMandatoryData.{{ $field->id }}"
-                                           wire:blur="autoSaveMandatoryField('{{ $field->id }}')"
-                                           placeholder="{{ $field->label }}">
-                                @elseif($field->field_type === 'date')
-                                    <input type="date" 
-                                           class="form-control" 
-                                           wire:model="sharedMandatoryData.{{ $field->id }}"
-                                           wire:blur="autoSaveMandatoryField('{{ $field->id }}')"
-                                           placeholder="{{ $field->label }}">
-                                @elseif($field->field_type === 'dataset_related')
-                                    <select class="form-control no-select2"
-                                            wire:key="mandatory-dataset-{{ $field->id }}"
-                                            wire:model.defer="sharedMandatoryData.{{ $field->id }}"
-                                            wire:change="autoSaveMandatoryField('{{ $field->id }}')">
-                                        <option value="">Select...</option>
-                                        @foreach($this->getDatasetOptions($field->model_tied_to) as $option)
-                                            <option value="{{ $option->id }}">{{ $option->name }}</option>
-                                        @endforeach
-                                    </select>
-                                @else
-                                    <input type="text" 
-                                           class="form-control" 
-                                           wire:model="sharedMandatoryData.{{ $field->id }}"
-                                           wire:blur="autoSaveMandatoryField('{{ $field->id }}')"
-                                           placeholder="{{ $field->label }}">
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
+        @foreach($formulaSteps->where('step_type', 'static_text')->sortBy('step_number') as $step)
+            @include('livewire.worksheets.partials.formula-static-text-step', ['step' => $step])
+        @endforeach
+
+        @foreach($capturedResults as $captured)
+            @foreach($formulaSteps->where('step_type', 'custom_table')->sortBy('step_number') as $step)
+                @include('livewire.worksheets.partials.formula-step-custom-table', ['step' => $step, 'captured' => $captured])
+            @endforeach
+        @endforeach
+
+        @include('livewire.worksheets.partials.formula-checkbox-steps')
+
+        @if($mandatoryFieldsBottom->isNotEmpty())
+            @include('livewire.worksheets.partials.formula-mandatory-fields', [
+                'mandatoryFields' => $mandatoryFieldsBottom,
+                'title' => 'Mandatory Fields — Bottom of Form',
+            ])
         @endif
     @else
         <div class="alert alert-info">

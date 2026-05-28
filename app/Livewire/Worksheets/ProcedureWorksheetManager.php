@@ -11,11 +11,20 @@ use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\Procedures\ProcedureWorksheetStep;
 use App\Models\Procedures\CapturedProcedureValue;
 use App\Models\Procedures\ProcedureConfigField;
+use App\Models\Procedures\ProcedureConfigFieldSection;
+use App\Services\Procedures\ProcedureConfigFieldSampleResolver;
+use App\Models\Procedures\ProcedureWorksheetStepGroup;
 use App\Models\Procedures\CapturedProcedureConfigValue;
 use App\Models\Procedures\ProcedureTestKitColumn;
 use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheetStepAnalyst;
+use App\Models\Procedures\ProcedureStepTableColumn;
+use App\Models\Procedures\SampleProcedureStepTableCellValue;
+use App\Models\Procedures\SampleProcedureStepTableInstance;
+use App\Models\Procedures\SampleProcedureStepTableRow;
+use App\Services\LogEntryWorksheets\LogEntryMandatoryFieldOptionsResolver;
+use App\Services\Procedures\ProcedureStepTableRowGeneratorService;
 use App\SampleHeader;
 use App\User;
 use App\SampleDetails;
@@ -51,6 +60,16 @@ class ProcedureWorksheetManager extends Component
     public array $stepEquipmentOverrides = []; // [step_id => [equipment_id, ...]]
     public array $stepMeasurandOverrides = []; // [step_id => [measurand_id, ...]]
     public array $stepAnalystOverrides = []; // [step_id => [user_id, ...]]
+
+    /** @var array<string, array<string, array<string, string>>> [step_id => [row_id => [column_key => value]]] */
+    public array $stepTableData = [];
+
+    /** @var array<string, \Illuminate\Support\Collection> */
+    public array $stepTableColumnsByStep = [];
+
+    /** @var array<string, array<int, array{row: \App\Models\Procedures\SampleProcedureStepTableRow}>> */
+    public array $stepTableRowsByStep = [];
+
     public ?string $lastLoadedWorksheetId = null;
     public bool $worksheetAlreadyPosted = false;
     /**
@@ -604,8 +623,9 @@ class ProcedureWorksheetManager extends Component
 
                 if ($isEmpty) {
                     $value = null;
+                    [$fieldDatasetPreset] = $this->parseProcedureConfigDatasetModel((string) ($field->model_tied_to ?? ''));
 
-                    switch ($field->model_tied_to) {
+                    switch ($fieldDatasetPreset) {
                         case 'users':
                             $value = $cr->operator_id ? (string) $cr->operator_id : null;
                             break;
@@ -675,6 +695,7 @@ class ProcedureWorksheetManager extends Component
         // Ensure "Lab No." (sample_details) dropdowns stay in sync with the
         // currently selected samples in the UI.
         $this->syncLabNoConfigFieldToSelectedSamples($capturedResults, $configFields);
+        $this->syncDerivedConfigFieldValuesFromSamples($capturedResults, $configFields);
 
         // Mark worksheet as "already posted" when any captured result in this
         // batch + worksheet + active analyte has the worksheet_posted flag set.
@@ -846,6 +867,62 @@ class ProcedureWorksheetManager extends Component
         // Seed configured per-step default values into inputValues (and
         // persist them immediately) for the currently selected samples.
         $this->seedDefaultStepValuesForSelectedResults($steps, $selectedResultIds);
+        $this->loadStepTableCapture();
+    }
+
+    protected function loadStepTableCapture(): void
+    {
+        $this->stepTableData = [];
+        $this->stepTableColumnsByStep = [];
+        $this->stepTableRowsByStep = [];
+
+        if (! $this->selectedWorksheetId) {
+            return;
+        }
+
+        $batch = SampleHeader::find($this->batchId);
+        if (! $batch) {
+            return;
+        }
+
+        $service = app(ProcedureStepTableRowGeneratorService::class);
+
+        foreach ($service->customTableStepsForWorksheet($this->selectedWorksheetId) as $step) {
+            $instance = $service->firstOrCreateInstance($batch, $step);
+            $service->syncRows($instance, $batch, $step);
+
+            $columns = ProcedureStepTableColumn::where('procedure_worksheet_step_id', $step->id)
+                ->orderBy('order')
+                ->get();
+
+            $this->stepTableColumnsByStep[$step->id] = $columns;
+
+            $rows = SampleProcedureStepTableRow::where('instance_id', $instance->id)
+                ->orderBy('row_index')
+                ->get();
+
+            $rowEntries = [];
+            $columnsById = $columns->keyBy('id');
+
+            foreach ($rows as $row) {
+                $cells = [];
+                $values = SampleProcedureStepTableCellValue::where('row_id', $row->id)->get();
+                foreach ($values as $val) {
+                    $col = $columnsById->get($val->column_id);
+                    if ($col) {
+                        $cells[$col->key] = $this->normalizeStepTableCellForDisplay($col, $val->value);
+                    }
+                }
+
+                if (! isset($this->stepTableData[$step->id])) {
+                    $this->stepTableData[$step->id] = [];
+                }
+                $this->stepTableData[$step->id][$row->id] = $cells;
+                $rowEntries[] = ['row' => $row];
+            }
+
+            $this->stepTableRowsByStep[$step->id] = $rowEntries;
+        }
     }
 
     /**
@@ -864,6 +941,11 @@ class ProcedureWorksheetManager extends Component
     public function autosaveStepValue(string $stepId): void
     {
         if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
+            return;
+        }
+
+        $step = ProcedureWorksheetStep::find($stepId);
+        if ($step && ($step->isCustomTable() || $step->isStaticText())) {
             return;
         }
 
@@ -970,6 +1052,11 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
+        $field = ProcedureConfigField::find($fieldId);
+        if ($field && ProcedureConfigField::isSampleDerivedType($field->field_type)) {
+            return;
+        }
+
         $selectedIds = $this->getSelectedCapturedResultIds();
         if (count($selectedIds) === 0) {
             return;
@@ -1052,12 +1139,59 @@ class ProcedureWorksheetManager extends Component
             ->get();
 
         $this->syncLabNoConfigFieldToSelectedSamples($capturedResults, $configFields);
+        $this->syncDerivedConfigFieldValuesFromSamples($capturedResults, $configFields);
 
         // Re-load the full worksheet samples + kit state.
         // This ensures test-kit rows/values are correctly re-scoped to the new
         // selected captured_result_id and avoids showing blank rows.
         $this->loadSamples();
+
         return;
+    }
+
+    public function resolveConfigFieldDisplayValue(ProcedureConfigField $field, ?CapturedResult $capturedResult): string
+    {
+        if (! $capturedResult?->sample) {
+            return '';
+        }
+
+        $header = $capturedResult->sample_header_id
+            ? SampleHeader::find($capturedResult->sample_header_id)
+            : SampleHeader::find($this->batchId);
+
+        return app(ProcedureConfigFieldSampleResolver::class)->resolve(
+            $field,
+            $capturedResult->sample,
+            $header
+        );
+    }
+
+    private function syncDerivedConfigFieldValuesFromSamples(Collection $capturedResults, Collection $configFields): void
+    {
+        $derivedFields = $configFields->filter(
+            fn (ProcedureConfigField $field) => ProcedureConfigField::isSampleDerivedType($field->field_type)
+        );
+
+        if ($derivedFields->isEmpty()) {
+            return;
+        }
+
+        $header = SampleHeader::find($this->batchId);
+        $resolver = app(ProcedureConfigFieldSampleResolver::class);
+
+        foreach ($capturedResults as $cr) {
+            if (! $cr->sample) {
+                continue;
+            }
+
+            foreach ($derivedFields as $field) {
+                if (! isset($this->configFieldValues[$cr->id])) {
+                    $this->configFieldValues[$cr->id] = [];
+                }
+
+                $this->configFieldValues[$cr->id][$field->id] = $resolver->resolve($field, $cr->sample, $header);
+            }
+        }
     }
 
     private function syncLabNoConfigFieldToSelectedSamples(Collection $capturedResults, Collection $configFields): void
@@ -1074,8 +1208,9 @@ class ProcedureWorksheetManager extends Component
         $labNoFields = $configFields->filter(function (ProcedureConfigField $field) {
             $label = strtolower((string) $field->label);
             $valueName = strtolower((string) $field->field_value_name);
+            [$datasetPreset] = $this->parseProcedureConfigDatasetModel((string) ($field->model_tied_to ?? ''));
 
-            return $field->model_tied_to === 'sample_details'
+            return $datasetPreset === 'sample_details'
                 && (
                     $valueName === 'lab_no' ||
                     str_contains($label, 'lab no') ||
@@ -1195,6 +1330,132 @@ class ProcedureWorksheetManager extends Component
             ->orderBy('order')
             ->orderBy('id')
             ->get();
+    }
+
+    public function getScalarStepsProperty(): Collection
+    {
+        return $this->getStepsProperty()->reject(fn (ProcedureWorksheetStep $step) => $step->isCustomTable());
+    }
+
+    /**
+     * @return array<int, array{type: string, steps?: Collection<int, ProcedureWorksheetStep>, step?: ProcedureWorksheetStep}>
+     */
+    public function getCaptureSectionsProperty(): array
+    {
+        $sections = [];
+        $scalarBuffer = collect();
+        $lastGroupId = null;
+        $groupsById = ProcedureWorksheetStepGroup::where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->get()
+            ->keyBy('id');
+
+        $flushScalar = function () use (&$sections, &$scalarBuffer, &$lastGroupId, $groupsById) {
+            if ($scalarBuffer->isEmpty()) {
+                return;
+            }
+
+            $sections[] = [
+                'type' => 'scalar',
+                'steps' => $scalarBuffer->values(),
+                'step_group' => $lastGroupId ? $groupsById->get($lastGroupId) : null,
+            ];
+            $scalarBuffer = collect();
+        };
+
+        foreach ($this->getStepsProperty() as $step) {
+            $groupId = $step->procedure_worksheet_step_group_id;
+
+            if ($step->isCustomTable()) {
+                $flushScalar();
+                $sections[] = [
+                    'type' => 'custom_table',
+                    'step' => $step,
+                    'step_group' => $groupId ? $groupsById->get($groupId) : null,
+                ];
+                $lastGroupId = $groupId;
+                continue;
+            }
+
+            if ($groupId !== $lastGroupId && $scalarBuffer->isNotEmpty()) {
+                $flushScalar();
+            }
+
+            $lastGroupId = $groupId;
+            $scalarBuffer->push($step);
+        }
+
+        $flushScalar();
+
+        return $sections;
+    }
+
+    /**
+     * @return array<int, array{section: ProcedureConfigFieldSection|null, fields: \Illuminate\Support\Collection<int, ProcedureConfigField>}>
+     */
+    public function getConfigFieldsGroupedForCaptureProperty(): array
+    {
+        $allFields = $this->getConfigFieldsProperty();
+        if ($allFields->isEmpty()) {
+            return [];
+        }
+
+        if (! \Illuminate\Support\Facades\Schema::hasTable('procedure_config_field_sections')) {
+            return [['section' => null, 'fields' => $allFields]];
+        }
+
+        $blocks = [];
+
+        $sectionModels = ProcedureConfigFieldSection::where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->orderBy('order')
+            ->get();
+
+        foreach ($sectionModels as $section) {
+            $fields = $allFields->where('procedure_config_field_section_id', $section->id)->values();
+            if ($fields->isNotEmpty()) {
+                $blocks[] = ['section' => $section, 'fields' => $fields];
+            }
+        }
+
+        $ungrouped = $allFields->whereNull('procedure_config_field_section_id')->values();
+        if ($ungrouped->isNotEmpty()) {
+            $blocks[] = ['section' => null, 'fields' => $ungrouped];
+        }
+
+        return $blocks;
+    }
+
+    public function getSelectedProcedureWorksheetProperty(): ?ProcedureWorksheet
+    {
+        if (! $this->selectedWorksheetId) {
+            return null;
+        }
+
+        return ProcedureWorksheet::find($this->selectedWorksheetId);
+    }
+
+    public function getStepTableDatasetOptions(ProcedureStepTableColumn $column): Collection
+    {
+        $modelTiedTo = $column->model_tied_to ?? '';
+
+        if (in_array($modelTiedTo, ['sample_details', 'captured_results'], true)) {
+            return match ($modelTiedTo) {
+                'sample_details' => SampleDetails::where('sample_header_id', $this->batchId)
+                    ->orderBy('sample_code')
+                    ->get()
+                    ->map(fn ($s) => (object) ['id' => (string) $s->id, 'label' => $s->sample_code]),
+                'captured_results' => CapturedResult::where('sample_header_id', $this->batchId)
+                    ->when($this->selectedWorksheetId, fn ($q) => $q->where('procedure_worksheet_id', $this->selectedWorksheetId))
+                    ->with('analyte')
+                    ->get()
+                    ->map(fn ($cr) => (object) [
+                        'id' => (string) $cr->id,
+                        'label' => $cr->analyte?->name ?? $cr->sample_detail_code,
+                    ]),
+                default => collect(),
+            };
+        }
+
+        return app(LogEntryMandatoryFieldOptionsResolver::class)->optionsForModel($modelTiedTo);
     }
 
     public function getConfigFieldsProperty()
@@ -1412,7 +1673,14 @@ class ProcedureWorksheetManager extends Component
             $filteredSamples = $samples;
         }
 
-        return match ($modelTiedTo) {
+        [$datasetPreset, $datasetConfig] = $this->parseProcedureConfigDatasetModel($modelTiedTo);
+
+        if ($datasetConfig !== null) {
+            return app(\App\Services\LogEntryWorksheets\LogEntryDatasetResolverService::class)
+                ->dropdownOptions($datasetConfig);
+        }
+
+        return match ($datasetPreset) {
             'users' => User::where('active', 1)
                 ->orderBy('name')
                 ->get()
@@ -1496,6 +1764,56 @@ class ProcedureWorksheetManager extends Component
             ->orderBy('sample_code')
             ->get()
             ->map(fn($s) => (object) ['id' => (string) $s->id, 'label' => $s->sample_code ?? (string) $s->id]);
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, mixed>|null}
+     */
+    protected function parseProcedureConfigDatasetModel(string $rawModelTiedTo): array
+    {
+        $raw = trim($rawModelTiedTo);
+        if ($raw === '') {
+            return ['', null];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [$raw, null];
+        }
+
+        $preset = (string) ($decoded['preset'] ?? '');
+        if ($preset === '') {
+            return ['', null];
+        }
+
+        $sourceTable = match ($preset) {
+            'methods' => 'analysis_methods',
+            default => $preset,
+        };
+
+        $config = [
+            'source_table' => $sourceTable,
+            'display_mode' => (string) ($decoded['display_mode'] ?? 'direct'),
+            'source_display_column' => $decoded['source_display_column'] ?? null,
+            'foreign_key_column' => $decoded['foreign_key_column'] ?? null,
+            'referenced_table' => $decoded['referenced_table'] ?? null,
+            'referenced_display_column' => $decoded['referenced_display_column'] ?? null,
+            'referenced_key_column' => $decoded['referenced_key_column'] ?? 'id',
+        ];
+
+        if ($config['display_mode'] === 'foreign_key') {
+            if (
+                blank($config['foreign_key_column'])
+                || blank($config['referenced_table'])
+                || blank($config['referenced_display_column'])
+            ) {
+                return [$preset, null];
+            }
+        } elseif (blank($config['source_display_column'])) {
+            return [$preset, null];
+        }
+
+        return [$preset, $config];
     }
 
     protected function getCapturedResultsDatasetOptions(Collection $analysisSamples): Collection
@@ -1698,6 +2016,9 @@ class ProcedureWorksheetManager extends Component
         return view('livewire.worksheets.procedure-worksheet-manager', [
             'configFields' => $this->getConfigFieldsProperty(),
             'testKitColumns' => $this->getTestKitColumnsProperty(),
+            'captureSections' => $this->getCaptureSectionsProperty(),
+            'configFieldsGroupedForCapture' => $this->getConfigFieldsGroupedForCaptureProperty(),
+            'selectedProcedureWorksheet' => $this->getSelectedProcedureWorksheetProperty(),
         ]);
     }
 
@@ -1795,7 +2116,7 @@ class ProcedureWorksheetManager extends Component
         $selectedIds = $this->getSelectedCapturedResultIds();
         if (count($selectedIds) > 1) {
             $firstId = $selectedIds[0];
-            foreach ($this->getStepsProperty() as $step) {
+            foreach ($this->getScalarStepsProperty() as $step) {
                 $value = $this->inputValues[$firstId][$step->id] ?? '';
                 foreach ($selectedIds as $id) {
                     if ($id === $firstId) {
@@ -1826,6 +2147,11 @@ class ProcedureWorksheetManager extends Component
                 continue;
             }
             foreach ($steps as $stepId => $value) {
+                $stepModel = ProcedureWorksheetStep::find($stepId);
+                if ($stepModel && $stepModel->isCustomTable()) {
+                    continue;
+                }
+
                 $valueToStore = is_array($value) ? json_encode($value) : ($value ?? '');
                 CapturedProcedureValue::updateOrCreate(
                     [
@@ -2174,6 +2500,10 @@ class ProcedureWorksheetManager extends Component
 
     private function seedDefaultStepValuesForStepModel(ProcedureWorksheetStep $step, array $selectedResultIds): void
     {
+        if ($step->isCustomTable() || $step->isStaticText()) {
+            return;
+        }
+
         $stepId = (string) $step->id;
         $valueType = (string) ($step->value_type ?: 'text');
 
@@ -2362,7 +2692,7 @@ class ProcedureWorksheetManager extends Component
             'date' => $this->normalizeDateValueForInput($value),
             'time' => $this->normalizeTimeValueForInput($value),
             'datetime' => $this->normalizeDateTimeValueForInput($value),
-            'number', 'text', 'method_select', 'equipment_select', 'custom_select' => $value,
+            'number', 'text', 'static_text', 'method_select', 'equipment_select', 'custom_select' => $value,
             default => $value,
         };
     }
@@ -2483,5 +2813,135 @@ class ProcedureWorksheetManager extends Component
                     'label' => $label,
                 ];
             });
+    }
+
+    public function updatedStepTableData($value, string $key): void
+    {
+        $parts = explode('.', $key);
+        if (count($parts) !== 3) {
+            return;
+        }
+
+        [$stepId, $rowId, $columnKey] = $parts;
+        $this->persistStepTableCell($stepId, $rowId, $columnKey, $value);
+    }
+
+    public function persistStepTableCell(string $stepId, string $rowId, string $columnKey, mixed $value): void
+    {
+        $column = ProcedureStepTableColumn::where('procedure_worksheet_step_id', $stepId)
+            ->where('key', $columnKey)
+            ->first();
+
+        if (! $column) {
+            return;
+        }
+
+        $valueToStore = $this->normalizeStepTableCellForStorage($column, $value);
+
+        SampleProcedureStepTableCellValue::updateOrCreate(
+            [
+                'row_id' => $rowId,
+                'column_id' => $column->id,
+            ],
+            ['value' => $valueToStore],
+        );
+    }
+
+    protected function normalizeStepTableCellForDisplay(ProcedureStepTableColumn $column, mixed $value): mixed
+    {
+        if ($column->input_data_type === 'boolean') {
+            return in_array((string) ($value ?? ''), ['1', 'true', 'on'], true);
+        }
+
+        $config = is_array($column->dataset_config) ? $column->dataset_config : [];
+        if (($config['choice_control'] ?? '') === 'checkbox') {
+            if (is_array($value)) {
+                return $value;
+            }
+
+            $decoded = json_decode((string) ($value ?? ''), true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+
+            return collect(explode(',', (string) ($value ?? '')))
+                ->map(fn ($item) => trim($item))
+                ->filter()
+                ->values()
+                ->all();
+        }
+
+        return $value ?? '';
+    }
+
+    protected function normalizeStepTableCellForStorage(ProcedureStepTableColumn $column, mixed $value): string
+    {
+        if ($column->input_data_type === 'boolean') {
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+        }
+
+        if (is_array($value)) {
+            return json_encode($value) ?: '';
+        }
+
+        return (string) ($value ?? '');
+    }
+
+    public function toggleStepTableChoiceOption(string $stepId, string $rowId, string $columnKey, string $option, bool $checked): void
+    {
+        $current = $this->stepTableData[$stepId][$rowId][$columnKey] ?? [];
+        $currentValues = is_array($current)
+            ? array_values(array_map('strval', $current))
+            : collect(explode(',', (string) $current))->map(fn ($item) => trim($item))->filter()->values()->all();
+
+        if ($checked) {
+            if (! in_array($option, $currentValues, true)) {
+                $currentValues[] = $option;
+            }
+        } else {
+            $currentValues = array_values(array_filter($currentValues, fn ($value) => $value !== $option));
+        }
+
+        $this->stepTableData[$stepId][$rowId][$columnKey] = $currentValues;
+        $this->persistStepTableCell($stepId, $rowId, $columnKey, $currentValues);
+    }
+
+    public function syncStepTableRows(string $stepId): void
+    {
+        $batch = SampleHeader::find($this->batchId);
+        $step = ProcedureWorksheetStep::find($stepId);
+        if (! $batch || ! $step || ! $step->isCustomTable()) {
+            return;
+        }
+
+        $instance = app(ProcedureStepTableRowGeneratorService::class)->firstOrCreateInstance($batch, $step);
+        app(ProcedureStepTableRowGeneratorService::class)->syncRows($instance, $batch, $step);
+        $this->loadStepTableCapture();
+    }
+
+    public function addStepTableManualRow(string $stepId): void
+    {
+        $step = ProcedureWorksheetStep::find($stepId);
+        $batch = SampleHeader::find($this->batchId);
+        if (! $step || ! $batch || ! $step->allow_manual_rows) {
+            return;
+        }
+
+        $instance = app(ProcedureStepTableRowGeneratorService::class)->firstOrCreateInstance($batch, $step);
+        app(ProcedureStepTableRowGeneratorService::class)->addManualRow($instance, $step);
+        $this->loadStepTableCapture();
+    }
+
+    public function removeStepTableManualRow(string $stepId, string $rowId): void
+    {
+        $row = SampleProcedureStepTableRow::find($rowId);
+        if (! $row || $row->row_source !== 'manual') {
+            return;
+        }
+
+        SampleProcedureStepTableCellValue::where('row_id', $rowId)->delete();
+        $row->delete();
+        unset($this->stepTableData[$stepId][$rowId]);
+        $this->loadStepTableCapture();
     }
 }

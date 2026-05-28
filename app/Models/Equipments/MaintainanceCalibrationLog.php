@@ -55,6 +55,7 @@ class MaintainanceCalibrationLog extends Model implements Auditable
 	];
 
 	protected $casts = [
+		'date' => 'date',
 		'correction_factor' => 'decimal:6',
 		'uncertainty_of_measure' => 'decimal:6',
 	];

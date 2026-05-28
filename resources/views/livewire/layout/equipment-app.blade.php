@@ -227,3 +227,7 @@
 </main>
 @endsection
 
+@section('script2')
+@stack('script2')
+@endsection
+

@@ -7,9 +7,17 @@
 	<div class="workflow-board-panel mb-3">
 		<div class="workflow-board-panel-header">
 			<h5><i class="mdi mdi-table-edit"></i> {{ $worksheet->name }}</h5>
-			<a href="{{ route('formulars.log-entry-worksheets.manage') }}" class="btn btn-sm btn-outline-secondary log-entry-btn-outline">
-				<i class="mdi mdi-arrow-left"></i> Back to list
-			</a>
+			<div class="d-flex flex-wrap gap-2">
+				<a href="{{ route('formulars.log-entry-worksheets.preview', $worksheet->id) }}"
+					class="btn btn-sm btn-outline-primary log-entry-btn-outline"
+					target="_blank"
+					rel="noopener">
+					<i class="mdi mdi-eye-outline"></i> Preview template
+				</a>
+				<a href="{{ route('formulars.log-entry-worksheets.manage') }}" class="btn btn-sm btn-outline-secondary log-entry-btn-outline">
+					<i class="mdi mdi-arrow-left"></i> Back to list
+				</a>
+			</div>
 		</div>
 	</div>
 
@@ -191,7 +199,9 @@
 								<td>{{ $mandatoryFieldTypes[$field['field_type']] ?? $field['field_type'] }}</td>
 								<td><code>{{ $field['field_value_name'] }}</code></td>
 								<td>
-									@if($field['field_type'] === 'dataset_related')
+									@if(\App\Models\LogEntryWorksheets\LogEntryWorksheetMandatoryField::isPresetLookupType($field['field_type']))
+										<small class="text-muted">Live {{ strtolower(\App\Models\LogEntryWorksheets\LogEntryWorksheetMandatoryField::presetLookupTypes()[$field['field_type']] ?? '') }} list</small>
+									@elseif($field['field_type'] === 'dataset_related')
 										<small>{{ \App\Livewire\LogEntryWorksheets\LogEntryWorksheetEditor::formatDatasetSummary($field['dataset_config'] ?? null) }}</small>
 									@elseif(in_array($field['field_type'], ['checkbox', 'radio']))
 										<small>{{ implode(', ', $field['field_options']['options'] ?? []) }}</small>

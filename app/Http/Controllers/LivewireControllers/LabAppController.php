@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\LivewireControllers;
 
 use App\Http\Controllers\Controller;
+use App\Lab;
 use App\SampleType;
 use App\AnalysisType;
 use App\AnalysisMethod;
@@ -213,6 +214,17 @@ class LabAppController extends Controller
     public function labManager()
     {
         return view('livewire.lab.lab-manager-page');
+    }
+
+    /**
+     * Display a lab profile with sections and decontamination areas.
+     */
+    public function labProfile(Lab $lab)
+    {
+        return view('livewire.lab.lab-profile-page', [
+            'labId' => $lab->id,
+            'labName' => $lab->name,
+        ]);
     }
 
     /**

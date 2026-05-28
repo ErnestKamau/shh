@@ -43,7 +43,7 @@
 						<input type="date" class="form-control form-control-sm"
 							wire:model.lazy="sharedMandatoryData.{{ $field->id }}"
 							wire:change="autoSaveMandatoryField('{{ $field->id }}')">
-					@elseif($field->field_type === 'dataset_related')
+					@elseif($this->mandatoryFieldUsesSelectList($field))
 						<select class="form-control form-control-sm"
 							wire:model.lazy="sharedMandatoryData.{{ $field->id }}"
 							wire:change="autoSaveMandatoryField('{{ $field->id }}')">

@@ -7,6 +7,7 @@ use App\ReportingUnit;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class LabSection extends Model implements Auditable
@@ -63,6 +64,11 @@ class LabSection extends Model implements Auditable
     public function reportingUnit(): BelongsTo
     {
         return $this->belongsTo(ReportingUnit::class, 'reporting_unit');
+    }
+
+    public function decontaminationAreas(): HasMany
+    {
+        return $this->hasMany(LabDecontaminationArea::class);
     }
 
     public function formattedOptimumLevel(): string

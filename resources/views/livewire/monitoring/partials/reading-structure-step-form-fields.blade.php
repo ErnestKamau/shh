@@ -28,6 +28,20 @@
             @error('readingLabel') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
     </div>
+
+    <div class="row mt-2">
+        <div class="col-md-12">
+            <div class="form-check">
+                <input type="checkbox"
+                       class="form-check-input"
+                       id="readingStepShowInMonitoringLogs"
+                       wire:model="readingStepShowInMonitoringLogs">
+                <label class="form-check-label" for="readingStepShowInMonitoringLogs">
+                    Show in Monitoring Logs capture table
+                </label>
+            </div>
+        </div>
+    </div>
 </section>
 
 <section class="fs-form-section">

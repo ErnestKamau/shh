@@ -53,17 +53,51 @@ class LogEntryWorksheetMandatoryField extends Model implements Auditable
     }
 
     /**
+     * Built-in list fields (stored value = record id).
+     *
+     * @return array<string, string>
+     */
+    public static function presetLookupTypes(): array
+    {
+        return [
+            'equipments' => 'Equipment',
+            'users' => 'User',
+            'methods' => 'Method',
+            'sample_types' => 'Sample type',
+            'analytes' => 'Analyte',
+        ];
+    }
+
+    public static function isPresetLookupType(string $fieldType): bool
+    {
+        return array_key_exists($fieldType, self::presetLookupTypes());
+    }
+
+    /**
      * @return array<string, string>
      */
     public static function getFieldTypes(): array
     {
-        return [
+        return array_merge([
             'input' => 'Text Input',
             'datetime' => 'Date & Time',
             'date' => 'Date',
             'checkbox' => 'Checkbox (options)',
             'radio' => 'Radio buttons',
-            'dataset_related' => 'Dataset (table lookup)',
-        ];
+        ], self::presetLookupTypes(), [
+            'dataset_related' => 'Dataset (custom table lookup)',
+        ]);
+    }
+
+    public static function presetLookupDescription(string $fieldType): string
+    {
+        return match ($fieldType) {
+            'equipments' => 'Analysts pick from active lab equipment.',
+            'users' => 'Analysts pick from active system users.',
+            'methods' => 'Analysts pick from analysis methods.',
+            'sample_types' => 'Analysts pick from active sample types.',
+            'analytes' => 'Analysts pick from active analytes.',
+            default => '',
+        };
     }
 }

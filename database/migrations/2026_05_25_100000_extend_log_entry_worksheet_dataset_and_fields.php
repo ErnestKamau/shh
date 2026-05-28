@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -18,12 +17,6 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('log_entry_worksheet_mandatory_fields')) {
-            if (DB::getDriverName() === 'pgsql') {
-                DB::statement('ALTER TABLE log_entry_worksheet_mandatory_fields ALTER COLUMN field_type TYPE VARCHAR(50) USING field_type::text');
-            } elseif (DB::getDriverName() === 'mysql') {
-                DB::statement('ALTER TABLE log_entry_worksheet_mandatory_fields MODIFY field_type VARCHAR(50) NOT NULL');
-            }
-
             Schema::table('log_entry_worksheet_mandatory_fields', function (Blueprint $table) {
                 if (! Schema::hasColumn('log_entry_worksheet_mandatory_fields', 'field_options')) {
                     $table->json('field_options')->nullable()->after('model_tied_to');

@@ -314,6 +314,10 @@ Route::get('/livewire/labs', [LabAppController::class, 'labManager'])
     ->name('livewire.labs')
     ->middleware('can:laboratory.components.labs.view');
 
+Route::get('/livewire/labs/{lab}', [LabAppController::class, 'labProfile'])
+    ->name('livewire.labs.show')
+    ->middleware('can:laboratory.components.labs.view');
+
 // Livewire Test Page
 Route::get('/livewire-test', function () {
     try {
@@ -2142,6 +2146,7 @@ Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(func
     // Log entry worksheets
     Route::prefix('log-entry-worksheets')->name('log-entry-worksheets.')->group(function () {
         Route::get('/manage', 'LogEntryWorksheets\LogEntryWorksheetController@manage')->name('manage');
+        Route::get('/{logEntryWorksheet}/preview', 'LogEntryWorksheets\LogEntryWorksheetController@preview')->name('preview');
         Route::get('/{logEntryWorksheet}/edit', 'LogEntryWorksheets\LogEntryWorksheetController@edit')->name('edit');
     });
 });

@@ -57,7 +57,7 @@
                             <tbody>
                                 @foreach($section['fields'] as $field)
                                     <tr wire:key="cf-{{ $field['id'] }}">
-                                        <td><span class="badge bg-secondary">{{ $field['order'] }}</span></td>
+                                        <td><span class="cf-badge cf-badge--order">{{ $field['order'] }}</span></td>
                                         <td>
                                             <strong>{{ $field['label'] }}</strong>
                                             @if(!empty($field['help_text']))
@@ -65,7 +65,7 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <span class="badge bg-info-subtle text-info">
+                                            <span class="cf-badge cf-badge--type">
                                                 {{ $this->configuredFieldTypeOptions[$field['field_type']] ?? $field['field_type'] }}
                                             </span>
                                         </td>
@@ -73,9 +73,9 @@
                                         <td><small class="text-muted">{{ $this->configuredFieldTypeSummary($field) }}</small></td>
                                         <td>
                                             @if($field['is_required'])
-                                                <span class="badge bg-danger">Required</span>
+                                                <span class="cf-badge cf-badge--required">Required</span>
                                             @else
-                                                <span class="badge bg-secondary">Optional</span>
+                                                <span class="cf-badge cf-badge--optional">Optional</span>
                                             @endif
                                         </td>
                                         <td class="text-end">
@@ -119,5 +119,44 @@
     }
     .cmt-configured-placement .card-header {
         border-radius: 12px 12px 0 0;
+    }
+
+    .cmt-configured-fields .cf-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.28rem 0.65rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .cmt-configured-fields .cf-badge--order {
+        min-width: 1.75rem;
+        color: #475569;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+    }
+
+    .cmt-configured-fields .cf-badge--type {
+        color: #4338ca;
+        background: #eef2ff;
+        border-color: #e0e7ff;
+    }
+
+    .cmt-configured-fields .cf-badge--required {
+        color: #b91c1c;
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .cmt-configured-fields .cf-badge--optional {
+        color: #64748b;
+        background: #f8fafc;
+        border-color: #e2e8f0;
     }
 </style>

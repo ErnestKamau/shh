@@ -36,6 +36,10 @@ class FormulaEvaluator
         ];
 
         foreach ($steps as $step) {
+            if (! $step->isCalculable()) {
+                continue;
+            }
+
             $value = $this->executeStep($step, $variables, $inputs, $sampleId, $batchId, $lookupOverrides);
             $variables[$step->variable_name] = $value;
 
@@ -53,10 +57,12 @@ class FormulaEvaluator
             }
         }
 
-        // Set final result (last variable)
-        if (!empty($variables)) {
-            $lastVariable = array_key_last($variables);
-            $executionData['final_result'] = $variables[$lastVariable];
+        if (! empty($variables)) {
+            $calculableSteps = $steps->filter(fn (FormulaStep $step) => $step->isCalculable());
+            $lastCalculable = $calculableSteps->last();
+            if ($lastCalculable) {
+                $executionData['final_result'] = $variables[$lastCalculable->variable_name] ?? null;
+            }
         }
 
         return [
@@ -80,8 +86,11 @@ class FormulaEvaluator
             case 'lookup':
                 return $this->executeLookup($step, $variables, $inputs, $sampleId, $batchId, $lookupOverrides);
 
+            case 'parameter_result':
+                return $inputs[$step->variable_name] ?? null;
+
             default:
-                throw new Exception("Unknown step type: {$step->step_type}");
+                return null;
         }
     }
 
@@ -239,7 +248,9 @@ class FormulaEvaluator
         $variables = [];
         
         foreach ($formulaVersion->formulaSteps as $step) {
-            $variables[$step->variable_name] = $step->label;
+            if ($step->isExpressionVariable()) {
+                $variables[$step->variable_name] = $step->label;
+            }
         }
         
         return $variables;

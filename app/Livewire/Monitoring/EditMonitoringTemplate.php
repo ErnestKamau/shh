@@ -12,6 +12,7 @@ use App\Models\Formulars\LookupTable;
 use App\Models\Monitoring\MonitoringTemplate;
 use App\Models\Monitoring\MonitoringTemplateField;
 use App\Models\Monitoring\MonitoringVariable;
+use App\Services\Monitoring\MonitoringAssignmentService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -71,17 +72,18 @@ class EditMonitoringTemplate extends Component
         $this->effectiveDate = $template->effective_date ? \Carbon\Carbon::parse($template->effective_date)->format('Y-m-d') : '';
         $this->status = $template->status;
         $this->templateType = $template->monitoring_category ?? 'environmental';
-        $this->selectedLabIds = $template->lab_id ? [(string) $template->lab_id] : [];
 
         $metaField = MonitoringTemplateField::where('template_id', $template->id)
             ->where('field_key', '__meta_scope_items')
             ->first();
 
-        if ($metaField) {
-            $meta = is_array($metaField->field_config) ? $metaField->field_config : [];
-            $this->selectedSectionIds = $meta['sections'] ?? [];
-            $this->selectedEquipmentIds = $meta['equipment'] ?? [];
-        }
+        $meta = is_array($metaField?->field_config) ? $metaField->field_config : [];
+
+        $this->selectedLabIds = ! empty($meta['labs'])
+            ? array_values(array_map('strval', (array) $meta['labs']))
+            : ($template->lab_id ? [(string) $template->lab_id] : []);
+        $this->selectedSectionIds = array_values(array_map('strval', (array) ($meta['sections'] ?? [])));
+        $this->selectedEquipmentIds = array_values(array_map('strval', (array) ($meta['equipment'] ?? [])));
 
         $this->loadReadingStepsFromTemplate($template);
         $this->loadConfiguredFieldsFromTemplate($template);
@@ -89,10 +91,7 @@ class EditMonitoringTemplate extends Component
 
     public function getAssignedLabsProperty()
     {
-        return Lab::query()
-            ->where('active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        return app(MonitoringAssignmentService::class)->monitoringLabsForUser(Auth::user());
     }
 
     public function getEnvironmentalSectionsByLabProperty()
@@ -186,10 +185,12 @@ class EditMonitoringTemplate extends Component
 
     public function toggleSection(string $sectionId): void
     {
-        if (in_array($sectionId, $this->selectedSectionIds)) {
+        $sectionId = (string) $sectionId;
+
+        if (in_array($sectionId, $this->selectedSectionIds, true)) {
             $this->selectedSectionIds = array_values(array_filter(
                 $this->selectedSectionIds,
-                fn ($id) => $id !== $sectionId
+                fn ($id) => (string) $id !== $sectionId
             ));
         } else {
             $this->selectedSectionIds[] = $sectionId;
@@ -198,10 +199,12 @@ class EditMonitoringTemplate extends Component
 
     public function toggleEquipment(string $equipmentId): void
     {
-        if (in_array($equipmentId, $this->selectedEquipmentIds)) {
+        $equipmentId = (string) $equipmentId;
+
+        if (in_array($equipmentId, $this->selectedEquipmentIds, true)) {
             $this->selectedEquipmentIds = array_values(array_filter(
                 $this->selectedEquipmentIds,
-                fn ($id) => $id !== $equipmentId
+                fn ($id) => (string) $id !== $equipmentId
             ));
         } else {
             $this->selectedEquipmentIds[] = $equipmentId;
@@ -316,7 +319,7 @@ class EditMonitoringTemplate extends Component
                 'effective_date' => $this->effectiveDate ?: null,
                 'monitoring_category' => $this->templateType,
                 'status' => $this->status,
-                'lab_id' => $this->selectedLabIds[0] ?? null,
+                'lab_id' => $this->normalizedSelectedLabIds()[0] ?? null,
                 'updated_by' => Auth::id(),
             ]);
 
@@ -336,8 +339,9 @@ class EditMonitoringTemplate extends Component
                 'is_readonly' => true,
                 'sort_order' => 9999,
                 'field_config' => [
-                    'sections' => $this->selectedSectionIds,
-                    'equipment' => $this->selectedEquipmentIds,
+                    'labs' => $this->normalizedSelectedLabIds(),
+                    'sections' => $this->normalizedSelectedSectionIds(),
+                    'equipment' => $this->normalizedSelectedEquipmentIds(),
                 ],
             ]);
 
@@ -356,6 +360,36 @@ class EditMonitoringTemplate extends Component
     public function cancel()
     {
         return redirect()->route($this->module === 'equipment' ? 'equipment.monitoring' : 'livewire.monitoring');
+    }
+
+    protected function normalizedSelectedLabIds(): array
+    {
+        return array_values(array_unique(array_map(
+            fn ($id) => (string) $id,
+            $this->selectedLabIds,
+        )));
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function normalizedSelectedSectionIds(): array
+    {
+        return array_values(array_unique(array_map(
+            fn ($id) => (string) $id,
+            $this->selectedSectionIds,
+        )));
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function normalizedSelectedEquipmentIds(): array
+    {
+        return array_values(array_unique(array_map(
+            fn ($id) => (string) $id,
+            $this->selectedEquipmentIds,
+        )));
     }
 
     protected function getStepValidationRules(): array

@@ -10,6 +10,7 @@ use App\Models\LogEntryWorksheets\LogEntryWorksheetMandatoryField;
 use App\Services\Formulars\FormulaEvaluator;
 use App\Services\LogEntryWorksheets\LogEntryDatabaseSchemaService;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class LogEntryWorksheetEditor extends Component
@@ -128,7 +129,10 @@ class LogEntryWorksheetEditor extends Component
 
     public string $fieldValueName = '';
 
-    public string $fieldChoiceOptions = '';
+    /** @var array<int, string> */
+    public array $fieldChoiceOptions = [];
+
+    public string $fieldNewChoice = '';
 
     public bool $fieldDefaultCurrentDate = false;
 
@@ -576,7 +580,7 @@ class LogEntryWorksheetEditor extends Component
         $field = LogEntryWorksheetMandatoryField::where('log_entry_worksheet_id', $this->worksheet->id)->findOrFail($fieldId);
         $this->editingField = $field;
         $this->fieldLabel = $field->label;
-        $this->fieldType = $field->field_type;
+        $this->fieldType = $this->resolveFieldTypeForForm($field);
         $this->fieldOrder = $field->order;
         $this->fieldHelpText = $field->help_text ?? '';
         $this->fieldIsRequired = $field->is_required;
@@ -584,15 +588,49 @@ class LogEntryWorksheetEditor extends Component
         $this->fieldDefaultCurrentDate = $field->default_current_date;
         $this->fieldDefaultAuthenticatedUser = $field->default_authenticated_user;
         $options = $field->field_options['options'] ?? [];
-        $this->fieldChoiceOptions = is_array($options) ? implode("\n", $options) : '';
+        $this->fieldChoiceOptions = is_array($options) ? array_values($options) : [];
+        $this->fieldNewChoice = '';
         $this->loadFieldDatasetFromConfig($field->dataset_config);
         $this->activeTab = 'mandatory';
         $this->showEditFieldModal = true;
     }
 
+    public function addFieldChoice(): void
+    {
+        $value = trim($this->fieldNewChoice);
+        if ($value === '') {
+            $this->addError('fieldNewChoice', 'Enter a choice before adding.');
+
+            return;
+        }
+
+        foreach ($this->fieldChoiceOptions as $existing) {
+            if (strcasecmp(trim($existing), $value) === 0) {
+                $this->addError('fieldNewChoice', 'This choice already exists.');
+
+                return;
+            }
+        }
+
+        $this->fieldChoiceOptions[] = $value;
+        $this->fieldNewChoice = '';
+        $this->resetErrorBag('fieldNewChoice');
+    }
+
+    public function removeFieldChoice(int $index): void
+    {
+        if (! array_key_exists($index, $this->fieldChoiceOptions)) {
+            return;
+        }
+
+        unset($this->fieldChoiceOptions[$index]);
+        $this->fieldChoiceOptions = array_values($this->fieldChoiceOptions);
+    }
+
     public function createMandatoryField(): void
     {
         $this->validate($this->mandatoryFieldRules());
+        $this->validateChoiceOptionsForCheckboxRadio();
 
         LogEntryWorksheetMandatoryField::create($this->buildMandatoryFieldPayload());
 
@@ -605,6 +643,7 @@ class LogEntryWorksheetEditor extends Component
     public function updateMandatoryField(): void
     {
         $this->validate($this->mandatoryFieldRules());
+        $this->validateChoiceOptionsForCheckboxRadio();
 
         if (! $this->editingField) {
             return;
@@ -622,11 +661,19 @@ class LogEntryWorksheetEditor extends Component
     {
         if ($this->fieldType !== 'dataset_related') {
             $this->resetFieldDatasetFields();
+        }
+
+        if (! in_array($this->fieldType, ['date', 'datetime'], true)) {
             $this->fieldDefaultCurrentDate = false;
+        }
+
+        if ($this->fieldType !== 'users') {
             $this->fieldDefaultAuthenticatedUser = false;
         }
+
         if (! in_array($this->fieldType, ['checkbox', 'radio'], true)) {
-            $this->fieldChoiceOptions = '';
+            $this->fieldChoiceOptions = [];
+            $this->fieldNewChoice = '';
         }
     }
 
@@ -738,7 +785,7 @@ class LogEntryWorksheetEditor extends Component
         $options = null;
         if (in_array($this->fieldType, ['checkbox', 'radio'], true)) {
             $options = [
-                'options' => array_values(array_filter(array_map('trim', explode("\n", $this->fieldChoiceOptions)))),
+                'options' => $this->normalizedFieldChoiceOptions(),
             ];
         }
 
@@ -748,7 +795,7 @@ class LogEntryWorksheetEditor extends Component
             'field_type' => $this->fieldType,
             'order' => $this->fieldOrder,
             'help_text' => $this->fieldHelpText ?: null,
-            'model_tied_to' => null,
+            'model_tied_to' => $this->resolveMandatoryFieldModelTiedTo(),
             'is_required' => $this->fieldIsRequired,
             'field_value_name' => $this->fieldValueName,
             'field_options' => $options,
@@ -822,6 +869,10 @@ class LogEntryWorksheetEditor extends Component
 
     protected function showFieldDefaultAuthenticatedUserOption(): bool
     {
+        if ($this->fieldType === 'users') {
+            return true;
+        }
+
         if ($this->fieldType !== 'dataset_related') {
             return false;
         }
@@ -833,6 +884,32 @@ class LogEntryWorksheetEditor extends Component
         }
 
         return $schema->isUsersTable($this->fieldDatasetReferencedTable);
+    }
+
+    protected function resolveMandatoryFieldModelTiedTo(): ?string
+    {
+        if (LogEntryWorksheetMandatoryField::isPresetLookupType($this->fieldType)) {
+            return $this->fieldType;
+        }
+
+        return null;
+    }
+
+    protected function resolveFieldTypeForForm(LogEntryWorksheetMandatoryField $field): string
+    {
+        if (LogEntryWorksheetMandatoryField::isPresetLookupType($field->field_type)) {
+            return $field->field_type;
+        }
+
+        if (
+            $field->field_type === 'dataset_related'
+            && $field->model_tied_to
+            && LogEntryWorksheetMandatoryField::isPresetLookupType($field->model_tied_to)
+        ) {
+            return $field->model_tied_to;
+        }
+
+        return $field->field_type;
     }
 
     /**
@@ -861,14 +938,40 @@ class LogEntryWorksheetEditor extends Component
     {
         return [
             'fieldLabel' => 'required|string|max:255',
-            'fieldType' => 'required|in:input,datetime,date,checkbox,radio,dataset_related',
+            'fieldType' => 'required|in:'.implode(',', array_keys(LogEntryWorksheetMandatoryField::getFieldTypes())),
             'fieldValueName' => 'required|string|max:255',
             'fieldHelpText' => 'nullable|string',
             'fieldIsRequired' => 'boolean',
             'fieldOrder' => 'required|integer|min:1',
-            'fieldChoiceOptions' => 'nullable|required_if:fieldType,checkbox,radio|string',
+            'fieldChoiceOptions' => 'nullable|array',
+            'fieldChoiceOptions.*' => 'nullable|string|max:255',
+            'fieldNewChoice' => 'nullable|string|max:255',
             'fieldDatasetSourceTable' => 'nullable|required_if:fieldType,dataset_related|string',
         ];
+    }
+
+    protected function validateChoiceOptionsForCheckboxRadio(): void
+    {
+        if (! in_array($this->fieldType, ['checkbox', 'radio'], true)) {
+            return;
+        }
+
+        if ($this->normalizedFieldChoiceOptions() === []) {
+            throw ValidationException::withMessages([
+                'fieldChoiceOptions' => ['Add at least one choice.'],
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function normalizedFieldChoiceOptions(): array
+    {
+        return array_values(array_filter(
+            array_map('trim', $this->fieldChoiceOptions),
+            fn (string $option): bool => $option !== '',
+        ));
     }
 
     protected function validateDerivedExpression(): void
@@ -1109,7 +1212,8 @@ class LogEntryWorksheetEditor extends Component
         $this->fieldHelpText = '';
         $this->fieldIsRequired = true;
         $this->fieldValueName = '';
-        $this->fieldChoiceOptions = '';
+        $this->fieldChoiceOptions = [];
+        $this->fieldNewChoice = '';
         $this->fieldDefaultCurrentDate = false;
         $this->fieldDefaultAuthenticatedUser = false;
         $this->resetFieldDatasetFields();

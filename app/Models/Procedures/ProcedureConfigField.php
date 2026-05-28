@@ -24,6 +24,7 @@ class ProcedureConfigField extends Model implements Auditable
 
     protected $fillable = [
         'procedure_worksheet_id',
+        'procedure_config_field_section_id',
         'label',
         'field_type',
         'order',
@@ -43,6 +44,11 @@ class ProcedureConfigField extends Model implements Auditable
         return $this->belongsTo(ProcedureWorksheet::class);
     }
 
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(ProcedureConfigFieldSection::class, 'procedure_config_field_section_id');
+    }
+
     public static function getFieldTypes(): array
     {
         return [
@@ -54,7 +60,15 @@ class ProcedureConfigField extends Model implements Auditable
             'date' => 'Date',
             'dataset' => 'Dataset (select from list)',
             'dataset_multiselect' => 'Dataset (multi-select)',
+            'customer_select' => 'Customer (from sample)',
+            'lab_select' => 'Lab (from sample)',
+            'sample_select' => 'Sample field (from sample)',
         ];
+    }
+
+    public static function isSampleDerivedType(?string $fieldType): bool
+    {
+        return in_array($fieldType, ['customer_select', 'lab_select', 'sample_select'], true);
     }
 
     /**

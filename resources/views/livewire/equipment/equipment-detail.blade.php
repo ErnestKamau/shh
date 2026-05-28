@@ -3575,11 +3575,15 @@
                     if (scroller.scrollWidth <= scroller.clientWidth) {
                         return;
                     }
-                    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+                    var delta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+                        ? event.deltaX
+                        : event.deltaY;
+                    if (delta === 0) {
                         return;
                     }
                     event.preventDefault();
-                    scroller.scrollLeft += event.deltaY;
+                    // Subtract so trackpad/mouse direction matches finger movement (pan right → content moves right).
+                    scroller.scrollLeft -= delta;
                     updateOverflow();
                 }, { passive: false });
 

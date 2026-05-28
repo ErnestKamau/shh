@@ -294,4 +294,5 @@
     });
 </script>
 @endif
+@stack('script2')
 @endsection
