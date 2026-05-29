@@ -285,9 +285,11 @@
                                 <a href="#" onclick="alert('Analysis Report generation route to be implemented')" class="btn btn-outline-primary border-2 shadow-sm rounded-pill px-4 font-weight-bold">
                                     <i class="mdi mdi-chart-box mr-1"></i> Generate Analysis Report
                                 </a>
+                                @if($batch->hasDnaLab())
                                 <button wire:click="openCaseFileModal" class="btn btn-outline-dark border-2 shadow-sm rounded-pill px-4 font-weight-bold">
                                     <i class="mdi mdi-folder-account mr-1"></i> Generate Case File
                                 </button>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -660,7 +662,7 @@
     </style>
 
     <!-- Case File Review Form Modal -->
-    @if($showCaseFileModal)
+    @if($showCaseFileModal && $batch->hasDnaLab())
         <div class="modal fade show" tabindex="-1" role="dialog"
             style="display: block; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1050;">
             <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered" role="document" style="max-width: 1000px; width: 95vw;">

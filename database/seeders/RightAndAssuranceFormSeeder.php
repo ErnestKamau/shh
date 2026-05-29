@@ -138,30 +138,44 @@ class RightAndAssuranceFormSeeder extends Seeder
 
         // Section 2: Rights and Assurances
         $rightsSection = $form->sections()->create([
-            'title' => '6. Rights and Assurances',
-            'description' => 'The right and assurances of the sample source/ sample source\'s representatives shall include the following information...',
+            'title' => 'Rights and Assurances',
+            'description' => "The right and assurances of the sample source/ sample source's representatives shall include the following information:",
             'section_type' => 'regular',
             'sort_order' => 2,
         ]);
+
         $rightsHolder = $rightsSection->elementHolders()->create([
             'holder_type' => 'field',
             'max_elements' => 1,
             'sort_order' => 1,
         ]);
-        
-        // As a summary checklist or informational checkbox
-        $rightsHolder->elements()->create([
-            'element_type' => 'checkbox',
-            'label' => 'Rights and Assurances read and understood',
-            'name' => 'rights_read',
-            'options' => [
-                ['value' => 'Yes', 'label' => 'I acknowledge the rights and assurances (i to xi) have been read and understood']
-            ],
-            'is_required' => true,
-            'sort_order' => 1,
-        ]);
 
-        // Section 3: Declarations
+        $rightsStatements = [
+            'i. that the samples for Human DNA shall only be used as authorized in the written authorization;',
+            'ii. that the sample for Human DNA is the property of the sample source or sample source\'s representative;',
+            'iii. Unless specifically prohibited by the sample source or sample source\'s representative, researchers may be granted access to sample for Human DNA that cannot be linked to individual identification;',
+            'iv. that the sample source or the sample source\'s representative has the right to order the destruction of the sample for Human DNA, genetic processed material at any time;',
+            'v. that the sample for Human DNA shall be destroyed on completion of the analysis unless the sample source or sample source\'s representative has previously directed otherwise in writing;',
+            'vi. that the sample source may designate another individual as the person authorized to make decisions regarding the sample for Human DNA after the death of the sample source; and if any person is so designated, the sample source shall notify the facility in which the sample source for Human DNA is stored;',
+            'vii. save for samples collected from criminal suspects the sample source\'s representative has the right to examine the records containing private genetic information, to obtain copies of such records;',
+            'viii. the sample source or sample source\'s representative or criminal investigation authority may request for necessary corrections or amendments, if any, of the personal particulars of the sample source;',
+            'ix. except for samples of Human DNA collected from dead bodies, criminal investigations and in compliance with court order, the sample source or sample source\'s representative have the right to refuse the collection of sample for Human DNA from him if the mode of collection is non intimacy or discovers that the consent is obtained through undue influence;',
+            'x. the right to have copy of written authorization; and',
+            'xi. Counseling services may be available.',
+        ];
+
+        foreach ($rightsStatements as $index => $statement) {
+            $rightsHolder->elements()->create([
+                'element_type' => 'static_text',
+                'label' => mb_substr($statement, 0, 200),
+                'name' => 'rights_statement_' . ($index + 1),
+                'default_value' => $statement,
+                'is_required' => false,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+// Section 3: Declarations
         $declarationSection = $form->sections()->create([
             'title' => 'Declarations',
             'section_type' => 'regular',

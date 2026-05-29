@@ -86,6 +86,8 @@ class Header extends Component
 
         // Load specific data needed for actions
         $this->loadActionData();
+
+        $this->verificationActiveTab = $this->batch->hasDnaLab() ? 'case_file_review' : 'assign_approvers';
     }
 
     public function loadActionData()
@@ -155,20 +157,22 @@ class Header extends Component
             // Initialize technical reviewer if exists
             $this->verificationData['technical_reviewer_id'] = $this->batch->approve_user_id ?? '';
 
-            // Initialize Case File Review Form
-            $existingCaseForm = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
-            if ($existingCaseForm) {
-                $this->caseFormData = $existingCaseForm->toArray();
-            } else {
-                $sampleDetail = \App\SampleDetails::where('sample_header_id', $this->batch->id)->first();
-                $this->caseFormData = [
-                    'lab_no' => $this->batch->batch_code,
-                    'file_no' => $sampleDetail ? $sampleDetail->file_no : '',
-                    'date_in' => $this->batch->receipt_date ? date('Y-m-d', strtotime($this->batch->receipt_date)) : date('Y-m-d'),
-                    'client' => $this->batch->customer ? $this->batch->customer->name : '',
-                    'name_of_analyst' => auth()->user() ? auth()->user()->name : '',
-                    'no_of_samples' => $this->batch->samples()->count(),
-                ];
+            // Initialize Case File Review Form if DNA lab
+            if ($this->batch->hasDnaLab()) {
+                $existingCaseForm = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
+                if ($existingCaseForm) {
+                    $this->caseFormData = $existingCaseForm->toArray();
+                } else {
+                    $sampleDetail = \App\SampleDetails::where('sample_header_id', $this->batch->id)->first();
+                    $this->caseFormData = [
+                        'lab_no' => $this->batch->batch_code,
+                        'file_no' => $sampleDetail ? $sampleDetail->file_no : '',
+                        'date_in' => $this->batch->receipt_date ? date('Y-m-d', strtotime($this->batch->receipt_date)) : date('Y-m-d'),
+                        'client' => $this->batch->customer ? $this->batch->customer->name : '',
+                        'name_of_analyst' => auth()->user() ? auth()->user()->name : '',
+                        'no_of_samples' => $this->batch->samples()->count(),
+                    ];
+                }
             }
         }
     }
@@ -421,8 +425,8 @@ class Header extends Component
             return;
         }
 
-        // Save Case File Review Form — only for Microbiology batches
-        if ($batch->isMicrobiologyOnly()) {
+        // Save Case File Review Form if DNA lab
+        if ($batch->hasDnaLab()) {
             $caseFormModel = \App\Models\CaseFileReviewForm::firstOrNew(['batch_id' => $batch->id]);
             $caseFormModel->fill($this->caseFormData);
             $caseFormModel->save();
@@ -592,11 +596,17 @@ class Header extends Component
 
         session()->flash('success', 'Batch move was successful');
         $this->showVerificationModal = false;
-        $this->verificationActiveTab = 'case_file_review';
+        $this->verificationActiveTab = $batch->hasDnaLab() ? 'case_file_review' : 'assign_approvers';
         $this->dispatch('batchUpdated');
 
         // Redirect back to the workflow column we initiated from (legacy style)
         return redirect()->route('sample-workflow', ['status' => $previousWorkflow]);
+    }
+
+    public function openVerificationModal()
+    {
+        $this->verificationActiveTab = $this->batch->hasDnaLab() ? 'case_file_review' : 'assign_approvers';
+        $this->showVerificationModal = true;
     }
 
     public function openApprovalModal()
@@ -805,8 +815,8 @@ class Header extends Component
 
     public function saveStandaloneCaseFile()
     {
-        if (!$this->batch->isMicrobiologyOnly()) {
-            session()->flash('error', 'Case File Review is only available for Microbiology batches.');
+        if (!$this->batch->hasDnaLab()) {
+            session()->flash('error', 'Case File Review Form is only available for DNA laboratories.');
             return;
         }
 

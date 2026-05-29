@@ -409,7 +409,7 @@ class Attachments extends Component
             return stripos(str_replace('_', ' ', strtolower($a->title)), 'case file') !== false;
         });
         
-        if (!$hasCaseFileAttachment && $this->batch->isMicrobiologyOnly()) {
+        if (!$hasCaseFileAttachment && $this->batch->hasDnaLab()) {
             $caseForm = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
             if ($caseForm) {
                 $reports->push((object)[
@@ -481,8 +481,8 @@ class Attachments extends Component
 
     public function openCaseFileModal()
     {
-        if (!$this->batch->isMicrobiologyOnly()) {
-            session()->flash('error', 'Case File Review is only available for Microbiology batches.');
+        if (!$this->batch->hasDnaLab()) {
+            session()->flash('error', 'Case File Review Form is only available for DNA laboratories.');
             return;
         }
 
@@ -541,8 +541,8 @@ class Attachments extends Component
 
     public function saveCaseFile()
     {
-        if (!$this->batch->isMicrobiologyOnly()) {
-            session()->flash('error', 'Case File Review is only available for Microbiology batches.');
+        if (!$this->batch->hasDnaLab()) {
+            session()->flash('error', 'Case File Review Form is only available for DNA laboratories.');
             return;
         }
 

@@ -205,7 +205,7 @@
                                         ->orderBy('created_at', 'desc')
                                         ->first();
                                 @endphp
-                                @if($dceaAttachment)
+                                @if($dceaAttachment && $batch->hasForensicChemistryLab())
                                     <li>
                                         <a target="_blank" href="{{ '/storage' . $dceaAttachment->attachment_url }}" class="dropdown-item">
                                             <i class="mdi mdi-download mr-2 text-primary"></i> Download DCEA 009
@@ -250,7 +250,7 @@
                                     </li>
                                 @endif
 
-                                @if(isset($batch->status) && in_array($batch->status, ["Samples In Lab", "Sample Verification", "Sample Approval"]) && Auth::user()->is_client == 0)
+                                @if(isset($batch->status) && in_array($batch->status, ["Samples In Lab", "Sample Verification", "Sample Approval"]) && Auth::user()->is_client == 0 && $batch->hasDnaLab())
                                     <li><span class="btn btn-sm dropdown-item" wire:click="$set('showCaseFileModal', true)"
                                             style="cursor: pointer;"><i class="mdi mdi-folder-account mr-2 text-primary"></i> Case
                                             File Review Form</span></li>
@@ -260,7 +260,7 @@
                                     <li><span class="btn btn-sm dropdown-item" wire:click="$set('showBulkUpdateModal', true)"
                                             style="cursor: pointer;"><i class="mdi mdi-database-edit mr-2"></i> Update Sample
                                             Data</span></li>
-                                    <li><span class="btn btn-sm dropdown-item" wire:click="$set('showVerificationModal', true)"
+                                    <li><span class="btn btn-sm dropdown-item" wire:click="openVerificationModal"
                                             style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for
                                             Verification</span></li>
                                     <li><span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal"><i
@@ -738,6 +738,7 @@
                             </button>
 
                             <ul class="nav nav-tabs mt-3 border-bottom-0">
+                                @if($batch->hasDnaLab())
                                 <li class="nav-item">
                                     <a class="nav-link border-0 @if($verificationActiveTab == 'case_file_review') active font-weight-bold text-primary @else text-muted @endif"
                                         wire:click="$set('verificationActiveTab', 'case_file_review')"
@@ -745,11 +746,16 @@
                                         Step 1: Case File Review
                                     </a>
                                 </li>
+                                @endif
                                 <li class="nav-item">
                                     <a class="nav-link border-0 @if($verificationActiveTab == 'assign_approvers') active font-weight-bold text-primary @else text-muted @endif"
                                         wire:click="$set('verificationActiveTab', 'assign_approvers')"
                                         style="cursor: pointer; @if($verificationActiveTab == 'assign_approvers') border-bottom: 2px solid #007bff !important; @endif">
-                                        Step 2: Assign Approvers
+                                        @if($batch->hasDnaLab())
+                                            Step 2: Assign Approvers
+                                        @else
+                                            Assign Approvers
+                                        @endif
                                     </a>
                                 </li>
                             </ul>
@@ -758,6 +764,7 @@
                     <div class="modal-body pt-4">
 
                         <div class="tab-content">
+                            @if($batch->hasDnaLab())
                             <div class="tab-pane fade @if($verificationActiveTab == 'case_file_review') show active @endif">
                                 <div class="case-file-review-form text-left">
                                     <div class="text-center mb-4">
@@ -1381,6 +1388,7 @@
                                         Approvers <i class="mdi mdi-arrow-right ml-1"></i></button>
                                 </div>
                             </div>
+                            @endif
 
                             <div class="tab-pane fade @if($verificationActiveTab == 'assign_approvers') show active @endif">
                                 <div class="alert alert-info py-2 px-3 small rounded"
@@ -1484,7 +1492,7 @@
                         </div>
                     </div>
                     <div class="modal-footer modal-footer-modern">
-                        @if($verificationActiveTab == 'assign_approvers')
+                        @if($verificationActiveTab == 'assign_approvers' && $batch->hasDnaLab())
                             <button type="button" class="btn btn-secondary-modern btn-sm mr-auto"
                                 wire:click="$set('verificationActiveTab', 'case_file_review')"><i
                                     class="mdi mdi-arrow-left"></i> Back</button>
@@ -1636,7 +1644,7 @@
     @endif
 
     <!-- Standalone Case File Review Form Modal -->
-    @if($showCaseFileModal)
+    @if($showCaseFileModal && $batch->hasDnaLab())
         <div class="modal fade show" tabindex="-1" role="dialog"
             style="display: block; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1050;">
             <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered" role="document" style="max-width: 1000px; width: 95vw;">

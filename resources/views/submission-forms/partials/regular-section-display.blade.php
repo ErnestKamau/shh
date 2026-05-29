@@ -10,7 +10,7 @@
                         @if($holder->holder_type === 'text')
                             <div class="text-content">
                                 <h6>{{ $holder->title ?? 'Text Content' }}</h6>
-                                <p class="text-muted">{{ $holder->description ?? '' }}</p>
+                                <p class="text-muted">{!! nl2br(e($holder->description ?? '')) !!}</p>
                             </div>
                         @else
                             @if($holder->elements->count() > 0)
@@ -45,6 +45,10 @@
                                                         <small class="text-muted d-block mt-1">
                                                             {{ basename($value->file_path) }}
                                                         </small>
+                                                    @elseif($element->element_type === 'signature' && $value->value && str_starts_with($value->value, 'data:image/'))
+                                                        <div class="signature-display-box mt-1" style="background: #fafafc; border: 1px solid #e9edf4; border-radius: 8px; padding: 10px; max-width: 320px; display: flex; align-items: center; justify-content:center;">
+                                                            <img src="{{ $value->value }}" alt="Signature" style="max-height: 80px; width: auto; object-contain: fit;" />
+                                                        </div>
                                                     @else
                                                         {{ $displayValue }}
                                                     @endif

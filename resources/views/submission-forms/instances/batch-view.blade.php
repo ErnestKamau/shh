@@ -352,7 +352,7 @@
               @if($sectionTitle === 'DECLARATION')
                 {{-- Declaration section: show only title and description --}}
                 @if($section->description)
-                  <p class="text-muted mb-3">{{ $section->description }}</p>
+                  <p class="text-muted mb-3">{!! nl2br(e($section->description)) !!}</p>
                 @endif
               @else
                 {{-- Other sections: show form fields but no description --}}

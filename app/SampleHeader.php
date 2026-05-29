@@ -14,64 +14,65 @@ use App\Casts\SafeEncrypted;
 
 class SampleHeader extends Model implements Auditable
 {
-    use HasUuids;
+	use HasUuids;
 
-    protected $keyType = 'string';
-    public $incrementing = false;
-    protected $casts = [
-        'crm_unit_name' => SafeEncrypted::class,
-        'reference_number' => SafeEncrypted::class,
-        'method_deviation_reason' => SafeEncrypted::class,
-        'document_number' => SafeEncrypted::class,
-        'description' => SafeEncrypted::class,
-        'importer_address' => SafeEncrypted::class,
-        'reason_for_submission' => SafeEncrypted::class,
-        'how_sample_was_obtained' => SafeEncrypted::class,
-        'sample_appearance_description' => SafeEncrypted::class,
-        'net_quantity_and_unit_of_quantity' => SafeEncrypted::class,
-        'use_of_goods' => SafeEncrypted::class,
-        'declared_amount' => SafeEncrypted::class,
-        'where_sample_was_obtained' => SafeEncrypted::class,
-        'radio_active_levels' => SafeEncrypted::class,
-        'ammendment_number' => SafeEncrypted::class,
-        'sampling_officer_name' => SafeEncrypted::class,
-        'receiving_officer_name' => SafeEncrypted::class,
-        'submit_by' => SafeEncrypted::class,
-        'batch_report_url' => SafeEncrypted::class,
-        'batch_instructions' => SafeEncrypted::class,
-        'condition_quality_sample' => SafeEncrypted::class,
-        'declaration_customer_signature' => SafeEncrypted::class,
-        'invoice_amount' => SafeEncrypted::class,
-        'cluster_amount' => SafeEncrypted::class,
-        'cluster_balance' => SafeEncrypted::class,
-        'cluster_amount_paid' => SafeEncrypted::class,
-        'case_id' => SafeEncrypted::class,
-        'batch_report_online_url' => SafeEncrypted::class,
-        'schedule_customer_email' => SafeEncrypted::class,
-        'receiving_officer' => 'string',
-        'sampling_officer' => 'string',
-        'specialist_analyst_id' => 'string',
-        'verify_user_id' => 'string',
-        'approve_user_id' => 'string',
-        'invoice_id' => 'string',
-        'quote_id' => 'string',
-        'crm_unit_id' => 'string',
-        'qc_scheme_id' => 'string',
-        'qc_type_id' => 'string',
-        'sampling_method_id' => 'string',
-        'crm_contact_id' => 'string'
-    ];
+	protected $keyType = 'string';
+	public $incrementing = false;
+	protected $casts = [
+		'crm_unit_name' => SafeEncrypted::class,
+		'reference_number' => SafeEncrypted::class,
+		'method_deviation_reason' => SafeEncrypted::class,
+		'document_number' => SafeEncrypted::class,
+		'description' => SafeEncrypted::class,
+		'importer_address' => SafeEncrypted::class,
+		'reason_for_submission' => SafeEncrypted::class,
+		'how_sample_was_obtained' => SafeEncrypted::class,
+		'sample_appearance_description' => SafeEncrypted::class,
+		'net_quantity_and_unit_of_quantity' => SafeEncrypted::class,
+		'use_of_goods' => SafeEncrypted::class,
+		'declared_amount' => SafeEncrypted::class,
+		'where_sample_was_obtained' => SafeEncrypted::class,
+		'radio_active_levels' => SafeEncrypted::class,
+		'ammendment_number' => SafeEncrypted::class,
+		'sampling_officer_name' => SafeEncrypted::class,
+		'receiving_officer_name' => SafeEncrypted::class,
+		'submit_by' => SafeEncrypted::class,
+		'batch_report_url' => SafeEncrypted::class,
+		'batch_instructions' => SafeEncrypted::class,
+		'condition_quality_sample' => SafeEncrypted::class,
+		'declaration_customer_signature' => SafeEncrypted::class,
+		'invoice_amount' => SafeEncrypted::class,
+		'cluster_amount' => SafeEncrypted::class,
+		'cluster_balance' => SafeEncrypted::class,
+		'cluster_amount_paid' => SafeEncrypted::class,
+		'case_id' => SafeEncrypted::class,
+		'batch_report_online_url' => SafeEncrypted::class,
+		'schedule_customer_email' => SafeEncrypted::class,
+		'receiving_officer' => 'string',
+		'sampling_officer' => 'string',
+		'specialist_analyst_id' => 'string',
+		'verify_user_id' => 'string',
+		'approve_user_id' => 'string',
+		'invoice_id' => 'string',
+		'quote_id' => 'string',
+		'crm_unit_id' => 'string',
+		'qc_scheme_id' => 'string',
+		'qc_type_id' => 'string',
+		'sampling_method_id' => 'string',
+		'crm_contact_id' => 'string'
+	];
 
 
 	use \OwenIt\Auditing\Auditable;
 	protected $guarded = ['id'];
 	// public $with = ['get_target_date', 'client', 'samples', 'specialist_analyst', 'custody', 'comments'];
-	protected $appends = ['unitname','repeatsampleidarr'];
+	protected $appends = ['unitname', 'repeatsampleidarr'];
 
-	protected function getRepeatSampleIdArrAttribute(){
-		return $this->repeat_sample_id != '' ? explode(',',$this->repeat_sample_id) : [];
+	protected function getRepeatSampleIdArrAttribute()
+	{
+		return $this->repeat_sample_id != '' ? explode(',', $this->repeat_sample_id) : [];
 	}
-	
+
 	public function samples()
 	{
 		return $this->hasMany('App\SampleDetails')->orderBy('id', 'asc');
@@ -117,23 +118,23 @@ class SampleHeader extends Model implements Auditable
 			$join->whereRaw('isc.parent_id::text = sample_details.id::text');
 			$join->where('isc.parent', '=', $parentType);
 		})->leftJoin('inventory_items as it', 'it.inventory_sub_category_id', '=', 'isc.id')
-		->leftJoin('sample_analysis_dates as sad',function($join){
-			$join->on('sad.sample_detail_id','=','sample_details.id');
-			$join->where('sad.sample_header_id',$this->id);
-		})
-		->leftJoin('labs as lb','lb.id','=','sample_details.lab_id')
+			->leftJoin('sample_analysis_dates as sad', function ($join) {
+				$join->on('sad.sample_detail_id', '=', 'sample_details.id');
+				$join->where('sad.sample_header_id', $this->id);
+			})
+			->leftJoin('labs as lb', 'lb.id', '=', 'sample_details.lab_id')
 			->selectRaw('analysis_type_id,sample_details.barcode,sample_details.third_standard_id as third_standard,sample_details.lab_sub_no,sample_details.ammendment_number,sample_details.main_standard,sample_details.secondary_standard,comments,company_product_id,gps,header_body,sample_details.id,main_body,notes_body,photo_url,sample_code,sample_condition_id,sample_details.sample_header_id,sample_point_id, isc.unit_type, it.inventory_store_slot_id as slot_id, it.inventory_store_id as store_id, SUM(it.stock_in) as stock_in, SUM(it.stock_out) as stock_out, isc.material_type_id,sample_details.lab_id,lb.name as lab_name,lb.code as lab_code,sample_details.disposal_date,sad.analysis_dates,sad.start_analysis_date')
-			->where('sample_details.sample_header_id', $this->id)->groupBy('isc.material_type_id', 'analysis_type_id','sample_details.lab_sub_no', 'sample_details.barcode', 'sample_details.third_standard_id', 'comments', 'company_product_id', 'gps', 'header_body', 'sample_details.id', 'main_body', 'notes_body', 'photo_url', 'sample_code', 'sample_condition_id', 'sample_details.sample_header_id', 'sample_point_id', 'unit_type', 'inventory_store_slot_id', 'inventory_store_id', 'sample_details.ammendment_number', 'sample_details.main_standard', 'sample_details.secondary_standard', 'sample_details.lab_id', 'lb.name', 'lb.code', 'sample_details.disposal_date', 'sad.analysis_dates', 'sad.start_analysis_date')->orderBy('sample_details.id', 'asc')->get();
+			->where('sample_details.sample_header_id', $this->id)->groupBy('isc.material_type_id', 'analysis_type_id', 'sample_details.lab_sub_no', 'sample_details.barcode', 'sample_details.third_standard_id', 'comments', 'company_product_id', 'gps', 'header_body', 'sample_details.id', 'main_body', 'notes_body', 'photo_url', 'sample_code', 'sample_condition_id', 'sample_details.sample_header_id', 'sample_point_id', 'unit_type', 'inventory_store_slot_id', 'inventory_store_id', 'sample_details.ammendment_number', 'sample_details.main_standard', 'sample_details.secondary_standard', 'sample_details.lab_id', 'lb.name', 'lb.code', 'sample_details.disposal_date', 'sad.analysis_dates', 'sad.start_analysis_date')->orderBy('sample_details.id', 'asc')->get();
 	}
 
 	public function report_header_details()
 	{
 		$response = array();
 
-		$sampleHeaderReport =  \App\ReportHeaderDetail::where('sample_header_id', $this->id)
+		$sampleHeaderReport = \App\ReportHeaderDetail::where('sample_header_id', $this->id)
 			->where('model', "App\SampleHeader")->first();
 
-		$sampleCRMCustomerHeaderReport =  \App\ReportHeaderDetail::where('model_id', $this->crm_customer_id)
+		$sampleCRMCustomerHeaderReport = \App\ReportHeaderDetail::where('model_id', $this->crm_customer_id)
 			->where('model', "App\CRMCustomer")->first();
 
 		return array(
@@ -217,7 +218,7 @@ class SampleHeader extends Model implements Auditable
 		}
 		foreach ($not_captured as $cap) {
 			if (!isset($results["items"])) {
-				$results["items"]= array();
+				$results["items"] = array();
 			}
 
 			if (!isset($results["items"][$cap->sample_detail_code])) {
@@ -281,65 +282,6 @@ class SampleHeader extends Model implements Auditable
 	}
 
 	/**
-	 * Returns a Collection of Lab model instances associated with this batch,
-	 * combining direct lab_id assignments on sample_details and lab_id from analysis types.
-	 */
-	public function getBatchLabs(): \Illuminate\Support\Collection
-	{
-		$labIds = [];
-
-		// 1. From sample_details.lab_id
-		$directLabIds = \App\SampleDetails::where('sample_header_id', $this->id)
-			->whereNotNull('lab_id')
-			->pluck('lab_id')
-			->toArray();
-		$labIds = array_merge($labIds, $directLabIds);
-
-		// 2. From analysis types assigned to the samples
-		$samples = \App\SampleDetails::where('sample_header_id', $this->id)->get();
-		foreach ($samples as $sample) {
-			$analysisIDs = array_filter(explode(',', (string) $sample->analysis_type_id));
-			if (!empty($analysisIDs)) {
-				$typeLabIds = \App\AnalysisType::whereIn('id', $analysisIDs)
-					->whereNotNull('lab_id')
-					->pluck('lab_id')
-					->toArray();
-				$labIds = array_merge($labIds, $typeLabIds);
-			}
-		}
-
-		$uniqueLabIds = array_unique(array_filter($labIds));
-		if (empty($uniqueLabIds)) {
-			return collect();
-		}
-
-		return \App\Lab::whereIn('id', $uniqueLabIds)->get();
-	}
-
-	/**
-	 * Returns true only if every laboratory associated with this batch is a Microbiology lab.
-	 * Returns false if there are no labs or if any lab is not Microbiology.
-	 */
-	public function isMicrobiologyOnly(): bool
-	{
-		$labs = $this->getBatchLabs();
-
-		if ($labs->isEmpty()) {
-			return false;
-		}
-
-		foreach ($labs as $lab) {
-			$isMicro = \Illuminate\Support\Str::contains(strtolower((string) $lab->name), 'microbiology')
-				|| strtoupper((string) $lab->code) === 'LAB-MIC';
-			if (!$isMicro) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
 	 * Returns true if this batch has at least one sample associated with a
 	 * Forensic Chemistry laboratory (code starts with LAB-FCH, or name
 	 * contains "Forensic Chemistry").
@@ -359,7 +301,29 @@ class SampleHeader extends Model implements Auditable
 		return false;
 	}
 
-	public function get_target_date(){
+	/**
+	 * Returns true if this batch has at least one sample associated with a
+	 * DNA laboratory (code starts with LAB-FDNA, or name/code contains "DNA").
+	 */
+	public function hasDnaLab(): bool
+	{
+		foreach ($this->labs() as $lab) {
+			$code = $lab[0] ?? '';
+			$name = $lab[1] ?? '';
+			if (
+				str_starts_with($code, 'LAB-FDNA') ||
+				stripos($name, 'DNA') !== false ||
+				stripos($code, 'DNA') !== false
+			) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+
+	public function get_target_date()
+	{
 		return $this->hasOne(SampleDate::class)->where('name', 'Target Date');
 	}
 
@@ -444,12 +408,12 @@ class SampleHeader extends Model implements Auditable
 		$submissionFormAttachmentTypeId = \App\Models\System\SystemConfiguration::where('key', 'attachment_type')
 			->where('value', 'Submission Form')
 			->value('id');
-			
-		if ($submissionFormAttachmentTypeId === null) {
-            $submissionFormAttachmentTypeId = \App\Models\System\SystemConfiguration::where('key', 'attachment_type')->value('id');
-        }
 
-		return $this->batch_attachments()->whereRaw('attachment_type::text = ?', [(string)$submissionFormAttachmentTypeId])->exists();
+		if ($submissionFormAttachmentTypeId === null) {
+			$submissionFormAttachmentTypeId = \App\Models\System\SystemConfiguration::where('key', 'attachment_type')->value('id');
+		}
+
+		return $this->batch_attachments()->whereRaw('attachment_type::text = ?', [(string) $submissionFormAttachmentTypeId])->exists();
 	}
 
 	public function tracking_stage()
@@ -472,7 +436,7 @@ class SampleHeader extends Model implements Auditable
 				$join->on('analysis_types.id', '=', 'captured_results.analysis_type_id');
 			})
 			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as an_analyte_accredited,analysis_types.is_pesticide as pesticide')
-			->orderBy('analysis_level','asc')
+			->orderBy('analysis_level', 'asc')
 			->orderBy('analyte_level', 'asc');
 	}
 	public function captured_results_without_pesticide()
@@ -485,9 +449,9 @@ class SampleHeader extends Model implements Auditable
 			->join('analysis_types', function ($join) {
 				$join->on('analysis_types.id', '=', 'captured_results.analysis_type_id');
 			})
-			->where('analysis_types.is_pesticide',0)
+			->where('analysis_types.is_pesticide', 0)
 			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as an_analyte_accredited,analysis_types.is_pesticide as pesticide')
-			->orderBy('analysis_level','asc')
+			->orderBy('analysis_level', 'asc')
 			->orderBy('analyte_level', 'asc');
 	}
 	public function captured_results_pesticide()
@@ -500,9 +464,9 @@ class SampleHeader extends Model implements Auditable
 			->join('analysis_types', function ($join) {
 				$join->on('analysis_types.id', '=', 'captured_results.analysis_type_id');
 			})
-			->where('analysis_types.is_pesticide',1)
+			->where('analysis_types.is_pesticide', 1)
 			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as an_analyte_accredited,analysis_types.is_pesticide as pesticide')
-			->orderBy('analysis_level','asc')
+			->orderBy('analysis_level', 'asc')
 			->orderBy('analyte_level', 'asc');
 	}
 
@@ -514,36 +478,41 @@ class SampleHeader extends Model implements Auditable
 			->selectRaw('results.sample_detail_code, results.analyte_code, results.result, results.reporting_symbol, results.unit_code, u.name as operator ')
 			->where('results.sample_header_id', $this->id)->whereNotNull('results.result')->get();
 	}
-	public function get_invoice_total(){
-		return InvoiceDetails::where('invoice_id',$this->invoice_id)->sum('total');
+	public function get_invoice_total()
+	{
+		return InvoiceDetails::where('invoice_id', $this->invoice_id)->sum('total');
 	}
-	public function getVerificationApprovalStatus(){
+	public function getVerificationApprovalStatus()
+	{
 		if (\Illuminate\Support\Facades\DB::getDriverName() === 'pgsql') {
-			return BatchLabSectionApprover::where('batch_id',$this->id)
-				->where('batch_status','Sample Verification')
-				->where(function($q) {
+			return BatchLabSectionApprover::where('batch_id', $this->id)
+				->where('batch_status', 'Sample Verification')
+				->where(function ($q) {
 					$q->where('status', false)->orWhereNull('status');
 				})
 				->count();
 		}
-		return BatchLabSectionApprover::where('batch_id',$this->id)->where('batch_status','Sample Verification')->whereIn('status',[2,0])->get()->count();
+		return BatchLabSectionApprover::where('batch_id', $this->id)->where('batch_status', 'Sample Verification')->whereIn('status', [2, 0])->get()->count();
 	}
-	public function getApprovalStageStatus(){
+	public function getApprovalStageStatus()
+	{
 		if (\Illuminate\Support\Facades\DB::getDriverName() === 'pgsql') {
-			return BatchLabSectionApprover::where('batch_id',$this->id)
-				->where('batch_status','Sample Approval')
-				->where(function($q) {
+			return BatchLabSectionApprover::where('batch_id', $this->id)
+				->where('batch_status', 'Sample Approval')
+				->where(function ($q) {
 					$q->where('status', false)->orWhereNull('status');
 				})
 				->count();
 		}
-		return BatchLabSectionApprover::where('batch_id',$this->id)->where('batch_status','Sample Approval')->whereIn('status',[2,0])->get()->count();
+		return BatchLabSectionApprover::where('batch_id', $this->id)->where('batch_status', 'Sample Approval')->whereIn('status', [2, 0])->get()->count();
 	}
-	public function getContactPersonDetail(){
+	public function getContactPersonDetail()
+	{
 		$contact = getCrmCustomerContactById($this->crm_contact_id);
-		return isset($contact->id) ? $contact->first_name.' '.$contact->middle_name.' '.$contact->last_name : '-';
+		return isset($contact->id) ? $contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name : '-';
 	}
-	public function getLabSectionsNames(){
+	public function getLabSectionsNames()
+	{
 		$tracking_stages_arr = array_filter(array_map('trim', explode(',', $this->lab_section_ids ?? '')));
 		if (empty($tracking_stages_arr)) {
 			return '';
@@ -552,26 +521,31 @@ class SampleHeader extends Model implements Auditable
 		if (empty($valid_stages)) {
 			return '';
 		}
-		return implode(',', SampleAnalysisStage::whereIn('id', $valid_stages)->pluck('name')->toArray()); 
+		return implode(',', SampleAnalysisStage::whereIn('id', $valid_stages)->pluck('name')->toArray());
 	}
-	public function getUnitNameAttribute(){
-		if($this->crm_unit_id > 0){
+	public function getUnitNameAttribute()
+	{
+		if ($this->crm_unit_id > 0) {
 			$unit = CRMCompanyUnit::find($this->crm_unit_id);
 			return $unit ? $unit->name : 'NOT SET';
 		}
 		return $this->crm_unit_name ?? 'NOT SET';
 	}
-	public function invoice(){
-		return $this->belongsTo(Invoice::class,'invoice_id');
+	public function invoice()
+	{
+		return $this->belongsTo(Invoice::class, 'invoice_id');
 	}
-	public function customer(){
-		return $this->belongsTo(CRMCustomer::class,'crm_customer_id');
+	public function customer()
+	{
+		return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
 	}
-	public function receivingofficer(){
-		return $this->belongsTo(User::class,'receiving_officer_name');
+	public function receivingofficer()
+	{
+		return $this->belongsTo(User::class, 'receiving_officer_name');
 	}
-	public function qctype(){
-		return $this->belongsTo(QcTypes::class,'qc_type_id');
+	public function qctype()
+	{
+		return $this->belongsTo(QcTypes::class, 'qc_type_id');
 	}
 
 	/**
@@ -583,5 +557,5 @@ class SampleHeader extends Model implements Auditable
 		// Check if any sample has code equal to batch_code (no suffix)
 		return $this->samples()->where('sample_code', $this->batch_code)->exists();
 	}
-	
+
 }

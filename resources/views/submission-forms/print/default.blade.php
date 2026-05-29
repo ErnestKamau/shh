@@ -183,7 +183,7 @@
             <div class="section-title">{{ $section->title }}</div>
             
             @if($section->description)
-                <p style="margin-bottom: 20px; color: #6c757d; font-style: italic;">{{ $section->description }}</p>
+                <p style="margin-bottom: 20px; color: #6c757d; font-style: italic;">{!! nl2br(e($section->description)) !!}</p>
             @endif
 
             @foreach($section->elementHolders as $holder)

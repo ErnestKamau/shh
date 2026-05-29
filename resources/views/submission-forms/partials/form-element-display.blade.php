@@ -21,18 +21,20 @@
 @endphp
 
 <div class="form-group">
-    <label for="{{ $fieldId }}" class="{{ $element->is_required ? 'required' : '' }}">
-        {{ $element->label }}
-        @if($element->is_required)
-            <span class="text-danger">*</span>
-        @endif
-        @if($element->isMapped())
-            <span class="badge badge-outline-info badge-sm ml-1" 
-                  title="Mapped to {{ ucfirst(str_replace('_', ' ', $element->mapping_table)) }}.{{ ucfirst(str_replace('_', ' ', $element->mapping_field)) }}">
-                <i class="mdi mdi-database"></i>
-            </span>
-        @endif
-    </label>
+    @if(!in_array($element->element_type, ['plain_text', 'static_text'], true))
+        <label for="{{ $fieldId }}" class="{{ $element->is_required ? 'required' : '' }}">
+            {{ $element->label }}
+            @if($element->is_required)
+                <span class="text-danger">*</span>
+            @endif
+            @if($element->isMapped())
+                <span class="badge badge-outline-info badge-sm ml-1" 
+                      title="Mapped to {{ ucfirst(str_replace('_', ' ', $element->mapping_table)) }}.{{ ucfirst(str_replace('_', ' ', $element->mapping_field)) }}">
+                    <i class="mdi mdi-database"></i>
+                </span>
+            @endif
+        </label>
+    @endif
 
     @if($element->element_type === 'text')
         <input type="text" 
@@ -220,6 +222,25 @@
             <div class="file-display">
                 <span class="text-muted">No {{ in_array($element->element_type, ['camera_photo', 'image_upload'], true) ? 'photo' : 'file' }} uploaded</span>
             </div>
+        @endif
+
+    @elseif(in_array($element->element_type, ['plain_text', 'static_text'], true))
+        @php
+            $plainTextValue = trim((string) ($fieldValue ?: $element->default_value ?: ''));
+        @endphp
+        @if($plainTextValue !== '')
+            <div class="plain-text-element" id="{{ $fieldId }}">
+                {!! nl2br(e($plainTextValue)) !!}
+            </div>
+        @endif
+
+    @elseif($element->element_type === 'signature')
+        @if($fieldValue && str_starts_with($fieldValue, 'data:image/'))
+            <div class="signature-display-box mt-1" style="background: #fafafc; border: 1px solid #e9edf4; border-radius: 8px; padding: 10px; max-width: 320px; display: flex; align-items: center; justify-content:center;">
+                <img src="{{ $fieldValue }}" alt="Signature" style="max-height: 80px; width: auto; object-contain: fit;" />
+            </div>
+        @else
+            <div class="field-display-value">{{ $displayValue }}</div>
         @endif
 
     @else

@@ -68,6 +68,9 @@ class RequestViewPage extends Component
     ): void {
         $this->submissionFormId = $submissionFormId;
         $this->instanceId = $instanceId;
+        $this->newAttachments = [
+            ['file' => null, 'type' => '', 'heading' => ''],
+        ];
 
         $this->submissionForm = SubmissionForm::query()->findOrFail($submissionFormId);
         $this->instance = SubmissionFormInstance::query()
