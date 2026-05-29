@@ -243,11 +243,11 @@
 				</div>
 			</div>
 
-			<div class="form-group col-md-12 text-center pt-2 border-top" style="border-color: #f1f5f9 !important;">
+			<div class="form-group col-md-12 text-center pt-3 border-top" style="border-color: #f1f5f9 !important;">
 				@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')
 				@else
-					<button type="submit" class="btn btn-primary btn-sm btn-action-sm" style="width:60%; height:auto; min-height:36px;" id="save-headers">
-						<i class="mdi mdi-content-save"></i> Save
+					<button type="submit" class="btn btn-primary" style="padding: 8px 28px; font-size: 14px; border-radius: 4px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;" id="save-headers">
+						<i class="mdi mdi-content-save" style="margin-right: 6px;"></i> Save
 					</button>
 				@endif
 			</div>

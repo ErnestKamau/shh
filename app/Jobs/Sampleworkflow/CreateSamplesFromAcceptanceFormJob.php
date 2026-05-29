@@ -81,6 +81,29 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $batchCode = (string) $headerAttributes['batch_code'];
                 $header = SampleHeader::query()->create($headerAttributes);
 
+                $candidateIds = collect([
+                    $form->sample_submission_request_id,
+                    $instance?->getAttribute('sample_submission_request_id'),
+                    $instance?->getAttribute('target_record_type') === \App\Models\SampleSubmissionRequest::class
+                        ? $instance?->getAttribute('target_record_id')
+                        : null,
+                    $instance?->getAttribute('portal_request_id'),
+                ])
+                    ->filter(fn ($id) => !empty($id))
+                    ->map(fn ($id) => (string) $id)
+                    ->unique()
+                    ->values();
+
+                foreach ($candidateIds as $requestId) {
+                    $submissionRequest = \App\Models\SampleSubmissionRequest::find($requestId);
+                    if ($submissionRequest) {
+                        $submissionRequest->update([
+                            'sample_header_id' => $header->id,
+                            'status' => 'received_at_lab',
+                        ]);
+                    }
+                }
+
                 $detailPlans = $configPayload !== []
                     ? $sampleConfigService->buildDetailPlansFromConfigs($configPayload)
                     : $this->buildDetailPlans($approvedLines, max(1, (int) $form->number_of_samples));
@@ -218,6 +241,23 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
             ? array_sum(array_column($detailPlans, 'count'))
             : count($detailPlans);
 
+        $portalRequest = null;
+        if ($header->submission_form_instance_id) {
+            $portalRequest = \App\Models\SampleSubmissionRequest::where('sample_header_id', $header->id)
+                ->orWhere('submission_form_instance_id', $header->submission_form_instance_id)
+                ->first();
+        }
+        if (!$portalRequest && isset($header->id)) {
+            $acceptanceForm = \App\Models\Sampleworkflow\AnalysisAcceptanceForm::where('sample_header_id', $header->id)->first();
+            if ($acceptanceForm && $acceptanceForm->sample_submission_request_id) {
+                $portalRequest = \App\Models\SampleSubmissionRequest::find($acceptanceForm->sample_submission_request_id);
+            }
+        }
+
+        $exhibits = $portalRequest
+            ? $portalRequest->exhibits()->orderBy('serial_number')->orderBy('id')->get()
+            : collect();
+
         $details = [];
         $detailIndex = 0;
 
@@ -255,6 +295,24 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 }
 
                 $detail = SampleDetails::query()->create($detailData);
+
+                // Link exhibit sequentially to this sample detail if available
+                if ($portalRequest && isset($exhibits[$detailIndex - 1])) {
+                    $exhibit = $exhibits[$detailIndex - 1];
+                    $exhibit->update(['sample_detail_id' => $detail->id]);
+
+                    $updates = [];
+                    if (empty($detail->comments) && !empty($exhibit->item_description)) {
+                        $updates['comments'] = $exhibit->item_description;
+                    }
+                    if (empty($detail->barcode) && !empty($exhibit->serial_number)) {
+                        $updates['barcode'] = $exhibit->serial_number;
+                        $updates['customer_sample_id'] = $exhibit->serial_number;
+                    }
+                    if ($updates !== []) {
+                        $detail->update($updates);
+                    }
+                }
 
                 $analysisTypeIds = $plan['analysis_type_ids'] ?? [];
                 $analysisSetupService->syncAnalysisRelations($header, $detail, $analysisTypeIds);

@@ -261,6 +261,13 @@ class SubmissionFormInstanceController extends Controller
             $instanceModel->update(['title' => $request->input('title')]);
         }
 
+        Log::debug('Portal submit incoming', [
+            'all_keys'   => array_keys($request->all()),
+            'file_keys'  => array_keys($request->allFiles()),
+            'files_flat' => collect($request->allFiles())->map(fn($f) => is_array($f) ? array_map(fn($i) => $i->getClientOriginalName(), $f) : $f->getClientOriginalName())->toArray(),
+            'fields_raw' => $request->input('fields'),
+        ]);
+
         $this->submissionService->mergeSubmissionFieldsIntoRequest($request);
 
         $elements = $this->submissionService->elementsForForm($submissionForm);

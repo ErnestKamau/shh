@@ -331,6 +331,20 @@ class SampleHeader extends Model implements Auditable
 
 	public function get_date($type)
 	{
+		// For Login Date, automatically return the submission form instance creation date if it exists
+		if ($type === 'Login Date' && $this->submission_form_instance_id) {
+			$submissionFormInstance = $this->submissionFormInstance();
+			if ($submissionFormInstance) {
+				$submissionDate = $submissionFormInstance->created_at ? date('Y-m-d', strtotime($submissionFormInstance->created_at)) : null;
+				if ($submissionDate) {
+					// Create a temporary SampleDate object to return for consistency
+					$tempDate = new SampleDate();
+					$tempDate->date = $submissionDate;
+					return $tempDate;
+				}
+			}
+		}
+		
 		return SampleDate::where('sample_header_id', $this->id)->where('name', $type)->first();
 	}
 

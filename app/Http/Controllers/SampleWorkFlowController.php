@@ -848,7 +848,11 @@ class SampleWorkFlowController extends Controller
         if ($request->has('is_client_order')) {
             $route_obj['client'] = $request->crm_customer_id;
         } else {
-            $header->set_date('Login Date', $header->created_at, true);
+            // Set Login Date: use submission form instance creation date if available, otherwise use batch creation date
+            $loginDate = $header->submissionFormInstance 
+                ? $header->submissionFormInstance->created_at 
+                : $header->created_at;
+            $header->set_date('Login Date', $loginDate, true);
         }
 
         return redirect()->route('view-batch-details', $route_obj)->within('success', 'Batch Info added.');
