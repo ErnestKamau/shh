@@ -2,13 +2,30 @@
 
 namespace App\Services\LogEntryWorksheets;
 
+use App\AnalysisMethod;
+use App\CapturedResult;
 use App\Models\LogEntryWorksheets\SampleLogEntryWorksheetRow;
+use App\SampleDetails;
+use App\SampleHeader;
+use App\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class LogEntryDatasetResolverService
 {
+    /**
+     * @var array<string, class-string<Model>>
+     */
+    protected array $tableModelMap = [
+        'sample_details' => SampleDetails::class,
+        'sample_headers' => SampleHeader::class,
+        'captured_results' => CapturedResult::class,
+        'analysis_methods' => AnalysisMethod::class,
+        'users' => User::class,
+    ];
+
     /**
      * Resolve display value for a dataset column from row context.
      *
@@ -30,7 +47,7 @@ class LogEntryDatasetResolverService
             return null;
         }
 
-        $sourceRow = DB::table($sourceTable)->where('id', $sourcePk)->first();
+        $sourceRow = $this->fetchRow($sourceTable, $sourcePk);
         if (! $sourceRow) {
             return null;
         }
@@ -47,14 +64,16 @@ class LogEntryDatasetResolverService
                 return null;
             }
 
-            $fkValue = $sourceRow->{$fkColumn} ?? null;
+            $fkValue = $this->readColumnValue($sourceRow, $fkColumn);
             if ($fkValue === null || $fkValue === '') {
                 return null;
             }
 
-            return DB::table($referencedTable)
-                ->where($referencedKeyColumn, $fkValue)
-                ->value($displayColumn);
+            $referencedRow = $this->fetchRowByColumn($referencedTable, $referencedKeyColumn, (string) $fkValue);
+
+            return $referencedRow
+                ? $this->readColumnValueAsString($referencedRow, $displayColumn)
+                : null;
         }
 
         $sourceColumn = $config['source_display_column'] ?? null;
@@ -62,9 +81,7 @@ class LogEntryDatasetResolverService
             return null;
         }
 
-        $value = $sourceRow->{$sourceColumn} ?? null;
-
-        return $value !== null ? (string) $value : null;
+        return $this->readColumnValueAsString($sourceRow, $sourceColumn);
     }
 
     /**
@@ -94,6 +111,19 @@ class LogEntryDatasetResolverService
 
         if (! $table || ! $labelColumn || ! Schema::hasTable($table)) {
             return collect();
+        }
+
+        $modelClass = $this->modelClassForTable($table);
+
+        if ($modelClass) {
+            return $modelClass::query()
+                ->orderBy($labelColumn)
+                ->limit(500)
+                ->get()
+                ->map(fn (Model $row) => (object) [
+                    'id' => (string) $row->getAttribute($idColumn),
+                    'label' => $this->readColumnValueAsString($row, $labelColumn) ?? '',
+                ]);
         }
 
         return DB::table($table)
@@ -126,12 +156,56 @@ class LogEntryDatasetResolverService
     protected function driverMatchesSourceTable(SampleLogEntryWorksheetRow $row, string $sourceTable): bool
     {
         $map = [
-            \App\SampleHeader::class => 'sample_headers',
-            \App\SampleDetails::class => 'sample_details',
-            \App\CapturedResult::class => 'captured_results',
-            \App\AnalysisMethod::class => 'analysis_methods',
+            SampleHeader::class => 'sample_headers',
+            SampleDetails::class => 'sample_details',
+            CapturedResult::class => 'captured_results',
+            AnalysisMethod::class => 'analysis_methods',
         ];
 
         return ($map[$row->driver_type] ?? '') === $sourceTable;
+    }
+
+    /**
+     * @return class-string<Model>|null
+     */
+    protected function modelClassForTable(string $table): ?string
+    {
+        return $this->tableModelMap[$table] ?? null;
+    }
+
+    protected function fetchRow(string $table, string $id): ?object
+    {
+        $modelClass = $this->modelClassForTable($table);
+        if ($modelClass) {
+            return $modelClass::find($id);
+        }
+
+        return DB::table($table)->where('id', $id)->first();
+    }
+
+    protected function fetchRowByColumn(string $table, string $keyColumn, string $keyValue): ?object
+    {
+        $modelClass = $this->modelClassForTable($table);
+        if ($modelClass) {
+            return $modelClass::query()->where($keyColumn, $keyValue)->first();
+        }
+
+        return DB::table($table)->where($keyColumn, $keyValue)->first();
+    }
+
+    protected function readColumnValue(object $row, string $column): mixed
+    {
+        if ($row instanceof Model) {
+            return $row->getAttribute($column);
+        }
+
+        return $row->{$column} ?? null;
+    }
+
+    protected function readColumnValueAsString(object $row, string $column): ?string
+    {
+        $value = $this->readColumnValue($row, $column);
+
+        return $value !== null && $value !== '' ? (string) $value : null;
     }
 }

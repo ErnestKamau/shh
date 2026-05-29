@@ -25,7 +25,7 @@
 		</div>
 		<div class="workflow-board-panel-body">
 			@if($items->isEmpty())
-				<p class="text-muted text-center py-4 mb-0">No stages yet. Add procedure, formula, method sequence, or hybrid worksheets in order.</p>
+				<p class="text-muted text-center py-4 mb-0">No stages yet. Add procedure, formula, method sequence, hybrid, or log entry worksheets in order.</p>
 			@else
 				<div class="row g-4">
 					<div class="col-lg-4">
@@ -39,6 +39,7 @@
 										'procedure' => 'mdi-clipboard-text-outline',
 										'stage_header' => 'mdi-chart-timeline-variant',
 										'hybrid_worksheet' => 'mdi-view-dashboard-outline',
+										'log_entry_worksheet' => 'mdi-notebook-outline',
 										default => 'mdi-file-document-outline',
 									};
 								@endphp

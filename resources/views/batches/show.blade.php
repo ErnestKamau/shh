@@ -296,12 +296,11 @@
           'clients' => $clients,
           'sample_types' => $sample_types,
           'labsections' => $labsections,
+          'labs' => $labs,
           'samplingmethods' => $samplingmethods,
           'recieving_users' => $recieving_users,
           'qc_schemes' => $qc_schemes,
           'qc_types' => $qc_types,
-          'batch_scope' => $batch_scope,
-          'customer_survey' => $customer_survey,
           'active_company' => $active_company,
           'defaultClient' => $defaultClient,
           'clientPageSize' => $clientPageSize
@@ -706,12 +705,20 @@
 						$('#customer_email').val(data['customer'].email);
 					}
 
+					if (data['mode_of_payment']) {
+						$('#mode-of-payment').val(data['mode_of_payment']);
+					} else {
+						$('#mode-of-payment').val('');
+					}
+
 					$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
 				},
 				error:(data)=>{
 					console.log(data);
 				}
 			})
+		} else {
+			$('#mode-of-payment').val('');
 		}
 	};
 	

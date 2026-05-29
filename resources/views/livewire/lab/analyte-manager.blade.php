@@ -49,7 +49,9 @@
                         <div class="col-md-3">
                             <div class="form-group mb-0">
                                 <label class="form-label fw-bold">Status</label>
-                                <div class="tag-select-container" wire:click="$set('showStatusDropdown', true)">
+                                <div class="tag-select-container"
+                                     wire:click="$set('showStatusDropdown', true)"
+                                     wire:click.outside="$set('showStatusDropdown', false)">
                                     <div class="tag-select-input" style="min-height: 38px; padding: 4px 12px;">
                                         @if($statusFilter !== '')
                                             <span class="tag-badge {{ $statusFilter == '1' ? 'tag-badge--success' : 'tag-badge--neutral' }}">
@@ -136,7 +138,7 @@
                                 </thead>
                                 <tbody>
                                     @foreach($analytes as $analyte)
-                                        <tr>
+                                        <tr wire:key="analyte-row-{{ $analyte->id }}">
                                             <td>
                                                 <div class="d-flex gap-1">
                                                     <button wire:click="showEditModal(@js($analyte->id))"
@@ -175,6 +177,7 @@
                                             <td class="text-center">
                                                 {!! $analyte->active ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
                                             </td>
+                                        </tr>
                                     @endforeach
                                 </tbody>
                             </table>
@@ -199,17 +202,12 @@
         </div>
     </div>
 
-    @if($showModal || $deleteModalVisible)
-    <style>
-        body {
-            overflow: hidden !important;
-        }
-    </style>
-    @endif
-
     <!-- Analyte Create/Edit Modal -->
     @if($showModal)
-    <div class="modal fade show d-block analyte-modal-overlay" tabindex="-1" style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(3px);">
+    <div wire:key="analyte-form-modal"
+         class="modal fade show d-block analyte-modal-overlay"
+         tabindex="-1"
+         style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(3px);">
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
 
@@ -219,18 +217,18 @@
                     <div class="d-flex align-items-center analyte-modal-title-wrap">
                         <div style="width:44px;height:44px;background:#f4f6f9;border-radius:12px;
                                     display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <i class="mdi mdi-{{ $editingAnalyte ? 'pencil-outline' : 'plus' }} fs-4"></i>
+                            <i class="mdi mdi-{{ $editingAnalyteId ? 'pencil-outline' : 'plus' }} fs-4"></i>
                         </div>
                         <div>
                             <h5 class="modal-title mb-0 fw-bold">
-                                {{ $editingAnalyte ? 'Edit Analyte' : 'Add New Analyte' }}
+                                {{ $editingAnalyteId ? 'Edit Analyte' : 'Add New Analyte' }}
                             </h5>
                             <small class="text-muted">
-                                {{ $editingAnalyte ? 'Update analyte information and assignments' : 'Fill in the details to create a new analyte' }}
+                                {{ $editingAnalyteId ? 'Update analyte information and assignments' : 'Fill in the details to create a new analyte' }}
                             </small>
                         </div>
                     </div>
-                    <button type="button" class="btn-close ms-auto" wire:click="closeModal"></button>
+                    <button type="button" class="btn-close ms-auto" wire:click.stop="closeModal"></button>
                 </div>
 
                 <div class="modal-body p-0">
@@ -283,7 +281,9 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold small">Reporting Unit</label>
-                                <div class="tag-select-container" wire:click="$set('showReportingUnitDropdown', true)">
+                                <div class="tag-select-container"
+                                     wire:click="$set('showReportingUnitDropdown', true)"
+                                     wire:click.outside="$set('showReportingUnitDropdown', false)">
                                     <div class="tag-select-input">
                                         @if($analyteForm['reporting_unit'])
                                             <span class="tag-badge tag-badge--neutral">
@@ -326,7 +326,9 @@
                                 <label class="form-label fw-semibold small">
                                     <i class="mdi mdi-test-tube text-success me-1"></i>Analysis Methods
                                 </label>
-                                <div class="tag-select-container" wire:click="$set('showMethodDropdown', true)">
+                                <div class="tag-select-container"
+                                     wire:click="$set('showMethodDropdown', true)"
+                                     wire:click.outside="$set('showMethodDropdown', false)">
                                     <div class="tag-select-input">
                                         @foreach($this->selectedMethods as $method)
                                             <span class="tag-badge tag-badge--success">
@@ -366,7 +368,9 @@
                                 <label class="form-label fw-semibold small">
                                     <i class="mdi mdi-cog text-warning me-1"></i>Equipment
                                 </label>
-                                <div class="tag-select-container" wire:click="$set('showEquipmentDropdown', true)">
+                                <div class="tag-select-container"
+                                     wire:click="$set('showEquipmentDropdown', true)"
+                                     wire:click.outside="$set('showEquipmentDropdown', false)">
                                     <div class="tag-select-input">
                                         @foreach($this->selectedEquipment as $equip)
                                             <span class="tag-badge tag-badge--warning">
@@ -435,7 +439,7 @@
                                     </div>
                                     <div class="form-check form-switch mb-0 ms-3">
                                         <input type="checkbox"
-                                               wire:model.defer="analyteForm.{{ $opt['key'] }}"
+                                               wire:model="analyteForm.{{ $opt['key'] }}"
                                                class="form-check-input"
                                                role="switch"
                                                style="width:2.5rem;height:1.25rem;cursor:pointer;">
@@ -449,21 +453,28 @@
                 </div>{{-- end modal-body --}}
 
                 {{-- ===== Footer ===== --}}
-                <div class="modal-footer border-0 px-4 py-3" style="background:#f8f9fa;">
-                    <button type="button" class="btn btn-light px-4" wire:click="closeModal">
+                <div class="modal-footer border-0 px-4 py-3 flex-column align-items-stretch gap-2" style="background:#f8f9fa;">
+                    @if($message && $messageType === 'danger')
+                        <div class="alert alert-danger mb-0 py-2 px-3 small" role="alert">
+                            <i class="mdi mdi-alert-circle-outline me-1"></i>{{ $message }}
+                        </div>
+                    @endif
+                    <div class="d-flex justify-content-end gap-2 w-100">
+                    <button type="button" class="btn btn-light px-4" wire:click.stop="closeModal">
                         <i class="mdi mdi-close me-1"></i> Cancel
                     </button>
                         <button type="button" class="btn btn-primary px-4 fw-semibold"
-                            wire:click="saveAnalyte"
+                            wire:click.stop="saveAnalyte"
                             wire:loading.attr="disabled">
                         <span wire:loading.remove wire:target="saveAnalyte">
                             <i class="mdi mdi-content-save me-1"></i>
-                            {{ $editingAnalyte ? 'Update Analyte' : 'Save Analyte' }}
+                            {{ $editingAnalyteId ? 'Update Analyte' : 'Save Analyte' }}
                         </span>
                         <span wire:loading wire:target="saveAnalyte">
                             <span class="spinner-border spinner-border-sm me-1" role="status"></span> Saving...
                         </span>
                     </button>
+                    </div>
                 </div>
 
             </div>
@@ -472,8 +483,8 @@
     @endif
 
     <!-- Delete Confirmation Modal -->
-    @if($deleteModalVisible && $analyteToDelete)
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    @if($deleteModalVisible && $this->analyteToDelete)
+    <div wire:key="analyte-delete-modal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-light">
@@ -486,7 +497,7 @@
                     <div class="text-center mb-3">
                         <i class="mdi mdi-delete-alert text-danger" style="font-size: 64px;"></i>
                     </div>
-                    <h5 class="text-center mb-3">Delete Analyte: <strong>{{ $analyteToDelete->name }}</strong>?</h5>
+                    <h5 class="text-center mb-3">Delete Analyte: <strong>{{ $this->analyteToDelete->name }}</strong>?</h5>
                     <div class="alert alert-warning">
                         <i class="mdi mdi-information"></i> <strong>Note:</strong>
                         <ul class="mb-0 mt-2">
@@ -671,18 +682,4 @@
         overflow: visible;
     }
     </style>
-    
-    @script
-    <script>
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.tag-select-container')) {
-            $wire.set('showMethodDropdown', false);
-            $wire.set('showEquipmentDropdown', false);
-            $wire.set('showReportingUnitDropdown', false);
-            $wire.set('showStatusDropdown', false);
-        }
-    });
-    </script>
-    @endscript
 </div>

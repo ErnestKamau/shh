@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Auth;
 
 class GroupedWorksheetRunService
 {
+    public function __construct(
+        protected GroupedWorksheetPipelineStages $pipelineStages,
+    ) {}
+
     public function findOrCreateRun(SampleHeader $batch, GroupedWorksheetHolder $holder, ?User $user = null): GroupedWorksheetRun
     {
         $existing = GroupedWorksheetRun::query()
@@ -51,10 +55,11 @@ class GroupedWorksheetRunService
     public function completeCurrentStage(GroupedWorksheetRun $run, ?User $user = null, bool $force = false): GroupedWorksheetRun
     {
         $run->load(['holder.items', 'runItems']);
-        $items = $run->holder->items->values();
-        $current = $items->get($run->current_item_index);
+        $holder = $run->holder;
+        $allStages = $this->pipelineStages->allStages($holder);
+        $current = $allStages->get($run->current_item_index);
 
-        if ($current) {
+        if ($current && ! $this->pipelineStages->isVirtualResultsCapture($current)) {
             $runItem = $run->runItems->firstWhere('grouped_worksheet_item_id', $current->id);
             if ($runItem) {
                 $runItem->update([
@@ -67,15 +72,15 @@ class GroupedWorksheetRunService
 
         $nextIndex = $run->current_item_index + 1;
 
-        if ($nextIndex >= $items->count()) {
+        if ($nextIndex >= $allStages->count()) {
             $run->update([
                 'status' => GroupedWorksheetRunStatus::Completed,
                 'completed_at' => now(),
             ]);
         } else {
             $run->update(['current_item_index' => $nextIndex]);
-            $nextItem = $items->get($nextIndex);
-            if ($nextItem) {
+            $nextItem = $allStages->get($nextIndex);
+            if ($nextItem && ! $this->pipelineStages->isVirtualResultsCapture($nextItem)) {
                 $nextRunItem = $run->runItems->firstWhere('grouped_worksheet_item_id', $nextItem->id);
                 if ($nextRunItem && $nextRunItem->status === GroupedWorksheetRunItemStatus::Pending) {
                     $nextRunItem->update(['status' => GroupedWorksheetRunItemStatus::InProgress]);
@@ -89,8 +94,12 @@ class GroupedWorksheetRunService
     public function skipCurrentStage(GroupedWorksheetRun $run, ?User $user = null): GroupedWorksheetRun
     {
         $run->load(['holder.items', 'runItems']);
-        $items = $run->holder->items->values();
-        $current = $items->get($run->current_item_index);
+        $allStages = $this->pipelineStages->allStages($run->holder);
+        $current = $allStages->get($run->current_item_index);
+
+        if ($this->pipelineStages->isVirtualResultsCapture($current)) {
+            return $run;
+        }
 
         if ($current && ! $current->is_required) {
             $runItem = $run->runItems->firstWhere('grouped_worksheet_item_id', $current->id);
@@ -109,7 +118,7 @@ class GroupedWorksheetRunService
     public function goToStage(GroupedWorksheetRun $run, int $index): GroupedWorksheetRun
     {
         $run->load('holder.items');
-        $max = $run->holder->items->count() - 1;
+        $max = $this->pipelineStages->totalStageCount($run->holder) - 1;
         $index = max(0, min($index, $max));
         $run->update(['current_item_index' => $index]);
 

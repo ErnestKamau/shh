@@ -934,6 +934,12 @@
 												class="mdi mdi-printer mr-2"></i>Print Labels</span>
 									</li>
 									<li>
+										<span class="btn btn-sm dropdown-item"
+											wire:click.prevent="openDecontaminationModal">
+											<i class="mdi mdi-biohazard mr-2"></i> Decontamination samples
+										</span>
+									</li>
+									<li>
 										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
 											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
 									</li>
@@ -2430,6 +2436,113 @@
 		</div>
 	@endif
 	@push('script2')
+		@if($showDecontaminationModal)
+			<div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(15, 23, 42, 0.45);">
+				<div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+					<div class="modal-content">
+						<div class="modal-header bg-light">
+							<h5 class="modal-title">
+								<i class="mdi mdi-biohazard mr-2 text-danger"></i>
+								Decontamination Samples
+							</h5>
+							<button type="button" class="close" wire:click="closeDecontaminationModal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							<div class="alert alert-info">
+								<strong>What are decontamination samples?</strong>
+								<div class="small mt-1">
+									These are swab checks collected from decontamination areas/rooms to verify cleaning effectiveness before routine analysis.
+								</div>
+							</div>
+
+							<div class="row">
+								<div class="col-md-4">
+									<label class="font-weight-bold">Date <span class="text-danger">*</span></label>
+									<input type="date" class="form-control" wire:model.defer="decontaminationDate">
+									@error('decontaminationDate') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+								</div>
+								<div class="col-md-4">
+									<label class="font-weight-bold">Field (Officer) <span class="text-danger">*</span></label>
+									<input type="text" class="form-control" wire:model.defer="decontaminationOfficer" placeholder="Officer name">
+									@error('decontaminationOfficer') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+								</div>
+								<div class="col-md-4">
+									<label class="font-weight-bold">Lab <span class="text-danger">*</span></label>
+									<select class="form-control" wire:model.live="decontaminationLabId">
+										<option value="">Select lab...</option>
+										@foreach($this->decontaminationLabs as $lab)
+											<option value="{{ $lab->id }}">{{ $lab->code }} - {{ $lab->name }}</option>
+										@endforeach
+									</select>
+									@error('decontaminationLabId') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+								</div>
+							</div>
+
+							<div class="alert alert-light border mt-3 mb-3">
+								<i class="mdi mdi-information-outline text-primary mr-1"></i>
+								<strong>Analysis note:</strong> Test kits, type of instrument, and run IDs will be populated during analysis.
+							</div>
+
+							<div class="table-responsive">
+								<table class="table table-bordered table-sm align-middle">
+									<thead class="thead-light">
+										<tr>
+											<th style="width: 70%;">Item (Name of area)</th>
+											<th style="width: 30%;">Swabbing</th>
+										</tr>
+									</thead>
+									<tbody>
+										@if($decontaminationLabId === '')
+											<tr>
+												<td colspan="2" class="text-muted text-center py-3">Select a lab to load decontamination areas.</td>
+											</tr>
+										@else
+											@forelse($this->selectedLabDecontaminationAreasGrouped as $sectionLabel => $areas)
+												<tr class="table-light">
+													<td colspan="2" class="font-weight-bold text-primary">
+														<i class="mdi mdi-layers-triple mr-1"></i>{{ $sectionLabel }}
+													</td>
+												</tr>
+												@foreach($areas as $area)
+													<tr wire:key="decon-swab-{{ $area->id }}">
+														<td>{{ $area->name }}</td>
+														<td>
+															<div class="d-flex align-items-center gap-3">
+																<label class="mb-0 mr-3">
+																	<input type="radio" wire:model.live="decontaminationSwabbing.{{ $area->id }}" value="yes"> Yes
+																</label>
+																<label class="mb-0">
+																	<input type="radio" wire:model.live="decontaminationSwabbing.{{ $area->id }}" value="no"> No
+																</label>
+															</div>
+															@error('decontaminationSwabbing.' . $area->id)
+																<div class="text-danger small mt-1">{{ $message }}</div>
+															@enderror
+														</td>
+													</tr>
+												@endforeach
+											@empty
+												<tr>
+													<td colspan="2" class="text-muted text-center py-3">No decontamination areas configured for the selected lab.</td>
+												</tr>
+											@endforelse
+										@endif
+									</tbody>
+								</table>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" wire:click="closeDecontaminationModal">Cancel</button>
+							<button type="button" class="btn btn-primary" wire:click="saveDecontaminationLog">
+								<i class="mdi mdi-content-save mr-1"></i> Save Decontamination Log
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		@endif
 		<div class="modal fade" id="get-batch-tat" role="dialog">
 			<div class="modal-dialog">
 				<div class="modal-content">

@@ -100,6 +100,7 @@
                                         <th style="width: 60px;">#</th>
                                         <th>Name</th>
                                         <th>Description</th>
+                                        <th>Control No</th>
                                         <th>Status</th>
                                         <th>Versions</th>
                                         <th>Created</th>
@@ -108,6 +109,9 @@
                                 </thead>
                                 <tbody>
                                     @foreach($formulas as $formula)
+                                        @php
+                                            $activeVersion = $formula->formulaVersions->first();
+                                        @endphp
                                         <tr>
                                             <td>{{ $loop->iteration }}</td>
                                             <td>
@@ -115,6 +119,13 @@
                                             </td>
                                             <td>
                                                 <span class="text-muted">{{ Str::limit($formula->description, 50) }}</span>
+                                            </td>
+                                            <td>
+                                                @if($activeVersion?->document_control_no)
+                                                    <code class="text-dark">{{ $activeVersion->document_control_no }}</code>
+                                                @else
+                                                    <span class="text-muted">—</span>
+                                                @endif
                                             </td>
                                             <td>
                                                 <span class="badge badge-{{ $formula->is_active ? 'success' : 'secondary' }}">
@@ -141,6 +152,11 @@
                                                             <i class="mdi mdi-cogs"></i>
                                                         </a>
                                                     @endif
+                                                    <button wire:click="showCloneFormulaModal(@js($formula->id))"
+                                                            class="btn btn-sm btn-outline-secondary mr-2"
+                                                            title="Clone formula">
+                                                        <i class="mdi mdi-content-copy"></i>
+                                                    </button>
                                                     <button wire:click="showVersionModal(@js($formula->id))" 
                                                             class="btn btn-sm btn-outline-info mr-2" title="New Version">
                                                         <i class="mdi mdi-plus-circle"></i>
@@ -304,6 +320,63 @@
         </div>
     @endif
     
+    <!-- Clone Formula Modal -->
+    @if($showCloneModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-content-copy"></i>
+                            Clone Formula
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="$set('showCloneModal', false)"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if($errors->any())
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <h6 class="alert-heading">
+                                    <i class="mdi mdi-alert-circle"></i> Please fix the following errors:
+                                </h6>
+                                <ul class="mb-0">
+                                    @foreach($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <p class="text-muted small mb-3">
+                            Creates a new formula with a copy of the active version configuration:
+                            steps, custom tables, mandatory fields, placement, and document control.
+                        </p>
+
+                        <form wire:submit.prevent="cloneFormula">
+                            <div class="mb-3">
+                                <label for="cloneFormulaName" class="form-label">New formula name <span class="text-danger">*</span></label>
+                                <input type="text"
+                                       wire:model="cloneFormulaName"
+                                       class="form-control @error('cloneFormulaName') is-invalid @enderror"
+                                       id="cloneFormulaName"
+                                       required>
+                                @error('cloneFormulaName') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showCloneModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="cloneFormula" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="cloneFormula">
+                                <i class="mdi mdi-content-copy"></i> Clone Formula
+                            </span>
+                            <span wire:loading wire:target="cloneFormula">Cloning…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- New Version Modal -->
     @if($showVersionModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">

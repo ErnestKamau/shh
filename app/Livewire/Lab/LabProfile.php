@@ -124,7 +124,9 @@ class LabProfile extends Component
                 'string',
                 'max:255',
                 Rule::unique('lab_decontamination_areas', 'name')
-                    ->where(fn ($query) => $query->where('lab_id', $this->labId))
+                    ->where(fn ($query) => $query
+                        ->where('lab_id', $this->labId)
+                        ->where('lab_section_id', $this->decontaminationForm['lab_section_id'] ?? null))
                     ->ignore($this->editingDecontaminationAreaId),
             ],
             'decontaminationForm.lab_section_id' => [

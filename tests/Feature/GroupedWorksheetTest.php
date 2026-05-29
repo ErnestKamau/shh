@@ -14,6 +14,8 @@ use App\Models\HybridWorksheets\HybridWorksheetVersion;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\SampleHeader;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
+use App\Services\GroupedWorksheets\GroupedWorksheetPipelineStages;
+use App\Services\GroupedWorksheets\GroupedResultsCaptureService;
 use App\Services\GroupedWorksheets\GroupedWorksheetRunService;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -127,7 +129,123 @@ class GroupedWorksheetTest extends TestCase
         $this->assertCount(1, $run->runItems);
 
         $run = $runService->completeCurrentStage($run, $user);
+        $this->assertEquals(1, $run->current_item_index);
+        $this->assertEquals(GroupedWorksheetRunStatus::InProgress, $run->status);
+
+        $run = $runService->completeCurrentStage($run, $user);
         $this->assertEquals(GroupedWorksheetRunStatus::Completed, $run->status);
+    }
+
+    public function test_pipeline_includes_virtual_results_capture_stage(): void
+    {
+        $procedure = ProcedureWorksheet::create([
+            'name' => 'Stage A '.uniqid(),
+            'is_active' => true,
+        ]);
+
+        $holder = GroupedWorksheetHolder::create([
+            'name' => 'Pipeline '.uniqid(),
+            'is_active' => true,
+        ]);
+
+        GroupedWorksheetItem::create([
+            'grouped_worksheet_holder_id' => $holder->id,
+            'sort_order' => 1,
+            'label' => 'A',
+            'item_type' => GroupedWorksheetItemType::Procedure,
+            'reference_id' => $procedure->id,
+            'is_required' => true,
+        ]);
+
+        GroupedWorksheetItem::create([
+            'grouped_worksheet_holder_id' => $holder->id,
+            'sort_order' => 2,
+            'label' => 'B',
+            'item_type' => GroupedWorksheetItemType::Procedure,
+            'reference_id' => $procedure->id,
+            'is_required' => true,
+        ]);
+
+        $stages = app(GroupedWorksheetPipelineStages::class)->allStages($holder->fresh());
+
+        $this->assertCount(3, $stages);
+        $this->assertEquals(
+            GroupedWorksheetItemType::ResultsCapture,
+            $stages->last()->getItemTypeEnum()
+        );
+        $this->assertEquals('Results capture', $stages->last()->label);
+    }
+
+    public function test_assignment_summary_includes_virtual_results_capture_stage(): void
+    {
+        $batch = SampleHeader::first();
+        $analysisType = AnalysisType::first();
+        if (! $batch || ! $analysisType) {
+            $this->markTestSkipped('Requires batch and analysis type.');
+        }
+
+        $procedure = ProcedureWorksheet::create([
+            'name' => 'Summary Stage '.uniqid(),
+            'is_active' => true,
+        ]);
+
+        $holder = GroupedWorksheetHolder::create([
+            'name' => 'Summary Pipeline '.uniqid(),
+            'is_active' => true,
+        ]);
+
+        GroupedWorksheetItem::create([
+            'grouped_worksheet_holder_id' => $holder->id,
+            'sort_order' => 1,
+            'label' => 'Configured',
+            'item_type' => GroupedWorksheetItemType::Procedure,
+            'reference_id' => $procedure->id,
+            'is_required' => true,
+        ]);
+
+        $analysisType->update(['grouped_worksheet_holder_id' => $holder->id]);
+
+        $captured = CapturedResult::where('sample_header_id', $batch->id)->first();
+        if (! $captured) {
+            $this->markTestSkipped('No captured results for batch.');
+        }
+
+        $captured->update(['analysis_type_id' => $analysisType->id]);
+
+        $summaries = app(GroupedWorksheetAssignmentService::class)
+            ->summariesForAnalysisTypeIds([$analysisType->id], $batch);
+
+        $summary = collect($summaries)->firstWhere('holder_id', $holder->id);
+        $this->assertNotNull($summary);
+        $this->assertEquals(2, $summary['step_count']);
+        $this->assertEquals('results_capture', $summary['stages'][1]['item_type']);
+    }
+
+    public function test_results_capture_service_persists_symbol_and_result(): void
+    {
+        $captured = CapturedResult::query()->first();
+        if (! $captured) {
+            $this->markTestSkipped('No captured results in database.');
+        }
+
+        $originalResult = $captured->result;
+        $originalSymbol = $captured->result_reporting_symbol;
+
+        app(GroupedResultsCaptureService::class)->saveCellResults([
+            (string) $captured->id => [
+                'result' => '42.5',
+                'reporting_symbol' => '<=',
+            ],
+        ]);
+
+        $captured->refresh();
+        $this->assertEquals('42.5', $captured->result);
+        $this->assertEquals('<=', $captured->result_reporting_symbol);
+
+        $captured->update([
+            'result' => $originalResult,
+            'result_reporting_symbol' => $originalSymbol,
+        ]);
     }
 
     public function test_assignment_service_resolves_holder_from_analysis_type(): void

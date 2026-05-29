@@ -475,7 +475,7 @@
         border: 1px solid rgba(226, 232, 240, 0.95);
         border-radius: 0.875rem;
         box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85);
-        overflow: hidden;
+        overflow: visible;
     }
 
     .at-options-head {
@@ -668,6 +668,15 @@
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
     }
 
+    .at-option-stack {
+        position: relative;
+        z-index: 1;
+    }
+
+    .at-option-stack.is-expanded {
+        z-index: 2;
+    }
+
     .at-options-nested {
         margin: 0;
         padding: 0.95rem 1rem 1rem;
@@ -676,6 +685,7 @@
         border-top: none;
         border-radius: 0 0 0.65rem 0.65rem;
         box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.02);
+        overflow: visible;
     }
 
     .at-options-nested--standalone {
@@ -717,6 +727,10 @@
         border-color: var(--at-blue-500);
         background: #fff;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .at-nested-select .tag-dropdown {
+        z-index: 2100;
     }
 
     .at-pipeline-badge {

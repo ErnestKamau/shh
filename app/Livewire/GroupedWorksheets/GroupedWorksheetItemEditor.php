@@ -7,6 +7,7 @@ use App\Models\Formulars\Formula;
 use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
 use App\Models\GroupedWorksheets\GroupedWorksheetItem;
 use App\Models\HybridWorksheets\HybridWorksheet;
+use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\StageHeader;
 use App\Services\GroupedWorksheets\GroupedWorksheetCapturePreviewService;
@@ -110,6 +111,7 @@ class GroupedWorksheetItemEditor extends Component
             GroupedWorksheetItemType::Procedure => ProcedureWorksheet::find($this->reference_id),
             GroupedWorksheetItemType::StageHeader => StageHeader::find($this->reference_id),
             GroupedWorksheetItemType::HybridWorksheet => HybridWorksheet::find($this->reference_id),
+            GroupedWorksheetItemType::LogEntryWorksheet => LogEntryWorksheet::find($this->reference_id),
             default => null,
         };
     }
@@ -154,6 +156,13 @@ class GroupedWorksheetItemEditor extends Component
                 ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => null])
                 ->all(),
             GroupedWorksheetItemType::HybridWorksheet => HybridWorksheet::query()
+                ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
+                ->orderBy('name')
+                ->limit(30)
+                ->get(['id', 'name', 'description'])
+                ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'description' => $r->description])
+                ->all(),
+            GroupedWorksheetItemType::LogEntryWorksheet => LogEntryWorksheet::query()
                 ->when($search, fn ($q) => $q->where('name', 'like', '%'.$search.'%'))
                 ->orderBy('name')
                 ->limit(30)

@@ -29,6 +29,9 @@ class FormulaVersion extends Model implements Auditable
         'version_number',
         'is_active',
         'mandatory_fields_placement',
+        'document_control_no',
+        'document_control_revision_no',
+        'document_control_issue_date',
         'created_by',
         'approved_by',
         'approved_at',
@@ -37,6 +40,7 @@ class FormulaVersion extends Model implements Auditable
     protected $casts = [
         'is_active' => 'boolean',
         'approved_at' => 'datetime',
+        'document_control_issue_date' => 'date',
     ];
 
     /**

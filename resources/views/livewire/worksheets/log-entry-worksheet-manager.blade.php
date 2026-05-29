@@ -16,23 +16,50 @@
 	@if($worksheets->isEmpty())
 		<div class="alert alert-info">No log entry worksheets are linked to captured results in this batch.</div>
 	@else
-		<div class="mb-3 d-flex flex-wrap align-items-center gap-2">
-			<label class="mb-0 font-weight-bold">Template:</label>
-			<select class="form-control form-control-sm" style="max-width: 320px;" wire:change="selectWorksheet($event.target.value)">
-				@foreach($worksheets as $ws)
-					<option value="{{ $ws->id }}" @selected($selectedWorksheetId === $ws->id)>{{ $ws->name }}</option>
-				@endforeach
-			</select>
-			<button type="button" class="btn btn-sm btn-outline-primary log-entry-btn-outline" wire:click="regenerateAutoRows">
-				<i class="mdi mdi-sync"></i> Sync auto rows
-			</button>
-			@if($selectedWorksheet?->allow_manual_rows)
-				<button type="button" class="btn btn-sm btn-outline-success log-entry-btn-outline" wire:click="addManualRow">
-					<i class="mdi mdi-plus"></i> Add row
-				</button>
-			@endif
-			<button type="button" class="btn btn-sm btn-primary ml-auto" wire:click="saveWorksheet">Save</button>
-			<button type="button" class="btn btn-sm btn-success" wire:click="postWorksheet">Post</button>
+		<div class="log-entry-toolbar card border-0 shadow-sm mb-4">
+			<div class="card-body py-3 px-4">
+				<div class="log-entry-toolbar__inner">
+					<div class="log-entry-toolbar__template">
+						<label class="log-entry-toolbar__label" for="log-entry-template-select">Template</label>
+						<div class="log-entry-toolbar__select-wrap">
+							<i class="mdi mdi-file-document-outline log-entry-toolbar__select-icon"></i>
+							<select id="log-entry-template-select"
+								class="form-control form-control-sm log-entry-toolbar__select"
+								wire:change="selectWorksheet($event.target.value)">
+								@foreach($worksheets as $ws)
+									<option value="{{ $ws->id }}" @selected($selectedWorksheetId === $ws->id)>{{ $ws->name }}</option>
+								@endforeach
+							</select>
+						</div>
+					</div>
+
+					<div class="log-entry-toolbar__actions">
+						<div class="log-entry-toolbar__group">
+							<button type="button" class="btn btn-sm log-entry-toolbar__btn log-entry-toolbar__btn--ghost" wire:click="regenerateAutoRows">
+								<i class="mdi mdi-sync"></i>
+								<span>Sync auto rows</span>
+							</button>
+							@if($selectedWorksheet?->allow_manual_rows)
+								<button type="button" class="btn btn-sm log-entry-toolbar__btn log-entry-toolbar__btn--ghost-success" wire:click="addManualRow">
+									<i class="mdi mdi-plus"></i>
+									<span>Add row</span>
+								</button>
+							@endif
+						</div>
+
+						<div class="log-entry-toolbar__group log-entry-toolbar__group--primary">
+							<button type="button" class="btn btn-sm log-entry-toolbar__btn log-entry-toolbar__btn--save" wire:click="saveWorksheet">
+								<i class="mdi mdi-content-save-outline"></i>
+								<span>Save</span>
+							</button>
+							<button type="button" class="btn btn-sm log-entry-toolbar__btn log-entry-toolbar__btn--post" wire:click="postWorksheet">
+								<i class="mdi mdi-check-circle-outline"></i>
+								<span>Post</span>
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 
 		@if($selectedWorksheet && $instance)
@@ -75,13 +102,7 @@
 												@if($col->column_type === 'derived')
 													<span class="text-muted">{{ $tableData[$row->id][$col->key] ?? '—' }}</span>
 												@elseif($col->column_type === 'dataset')
-													<input type="text" class="form-control form-control-sm bg-light"
-														readonly
-														value="{{ $tableData[$row->id][$col->key] ?? '' }}"
-														placeholder="—">
-													@if(empty($tableData[$row->id][$col->key] ?? ''))
-														<small class="text-muted">No value resolved</small>
-													@endif
+													<div class="log-entry-dataset-value">{{ $tableData[$row->id][$col->key] ?? '—' }}</div>
 												@elseif($col->input_data_type === 'textarea')
 													<textarea class="form-control form-control-sm" rows="2"
 														wire:model.lazy="tableData.{{ $row->id }}.{{ $col->key }}"></textarea>
@@ -137,14 +158,178 @@
 			@endif
 		@endif
 	@endif
-</div>
 
-<style>
-	.log-entry-capture-table thead th {
-		background: #f1f5f9;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		white-space: nowrap;
-	}
-</style>
+	<style>
+		.log-entry-toolbar {
+			border-radius: 12px;
+			background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+		}
+
+		.log-entry-toolbar__inner {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: flex-end;
+			justify-content: space-between;
+			gap: 1rem 1.5rem;
+		}
+
+		.log-entry-toolbar__template {
+			flex: 1 1 280px;
+			max-width: 420px;
+		}
+
+		.log-entry-toolbar__label {
+			display: block;
+			margin-bottom: 0.35rem;
+			font-size: 0.7rem;
+			font-weight: 700;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			color: #64748b;
+		}
+
+		.log-entry-toolbar__select-wrap {
+			position: relative;
+		}
+
+		.log-entry-toolbar__select-icon {
+			position: absolute;
+			left: 0.85rem;
+			top: 50%;
+			transform: translateY(-50%);
+			color: #64748b;
+			font-size: 1rem;
+			pointer-events: none;
+			z-index: 2;
+		}
+
+		.log-entry-toolbar__select {
+			height: 38px;
+			padding-left: 2.35rem;
+			border: 1px solid #e2e8f0;
+			border-radius: 10px;
+			background: #fff;
+			font-size: 0.875rem;
+			font-weight: 500;
+			color: #0f172a;
+			box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+			transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		}
+
+		.log-entry-toolbar__select:focus {
+			border-color: #3b82f6;
+			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+		}
+
+		.log-entry-toolbar__actions {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 0.75rem;
+			margin-left: auto;
+		}
+
+		.log-entry-toolbar__group {
+			display: inline-flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.5rem;
+		}
+
+		.log-entry-toolbar__group--primary {
+			padding-left: 0.75rem;
+			border-left: 1px solid #e2e8f0;
+		}
+
+		.log-entry-toolbar__btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.35rem;
+			height: 38px;
+			padding: 0 0.9rem;
+			border-radius: 10px;
+			font-size: 0.8125rem;
+			font-weight: 600;
+			line-height: 1;
+			transition: all 0.15s ease;
+		}
+
+		.log-entry-toolbar__btn--ghost {
+			border: 1px solid #dbeafe;
+			background: #eff6ff;
+			color: #2563eb;
+		}
+
+		.log-entry-toolbar__btn--ghost:hover {
+			background: #dbeafe;
+			border-color: #93c5fd;
+			color: #1d4ed8;
+		}
+
+		.log-entry-toolbar__btn--ghost-success {
+			border: 1px solid #bbf7d0;
+			background: #f0fdf4;
+			color: #16a34a;
+		}
+
+		.log-entry-toolbar__btn--ghost-success:hover {
+			background: #dcfce7;
+			border-color: #86efac;
+			color: #15803d;
+		}
+
+		.log-entry-toolbar__btn--save {
+			border: none;
+			background: #2563eb;
+			color: #fff;
+			box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+		}
+
+		.log-entry-toolbar__btn--save:hover {
+			background: #1d4ed8;
+			color: #fff;
+		}
+
+		.log-entry-toolbar__btn--post {
+			border: none;
+			background: #059669;
+			color: #fff;
+			box-shadow: 0 1px 2px rgba(5, 150, 105, 0.25);
+		}
+
+		.log-entry-toolbar__btn--post:hover {
+			background: #047857;
+			color: #fff;
+		}
+
+		.log-entry-dataset-value {
+			min-height: 31px;
+			padding: 0.45rem 0.65rem;
+			border-radius: 8px;
+			background: #f8fafc;
+			border: 1px solid #e2e8f0;
+			font-size: 0.8125rem;
+			color: #334155;
+			line-height: 1.4;
+			word-break: break-word;
+		}
+
+		.log-entry-capture-table thead th {
+			background: #f1f5f9;
+			font-size: 0.75rem;
+			text-transform: uppercase;
+			letter-spacing: 0.03em;
+			white-space: nowrap;
+		}
+
+		@media (max-width: 767.98px) {
+			.log-entry-toolbar__group--primary {
+				padding-left: 0;
+				border-left: none;
+				width: 100%;
+				justify-content: flex-end;
+			}
+		}
+	</style>
+</div>

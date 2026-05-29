@@ -4,12 +4,7 @@ namespace App\Livewire\Formulars;
 
 use App\Models\Formulars\Formula;
 use App\Models\Formulars\FormulaVersion;
-use App\Models\Formulars\FormulaStep;
-use App\Models\Formulars\FormulaStepTableColumn;
-use App\Models\Formulars\FormulaStepTableStaticCell;
-use App\Models\Formulars\FormulaStepTableStaticRow;
-use App\Services\Formulars\FormulaEvaluator;
-use Illuminate\Support\Facades\Schema;
+use App\Services\Formulars\FormulaCloneService;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Auth;
@@ -27,14 +22,17 @@ class FormulaManager extends Component
     public $showCreateModal = false;
     public $showEditModal = false;
     public $showVersionModal = false;
+    public $showCloneModal = false;
     public $editingFormula = null;
     public $editingVersion = null;
+    public $cloningFormula = null;
 
     // Form fields
     public $formulaName = '';
     public $formulaDescription = '';
     public $formulaIsActive = true;
     public $versionDescription = '';
+    public $cloneFormulaName = '';
 
     // Messages
     public $message = '';
@@ -96,6 +94,41 @@ class FormulaManager extends Component
         $formula = Formula::findOrFail($formulaId);
         $this->editingFormula = $formula;
         $this->showVersionModal = true;
+    }
+
+    public function showCloneFormulaModal(string $formulaId): void
+    {
+        $formula = Formula::findOrFail($formulaId);
+        $this->cloningFormula = $formula;
+        $this->cloneFormulaName = $formula->name.' (Copy)';
+        $this->showCloneModal = true;
+    }
+
+    public function cloneFormula(FormulaCloneService $cloneService): void
+    {
+        $this->validate([
+            'cloneFormulaName' => 'required|string|max:255',
+        ]);
+
+        if (! $this->cloningFormula) {
+            $this->setMessage('No formula selected to clone.', 'error');
+
+            return;
+        }
+
+        try {
+            $cloned = $cloneService->cloneFormula(
+                $this->cloningFormula,
+                trim($this->cloneFormulaName)
+            );
+
+            $this->showCloneModal = false;
+            $this->cloningFormula = null;
+            $this->cloneFormulaName = '';
+            $this->setMessage("Formula cloned successfully as \"{$cloned->name}\".", 'success');
+        } catch (\Exception $e) {
+            $this->setMessage('Error cloning formula: '.$e->getMessage(), 'error');
+        }
     }
 
     public function createFormula()
@@ -174,31 +207,8 @@ class FormulaManager extends Component
                 'created_by' => Auth::id(),
             ]);
 
-            // Copy steps from previous version if exists
             if ($latestVersion) {
-                $steps = $latestVersion->formulaSteps;
-                foreach ($steps as $step) {
-                    $newStep = FormulaStep::create([
-                        'formula_version_id' => $newVersion->id,
-                        'step_number' => $step->step_number,
-                        'variable_name' => $step->variable_name,
-                        'step_type' => $step->step_type,
-                        'expression' => $step->expression,
-                        'label' => $step->label,
-                        'description' => $step->description,
-                        'lookup_config' => $step->lookup_config,
-                        'step_config' => $step->step_config,
-                        'table_mode' => $step->table_mode,
-                        'row_driver' => $step->row_driver,
-                        'row_driver_filters' => $step->row_driver_filters,
-                        'allow_manual_rows' => $step->allow_manual_rows,
-                        'analyte_id' => $step->analyte_id,
-                    ]);
-
-                    if ($step->isCustomTable()) {
-                        $this->copyFormulaStepTableDefinition($step, $newStep);
-                    }
-                }
+                app(FormulaCloneService::class)->copyVersionConfiguration($latestVersion, $newVersion);
             }
 
             $this->showVersionModal = false;
@@ -251,8 +261,10 @@ class FormulaManager extends Component
         $this->formulaDescription = '';
         $this->formulaIsActive = true;
         $this->versionDescription = '';
+        $this->cloneFormulaName = '';
         $this->editingFormula = null;
         $this->editingVersion = null;
+        $this->cloningFormula = null;
     }
 
     protected function setMessage(string $message, string $type)
@@ -261,47 +273,4 @@ class FormulaManager extends Component
         $this->messageType = $type;
     }
 
-    protected function copyFormulaStepTableDefinition(FormulaStep $source, FormulaStep $target): void
-    {
-        if (! Schema::hasTable('formula_step_table_columns')) {
-            return;
-        }
-
-        $columnIdMap = [];
-        foreach (FormulaStepTableColumn::where('formula_step_id', $source->id)->get() as $column) {
-            $newColumn = FormulaStepTableColumn::create([
-                'formula_step_id' => $target->id,
-                'label' => $column->label,
-                'key' => $column->key,
-                'column_type' => $column->column_type,
-                'input_data_type' => $column->input_data_type,
-                'expression' => $column->expression,
-                'model_tied_to' => $column->model_tied_to,
-                'dataset_config' => $column->dataset_config,
-                'order' => $column->order,
-                'is_required' => $column->is_required,
-                'help_text' => $column->help_text,
-            ]);
-            $columnIdMap[$column->id] = $newColumn->id;
-        }
-
-        foreach (FormulaStepTableStaticRow::where('formula_step_id', $source->id)->with('cells')->get() as $staticRow) {
-            $newRow = FormulaStepTableStaticRow::create([
-                'formula_step_id' => $target->id,
-                'order' => $staticRow->order,
-                'label' => $staticRow->label,
-            ]);
-
-            foreach ($staticRow->cells as $cell) {
-                $newColumnId = $columnIdMap[$cell->column_id] ?? null;
-                if ($newColumnId) {
-                    FormulaStepTableStaticCell::create([
-                        'static_row_id' => $newRow->id,
-                        'column_id' => $newColumnId,
-                        'default_value' => $cell->default_value,
-                    ]);
-                }
-            }
-        }
-    }
 }

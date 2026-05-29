@@ -4,7 +4,10 @@ namespace App\Models\GroupedWorksheets;
 
 use App\Enums\GroupedWorksheetItemType;
 use App\Models\Formulars\Formula;
+use App\Models\GroupedWorksheets\GroupedWorksheetHolder;
+use App\Models\GroupedWorksheets\GroupedWorksheetItem;
 use App\Models\HybridWorksheets\HybridWorksheet;
+use App\Models\LogEntryWorksheets\LogEntryWorksheet;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\StageHeader;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -60,11 +63,17 @@ class GroupedWorksheetItem extends Model implements Auditable
             GroupedWorksheetItemType::Procedure => ProcedureWorksheet::find($this->reference_id),
             GroupedWorksheetItemType::StageHeader => StageHeader::find($this->reference_id),
             GroupedWorksheetItemType::HybridWorksheet => HybridWorksheet::find($this->reference_id),
+            GroupedWorksheetItemType::LogEntryWorksheet => LogEntryWorksheet::find($this->reference_id),
+            GroupedWorksheetItemType::ResultsCapture => null,
         };
     }
 
     public function referenceName(): string
     {
+        if ($this->getItemTypeEnum() === GroupedWorksheetItemType::ResultsCapture) {
+            return GroupedWorksheetItemType::ResultsCapture->label();
+        }
+
         $entity = $this->referencedEntity();
 
         return $entity?->name ?? '—';

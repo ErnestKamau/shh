@@ -130,6 +130,21 @@
     </div>
     @endif
 
+    @if ($errors->any())
+    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+        <i class="mdi mdi-alert-circle"></i>
+        <strong>Please fix the following before saving:</strong>
+        <ul class="mb-0 mt-1">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    </div>
+    @endif
+
     {{-- Missing Worksheet Results Alert (for parameters with worksheets but no worksheet data) --}}
     @if(!empty($missingWorksheetParameters) && is_array($missingWorksheetParameters))
         <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
@@ -204,9 +219,16 @@
                         </th>
                         <th style="width: 100px; text-align: center;">Actions</th>
                         <th style="min-width: 100px;">Code</th>
-                        <th style="min-width: 150px;">Analysis<sup class="text-danger">*</sup></th>
-                        <th style="min-width: 120px;">File No</th>
+                        <th style="min-width: 150px;">Matrix<sup class="text-danger">*</sup></th>
+                        <th style="min-width: 150px;">Sample Type</th>
+                        <th style="min-width: 120px;">Customer Sample ID</th>
                         <th style="min-width: 120px;">Lab<sup class="text-danger">*</sup></th>
+                        <th style="min-width: 130px;">
+                            Main Standard<sup class="text-danger">*</sup>
+                        </th>
+                        <th style="min-width: 130px;">
+                            Secondary Standard
+                        </th>
                         <th style="min-width: 120px;">Condition</th>
                         <th style="min-width: 150px;">
                             Sample Point
@@ -218,23 +240,7 @@
                         <th style="min-width: 150px;">
                             Sample photo
                         </th>
-                        <th style="min-width: 150px;">
-                            Sample ID
-                        </th>
-                        <th style="min-width: 150px;">
-                            Sample Type
-                        </th>
-                        <th style="min-width: 150px;">
-                            Matrix
-                        </th>
                         <th style="min-width: 150px;">Description</th>
-                        <th style="min-width: 100px;">Time Sampled</th>
-                        <th style="min-width: 120px;">
-                            Main Std<sup class="text-danger">*</sup>
-                        </th>
-                        <th style="min-width: 120px;">
-                            Secondary Std
-                        </th>
                         <th style="min-width: 110px;">Disposal Date</th>
                         <th style="min-width: 120px;">
                             Storage
@@ -258,7 +264,7 @@
                     @forelse($sampleForms as $index => $sampleForm)
                     @php
                     $isEditing = $editingRowIndex === $index;
-                    $isReadOnly = !$isEditing;
+                    $isReadOnly = false;
                     @endphp
                     <tr wire:key="sample-row-{{ $index }}"
                         class="{{ in_array($index, $selectedRows) ? 'table-active' : '' }}">
@@ -305,8 +311,11 @@
                                 </button>
                                 @endif
 
-                                {{-- Edit Icon --}}
                                 @if($isEditing)
+                                <button type="button" wire:click="saveSample({{ $index }})"
+                                    class="btn btn-sm btn-icon btn-light text-success mx-1" title="Save Row">
+                                    <i class="mdi mdi-content-save"></i>
+                                </button>
                                 <button type="button" wire:click="cancelEditRow"
                                     class="btn btn-sm btn-icon btn-light text-secondary mx-1" title="Cancel Edit">
                                     <i class="mdi mdi-close"></i>
@@ -333,7 +342,7 @@
                                 style="background: #f5f5f5; font-weight: bold;">
                         </td>
 
-                        {{-- Analysis Types (Searchable Multi-Select) --}}
+                        {{-- Matrix (analysis types) --}}
                         <td>
                             @if($isReadOnly)
                             <div class="form-control form-control-sm readonly-input"
@@ -353,7 +362,6 @@
                                 wire:click="$set('showAnalysisTypeDropdown.{{ $index }}', true)"
                                 wire:click.outside="$set('showAnalysisTypeDropdown.{{ $index }}', false)">
                                 <div class="tag-select-input">
-                                    {{-- Display selected analysis types as badges --}}
                                     @if(is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0)
                                     @foreach($analysisTypes as $type)
                                     @if(in_array($type['id'], $sampleForm['analysis_type_id']))
@@ -366,13 +374,11 @@
                                     @endforeach
                                     @endif
 
-                                    {{-- Search Input --}}
                                     <input type="text" wire:model.live="analysisTypeSearch" class="tag-input"
-                                        placeholder="{{ (is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0) ? '' : 'Search analysis types...' }}"
+                                        placeholder="{{ (is_array($sampleForm['analysis_type_id']) && count($sampleForm['analysis_type_id']) > 0) ? '' : 'Search matrix...' }}"
                                         autocomplete="off">
                                 </div>
 
-                                {{-- Dropdown --}}
                                 @if(isset($showAnalysisTypeDropdown[$index]) && $showAnalysisTypeDropdown[$index])
                                 <div class="tag-dropdown">
                                     @php
@@ -392,7 +398,7 @@
                                     </div>
                                     @endforeach
                                     @else
-                                    <div class="p-3 text-center text-muted">No analysis types found</div>
+                                    <div class="p-3 text-center text-muted">No matrix options found</div>
                                     @endif
                                 </div>
                                 @endif
@@ -417,11 +423,25 @@
                             @endif
                         </td>
 
-                        {{-- File No --}}
+                        {{-- Sample Type --}}
+                        <td>
+                            <select class="form-control form-control-sm modern-select"
+                                wire:model="sampleForms.{{ $index }}.sample_type_id">
+                                <option value="">Select...</option>
+                                @foreach($sampleTypes as $type)
+                                <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
+                                @endforeach
+                            </select>
+                            @error("sampleForms.$index.sample_type_id")
+                            <small class="text-danger">{{ $message }}</small>
+                            @enderror
+                        </td>
+
+                        {{-- Customer Sample ID --}}
                         <td>
                             <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.file_no"
-                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
+                                wire:model="sampleForms.{{ $index }}.customer_sample_id"
+                                placeholder="Customer sample ID...">
                         </td>
 
                         {{-- Lab Section --}}
@@ -432,7 +452,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.lab_id" required>
+                                wire:model="sampleForms.{{ $index }}.lab_id" required>
                                 <option value="">Select...</option>
                                 @foreach($labSections as $lab)
                                 <option value="{{ $lab['id'] }}">{{ $lab['code'] }} - {{ $lab['name'] }}</option>
@@ -444,6 +464,31 @@
                             @endif
                         </td>
 
+                        {{-- Main Standard --}}
+                        <td>
+                            <select class="form-control form-control-sm modern-select"
+                                wire:model="sampleForms.{{ $index }}.main_standard" required>
+                                <option value="">Select...</option>
+                                @foreach($standards as $std)
+                                <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
+                                @endforeach
+                            </select>
+                            @error("sampleForms.$index.main_standard")
+                            <small class="text-danger">{{ $message }}</small>
+                            @enderror
+                        </td>
+
+                        {{-- Secondary Standard --}}
+                        <td>
+                            <select class="form-control form-control-sm modern-select"
+                                wire:model="sampleForms.{{ $index }}.secondary_standard">
+                                <option value="">Select...</option>
+                                @foreach($standards as $std)
+                                <option value="{{ $std['id'] }}">{{ $std['code'] }} - {{ $std['name'] }}</option>
+                                @endforeach
+                            </select>
+                        </td>
+
                         {{-- Condition --}}
                         <td>
                             @if($isReadOnly)
@@ -452,7 +497,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.sample_condition_id">
+                                wire:model="sampleForms.{{ $index }}.sample_condition_id">
                                 <option value="">Select...</option>
                                 @foreach($conditions as $condition)
                                 <option value="{{ $condition['id'] }}">{{ $condition['name'] }}</option>
@@ -472,7 +517,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.sample_point_id">
+                                wire:model="sampleForms.{{ $index }}.sample_point_id">
                                 <option value="">Select...</option>
                                 @foreach($samplePoints as $point)
                                 <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
@@ -509,40 +554,6 @@
                             @endif
                         </td>
 
-                        {{-- Sample ID --}}
-                        <td>
-                            <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.sample_no"
-                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
-                        </td>
-
-                        {{-- Sample Type --}}
-                        <td>
-                            @if($isReadOnly)
-                            <input type="text" class="form-control form-control-sm readonly-input"
-                                value="{{ collect($sampleTypes)->firstWhere('id', $sampleForm['sample_type_id'])['name'] ?? '-' }}"
-                                readonly>
-                            @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.sample_type_id">
-                                <option value="">Select...</option>
-                                @foreach($sampleTypes as $type)
-                                <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
-                                @endforeach
-                            </select>
-                            @error("sampleForms.$index.sample_type_id")
-                            <small class="text-danger">{{ $message }}</small>
-                            @enderror
-                            @endif
-                        </td>
-
-                        {{-- Matrix --}}
-                        <td>
-                            <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.matrix"
-                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
-                        </td>
-
                         {{-- Description --}}
                         <td>
                             <div class="d-flex align-items-start gap-2">
@@ -557,54 +568,10 @@
                             </div>
                         </td>
 
-                        {{-- Time Sampled --}}
-                        <td>
-                            <input type="time" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.time_sampled" @if($isReadOnly) readonly
-                                style="background: #f8f9fa;" @endif>
-                        </td>
-
-                        {{-- Main Standard --}}
-                        <td>
-                            @if($isReadOnly)
-                            <input type="text" class="form-control form-control-sm readonly-input"
-                                value="{{ collect($standards)->firstWhere('id', $sampleForm['main_standard'])['code'] ?? '-' }}"
-                                readonly>
-                            @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.main_standard" required>
-                                <option value="">Select...</option>
-                                @foreach($standards as $std)
-                                <option value="{{ $std['id'] }}">{{ $std['code'] }}</option>
-                                @endforeach
-                            </select>
-                            @error("sampleForms.$index.main_standard")
-                            <small class="text-danger">{{ $message }}</small>
-                            @enderror
-                            @endif
-                        </td>
-
-                        {{-- Secondary Standard --}}
-                        <td>
-                            @if($isReadOnly)
-                            <input type="text" class="form-control form-control-sm readonly-input"
-                                value="{{ collect($standards)->firstWhere('id', $sampleForm['secondary_standard'])['code'] ?? '-' }}"
-                                readonly>
-                            @else
-                            <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.secondary_standard">
-                                <option value="">Select...</option>
-                                @foreach($standards as $std)
-                                <option value="{{ $std['id'] }}">{{ $std['code'] }}</option>
-                                @endforeach
-                            </select>
-                            @endif
-                        </td>
-
                         {{-- Disposal Date --}}
                         <td>
                             <input type="date" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.disposal_date" @if($isReadOnly) readonly
+                                wire:model="sampleForms.{{ $index }}.disposal_date" @if($isReadOnly) readonly
                                 style="background: #f8f9fa;" @endif>
                         </td>
 
@@ -616,7 +583,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.store_id">
+                                wire:model="sampleForms.{{ $index }}.store_id">
                                 <option value="">Select...</option>
                                 @foreach($storageLocations as $store)
                                 <option value="{{ $store['id'] }}">{{ $store['name'] }}</option>
@@ -628,14 +595,14 @@
                         {{-- Storage Slot --}}
                         <td>
                             <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.store_slot_id" placeholder="Slot..."
+                                wire:model="sampleForms.{{ $index }}.store_slot_id" placeholder="Slot..."
                                 @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
                         </td>
 
                         {{-- Quantity --}}
                         <td>
                             <input type="number" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.quantity" step="0.01" min="0"
+                                wire:model="sampleForms.{{ $index }}.quantity" step="0.01" min="0"
                                 @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
                         </td>
 
@@ -647,7 +614,7 @@
                                 readonly>
                             @else
                             <select class="form-control form-control-sm modern-select"
-                                wire:model.defer="sampleForms.{{ $index }}.reporting_unit_id">
+                                wire:model="sampleForms.{{ $index }}.reporting_unit_id">
                                 <option value="">Select...</option>
                                 @foreach($unitsOfMeasure as $unit)
                                 <option value="{{ $unit['id'] }}">{{ $unit['name'] }}</option>
@@ -658,7 +625,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="19" class="text-center text-muted py-4">
+                        <td colspan="18" class="text-center text-muted py-4">
                             <i class="mdi mdi-information-outline"></i> No items configured yet. Click "Add" to create
                             entries.
                         </td>

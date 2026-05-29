@@ -186,7 +186,7 @@
                             @if($stepColumnType === 'dataset')
                             <div class="col-md-6">
                                 <label class="form-label">Dataset</label>
-                                <select class="form-control" wire:model="stepColumnModelTiedTo">
+                                <select class="form-control" wire:model.live="stepColumnModelTiedTo">
                                     <option value="">Select...</option>
                                     @foreach($stepTableDatasetOptions as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
@@ -196,15 +196,10 @@
                             </div>
                             @if($stepColumnModelTiedTo === 'samples')
                             <div class="col-md-6">
-                                <label class="form-label">Sample source table</label>
-                                <input type="text" class="form-control" value="sample_details" readonly>
-                                <small class="text-muted">Values are pulled from the sample details table.</small>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Column source mode</label>
+                                <label class="form-label">Nature of column <span class="text-danger">*</span></label>
                                 <select class="form-control" wire:model.live="stepColumnDatasetDisplayMode">
-                                    <option value="direct">Normal columns</option>
-                                    <option value="foreign_key">Foreign key columns</option>
+                                    <option value="direct">Normal</option>
+                                    <option value="foreign_key">Foreign key (FK)</option>
                                 </select>
                             </div>
                             @if($stepColumnDatasetDisplayMode === 'foreign_key')
@@ -220,23 +215,33 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Referenced display column <span class="text-danger">*</span></label>
-                                <select class="form-control" wire:model="stepColumnDatasetReferencedDisplayColumn" @disabled($stepColumnDatasetReferencedTable === '')>
-                                    <option value="">Select column...</option>
-                                    @foreach($stepColumnDatasetReferencedColumns as $col)
-                                    <option value="{{ $col['value'] }}">{{ $col['label'] }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="tag-select-container">
+                                    <div class="tag-select-input">
+                                        <select class="form-control" wire:model="stepColumnDatasetReferencedDisplayColumn" @disabled($stepColumnDatasetReferencedTable === '')>
+                                            <option value="">Select column...</option>
+                                            @foreach($stepColumnDatasetReferencedColumns as $col)
+                                            <option value="{{ $col['value'] }}">{{ $col['label'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                                 @error('stepColumnDatasetReferencedDisplayColumn') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
                             @else
                             <div class="col-md-6">
                                 <label class="form-label">Display column <span class="text-danger">*</span></label>
-                                <select class="form-control" wire:model="stepColumnDatasetSourceColumn">
-                                    <option value="">Select column...</option>
-                                    @foreach($stepColumnDatasetColumns as $col)
-                                    <option value="{{ $col['value'] }}">{{ $col['label'] }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="tag-select-container">
+                                    <div class="tag-select-input">
+                                        <select class="form-control" wire:model="stepColumnDatasetSourceColumn">
+                                            <option value="">Select column...</option>
+                                            @foreach($stepColumnSampleDirectColumns as $col)
+                                            <option value="{{ $col['value'] }}">
+                                                {{ $col['label'] }}@if(!empty($col['type'])) · {{ $col['type'] }}@endif
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                                 @error('stepColumnDatasetSourceColumn') <small class="text-danger">{{ $message }}</small> @enderror
                             </div>
                             @endif

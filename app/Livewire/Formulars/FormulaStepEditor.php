@@ -82,6 +82,34 @@ class FormulaStepEditor extends Component
 
     public bool $allow_manual_rows = false;
 
+    public bool $pcrHasStdControlsBuffers = false;
+
+    /** @var list<string> */
+    public array $pcrStandards = [];
+
+    /** @var list<string> */
+    public array $pcrControls = [];
+
+    /** @var list<string> */
+    public array $pcrBuffers = [];
+
+    public string $pcrNewStandard = '';
+
+    public string $pcrNewControl = '';
+
+    public string $pcrNewBuffer = '';
+
+    /**
+     * @var array<string, array{kind: string, value: string}>
+     */
+    public array $pcrPresetWells = [];
+
+    public ?string $pcrConfigActiveWell = null;
+
+    public string $pcrConfigPopoverKind = 'std';
+
+    public string $pcrConfigPopoverValue = '';
+
     public bool $showConfigureTableModal = false;
 
     public int $configureTableWizardStep = 1;
@@ -156,6 +184,10 @@ class FormulaStepEditor extends Component
     public $editingField = null;
     public $deletingField = null;
     public string $mandatoryFieldsPlacement = 'bottom';
+    public string $mandatorySectionTab = 'mandatory_fields';
+    public string $documentControlNo = '';
+    public string $documentControlRevisionNo = '';
+    public ?string $documentControlIssueDate = null;
 
     // Mandatory Field form fields
     public $fieldLabel = '';
@@ -193,7 +225,7 @@ class FormulaStepEditor extends Component
     protected $rules = [
         'stepNumber' => 'required|integer|min:1',
         'variableName' => 'required|string|max:255',
-        'stepType' => 'required|in:input,derived,lookup,parameter_result,static_text,checkbox,custom_table',
+        'stepType' => 'required|in:input,derived,lookup,parameter_result,static_text,checkbox,custom_table,pcr_plate_map',
         'expression' => 'nullable|string',
         'label' => 'required|string|max:255',
         'description' => 'nullable|string',
@@ -250,6 +282,11 @@ class FormulaStepEditor extends Component
     {
         $this->formulaVersion = $formulaVersion;
         $this->mandatoryFieldsPlacement = $formulaVersion->mandatory_fields_placement ?? 'bottom';
+        $this->documentControlNo = (string) ($formulaVersion->document_control_no ?? '');
+        $this->documentControlRevisionNo = (string) ($formulaVersion->document_control_revision_no ?? '');
+        $this->documentControlIssueDate = $formulaVersion->document_control_issue_date
+            ? $formulaVersion->document_control_issue_date->format('Y-m-d')
+            : null;
         $this->loadSteps();
         $this->loadMandatoryFields();
     }
@@ -274,6 +311,14 @@ class FormulaStepEditor extends Component
         $stepColumnSourceTable = $this->stepColumnModelTiedTo === 'samples'
             ? 'sample_details'
             : $this->stepColumnDatasetSourceTable;
+        $sampleDetailForeignKeys = collect($logEntrySchema->foreignKeyOptions('sample_details'))
+            ->pluck('column')
+            ->map(fn ($column) => (string) $column)
+            ->all();
+        $sampleDetailDirectColumns = collect($logEntrySchema->columnOptions('sample_details'))
+            ->filter(fn (array $column) => ! in_array((string) ($column['value'] ?? ''), $sampleDetailForeignKeys, true))
+            ->values()
+            ->all();
 
         return view('livewire.formulars.formula-step-editor', [
             'lookupTables' => $lookupTables,
@@ -324,6 +369,7 @@ class FormulaStepEditor extends Component
             'stepColumnDatasetReferencedColumns' => $this->stepColumnDatasetReferencedTable !== ''
                 ? $logEntrySchema->columnOptions($this->stepColumnDatasetReferencedTable)
                 : [],
+            'stepColumnSampleDirectColumns' => $sampleDetailDirectColumns,
         ]);
     }
 
@@ -487,34 +533,46 @@ class FormulaStepEditor extends Component
         }
     }
 
-    public function showDeleteStepModal($stepId)
+    public function openDeleteStepModal(string $stepId): void
     {
         $this->deletingStep = FormulaStep::findOrFail($stepId);
-        
-        // Check if variable is used in other steps
-        $usageCheck = $this->checkVariableUsage($this->deletingStep->variable_name, $this->deletingStep->id);
-        
-        if ($usageCheck['is_used']) {
-            $this->deletionBlockedReason = $usageCheck['reason'];
-            $this->showDeletionBlockedModal = true;
-            $this->showDeleteStepModal = false;
-        } else {
-            $this->showDeleteStepModal = true;
+
+        $shouldCheckUsage = $this->deletingStep->isExpressionVariable()
+            && trim((string) $this->deletingStep->variable_name) !== '';
+
+        if ($shouldCheckUsage) {
+            $usageCheck = $this->checkVariableUsage($this->deletingStep->variable_name, $this->deletingStep->id);
+
+            if ($usageCheck['is_used']) {
+                $this->deletionBlockedReason = $usageCheck['reason'];
+                $this->showDeletionBlockedModal = true;
+                $this->showDeleteStepModal = false;
+                $this->deletingStep = null;
+
+                return;
+            }
         }
+
+        $this->showDeleteStepModal = true;
     }
 
-    public function deleteStep()
+    public function closeDeleteStepModal(): void
+    {
+        $this->showDeleteStepModal = false;
+        $this->deletingStep = null;
+    }
+
+    public function deleteStep(): void
     {
         try {
             if ($this->deletingStep) {
                 $this->deletingStep->delete();
-                $this->showDeleteStepModal = false;
-                $this->deletingStep = null;
+                $this->closeDeleteStepModal();
                 $this->loadSteps();
                 $this->setMessage('Step deleted successfully!', 'success');
             }
         } catch (\Exception $e) {
-            $this->setMessage('Error deleting step: ' . $e->getMessage(), 'error');
+            $this->setMessage('Error deleting step: '.$e->getMessage(), 'error');
         }
     }
 
@@ -658,41 +716,67 @@ class FormulaStepEditor extends Component
         }
     }
 
-    public function checkVariableUsage($variableName, $excludeStepId = null)
+    /**
+     * @return array{is_used: bool, reason: string}
+     */
+    public function checkVariableUsage(string $variableName, ?string $excludeStepId = null): array
     {
-        $query = $this->formulaVersion->formulaSteps()
-            ->where('id', '!=', $excludeStepId);
+        $variableName = trim($variableName);
+        if ($variableName === '') {
+            return ['is_used' => false, 'reason' => ''];
+        }
 
-        // Check if variable is used in derived step expressions
-        $derivedSteps = $query->where('step_type', 'derived')
-            ->where('expression', 'like', '%' . $variableName . '%')
+        $baseQuery = fn () => $this->formulaVersion->formulaSteps()
+            ->when($excludeStepId, fn ($query) => $query->where('id', '!=', $excludeStepId));
+
+        $derivedSteps = $baseQuery()
+            ->where('step_type', 'derived')
+            ->where('expression', 'like', '%'.$variableName.'%')
             ->get();
 
-        if ($derivedSteps->count() > 0) {
-            $stepNumbers = $derivedSteps->pluck('step_number')->toArray();
+        if ($derivedSteps->isNotEmpty()) {
+            $stepNumbers = $derivedSteps->pluck('step_number')->all();
+
             return [
                 'is_used' => true,
-                'reason' => "This variable is being used in derived step(s) " . implode(', ', $stepNumbers) . " and therefore cannot be deleted."
+                'reason' => 'This variable is being used in derived step(s) '.implode(', ', $stepNumbers).' and therefore cannot be deleted.',
             ];
         }
 
-        // Check if variable is used in lookup step key expressions
-        $lookupSteps = $query->where('step_type', 'lookup')
-            ->whereJsonContains('lookup_config->key_expressions', $variableName)
-            ->get();
+        $lookupSteps = $baseQuery()
+            ->where('step_type', 'lookup')
+            ->get()
+            ->filter(fn (FormulaStep $step) => $this->lookupStepUsesVariable($step, $variableName));
 
-        if ($lookupSteps->count() > 0) {
-            $stepNumbers = $lookupSteps->pluck('step_number')->toArray();
+        if ($lookupSteps->isNotEmpty()) {
+            $stepNumbers = $lookupSteps->pluck('step_number')->all();
+
             return [
                 'is_used' => true,
-                'reason' => "This variable is being used in lookup step(s) " . implode(', ', $stepNumbers) . " and therefore cannot be deleted."
+                'reason' => 'This variable is being used in lookup step(s) '.implode(', ', $stepNumbers).' and therefore cannot be deleted.',
             ];
         }
 
-        return [
-            'is_used' => false,
-            'reason' => ''
-        ];
+        return ['is_used' => false, 'reason' => ''];
+    }
+
+    protected function lookupStepUsesVariable(FormulaStep $step, string $variableName): bool
+    {
+        $config = is_array($step->lookup_config) ? $step->lookup_config : [];
+
+        foreach ($config['key_expressions'] ?? [] as $expression) {
+            if (is_string($expression) && str_contains($expression, $variableName)) {
+                return true;
+            }
+        }
+
+        foreach ($config['key_values'] ?? [] as $value) {
+            if (is_string($value) && str_contains($value, $variableName)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function validateExpression()
@@ -732,6 +816,7 @@ class FormulaStepEditor extends Component
         $this->table_mode = 'dynamic';
         $this->row_driver = 'captured_result';
         $this->allow_manual_rows = false;
+        $this->resetPcrPlateFields();
     }
 
     public function updatedCheckboxDatasetSourceTable(): void
@@ -796,6 +881,177 @@ class FormulaStepEditor extends Component
             $this->stepColumnDatasetReferencedTable = '';
             $this->stepColumnDatasetReferencedKeyColumn = 'id';
             $this->stepColumnDatasetReferencedDisplayColumn = '';
+        }
+    }
+
+    public function addPcrStandard(): void
+    {
+        $value = trim($this->pcrNewStandard);
+        if ($value === '' || in_array($value, $this->pcrStandards, true)) {
+            return;
+        }
+        $this->pcrStandards[] = $value;
+        $this->pcrNewStandard = '';
+    }
+
+    public function removePcrStandard(int $index): void
+    {
+        if (isset($this->pcrStandards[$index])) {
+            $removed = $this->pcrStandards[$index];
+            unset($this->pcrStandards[$index]);
+            $this->pcrStandards = array_values($this->pcrStandards);
+            $this->purgePcrPresetWellsByLabel('std', $removed);
+        }
+    }
+
+    public function addPcrControl(): void
+    {
+        $value = trim($this->pcrNewControl);
+        if ($value === '' || in_array($value, $this->pcrControls, true)) {
+            return;
+        }
+        $this->pcrControls[] = $value;
+        $this->pcrNewControl = '';
+    }
+
+    public function removePcrControl(int $index): void
+    {
+        if (isset($this->pcrControls[$index])) {
+            $removed = $this->pcrControls[$index];
+            unset($this->pcrControls[$index]);
+            $this->pcrControls = array_values($this->pcrControls);
+            $this->purgePcrPresetWellsByLabel('control', $removed);
+        }
+    }
+
+    public function addPcrBuffer(): void
+    {
+        $value = trim($this->pcrNewBuffer);
+        if ($value === '' || in_array($value, $this->pcrBuffers, true)) {
+            return;
+        }
+        $this->pcrBuffers[] = $value;
+        $this->pcrNewBuffer = '';
+    }
+
+    public function removePcrBuffer(int $index): void
+    {
+        if (isset($this->pcrBuffers[$index])) {
+            $removed = $this->pcrBuffers[$index];
+            unset($this->pcrBuffers[$index]);
+            $this->pcrBuffers = array_values($this->pcrBuffers);
+            $this->purgePcrPresetWellsByLabel('buffer', $removed);
+        }
+    }
+
+    public function updatedPcrHasStdControlsBuffers(): void
+    {
+        if (! $this->pcrHasStdControlsBuffers) {
+            $this->pcrPresetWells = [];
+            $this->closePcrConfigWellEditor();
+        }
+    }
+
+    public function openPcrConfigWellEditor(string $well): void
+    {
+        $this->pcrConfigActiveWell = $well;
+        $assignment = $this->pcrPresetWells[$well] ?? null;
+
+        if (is_array($assignment)) {
+            $this->pcrConfigPopoverKind = (string) ($assignment['kind'] ?? 'std');
+            $this->pcrConfigPopoverValue = (string) ($assignment['value'] ?? '');
+        } else {
+            $this->pcrConfigPopoverKind = 'std';
+            $this->pcrConfigPopoverValue = '';
+        }
+    }
+
+    public function closePcrConfigWellEditor(): void
+    {
+        $this->pcrConfigActiveWell = null;
+        $this->pcrConfigPopoverValue = '';
+    }
+
+    public function setPcrConfigPopoverKind(string $kind): void
+    {
+        if (! in_array($kind, ['std', 'control', 'buffer'], true)) {
+            return;
+        }
+
+        $this->pcrConfigPopoverKind = $kind;
+        $this->pcrConfigPopoverValue = '';
+    }
+
+    public function applyPcrConfigWell(): void
+    {
+        if ($this->pcrConfigActiveWell === null) {
+            return;
+        }
+
+        $value = trim($this->pcrConfigPopoverValue);
+        if ($value === '') {
+            $this->addError('pcrConfigPopoverValue', 'Select or enter a label for this well.');
+
+            return;
+        }
+
+        $well = $this->pcrConfigActiveWell;
+        $this->pcrPresetWells[$well] = [
+            'kind' => $this->pcrConfigPopoverKind,
+            'value' => $value,
+        ];
+
+        $this->closePcrConfigWellEditor();
+        $this->resetErrorBag('pcrConfigPopoverValue');
+    }
+
+    public function clearPcrConfigWell(): void
+    {
+        if ($this->pcrConfigActiveWell === null) {
+            return;
+        }
+
+        unset($this->pcrPresetWells[$this->pcrConfigActiveWell]);
+        $this->closePcrConfigWellEditor();
+    }
+
+    public function quickAssignPcrConfigWell(string $kind, string $value): void
+    {
+        if ($this->pcrConfigActiveWell === null) {
+            return;
+        }
+
+        if (! in_array($kind, ['std', 'control', 'buffer'], true)) {
+            return;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return;
+        }
+
+        $this->pcrPresetWells[$this->pcrConfigActiveWell] = [
+            'kind' => $kind,
+            'value' => $value,
+        ];
+
+        $this->closePcrConfigWellEditor();
+    }
+
+    protected function purgePcrPresetWellsByLabel(string $kind, string $label): void
+    {
+        foreach ($this->pcrPresetWells as $well => $assignment) {
+            if (
+                is_array($assignment)
+                && ($assignment['kind'] ?? '') === $kind
+                && ($assignment['value'] ?? '') === $label
+            ) {
+                unset($this->pcrPresetWells[$well]);
+            }
+        }
+
+        if ($this->pcrConfigActiveWell !== null && ! isset($this->pcrPresetWells[$this->pcrConfigActiveWell])) {
+            $this->closePcrConfigWellEditor();
         }
     }
 
@@ -875,7 +1131,23 @@ class FormulaStepEditor extends Component
         $this->table_mode = 'dynamic';
         $this->row_driver = 'captured_result';
         $this->allow_manual_rows = false;
+        $this->resetPcrPlateFields();
         $this->editingStep = null;
+    }
+
+    protected function resetPcrPlateFields(): void
+    {
+        $this->pcrHasStdControlsBuffers = false;
+        $this->pcrStandards = [];
+        $this->pcrControls = [];
+        $this->pcrBuffers = [];
+        $this->pcrNewStandard = '';
+        $this->pcrNewControl = '';
+        $this->pcrNewBuffer = '';
+        $this->pcrPresetWells = [];
+        $this->pcrConfigActiveWell = null;
+        $this->pcrConfigPopoverKind = 'std';
+        $this->pcrConfigPopoverValue = '';
     }
 
     protected function resetCheckboxDatasetFields(): void
@@ -910,6 +1182,12 @@ class FormulaStepEditor extends Component
         $this->table_mode = $step->table_mode ?? 'dynamic';
         $this->row_driver = $step->row_driver ?? 'captured_result';
         $this->allow_manual_rows = (bool) $step->allow_manual_rows;
+        $this->pcrHasStdControlsBuffers = (bool) ($config['has_std_controls_buffers'] ?? false);
+        $this->pcrStandards = array_values($config['standards'] ?? []);
+        $this->pcrControls = array_values($config['controls'] ?? []);
+        $this->pcrBuffers = array_values($config['buffers'] ?? []);
+        $presetWells = $config['preset_wells'] ?? [];
+        $this->pcrPresetWells = is_array($presetWells) ? $presetWells : [];
     }
 
     protected function validateStepTypeConfig(): bool
@@ -969,6 +1247,13 @@ class FormulaStepEditor extends Component
                 'dataset_config' => $this->checkboxOptionsMode === 'dataset'
                     ? $this->buildCheckboxDatasetConfig()
                     : null,
+            ],
+            'pcr_plate_map' => [
+                'has_std_controls_buffers' => $this->pcrHasStdControlsBuffers,
+                'standards' => array_values(array_filter(array_map('trim', $this->pcrStandards))),
+                'controls' => array_values(array_filter(array_map('trim', $this->pcrControls))),
+                'buffers' => array_values(array_filter(array_map('trim', $this->pcrBuffers))),
+                'preset_wells' => $this->pcrHasStdControlsBuffers ? $this->pcrPresetWells : [],
             ],
             default => [],
         };
@@ -1069,6 +1354,7 @@ class FormulaStepEditor extends Component
             'static_text' => 'Static Text',
             'checkbox' => 'Checkbox',
             'custom_table' => 'Custom Table',
+            'pcr_plate_map' => 'PCR Plate Map',
         ];
     }
 
@@ -1175,6 +1461,51 @@ class FormulaStepEditor extends Component
             $this->setMessage('Mandatory fields placement updated.', 'success');
         } catch (\Exception $e) {
             $this->setMessage('Error updating placement: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    public function saveDocumentControl(): void
+    {
+        $hasControlNo = Schema::hasColumn('formula_versions', 'document_control_no');
+        $hasRevisionNo = Schema::hasColumn('formula_versions', 'document_control_revision_no');
+        $hasIssueDate = Schema::hasColumn('formula_versions', 'document_control_issue_date');
+
+        if (! $hasControlNo && ! $hasRevisionNo && ! $hasIssueDate) {
+            $this->setMessage('Document control fields are not available yet. Run migrations first.', 'error');
+
+            return;
+        }
+
+        $this->validate([
+            'documentControlNo' => 'nullable|string|max:255',
+            'documentControlRevisionNo' => 'nullable|string|max:100',
+            'documentControlIssueDate' => 'nullable|date',
+        ]);
+
+        try {
+            $payload = [];
+
+            if ($hasControlNo) {
+                $payload['document_control_no'] = $this->documentControlNo !== ''
+                    ? trim($this->documentControlNo)
+                    : null;
+            }
+
+            if ($hasRevisionNo) {
+                $payload['document_control_revision_no'] = $this->documentControlRevisionNo !== ''
+                    ? trim($this->documentControlRevisionNo)
+                    : null;
+            }
+
+            if ($hasIssueDate) {
+                $payload['document_control_issue_date'] = $this->documentControlIssueDate ?: null;
+            }
+
+            $this->formulaVersion->update($payload);
+            $this->formulaVersion->refresh();
+            $this->setMessage('Document control details saved.', 'success');
+        } catch (\Exception $e) {
+            $this->setMessage('Error saving document control: ' . $e->getMessage(), 'error');
         }
     }
 

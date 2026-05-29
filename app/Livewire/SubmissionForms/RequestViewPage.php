@@ -6,6 +6,7 @@ use App\ChainOfCustody;
 use App\BatchAttachment;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
+use App\Models\SubmissionFormInstanceAttachment;
 use App\Models\SubmissionFormInstanceNote;
 use App\Services\SampleCreationService;
 use App\Services\SubmissionFormBatchSyncService;
@@ -15,17 +16,34 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use App\Models\SubmissionFormInstanceAttachment;
-
 class RequestViewPage extends Component
 {
     use WithFileUploads;
 
     public $newAttachment;
 
+    public bool $showAttachmentModal = false;
+
+    public string $newAttachmentTitle = '';
+
     public string $newAttachmentType = '';
 
-    public string $newAttachmentHeading = '';
+    public string $newCustomAttachmentType = '';
+
+    public string $newAttachmentDescription = '';
+
+    /** @var list<string> */
+    public array $availableAttachmentTypes = [];
+
+    /** @var list<string> */
+    protected array $defaultAttachmentTypes = [
+        'Permit',
+        'Invoice',
+        'Packing List',
+        'Report',
+        'Certificate',
+        'Authorization Letter',
+    ];
 
     public string $submissionFormId;
 
@@ -70,6 +88,8 @@ class RequestViewPage extends Component
             $this->linkedBatchesOutOfSyncWithForm = $batchSyncService
                 ->linkedBatchesOutOfSyncWithForm($this->instance);
         }
+
+        $this->loadAvailableAttachmentTypes();
     }
 
     public function setTab(string $tab): void
@@ -106,6 +126,63 @@ class RequestViewPage extends Component
         session()->flash('request_view_message', 'Note saved successfully.');
     }
 
+    public function openAttachmentModal(): void
+    {
+        $this->reset([
+            'newAttachment',
+            'newAttachmentTitle',
+            'newAttachmentType',
+            'newCustomAttachmentType',
+            'newAttachmentDescription',
+        ]);
+        $this->resetValidation();
+        $this->loadAvailableAttachmentTypes();
+        $this->showAttachmentModal = true;
+    }
+
+    public function closeAttachmentModal(): void
+    {
+        $this->showAttachmentModal = false;
+        $this->reset([
+            'newAttachment',
+            'newAttachmentTitle',
+            'newAttachmentType',
+            'newCustomAttachmentType',
+            'newAttachmentDescription',
+        ]);
+        $this->resetValidation();
+    }
+
+    public function loadAvailableAttachmentTypes(): void
+    {
+        $dbTypes = SubmissionFormInstanceAttachment::query()
+            ->whereNotNull('attachment_type')
+            ->where('attachment_type', '!=', '')
+            ->distinct()
+            ->pluck('attachment_type')
+            ->map(fn ($type) => $this->formatAttachmentTypeLabel((string) $type))
+            ->all();
+
+        $systemTypes = \App\Models\System\SystemConfiguration::query()
+            ->where('key', 'attachment_type')
+            ->pluck('value')
+            ->map(fn ($type) => trim((string) $type))
+            ->filter()
+            ->all();
+
+        $this->availableAttachmentTypes = collect(array_merge(
+            $this->defaultAttachmentTypes,
+            $dbTypes,
+            $systemTypes
+        ))
+            ->map(fn ($type) => trim((string) $type))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
     public function uploadAttachment(): void
     {
         $user = auth()->user();
@@ -113,12 +190,22 @@ class RequestViewPage extends Component
 
         $this->validate([
             'newAttachment' => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,webp,txt'],
-            'newAttachmentType' => ['nullable', 'string', 'max:100'],
-            'newAttachmentHeading' => ['nullable', 'string', 'max:255'],
+            'newAttachmentTitle' => ['required', 'string', 'max:255'],
+            'newAttachmentType' => ['required', 'string', 'max:100'],
+            'newCustomAttachmentType' => ['required_if:newAttachmentType,Other', 'nullable', 'string', 'max:100'],
+            'newAttachmentDescription' => ['nullable', 'string', 'max:5000'],
         ], [
+            'newAttachment.required' => 'Please attach a file.',
             'newAttachment.max' => 'The attachment must not be greater than 10MB.',
             'newAttachment.mimes' => 'The attachment must be a file of type: pdf, doc, docx, xls, xlsx, png, jpg, jpeg, webp, txt.',
+            'newAttachmentTitle.required' => 'Please enter a title.',
+            'newAttachmentType.required' => 'Please select an attachment type.',
+            'newCustomAttachmentType.required_if' => 'Please enter the attachment type.',
         ]);
+
+        $resolvedType = $this->newAttachmentType === 'Other'
+            ? trim($this->newCustomAttachmentType)
+            : $this->newAttachmentType;
 
         $originalName = $this->newAttachment->getClientOriginalName();
         $path = $this->newAttachment->store('request-attachments', 'public');
@@ -127,12 +214,21 @@ class RequestViewPage extends Component
             'file_path' => $path,
             'original_name' => $originalName,
             'uploaded_by' => $user->id,
-            'attachment_type' => $this->newAttachmentType ?: null,
-            'attachment_heading' => $this->newAttachmentHeading ?: null,
+            'attachment_type' => $resolvedType ?: null,
+            'attachment_heading' => $this->newAttachmentTitle,
+            'description' => $this->newAttachmentDescription ?: null,
         ]);
 
-        $this->reset('newAttachment', 'newAttachmentType', 'newAttachmentHeading');
+        $this->closeAttachmentModal();
+        $this->loadAvailableAttachmentTypes();
         session()->flash('request_view_message', 'Attachment uploaded successfully.');
+    }
+
+    private function formatAttachmentTypeLabel(string $type): string
+    {
+        $normalized = str_replace('_', ' ', trim($type));
+
+        return ucwords($normalized);
     }
 
     private function authorizeFormAccess(?\App\User $user): void

@@ -10,6 +10,7 @@
         'static_text' => ['icon' => 'mdi-text-box-outline', 'color' => 'input', 'hint' => 'Read-only information on the worksheet'],
         'checkbox' => ['icon' => 'mdi-checkbox-marked-outline', 'color' => 'lookup', 'hint' => 'Worksheet-wide checklist at the bottom'],
         'custom_table' => ['icon' => 'mdi-table-large', 'color' => 'derived', 'hint' => 'Per-sample table with dynamic or static rows'],
+        'pcr_plate_map' => ['icon' => 'mdi-grid', 'color' => 'lookup', 'hint' => '96-well PCR plate for sample / QC layout'],
     ];
 @endphp
 

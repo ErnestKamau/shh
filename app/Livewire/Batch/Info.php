@@ -13,13 +13,13 @@ class Info extends Component
     public $clients = [];
     public $sample_types = [];
     public $labsections = [];
+    public $labs = [];
     public $samplingmethods = [];
     public $recieving_users = [];
     public $qc_schemes = [];
     public $qc_types = [];
-    public $batch_scope;
-    public $customer_survey;
     public $active_company;
+    public ?string $selectedModeOfPayment = null;
     public $defaultClient;
     public $clientPageSize;
     public $maxDate;
@@ -32,12 +32,11 @@ class Info extends Component
         $clients,
         $sample_types,
         $labsections,
+        $labs,
         $samplingmethods,
         $recieving_users,
         $qc_schemes,
         $qc_types,
-        $batch_scope,
-        $customer_survey,
         $active_company,
         $defaultClient = false,
         $clientPageSize = 50
@@ -47,31 +46,34 @@ class Info extends Component
         $this->clients = $clients;
         $this->sample_types = $sample_types;
         $this->labsections = $labsections;
+        $this->labs = $labs;
         $this->samplingmethods = $samplingmethods;
         $this->recieving_users = $recieving_users;
         $this->qc_schemes = $qc_schemes;
         $this->qc_types = $qc_types;
-        $this->batch_scope = $batch_scope;
-        $this->customer_survey = $customer_survey;
         $this->active_company = $active_company;
         $this->defaultClient = $defaultClient;
         $this->clientPageSize = $clientPageSize;
         $this->maxDate = getTodayDate();
+        $this->selectedModeOfPayment = $this->resolveModeOfPaymentForCustomer($batch->crm_customer_id ?? null);
+    }
+
+    private function resolveModeOfPaymentForCustomer(?string $customerId): ?string
+    {
+        if ($customerId === null || $customerId === '') {
+            return null;
+        }
+
+        $customer = \App\Models\CRM\CRMCustomer::query()->find($customerId);
+        if ($customer === null) {
+            return null;
+        }
+
+        return (int) ($customer->credit_days ?? 0) > 0 ? 'Post-Paid' : 'Pre-Paid';
     }
 
     public function render(): \Illuminate\View\View
     {
-        $instance = null;
-        $formData = null;
-        
-        if ($this->batch->hasSubmissionForm()) {
-            $instance = $this->batch->submissionFormInstance;
-            $formData = $instance ? $instance->getFormDataForDisplay() : null;
-        }
-        
-        return view('livewire.batch.info', [
-            'instance' => $instance,
-            'formData' => $formData
-        ]);
+        return view('livewire.batch.info');
     }
 }

@@ -613,25 +613,46 @@ class SampleWorkFlowController extends Controller
             $header->receipt_date = $request->receipt_date;
             $header->date_collected = $request->date_collected;
             $header->batch_scope = $request->batch_scope;
-            $header->customer_survey = $request->customer_survey;
+            if ($request->has('customer_survey')) {
+                $header->customer_survey = $request->customer_survey;
+            }
             $header->is_qc_batch = isset($request->is_qc_batch);
             $header->qc_type_id = $request->qc_type_id;
             $header->qc_scheme_id = $request->qc_scheme_id;
             $header->repeat_batch_id = isset($request->repeat_sample_id) ? $request->repeat_batch_id : 0;
             $header->repeat_sample_id = isset($request->repeat_sample_id) && $request->repeat_sample_id > 0 ? $request->repeat_sample_id : $header->repeat_sample_id;
             $header->begin_proccess = isset($request->is_qc_batch) ? 1 : 0;
-            $header->quote_no = $request->quote_no;
+            if ($request->has('quote_no')) {
+                $header->quote_no = $request->quote_no;
+            }
             $header->lab_capable = isset($request->lab_capable) ? 1 : 0;
             $header->can_be_subcontracted = isset($request->can_be_subcontracted) ? 1 : 0;
             $header->batch_subcontracted_client_approval = isset($request->batch_subcontracted_client_approval) ? 1 : 0;
             $header->client_instruction_clear = isset($request->client_instruction_clear) ? 1 : 0;
             $header->batch_instructions = $request->batch_instructions;
+            $header->reason_for_submission = $request->reason_for_submission;
             $header->sampling_method_id = $request->sampling_method_id;
             $header->require_mu = $request->require_mu;
             $header->payment_done_by = $request->payment_done_by;
             $header->condition_quality_sample = $request->condition_quality_sample;
             // $header->invoice_amount = $request->invoice_amount;
-            $header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
+            if ($request->filled('lab_id')) {
+                $header->lab_id = $request->lab_id;
+                $sectionIds = SampleAnalysisStage::query()
+                    ->where('lab_id', $request->lab_id)
+                    ->where('active', 1)
+                    ->where('is_system', 0)
+                    ->pluck('id')
+                    ->all();
+                $header->lab_section_ids = implode(',', $sectionIds);
+            } else {
+                $header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
+            }
+            if (strtolower((string) $request->batch_scope) === 'express') {
+                $header->priority = 'Express';
+            } elseif (strtolower((string) $request->batch_scope) === 'normal') {
+                $header->priority = 'Normal';
+            }
             $header->crm_contact_id = $request->crm_contact_id;
             $header->schedule_customer_email = $request->customer_email;
 
@@ -692,7 +713,9 @@ class SampleWorkFlowController extends Controller
         $header->submit_by = $request->submit_by;
         $header->radio_active_levels = $request->radio_active_levels;
         $header->kra_office_ref = $request->kra_office_ref;
-        $header->use_of_goods = $request->use_of_goods;
+        if ($request->has('use_of_goods')) {
+            $header->use_of_goods = $request->use_of_goods;
+        }
         // $header->how_sample_was_obtained = $request->how_sample_was_obtained;
         // $header->declared_commodity_code = $request->declared_commodity_code;
         // $header->declared_amount = $request->declared_amount ?? 0;
@@ -6357,6 +6380,7 @@ class SampleWorkFlowController extends Controller
                 'sample_point_name' => 'Sample Point',
                 'contacts' => [],
                 'customer' => null,
+                'mode_of_payment' => null,
             ]);
         }
 
@@ -6379,6 +6403,7 @@ class SampleWorkFlowController extends Controller
             'sample_point_name' => $samplePointName,
             'contacts' => $customer->contacts,
             'customer' => $customer,
+            'mode_of_payment' => (int) ($customer->credit_days ?? 0) > 0 ? 'Post-Paid' : 'Pre-Paid',
         ]);
     }
 

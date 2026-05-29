@@ -46,12 +46,19 @@
             <p class="mb-0">No decontamination areas configured yet.</p>
         </div>
     @else
+        @php
+            $groupedAreas = $lab->decontaminationAreas
+                ->sortBy([
+                    fn ($area) => strtolower((string) ($area->labSection->name ?? 'zzzzzz')),
+                    fn ($area) => strtolower((string) $area->name),
+                ])
+                ->groupBy(fn ($area) => $area->lab_section_id ?? 'unassigned');
+        @endphp
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Name</th>
-                        <th>Lab Section</th>
                         <th>Status</th>
                         @can('laboratory.components.labs.edit')
                             <th style="width: 120px;">Actions</th>
@@ -59,35 +66,42 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($lab->decontaminationAreas as $area)
-                        <tr wire:key="decon-area-{{ $area->id }}">
-                            <td><strong>{{ $area->name }}</strong></td>
-                            <td>
-                                @if($area->labSection)
-                                    <span class="text-muted small">{{ $area->labSection->code }}</span>
-                                    {{ $area->labSection->name }}
-                                @else
-                                    —
-                                @endif
+                    @foreach($groupedAreas as $groupKey => $areas)
+                        @php
+                            $section = $areas->first()->labSection;
+                            $groupLabel = $section
+                                ? trim(($section->code ? $section->code.' — ' : '').$section->name)
+                                : 'Unassigned Section';
+                        @endphp
+                        <tr class="table-light">
+                            <td colspan="@can('laboratory.components.labs.edit')3 @else 2 @endcan" class="fw-bold text-primary">
+                                <i class="mdi mdi-layers-triple me-1"></i>
+                                {{ $groupLabel }}
+                                <span class="text-muted fw-normal ms-2">({{ $areas->count() }})</span>
                             </td>
-                            <td>
-                                <span class="lab-badge {{ $area->active ? 'lab-badge--active' : 'lab-badge--inactive' }}">
-                                    {{ $area->active ? 'Active' : 'Inactive' }}
-                                </span>
-                            </td>
-                            @can('laboratory.components.labs.edit')
-                                <td>
-                                    <div class="d-flex gap-1">
-                                        <button type="button" class="rm-act-btn rm-act-btn--edit" wire:click="showEditDecontaminationModal('{{ $area->id }}')" title="Edit">
-                                            <i class="mdi mdi-pencil"></i>
-                                        </button>
-                                        <button type="button" class="rm-act-btn rm-act-btn--delete" wire:click="confirmDeleteDecontaminationArea('{{ $area->id }}')" title="Delete">
-                                            <i class="mdi mdi-delete"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            @endcan
                         </tr>
+                        @foreach($areas as $area)
+                            <tr wire:key="decon-area-{{ $area->id }}">
+                                <td><strong>{{ $area->name }}</strong></td>
+                                <td>
+                                    <span class="lab-badge {{ $area->active ? 'lab-badge--active' : 'lab-badge--inactive' }}">
+                                        {{ $area->active ? 'Active' : 'Inactive' }}
+                                    </span>
+                                </td>
+                                @can('laboratory.components.labs.edit')
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button type="button" class="rm-act-btn rm-act-btn--edit" wire:click="showEditDecontaminationModal('{{ $area->id }}')" title="Edit">
+                                                <i class="mdi mdi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="rm-act-btn rm-act-btn--delete" wire:click="confirmDeleteDecontaminationArea('{{ $area->id }}')" title="Delete">
+                                                <i class="mdi mdi-delete"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                @endcan
+                            </tr>
+                        @endforeach
                     @endforeach
                 </tbody>
             </table>

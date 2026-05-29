@@ -33,11 +33,14 @@ class ProcedureStepTableRowGeneratorService
     /**
      * Ensure rows exist for the instance based on step table_mode.
      *
+     * A null table_mode is treated as 'static' so that steps configured with
+     * static rows before the table_mode field existed still materialize correctly.
+     *
      * @return int Number of new rows created
      */
     public function syncRows(SampleProcedureStepTableInstance $instance, SampleHeader $batch, ProcedureWorksheetStep $step): int
     {
-        if ($step->table_mode === 'static') {
+        if ($step->table_mode !== 'dynamic') {
             return $this->materializeStaticRows($instance, $step);
         }
 

@@ -76,6 +76,7 @@ class FormulaStep extends Model implements Auditable
             'static_text' => 'Static Text',
             'checkbox' => 'Checkbox',
             'custom_table' => 'Custom Table',
+            'pcr_plate_map' => 'PCR Plate Map',
         ];
     }
 
@@ -134,6 +135,27 @@ class FormulaStep extends Model implements Auditable
     public function isCustomTable(): bool
     {
         return $this->step_type === 'custom_table';
+    }
+
+    public function isPcrPlateMap(): bool
+    {
+        return $this->step_type === 'pcr_plate_map';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function pcrPlateConfig(): array
+    {
+        $config = is_array($this->step_config) ? $this->step_config : [];
+
+        return [
+            'has_std_controls_buffers' => (bool) ($config['has_std_controls_buffers'] ?? false),
+            'standards' => array_values($config['standards'] ?? []),
+            'controls' => array_values($config['controls'] ?? []),
+            'buffers' => array_values($config['buffers'] ?? []),
+            'preset_wells' => is_array($config['preset_wells'] ?? null) ? $config['preset_wells'] : [],
+        ];
     }
 
     public function isCalculable(): bool

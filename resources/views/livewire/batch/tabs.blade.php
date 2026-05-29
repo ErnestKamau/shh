@@ -143,16 +143,48 @@
 <script>
 (function () {
     var tabActivationAttempts = 0;
+    var batchDetailsHashes = [
+        'sample-receipt-notification',
+        'laboratory-acceptance',
+        'laboratory-acceptance-part-5'
+    ];
+
+    function isBatchDetailsHash(tabId) {
+        if (batchDetailsHashes.indexOf(tabId) !== -1) {
+            return true;
+        }
+
+        return tabId.indexOf('laboratory-acceptance-part-') === 0;
+    }
+
+    function scrollToBatchDetailsAnchor(tabId) {
+        var anchorId = tabId.indexOf('laboratory-acceptance-part-') === 0 ? tabId : 'laboratory-acceptance-part-5';
+        var target = document.getElementById(anchorId);
+
+        if (!target) {
+            if (tabActivationAttempts < 12) {
+                tabActivationAttempts += 1;
+                window.setTimeout(function () {
+                    scrollToBatchDetailsAnchor(tabId);
+                }, 100);
+            }
+            return;
+        }
+
+        tabActivationAttempts = 0;
+        setTimeout(function () {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+    }
 
     function activateTabFromHash() {
         var hash = window.location.hash;
         if (!hash) return;
         var tabId = hash.replace('#', '');
 
-        if (tabId === 'sample-receipt-notification'
-            || tabId === 'laboratory-acceptance'
-            || tabId.indexOf('laboratory-acceptance-part-') === 0) {
-            tabId = 'samples';
+        if (isBatchDetailsHash(tabId)) {
+            scrollToBatchDetailsAnchor(tabId);
+            return;
         }
 
         var $tabLink = $('#' + tabId + '-tab, [href="#' + tabId + '"]').first();
@@ -173,7 +205,6 @@
         }, 300);
     }
 
-    // Run after DOM and Livewire are ready
     document.addEventListener('livewire:init', function () {
         Livewire.hook('commit', function () {
             activateTabFromHash();

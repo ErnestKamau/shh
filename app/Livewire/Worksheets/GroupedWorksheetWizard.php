@@ -12,6 +12,7 @@ use App\Models\HybridWorksheets\HybridWorksheet;
 use App\Models\StageHeader;
 use App\SampleHeader;
 use App\Services\GroupedWorksheets\GroupedWorksheetCapturePreviewService;
+use App\Services\GroupedWorksheets\GroupedWorksheetPipelineStages;
 use App\Services\GroupedWorksheets\GroupedWorksheetRunService;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -61,6 +62,10 @@ class GroupedWorksheetWizard extends Component
             return;
         }
 
+        if (app(GroupedWorksheetPipelineStages::class)->isVirtualResultsCapture($current)) {
+            return;
+        }
+
         $runItem = $this->run->runItems->firstWhere('grouped_worksheet_item_id', $current->id);
         if ($runItem && $runItem->status === GroupedWorksheetRunItemStatus::Pending) {
             $runItem->update(['status' => GroupedWorksheetRunItemStatus::InProgress]);
@@ -71,10 +76,13 @@ class GroupedWorksheetWizard extends Component
     {
         $this->run->load(['holder.items', 'runItems']);
         $this->holder->load('items');
+        $pipelineStages = app(GroupedWorksheetPipelineStages::class);
+        $items = $pipelineStages->allStages($this->holder);
         $current = $this->currentItem();
         $formula = null;
         $stageHeaders = collect();
         $hybridWorksheet = null;
+        $logEntryWorksheetId = null;
 
         if ($current) {
             match ($current->getItemTypeEnum()) {
@@ -83,12 +91,13 @@ class GroupedWorksheetWizard extends Component
                     ->where('id', $current->reference_id)
                     ->get(),
                 GroupedWorksheetItemType::HybridWorksheet => $hybridWorksheet = HybridWorksheet::with('activeVersion.blocks')->find($current->reference_id),
+                GroupedWorksheetItemType::LogEntryWorksheet => $logEntryWorksheetId = $current->reference_id,
                 default => null,
             };
         }
 
         return view('livewire.worksheets.grouped-worksheet-wizard', [
-            'items' => $this->holder->items,
+            'items' => $items,
             'currentItem' => $current,
             'capturePreview' => $this->capturePreview,
             'runItems' => $this->run->runItems,
@@ -96,16 +105,22 @@ class GroupedWorksheetWizard extends Component
             'stageHeaders' => $stageHeaders,
             'stageHeadersPayload' => $this->stageHeadersPayload($stageHeaders),
             'hybridWorksheet' => $hybridWorksheet,
+            'logEntryWorksheetId' => $logEntryWorksheetId,
             'procedureWorksheetId' => $current?->getItemTypeEnum() === GroupedWorksheetItemType::Procedure
                 ? $current->reference_id
                 : null,
             'isRunComplete' => $this->run->status === GroupedWorksheetRunStatus::Completed,
+            'isVirtualResultsCapture' => $current
+                ? $pipelineStages->isVirtualResultsCapture($current)
+                : false,
         ]);
     }
 
     public function currentItem(): ?\App\Models\GroupedWorksheets\GroupedWorksheetItem
     {
-        return $this->holder->items->values()->get($this->run->current_item_index);
+        return app(GroupedWorksheetPipelineStages::class)
+            ->allStages($this->holder)
+            ->get($this->run->current_item_index);
     }
 
     public function completeStage(): void
@@ -124,7 +139,7 @@ class GroupedWorksheetWizard extends Component
     public function skipStage(): void
     {
         $current = $this->currentItem();
-        if (! $current || $current->is_required) {
+        if (! $current || $current->is_required || app(GroupedWorksheetPipelineStages::class)->isVirtualResultsCapture($current)) {
             $this->setMessage('This stage is required and cannot be skipped.', 'error');
 
             return;

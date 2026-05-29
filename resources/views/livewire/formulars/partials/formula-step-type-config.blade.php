@@ -134,6 +134,10 @@
     </section>
 @endif
 
+@if($stepType === 'pcr_plate_map')
+    @include('livewire.formulars.partials.formula-step-pcr-plate-config')
+@endif
+
 @if($stepType === 'custom_table')
     <section class="fs-config-panel mb-3">
         <div class="fs-config-panel-head">

@@ -61,6 +61,10 @@ class LogEntryWorksheetManager extends Component
             ->distinct()
             ->pluck('log_entry_worksheet_id');
 
+        if ($this->selectedWorksheetId !== null && $this->selectedWorksheetId !== '') {
+            $ids = $ids->push($this->selectedWorksheetId)->unique()->values();
+        }
+
         return LogEntryWorksheet::query()
             ->whereIn('id', $ids)
             ->where('is_active', true)
@@ -372,10 +376,6 @@ class LogEntryWorksheetManager extends Component
             }
 
             foreach ($columns as $column) {
-                if (! empty($this->tableData[$row->id][$column->key] ?? '')) {
-                    continue;
-                }
-
                 $resolved = $resolver->resolveDisplayValue($column->dataset_config, $row);
                 if ($resolved !== null && $resolved !== '') {
                     $this->tableData[$row->id][$column->key] = $resolved;

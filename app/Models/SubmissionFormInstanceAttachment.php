@@ -20,6 +20,7 @@ class SubmissionFormInstanceAttachment extends Model
         'uploaded_by',
         'attachment_type',
         'attachment_heading',
+        'description',
     ];
 
     public function submissionFormInstance(): BelongsTo

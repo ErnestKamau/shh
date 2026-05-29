@@ -142,6 +142,7 @@
                                                             'static_text' => 'secondary',
                                                             'checkbox' => 'primary',
                                                             'custom_table' => 'warning',
+                                                            'pcr_plate_map' => 'info',
                                                             default => 'warning',
                                                         };
                                                     @endphp
@@ -167,6 +168,19 @@
                                                         <small class="text-muted">{{ ucfirst($step['step_config']['options_mode'] ?? 'static') }} options</small>
                                                     @elseif($step['step_type'] === 'custom_table')
                                                         <small class="text-muted">{{ ucfirst($step['table_mode'] ?? 'dynamic') }} table</small>
+                                                    @elseif($step['step_type'] === 'pcr_plate_map')
+                                                        @php
+                                                            $pcrPresetCount = count($step['step_config']['preset_wells'] ?? []);
+                                                        @endphp
+                                                        <small class="text-muted">
+                                                            96-well plate
+                                                            @if($step['step_config']['has_std_controls_buffers'] ?? false)
+                                                                · QC wells
+                                                                @if($pcrPresetCount > 0)
+                                                                    · {{ $pcrPresetCount }} mapped
+                                                                @endif
+                                                            @endif
+                                                        </small>
                                                     @else
                                                         <span class="text-muted">-</span>
                                                     @endif
@@ -191,7 +205,7 @@
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
                                                         <button type="button"
-                                                                wire:click="showDeleteStepModal(@js($step['id']))"
+                                                                wire:click="openDeleteStepModal(@js($step['id']))"
                                                                 class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                                 title="Delete">
                                                             <i class="mdi mdi-delete"></i>
@@ -231,12 +245,32 @@
                                 </h5>
                                 <p class="text-muted small mb-0">Define required fields for worksheet execution</p>
                             </div>
+                            @if($mandatorySectionTab === 'mandatory_fields')
                             <button wire:click="showCreateFieldModalInit" class="btn btn-primary">
                                 <i class="mdi mdi-plus"></i> Add Field
                             </button>
+                            @endif
                         </div>
                     </div>
                     <div class="card-body p-4">
+                        <ul class="nav nav-tabs mb-4">
+                            <li class="nav-item">
+                                <button type="button"
+                                        class="nav-link {{ $mandatorySectionTab === 'mandatory_fields' ? 'active' : '' }}"
+                                        wire:click="$set('mandatorySectionTab', 'mandatory_fields')">
+                                    <i class="mdi mdi-text-box-check mr-1"></i> Mandatory Worksheet Fields
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button type="button"
+                                        class="nav-link {{ $mandatorySectionTab === 'document_control' ? 'active' : '' }}"
+                                        wire:click="$set('mandatorySectionTab', 'document_control')">
+                                    <i class="mdi mdi-file-document-edit-outline mr-1"></i> Document Control
+                                </button>
+                            </li>
+                        </ul>
+
+                        @if($mandatorySectionTab === 'mandatory_fields')
                         <div class="fm-placement-bar fm-placement-bar--inline mb-4" role="radiogroup" aria-label="Default placement for new mandatory fields">
                             <div class="fm-placement-bar__text">
                                 <i class="mdi mdi-arrow-collapse-vertical text-primary" aria-hidden="true"></i>
@@ -368,6 +402,48 @@
                                 </button>
                             </div>
                         @endif
+                        @else
+                            <div class="fs-form-section mb-0">
+                                <h6 class="fs-form-section-title">Document control details</h6>
+                                <p class="text-muted small mb-3">
+                                    Set worksheet document control metadata displayed on the form.
+                                </p>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Control Number</label>
+                                            <input type="text"
+                                                   class="form-control"
+                                                   wire:model.defer="documentControlNo"
+                                                   placeholder="e.g. DOC-001">
+                                            @error('documentControlNo') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Revision No</label>
+                                            <input type="text"
+                                                   class="form-control"
+                                                   wire:model.defer="documentControlRevisionNo"
+                                                   placeholder="e.g. Rev 03">
+                                            @error('documentControlRevisionNo') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Issue Date</label>
+                                            <input type="date"
+                                                   class="form-control"
+                                                   wire:model.defer="documentControlIssueDate">
+                                            @error('documentControlIssueDate') <small class="text-danger">{{ $message }}</small> @enderror
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-primary" wire:click="saveDocumentControl">
+                                    <i class="mdi mdi-content-save-outline mr-1"></i> Save Document Control
+                                </button>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -478,62 +554,77 @@
 
 <!-- Delete Step Modal -->
 @if($showDeleteStepModal && $deletingStep)
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-delete text-danger"></i>
-                        Delete Step
-                    </h5>
-                    <button type="button" class="btn-close" wire:click="$set('showDeleteStepModal', false)"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <i class="mdi mdi-alert-circle"></i>
-                        <strong>Warning:</strong> This action cannot be undone.
+    <div class="fs-modal show d-block formula-step-modal" tabindex="-1" wire:click.self="closeDeleteStepModal">
+        <div class="modal-dialog modal-dialog-scrollable fs-modal-dialog" wire:click.stop>
+            <div class="modal-content fs-modal-content">
+                <div class="modal-header fs-modal-header">
+                    <div>
+                        <h5 class="modal-title mb-1">
+                            <i class="mdi mdi-delete-alert text-danger"></i> Delete Step
+                        </h5>
+                        <p class="fs-modal-subtitle mb-0">Review this step before removing it from the formula workflow.</p>
                     </div>
-                    
-                    <div class="mb-3">
-                        <h6>Step Details:</h6>
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <strong>Step Number:</strong> {{ $deletingStep->step_number }}
-                                    </div>
-                                    <div class="col-md-6">
-                                        <strong>Type:</strong> 
-                                        <span class="badge badge-{{ $deletingStep->step_type === 'input' ? 'success' : ($deletingStep->step_type === 'derived' ? 'info' : 'warning') }}">
-                                            {{ ucfirst($deletingStep->step_type) }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="row mt-2">
-                                    <div class="col-md-6">
-                                        <strong>Variable Name:</strong> {{ $deletingStep->variable_name }}
-                                    </div>
-                                    <div class="col-md-6">
-                                        <strong>Label:</strong> {{ $deletingStep->label }}
-                                    </div>
-                                </div>
-                                @if($deletingStep->description)
-                                    <div class="row mt-2">
-                                        <div class="col-12">
-                                            <strong>Description:</strong> {{ $deletingStep->description }}
-                                        </div>
-                                    </div>
-                                @endif
+                    <button type="button" class="close fs-modal-close" wire:click="closeDeleteStepModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body fs-modal-body">
+                    <div class="alert alert-warning border-0 mb-3">
+                        <i class="mdi mdi-information-outline"></i>
+                        This step will be marked as deleted and removed from the workflow. Existing worksheet data is preserved.
+                    </div>
+
+                    <div class="fs-delete-step-card">
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <span class="fs-delete-step-card__label">Step number</span>
+                                <div class="fs-delete-step-card__value">{{ $deletingStep->step_number }}</div>
                             </div>
+                            <div class="col-sm-6">
+                                <span class="fs-delete-step-card__label">Type</span>
+                                <div class="fs-delete-step-card__value">
+                                    {{ \App\Models\Formulars\FormulaStep::getStepTypes()[$deletingStep->step_type] ?? ucfirst(str_replace('_', ' ', $deletingStep->step_type)) }}
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <span class="fs-delete-step-card__label">Label</span>
+                                <div class="fs-delete-step-card__value">{{ $deletingStep->label }}</div>
+                            </div>
+                            @if($deletingStep->isExpressionVariable())
+                                <div class="col-sm-6">
+                                    <span class="fs-delete-step-card__label">Variable name</span>
+                                    <div class="fs-delete-step-card__value"><code>{{ $deletingStep->variable_name }}</code></div>
+                                </div>
+                            @endif
+                            @if($deletingStep->description)
+                                <div class="col-12">
+                                    <span class="fs-delete-step-card__label">Description</span>
+                                    <div class="fs-delete-step-card__value">{{ $deletingStep->description }}</div>
+                                </div>
+                            @endif
+                            @if($deletingStep->isDerived() && $deletingStep->expression)
+                                <div class="col-12">
+                                    <span class="fs-delete-step-card__label">Expression</span>
+                                    <div class="fs-delete-step-card__value"><code>{{ $deletingStep->expression }}</code></div>
+                                </div>
+                            @endif
+                            @if($deletingStep->isCustomTable())
+                                <div class="col-sm-6">
+                                    <span class="fs-delete-step-card__label">Table mode</span>
+                                    <div class="fs-delete-step-card__value">{{ ucfirst($deletingStep->table_mode ?? 'dynamic') }}</div>
+                                </div>
+                            @endif
                         </div>
                     </div>
-                    
-                    <p class="text-muted">Are you sure you want to delete this step? This will remove it from the formula workflow.</p>
+
+                    <p class="text-muted small mb-0 mt-3">
+                        Are you sure you want to delete this step?
+                    </p>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="$set('showDeleteStepModal', false)">Cancel</button>
-                    <button type="button" class="btn btn-danger" wire:click="deleteStep">
-                        <i class="mdi mdi-delete"></i> Delete Step
+                <div class="modal-footer fs-modal-footer">
+                    <button type="button" class="btn btn-light" wire:click="closeDeleteStepModal">Cancel</button>
+                    <button type="button" class="btn btn-danger px-4" wire:click="deleteStep">
+                        <i class="mdi mdi-delete"></i> Yes, Delete
                     </button>
                 </div>
             </div>
@@ -1438,6 +1529,29 @@
         padding: 1rem 1.5rem;
         background: #f8fafc;
         border-top: 1px solid #e2e8f0;
+    }
+
+    .fs-delete-step-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+    }
+
+    .fs-delete-step-card__label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #64748b;
+        margin-bottom: 0.25rem;
+    }
+
+    .fs-delete-step-card__value {
+        font-size: 0.9375rem;
+        color: #0f172a;
+        word-break: break-word;
     }
 
     .fs-form-section {
@@ -2688,7 +2802,7 @@
                     console.log('Drag ended, new index:', evt.newIndex, 'old index:', evt.oldIndex);
                     
                     const stepIds = Array.from(sortableElement.children).map(row => {
-                        return parseInt(row.getAttribute('data-step-id'));
+                        return row.getAttribute('data-step-id');
                     });
                     
                     console.log('New step order:', stepIds);
@@ -2728,7 +2842,7 @@
                     console.log('Field drag ended, new index:', evt.newIndex, 'old index:', evt.oldIndex);
                     
                     const fieldIds = Array.from(sortableFieldsElement.children).map(row => {
-                        return parseInt(row.getAttribute('data-field-id'));
+                        return row.getAttribute('data-field-id');
                     });
                     
                     console.log('New field order:', fieldIds);

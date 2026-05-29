@@ -8,6 +8,8 @@ enum GroupedWorksheetItemType: string
     case Procedure = 'procedure';
     case StageHeader = 'stage_header';
     case HybridWorksheet = 'hybrid_worksheet';
+    case LogEntryWorksheet = 'log_entry_worksheet';
+    case ResultsCapture = 'results_capture';
 
     public function label(): string
     {
@@ -16,6 +18,8 @@ enum GroupedWorksheetItemType: string
             self::Procedure => 'Procedure worksheet',
             self::StageHeader => 'Method sequence (stage header)',
             self::HybridWorksheet => 'Hybrid worksheet',
+            self::LogEntryWorksheet => 'Log entry worksheet',
+            self::ResultsCapture => 'Results capture',
         };
     }
 
@@ -26,6 +30,8 @@ enum GroupedWorksheetItemType: string
             self::Procedure => 'procedure_worksheets',
             self::StageHeader => 'stage_headers',
             self::HybridWorksheet => 'hybrid_worksheets',
+            self::LogEntryWorksheet => 'log_entry_worksheets',
+            self::ResultsCapture => '',
         };
     }
 
@@ -36,6 +42,9 @@ enum GroupedWorksheetItemType: string
     {
         $options = [];
         foreach (self::cases() as $case) {
+            if ($case === self::ResultsCapture) {
+                continue;
+            }
             $options[$case->value] = $case->label();
         }
 

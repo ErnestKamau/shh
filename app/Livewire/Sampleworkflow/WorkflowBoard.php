@@ -13,7 +13,11 @@ use App\Models\System\SystemConfiguration;
 use App\User;
 use App\Models\SubmissionFormInstance;
 use App\Models\SampleSubmissionRequest;
+use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLog;
+use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLogItem;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
+use App\Lab;
+use App\LabDecontaminationArea;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
@@ -158,6 +162,17 @@ class WorkflowBoard extends Component
     public array $pendingIntrayAssignments = [];
 
     public bool $showMyIntrayPanel = true;
+
+    public bool $showDecontaminationModal = false;
+
+    public string $decontaminationDate = '';
+
+    public string $decontaminationOfficer = '';
+
+    public string $decontaminationLabId = '';
+
+    /** @var array<string, string> */
+    public array $decontaminationSwabbing = [];
 
     /**
      * Reference datasets for dropdowns/selects.
@@ -1528,6 +1543,111 @@ class WorkflowBoard extends Component
         $this->intrayFormSummaries = [];
         $this->pendingIntrayAssignments = [];
         $this->dispatch('hide-move-to-intray-modal');
+    }
+
+    public function openDecontaminationModal(): void
+    {
+        $this->resetDecontaminationForm();
+        $this->showDecontaminationModal = true;
+    }
+
+    public function closeDecontaminationModal(): void
+    {
+        $this->showDecontaminationModal = false;
+        $this->resetValidation();
+    }
+
+    public function updatedDecontaminationLabId(): void
+    {
+        $this->decontaminationSwabbing = [];
+        $this->resetValidation();
+    }
+
+    public function getDecontaminationLabsProperty(): Collection
+    {
+        return Lab::query()
+            ->where('active', 1)
+            ->whereHas('decontaminationAreas')
+            ->with(['decontaminationAreas.labSection'])
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return Collection<string, Collection<int, LabDecontaminationArea>>
+     */
+    public function getSelectedLabDecontaminationAreasGroupedProperty(): Collection
+    {
+        if ($this->decontaminationLabId === '') {
+            return collect();
+        }
+
+        $lab = $this->decontaminationLabs->firstWhere('id', $this->decontaminationLabId);
+        if (! $lab) {
+            return collect();
+        }
+
+        return $lab->decontaminationAreas
+            ->sortBy(fn (LabDecontaminationArea $area) => strtolower((string) $area->name))
+            ->groupBy(function (LabDecontaminationArea $area): string {
+                if ($area->labSection) {
+                    return trim(($area->labSection->code ? $area->labSection->code.' - ' : '').$area->labSection->name);
+                }
+
+                return 'Unassigned Section';
+            });
+    }
+
+    public function saveDecontaminationLog(): void
+    {
+        $areas = $this->selectedLabDecontaminationAreasGrouped
+            ->flatten(1)
+            ->values();
+
+        $rules = [
+            'decontaminationDate' => ['required', 'date'],
+            'decontaminationOfficer' => ['required', 'string', 'max:255'],
+            'decontaminationLabId' => ['required', 'uuid', 'exists:labs,id'],
+        ];
+
+        foreach ($areas as $area) {
+            $rules['decontaminationSwabbing.'.$area->id] = ['required', 'in:yes,no'];
+        }
+
+        $this->validate($rules);
+
+        DB::transaction(function () use ($areas): void {
+            $log = SampleWorkflowDecontaminationLog::create([
+                'log_date' => $this->decontaminationDate,
+                'officer_name' => trim($this->decontaminationOfficer),
+                'lab_id' => $this->decontaminationLabId,
+                'status' => 'saved',
+                'company_id' => getUserCompany(),
+                'created_by' => Auth::id(),
+            ]);
+
+            foreach ($areas as $area) {
+                SampleWorkflowDecontaminationLogItem::create([
+                    'decontamination_log_id' => $log->id,
+                    'lab_section_id' => $area->lab_section_id,
+                    'lab_decontamination_area_id' => $area->id,
+                    'swabbing' => ($this->decontaminationSwabbing[$area->id] ?? 'no') === 'yes',
+                ]);
+            }
+        });
+
+        session()->flash('success', 'Decontamination samples log saved successfully.');
+        $this->showDecontaminationModal = false;
+        $this->resetDecontaminationForm();
+    }
+
+    protected function resetDecontaminationForm(): void
+    {
+        $this->decontaminationDate = now()->toDateString();
+        $this->decontaminationOfficer = Auth::user()?->name ?? '';
+        $this->decontaminationLabId = '';
+        $this->decontaminationSwabbing = [];
+        $this->resetValidation();
     }
 
     public function completeIntray(string $instanceId): void

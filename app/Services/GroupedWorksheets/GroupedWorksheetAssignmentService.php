@@ -11,6 +11,10 @@ use Illuminate\Support\Collection;
 
 class GroupedWorksheetAssignmentService
 {
+    public function __construct(
+        protected GroupedWorksheetPipelineStages $pipelineStages,
+    ) {}
+
     /**
      * @return Collection<int, GroupedWorksheetHolder>
      */
@@ -197,7 +201,7 @@ class GroupedWorksheetAssignmentService
         SampleHeader $batch,
         ?GroupedWorksheetRun $run
     ): array {
-        $stages = $holder->items->map(function ($item, int $index) {
+        $stages = $this->pipelineStages->allStages($holder)->map(function ($item, int $index) {
             $type = $item->getItemTypeEnum();
 
             return [

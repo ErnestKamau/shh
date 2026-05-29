@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Worksheets;
 
+use Livewire\Attributes\On;
 use Livewire\Component;
 use App\AnalysisElements;
 use App\CapturedResult;
 use App\Analyte;
 use App\BatchAttachment;
 use App\Models\Procedures\ProcedureWorksheet;
+use App\Services\FileNoService;
 use App\Models\Procedures\ProcedureWorksheetStep;
 use App\Models\Procedures\CapturedProcedureValue;
 use App\Models\Procedures\ProcedureConfigField;
@@ -98,6 +100,9 @@ class ProcedureWorksheetManager extends Component
     /** Tracks which external-selection cache key has been loaded into memory. */
     public ?string $externalSelectionCacheKeyLoaded = null;
 
+    /** Current step in the step-form wizard. 0 = File Registration, 1+ = capture sections. */
+    public int $currentStepIndex = 0;
+
     public function mount($batchId, ?string $initialWorksheetId = null, bool $groupedCaptureLayout = false): void
     {
         $this->batchId = $batchId;
@@ -161,16 +166,32 @@ class ProcedureWorksheetManager extends Component
             ->values()
             ->all();
 
-        if ($analyteIds === []) {
-            // No analyte-linked captured results yet — nothing to load.
-            $this->selectedSamples = [];
-            $this->testKitRows = [];
-            $this->testKitData = [];
+        if ($analyteIds !== []) {
+            $this->activeTabs = array_map('strval', $analyteIds);
+            $this->loadSamples();
 
             return;
         }
 
-        $this->activeTabs = array_map('strval', $analyteIds);
+        // No analyte-linked captured results yet. Check if any CRs are linked at all.
+        $linkedCount = CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->where('procedure_worksheet_id', $worksheetId)
+            ->count();
+
+        if ($linkedCount === 0) {
+            // No CRs were linked via analysis elements — fall back to linking all batch
+            // captured results to this worksheet so the samples panel is populated.
+            CapturedResult::query()
+                ->where('sample_header_id', $this->batchId)
+                ->whereNull('procedure_worksheet_id')
+                ->update([
+                    'procedure_worksheet_id' => $worksheetId,
+                    'has_procedure_worksheet' => true,
+                ]);
+        }
+
+        // activeTabs remains empty; loadSamples will load without analyte filter.
         $this->loadSamples();
     }
 
@@ -2043,14 +2064,135 @@ class ProcedureWorksheetManager extends Component
         return '<div class="text-center py-5"><span class="spinner-border text-success" role="status"></span><p class="text-muted mt-3 small">Loading capture form…</p></div>';
     }
 
+    // -------------------------------------------------------------------------
+    // Step-form navigation
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ordered list of step labels for the step progress bar.
+     * Index 0 is always "File Registration"; subsequent entries come from captureSections.
+     *
+     * @return list<string>
+     */
+    public function getStepLabelsProperty(): array
+    {
+        $labels = ['File Registration'];
+
+        foreach ($this->getCaptureSectionsProperty() as $section) {
+            $labels[] = $section['step_group']?->title ?? 'Steps & Measurands';
+        }
+
+        return $labels;
+    }
+
+    public function nextStep(): void
+    {
+        $max = count($this->getStepLabelsProperty()) - 1;
+        if ($this->currentStepIndex < $max) {
+            $this->currentStepIndex++;
+            $this->dispatch('procedureStepChanged', index: $this->currentStepIndex);
+        }
+    }
+
+    public function prevStep(): void
+    {
+        if ($this->currentStepIndex > 0) {
+            $this->currentStepIndex--;
+            $this->dispatch('procedureStepChanged', index: $this->currentStepIndex);
+        }
+    }
+
+    #[On('goToProcedureStep')]
+    public function goToStep(int $index): void
+    {
+        $max = count($this->getStepLabelsProperty()) - 1;
+        $this->currentStepIndex = max(0, min($index, $max));
+        $this->dispatch('procedureStepChanged', index: $this->currentStepIndex);
+    }
+
+    /**
+     * Generate and persist a file no for the batch and sample_id_file for each selected sample.
+     */
+    public function generateFileNumbers(): void
+    {
+        $sampleDetailIds = $this->resolveSelectedSampleDetailIdsForFileRegistration();
+
+        if ($sampleDetailIds === []) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'Please select at least one sample before generating file numbers.';
+
+            return;
+        }
+
+        try {
+            $batch = SampleHeader::findOrFail($this->batchId);
+            $result = app(FileNoService::class)->assignFileNoToBatch($batch, $sampleDetailIds);
+
+            if ($result['sample_id_files'] === []) {
+                throw new \RuntimeException('File No was not assigned to any samples.');
+            }
+
+            $this->loadSamples();
+
+            $this->flashType = 'success';
+            $this->flashMessage = sprintf(
+                'File No %s generated. Sample File IDs assigned: %s.',
+                $result['file_no'],
+                implode(', ', $result['sample_id_files'])
+            );
+        } catch (\Throwable $e) {
+            Log::error('FileNoService error: ' . $e->getMessage());
+            $this->flashType = 'error';
+            $this->flashMessage = 'Failed to generate file numbers: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveSelectedSampleDetailIdsForFileRegistration(): array
+    {
+        $selectedIds = collect($this->selectedSamples)
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+
+        if ($selectedIds->isNotEmpty()) {
+            $validIds = SampleDetails::query()
+                ->where('sample_header_id', $this->batchId)
+                ->whereIn('id', $selectedIds->all())
+                ->pluck('id')
+                ->map(fn ($id) => (string) $id)
+                ->values()
+                ->all();
+
+            if ($validIds !== []) {
+                return $validIds;
+            }
+        }
+
+        return $this->analysisSamples
+            ->pluck('sample_detail_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function render()
     {
+        $batch = \App\SampleHeader::find($this->batchId);
+
         return view('livewire.worksheets.procedure-worksheet-manager', [
             'configFields' => $this->getConfigFieldsProperty(),
             'testKitColumns' => $this->getTestKitColumnsProperty(),
             'captureSections' => $this->getCaptureSectionsProperty(),
             'configFieldsGroupedForCapture' => $this->getConfigFieldsGroupedForCaptureProperty(),
             'selectedProcedureWorksheet' => $this->getSelectedProcedureWorksheetProperty(),
+            'batch' => $batch,
+            'stepLabels' => $this->getStepLabelsProperty(),
         ]);
     }
 

@@ -97,6 +97,30 @@
             <div class="card-body {{ $groupedCaptureLayout ? 'p-3' : 'p-0' }}">
                 @if($groupedCaptureLayout || !empty($activeTabs))
                 @if($selectedWorksheetId)
+
+                {{-- Step progress bar --}}
+                <div class="procedure-step-nav mb-4">
+                    @foreach($stepLabels as $stepIdx => $stepLabel)
+                    <button type="button"
+                        class="step-pill {{ $currentStepIndex === $stepIdx ? 'active' : ($currentStepIndex > $stepIdx ? 'completed' : '') }}"
+                        wire:click="goToStep({{ $stepIdx }})">
+                        <span class="step-num">
+                            @if($currentStepIndex > $stepIdx)
+                                <i class="mdi mdi-check"></i>
+                            @else
+                                {{ $stepIdx + 1 }}
+                            @endif
+                        </span>
+                        <span class="step-label">{{ $stepLabel }}</span>
+                    </button>
+                    @if(!$loop->last)
+                    <span class="step-connector"></span>
+                    @endif
+                    @endforeach
+                </div>
+
+                {{-- Step 0: File Registration (sample selection + file numbers) --}}
+                @if($currentStepIndex === 0)
                 <section class="procedure-section mb-4">
                     <div class="card shadow-sm border-0 procedure-section-card mb-4">
                         <div class="card-header procedure-section-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -162,8 +186,10 @@
                             <h6 class="mb-2 small">Samples in this batch:</h6>
                             <div class="border rounded p-3 procedure-samples-box">
                                 <div class="d-flex flex-wrap gap-3">
+                                    @php $seenSampleIds = []; @endphp
                                     @foreach($this->analysisSamples as $result)
-                                    @if($result->sample)
+                                    @if($result->sample && !in_array($result->sample->id, $seenSampleIds))
+                                    @php $seenSampleIds[] = $result->sample->id; @endphp
                                     <div class="form-check mb-0">
                                         <input class="form-check-input" type="checkbox" value="{{ $result->sample->id }}" id="sample-{{ $result->sample->id }}" wire:model.live="selectedSamples">
                                         <label class="form-check-label" for="sample-{{ $result->sample->id }}">{{ $result->sample->sample_code }}</label>
@@ -174,8 +200,6 @@
                             </div>
                         </div>
                     </div>
-                </section>
-
                 </section>
 
                 @if($this->selectedWorksheet && ($this->selectedWorksheet->document_control_no || $this->selectedWorksheet->revision || $this->selectedWorksheet->issue_date))
@@ -200,16 +224,89 @@
                 @if(empty($selectedSamples))
                 <div class="alert alert-warning">Please select at least one sample to enter data.</div>
                 @else
+
+                {{-- File Registration card --}}
+                <div class="card shadow-sm border-0 procedure-section-card mb-4">
+                    <div class="card-header procedure-section-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h6 class="mb-0">
+                            <i class="mdi mdi-file-sign text-primary"></i>
+                            File Registration
+                        </h6>
+                        @if($batch && $batch->file_no)
+                        <button type="button" class="btn btn-sm btn-outline-primary" wire:click="generateFileNumbers"
+                            onclick="return confirm('A file no already exists for this batch. Regenerate?')">
+                            <i class="mdi mdi-refresh"></i> Regenerate File Numbers
+                        </button>
+                        @else
+                        <button type="button" class="btn btn-sm btn-primary" wire:click="generateFileNumbers">
+                            <i class="mdi mdi-file-plus-outline"></i> Generate File Numbers
+                        </button>
+                        @endif
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted">File No</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="mdi mdi-identifier"></i></span>
+                                    <input type="text"
+                                        class="form-control bg-light"
+                                        value="{{ $batch?->file_no ?? '—' }}"
+                                        readonly>
+                                </div>
+                                <small class="text-muted">Format: {sequential}/{year} e.g. 1/{{ now()->year }}</small>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Sample Code</th>
+                                        <th>Customer Sample ID</th>
+                                        <th>Sample File ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @php $seenInFileReg = []; @endphp
+                                    @foreach($this->analysisSamples as $result)
+                                    @if($result->sample && in_array($result->sample->id, $selectedSamples) && !in_array($result->sample->id, $seenInFileReg))
+                                    @php $seenInFileReg[] = $result->sample->id; @endphp
+                                    <tr>
+                                        <td>{{ $result->sample->sample_code }}</td>
+                                        <td>{{ $result->sample->resolvedCustomerSampleId() ?: '—' }}</td>
+                                        <td>
+                                            @if($result->sample->sample_id_file)
+                                                <span class="badge badge-light border text-dark font-weight-bold">{{ $result->sample->sample_id_file }}</span>
+                                            @else
+                                                <span class="text-muted small">Not yet assigned</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endif
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                @endif {{-- end step 0 --}}
+
+                {{-- Steps 1+: Capture sections --}}
+                @if($currentStepIndex > 0)
                 @php
                 $selectedResults = $this->analysisSamples->filter(fn($r) => $r->sample && in_array($r->sample->id, $selectedSamples))->values();
                 $configPlacementTop = ($selectedProcedureWorksheet?->config_fields_placement ?? 'top') === 'top';
+                $totalSections = count($captureSections);
                 @endphp
 
-                @if($configPlacementTop && count($configFieldsGroupedForCapture) > 0)
+                @if($configPlacementTop && count($configFieldsGroupedForCapture) > 0 && $currentStepIndex === 1)
                     @include('livewire.worksheets.partials.procedure-config-fields-section')
                 @endif
 
                 @foreach($captureSections as $sectionIndex => $section)
+                @if($currentStepIndex === $sectionIndex + 1)
                 @if($section['type'] === 'custom_table')
                     @include('livewire.worksheets.partials.procedure-step-custom-table', ['step' => $section['step'], 'stepGroup' => $section['step_group'] ?? null])
                 @elseif($section['type'] === 'scalar' && $section['steps']->isNotEmpty())
@@ -402,9 +499,10 @@
                     </div>
                 </section>
                 @endif
+                @endif {{-- end step index check --}}
                 @endforeach
 
-                @if($this->getTestKitColumnsProperty()->isNotEmpty())
+                @if($currentStepIndex === $totalSections && $this->getTestKitColumnsProperty()->isNotEmpty())
                 <section class="procedure-section mb-4">
                     <div class="card shadow-sm border-0 procedure-section-card mb-4">
                         <div class="card-header procedure-section-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -480,12 +578,32 @@
                 </section>
                 @endif
 
-                @if(! $configPlacementTop && count($configFieldsGroupedForCapture) > 0)
+                @if(! $configPlacementTop && count($configFieldsGroupedForCapture) > 0 && $currentStepIndex === $totalSections)
                     @include('livewire.worksheets.partials.procedure-config-fields-section')
                 @endif
 
-                {{-- Autosave is enabled per step and per config field; no manual Save button needed. --}}
+                @endif {{-- end $currentStepIndex > 0 --}}
+
+                {{-- Footer step navigation --}}
+                @if($selectedWorksheetId && count($stepLabels) > 1)
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                    <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        wire:click="prevStep"
+                        @if($currentStepIndex === 0) disabled @endif>
+                        <i class="mdi mdi-arrow-left"></i> Previous
+                    </button>
+                    <span class="text-muted small">Step {{ $currentStepIndex + 1 }} of {{ count($stepLabels) }}</span>
+                    <button type="button"
+                        class="btn btn-primary btn-sm"
+                        wire:click="nextStep"
+                        @if($currentStepIndex === count($stepLabels) - 1) disabled @endif>
+                        Next <i class="mdi mdi-arrow-right"></i>
+                    </button>
+                </div>
                 @endif
+
+                {{-- Autosave is enabled per step and per config field; no manual Save button needed. --}}
                 @else
                 <div class="alert alert-info mb-0">Select a worksheet to proceed.</div>
                 @endif
@@ -498,6 +616,77 @@
     @endif
 
     <style>
+        /* Step progress bar */
+        .procedure-step-nav {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: 20px;
+            border: 2px solid #dee2e6;
+            background: #fff;
+            color: #6c757d;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .step-pill:hover {
+            border-color: #28a745;
+            color: #28a745;
+        }
+
+        .step-pill.active {
+            border-color: #28a745;
+            background: #28a745;
+            color: #fff;
+        }
+
+        .step-pill.completed {
+            border-color: #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.2rem;
+            height: 1.2rem;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.08);
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .step-pill.active .step-num {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .step-pill.completed .step-num {
+            background: #28a745;
+            color: #fff;
+        }
+
+        .step-connector {
+            flex: 1;
+            height: 2px;
+            background: #dee2e6;
+            min-width: 12px;
+            max-width: 40px;
+        }
+
         .procedure-worksheet-manager {
             padding: 0 0 1.5rem 0;
         }
@@ -951,5 +1140,18 @@
                 input.dataset.initialValueOnFocus = currentValue;
             }, true);
         })();
+    </script>
+
+    <script>
+        // Sync grouped-wizard inner sidebar highlight when the procedure step changes.
+        document.addEventListener('livewire:init', function () {
+            Livewire.on('procedureStepChanged', function (data) {
+                var index = data && data[0] !== undefined ? data[0].index : (data ? data.index : null);
+                if (index === null || index === undefined) { return; }
+                document.querySelectorAll('.gw-capture-nav-item').forEach(function (el, i) {
+                    el.classList.toggle('active', i === index);
+                });
+            });
+        });
     </script>
 </div>

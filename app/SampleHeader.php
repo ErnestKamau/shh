@@ -250,10 +250,34 @@ class SampleHeader extends Model implements Auditable
 		}
 
 		foreach ($labs as $lab) {
-			$labStr[] = $lab[0] . " - " . $lab[1];
+			if (! is_array($lab)) {
+				continue;
+			}
+
+			$labStr[] = ($lab[0] ?? '') . " - " . ($lab[1] ?? '');
 		}
 
-		return $str ? array_unique($labStr) : array_unique($labs);
+		if ($str) {
+			return array_values(array_unique($labStr));
+		}
+
+		$unique = [];
+		$seen = [];
+		foreach ($labs as $lab) {
+			if (! is_array($lab)) {
+				continue;
+			}
+
+			$key = ($lab[0] ?? '') . '|' . ($lab[1] ?? '');
+			if (isset($seen[$key])) {
+				continue;
+			}
+
+			$seen[$key] = true;
+			$unique[] = $lab;
+		}
+
+		return $unique;
 	}
 
 	/**

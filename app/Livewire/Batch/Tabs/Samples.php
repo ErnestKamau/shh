@@ -470,8 +470,7 @@ class Samples extends Component
                     'photo_url' => $sample->photo_url ?? '',
                     'sample_no' => $sample->sample_no ?? '',
                     'sample_type_id' => $sample->sample_type_id ?? '',
-                    'matrix' => $sample->matrix ?? '',
-                    'file_no' => $sample->file_no ?? '',
+                    'customer_sample_id' => $this->resolveCustomerSampleId($sample),
                     'comments' => $sample->comments ?? '',
                     'main_standard' => $sample->main_standard ?? '',
                     'secondary_standard' => $sample->secondary_standard ?? '',
@@ -489,6 +488,57 @@ class Samples extends Component
             Log::error('Error loading samples: ' . $e->getMessage());
             $this->sampleForms = [];
         }
+    }
+
+    private function resolveCustomerSampleId(SampleDetails $sample): string
+    {
+        return trim((string) ($sample->customer_sample_id ?? $sample->file_no ?? $sample->barcode ?? ''));
+    }
+
+    private function applyCustomerSampleId(SampleDetails $sample, mixed $value): void
+    {
+        $customerSampleId = trim((string) ($value ?? ''));
+
+        $sample->customer_sample_id = $customerSampleId !== '' ? $customerSampleId : null;
+        $sample->file_no = $customerSampleId !== '' ? $customerSampleId : null;
+        $sample->barcode = $customerSampleId !== '' ? $customerSampleId : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $sampleData
+     */
+    private function persistSampleFromFormData(SampleDetails $sample, array $sampleData, int $index): SampleDetails
+    {
+        $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
+            ? implode(',', $sampleData['analysis_type_id'])
+            : (string) ($sampleData['analysis_type_id'] ?? '');
+        $sample->lab_id = ! empty($sampleData['lab_id']) ? $sampleData['lab_id'] : null;
+        $sample->sample_condition_id = ! empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
+        $sample->sample_point_id = ! empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
+
+        if (isset($this->samplePhotos[$index])) {
+            $path = $this->samplePhotos[$index]->store('sample_photos', 'public');
+            $sampleData['photo_url'] = $path;
+            $this->sampleForms[$index]['photo_url'] = $path;
+            unset($this->samplePhotos[$index]);
+        }
+
+        $sample->photo_url = ! empty($sampleData['photo_url']) ? $sampleData['photo_url'] : null;
+        $sample->sample_no = ! empty($sampleData['sample_no']) ? $sampleData['sample_no'] : null;
+        $sample->sample_type_id = ! empty($sampleData['sample_type_id']) ? $sampleData['sample_type_id'] : null;
+        $this->applyCustomerSampleId($sample, $sampleData['customer_sample_id'] ?? null);
+        $sample->comments = $sampleData['comments'] ?? null;
+        $sample->main_standard = ! empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;
+        $sample->secondary_standard = ! empty($sampleData['secondary_standard']) ? $sampleData['secondary_standard'] : null;
+        $sample->disposal_date = ! empty($sampleData['disposal_date']) ? $sampleData['disposal_date'] : null;
+        $sample->store_id = ! empty($sampleData['store_id']) ? $sampleData['store_id'] : null;
+        $sample->store_slot_id = ! empty($sampleData['store_slot_id']) ? $sampleData['store_slot_id'] : null;
+        $sample->quantity = $sampleData['quantity'] ?? 1;
+        $sample->reporting_unit_id = ! empty($sampleData['reporting_unit_id']) ? $sampleData['reporting_unit_id'] : null;
+
+        $sample->save();
+
+        return $sample;
     }
 
     public function updatedAssignAreaSearch(): void
@@ -1587,8 +1637,7 @@ class Samples extends Component
             'photo_url' => '',
             'sample_no' => '',
             'sample_type_id' => '',
-            'matrix' => '',
-            'file_no' => '',
+            'customer_sample_id' => '',
             'comments' => '',
             'main_standard' => '',
             'secondary_standard' => '',
@@ -1753,6 +1802,13 @@ class Samples extends Component
      */
     public function editRow($index)
     {
+        if (isset($this->sampleForms[$index]['id']) && $this->sampleForms[$index]['id']) {
+            $sample = SampleDetails::query()->find($this->sampleForms[$index]['id']);
+            if ($sample) {
+                $this->sampleForms[$index]['customer_sample_id'] = $this->resolveCustomerSampleId($sample);
+            }
+        }
+
         $this->editingRowIndex = $index;
     }
 
@@ -1836,13 +1892,12 @@ class Samples extends Component
             "sampleForms.$index.photo_url" => 'nullable',
             "sampleForms.$index.sample_no" => 'nullable',
             "sampleForms.$index.sample_type_id" => 'nullable',
-            "sampleForms.$index.matrix" => 'nullable',
-            "sampleForms.$index.file_no" => 'nullable',
+            "sampleForms.$index.customer_sample_id" => 'nullable',
             "sampleForms.$index.main_standard" => 'required',
             "sampleForms.$index.quantity" => 'required|numeric|min:0',
         ], [
-            "sampleForms.$index.analysis_type_id.required" => 'Analysis type is required',
-            "sampleForms.$index.analysis_type_id.min" => 'At least one analysis type must be selected',
+            "sampleForms.$index.analysis_type_id.required" => 'Matrix is required',
+            "sampleForms.$index.analysis_type_id.min" => 'At least one matrix option must be selected',
             "sampleForms.$index.lab_id.required" => 'Lab is required',
             "sampleForms.$index.main_standard.required" => 'Main standard is required',
         ]);
@@ -1851,62 +1906,28 @@ class Samples extends Component
 
         try {
             if ($sampleData['id']) {
-                // Update existing
                 $sample = SampleDetails::find($sampleData['id']);
             } else {
-                // Create new
                 $sample = new SampleDetails();
                 $sample->sample_header_id = $this->batch->id;
                 $sample->sample_code = $sampleData['sample_code'];
             }
 
-            if (!$sample) {
-                throw new \Exception("Sample not found.");
+            if (! $sample) {
+                throw new \Exception('Sample not found.');
             }
 
-            // Set all fields
-            $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
-                ? implode(',', $sampleData['analysis_type_id'])
-                : $sampleData['analysis_type_id'];
-            $sample->lab_id = $sampleData['lab_id'];
-            $sample->sample_condition_id = !empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
-            $sample->sample_point_id = !empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
+            $sample = $this->persistSampleFromFormData($sample, $sampleData, $index);
 
-            // Handle photo upload
-            if (isset($this->samplePhotos[$index])) {
-                $path = $this->samplePhotos[$index]->store('sample_photos', 'public');
-                $sampleData['photo_url'] = $path;
-                $this->sampleForms[$index]['photo_url'] = $path;
-                unset($this->samplePhotos[$index]);
-            }
-
-            $sample->photo_url = !empty($sampleData['photo_url']) ? $sampleData['photo_url'] : null;
-            $sample->sample_no = !empty($sampleData['sample_no']) ? $sampleData['sample_no'] : null;
-            $sample->sample_type_id = !empty($sampleData['sample_type_id']) ? $sampleData['sample_type_id'] : null;
-            $sample->matrix = !empty($sampleData['matrix']) ? $sampleData['matrix'] : null;
-            $sample->file_no = !empty($sampleData['file_no']) ? $sampleData['file_no'] : null;
-            $sample->comments = $sampleData['comments'];
-            $sample->main_standard = !empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;
-            $sample->secondary_standard = !empty($sampleData['secondary_standard']) ? $sampleData['secondary_standard'] : null;
-            $sample->disposal_date = !empty($sampleData['disposal_date']) ? $sampleData['disposal_date'] : null;
-            $sample->store_id = !empty($sampleData['store_id']) ? $sampleData['store_id'] : null;
-            $sample->store_slot_id = !empty($sampleData['store_slot_id']) ? $sampleData['store_slot_id'] : null;
-            $sample->quantity = $sampleData['quantity'];
-            $sample->reporting_unit_id = !empty($sampleData['reporting_unit_id']) ? $sampleData['reporting_unit_id'] : null;
-
-            $sample->save();
-
-            // Update ID in form array for subsequent saves
             $this->sampleForms[$index]['id'] = $sample->id;
 
             DB::commit();
 
-            // Exit edit mode for this row
             $this->editingRowIndex = null;
 
             session()->flash('success', "Sample {$sample->sample_code} saved successfully!");
             $this->dispatch('samplesUpdated');
-            $this->loadSamples();  // Reload to get fresh data
+            $this->loadSamples();
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1929,13 +1950,12 @@ class Samples extends Component
             'sampleForms.*.photo_url' => 'nullable',
             'sampleForms.*.sample_no' => 'nullable',
             'sampleForms.*.sample_type_id' => 'nullable',
-            'sampleForms.*.matrix' => 'nullable',
-            'sampleForms.*.file_no' => 'nullable',
+            'sampleForms.*.customer_sample_id' => 'nullable',
             'sampleForms.*.main_standard' => 'required',
             'sampleForms.*.quantity' => 'required|numeric|min:0',
         ], [
-            'sampleForms.*.analysis_type_id.required' => 'Analysis type is required',
-            'sampleForms.*.analysis_type_id.min' => 'At least  one analysis type must be selected',
+            'sampleForms.*.analysis_type_id.required' => 'Matrix is required',
+            'sampleForms.*.analysis_type_id.min' => 'At least one matrix option must be selected',
             'sampleForms.*.lab_id.required' => 'Lab is required',
             'sampleForms.*.main_standard.required' => 'Main standard is required',
         ]);
@@ -1945,48 +1965,19 @@ class Samples extends Component
         try {
             foreach ($this->sampleForms as $index => $sampleData) {
                 if ($sampleData['id']) {
-                    // Update existing
                     $sample = SampleDetails::find($sampleData['id']);
                 } else {
-                    // Create new
                     $sample = new SampleDetails();
                     $sample->sample_header_id = $this->batch->id;
                     $sample->sample_code = $sampleData['sample_code'];
                 }
 
-                // Set all fields
-                $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
-                    ? implode(',', $sampleData['analysis_type_id'])
-                    : $sampleData['analysis_type_id'];
-                $sample->lab_id = $sampleData['lab_id'];
-                $sample->sample_condition_id = !empty($sampleData['sample_condition_id']) ? $sampleData['sample_condition_id'] : null;
-                $sample->sample_point_id = !empty($sampleData['sample_point_id']) ? $sampleData['sample_point_id'] : null;
-
-                // Handle photo upload
-                if (isset($this->samplePhotos[$index])) {
-                    $path = $this->samplePhotos[$index]->store('sample_photos', 'public');
-                    $sampleData['photo_url'] = $path;
-                    $this->sampleForms[$index]['photo_url'] = $path;
-                    unset($this->samplePhotos[$index]);
+                if (! $sample) {
+                    throw new \Exception("Sample not found for row {$index}.");
                 }
 
-                $sample->photo_url = !empty($sampleData['photo_url']) ? $sampleData['photo_url'] : null;
-                $sample->sample_no = !empty($sampleData['sample_no']) ? $sampleData['sample_no'] : null;
-                $sample->sample_type_id = !empty($sampleData['sample_type_id']) ? $sampleData['sample_type_id'] : null;
-                $sample->matrix = !empty($sampleData['matrix']) ? $sampleData['matrix'] : null;
-                $sample->file_no = !empty($sampleData['file_no']) ? $sampleData['file_no'] : null;
-                $sample->comments = $sampleData['comments'];
-                $sample->main_standard = !empty($sampleData['main_standard']) ? $sampleData['main_standard'] : null;
-                $sample->secondary_standard = !empty($sampleData['secondary_standard']) ? $sampleData['secondary_standard'] : null;
-                $sample->disposal_date = !empty($sampleData['disposal_date']) ? $sampleData['disposal_date'] : null;
-                $sample->store_id = !empty($sampleData['store_id']) ? $sampleData['store_id'] : null;
-                $sample->store_slot_id = !empty($sampleData['store_slot_id']) ? $sampleData['store_slot_id'] : null;
-                $sample->quantity = $sampleData['quantity'];
-                $sample->reporting_unit_id = !empty($sampleData['reporting_unit_id']) ? $sampleData['reporting_unit_id'] : null;
+                $sample = $this->persistSampleFromFormData($sample, $sampleData, $index);
 
-                $sample->save();
-
-                // Update ID in form array for subsequent saves
                 $this->sampleForms[$index]['id'] = $sample->id;
             }
 

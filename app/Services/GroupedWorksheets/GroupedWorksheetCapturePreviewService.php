@@ -5,9 +5,12 @@ namespace App\Services\GroupedWorksheets;
 use App\Enums\GroupedWorksheetItemType;
 use App\Enums\HybridWorksheetBlockType;
 use App\Models\Formulars\Formula;
+use App\Models\Formulars\FormulaStep;
 use App\Models\GroupedWorksheets\GroupedWorksheetItem;
 use App\Models\HybridWorksheets\HybridWorksheet;
 use App\Models\HybridWorksheets\HybridWorksheetBlock;
+use App\Models\LogEntryWorksheets\LogEntryWorksheet;
+use App\Models\LogEntryWorksheets\LogEntryWorksheetColumn;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\Procedures\ProcedureWorksheetStep;
 use App\Models\StageHeader;
@@ -39,7 +42,38 @@ class GroupedWorksheetCapturePreviewService
             GroupedWorksheetItemType::Formula => $this->previewFormula($item, $base),
             GroupedWorksheetItemType::StageHeader => $this->previewStageHeader($item, $base),
             GroupedWorksheetItemType::HybridWorksheet => $this->previewHybrid($item, $base),
+            GroupedWorksheetItemType::LogEntryWorksheet => $this->previewLogEntryWorksheet($item, $base),
+            GroupedWorksheetItemType::ResultsCapture => $this->previewVirtualResultsCapture($item, $base),
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $base
+     * @return array<string, mixed>
+     */
+    protected function previewVirtualResultsCapture(GroupedWorksheetItem $item, array $base): array
+    {
+        $base['display_mode'] = 'steps';
+        $base['reference_name'] = GroupedWorksheetItemType::ResultsCapture->label();
+        $base['context'] = [
+            'layout' => 'Parameters as rows, sample codes as columns',
+        ];
+        $base['steps'] = [
+            [
+                'order' => 1,
+                'title' => 'Results matrix',
+                'description' => 'Enter reporting symbol and result for each parameter across all samples.',
+                'capture_field' => [
+                    'type' => 'table',
+                    'label' => 'Loci/Parameters × samples',
+                ],
+            ],
+        ];
+        $base['sidebar_stages'] = [
+            ['order' => 1, 'title' => 'Results matrix'],
+        ];
+
+        return $base;
     }
 
     /**
@@ -48,8 +82,10 @@ class GroupedWorksheetCapturePreviewService
      */
     protected function previewProcedure(GroupedWorksheetItem $item, array $base): array
     {
-        $worksheet = ProcedureWorksheet::with(['steps' => fn ($q) => $q->orderBy('order')])
-            ->find($item->reference_id);
+        $worksheet = ProcedureWorksheet::with([
+            'steps' => fn ($q) => $q->orderBy('order'),
+            'steps.tableColumns' => fn ($q) => $q->orderBy('order'),
+        ])->find($item->reference_id);
 
         if (! $worksheet) {
             return $base;
@@ -78,8 +114,10 @@ class GroupedWorksheetCapturePreviewService
      */
     protected function previewFormula(GroupedWorksheetItem $item, array $base): array
     {
-        $formula = Formula::with(['activeVersion.steps' => fn ($q) => $q->orderBy('step_number')])
-            ->find($item->reference_id);
+        $formula = Formula::with([
+            'activeVersion.formulaSteps' => fn ($q) => $q->orderBy('step_number'),
+            'activeVersion.formulaSteps.tableColumns' => fn ($q) => $q->orderBy('order'),
+        ])->find($item->reference_id);
 
         if (! $formula?->activeVersion) {
             return $base;
@@ -91,13 +129,13 @@ class GroupedWorksheetCapturePreviewService
             'version' => $formula->activeVersion->version_number ?? null,
         ];
 
-        $base['steps'] = $formula->activeVersion->steps->map(function ($step) {
+        $base['steps'] = $formula->activeVersion->formulaSteps->map(function (FormulaStep $step) {
             return [
                 'order' => $step->step_number,
                 'title' => $step->label ?: $step->variable_name,
                 'subtitle' => ucfirst(str_replace('_', ' ', (string) $step->step_type)),
-                'badges' => array_filter([$step->step_type !== 'input' ? ucfirst((string) $step->step_type) : null]),
-                'capture_field' => $this->formulaCaptureField((string) $step->step_type),
+                'badges' => array_values(array_filter([$step->step_type !== 'input' ? ucfirst(str_replace('_', ' ', (string) $step->step_type)) : null])),
+                'capture_field' => $this->formulaCaptureFieldForStep($step),
             ];
         })->values()->all();
 
@@ -212,6 +250,51 @@ class GroupedWorksheetCapturePreviewService
     }
 
     /**
+     * @param  array<string, mixed>  $base
+     * @return array<string, mixed>
+     */
+    protected function previewLogEntryWorksheet(GroupedWorksheetItem $item, array $base): array
+    {
+        $worksheet = LogEntryWorksheet::with([
+            'columns' => fn ($q) => $q->orderBy('order'),
+            'mandatoryFields' => fn ($q) => $q->orderBy('order'),
+        ])->find($item->reference_id);
+
+        if (! $worksheet) {
+            return $base;
+        }
+
+        $base['display_mode'] = 'steps';
+        $base['context'] = [
+            'worksheet' => $worksheet->name,
+            'row_driver' => str_replace('_', ' ', (string) $worksheet->row_driver),
+            'mandatory_fields' => $worksheet->mandatoryFields->count(),
+        ];
+
+        $base['steps'] = $worksheet->columns->map(function (LogEntryWorksheetColumn $column) {
+            return [
+                'order' => $column->order,
+                'title' => $column->label ?: $column->column_key,
+                'subtitle' => ucfirst(str_replace('_', ' ', (string) $column->column_type)),
+                'badges' => array_filter([
+                    $column->column_type !== 'text' ? ucfirst((string) $column->column_type) : null,
+                ]),
+                'capture_field' => [
+                    'type' => 'text',
+                    'placeholder' => 'Analyst enters value…',
+                ],
+            ];
+        })->values()->all();
+
+        $base['sidebar_stages'] = collect($base['steps'])->map(fn (array $s) => [
+            'order' => $s['order'],
+            'title' => $s['title'],
+        ])->all();
+
+        return $base;
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     protected function stepsForHybridBlock(HybridWorksheetBlock $block): array
@@ -249,22 +332,26 @@ class GroupedWorksheetCapturePreviewService
         }
 
         if ($type === HybridWorksheetBlockType::ProcedureReference && $block->reference_id) {
-            $worksheet = ProcedureWorksheet::with(['steps' => fn ($q) => $q->orderBy('order')])
-                ->find($block->reference_id);
+            $worksheet = ProcedureWorksheet::with([
+                'steps' => fn ($q) => $q->orderBy('order'),
+                'steps.tableColumns' => fn ($q) => $q->orderBy('order'),
+            ])->find($block->reference_id);
 
             return $worksheet?->steps->map(fn (ProcedureWorksheetStep $step) => $this->formatProcedureStep($step))->values()->all() ?? [];
         }
 
         if ($type === HybridWorksheetBlockType::FormulaReference && $block->reference_id) {
-            $formula = Formula::with(['activeVersion.steps' => fn ($q) => $q->orderBy('step_number')])
-                ->find($block->reference_id);
+            $formula = Formula::with([
+                'activeVersion.formulaSteps' => fn ($q) => $q->orderBy('step_number'),
+                'activeVersion.formulaSteps.tableColumns' => fn ($q) => $q->orderBy('order'),
+            ])->find($block->reference_id);
 
-            return $formula?->activeVersion?->steps->map(fn ($step) => [
+            return $formula?->activeVersion?->formulaSteps->map(fn (FormulaStep $step) => [
                 'order' => $step->step_number,
                 'title' => $step->label ?: $step->variable_name,
-                'subtitle' => (string) $step->step_type,
-                'badges' => [],
-                'capture_field' => ['type' => 'text', 'placeholder' => 'Analyst enters value…'],
+                'subtitle' => ucfirst(str_replace('_', ' ', (string) $step->step_type)),
+                'badges' => array_values(array_filter([$step->step_type !== 'input' ? ucfirst(str_replace('_', ' ', (string) $step->step_type)) : null])),
+                'capture_field' => $this->formulaCaptureFieldForStep($step),
             ])->values()->all() ?? [];
         }
 
@@ -324,44 +411,76 @@ class GroupedWorksheetCapturePreviewService
             'title' => $step->step,
             'subtitle' => 'Procedure worksheet step',
             'badges' => $badges,
-            'capture_field' => $this->procedureCaptureField($vt),
+            'capture_field' => $this->procedureCaptureFieldForStep($step, $vt),
         ];
     }
 
     /**
-     * @return array{type: string, placeholder: string}
+     * @return array<string, mixed>
      */
-    /**
-     * @return array{type: string, placeholder: string}
-     */
-    protected function formulaCaptureField(string $stepType): array
+    protected function formulaCaptureFieldForStep(FormulaStep $step): array
     {
-        return match ($stepType) {
+        $config = is_array($step->step_config) ? $step->step_config : [];
+
+        return match ((string) $step->step_type) {
             'derived', 'lookup' => ['type' => 'readonly', 'placeholder' => 'Calculated automatically…'],
-            'parameter_result' => ['type' => 'result', 'placeholder' => 'Posted result…'],
-            'static_text' => ['type' => 'static', 'placeholder' => ''],
-            'checkbox' => ['type' => 'checkbox', 'placeholder' => 'Worksheet checklist…'],
-            'custom_table' => ['type' => 'table', 'placeholder' => 'Per-sample table…'],
+            'parameter_result'  => ['type' => 'result',   'placeholder' => 'Posted result…'],
+            'static_text' => [
+                'type'    => 'static',
+                'content' => $step->staticTextContent(),
+            ],
+            'checkbox' => [
+                'type'    => 'checkbox',
+                'mode'    => $config['options_mode'] ?? 'static',
+                'options' => array_values($config['static_options'] ?? []),
+                'preset'  => $config['preset_model'] ?? null,
+            ],
+            'custom_table' => [
+                'type'    => 'table',
+                'columns' => $step->tableColumns->map(fn ($c) => $c->label)->values()->all(),
+            ],
+            'pcr_plate_map' => [
+                'type'      => 'plate',
+                'has_qc'    => (bool) ($config['has_std_controls_buffers'] ?? false),
+                'standards' => array_values($config['standards'] ?? []),
+                'controls'  => array_values($config['controls']  ?? []),
+                'buffers'   => array_values($config['buffers']   ?? []),
+            ],
             default => ['type' => 'text', 'placeholder' => 'Analyst enters value…'],
         };
     }
 
     /**
-     * @return array{type: string, placeholder: string}
+     * @return array<string, mixed>
      */
-    protected function procedureCaptureField(string $valueType): array
+    protected function procedureCaptureFieldForStep(ProcedureWorksheetStep $step, string $valueType): array
     {
         return match ($valueType) {
-            'number' => ['type' => 'number', 'placeholder' => 'Enter numeric value…'],
-            'date' => ['type' => 'date', 'placeholder' => ''],
-            'time' => ['type' => 'time', 'placeholder' => ''],
-            'datetime' => ['type' => 'datetime', 'placeholder' => ''],
-            'method_select' => ['type' => 'select', 'placeholder' => 'Select method…'],
-            'equipment_select' => ['type' => 'select', 'placeholder' => 'Select equipment…'],
-            'custom_select' => ['type' => 'select', 'placeholder' => 'Select option…'],
-            'static_text' => ['type' => 'static', 'placeholder' => ''],
-            'checkbox' => ['type' => 'checkbox', 'placeholder' => 'Select options…'],
-            'custom_table' => ['type' => 'table', 'placeholder' => ''],
+            'number'   => ['type' => 'number',   'placeholder' => 'Enter numeric value…'],
+            'date'     => ['type' => 'date',      'placeholder' => ''],
+            'time'     => ['type' => 'time',      'placeholder' => ''],
+            'datetime' => ['type' => 'datetime',  'placeholder' => ''],
+            'method_select'    => ['type' => 'select', 'placeholder' => 'Select method…',    'options' => []],
+            'equipment_select' => ['type' => 'select', 'placeholder' => 'Select equipment…', 'options' => []],
+            'custom_select' => [
+                'type'        => 'select',
+                'placeholder' => 'Select option…',
+                'options'     => array_values($step->select_options ?? []),
+            ],
+            'static_text' => [
+                'type'    => 'static',
+                'content' => $step->step,
+            ],
+            'checkbox' => [
+                'type'    => 'checkbox',
+                'mode'    => 'static',
+                'options' => array_values($step->select_options ?? []),
+                'preset'  => null,
+            ],
+            'custom_table' => [
+                'type'    => 'table',
+                'columns' => $step->tableColumns->map(fn ($c) => $c->label)->values()->all(),
+            ],
             default => ['type' => 'text', 'placeholder' => 'Enter value…'],
         };
     }

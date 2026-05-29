@@ -115,4 +115,9 @@ class SampleDetails extends Model implements Auditable
 	{
 		return $this->belongsTo('App\Lab', 'lab_id');
 	}
+
+	public function resolvedCustomerSampleId(): string
+	{
+		return trim((string) ($this->customer_sample_id ?? $this->file_no ?? $this->barcode ?? ''));
+	}
 }

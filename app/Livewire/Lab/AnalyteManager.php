@@ -26,10 +26,13 @@ class AnalyteManager extends Component
     public $statusFilter = '';
     
     // Modal state
-    public $showModal = false;
-    public $editingAnalyte = null;
-    public $deleteModalVisible = false;
-    public $analyteToDelete = null;
+    public bool $showModal = false;
+
+    public ?string $editingAnalyteId = null;
+
+    public bool $deleteModalVisible = false;
+
+    public ?string $analyteToDeleteId = null;
     
     // Form data
     public $analyteForm = [
@@ -106,31 +109,16 @@ class AnalyteManager extends Component
 
     public function showCreateModal(): void
     {
-        $this->reset(['analyteForm', 'editingAnalyte', 'message', 'methodSearch', 'equipmentSearch', 'reportingUnitSearch']);
-        $this->analyteForm = [
-            'code' => '',
-            'name' => '',
-            'common_name' => '',
-            'decimal_places' => 0,
-            'equivalent_weight' => null,
-            'reporting_symbol' => '',
-            'reporting_unit' => '',
-            'method' => [],
-            'equipment_id' => [],
-            'is_italic' => false,
-            'non_detectable' => false,
-            'non_accredited' => false,
-            'show_on_report' => true,
-            'active' => true,
-        ];
+        $this->resetAnalyteFormState();
+        $this->reset(['message', 'messageType']);
         $this->showModal = true;
     }
 
-    public function showEditModal($analyteId): void
+    public function showEditModal(string $analyteId): void
     {
         $analyte = Analyte::findOrFail($analyteId);
-        $this->editingAnalyte = $analyte;
-        
+        $this->editingAnalyteId = (string) $analyte->id;
+
         $this->analyteForm = [
             'code' => $analyte->code,
             'name' => $analyte->name,
@@ -147,21 +135,57 @@ class AnalyteManager extends Component
             'show_on_report' => (bool) $analyte->show_on_report,
             'active' => (bool) $analyte->active,
         ];
-        
+
+        $this->methodSearch = '';
+        $this->equipmentSearch = '';
+        $this->reportingUnitSearch = '';
+        $this->showMethodDropdown = false;
+        $this->showEquipmentDropdown = false;
+        $this->showReportingUnitDropdown = false;
         $this->showModal = true;
     }
 
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['analyteForm', 'editingAnalyte', 'methodSearch', 'equipmentSearch', 'reportingUnitSearch']);
+        $this->resetAnalyteFormState();
+    }
+
+    protected function resetAnalyteFormState(): void
+    {
+        $this->editingAnalyteId = null;
+        $this->analyteForm = [
+            'code' => '',
+            'name' => '',
+            'common_name' => '',
+            'decimal_places' => 0,
+            'equivalent_weight' => null,
+            'reporting_symbol' => '',
+            'reporting_unit' => '',
+            'method' => [],
+            'equipment_id' => [],
+            'is_italic' => false,
+            'non_detectable' => false,
+            'non_accredited' => false,
+            'show_on_report' => true,
+            'active' => true,
+        ];
+        $this->methodSearch = '';
+        $this->equipmentSearch = '';
+        $this->reportingUnitSearch = '';
+        $this->showMethodDropdown = false;
+        $this->showEquipmentDropdown = false;
+        $this->showReportingUnitDropdown = false;
     }
 
     public function saveAnalyte(): void
     {
         $this->validate();
-        
+
         try {
+            $methodIds = array_values(array_filter($this->analyteForm['method'] ?? []));
+            $equipmentIds = array_values(array_filter($this->analyteForm['equipment_id'] ?? []));
+
             $data = [
                 'code' => $this->analyteForm['code'],
                 'name' => $this->analyteForm['name'],
@@ -170,8 +194,8 @@ class AnalyteManager extends Component
                 'equivalent_weight' => $this->analyteForm['equivalent_weight'],
                 'reporting_symbol' => $this->analyteForm['reporting_symbol'],
                 'reporting_unit' => $this->analyteForm['reporting_unit'],
-                'method' => implode(',', $this->analyteForm['method'] ?? []),
-                'equipment_id' => implode(',', $this->analyteForm['equipment_id'] ?? []),
+                'method' => $methodIds !== [] ? implode(',', $methodIds) : null,
+                'equipment_id' => $equipmentIds[0] ?? null,
                 'is_italic' => ($this->analyteForm['is_italic'] ?? false) ? 1 : 0,
                 'non_detectable' => ($this->analyteForm['non_detectable'] ?? false) ? 1 : 0,
                 'non_accredited' => ($this->analyteForm['non_accredited'] ?? false) ? 1 : 0,
@@ -179,54 +203,65 @@ class AnalyteManager extends Component
                 'active' => ($this->analyteForm['active'] ?? true) ? 1 : 0,
                 'company_id' => getUserCompany(),
             ];
-            
-            if ($this->editingAnalyte) {
-                $this->editingAnalyte->update($data);
-                $analyte = $this->editingAnalyte;
+
+            if ($this->editingAnalyteId) {
+                $analyte = Analyte::findOrFail($this->editingAnalyteId);
+                $analyte->update($data);
                 $this->message = 'Analyte updated successfully!';
             } else {
                 $analyte = Analyte::create($data);
                 $this->message = 'Analyte created successfully!';
             }
 
-            // Sync pivot relationships
-            $analyte->analysisMethods()->sync($this->analyteForm['method'] ?? []);
-            $analyte->equipmentItems()->sync($this->analyteForm['equipment_id'] ?? []);
-            
+            $analyte->analysisMethods()->sync($methodIds);
+            $analyte->equipmentItems()->sync($equipmentIds);
+
             $this->messageType = 'success';
-            $this->closeModal();
+            $this->showModal = false;
+            $this->resetAnalyteFormState();
         } catch (\Exception $e) {
-            $this->message = 'Error: ' . $e->getMessage();
+            $this->message = 'Error: '.$e->getMessage();
             $this->messageType = 'danger';
         }
     }
 
-    public function showDeleteModal($analyteId): void
+    public function showDeleteModal(string $analyteId): void
     {
-        $this->analyteToDelete = Analyte::withoutGlobalScope('notDeleted')->findOrFail($analyteId);
+        $this->analyteToDeleteId = $analyteId;
         $this->deleteModalVisible = true;
     }
 
     public function closeDeleteModal(): void
     {
         $this->deleteModalVisible = false;
-        $this->analyteToDelete = null;
+        $this->analyteToDeleteId = null;
+    }
+
+    public function getAnalyteToDeleteProperty(): ?Analyte
+    {
+        if ($this->analyteToDeleteId === null) {
+            return null;
+        }
+
+        return Analyte::withoutGlobalScope('notDeleted')->find($this->analyteToDeleteId);
     }
 
     public function confirmDelete(): void
     {
         try {
-            if (!$this->analyteToDelete) {
+            $analyteToDelete = $this->analyteToDelete;
+
+            if (! $analyteToDelete) {
                 $this->message = 'Error: No analyte selected for deletion.';
                 $this->messageType = 'danger';
                 return;
             }
 
             // Check if analyte has any captured results tied to it
-            $hasCapturedResults = CapturedResult::where('analyte_id', $this->analyteToDelete->id)->exists();
+            $hasCapturedResults = CapturedResult::where('analyte_id', $analyteToDelete->id)->exists();
 
             // Check if used in any results (through captured_results relationship)
-            $capturedResultIds = CapturedResult::where('analyte_id', $this->analyteToDelete->id)
+            $capturedResultIds = CapturedResult::where('analyte_id', $analyteToDelete->id)
                 ->pluck('id')
                 ->toArray();
             
@@ -234,18 +269,18 @@ class AnalyteManager extends Component
 
             if ($hasCapturedResults || $hasResults) {
                 // Soft delete: Set deleted_at and active = 0
-                $this->analyteToDelete->update([
+                $analyteToDelete->update([
                     'deleted_at' => now(),
                     'active' => 0
                 ]);
                 $this->message = 'Analyte has been soft deleted (has associated samples/results). It is now inactive and hidden from listings.';
             } else {
                 // Hard delete: Remove from analysis_elements first, then delete analyte
-                AnalysisElements::where('analyte_id', $this->analyteToDelete->id)->delete();
+                AnalysisElements::where('analyte_id', $analyteToDelete->id)->delete();
                     
                 // Use withoutGlobalScope to ensure we can delete even if it has deleted_at
                 Analyte::withoutGlobalScope('notDeleted')
-                    ->where('id', $this->analyteToDelete->id)
+                    ->where('id', $analyteToDelete->id)
                     ->delete();
                     
                 $this->message = 'Analyte and its analysis elements have been permanently deleted.';
