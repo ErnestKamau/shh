@@ -160,7 +160,7 @@ class FormulaStep extends Model implements Auditable
 
     public function isCalculable(): bool
     {
-        return in_array($this->step_type, ['input', 'derived', 'lookup', 'parameter_result'], true);
+        return in_array($this->step_type, ['input', 'derived', 'lookup', 'parameter_result', 'checkbox'], true);
     }
 
     public function isExpressionVariable(): bool

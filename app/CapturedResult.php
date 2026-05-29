@@ -255,6 +255,13 @@ class CapturedResult extends Model implements Auditable
 		}
 	}
 
+	public function assignOperator(?string $userId): void
+	{
+		if ($userId) {
+			$this->operator_id = $userId;
+		}
+	}
+
 	public function applyAnalysisElementDefaults(): void
 	{
 		if (!$this->reporting_unit_id) {
@@ -273,6 +280,30 @@ class CapturedResult extends Model implements Auditable
 	public function analystIdForTat(): ?string
 	{
 		return $this->user_id;
+	}
+
+	/**
+	 * Whether this captured result still expects a Result Report attachment
+	 * to be uploaded and linked (placeholder result, not a substantive value).
+	 */
+	public function requiresLinkedBatchAttachment(): bool
+	{
+		if (! $this->has_procedure_worksheet) {
+			return false;
+		}
+
+		if ($this->batch_attachment_id) {
+			return false;
+		}
+
+		$resultText = strtolower(trim((string) ($this->result ?? '')));
+
+		if ($resultText === 'as attached') {
+			return false;
+		}
+
+		return $resultText === ''
+			|| in_array($resultText, ['no attachment', 'has attachment'], true);
 	}
 
 }

@@ -221,22 +221,78 @@ class GroupedWorksheetTest extends TestCase
         $this->assertEquals('results_capture', $summary['stages'][1]['item_type']);
     }
 
-    public function test_results_capture_service_persists_symbol_and_result(): void
+    public function test_results_capture_service_saves_draft_without_posting(): void
     {
         $captured = CapturedResult::query()->first();
         if (! $captured) {
             $this->markTestSkipped('No captured results in database.');
         }
 
+        $batch = SampleHeader::query()->find($captured->sample_header_id);
+        $holderId = $captured->grouped_worksheet_holder_id;
+        if (! $batch || ! $holderId) {
+            $this->markTestSkipped('Captured result missing batch or grouped worksheet holder.');
+        }
+
+        $holder = GroupedWorksheetHolder::query()->find($holderId);
+        if (! $holder) {
+            $this->markTestSkipped('Grouped worksheet holder not found.');
+        }
+
         $originalResult = $captured->result;
         $originalSymbol = $captured->result_reporting_symbol;
 
-        app(GroupedResultsCaptureService::class)->saveCellResults([
+        $service = app(GroupedResultsCaptureService::class);
+        $service->saveDrafts($batch, $holder, [
+            (string) $captured->id => [
+                'result' => '99.9',
+                'reporting_symbol' => '<=',
+                'remark' => null,
+            ],
+        ], []);
+
+        $captured->refresh();
+        $this->assertEquals($originalResult, $captured->result);
+        $this->assertEquals($originalSymbol, $captured->result_reporting_symbol);
+
+        $draft = \App\Models\GroupedWorksheets\GroupedWorksheetResultsCaptureDraft::query()
+            ->where('captured_result_id', $captured->id)
+            ->first();
+        $this->assertNotNull($draft);
+        $this->assertEquals('99.9', $draft->result);
+        $this->assertEquals('<=', $draft->reporting_symbol);
+
+        $draft?->delete();
+    }
+
+    public function test_results_capture_service_posts_symbol_and_result(): void
+    {
+        $captured = CapturedResult::query()->first();
+        if (! $captured) {
+            $this->markTestSkipped('No captured results in database.');
+        }
+
+        $batch = SampleHeader::query()->find($captured->sample_header_id);
+        $holderId = $captured->grouped_worksheet_holder_id;
+        if (! $batch || ! $holderId) {
+            $this->markTestSkipped('Captured result missing batch or grouped worksheet holder.');
+        }
+
+        $holder = GroupedWorksheetHolder::query()->find($holderId);
+        if (! $holder) {
+            $this->markTestSkipped('Grouped worksheet holder not found.');
+        }
+
+        $originalResult = $captured->result;
+        $originalSymbol = $captured->result_reporting_symbol;
+
+        app(GroupedResultsCaptureService::class)->postResults($batch, $holder, [
             (string) $captured->id => [
                 'result' => '42.5',
                 'reporting_symbol' => '<=',
+                'remark' => null,
             ],
-        ]);
+        ], []);
 
         $captured->refresh();
         $this->assertEquals('42.5', $captured->result);
@@ -246,6 +302,10 @@ class GroupedWorksheetTest extends TestCase
             'result' => $originalResult,
             'result_reporting_symbol' => $originalSymbol,
         ]);
+
+        \App\Models\GroupedWorksheets\GroupedWorksheetResultsCaptureDraft::query()
+            ->where('captured_result_id', $captured->id)
+            ->delete();
     }
 
     public function test_assignment_service_resolves_holder_from_analysis_type(): void

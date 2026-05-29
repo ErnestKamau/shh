@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\SampleWorkflow;
 
+use App\Lab;
 use App\Livewire\Sampleworkflow\SendForAnalystReview;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormAuditLog;
@@ -19,16 +20,27 @@ class SendForAnalystReviewTest extends TestCase
 
     private User $user;
 
+    private Lab $lab;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Gate::before(fn () => true);
 
+        $this->lab = Lab::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'RCV',
+            'name' => 'Receiving Lab',
+            'phone1' => '000',
+            'active' => true,
+        ]);
+
         $this->user = User::create([
             'name' => 'Receiving Officer',
             'email' => 'receiving.officer@example.test',
             'password' => bcrypt('password'),
+            'lab_id' => $this->lab->id,
         ]);
     }
 
@@ -44,6 +56,7 @@ class SendForAnalystReviewTest extends TestCase
                     ['id' => $instance->id, 'label' => 'CR001', 'customer' => 'Acme'],
                 ],
             ])
+            ->set('receivingLabId', $this->lab->id)
             ->set('comment', 'Ready for analyst review.')
             ->call('confirmSendForAnalystReview')
             ->assertDispatched('analyst-review-completed');
@@ -53,6 +66,7 @@ class SendForAnalystReviewTest extends TestCase
         $this->assertSame('in_review', $instance->status);
         $this->assertSame($this->user->id, $instance->reviewed_by);
         $this->assertSame('Ready for analyst review.', $instance->review_notes);
+        $this->assertSame($this->lab->id, $instance->receiving_lab_id);
 
         $this->assertDatabaseHas('submission_form_audit_logs', [
             'submission_form_instance_id' => $instance->id,
@@ -79,10 +93,27 @@ class SendForAnalystReviewTest extends TestCase
             ->test(SendForAnalystReview::class, [
                 'selectedFormInstanceIds' => [$instance->id],
             ])
+            ->set('receivingLabId', $this->lab->id)
             ->call('confirmSendForAnalystReview')
             ->assertDispatched('analyst-review-completed');
 
         $this->assertSame('in_review', $instance->fresh()->status);
+    }
+
+    public function test_confirm_requires_lab_selection(): void
+    {
+        $form = $this->createTemplateForm();
+        $instance = $this->createInstance($form, ['status' => 'received']);
+
+        Livewire::actingAs($this->user)
+            ->test(SendForAnalystReview::class, [
+                'selectedFormInstanceIds' => [$instance->id],
+            ])
+            ->set('receivingLabId', '')
+            ->call('confirmSendForAnalystReview')
+            ->assertHasErrors(['receivingLabId']);
+
+        $this->assertSame('received', $instance->fresh()->status);
     }
 
     public function test_confirm_skips_non_eligible_instances(): void
@@ -95,6 +126,7 @@ class SendForAnalystReviewTest extends TestCase
             ->test(SendForAnalystReview::class, [
                 'selectedFormInstanceIds' => [$received->id, $inReview->id],
             ])
+            ->set('receivingLabId', $this->lab->id)
             ->call('confirmSendForAnalystReview')
             ->assertDispatched('analyst-review-completed');
 
@@ -120,6 +152,7 @@ class SendForAnalystReviewTest extends TestCase
             ->test(SendForAnalystReview::class, [
                 'selectedFormInstanceIds' => [$instance->id],
             ])
+            ->set('receivingLabId', $this->lab->id)
             ->set('comment', '')
             ->call('confirmSendForAnalystReview')
             ->assertDispatched('analyst-review-completed');

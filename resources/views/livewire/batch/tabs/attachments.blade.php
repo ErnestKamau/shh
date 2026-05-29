@@ -825,6 +825,18 @@
                     </div>
 
                     <div class="modal-body p-4 bg-light">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <p class="text-muted small mb-0">Empty fields can be filled from saved grouped worksheet stages.</p>
+                            <button type="button" class="btn btn-outline-primary btn-sm font-weight-bold"
+                                wire:click="refreshCaseFileFromWorksheets"
+                                wire:loading.attr="disabled"
+                                wire:target="refreshCaseFileFromWorksheets">
+                                <span wire:loading.remove wire:target="refreshCaseFileFromWorksheets">
+                                    <i class="mdi mdi-file-import-outline"></i> Fill from worksheets
+                                </span>
+                                <span wire:loading wire:target="refreshCaseFileFromWorksheets">Loading…</span>
+                            </button>
+                        </div>
                         <form wire:submit.prevent="saveCaseFile">
                             
                             <!-- 1. SAMPLE INFORMATION -->
@@ -1232,7 +1244,14 @@
                         </form>
                     </div>
 
-                    <div class="modal-footer bg-white py-3 px-4 d-flex justify-content-end align-items-center" style="border-top: 1px solid #e2e8f0;">
+                    <div class="modal-footer bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-top: 1px solid #e2e8f0;">
+                        <button type="button" class="btn btn-outline-primary btn-sm font-weight-bold"
+                            wire:click="refreshCaseFileFromWorksheets"
+                            wire:loading.attr="disabled"
+                            wire:target="refreshCaseFileFromWorksheets">
+                            <i class="mdi mdi-file-import-outline"></i> Fill from worksheets
+                        </button>
+                        <div class="d-flex">
                         <button type="button" class="btn btn-outline-secondary font-weight-bold px-4 rounded-pill border" 
                             wire:click="$set('showCaseFileModal', false)" style="height: 38px; font-size: 0.85rem; transition: all 0.15s ease-in-out;">
                             Cancel
@@ -1241,6 +1260,7 @@
                             wire:click="saveCaseFile" style="height: 38px; font-size: 0.85rem; background: #0f172a; border-color: #0f172a; transition: all 0.15s ease-in-out;">
                             <i class="mdi mdi-content-save mr-1" style="font-size: 14px;"></i> Save & Generate PDF
                         </button>
+                        </div>
                     </div>
 
                 </div>

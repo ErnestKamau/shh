@@ -1659,7 +1659,19 @@ class SampleWorkFlowController extends Controller
             }
         }
 
-        $recieving_users = getActiveUsersByRole('Sample Reception');
+        $receivingOfficerId = isset($batch->receiving_officer) ? $batch->receiving_officer : null;
+        $recieving_users = User::query()
+            ->where('active', 1)
+            ->where(function ($query) use ($receivingOfficerId) {
+                $query->where(function ($internal) {
+                    $internal->where('is_client', 0)->whereNull('supplier_id');
+                });
+                if ($receivingOfficerId) {
+                    $query->orWhere('id', $receivingOfficerId);
+                }
+            })
+            ->orderBy('name')
+            ->get();
 
         $batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();

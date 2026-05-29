@@ -22,7 +22,7 @@ class GroupedWorksheetRunService
         $existing = GroupedWorksheetRun::query()
             ->where('sample_header_id', $batch->id)
             ->where('grouped_worksheet_holder_id', $holder->id)
-            ->where('status', GroupedWorksheetRunStatus::InProgress)
+            ->orderByDesc('started_at')
             ->first();
 
         if ($existing) {

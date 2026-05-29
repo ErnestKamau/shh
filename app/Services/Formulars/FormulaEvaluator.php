@@ -89,6 +89,11 @@ class FormulaEvaluator
             case 'parameter_result':
                 return $inputs[$step->variable_name] ?? null;
 
+            case 'checkbox':
+                $value = $inputs[$step->variable_name] ?? null;
+
+                return is_string($value) ? $this->normalizeComparisonString($value) : $value;
+
             default:
                 return null;
         }
@@ -100,8 +105,15 @@ class FormulaEvaluator
     protected function evaluateExpression(string $expression, array $variables, array $inputs): mixed
     {
         try {
+            $expression = $this->normalizeExpressionStringLiterals($expression);
+
             // Merge variables and inputs for expression evaluation
             $context = array_merge($variables, $inputs, $this->getGlobalVariables());
+            foreach ($context as $key => $value) {
+                if (is_string($value)) {
+                    $context[$key] = $this->normalizeComparisonString($value);
+                }
+            }
             $context = $this->normalizeNumericContext($context);
 
             return $this->expressionLanguage->evaluate($expression, $context);
@@ -182,6 +194,28 @@ class FormulaEvaluator
         }
 
         return $keys;
+    }
+
+    /**
+     * Collapse repeated whitespace in expression string literals so checkbox comparisons stay consistent.
+     */
+    protected function normalizeExpressionStringLiterals(string $expression): string
+    {
+        $normalized = preg_replace_callback(
+            '/"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"/',
+            fn (array $matches): string => '"'.$this->normalizeComparisonString($matches[1]).'"',
+            $expression,
+        );
+
+        return is_string($normalized) ? $normalized : $expression;
+    }
+
+    protected function normalizeComparisonString(string $value): string
+    {
+        $trimmed = trim($value);
+        $collapsed = preg_replace('/\s+/u', ' ', $trimmed);
+
+        return is_string($collapsed) ? $collapsed : $trimmed;
     }
 
     /**

@@ -6,16 +6,25 @@
 	@endif
 
 	@if($isRunComplete)
-		<div class="alert alert-success">
+		<div class="alert alert-success mb-3">
 			<i class="mdi mdi-check-circle"></i>
 			<strong>{{ $holder->name }}</strong> pipeline is complete for this batch.
+			<span class="d-block small mt-1 mb-0">Use the stage tabs below to review captured data.</span>
 		</div>
-	@else
+	@endif
+
+	@if($items->count() > 0)
 		{{-- ── Horizontal pipeline stage step bar ─────────────────────── --}}
 		<div class="gw-pipeline-stepbar mb-4">
 			<div class="gw-pipeline-stepbar-header mb-2">
 				<strong class="small">{{ $holder->name }}</strong>
-				<span class="text-muted small ms-1">— Pipeline stages</span>
+				<span class="text-muted small ms-1">
+					@if($isRunComplete)
+						— Review pipeline stages
+					@else
+						— Pipeline stages
+					@endif
+				</span>
 			</div>
 			<div class="gw-pipeline-steps">
 				@foreach($items as $index => $item)
@@ -64,9 +73,15 @@
 				</div>
 			@else
 				<div class="gw-capture-preview">
-					<div class="gw-capture-preview-banner">
-						<i class="mdi mdi-clipboard-edit-outline"></i>
-						<span>Capture data for this stage — steps match the grouped worksheet configuration.</span>
+					<div class="gw-capture-preview-banner {{ $isRunComplete ? 'gw-capture-preview-banner--review' : '' }}">
+						<i class="mdi {{ $isRunComplete ? 'mdi-eye-outline' : 'mdi-clipboard-edit-outline' }}"></i>
+						<span>
+							@if($isRunComplete)
+								Review captured data for this stage.
+							@else
+								Capture data for this stage — steps match the grouped worksheet configuration.
+							@endif
+						</span>
 					</div>
 
 					<div class="gw-capture-main-header">
@@ -77,16 +92,21 @@
 								@if(!$capturePreview['is_required'])
 									<span class="badge bg-light text-dark ms-1">Optional</span>
 								@endif
+								@if($isRunComplete)
+									<span class="badge badge-light border text-muted ml-2">Review only</span>
+								@endif
 							</div>
 						</div>
-						<div class="d-flex gap-2 flex-shrink-0">
-							@if(!$currentItem->is_required && !$isVirtualResultsCapture)
-								<button type="button" class="btn btn-outline-secondary btn-sm" wire:click="skipStage">Skip</button>
-							@endif
-							<button type="button" class="btn btn-success btn-sm" wire:click="completeStage">
-								Complete stage <i class="mdi mdi-arrow-right"></i>
-							</button>
-						</div>
+						@if(!$isRunComplete)
+							<div class="d-flex flex-shrink-0">
+								@if(!$currentItem->is_required && !$isVirtualResultsCapture)
+									<button type="button" class="btn btn-outline-secondary btn-sm mr-2" wire:click="skipStage">Skip</button>
+								@endif
+								<button type="button" class="btn btn-success btn-sm" wire:click="completeStage">
+									Complete stage <i class="mdi mdi-arrow-right"></i>
+								</button>
+							</div>
+						@endif
 					</div>
 
 					@if(!empty($capturePreview['context']))
@@ -102,7 +122,7 @@
 						</div>
 					@endif
 
-					<div class="gw-capture-body gw-capture-body--live">
+					<div class="gw-capture-body gw-capture-body--live {{ $isRunComplete ? 'gw-capture-body--review' : '' }}">
 						@switch($currentItem->getItemTypeEnum()->value)
 							@case('procedure')
 								<livewire:worksheets.procedure-worksheet-manager
@@ -110,7 +130,7 @@
 									:batchId="$batch->id"
 									:initialWorksheetId="$procedureWorksheetId"
 									:groupedCaptureLayout="true"
-									:key="'grouped-procedure-'.$procedureWorksheetId.'-'.$run->current_item_index"
+									:key="'grouped-procedure-'.$procedureWorksheetId.'-'.$run->current_item_index.'-'.($isRunComplete ? 'review' : 'live')"
 								/>
 								@break
 							@case('formula')
@@ -120,7 +140,7 @@
 											:batch="$batch"
 											:formula="$formula"
 											:groupedWorksheetHolderId="$holder->id"
-											:key="'grouped-formula-'.$formula->id"
+											:key="'grouped-formula-'.$formula->id.'-'.($isRunComplete ? 'review' : 'live')"
 										/>
 									</div>
 								@else
@@ -128,7 +148,7 @@
 								@endif
 								@break
 							@case('stage_header')
-								<div wire:ignore wire:key="grouped-ms-{{ $currentItem->id }}" class="p-2">
+								<div wire:ignore wire:key="grouped-ms-{{ $currentItem->id }}-{{ $isRunComplete ? 'review' : 'live' }}" class="p-2">
 									@include('worksheets.partials.method-sequences-jquery', [
 										'batch' => $batch,
 										'stageHeaders' => $stageHeaders,
@@ -142,7 +162,7 @@
 										<livewire:worksheets.hybrid-worksheet-runner
 											:batch="$batch"
 											:hybridWorksheet="$hybridWorksheet"
-											:key="'grouped-hybrid-'.$hybridWorksheet->id"
+											:key="'grouped-hybrid-'.$hybridWorksheet->id.'-'.($isRunComplete ? 'review' : 'live')"
 										/>
 									</div>
 								@endif
@@ -153,7 +173,7 @@
 										<livewire:worksheets.log-entry-worksheet-manager
 											:batch="$batch"
 											:worksheet-id="$logEntryWorksheetId"
-											:key="'grouped-log-entry-'.$logEntryWorksheetId.'-'.$run->current_item_index"
+											:key="'grouped-log-entry-'.$logEntryWorksheetId.'-'.$run->current_item_index.'-'.($isRunComplete ? 'review' : 'live')"
 										/>
 									</div>
 								@else
@@ -164,7 +184,8 @@
 								<livewire:worksheets.grouped-results-capture
 									:batch="$batch"
 									:holder="$holder"
-									:key="'grouped-results-capture-'.$holder->id.'-'.$run->current_item_index"
+									:review-only="$isRunComplete"
+									:key="'grouped-results-capture-'.$holder->id.'-'.$run->current_item_index.'-'.($isRunComplete ? 'review' : 'live')"
 								/>
 								@break
 						@endswitch
@@ -172,6 +193,8 @@
 				</div>
 			@endif
 		@endif
+	@else
+		<div class="alert alert-light border mb-0">No pipeline stages configured for this holder.</div>
 	@endif
 
 	<style>
@@ -270,6 +293,16 @@
 			height: 2px;
 			background: #dee2e6;
 			display: inline-block;
+		}
+
+		.gw-capture-preview-banner--review {
+			background: #f0f9ff;
+			border-color: #bae6fd;
+			color: #0c4a6e;
+		}
+
+		.gw-capture-body--review {
+			border-top: 1px solid #e2e8f0;
 		}
 	</style>
 </div>

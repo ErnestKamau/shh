@@ -20,8 +20,9 @@
                     @endif
 
                     @if($field->field_type === 'checkbox')
+                        <div class="fm-mandatory-checkbox-options d-flex flex-wrap align-items-center">
                         @foreach($field->checkboxOptionLabels() as $option)
-                            <div class="custom-control custom-checkbox mb-1">
+                            <div class="custom-control custom-checkbox mr-3 mb-0">
                                 <input type="checkbox"
                                        class="custom-control-input"
                                        id="fmf-chk-{{ $field->id }}-{{ $loop->index }}"
@@ -30,6 +31,7 @@
                                 <label class="custom-control-label" for="fmf-chk-{{ $field->id }}-{{ $loop->index }}">{{ $option }}</label>
                             </div>
                         @endforeach
+                        </div>
                     @elseif($field->field_type === 'datetime')
                         <input type="datetime-local"
                                class="form-control form-control-sm"

@@ -191,4 +191,25 @@
 		border-bottom: 2px solid var(--workflow-accent);
 		background: transparent;
 	}
+
+	.lab-panel-theme .batch-details-checkboxes-section {
+		margin-top: 0.25rem;
+		margin-bottom: 0.75rem;
+		padding-left: 0.75rem;
+		padding-right: 0.75rem;
+	}
+
+	.lab-panel-theme .batch-details-checkboxes-panel {
+		background: var(--workflow-bg);
+		border: 1px solid var(--workflow-border);
+		border-radius: 10px;
+		padding: 14px 16px;
+	}
+
+	.lab-panel-theme .batch-details-checkboxes-panel .control-label {
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--workflow-text-main);
+		line-height: 1.45;
+	}
 </style>

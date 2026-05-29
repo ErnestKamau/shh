@@ -254,11 +254,20 @@ class CustomerAcceptanceSignModal extends Component
             now()->format('Y-m-d H:i:s')
         );
 
-        app(SampleReceiptNotificationService::class)->applyBatchDefaultsAfterCustomerSign($signedForm);
         app(SampleReceivingDisclaimerService::class)->applyBatchDefaultsAfterCustomerSign($signedForm->fresh());
         $fresh = AnalysisAcceptanceForm::query()->find($signedForm->id);
         if ($fresh !== null) {
             $receiptService->mergePayloadIntoAcceptanceForm($fresh, $this->receiptNotificationForm);
+        }
+
+        $formForBatch = $fresh ?? $signedForm->fresh();
+        app(SampleReceiptNotificationService::class)->applyBatchDefaultsAfterCustomerSign($formForBatch);
+        if ($formForBatch->sample_header_id) {
+            $batch = \App\SampleHeader::query()->find((string) $formForBatch->sample_header_id);
+            if ($batch !== null) {
+                app(\App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService::class)
+                    ->syncLinkedSubmissionForm($formForBatch);
+            }
         }
 
         CustomerNotification::query()

@@ -170,32 +170,38 @@
 				<div class="form-group btn-group-sm col-md-3">
 					<label class="control-label">Received By <small class="text-danger">*</small></label>
 					<select name="receive_by" required class="form-control">
-						<option value="">Select Receiving Officer</option>
+						<option value="">Select user...</option>
 						@foreach($recieving_users as $r_user)
 							<option value="{{ $r_user->id }}" {{ isset($batch->id) && $batch->receiving_officer == $r_user->id ? 'selected' : '' }}>{{ $r_user->name }}</option>
 						@endforeach
 					</select>
 				</div>
 
-				<div class="form-group col-md-4 btn-group-sm">
-					<label for="" class="control-label">
-						<input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{ isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : '' }}> Is QC Batch?
-					</label>
-				</div>
-				<div class="form-group col-md-4 btn-group-sm">
-					<label class="control-label">
-						<input type="checkbox" name="require_mu" value="1" {{ isset($batch->require_mu) && $batch->require_mu == 1 ? 'checked' : '' }}> Has client requested Measure of uncertainity?
-					</label>
-				</div>
-				<div class="form-group col-md-4 btn-group-sm">
-					<label class="control-label">
-						<input type="checkbox" name="client_instruction_clear" value="1" {{ isset($batch->client_instruction_clear) && $batch->client_instruction_clear == 1 ? 'checked' : '' }}> Are client`s instructions clear?
-					</label>
-				</div>
-				<div class="form-group col-md-4 btn-group-sm">
-					<label class="control-label">
-						<input type="checkbox" class="lab_capable" name="lab_capable" value="1" {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'checked' : '') : 'checked' }}> Is the laboratory capable of performing the requested tests?
-					</label>
+				<div class="col-12 batch-details-checkboxes-section">
+					<div class="batch-details-checkboxes-panel">
+						<div class="row mx-0">
+							<div class="form-group col-md-6 col-lg-3 btn-group-sm mb-2 mb-lg-3">
+								<label class="control-label d-block mb-0">
+									<input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{ isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : '' }}> Is QC Batch?
+								</label>
+							</div>
+							<div class="form-group col-md-6 col-lg-3 btn-group-sm mb-2 mb-lg-3">
+								<label class="control-label d-block mb-0">
+									<input type="checkbox" name="require_mu" value="1" {{ isset($batch->require_mu) && $batch->require_mu == 1 ? 'checked' : '' }}> Has client requested Measure of uncertainity?
+								</label>
+							</div>
+							<div class="form-group col-md-6 col-lg-3 btn-group-sm mb-2 mb-lg-3">
+								<label class="control-label d-block mb-0">
+									<input type="checkbox" name="client_instruction_clear" value="1" {{ isset($batch->client_instruction_clear) && $batch->client_instruction_clear == 1 ? 'checked' : '' }}> Are client`s instructions clear?
+								</label>
+							</div>
+							<div class="form-group col-md-6 col-lg-3 btn-group-sm mb-0 mb-lg-3">
+								<label class="control-label d-block mb-0">
+									<input type="checkbox" class="lab_capable" name="lab_capable" value="1" {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'checked' : '') : 'checked' }}> Is the laboratory capable of performing the requested tests?
+								</label>
+							</div>
+						</div>
+					</div>
 				</div>
 
 				<div class="form-group btn-group-sm col-md-12">

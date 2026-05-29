@@ -85,10 +85,19 @@
                                             wire:model.live="pcrPopoverValue"
                                             @disabled($pcrPopoverUseCustomSample)>
                                         <option value="">Select sample…</option>
-                                        @foreach($this->batchSampleCodes as $code)
-                                            <option value="{{ $code }}">{{ $code }}</option>
+                                        @foreach($this->batchSamplePcrOptions as $option)
+                                            <option value="{{ $option['code'] }}">{{ $option['label'] }}</option>
                                         @endforeach
                                     </select>
+                                    @if($this->selectedPcrSampleFileId)
+                                        <div class="small text-muted mt-1">
+                                            Sample File ID: <strong>{{ $this->selectedPcrSampleFileId }}</strong>
+                                        </div>
+                                    @elseif($pcrPopoverValue !== '' && ! $pcrPopoverUseCustomSample)
+                                        <div class="small text-warning mt-1">
+                                            No Sample File ID assigned yet — generate file numbers on the File Registration worksheet first.
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small mb-1 d-flex align-items-center gap-2">

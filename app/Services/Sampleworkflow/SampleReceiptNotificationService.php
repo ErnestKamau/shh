@@ -570,6 +570,8 @@ class SampleReceiptNotificationService
         $existing = is_array($form->receipt_notification_payload) ? $form->receipt_notification_payload : [];
         $merged = $this->mergePrefillWithUserDraft($existing, $this->hydrateDefaultsFromBatch($batch));
         $form->update(['receipt_notification_payload' => $merged]);
+
+        app(AcceptanceFormSampleHeaderService::class)->applyToBatch($batch->fresh(), $form->fresh());
     }
 
     /**

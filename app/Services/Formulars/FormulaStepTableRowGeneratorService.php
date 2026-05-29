@@ -45,18 +45,39 @@ class FormulaStepTableRowGeneratorService
         return $this->syncAutoRows($instance, $worksheet, $step);
     }
 
-    public function syncAutoRows(
+    /**
+     * Sync rows for a worksheet-level formula custom table (one table, one row per sample).
+     *
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
+     */
+    public function syncRowsForFormulaWorksheet(
         SampleFormulaStepTableInstance $instance,
-        SampleCapturedWorksheetFormula $worksheet,
+        SampleHeader $batch,
         FormulaStep $step,
+        Collection $capturedResults,
     ): int {
+        if ($step->table_mode === 'static') {
+            return $this->materializeStaticRows($instance, $step);
+        }
+
         if (! $step->row_driver) {
             return 0;
         }
 
         $driver = ProcedureTableRowDriver::from($step->row_driver);
-        $definitions = $this->buildDriverDefinitions($driver, $worksheet, $step);
+        $definitions = $this->buildFormulaWorksheetDriverDefinitions($driver, $batch, $step, $capturedResults);
 
+        return $this->createMissingAutoRows($instance, $step, $definitions);
+    }
+
+    /**
+     * @param  array<int, array{driver_type: string, driver_id: string}>  $definitions
+     */
+    protected function createMissingAutoRows(
+        SampleFormulaStepTableInstance $instance,
+        FormulaStep $step,
+        array $definitions,
+    ): int {
         $existing = SampleFormulaStepTableRow::where('instance_id', $instance->id)
             ->where('row_source', 'auto')
             ->get()
@@ -84,6 +105,113 @@ class FormulaStepTableRowGeneratorService
         }
 
         return $created;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
+     * @return array<int, array{driver_type: string, driver_id: string}>
+     */
+    protected function buildFormulaWorksheetDriverDefinitions(
+        ProcedureTableRowDriver $driver,
+        SampleHeader $batch,
+        FormulaStep $step,
+        Collection $capturedResults,
+    ): array {
+        return match ($driver) {
+            ProcedureTableRowDriver::SampleHeader => [[
+                'driver_type' => SampleHeader::class,
+                'driver_id' => (string) $batch->id,
+            ]],
+            ProcedureTableRowDriver::SampleDetail => SampleDetails::query()
+                ->whereIn('id', $capturedResults->pluck('sample_detail_id')->filter()->unique()->values())
+                ->orderBy('sample_code')
+                ->get()
+                ->map(fn (SampleDetails $detail) => [
+                    'driver_type' => SampleDetails::class,
+                    'driver_id' => (string) $detail->id,
+                ])
+                ->all(),
+            ProcedureTableRowDriver::CapturedResult => $capturedResults
+                ->sortBy('sample_detail_code')
+                ->unique('id')
+                ->map(fn (CapturedResult $cr) => [
+                    'driver_type' => CapturedResult::class,
+                    'driver_id' => (string) $cr->id,
+                ])
+                ->values()
+                ->all(),
+            ProcedureTableRowDriver::Method => $this->methodDefinitionsForBatch($batch, $capturedResults),
+            ProcedureTableRowDriver::Equipment => $this->equipmentDefinitionsForBatch($capturedResults),
+        };
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
+     * @return array<int, array{driver_type: string, driver_id: string}>
+     */
+    protected function methodDefinitionsForBatch(SampleHeader $batch, Collection $capturedResults): array
+    {
+        $methodIds = $capturedResults
+            ->pluck('method_id')
+            ->filter()
+            ->unique();
+
+        if ($methodIds->isEmpty()) {
+            $methodIds = CapturedResult::query()
+                ->where('sample_header_id', $batch->id)
+                ->whereNotNull('method_id')
+                ->distinct()
+                ->pluck('method_id');
+        }
+
+        return $methodIds->map(fn ($id) => [
+            'driver_type' => AnalysisMethod::class,
+            'driver_id' => (string) $id,
+        ])->all();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CapturedResult>  $capturedResults
+     * @return array<int, array{driver_type: string, driver_id: string}>
+     */
+    protected function equipmentDefinitionsForBatch(Collection $capturedResults): array
+    {
+        $equipmentIds = $capturedResults
+            ->pluck('equipment_id')
+            ->filter()
+            ->unique();
+
+        if ($equipmentIds->isNotEmpty()) {
+            return $equipmentIds->map(fn ($id) => [
+                'driver_type' => Equipment::class,
+                'driver_id' => (string) $id,
+            ])->all();
+        }
+
+        return Equipment::query()
+            ->orderBy('name')
+            ->limit(50)
+            ->get()
+            ->map(fn ($eq) => [
+                'driver_type' => Equipment::class,
+                'driver_id' => (string) $eq->id,
+            ])
+            ->all();
+    }
+
+    public function syncAutoRows(
+        SampleFormulaStepTableInstance $instance,
+        SampleCapturedWorksheetFormula $worksheet,
+        FormulaStep $step,
+    ): int {
+        if (! $step->row_driver) {
+            return 0;
+        }
+
+        $driver = ProcedureTableRowDriver::from($step->row_driver);
+        $definitions = $this->buildDriverDefinitions($driver, $worksheet, $step);
+
+        return $this->createMissingAutoRows($instance, $step, $definitions);
     }
 
     public function materializeStaticRows(

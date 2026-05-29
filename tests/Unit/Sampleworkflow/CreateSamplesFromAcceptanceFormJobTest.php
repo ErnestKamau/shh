@@ -5,10 +5,16 @@ namespace Tests\Unit\Sampleworkflow;
 use App\AnalysisType;
 use App\Invoice;
 use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
+use App\Lab;
+use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CRMCompanyUnit;
+use App\Models\CRM\CustomerContact;
+use App\Models\SubmissionForm;
+use App\Models\SubmissionFormInstance;
 use App\Services\Billing\InvoiceNumberGenerator;
 use App\Models\Billing\Pricelist;
-use App\Models\CRM\CRMCustomer;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
+use App\User;
 use App\Models\Sampleworkflow\AnalysisAcceptanceFormLine;
 use App\SampleAnalysisStage;
 use App\SampleDetails;
@@ -73,14 +79,84 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
             'active' => 1,
         ]);
 
+        $lab = Lab::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'JOB',
+            'name' => 'Job Lab',
+            'phone1' => '000',
+            'active' => true,
+        ]);
+
+        $sro = User::create([
+            'name' => 'Job SRO',
+            'email' => 'job-sro@example.test',
+            'password' => bcrypt('password'),
+            'lab_id' => $lab->id,
+        ]);
+
+        $unit = CRMCompanyUnit::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Job Unit',
+            'company_id' => $companyId,
+            'crm_customer_id' => $customer->id,
+            'active' => 1,
+        ]);
+
+        $contact = CustomerContact::query()->create([
+            'id' => (string) Str::uuid(),
+            'first_name' => 'Job',
+            'last_name' => 'Contact',
+            'email' => 'job-contact@example.test',
+            'telephone' => '1',
+            'receive_price_list' => false,
+            'receive_invoice' => false,
+            'receive_report' => false,
+            'company_id' => $companyId,
+            'crm_customer_id' => $customer->id,
+            'crm_company_unit_id' => $unit->id,
+            'active' => true,
+        ]);
+
+        $submitter = User::create([
+            'name' => 'Job Submitter',
+            'email' => 'job-submitter@example.test',
+            'password' => bcrypt('password'),
+            'crm_contact_id' => $contact->id,
+        ]);
+
+        $submissionForm = SubmissionForm::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Job Form',
+            'form_type' => 'template',
+            'active' => true,
+        ]);
+
+        $instance = SubmissionFormInstance::query()->create([
+            'id' => (string) Str::uuid(),
+            'submission_form_id' => $submissionForm->id,
+            'crm_customer_id' => $customer->id,
+            'status' => 'in_review',
+            'submitted_by' => $submitter->id,
+            'reviewed_by' => $sro->id,
+            'reviewed_at' => '2026-05-22 09:00:00',
+            'receiving_lab_id' => $lab->id,
+        ]);
+
         $form = AnalysisAcceptanceForm::query()->create([
             'status' => AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
+            'submission_form_instance_id' => $instance->id,
             'crm_customer_id' => $customer->id,
             'customer_name' => 'Job Test Customer',
             'number_of_samples' => 1,
             'mode_of_work' => 'Normal',
+            'date_of_sampling' => '2026-05-21',
+            'request_date' => '2026-05-20',
+            'customer_signer_name' => 'Job Signer',
             'total_amount' => 200,
             'pricelist_id' => $pricelist->id,
+            'receipt_notification_payload' => [
+                'sample_receiving_date' => '2026-05-22',
+            ],
         ]);
 
         AnalysisAcceptanceFormLine::query()->create([
@@ -140,6 +216,14 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
         $this->assertNotNull($header);
         $this->assertSame('Samples Request Review', $header->status);
         $this->assertSame($form->invoice_id, $header->invoice_id);
+        $this->assertSame($lab->id, $header->lab_id);
+        $this->assertSame($contact->id, $header->crm_contact_id);
+        $this->assertSame('job-contact@example.test', $header->schedule_customer_email);
+        $this->assertSame($unit->id, $header->crm_unit_id);
+        $this->assertSame('2026-05-21', $header->date_collected);
+        $this->assertSame('2026-05-22', $header->receipt_date);
+        $this->assertSame('Job Signer', $header->payment_done_by);
+        $this->assertSame($sro->id, $header->receiving_officer);
 
         $invoice = Invoice::query()->find($form->invoice_id);
         $this->assertNotNull($invoice);

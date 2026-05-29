@@ -722,792 +722,229 @@
     {{-- Send/Move for Verification --}}
     @if($showVerificationModal)
         <div class="modal fade show" tabindex="-1" role="dialog"
-            style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1050;">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered" role="document">
-                <div class="modal-content border-0 shadow">
-                    <div class="modal-header border-0 pb-0">
-                        <div class="w-100">
-                            <h5 class="modal-title mb-1">
-                                <i class="mdi mdi-clipboard-check-outline text-primary mr-2"></i>
-                                Move Batch to Verification
-                            </h5>
-                            <p class="text-muted small mb-0">Complete the case file review and assign approvers.</p>
-                            <button type="button" class="close" wire:click="$set('showVerificationModal', false)"
-                                style="position: absolute; top: 15px; right: 15px;">
-                                <span>&times;</span>
-                            </button>
+            style="display: block; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1050;">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered" role="document"
+                style="max-width: 1040px; width: 96vw;">
+                <div class="modal-content vw-modal-shell shadow-lg">
+                    @include('livewire.batch.partials.case-file-review-styles')
 
-                            <ul class="nav nav-tabs mt-3 border-bottom-0">
-                                @if($batch->hasDnaLab())
-                                <li class="nav-item">
-                                    <a class="nav-link border-0 @if($verificationActiveTab == 'case_file_review') active font-weight-bold text-primary @else text-muted @endif"
-                                        wire:click="$set('verificationActiveTab', 'case_file_review')"
-                                        style="cursor: pointer; @if($verificationActiveTab == 'case_file_review') border-bottom: 2px solid #007bff !important; @endif">
-                                        Step 1: Case File Review
-                                    </a>
-                                </li>
-                                @endif
-                                <li class="nav-item">
-                                    <a class="nav-link border-0 @if($verificationActiveTab == 'assign_approvers') active font-weight-bold text-primary @else text-muted @endif"
-                                        wire:click="$set('verificationActiveTab', 'assign_approvers')"
-                                        style="cursor: pointer; @if($verificationActiveTab == 'assign_approvers') border-bottom: 2px solid #007bff !important; @endif">
-                                        @if($batch->hasDnaLab())
-                                            Step 2: Assign Approvers
-                                        @else
-                                            Assign Approvers
-                                        @endif
-                                    </a>
-                                </li>
-                            </ul>
+                    <div class="vw-modal-header">
+                        <button type="button" class="close" wire:click="$set('showVerificationModal', false)" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                        <div class="d-flex align-items-start">
+                            <div class="vw-icon-wrap">
+                                <i class="mdi mdi-clipboard-check-outline"></i>
+                            </div>
+                            <div>
+                                <h5 class="vw-title">Move Batch to Verification</h5>
+                                <p class="vw-subtitle">
+                                    @if($batch->hasDnaLab())
+                                        Complete the case file review, then assign approvers for <strong>{{ $batch->batch_code }}</strong>.
+                                    @else
+                                        Assign approvers for <strong>{{ $batch->batch_code }}</strong>.
+                                    @endif
+                                </p>
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-body pt-4">
 
-                        <div class="tab-content">
-                            @if($batch->hasDnaLab())
-                            <div class="tab-pane fade @if($verificationActiveTab == 'case_file_review') show active @endif">
-                                <div class="case-file-review-form text-left">
-                                    <div class="text-center mb-4">
-                                        <h6 class="font-weight-bold mb-1">FORENSIC BIOLOGY AND DNA LABORATORY</h6>
-                                        <p class="text-muted small">CASE FILE REVIEW FORM (DNA/F/12)</p>
-                                    </div>
+                    @if($batch->hasDnaLab())
+                        <div class="vw-steps">
+                            <button type="button"
+                                class="vw-step @if($verificationActiveTab === 'case_file_review') is-active @elseif($verificationActiveTab === 'assign_approvers') is-complete @endif"
+                                wire:click="$set('verificationActiveTab', 'case_file_review')">
+                                <span class="vw-step-indicator">
+                                    @if($verificationActiveTab === 'assign_approvers')
+                                        <i class="mdi mdi-check" style="font-size: 16px;"></i>
+                                    @else
+                                        1
+                                    @endif
+                                </span>
+                                <span class="vw-step-label">
+                                    <strong>Case File Review</strong>
+                                    DNA/F/12 form
+                                </span>
+                            </button>
+                            <div class="vw-step-connector @if($verificationActiveTab === 'assign_approvers') is-complete @endif"></div>
+                            <button type="button"
+                                class="vw-step @if($verificationActiveTab === 'assign_approvers') is-active @endif"
+                                wire:click="$set('verificationActiveTab', 'assign_approvers')">
+                                <span class="vw-step-indicator">2</span>
+                                <span class="vw-step-label">
+                                    <strong>Assign Approvers</strong>
+                                    Select signatories
+                                </span>
+                            </button>
+                        </div>
+                    @endif
 
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Sample Information</h6>
-                                        <div>
-                                            <div class="row">
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="modal-label-small text-muted mb-0">Lab No:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.lab_no">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="modal-label-small text-muted mb-0">File No:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.file_no">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="modal-label-small text-muted mb-0">Date in:</label>
-                                                    <input type="date"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.date_in">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="modal-label-small text-muted mb-0">Client:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.client">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="modal-label-small text-muted mb-0">No. of samples:</label>
-                                                    <input type="number"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.no_of_samples">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="modal-label-small text-muted mb-0">Name of
-                                                        Analyst:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.name_of_analyst">
-                                                </div>
-                                            </div>
-                                            <div class="row align-items-center mt-2">
-                                                <div class="col-md-3">
-                                                    <label class="modal-label-small text-muted mb-0">Sample
-                                                        condition:</label>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.sample_condition_sealed"
-                                                            id="cond_sealed">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="cond_sealed">Sealed</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.sample_condition_labelled"
-                                                            id="cond_labelled">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="cond_labelled">Labelled</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-5">
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.sample_condition_remark"
-                                                        placeholder="Remark">
-                                                </div>
-                                            </div>
-                                            <div class="row mt-2">
-                                                <div class="col-md-6">
-                                                    <label class="modal-label-small text-muted mb-0">Signature:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.analyst_signature">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- SAMPLE SCREENING -->
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Sample Screening</h6>
-                                        <div>
-                                            <div class="row mb-2">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Date:</label>
-                                                    <input type="date"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.screening_date">
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <label class="modal-label-small text-muted mb-0">Method:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.screening_method">
-                                                </div>
-                                            </div>
-                                            <div class="row mb-2 align-items-center">
-                                                <div class="col-md-3">
-                                                    <label class="modal-label-small text-muted mb-0">Sample type:</label>
-                                                </div>
-                                                <div class="col-md-9">
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.screening_sample_type_blood"
-                                                            id="ss_blood">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="ss_blood">Blood</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.screening_sample_type_object_with_blood"
-                                                            id="ss_obj_blood">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="ss_obj_blood">Object with blood</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.screening_sample_type_semen"
-                                                            id="ss_semen">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="ss_semen">Semen</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.screening_sample_type_object_with_semen"
-                                                            id="ss_obj_semen">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="ss_obj_semen">Object with semen</label>
-                                                    </div>
-                                                    <div class="form-inline mt-1">
-                                                        <label class="modal-label-small text-muted mr-2">Others</label>
-                                                        <input type="text"
-                                                            class="form-control form-control-sm form-control-modern"
-                                                            wire:model="caseFormData.screening_sample_type_others">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row align-items-center">
-                                                <div class="col-md-3">
-                                                    <label class="modal-label-small text-muted mb-0">Results:</label>
-                                                </div>
-                                                <div class="col-md-9">
-                                                    <select
-                                                        class="form-control form-control-sm form-control-modern w-auto d-inline-block mr-2"
-                                                        wire:model="caseFormData.screening_results_1">
-                                                        <option value="">-- Result 1 --</option>
-                                                        <option value="Positive">Positive</option>
-                                                        <option value="Negative">Negative</option>
-                                                        <option value="N/A">N/A</option>
-                                                    </select>
-                                                    <select
-                                                        class="form-control form-control-sm form-control-modern w-auto d-inline-block"
-                                                        wire:model="caseFormData.screening_results_2">
-                                                        <option value="">-- Result 2 --</option>
-                                                        <option value="Positive">Positive</option>
-                                                        <option value="Negative">Negative</option>
-                                                        <option value="N/A">N/A</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- SAMPLE EXTRACTION -->
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Sample Extraction</h6>
-                                        <div>
-                                            <div class="row align-items-center">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Extraction
-                                                        Date:</label>
-                                                    <input type="date"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.extraction_date">
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <label class="modal-label-small text-muted mr-3 mb-0">Method:</label>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.extraction_method_chelex"
-                                                            id="se_chelex">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="se_chelex">Chelex</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.extraction_method_prepfiler"
-                                                            id="se_prepfiler">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="se_prepfiler">Prepfiler</label>
-                                                    </div>
-                                                    <div class="form-inline mt-1 d-inline-block">
-                                                        <label class="modal-label-small text-muted mr-2">Other</label>
-                                                        <input type="text"
-                                                            class="form-control form-control-sm form-control-modern"
-                                                            wire:model="caseFormData.extraction_method_other">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- QUANTIFICATION -->
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Quantification</h6>
-                                        <div>
-                                            <div class="row align-items-center mb-2">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Quantification
-                                                        Date:</label>
-                                                    <input type="date"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.quantification_date">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="modal-label-small text-muted mr-2 mb-0">No. of
-                                                        cycles:</label>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.quantification_no_of_cycles_40"
-                                                            id="q_cycles_40">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="q_cycles_40">40</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-5">
-                                                    <label class="modal-label-small text-muted mb-0">Remarks:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.quantification_remarks">
-                                                </div>
-                                            </div>
-                                            <div class="row align-items-center">
-                                                <div class="col-md-12">
-                                                    <label class="modal-label-small text-muted mr-3 mb-0">Kit used:</label>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.quantification_kit_used_quant_trio"
-                                                            id="q_kit_quant">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="q_kit_quant">Quant trio</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- POLYMERASE CHAIN REACTION (PCR) -->
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Polymerase Chain Reaction
-                                            (PCR)</h6>
-                                        <div>
-                                            <div class="row align-items-center mb-2">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Amplification
-                                                        Date:</label>
-                                                    <input type="date"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.pcr_amplification_date">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mr-2 mb-0">No. of
-                                                        cycles:</label>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.pcr_no_of_cycles_28" id="pcr_28">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="pcr_28">28</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.pcr_no_of_cycles_29" id="pcr_29">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="pcr_29">29</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.pcr_no_of_cycles_30" id="pcr_30">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="pcr_30">30</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.pcr_no_of_cycles_32" id="pcr_32">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="pcr_32">32</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Remarks:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.pcr_remarks">
-                                                </div>
-                                            </div>
-                                            <div class="row align-items-center">
-                                                <div class="col-md-12">
-                                                    <label class="modal-label-small text-muted mr-3 mb-0">Kit used:</label>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.pcr_kit_used_identifiler_plus"
-                                                            id="pcr_identifiler">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="pcr_identifiler">Identifiler plus</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.pcr_kit_used_globalfiler"
-                                                            id="pcr_globalfiler">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="pcr_globalfiler">Globalfiler</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.pcr_kit_used_yfiler_plus"
-                                                            id="pcr_yfiler">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="pcr_yfiler">Yfiler plus</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- INJECTION & INTERPRETATION -->
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Injection & Interpretation
-                                        </h6>
-                                        <div>
-                                            <div class="row mb-2">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Injection Date:</label>
-                                                    <input type="date"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.injection_date">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Run ID:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.injection_run_id">
-                                                </div>
-                                                <div class="col-md-4 mt-4">
-                                                    <label
-                                                        class="modal-label-small text-muted mr-2 mb-0">Instrument:</label>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.injection_instrument_3500"
-                                                            id="inj_3500">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="inj_3500">3500</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="row mt-3">
-                                                <div class="col-md-2"><label
-                                                        class="modal-label-small text-muted font-weight-bold">Results</label>
-                                                </div>
-                                                <div class="col-md-10">
-                                                    <div class="row">
-                                                        <div class="col-md-3">
-                                                            <label
-                                                                class="modal-label-small text-muted mb-0 d-block">Positive</label>
-                                                            <select class="form-control form-control-sm form-control-modern"
-                                                                wire:model="caseFormData.injection_result_positive">
-                                                                <option value="">-</option>
-                                                                <option value="Pass">Pass</option>
-                                                                <option value="Fail">Fail</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label
-                                                                class="modal-label-small text-muted mb-0 d-block">Negative</label>
-                                                            <select class="form-control form-control-sm form-control-modern"
-                                                                wire:model="caseFormData.injection_result_negative">
-                                                                <option value="">-</option>
-                                                                <option value="Pass">Pass</option>
-                                                                <option value="Fail">Fail</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label
-                                                                class="modal-label-small text-muted mb-0 d-block">Ladder</label>
-                                                            <select class="form-control form-control-sm form-control-modern"
-                                                                wire:model="caseFormData.injection_result_ladder">
-                                                                <option value="">-</option>
-                                                                <option value="Pass">Pass</option>
-                                                                <option value="Fail">Fail</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label
-                                                                class="modal-label-small text-muted mb-0 d-block">Blank</label>
-                                                            <select class="form-control form-control-sm form-control-modern"
-                                                                wire:model="caseFormData.injection_result_blank">
-                                                                <option value="">-</option>
-                                                                <option value="Pass">Pass</option>
-                                                                <option value="Fail">Fail</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row mt-3 align-items-center">
-                                                <div class="col-md-2">
-                                                    <label
-                                                        class="modal-label-small text-muted font-weight-bold mb-0">Run:</label>
-                                                </div>
-                                                <div class="col-md-10">
-                                                    <select class="form-control form-control-sm form-control-modern w-auto"
-                                                        wire:model="caseFormData.injection_run">
-                                                        <option value="">- Select -</option>
-                                                        <option value="Pass">Pass</option>
-                                                        <option value="Fail">Fail</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- REPORTING -->
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Reporting</h6>
-                                        <div>
-                                            <div class="row mb-2">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Draft report
-                                                        Date:</label>
-                                                    <input type="date"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.reporting_draft_report_date">
-                                                </div>
-                                                <div class="col-md-8 mt-4">
-                                                    <div class="custom-control custom-checkbox custom-control-inline mr-4">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.reporting_reviewed" id="rep_reviewed">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="rep_reviewed">Reviewed</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.reporting_corrected"
-                                                            id="rep_corrected">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="rep_corrected">Corrected</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row mb-2">
-                                                <div class="col-md-3">
-                                                    <label class="modal-label-small text-muted mb-0">Report
-                                                        attachments:</label>
-                                                </div>
-                                                <div class="col-md-9">
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.reporting_attachment_real_time_data"
-                                                            id="rep_att_realtime">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="rep_att_realtime">Real-time Data</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.reporting_attachment_converge"
-                                                            id="rep_att_converge">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="rep_att_converge">Converge</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.reporting_attachment_statistical_analysis"
-                                                            id="rep_att_statistical">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="rep_att_statistical">Statistical analysis</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-12">
-                                                    <label class="modal-label-small text-muted mb-0">Remarks:</label>
-                                                    <textarea class="form-control form-control-modern" rows="2"
-                                                        wire:model="caseFormData.reporting_remarks"></textarea>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- AUTHENTICATION -->
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Authentication</h6>
-                                        <div>
-                                            <div class="row mb-2">
-                                                <div class="col-md-12">
-                                                    <label class="modal-label-small text-muted mb-0">Reviewer's comments on
-                                                        the report:</label>
-                                                    <textarea class="form-control form-control-modern" rows="2"
-                                                        wire:model="caseFormData.reviewer_comments"></textarea>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Name:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.reviewer_name">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Signature:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.reviewer_signature">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Date:</label>
-                                                    <input type="date"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.reviewer_date">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- MANAGER'S REVIEW & VERIFICATION -->
-                                    <div class="mb-4">
-                                        <h6 class="text-uppercase text-muted font-weight-bold mb-3 border-bottom pb-2"
-                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">Manager's Review &
-                                            Verification</h6>
-                                        <div>
-                                            <div class="row mb-2 align-items-center">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Manager report
-                                                        review:</label>
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.manager_review_technical"
-                                                            id="mgr_rev_tech">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="mgr_rev_tech">Technical review</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.manager_review_administrative"
-                                                            id="mgr_rev_admin">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="mgr_rev_admin">Administrative review</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row mb-2 align-items-center">
-                                                <div class="col-md-4">
-                                                    <label class="modal-label-small text-muted mb-0">Manager's comments on
-                                                        the report:</label>
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <div class="custom-control custom-checkbox custom-control-inline">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.manager_comments_verified"
-                                                            id="mgr_com_ver">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="mgr_com_ver">Verified</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-control-inline mr-4">
-                                                        <input class="custom-control-input" type="checkbox"
-                                                            wire:model="caseFormData.manager_comments_not_verified"
-                                                            id="mgr_com_not_ver">
-                                                        <label class="custom-control-label modal-label-small"
-                                                            for="mgr_com_not_ver">Not Verified</label>
-                                                    </div>
-                                                    <div class="form-inline d-inline-block">
-                                                        <label class="modal-label-small text-muted mr-2">Date:</label>
-                                                        <input type="date"
-                                                            class="form-control form-control-sm form-control-modern"
-                                                            wire:model="caseFormData.manager_date">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <label class="modal-label-small text-muted mb-0">Manager's Name:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.manager_name">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="modal-label-small text-muted mb-0">Signature:</label>
-                                                    <input type="text"
-                                                        class="form-control form-control-sm form-control-modern"
-                                                        wire:model="caseFormData.manager_signature">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="text-right mt-3">
-                                    <button type="button" class="btn btn-primary btn-sm rounded shadow-sm"
-                                        wire:click="$set('verificationActiveTab', 'assign_approvers')">Next: Assign
-                                        Approvers <i class="mdi mdi-arrow-right ml-1"></i></button>
-                                </div>
+                    <div class="vw-modal-body">
+                        @if($batch->hasDnaLab() && $verificationActiveTab === 'case_file_review')
+                            <div class="text-center mb-3">
+                                <span class="badge badge-light border px-3 py-2" style="font-size: 0.72rem; letter-spacing: 0.06em; color: #475569;">
+                                    FORENSIC BIOLOGY AND DNA LABORATORY &bull; CASE FILE REVIEW (DNA/F/12)
+                                </span>
                             </div>
+
+                            <div class="cf-worksheet-bar">
+                                <p><i class="mdi mdi-information-outline mr-1"></i> Empty fields can be filled from saved grouped worksheet stages.</p>
+                                <button type="button" class="btn btn-cf-outline"
+                                    wire:click="refreshCaseFileFromWorksheets"
+                                    wire:loading.attr="disabled"
+                                    wire:target="refreshCaseFileFromWorksheets">
+                                    <span wire:loading.remove wire:target="refreshCaseFileFromWorksheets">
+                                        <i class="mdi mdi-file-import-outline"></i> Fill from worksheets
+                                    </span>
+                                    <span wire:loading wire:target="refreshCaseFileFromWorksheets">Loading…</span>
+                                </button>
+                            </div>
+
+                            @include('livewire.batch.partials.case-file-review-form', [
+                                'wireModel' => 'caseFormData',
+                                'idSuffix' => 'ver',
+                            ])
+                        @elseif($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
+                            <div class="vw-info-banner">
+                                <i class="mdi mdi-account-multiple-check-outline"></i>
+                                <span>Select the technical reviewer and laboratory approvers for this batch before submitting to verification.</span>
+                            </div>
+
+                            @if(session('error'))
+                                <div class="alert alert-danger alert-dismissible fade show py-2 px-3 small rounded mb-3" role="alert">
+                                    <i class="mdi mdi-alert-circle mr-1"></i>
+                                    <span>{{ session('error') }}</span>
+                                    <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                                </div>
                             @endif
 
-                            <div class="tab-pane fade @if($verificationActiveTab == 'assign_approvers') show active @endif">
-                                <div class="alert alert-info py-2 px-3 small rounded"
-                                    style="background-color: #f1f8fc; border-color: #e2f0fa; color: #31708f;">
-                                    <i class="mdi mdi-information-outline mr-1"></i> Select the approvers for each
-                                    laboratory below.
+                            <div class="cf-card vw-approvers-card mb-3">
+                                <div class="cf-card-header" style="border-left: 4px solid #2563eb;">
+                                    <h6 class="cf-card-title">
+                                        <i class="mdi mdi-account-group-outline text-primary" style="font-size: 18px;"></i>
+                                        Approver assignments
+                                    </h6>
                                 </div>
-
-                                @if(session('error'))
-                                    <div class="alert alert-danger alert-dismissible fade show mt-2 py-2 px-3 small rounded"
-                                        role="alert">
-                                        <i class="mdi mdi-alert-circle mr-1"></i>
-                                        <span>{{ session('error') }}</span>
-                                        <button type="button" class="close" data-dismiss="alert">
-                                            <span>&times;</span>
-                                        </button>
-                                    </div>
-                                @endif
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-sm mb-0">
-                                        <thead class="bg-light text-muted">
-                                            <tr>
-                                                <th class="font-weight-bold" style="font-size: 0.8rem;">Laboratory</th>
-                                                <th class="font-weight-bold" style="font-size: 0.8rem;">Assign Approver</th>
-                                                <th class="font-weight-bold" style="font-size: 0.8rem;">Title</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr class="bg-light">
-                                                <td class="align-middle"><strong>Technical Reviewer</strong> <br><small
-                                                        class="text-muted">(Overall Signatory)</small></td>
-                                                <td>
-                                                    <select class="form-control form-control-sm"
-                                                        wire:model="verificationData.technical_reviewer_id">
-                                                        <option value="">Select Technical Reviewer</option>
-                                                        @foreach($users as $user)
-                                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                                <td>
-                                                    <input type="text" class="form-control form-control-sm"
-                                                        value="Technical Signatory" readonly>
-                                                </td>
-                                            </tr>
-                                            @foreach($this->getBatchLabs() as $lab)
+                                <div class="cf-card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
                                                 <tr>
-                                                    <td class="align-middle">{{ $lab->name }}</td>
+                                                    <th>Laboratory</th>
+                                                    <th style="min-width: 220px;">Assign Approver</th>
+                                                    <th style="min-width: 180px;">Title</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="bg-light">
+                                                    <td class="align-middle">
+                                                        <strong>Technical Reviewer</strong>
+                                                        <br><small class="text-muted">Overall signatory</small>
+                                                    </td>
                                                     <td>
-                                                        <select class="form-control form-control-sm"
-                                                            wire:model="verificationData.approver_user.{{ $lab->id }}">
-                                                            <option value="">Select Approver</option>
-                                                            @foreach($this->getLabManagersForLab($lab->id) as $user)
+                                                        <select class="cf-form-control" wire:model="verificationData.technical_reviewer_id">
+                                                            <option value="">Select technical reviewer</option>
+                                                            @foreach($users as $user)
                                                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
                                                             @endforeach
                                                         </select>
                                                     </td>
                                                     <td>
-                                                        <input type="text" class="form-control form-control-sm"
-                                                            wire:model="verificationData.title.{{ $lab->id }}"
-                                                            placeholder="Verification Title">
+                                                        <input type="text" class="cf-form-control" value="Technical Signatory" readonly>
                                                     </td>
                                                 </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div class="row mt-4">
-                                    <div class="col-md-6 form-group">
-                                        <label class="text-muted font-weight-bold" style="font-size: 0.8rem;">Report Status
-                                            Level</label>
-                                        <select class="form-control form-control-sm" wire:model="verificationData.level">
-                                            <option value="0">Final Report</option>
-                                            <option value="1">Preliminary Report</option>
-                                            <option value="2">Draft Report</option>
-                                        </select>
+                                                @foreach($this->getBatchLabs() as $lab)
+                                                    <tr>
+                                                        <td class="align-middle font-weight-bold">{{ $lab->name }}</td>
+                                                        <td>
+                                                            <select class="cf-form-control" wire:model="verificationData.approver_user.{{ $lab->id }}">
+                                                                <option value="">Select approver</option>
+                                                                @foreach($this->getLabManagersForLab($lab->id) as $user)
+                                                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </td>
+                                                        <td>
+                                                            <input type="text" class="cf-form-control"
+                                                                wire:model="verificationData.title.{{ $lab->id }}"
+                                                                placeholder="Verification title">
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div class="form-group mt-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="has_method_deviation_livewire"
-                                            wire:model="verificationData.has_method_deviation"
-                                            onchange="document.getElementById('method_deviation_reason_livewire_group').style.display = this.checked ? 'block' : 'none';">
-                                        <label class="form-check-label text-muted small" for="has_method_deviation_livewire"
-                                            style="font-size: 0.85rem;">
+                            <div class="cf-card mb-0">
+                                <div class="cf-card-header" style="border-left: 4px solid #64748b;">
+                                    <h6 class="cf-card-title">
+                                        <i class="mdi mdi-file-document-outline text-secondary" style="font-size: 18px;"></i>
+                                        Report options
+                                    </h6>
+                                </div>
+                                <div class="cf-card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="cf-input-label">Report Status Level</label>
+                                            <select class="cf-form-control" wire:model="verificationData.level">
+                                                <option value="0">Final Report</option>
+                                                <option value="1">Preliminary Report</option>
+                                                <option value="2">Draft Report</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="custom-control custom-checkbox custom-checkbox-modern mb-3">
+                                        <input class="custom-control-input" type="checkbox" id="has_method_deviation_ver"
+                                            wire:model.live="verificationData.has_method_deviation">
+                                        <label class="custom-control-label" for="has_method_deviation_ver">
                                             Deviations from method
                                         </label>
                                     </div>
-                                </div>
 
-                                <div class="form-group" id="method_deviation_reason_livewire_group" style="display:none;">
-                                    <label class="text-muted font-weight-bold small modal-label-small">Reason for
-                                        Deviation</label>
-                                    <textarea class="form-control form-control-modern"
-                                        wire:model="verificationData.method_deviation_reason"
-                                        placeholder="Describe the deviation from method..."></textarea>
+                                    @if(!empty($verificationData['has_method_deviation']))
+                                        <div class="form-group mb-0">
+                                            <label class="cf-input-label">Reason for deviation</label>
+                                            <textarea class="cf-form-control" rows="3"
+                                                wire:model="verificationData.method_deviation_reason"
+                                                placeholder="Describe the deviation from method…"></textarea>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer modal-footer-modern">
-                        @if($verificationActiveTab == 'assign_approvers' && $batch->hasDnaLab())
-                            <button type="button" class="btn btn-secondary-modern btn-sm mr-auto"
-                                wire:click="$set('verificationActiveTab', 'case_file_review')"><i
-                                    class="mdi mdi-arrow-left"></i> Back</button>
                         @endif
-                        <button type="button" class="btn btn-secondary-modern btn-sm"
+                    </div>
+
+                    <div class="vw-modal-footer">
+                        @if($verificationActiveTab === 'assign_approvers' && $batch->hasDnaLab())
+                            <button type="button" class="btn btn-outline-secondary btn-sm mr-auto"
+                                wire:click="$set('verificationActiveTab', 'case_file_review')">
+                                <i class="mdi mdi-arrow-left mr-1"></i> Back
+                            </button>
+                        @endif
+
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
                             wire:click="$set('showVerificationModal', false)">Close</button>
-                        @if($verificationActiveTab == 'assign_approvers')
-                            <button type="button" class="btn btn-primary-modern btn-sm"
-                                wire:click="moveToVerification">Submit</button>
+
+                        @if($batch->hasDnaLab() && $verificationActiveTab === 'case_file_review')
+                            <button type="button" class="btn btn-vw-next btn-sm"
+                                wire:click="$set('verificationActiveTab', 'assign_approvers')">
+                                Next: Assign Approvers <i class="mdi mdi-arrow-right ml-1"></i>
+                            </button>
+                        @elseif($verificationActiveTab === 'assign_approvers' || ! $batch->hasDnaLab())
+                            <button type="button" class="btn btn-vw-primary btn-sm"
+                                wire:click="moveToVerification">
+                                <i class="mdi mdi-send-check-outline mr-1"></i> Submit to Verification
+                            </button>
                         @endif
                     </div>
                 </div>
             </div>
         </div>
     @endif
+
 
     {{-- Send for Approval Modal --}}
     @if($showApprovalModal)
@@ -1649,140 +1086,7 @@
             style="display: block; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 1050;">
             <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered" role="document" style="max-width: 1000px; width: 95vw;">
                 <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden; background: #f8fafc;">
-                    
-                    <style>
-                        .cf-modal-header {
-                            background: #ffffff;
-                            border-bottom: 1px solid #e2e8f0;
-                            padding: 16px 24px;
-                        }
-                        .cf-card {
-                            background: #ffffff;
-                            border: 1px solid #e2e8f0;
-                            border-radius: 12px;
-                            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-                            margin-bottom: 20px;
-                            overflow: hidden;
-                        }
-                        .cf-card-header {
-                            background: #f8fafc;
-                            padding: 14px 20px;
-                            border-bottom: 1px solid #e2e8f0;
-                            display: flex;
-                            align-items: center;
-                            gap: 8px;
-                        }
-                        .cf-card-title {
-                            font-size: 0.85rem;
-                            font-weight: 700;
-                            color: #0f172a;
-                            text-transform: uppercase;
-                            letter-spacing: 0.05em;
-                            margin: 0;
-                            display: flex;
-                            align-items: center;
-                            gap: 6px;
-                        }
-                        .cf-card-body {
-                            padding: 20px;
-                        }
-                        .cf-input-label {
-                            font-size: 0.72rem;
-                            font-weight: 700;
-                            color: #475569;
-                            text-transform: uppercase;
-                            letter-spacing: 0.05em;
-                            margin-bottom: 6px;
-                            display: block;
-                        }
-                        .cf-form-control {
-                            height: 38px;
-                            border-radius: 8px;
-                            border: 1px solid #cbd5e1;
-                            padding: 8px 12px;
-                            font-size: 0.88rem;
-                            color: #0f172a;
-                            background-color: #ffffff;
-                            transition: all 0.2s ease-in-out;
-                            width: 100%;
-                        }
-                        .cf-form-control:focus {
-                            border-color: #2563eb;
-                            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-                            outline: none;
-                        }
-                        textarea.cf-form-control {
-                            height: auto;
-                            min-height: 80px;
-                        }
-                        .custom-checkbox-modern {
-                            display: flex;
-                            align-items: center;
-                            position: relative;
-                            padding-left: 0;
-                            margin-bottom: 0;
-                        }
-                        .custom-checkbox-modern .custom-control-input {
-                            position: absolute;
-                            opacity: 0;
-                            cursor: pointer;
-                            height: 0;
-                            width: 0;
-                        }
-                        .custom-checkbox-modern .custom-control-label {
-                            position: relative;
-                            padding-left: 28px;
-                            cursor: pointer;
-                            font-size: 0.85rem;
-                            font-weight: 600;
-                            color: #334155;
-                            user-select: none;
-                            line-height: 20px;
-                            margin-bottom: 0;
-                        }
-                        .custom-checkbox-modern .custom-control-label::before {
-                            content: '';
-                            position: absolute;
-                            left: 0;
-                            top: 0;
-                            width: 20px;
-                            height: 20px;
-                            border: 1px solid #cbd5e1;
-                            border-radius: 6px;
-                            background-color: #ffffff;
-                            transition: all 0.15s ease-in-out;
-                        }
-                        .custom-checkbox-modern .custom-control-input:checked ~ .custom-control-label::before {
-                            background-color: #2563eb;
-                            border-color: #2563eb;
-                        }
-                        .custom-checkbox-modern .custom-control-label::after {
-                            content: '';
-                            position: absolute;
-                            left: 7px;
-                            top: 3px;
-                            width: 6px;
-                            height: 11px;
-                            border: solid white;
-                            border-width: 0 2px 2px 0;
-                            transform: rotate(45deg);
-                            opacity: 0;
-                            transition: all 0.15s ease-in-out;
-                        }
-                        .custom-checkbox-modern .custom-control-input:checked ~ .custom-control-label::after {
-                            opacity: 1;
-                        }
-                        .cf-section-subtitle {
-                            font-size: 0.78rem;
-                            font-weight: 700;
-                            color: #64748b;
-                            text-transform: uppercase;
-                            letter-spacing: 0.05em;
-                            margin-bottom: 12px;
-                            border-bottom: 1px dashed #e2e8f0;
-                            padding-bottom: 6px;
-                        }
-                    </style>
+                    @include('livewire.batch.partials.case-file-review-styles')
 
                     @php
                         $activeCompany = getActiveCompany();
@@ -1807,414 +1111,35 @@
                     </div>
 
                     <div class="modal-body p-4 bg-light">
+                        <div class="cf-worksheet-bar">
+                            <p><i class="mdi mdi-information-outline mr-1"></i> Empty fields can be filled from saved grouped worksheet stages.</p>
+                            <button type="button" class="btn btn-cf-outline"
+                                wire:click="refreshCaseFileFromWorksheets"
+                                wire:loading.attr="disabled"
+                                wire:target="refreshCaseFileFromWorksheets">
+                                <span wire:loading.remove wire:target="refreshCaseFileFromWorksheets">
+                                    <i class="mdi mdi-file-import-outline"></i> Fill from worksheets
+                                </span>
+                                <span wire:loading wire:target="refreshCaseFileFromWorksheets">Loading…</span>
+                            </button>
+                        </div>
                         <form wire:submit.prevent="saveStandaloneCaseFile">
-                            
-                            <!-- 1. SAMPLE INFORMATION -->
-                            <div class="cf-card">
-                                <div class="cf-card-header" style="border-left: 4px solid #3b82f6;">
-                                    <h6 class="cf-card-title">
-                                        <i class="mdi mdi-information-outline text-primary" style="font-size: 18px;"></i>
-                                        1. Sample Information
-                                    </h6>
-                                </div>
-                                <div class="cf-card-body">
-                                    <div class="row">
-                                        <div class="col-md-3 mb-3">
-                                            <label class="cf-input-label">Lab No</label>
-                                            <input type="text" class="cf-form-control" wire:model="caseFormData.lab_no" required>
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="cf-input-label">File No</label>
-                                            <input type="text" class="cf-form-control" wire:model="caseFormData.file_no">
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="cf-input-label">Date In</label>
-                                            <input type="date" class="cf-form-control" wire:model="caseFormData.date_in">
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="cf-input-label">Client</label>
-                                            <input type="text" class="cf-form-control" wire:model="caseFormData.client">
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="cf-input-label">No of Samples</label>
-                                            <input type="number" class="cf-form-control" wire:model="caseFormData.no_of_samples">
-                                        </div>
-                                        <div class="col-md-9 mb-3">
-                                            <label class="cf-input-label">Sample Condition</label>
-                                            <div class="d-flex align-items-center mt-2 flex-wrap" style="gap: 20px;">
-                                                <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                    <input type="checkbox" class="custom-control-input" id="cf_sealed_sa" wire:model="caseFormData.sample_condition_sealed">
-                                                    <label class="custom-control-label" for="cf_sealed_sa">Sealed</label>
-                                                </div>
-                                                <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                    <input type="checkbox" class="custom-control-input" id="cf_labelled_sa" wire:model="caseFormData.sample_condition_labelled">
-                                                    <label class="custom-control-label" for="cf_labelled_sa">Labelled</label>
-                                                </div>
-                                                <div class="flex-grow-1" style="min-width: 250px;">
-                                                    <input type="text" class="cf-form-control" placeholder="Condition Remarks..." wire:model="caseFormData.sample_condition_remark">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 2. SAMPLE SCREENING -->
-                            <div class="cf-card">
-                                <div class="cf-card-header" style="border-left: 4px solid #6366f1;">
-                                    <h6 class="cf-card-title">
-                                        <i class="mdi mdi-magnify text-indigo" style="font-size: 18px;"></i>
-                                        2. Sample Screening
-                                    </h6>
-                                </div>
-                                <div class="cf-card-body">
-                                    <div class="row mb-3">
-                                        <div class="col-md-4 mb-3">
-                                            <label class="cf-input-label">Screening Date</label>
-                                            <input type="date" class="cf-form-control" wire:model="caseFormData.screening_date">
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="cf-input-label">Screening Method</label>
-                                            <input type="text" class="cf-form-control" wire:model="caseFormData.screening_method">
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="cf-section-subtitle">Sample Types</div>
-                                    <div class="row mb-3">
-                                        <div class="col-md-3 mb-2">
-                                            <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                <input type="checkbox" class="custom-control-input" id="sc_blood_sa" wire:model="caseFormData.screening_sample_type_blood">
-                                                <label class="custom-control-label" for="sc_blood_sa">Blood</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 mb-2">
-                                            <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                <input type="checkbox" class="custom-control-input" id="sc_obj_blood_sa" wire:model="caseFormData.screening_sample_type_object_with_blood">
-                                                <label class="custom-control-label" for="sc_obj_blood_sa">Object w/ Blood</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 mb-2">
-                                            <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                <input type="checkbox" class="custom-control-input" id="sc_semen_sa" wire:model="caseFormData.screening_sample_type_semen">
-                                                <label class="custom-control-label" for="sc_semen_sa">Semen</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 mb-2">
-                                            <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                <input type="checkbox" class="custom-control-input" id="sc_obj_semen_sa" wire:model="caseFormData.screening_sample_type_object_with_semen">
-                                                <label class="custom-control-label" for="sc_obj_semen_sa">Object w/ Semen</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="cf-input-label">Others</label>
-                                            <input type="text" class="cf-form-control" wire:model="caseFormData.screening_sample_type_others">
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="cf-input-label">Result 1</label>
-                                            <input type="text" class="cf-form-control" wire:model="caseFormData.screening_results_1" placeholder="Positive/Negative">
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="cf-input-label">Result 2</label>
-                                            <input type="text" class="cf-form-control" wire:model="caseFormData.screening_results_2" placeholder="Positive/Negative">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 3. EXTRACTION & QUANTIFICATION -->
-                            <div class="cf-card">
-                                <div class="cf-card-header" style="border-left: 4px solid #06b6d4;">
-                                    <h6 class="cf-card-title">
-                                        <i class="mdi mdi-test-tube text-cyan" style="font-size: 18px;"></i>
-                                        3. Extraction & Quantification
-                                    </h6>
-                                </div>
-                                <div class="cf-card-body">
-                                    <div class="row">
-                                        <!-- Extraction -->
-                                        <div class="col-md-6 mb-3 pr-md-4" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="cf-section-subtitle">Extraction</div>
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Extraction Date</label>
-                                                <input type="date" class="cf-form-control" wire:model="caseFormData.extraction_date">
-                                            </div>
-                                            <div class="form-group mb-2">
-                                                <label class="cf-input-label">Extraction Method</label>
-                                                <div class="d-flex flex-column gap-2" style="gap: 8px;">
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="ext_chelex_sa" wire:model="caseFormData.extraction_method_chelex">
-                                                        <label class="custom-control-label" for="ext_chelex_sa">Chelex Method</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="ext_prepfiler_sa" wire:model="caseFormData.extraction_method_prepfiler">
-                                                        <label class="custom-control-label" for="ext_prepfiler_sa">Prepfiler Method</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="form-group mt-3">
-                                                <label class="cf-input-label">Other Method</label>
-                                                <input type="text" class="cf-form-control" wire:model="caseFormData.extraction_method_other">
-                                            </div>
-                                        </div>
-
-                                        <!-- Quantification -->
-                                        <div class="col-md-6 mb-3 pl-md-4">
-                                            <div class="cf-section-subtitle">Quantification</div>
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Quantification Date</label>
-                                                <input type="date" class="cf-form-control" wire:model="caseFormData.quantification_date">
-                                            </div>
-                                            <div class="form-group mb-2">
-                                                <label class="cf-input-label">Kit & Cycles</label>
-                                                <div class="d-flex flex-column gap-2" style="gap: 8px;">
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="quant_cycles_sa" wire:model="caseFormData.quantification_no_of_cycles_40">
-                                                        <label class="custom-control-label" for="quant_cycles_sa">No. of Cycles (40)</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="quant_kit_sa" wire:model="caseFormData.quantification_kit_used_quant_trio">
-                                                        <label class="custom-control-label" for="quant_kit_sa">Kit: Quant Trio</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="form-group mt-3">
-                                                <label class="cf-input-label">Remarks</label>
-                                                <input type="text" class="cf-form-control" wire:model="caseFormData.quantification_remarks">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 4. PCR AMPLIFICATION & INJECTION -->
-                            <div class="cf-card">
-                                <div class="cf-card-header" style="border-left: 4px solid #8b5cf6;">
-                                    <h6 class="cf-card-title">
-                                        <i class="mdi mdi-dna text-purple" style="font-size: 18px;"></i>
-                                        4. PCR Amplification & Injection
-                                    </h6>
-                                </div>
-                                <div class="cf-card-body">
-                                    <div class="row">
-                                        <!-- PCR -->
-                                        <div class="col-md-6 mb-3 pr-md-4" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="cf-section-subtitle">PCR Amplification</div>
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">PCR Amplification Date</label>
-                                                <input type="date" class="cf-form-control" wire:model="caseFormData.pcr_amplification_date">
-                                            </div>
-                                            
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">No. of Cycles</label>
-                                                <div class="d-flex align-items-center mt-2 flex-wrap" style="gap: 15px;">
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="pcr_28_sa" wire:model="caseFormData.pcr_no_of_cycles_28">
-                                                        <label class="custom-control-label" for="pcr_28_sa">28</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="pcr_29_sa" wire:model="caseFormData.pcr_no_of_cycles_29">
-                                                        <label class="custom-control-label" for="pcr_29_sa">29</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="pcr_30_sa" wire:model="caseFormData.pcr_no_of_cycles_30">
-                                                        <label class="custom-control-label" for="pcr_30_sa">30</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="pcr_32_sa" wire:model="caseFormData.pcr_no_of_cycles_32">
-                                                        <label class="custom-control-label" for="pcr_32_sa">32</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Kit Used</label>
-                                                <div class="d-flex flex-column gap-2 mt-2" style="gap: 8px;">
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="kit_identifiler_sa" wire:model="caseFormData.pcr_kit_used_identifiler_plus">
-                                                        <label class="custom-control-label" for="kit_identifiler_sa">Identifiler Plus</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="kit_globalfiler_sa" wire:model="caseFormData.pcr_kit_used_globalfiler">
-                                                        <label class="custom-control-label" for="kit_globalfiler_sa">Globalfiler</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="kit_yfiler_sa" wire:model="caseFormData.pcr_kit_used_yfiler_plus">
-                                                        <label class="custom-control-label" for="kit_yfiler_sa">Yfiler Plus</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group mt-3">
-                                                <label class="cf-input-label">PCR Remarks</label>
-                                                <input type="text" class="cf-form-control" wire:model="caseFormData.pcr_remarks">
-                                            </div>
-                                        </div>
-
-                                        <!-- Injection -->
-                                        <div class="col-md-6 mb-3 pl-md-4">
-                                            <div class="cf-section-subtitle">Injection & Interpretation</div>
-                                            <div class="row">
-                                                <div class="col-6 form-group mb-3">
-                                                    <label class="cf-input-label">Injection Date</label>
-                                                    <input type="date" class="cf-form-control" wire:model="caseFormData.injection_date">
-                                                </div>
-                                                <div class="col-6 form-group mb-3">
-                                                    <label class="cf-input-label">Run ID</label>
-                                                    <input type="text" class="cf-form-control" wire:model="caseFormData.injection_run_id">
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="form-group mb-3">
-                                                <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                    <input type="checkbox" class="custom-control-input" id="inj_inst_3500_sa" wire:model="caseFormData.injection_instrument_3500">
-                                                    <label class="custom-control-label font-weight-bold" for="inj_inst_3500_sa">Instrument: 3500 Genetic Analyzer</label>
-                                                </div>
-                                            </div>
-
-                                            <label class="cf-input-label mt-3">Control Results (Pass/Fail)</label>
-                                            <div class="row mb-3">
-                                                <div class="col-6 mb-2">
-                                                    <label class="text-muted small font-weight-bold" style="font-size: 0.68rem; text-transform: uppercase;">+ve Ctrl</label>
-                                                    <input type="text" class="cf-form-control form-control-sm" wire:model="caseFormData.injection_result_positive">
-                                                </div>
-                                                <div class="col-6 mb-2">
-                                                    <label class="text-muted small font-weight-bold" style="font-size: 0.68rem; text-transform: uppercase;">-ve Ctrl</label>
-                                                    <input type="text" class="cf-form-control form-control-sm" wire:model="caseFormData.injection_result_negative">
-                                                </div>
-                                                <div class="col-6 mb-2">
-                                                    <label class="text-muted small font-weight-bold" style="font-size: 0.68rem; text-transform: uppercase;">Ladder</label>
-                                                    <input type="text" class="cf-form-control form-control-sm" wire:model="caseFormData.injection_result_ladder">
-                                                </div>
-                                                <div class="col-6 mb-2">
-                                                    <label class="text-muted small font-weight-bold" style="font-size: 0.68rem; text-transform: uppercase;">Blank</label>
-                                                    <input type="text" class="cf-form-control form-control-sm" wire:model="caseFormData.injection_result_blank">
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="cf-input-label">Run Result</label>
-                                                <input type="text" class="cf-form-control" wire:model="caseFormData.injection_run">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 5. REPORTING & REVIEW -->
-                            <div class="cf-card">
-                                <div class="cf-card-header" style="border-left: 4px solid #10b981;">
-                                    <h6 class="cf-card-title">
-                                        <i class="mdi mdi-checkbox-marked-circle-outline text-emerald" style="font-size: 18px;"></i>
-                                        5. Reporting & Review
-                                    </h6>
-                                </div>
-                                <div class="cf-card-body">
-                                    <div class="row">
-                                        <!-- Reporting -->
-                                        <div class="col-md-6 mb-3 pr-md-4" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="cf-section-subtitle">Reporting Details</div>
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Draft Report Date</label>
-                                                <input type="date" class="cf-form-control" wire:model="caseFormData.reporting_draft_report_date">
-                                            </div>
-                                            
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Review Status</label>
-                                                <div class="d-flex align-items-center mt-2 flex-wrap" style="gap: 20px;">
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="rep_reviewed_sa" wire:model="caseFormData.reporting_reviewed">
-                                                        <label class="custom-control-label" for="rep_reviewed_sa">Reviewed</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="rep_corrected_sa" wire:model="caseFormData.reporting_corrected">
-                                                        <label class="custom-control-label" for="rep_corrected_sa">Corrected</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Attachments</label>
-                                                <div class="d-flex flex-column gap-2 mt-2" style="gap: 8px;">
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="att_real_time_sa" wire:model="caseFormData.reporting_attachment_real_time_data">
-                                                        <label class="custom-control-label" for="att_real_time_sa">Real Time Data</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="att_converge_sa" wire:model="caseFormData.reporting_attachment_converge">
-                                                        <label class="custom-control-label" for="att_converge_sa">Converge</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="att_stat_sa" wire:model="caseFormData.reporting_attachment_statistical_analysis">
-                                                        <label class="custom-control-label" for="att_stat_sa">Statistical Analysis</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="cf-input-label">Reporting Remarks</label>
-                                                <textarea class="cf-form-control" wire:model="caseFormData.reporting_remarks" rows="2"></textarea>
-                                            </div>
-                                        </div>
-
-                                        <!-- Manager -->
-                                        <div class="col-md-6 mb-3 pl-md-4">
-                                            <div class="cf-section-subtitle">Manager's Review</div>
-                                            
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Manager Review Type</label>
-                                                <div class="d-flex align-items-center mt-2 flex-wrap" style="gap: 20px;">
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="mgr_tech_sa" wire:model="caseFormData.manager_review_technical">
-                                                        <label class="custom-control-label" for="mgr_tech_sa">Technical</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="mgr_admin_sa" wire:model="caseFormData.manager_review_administrative">
-                                                        <label class="custom-control-label" for="mgr_admin_sa">Administrative</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Manager's Verification</label>
-                                                <div class="d-flex align-items-center mt-2 flex-wrap" style="gap: 20px;">
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="mgr_verified_sa" wire:model="caseFormData.manager_comments_verified">
-                                                        <label class="custom-control-label" for="mgr_verified_sa">Verified</label>
-                                                    </div>
-                                                    <div class="custom-control custom-checkbox custom-checkbox-modern">
-                                                        <input type="checkbox" class="custom-control-input" id="mgr_not_verified_sa" wire:model="caseFormData.manager_comments_not_verified">
-                                                        <label class="custom-control-label" for="mgr_not_verified_sa">Not Verified</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-6 form-group mb-3">
-                                                    <label class="cf-input-label">Manager Date</label>
-                                                    <input type="date" class="cf-form-control" wire:model="caseFormData.manager_date">
-                                                </div>
-                                                <div class="col-6 form-group mb-3">
-                                                    <label class="cf-input-label">Manager Name</label>
-                                                    <input type="text" class="cf-form-control" wire:model="caseFormData.manager_name">
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group mb-3">
-                                                <label class="cf-input-label">Signature (Type to sign)</label>
-                                                <input type="text" class="cf-form-control" wire:model="caseFormData.manager_signature" placeholder="Manager Signature...">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
+                            @include('livewire.batch.partials.case-file-review-form', [
+                                'wireModel' => 'caseFormData',
+                                'idSuffix' => 'sa',
+                            ])
                         </form>
                     </div>
 
-                    <div class="modal-footer bg-white py-3 px-4 d-flex justify-content-end align-items-center" style="border-top: 1px solid #e2e8f0;">
+
+                    <div class="modal-footer bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-top: 1px solid #e2e8f0;">
+                        <button type="button" class="btn btn-outline-primary btn-sm font-weight-bold"
+                            wire:click="refreshCaseFileFromWorksheets"
+                            wire:loading.attr="disabled"
+                            wire:target="refreshCaseFileFromWorksheets">
+                            <i class="mdi mdi-file-import-outline"></i> Fill from worksheets
+                        </button>
+                        <div class="d-flex">
                         <button type="button" class="btn btn-outline-secondary font-weight-bold px-4 rounded-pill border" 
                             wire:click="$set('showCaseFileModal', false)" style="height: 38px; font-size: 0.85rem; transition: all 0.15s ease-in-out;">
                             Cancel
@@ -2223,6 +1148,7 @@
                             wire:click="saveStandaloneCaseFile" style="height: 38px; font-size: 0.85rem; background: #0f172a; border-color: #0f172a; transition: all 0.15s ease-in-out;">
                             <i class="mdi mdi-content-save mr-1" style="font-size: 14px;"></i> Save & Generate PDF
                         </button>
+                        </div>
                     </div>
 
                 </div>

@@ -56,6 +56,10 @@ class GroupedWorksheetWizard extends Component
 
     protected function markFirstStageInProgress(): void
     {
+        if ($this->run->status === GroupedWorksheetRunStatus::Completed) {
+            return;
+        }
+
         $this->run->load('runItems');
         $current = $this->currentItem();
         if (! $current) {
@@ -125,6 +129,10 @@ class GroupedWorksheetWizard extends Component
 
     public function completeStage(): void
     {
+        if ($this->run->status === GroupedWorksheetRunStatus::Completed) {
+            return;
+        }
+
         $this->run = app(GroupedWorksheetRunService::class)->completeCurrentStage($this->run);
         $this->setMessage(
             $this->run->status === GroupedWorksheetRunStatus::Completed
@@ -138,6 +146,10 @@ class GroupedWorksheetWizard extends Component
 
     public function skipStage(): void
     {
+        if ($this->run->status === GroupedWorksheetRunStatus::Completed) {
+            return;
+        }
+
         $current = $this->currentItem();
         if (! $current || $current->is_required || app(GroupedWorksheetPipelineStages::class)->isVirtualResultsCapture($current)) {
             $this->setMessage('This stage is required and cannot be skipped.', 'error');

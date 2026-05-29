@@ -45,7 +45,8 @@ class SubmissionFormInstance extends Model implements Auditable
         'submitted_at',
         'reviewed_at',
         'reviewed_by',
-        'review_notes'
+        'review_notes',
+        'receiving_lab_id',
     ];
 
     protected $casts = [
@@ -76,6 +77,14 @@ class SubmissionFormInstance extends Model implements Auditable
     public function reviewedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /**
+     * Lab selected by SRO when sending the request for analyst review.
+     */
+    public function receivingLab(): BelongsTo
+    {
+        return $this->belongsTo(\App\Lab::class, 'receiving_lab_id');
     }
 
     /**

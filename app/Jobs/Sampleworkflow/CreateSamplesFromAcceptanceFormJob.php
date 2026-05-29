@@ -4,7 +4,6 @@ namespace App\Jobs\Sampleworkflow;
 
 use App\Invoice;
 use App\InvoiceDetails;
-use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\Sampleworkflow\AnalysisAcceptanceFormLine;
@@ -65,21 +64,18 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     ? SubmissionFormInstance::query()->with('batches')->find($form->submission_form_instance_id)
                     : null;
 
-                [$crmUnitId, $crmUnitName] = $this->resolveCrmUnit($instance, (string) ($form->crm_customer_id ?? ''));
-
                 $configPayload = is_array($form->sample_configuration_payload)
                     ? $form->sample_configuration_payload
                     : [];
 
                 $primaryZoneId = $this->resolvePrimaryZoneIdFromConfig($configPayload);
+                $configLabId = $this->resolvePrimaryLabIdFromConfig($configPayload);
 
                 $headerAttributes = $sampleHeaderService->buildCreateAttributes(
                     $form,
                     $primarySampleTypeId,
                     $primaryZoneId,
-                    $crmUnitId,
-                    $crmUnitName,
-                    $form->created_by ? (string) $form->created_by : null,
+                    $configLabId,
                 );
 
                 $batchCode = (string) $headerAttributes['batch_code'];
@@ -115,6 +111,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     'invoice_id' => $invoice?->id,
                     'processing_error' => null,
                 ]);
+
+                $form->refresh();
+                $sampleHeaderService->applyToBatch($header->fresh(), $form, $primaryZoneId);
+                $sampleHeaderService->syncLinkedSubmissionForm($form);
             });
         } catch (\Throwable $e) {
             Log::error('CreateSamplesFromAcceptanceFormJob failed', [
@@ -403,50 +403,4 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         return $details[0] ?? null;
     }
 
-    /**
-     * Resolve crm_unit_id and crm_unit_name for the sample header.
-     *
-     * Priority:
-     *  1. Form element mapped to `crm_unit_id` on `sample_headers`
-     *  2. If the customer has exactly one unit, use it
-     *  3. Fall back to null / 'N/A'
-     *
-     * @return array{0: ?string, 1: string}
-     */
-    private function resolveCrmUnit(?SubmissionFormInstance $instance, string $crmCustomerId): array
-    {
-        $unitId = null;
-
-        // 1. Try the form instance's mapped crm_unit_id element
-        if ($instance) {
-            $unitValue = DB::table('submission_form_instance_values as v')
-                ->join('submission_form_elements as e', 'e.id', '=', 'v.submission_form_element_id')
-                ->where('v.submission_form_instance_id', $instance->id)
-                ->where('e.mapping_field', 'crm_unit_id')
-                ->value('v.value');
-
-            if ($unitValue) {
-                // values are encrypted; retrieve via the model so the cast is applied
-                $unitId = $instance->values()
-                    ->whereHas('element', fn ($q) => $q->where('mapping_field', 'crm_unit_id'))
-                    ->value('value');
-            }
-        }
-
-        // 2. If customer has exactly one unit, use it
-        if (!$unitId && $crmCustomerId !== '') {
-            $customer = CRMCustomer::query()->with('units')->find($crmCustomerId);
-            if ($customer && $customer->units->count() === 1) {
-                $unitId = (string) $customer->units->first()->id;
-            }
-        }
-
-        if (!$unitId) {
-            return [null, 'N/A'];
-        }
-
-        $unit = CRMCompanyUnit::query()->find($unitId);
-
-        return [$unitId, $unit?->name ?? 'N/A'];
-    }
 }

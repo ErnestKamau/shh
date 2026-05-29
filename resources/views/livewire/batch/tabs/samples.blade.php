@@ -1187,50 +1187,111 @@
 
     {{-- Comments & Interpretations Modal --}}
     @if($showCommentsModal)
-    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog"
+        wire:key="comments-modal-{{ $editingCommentsSampleId }}">
         <div class="modal-dialog modal-lg" role="document">
-            <div class="modal-content">
-                <form wire:submit.prevent="saveComments">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-file-document-edit"></i> Comments & Interpretations
-                        </h5>
-                        <button type="button" class="close" wire:click="cancelComments">
-                            <span>&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
+            <div class="modal-content"
+                x-data="{
+                    initEditor(selector, field, initialHtml) {
+                        if (typeof tinymce === 'undefined') {
+                            return;
+                        }
+                        tinymce.remove(selector);
+                        tinymce.init({
+                            selector: selector,
+                            menubar: false,
+                            statusbar: false,
+                            height: field === 'main_body' ? 220 : 160,
+                            toolbar: 'bold italic underline | bullist numlist | forecolor',
+                            plugins: 'lists textcolor',
+                            setup: (editor) => {
+                                editor.on('init', () => {
+                                    editor.setContent(initialHtml || '');
+                                });
+                                editor.on('change blur', () => {
+                                    editor.save();
+                                    $wire.set('commentsForm.' + field, editor.getContent());
+                                });
+                            }
+                        });
+                    },
+                    initAll() {
+                        this.initEditor('#comments-header-editor', 'header_body', @js($commentsForm['header_body']));
+                        this.initEditor('#comments-main-editor', 'main_body', @js($commentsForm['main_body']));
+                        this.initEditor('#comments-notes-editor', 'notes_body', @js($commentsForm['notes_body']));
+                    },
+                    syncToWire() {
+                        if (typeof tinymce === 'undefined') {
+                            return;
+                        }
+                        tinymce.triggerSave();
+                        $wire.set('commentsForm.header_body', tinymce.get('comments-header-editor')?.getContent() ?? '');
+                        $wire.set('commentsForm.main_body', tinymce.get('comments-main-editor')?.getContent() ?? '');
+                        $wire.set('commentsForm.notes_body', tinymce.get('comments-notes-editor')?.getContent() ?? '');
+                    },
+                    destroyEditors() {
+                        if (typeof tinymce !== 'undefined') {
+                            tinymce.remove('#comments-header-editor, #comments-main-editor, #comments-notes-editor');
+                        }
+                    },
+                    saveComments() {
+                        this.syncToWire();
+                        $wire.saveComments();
+                    },
+                    closeModal() {
+                        this.destroyEditors();
+                        $wire.cancelComments();
+                    }
+                }"
+                x-init="setTimeout(() => initAll(), 150)">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="mdi mdi-file-document-edit"></i> Comments & Interpretations
+                    </h5>
+                    <button type="button" class="close" @click="closeModal()">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <style>
+                        .comments-interpretations-modal .tox-tinymce {
+                            border-radius: 8px !important;
+                            border: 1px solid #e2e8f0 !important;
+                        }
+                    </style>
+                    <div class="comments-interpretations-modal" wire:ignore>
                         <div class="form-group">
                             <label>Comments</label>
-                            <textarea class="form-control" wire:model.defer="commentsForm.header_body"
-                                placeholder="Comments..." rows="3"></textarea>
+                            <textarea id="comments-header-editor" class="form-control" rows="3"
+                                placeholder="Comments..."></textarea>
                         </div>
                         <div class="form-group">
                             <label>Recommendations / Interpretations</label>
-                            <textarea class="form-control" wire:model.defer="commentsForm.main_body"
-                                placeholder="Recommendations / Interpretations..." rows="4"></textarea>
+                            <textarea id="comments-main-editor" class="form-control" rows="4"
+                                placeholder="Recommendations / Interpretations..."></textarea>
                         </div>
                         <div class="form-group">
                             <label>Notes</label>
-                            <textarea class="form-control" wire:model.defer="commentsForm.notes_body"
-                                placeholder="Notes..." rows="3"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="" class="control-label">Scope</label>
-                            <select wire:model.defer="commentsForm.batch_comment_scope" class="form-control">
-                                <option value="1">Concatenate</option>
-                                <option value="2">Overwrite</option>
-                            </select>
+                            <textarea id="comments-notes-editor" class="form-control" rows="3"
+                                placeholder="Notes..."></textarea>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-info btn-sm" wire:loading.attr="disabled">
-                            <span wire:loading.remove><i class="mdi mdi-content-save"></i> Save</span>
-                            <span wire:loading><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
-                        </button>
-                        <button type="button" class="btn btn-default btn-sm" wire:click="cancelComments">Close</button>
+                    <div class="form-group">
+                        <label for="comments-batch-scope" class="control-label">Scope</label>
+                        <select id="comments-batch-scope" wire:model.defer="commentsForm.batch_comment_scope" class="form-control">
+                            <option value="1">Concatenate</option>
+                            <option value="2">Overwrite</option>
+                        </select>
                     </div>
-                </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-info btn-sm" wire:loading.attr="disabled"
+                        @click="saveComments()">
+                        <span wire:loading.remove wire:target="saveComments"><i class="mdi mdi-content-save"></i> Save</span>
+                        <span wire:loading wire:target="saveComments"><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                    </button>
+                    <button type="button" class="btn btn-default btn-sm" @click="closeModal()">Close</button>
+                </div>
             </div>
         </div>
     </div>

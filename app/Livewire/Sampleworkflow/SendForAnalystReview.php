@@ -2,10 +2,12 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Lab;
 use App\Models\SubmissionFormInstance;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class SendForAnalystReview extends Component
@@ -18,6 +20,8 @@ class SendForAnalystReview extends Component
 
     public string $comment = '';
 
+    public string $receivingLabId = '';
+
     /**
      * @param  array<int, string>  $instanceIds
      * @param  array<int, array{id: string, label: string, customer: string}>  $summaries
@@ -27,7 +31,13 @@ class SendForAnalystReview extends Component
         $this->selectedFormInstanceIds = array_values(array_filter($instanceIds));
         $this->selectedFormSummaries = $summaries;
         $this->comment = '';
+        $this->receivingLabId = '';
         $this->resetValidation();
+
+        $user = Auth::user();
+        if ($user instanceof User && $user->lab_id) {
+            $this->receivingLabId = (string) $user->lab_id;
+        }
 
         $this->dispatch('show-analyst-review-modal');
     }
@@ -48,7 +58,11 @@ class SendForAnalystReview extends Component
         }
 
         $this->validate([
+            'receivingLabId' => ['required', 'string', Rule::exists('labs', 'id')],
             'comment' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'receivingLabId.required' => 'Select the lab that will receive these samples.',
+            'receivingLabId.exists' => 'Select a valid lab.',
         ]);
 
         $user = Auth::user();
@@ -81,6 +95,8 @@ class SendForAnalystReview extends Component
                     continue;
                 }
 
+                $instance->update(['receiving_lab_id' => $this->receivingLabId]);
+
                 $processed++;
             }
         });
@@ -105,6 +121,13 @@ class SendForAnalystReview extends Component
 
     public function render()
     {
-        return view('livewire.sampleworkflow.send-for-analyst-review');
+        $labs = Lab::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+
+        return view('livewire.sampleworkflow.send-for-analyst-review', [
+            'labs' => $labs,
+        ]);
     }
 }

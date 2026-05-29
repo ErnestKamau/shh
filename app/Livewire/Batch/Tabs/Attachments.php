@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Batch\Tabs;
 
+use App\Livewire\Batch\Concerns\InteractsWithCaseFileReviewForm;
 use App\SampleHeader;
 use App\SampleDetails;
 use App\CapturedResult;
@@ -16,6 +17,7 @@ use Livewire\WithPagination;
 
 class Attachments extends Component
 {
+    use InteractsWithCaseFileReviewForm;
     use WithPagination;
 
     protected ?bool $hasCapturedResultAttachmentColumn = null;
@@ -486,50 +488,7 @@ class Attachments extends Component
             return;
         }
 
-        $caseFile = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
-        
-        if ($caseFile) {
-            $this->caseFileForm = $caseFile->toArray();
-        } else {
-            // Default initialization
-            $this->caseFileForm = [
-                'batch_id' => $this->batch->id,
-                'lab_no' => $this->batch->batch_code,
-                'client' => $this->batch->client->name ?? '',
-                'no_of_samples' => $this->batch->sample_details()->count(),
-                'date_in' => now()->format('Y-m-d'),
-                
-                // Booleans defaults
-                'sample_condition_sealed' => false,
-                'sample_condition_labelled' => false,
-                'screening_sample_type_blood' => false,
-                'screening_sample_type_object_with_blood' => false,
-                'screening_sample_type_semen' => false,
-                'screening_sample_type_object_with_semen' => false,
-                'extraction_method_chelex' => false,
-                'extraction_method_prepfiler' => false,
-                'quantification_no_of_cycles_40' => false,
-                'quantification_kit_used_quant_trio' => false,
-                'pcr_no_of_cycles_28' => false,
-                'pcr_no_of_cycles_29' => false,
-                'pcr_no_of_cycles_30' => false,
-                'pcr_no_of_cycles_32' => false,
-                'pcr_kit_used_identifiler_plus' => false,
-                'pcr_kit_used_globalfiler' => false,
-                'pcr_kit_used_yfiler_plus' => false,
-                'injection_instrument_3500' => false,
-                'reporting_reviewed' => false,
-                'reporting_corrected' => false,
-                'reporting_attachment_real_time_data' => false,
-                'reporting_attachment_converge' => false,
-                'reporting_attachment_statistical_analysis' => false,
-                'manager_review_technical' => false,
-                'manager_review_administrative' => false,
-                'manager_comments_verified' => false,
-                'manager_comments_not_verified' => false,
-            ];
-        }
-
+        $this->initializeCaseFileFormData();
         $this->showCaseFileModal = true;
     }
 
@@ -566,6 +525,16 @@ class Attachments extends Component
         
         $pdfId = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->value('id');
         $this->dispatch('open-new-tab', url: route('view-case-file-pdf', $pdfId));
+    }
+
+    protected function assignCaseFileFormArray(array $data): void
+    {
+        $this->caseFileForm = $data;
+    }
+
+    protected function caseFileFormArray(): array
+    {
+        return $this->caseFileForm;
     }
 
     public function regenerateAcceptanceForm()

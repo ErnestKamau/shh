@@ -218,19 +218,35 @@
                     {{-- ─ DERIVED / LOOKUP ─ --}}
                     @elseif(in_array($step->step_type, ['derived', 'lookup']))
                         @if($loop->first || !in_array($execSteps->get($loop->index - 1)?->step_type ?? '', ['derived','lookup']))
+                        @php
+                            $derivedGroupCount = 0;
+                            for ($derivedIdx = $loop->index; $derivedIdx < $execSteps->count(); $derivedIdx++) {
+                                $derivedStep = $execSteps->values()[$derivedIdx] ?? null;
+                                if (! $derivedStep || ! in_array($derivedStep->step_type, ['derived', 'lookup'], true)) {
+                                    break;
+                                }
+                                $derivedGroupCount++;
+                            }
+                            $derivedGridClass = match (true) {
+                                $derivedGroupCount === 1 => 'fws-calc-fields-row--one',
+                                $derivedGroupCount === 2 => 'fws-calc-fields-row--two',
+                                default => 'fws-calc-fields-row--three',
+                            };
+                        @endphp
                         <div class="fws-step-group-label">
                             <i class="mdi mdi-calculator-variant-outline"></i> Calculated Values
                         </div>
-                        <div class="row g-3 mb-4">
+                        <div class="fws-calc-fields-row {{ $derivedGridClass }} mb-4">
                         @endif
-                            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                                <label class="fws-label">
+                            <div class="fws-calc-field-item">
+                                <div class="fws-calc-field-wrap">
+                                <label class="fws-label fws-label--calc">
                                     {{ $step->label }}
                                     <span class="fws-type-pill fws-type-pill--derived">{{ strtoupper($step->step_type) }}</span>
                                 </label>
                                 @php $derivedVal = $sharedDerivedStepValues[$step->id] ?? ''; @endphp
                                 @if($step->step_type === 'lookup')
-                                <div class="d-flex gap-1">
+                                <div class="d-flex gap-1 fws-calc-field-body">
                                     <div class="fws-calc-field flex-grow-1 {{ $derivedVal !== '' ? 'fws-calc-field--has-value' : '' }}">
                                         {{ $derivedVal !== '' ? $derivedVal : '—' }}
                                     </div>
@@ -242,10 +258,11 @@
                                     </button>
                                 </div>
                                 @else
-                                <div class="fws-calc-field {{ $derivedVal !== '' ? 'fws-calc-field--has-value' : '' }}">
+                                <div class="fws-calc-field fws-calc-field-body {{ $derivedVal !== '' ? 'fws-calc-field--has-value' : '' }}">
                                     {{ $derivedVal !== '' ? $derivedVal : '—' }}
                                 </div>
                                 @endif
+                                </div>
                             </div>
                         @if($loop->last || !in_array($execSteps->get($loop->index + 1)?->step_type ?? '', ['derived','lookup']))
                         </div>
@@ -282,10 +299,8 @@
             </button>
         </div>
 
-        @foreach($capturedResults as $captured)
-            @foreach($formulaSteps->where('step_type', 'custom_table')->sortBy('step_number') as $step)
-                @include('livewire.worksheets.partials.formula-step-custom-table', ['step' => $step, 'captured' => $captured])
-            @endforeach
+        @foreach($formulaSteps->where('step_type', 'custom_table')->sortBy('step_number') as $step)
+            @include('livewire.worksheets.partials.formula-step-custom-table', ['step' => $step])
         @endforeach
 
         @include('livewire.worksheets.partials.formula-pcr-plate-map-step')
@@ -734,6 +749,68 @@
             letter-spacing: 0.06em;
             text-transform: uppercase;
             color: #64748b;
+        }
+        .fws-label--calc {
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ── Calculated value grid (max 3 per row, 50/50 when 2 items) ─ */
+        .fws-calc-fields-row {
+            display: grid;
+            gap: 1rem;
+            align-items: stretch;
+        }
+        .fws-calc-fields-row--one {
+            grid-template-columns: 1fr;
+        }
+        .fws-calc-fields-row--two {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .fws-calc-fields-row--three {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+        .fws-calc-fields-row--three .fws-calc-field-item {
+            grid-column: span 2;
+        }
+        /* Last row with exactly 2 items → half width each */
+        .fws-calc-fields-row--three .fws-calc-field-item:nth-last-child(2):nth-child(3n+1),
+        .fws-calc-fields-row--three .fws-calc-field-item:last-child:nth-child(3n+2) {
+            grid-column: span 3;
+        }
+        @media (max-width: 767.98px) {
+            .fws-calc-fields-row--two,
+            .fws-calc-fields-row--three {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .fws-calc-fields-row--three {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .fws-calc-fields-row--three .fws-calc-field-item {
+                grid-column: span 1;
+            }
+        }
+        .fws-calc-field-item {
+            min-width: 0;
+        }
+        .fws-calc-field-wrap {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .fws-calc-field-body {
+            flex: 1 1 auto;
+            display: flex;
+            align-items: flex-start;
+            min-height: 3.25rem;
+        }
+        .fws-calc-field-body.fws-calc-field,
+        .fws-calc-field-body .fws-calc-field {
+            width: 100%;
+            height: 100%;
         }
 
         /* ── Step group heading ──────────────────────────────────────── */

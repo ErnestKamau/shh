@@ -14,6 +14,7 @@ use App\Models\Worksheets\SampleCapturedWorksheetFormula;
 use App\Services\Formulars\FormulaStepCheckboxOptionsResolver;
 use App\Services\Formulars\FormulaStepTableRowGeneratorService;
 use App\SampleAnalysisDates;
+use App\SampleDetails;
 use App\SampleHeader;
 use App\User;
 use Illuminate\Support\Facades\Auth;
@@ -81,10 +82,10 @@ class FormulaWorksheet extends Component
     /** @var array<string, \Illuminate\Support\Collection<int, FormulaStepTableColumn>> */
     public array $formulaStepTableColumnsByStep = [];
 
-    /** @var array<string, array<string, list<array{row: SampleFormulaStepTableRow}>>> */
-    public array $formulaStepTableRowsByCaptured = [];
+    /** @var array<string, list<array{row: SampleFormulaStepTableRow, sample_detail_id: ?string}>> */
+    public array $formulaStepTableRowsByStep = [];
 
-    /** @var array<string, array<string, array<string, array<string, mixed>>>> */
+    /** @var array<string, array<string, array<string, mixed>>> */
     public array $formulaStepTableData = [];
 
     public $equipments = [];
@@ -376,26 +377,9 @@ class FormulaWorksheet extends Component
      */
     protected function recalculateSharedDerivedValues(): void
     {
-        $inputs = [];
+        $inputs = $this->buildSharedEvaluatorInputs();
 
-        // Input / dataset steps
-        foreach ($this->formulaSteps->whereIn('step_type', ['input', 'dataset']) as $step) {
-            $val = $this->sharedInputStepValues[(string) $step->id] ?? '';
-            if ($val !== '') {
-                $inputs[$step->variable_name] = $val;
-            }
-        }
-
-        // Checkbox steps — the evaluator needs them as variables too
-        foreach ($this->formulaSteps->where('step_type', 'checkbox') as $step) {
-            $selected = $this->sharedCheckboxStepData[(string) $step->id] ?? [];
-            // Pass the first selected option value as a string (matches how derived expressions compare it)
-            $inputs[$step->variable_name] = is_array($selected) && count($selected) > 0
-                ? (string) $selected[0]
-                : '';
-        }
-
-        if (empty($inputs)) {
+        if ($inputs === []) {
             return;
         }
 
@@ -419,6 +403,44 @@ class FormulaWorksheet extends Component
         } catch (\Throwable $e) {
             Log::error('Shared derived recalculation error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function buildSharedEvaluatorInputs(): array
+    {
+        $inputs = [];
+
+        foreach ($this->formulaSteps->whereIn('step_type', ['input', 'dataset']) as $step) {
+            $val = $this->sharedInputStepValues[(string) $step->id] ?? '';
+            if ($val !== '') {
+                $inputs[$step->variable_name] = $val;
+            }
+        }
+
+        foreach ($this->formulaSteps->where('step_type', 'checkbox') as $step) {
+            $selected = $this->sharedCheckboxStepData[(string) $step->id] ?? [];
+            $inputs[$step->variable_name] = $this->checkboxValueForEvaluator($step, $selected);
+        }
+
+        return $inputs;
+    }
+
+    /**
+     * @param  list<string>  $selected
+     */
+    protected function checkboxValueForEvaluator(FormulaStep $step, array $selected): string
+    {
+        if ($selected === []) {
+            return '';
+        }
+
+        $stored = (string) $selected[0];
+        $options = app(FormulaStepCheckboxOptionsResolver::class)->optionsForStep($step);
+        $match = $options->first(fn ($option) => (string) $option->id === $stored);
+
+        return $match ? (string) $match->label : $stored;
     }
 
     /**
@@ -616,13 +638,13 @@ class FormulaWorksheet extends Component
         Log::info("Livewire updated() called for property: {$propertyName}");
 
         // Persist custom table cell changes to the database.
-        // Property path: formulaStepTableData.{capturedId}.{stepId}.{rowId}.{colKey}
+        // Property path: formulaStepTableData.{stepId}.{rowId}.{colKey}
         if (str_starts_with($propertyName, 'formulaStepTableData.')) {
             $parts = explode('.', $propertyName);
-            if (count($parts) === 5) {
-                [, $capturedResultId, $stepId, $rowId, $columnKey] = $parts;
-                $cellValue = $this->formulaStepTableData[$capturedResultId][$stepId][$rowId][$columnKey] ?? $value;
-                $this->persistFormulaStepTableCell($capturedResultId, $stepId, $rowId, $columnKey, $cellValue);
+            if (count($parts) === 4) {
+                [, $stepId, $rowId, $columnKey] = $parts;
+                $cellValue = $this->formulaStepTableData[$stepId][$rowId][$columnKey] ?? $value;
+                $this->persistFormulaStepTableCell($stepId, $rowId, $columnKey, $cellValue);
             }
         }
 
@@ -670,13 +692,18 @@ class FormulaWorksheet extends Component
 
             foreach ($inputSteps as $step) {
                 $stepData = $data['steps'] ?? [];
-                $value = $stepData[$step->id] ?? null;
+                $value = $stepData[$step->id] ?? $this->sharedInputStepValues[(string) $step->id] ?? null;
 
                 if ($value === '' || $value === null) {
                     $allInputsFilled = false;
                 } else {
                     $filledInputs[$step->variable_name] = $value;
                 }
+            }
+
+            foreach ($this->formulaSteps->where('step_type', 'checkbox') as $step) {
+                $selected = $this->sharedCheckboxStepData[(string) $step->id] ?? [];
+                $filledInputs[$step->variable_name] = $this->checkboxValueForEvaluator($step, $selected);
             }
 
             // Log calculation attempt
@@ -854,15 +881,83 @@ class FormulaWorksheet extends Component
      */
     public function getBatchSampleCodesProperty(): array
     {
-        $codes = [];
+        return array_map(
+            fn (array $option): string => $option['code'],
+            $this->batchSamplePcrOptions,
+        );
+    }
+
+    /**
+     * Batch samples available for PCR well assignment.
+     *
+     * @return list<array{code: string, sample_id_file: ?string, label: string}>
+     */
+    public function getBatchSamplePcrOptionsProperty(): array
+    {
+        $options = [];
+        $seen = [];
+
         foreach ($this->capturedResults as $captured) {
-            $code = trim((string) ($captured->sample->sample_code ?? ''));
-            if ($code !== '' && ! in_array($code, $codes, true)) {
-                $codes[] = $code;
+            $sample = $captured->sample;
+            if (! $sample) {
+                continue;
+            }
+
+            $code = trim((string) ($sample->sample_code ?? ''));
+            if ($code === '' || isset($seen[$code])) {
+                continue;
+            }
+
+            $seen[$code] = true;
+            $sampleIdFile = trim((string) ($sample->sample_id_file ?? ''));
+            $label = $sampleIdFile !== '' ? "{$code} — {$sampleIdFile}" : $code;
+
+            $options[] = [
+                'code' => $code,
+                'sample_id_file' => $sampleIdFile !== '' ? $sampleIdFile : null,
+                'label' => $label,
+            ];
+        }
+
+        return $options;
+    }
+
+    protected function pcrWellValueForSampleCode(string $sampleCode): string
+    {
+        foreach ($this->batchSamplePcrOptions as $option) {
+            if ($option['code'] === $sampleCode) {
+                return $option['sample_id_file'] ?? $sampleCode;
             }
         }
 
-        return $codes;
+        return $sampleCode;
+    }
+
+    protected function sampleCodeForPcrWellValue(string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach ($this->batchSamplePcrOptions as $option) {
+            if ($option['sample_id_file'] === $value || $option['code'] === $value) {
+                return $option['code'];
+            }
+        }
+
+        return null;
+    }
+
+    public function getSelectedPcrSampleFileIdProperty(): ?string
+    {
+        if ($this->pcrPopoverKind !== 'sample' || $this->pcrPopoverUseCustomSample || trim($this->pcrPopoverValue) === '') {
+            return null;
+        }
+
+        $fileId = $this->pcrWellValueForSampleCode(trim($this->pcrPopoverValue));
+
+        return $fileId !== trim($this->pcrPopoverValue) ? $fileId : null;
     }
 
     /**
@@ -916,13 +1011,21 @@ class FormulaWorksheet extends Component
 
         if (is_array($assignment)) {
             $this->pcrPopoverKind = (string) ($assignment['kind'] ?? 'sample');
-            $this->pcrPopoverValue = (string) ($assignment['value'] ?? '');
-            $codes = $this->batchSampleCodes;
-            if ($this->pcrPopoverKind === 'sample' && ! in_array($this->pcrPopoverValue, $codes, true)) {
-                $this->pcrPopoverUseCustomSample = true;
-                $this->pcrPopoverCustomSample = $this->pcrPopoverValue;
-                $this->pcrPopoverValue = '';
+            $storedValue = (string) ($assignment['value'] ?? '');
+
+            if ($this->pcrPopoverKind === 'sample') {
+                $matchedCode = $this->sampleCodeForPcrWellValue($storedValue);
+                if ($matchedCode !== null && in_array($matchedCode, $this->batchSampleCodes, true)) {
+                    $this->pcrPopoverValue = $matchedCode;
+                    $this->pcrPopoverUseCustomSample = false;
+                    $this->pcrPopoverCustomSample = '';
+                } else {
+                    $this->pcrPopoverValue = '';
+                    $this->pcrPopoverUseCustomSample = true;
+                    $this->pcrPopoverCustomSample = $storedValue;
+                }
             } else {
+                $this->pcrPopoverValue = $storedValue;
                 $this->pcrPopoverUseCustomSample = false;
                 $this->pcrPopoverCustomSample = '';
             }
@@ -965,6 +1068,10 @@ class FormulaWorksheet extends Component
             $this->setMessage('Enter or select a value for this well.', 'error');
 
             return;
+        }
+
+        if ($this->pcrPopoverKind === 'sample' && ! $this->pcrPopoverUseCustomSample) {
+            $value = $this->pcrWellValueForSampleCode($value);
         }
 
         if (! isset($this->sharedPcrPlateMapData[$this->activePcrStepId])) {
@@ -1025,14 +1132,15 @@ class FormulaWorksheet extends Component
     {
         $this->formulaStepTableData = [];
         $this->formulaStepTableColumnsByStep = [];
-        $this->formulaStepTableRowsByCaptured = [];
+        $this->formulaStepTableRowsByStep = [];
 
         $tableSteps = $this->formulaSteps->where('step_type', 'custom_table');
-        if ($tableSteps->isEmpty()) {
+        if ($tableSteps->isEmpty() || $this->capturedResults->isEmpty()) {
             return;
         }
 
         $service = app(FormulaStepTableRowGeneratorService::class);
+        $worksheet = $this->sharedFormulaTableWorksheet();
 
         foreach ($tableSteps as $step) {
             if (! isset($this->formulaStepTableColumnsByStep[$step->id])) {
@@ -1040,59 +1148,74 @@ class FormulaWorksheet extends Component
                     ->orderBy('order')
                     ->get();
             }
-        }
 
-        foreach ($this->capturedResults as $captured) {
-            $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
+            $instance = $service->firstOrCreateInstance($worksheet, $step);
+            $service->syncRowsForFormulaWorksheet($instance, $this->batch, $step, $this->capturedResults);
 
-            $capturedKey = (string) $captured->id;
-            $this->formulaStepTableRowsByCaptured[$capturedKey] = [];
+            $columns = $this->formulaStepTableColumnsByStep[$step->id] ?? collect();
+            $columnsById = $columns->keyBy('id');
 
-            foreach ($tableSteps as $step) {
-                $instance = $service->firstOrCreateInstance($worksheet, $step);
-                $service->syncRows($instance, $worksheet, $step);
+            $rows = SampleFormulaStepTableRow::where('instance_id', $instance->id)
+                ->orderBy('row_index')
+                ->get();
 
-                $columns = $this->formulaStepTableColumnsByStep[$step->id] ?? collect();
-                $columnsById = $columns->keyBy('id');
-
-                $rows = SampleFormulaStepTableRow::where('instance_id', $instance->id)
-                    ->orderBy('row_index')
-                    ->get();
-
-                $rowEntries = [];
-                foreach ($rows as $row) {
-                    $cells = [];
-                    $values = SampleFormulaStepTableCellValue::where('row_id', $row->id)->get();
-                    foreach ($values as $val) {
-                        $col = $columnsById->get($val->column_id);
-                        if ($col) {
-                            $cells[$col->key] = $this->normalizeFormulaStepTableCellForDisplay($col, $val->value);
-                        }
+            $rowEntries = [];
+            foreach ($rows as $row) {
+                $cells = [];
+                $values = SampleFormulaStepTableCellValue::where('row_id', $row->id)->get();
+                foreach ($values as $val) {
+                    $col = $columnsById->get($val->column_id);
+                    if ($col) {
+                        $cells[$col->key] = $this->normalizeFormulaStepTableCellForDisplay($col, $val->value);
                     }
-                    if (! isset($this->formulaStepTableData[$capturedKey])) {
-                        $this->formulaStepTableData[$capturedKey] = [];
-                    }
-                    if (! isset($this->formulaStepTableData[$capturedKey][$step->id])) {
-                        $this->formulaStepTableData[$capturedKey][$step->id] = [];
-                    }
-                    $this->formulaStepTableData[$capturedKey][$step->id][$row->id] = $cells;
-                    $rowEntries[] = ['row' => $row];
                 }
 
-                $this->formulaStepTableRowsByCaptured[$capturedKey][$step->id] = $rowEntries;
+                if (! isset($this->formulaStepTableData[$step->id])) {
+                    $this->formulaStepTableData[$step->id] = [];
+                }
+                $this->formulaStepTableData[$step->id][$row->id] = $cells;
+
+                $rowEntries[] = [
+                    'row' => $row,
+                    'sample_detail_id' => $this->sampleDetailIdForTableRow($row),
+                ];
             }
+
+            $this->formulaStepTableRowsByStep[$step->id] = $rowEntries;
         }
     }
 
+    protected function sharedFormulaTableWorksheet(): SampleCapturedWorksheetFormula
+    {
+        $captured = $this->capturedResults->first();
+        if (! $captured instanceof CapturedResult) {
+            throw new \RuntimeException('No captured results available for formula table worksheet.');
+        }
+
+        return $this->firstOrCreateWorksheetForCaptured($captured);
+    }
+
+    protected function sampleDetailIdForTableRow(SampleFormulaStepTableRow $row): ?string
+    {
+        if ($row->driver_type === SampleDetails::class && $row->driver_id) {
+            return (string) $row->driver_id;
+        }
+
+        if ($row->driver_type === CapturedResult::class && $row->driver_id) {
+            return CapturedResult::query()
+                ->whereKey($row->driver_id)
+                ->value('sample_detail_id');
+        }
+
+        return null;
+    }
+
     public function persistFormulaStepTableCell(
-        string $capturedResultId,
         string $stepId,
         string $rowId,
         string $columnKey,
         mixed $value,
     ): void {
-        $captured = $this->resolveCapturedResult($capturedResultId);
-        $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
         $step = FormulaStep::find($stepId);
         if (! $step) {
             return;
@@ -1113,37 +1236,34 @@ class FormulaWorksheet extends Component
             ['value' => $stored],
         );
 
-        if (! isset($this->formulaStepTableData[$capturedResultId][$stepId][$rowId])) {
-            $this->formulaStepTableData[$capturedResultId][$stepId][$rowId] = [];
+        if (! isset($this->formulaStepTableData[$stepId][$rowId])) {
+            $this->formulaStepTableData[$stepId][$rowId] = [];
         }
-        $this->formulaStepTableData[$capturedResultId][$stepId][$rowId][$columnKey] = $value;
+        $this->formulaStepTableData[$stepId][$rowId][$columnKey] = $value;
     }
 
-    public function syncFormulaStepTableRows(string $capturedResultId, string $stepId): void
+    public function syncFormulaStepTableRows(string $stepId): void
     {
         $step = FormulaStep::find($stepId);
         if (! $step || ! $step->isCustomTable()) {
             return;
         }
 
-        $captured = $this->resolveCapturedResult($capturedResultId);
-        $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
-
-        $instance = app(FormulaStepTableRowGeneratorService::class)->firstOrCreateInstance($worksheet, $step);
-        app(FormulaStepTableRowGeneratorService::class)->syncRows($instance, $worksheet, $step);
+        $worksheet = $this->sharedFormulaTableWorksheet();
+        $service = app(FormulaStepTableRowGeneratorService::class);
+        $instance = $service->firstOrCreateInstance($worksheet, $step);
+        $service->syncRowsForFormulaWorksheet($instance, $this->batch, $step, $this->capturedResults);
         $this->loadFormulaStepTableCapture();
     }
 
-    public function addFormulaStepTableManualRow(string $capturedResultId, string $stepId): void
+    public function addFormulaStepTableManualRow(string $stepId): void
     {
         $step = FormulaStep::find($stepId);
         if (! $step || ! $step->allow_manual_rows) {
             return;
         }
 
-        $captured = $this->resolveCapturedResult($capturedResultId);
-        $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
-
+        $worksheet = $this->sharedFormulaTableWorksheet();
         $instance = app(FormulaStepTableRowGeneratorService::class)->firstOrCreateInstance($worksheet, $step);
         app(FormulaStepTableRowGeneratorService::class)->addManualRow($instance, $step);
         $this->loadFormulaStepTableCapture();
@@ -1172,6 +1292,13 @@ class FormulaWorksheet extends Component
         FormulaStepTableColumn $column,
         CapturedResult $captured,
     ): string {
+        return $this->resolveCustomTableDatasetValueForSample($column, $captured->sample_detail_id);
+    }
+
+    public function resolveCustomTableDatasetValueForSample(
+        FormulaStepTableColumn $column,
+        ?string $sampleDetailId,
+    ): string {
         if (($column->column_type ?? '') !== 'dataset' || ($column->model_tied_to ?? '') !== 'samples') {
             return '';
         }
@@ -1179,13 +1306,13 @@ class FormulaWorksheet extends Component
         $config = is_array($column->dataset_config) ? $column->dataset_config : [];
         $sourceTable = (string) ($config['source_table'] ?? 'sample_details');
         $displayMode = (string) ($config['display_mode'] ?? 'direct');
-        if ($sourceTable === '' || ! $captured->sample_detail_id) {
+        if ($sourceTable === '' || ! $sampleDetailId) {
             return '';
         }
 
         try {
             $sourceRecord = DB::table($sourceTable)
-                ->where('id', $captured->sample_detail_id)
+                ->where('id', $sampleDetailId)
                 ->first();
 
             if (! $sourceRecord) {

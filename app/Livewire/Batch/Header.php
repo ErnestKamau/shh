@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Batch;
 
+use App\Livewire\Batch\Concerns\InteractsWithCaseFileReviewForm;
 use App\SampleHeader;
 use App\CapturedResult;
 use App\Services\WorkflowService;
@@ -10,6 +11,7 @@ use Livewire\Component;
 
 class Header extends Component
 {
+    use InteractsWithCaseFileReviewForm;
     public SampleHeader $batch;
     public $workflows = [];
     public $workflowstages = [];
@@ -157,23 +159,7 @@ class Header extends Component
             // Initialize technical reviewer if exists
             $this->verificationData['technical_reviewer_id'] = $this->batch->approve_user_id ?? '';
 
-            // Initialize Case File Review Form if DNA lab
-            if ($this->batch->hasDnaLab()) {
-                $existingCaseForm = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
-                if ($existingCaseForm) {
-                    $this->caseFormData = $existingCaseForm->toArray();
-                } else {
-                    $sampleDetail = \App\SampleDetails::where('sample_header_id', $this->batch->id)->first();
-                    $this->caseFormData = [
-                        'lab_no' => $this->batch->batch_code,
-                        'file_no' => $sampleDetail ? $sampleDetail->file_no : '',
-                        'date_in' => $this->batch->receipt_date ? date('Y-m-d', strtotime($this->batch->receipt_date)) : date('Y-m-d'),
-                        'client' => $this->batch->customer ? $this->batch->customer->name : '',
-                        'name_of_analyst' => auth()->user() ? auth()->user()->name : '',
-                        'no_of_samples' => $this->batch->samples()->count(),
-                    ];
-                }
-            }
+            $this->initializeCaseFileFormData();
         }
     }
 
@@ -444,21 +430,20 @@ class Header extends Component
             return;
         }
 
-        // Ensure all attachment-based results (those that expect a procedure worksheet)
-        // are truly linked to an attachment before moving on in the workflow.
-        $incompleteAttachmentResults = CapturedResult::where('sample_header_id', $batch->id)
+        // Only block when attachment-based placeholder results are still pending.
+        // Procedure/grouped worksheets may set has_procedure_worksheet while posting
+        // substantive values (e.g. Positive/Negative) that do not need a file attachment.
+        $incompleteAttachmentResults = CapturedResult::query()
+            ->where('sample_header_id', $batch->id)
             ->where('has_procedure_worksheet', true)
-            ->where(function ($query) {
-                $query->whereNull('batch_attachment_id')
-                    ->orWhereDoesntHave('batchAttachment');
-            })
-            ->get();
+            ->get()
+            ->filter(fn (CapturedResult $result) => $result->requiresLinkedBatchAttachment());
 
         if ($incompleteAttachmentResults->isNotEmpty()) {
             $count = $incompleteAttachmentResults->count();
             session()->flash(
                 'error',
-                $count . ' captured result' . ($count > 1 ? 's are' : ' is') .
+                $count . ' captured result' . ($count > 1 ? 's' : '') .
                     ' that require an attachment do not yet have a linked result attachment. ' .
                     'Please go to the Attachments tab, upload/link the result report(s), then try moving this batch to verification again.'
             );
@@ -837,6 +822,16 @@ class Header extends Component
         $this->dispatch('batchUpdated');
         
         $this->dispatch('open-new-tab', url: route('view-case-file-pdf', $caseFile->id));
+    }
+
+    protected function assignCaseFileFormArray(array $data): void
+    {
+        $this->caseFormData = $data;
+    }
+
+    protected function caseFileFormArray(): array
+    {
+        return $this->caseFormData;
     }
 }
 
