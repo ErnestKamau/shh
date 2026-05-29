@@ -339,6 +339,27 @@ class ReportHeaderDetailController extends Controller
 			);
 		}
 
+		if ($report_format === 'dcea_009' || (string) $report_format === 'dcea_009') {
+			return $this->processDCEA009Report(
+				$batch,
+				$customer,
+				$company,
+				$report_logo,
+				$stamp,
+				$is_stamp,
+				$filename,
+				$customer_name,
+				$mergeWithAttachments,
+				$attachmentIds,
+				$batch_approvers,
+				$analysis_date,
+				$report_type,
+				$ammendment,
+				$disclaimer,
+				$date
+			);
+		}
+
 		// Resolve report format: First try by ID, then fallback to report_code for legacy support
 		$formatModel = null;
 		$reportCode = null;
@@ -1333,6 +1354,378 @@ class ReportHeaderDetailController extends Controller
 			$attachment->save();
 		} catch (\Exception $attEx) {
 			\Log::error("Failed to auto-save GCLA 02 report as attachment: " . $attEx->getMessage());
+		}
+
+		if ($mergeWithAttachments && !empty($attachmentIds)) {
+			$mergedContent = $this->mergeCoaWithAttachments($tempFile, $batch, $attachmentIds, $customer_name, $filename);
+			@file_put_contents($tempFile, $mergedContent);
+			@file_put_contents($publicReportPath, $mergedContent);
+			return response($mergedContent, 200, ['Content-Type' => 'application/pdf']);
+		}
+
+		return $pdf->stream($filename);
+	}
+
+	private function processDCEA009Report($batch, $customer, $company, $report_logo, $stamp, $is_stamp, $filename, $customer_name, $mergeWithAttachments, $attachmentIds, $batch_approvers, $analysis_date, $report_type, $ammendment, $disclaimer, $date)
+	{
+		$language = request('gcla_language', 'sw');
+		$isSwahili = $language === 'sw';
+
+		// 1. Resolve DCEA Logo (prioritize company report_logo first, then tz_flag)
+		$logoPath = null;
+		if ($company && !empty($company->report_logo)) {
+			$logoPath = $company->report_logo;
+		}
+		if (!$logoPath && $company) {
+			$logoPath = $company->getReportLogoPath('tz_flag');
+		}
+		
+		$dceaLogo = null;
+		if ($logoPath) {
+			if (str_starts_with($logoPath, 'http://') || str_starts_with($logoPath, 'https://')) {
+				$logoPath = parse_url($logoPath, PHP_URL_PATH) ?? $logoPath;
+			}
+			$cleanPath = ltrim($logoPath, '/');
+			if (str_starts_with($cleanPath, 'storage/')) {
+				$cleanPath = substr($cleanPath, 8);
+			}
+			
+			$candidates = [
+				public_path($logoPath),
+				public_path('storage/' . $cleanPath),
+				storage_path('app/public/' . $cleanPath),
+				public_path($cleanPath),
+				storage_path('app/companies/' . basename($cleanPath)),
+				$logoPath
+			];
+			foreach ($candidates as $cand) {
+				if (is_file($cand)) {
+					$dceaLogo = $this->resolveImageAsDataUri($cand);
+					break;
+				}
+			}
+		}
+
+		// Fallback to tanzanialogo
+		if (!$dceaLogo) {
+			$tanzaniaCandidates = [
+				public_path('images/forms/tanzanialogo.jpeg'),
+				public_path('images/forms/tanzanialogo.jpg'),
+				'/home/kaarr/Downloads/tanzanialogo.jpeg',
+			];
+			foreach ($tanzaniaCandidates as $candidate) {
+				if (is_file($candidate)) {
+					$dceaLogo = $this->resolveImageAsDataUri($candidate);
+					break;
+				}
+			}
+		}
+
+		// 2. Receipt Date details
+		$receipt_time = $batch->receipt_date ? strtotime($batch->receipt_date) : time();
+		$receipt_day = date('d', $receipt_time);
+		$receipt_year = date('Y', $receipt_time);
+
+		$monthsEn = [
+			'01' => 'January', '02' => 'February', '03' => 'March', '04' => 'April', 
+			'05' => 'May', '06' => 'June', '07' => 'July', '08' => 'August', 
+			'09' => 'September', '10' => 'October', '11' => 'November', '12' => 'December'
+		];
+		$monthsSw = [
+			'01' => 'Januari', '02' => 'Februari', '03' => 'Machi', '04' => 'Aprili', 
+			'05' => 'Mei', '06' => 'Juni', '07' => 'Julai', '08' => 'Agosti', 
+			'09' => 'Septemba', '10' => 'Oktoba', '11' => 'Novemba', '12' => 'Disemba'
+		];
+		$monthNum = date('m', $receipt_time);
+		$receipt_month_en = $monthsEn[$monthNum] ?? 'January';
+		$receipt_month_sw = $monthsSw[$monthNum] ?? 'Januari';
+
+		// 3. Address and Institutions details
+		$institution = $company ? $company->name : 'Government Chemist Laboratory Authority';
+		$receipt_place = $company ? ($company->location ?? ($company->address ?? 'Dar es Salaam')) : 'Dar es Salaam';
+		
+		$sending_institution = $customer ? $customer->name : 'Drug Control and Enforcement Authority';
+		$sending_place = $customer ? ($customer->physical_address ?? ($customer->postal_address ?? ($customer->location ?? 'Dar es Salaam'))) : 'Dar es Salaam';
+
+		// 3.1 Fetch fields from SampleSubmissionRequest
+		$ssr = $batch->sampleSubmissionRequest;
+		
+		$officer_sending_samples = '.........................';
+		$officer_bringing_samples = '.........................';
+		$form_no = '...........';
+		
+		if ($ssr) {
+			$officer_sending_samples = $ssr->submitting_officer_full_name ?? ($ssr->submitted_by_full_name ?? '.........................');
+			$officer_bringing_samples = $ssr->submitted_by_full_name ?? '.........................';
+			$form_no = $ssr->gcla_file_reference_number ?? ($ssr->case_no ?? '...........');
+		}
+		
+		if ($officer_bringing_samples === '.........................' && $batch->sampling_officer_name) {
+			$officer_bringing_samples = $batch->sampling_officer_name;
+		}
+
+		// 4. Resolve Exhibits Data and Findings
+		$samples = \App\SampleDetails::where('sample_header_id', $batch->id)->get();
+		$exhibits = [];
+
+		foreach ($samples as $sample) {
+			$capturedResults = \App\CapturedResult::where('sample_detail_id', $sample->id)
+				->whereNotNull('result')
+				->get();
+
+			$found = false;
+			$drugType = 'N/A';
+			$healthEffect = '-';
+			$remarks = '';
+
+			foreach ($capturedResults as $cr) {
+				$val = strtolower(trim($cr->result));
+				if (!empty($val) && $val !== 'absent' && $val !== 'negative' && $val !== 'nil') {
+					$found = true;
+					$analyteName = $cr->analyte_code ?? ($cr->analyte?->name ?? '');
+					if ($drugType === 'N/A') {
+						$drugType = $analyteName;
+					} else {
+						$drugType .= ', ' . $analyteName;
+					}
+					
+					$analyteModel = $cr->analyte;
+					if ($analyteModel && !empty($analyteModel->description)) {
+						$healthEffect = $analyteModel->description;
+					}
+				}
+			}
+
+			if ($drugType === 'N/A') {
+				$drugType = $batch->sample_type?->name ?? 'Narcotic Substance';
+			}
+
+			if ($healthEffect === '-' || empty($healthEffect)) {
+				$lowerDrug = strtolower($drugType);
+				if (str_contains($lowerDrug, 'heroin') || str_contains($lowerDrug, 'diacetylmorphine')) {
+					$healthEffect = $isSwahili 
+						? "Kusababisha uraibu mkubwa, kukandamiza mfumo wa upumuaji, na kifo kikiasiliwa kupita kiasi." 
+						: "Causes severe addiction, respiratory depression, and death upon overdose.";
+				} elseif (str_contains($lowerDrug, 'cocaine')) {
+					$healthEffect = $isSwahili 
+						? "Kusisimua mfumo wa neva wa kati, kusababisha matatizo ya moyo na uraibu mkubwa." 
+						: "Stimulates central nervous system, causes cardiac complications and severe addiction.";
+				} elseif (str_contains($lowerDrug, 'cannabis') || str_contains($lowerDrug, 'bangi') || str_contains($lowerDrug, 'tetrahydrocannabinol')) {
+					$healthEffect = $isSwahili 
+						? "Kuharibu mtazamo wa akili, kuongeza mapigo ya moyo, na matatizo ya afya ya akili ya muda mrefu." 
+						: "Impairs cognitive perception, increases heart rate, and causes long-term mental health issues.";
+				} else {
+					$healthEffect = $isSwahili 
+						? "Kusababisha madhara makubwa ya kisaikolojia, uraibu, na uharibifu wa viungo vya mwili." 
+						: "Causes severe psychological impairment, addiction, and organic body organ damage.";
+				}
+			}
+
+			// Resolve item description from exhibit tables if available
+			$itemDescription = '';
+			if ($ssr) {
+				$ssrExhibit = \App\Models\SampleSubmissionRequestExhibit::where('sample_submission_request_id', $ssr->id)
+					->where('sample_detail_id', $sample->id)
+					->first();
+				if ($ssrExhibit) {
+					$itemDescription = $ssrExhibit->item_description;
+				}
+			}
+			if (empty($itemDescription)) {
+				$itemDescription = $sample->comments ?? ($sample->barcode ?? ($sample->sample_code ?? ''));
+			}
+
+			$exhibits[] = [
+				'found' => $found,
+				'drug_type' => $drugType,
+				'weight' => $sample->notes_body ?? ($sample->material_status ?? '1 Package'),
+				'health_effect' => $healthEffect,
+				'remarks' => $remarks,
+				'description' => $itemDescription,
+			];
+		}
+
+		// 5. Resolve user signatures
+		$resolveUserSignature = function($user) {
+			if (!$user) return null;
+			$path = $user->signature_path ?? ($user->signature ?? null);
+			if (!$path) return null;
+			
+			$candidates = [
+				public_path($path),
+				public_path('storage/' . $path),
+				storage_path('app/public/' . $path),
+				$path
+			];
+			foreach ($candidates as $cand) {
+				if (is_file($cand)) {
+					return $this->resolveImageAsDataUri($cand);
+				}
+			}
+			return null;
+		};
+
+		$examiningUser = null;
+		if ($batch->specialist_analyst) {
+			$examiningUser = $batch->specialist_analyst;
+		} else {
+			$custodyAnalyst = \App\ChainOfCustody::join('users as u', 'u.id', '=', 'chain_of_custodies.moved_out_by')
+				->where('sample_header_id', $batch->id)
+				->select('u.*')
+				->where('workflow_stage', "Sample Analysis")
+				->orderBy('chain_of_custodies.created_at', 'desc')
+				->first();
+			if ($custodyAnalyst) {
+				$examiningUser = $custodyAnalyst;
+			}
+		}
+		if (!$examiningUser) {
+			$examiningUser = auth()->user() ?? \App\User::first();
+		}
+		$examiningName = $examiningUser ? $examiningUser->name : 'Dr. Elias S. Alute';
+		$examiningTitle = $examiningUser ? ($examiningUser->designation ?? ($isSwahili ? 'Mkemia wa Serikali' : 'Government Analyst')) : ($isSwahili ? 'Mkemia wa Serikali' : 'Government Analyst');
+
+		$certifyingUser = \App\ChainOfCustody::join('users as u', 'u.id', '=', 'chain_of_custodies.moved_out_by')
+			->where('sample_header_id', $batch->id)
+			->select('u.*')
+			->where('workflow_stage', "Sample Approval")
+			->orderBy('chain_of_custodies.created_at', 'desc')
+			->first();
+		if (!$certifyingUser) {
+			$batchApprover = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+				->where('show_report', 1)
+				->where('status', 1)
+				->first();
+			if ($batchApprover) {
+				$certifyingUser = \App\User::find($batchApprover->user_id);
+			}
+		}
+		if (!$certifyingUser) {
+			$certifyingUser = auth()->user() ?? \App\User::first();
+		}
+		$certifyingName = $certifyingUser ? $certifyingUser->name : 'Mwanahawa H. Msangi';
+		$certifyingTitle = $certifyingUser ? ($certifyingUser->designation ?? ($isSwahili ? 'Mkemia Mkuu wa Serikali Anayethibitisha' : 'Certifying Government Analyst')) : ($isSwahili ? 'Mkemia Mkuu wa Serikali Anayethibitisha' : 'Certifying Government Analyst');
+
+		$marked_numbers = $batch->reference_number ?? ($batch->case_id ?? '');
+		if (empty($marked_numbers)) {
+			$codes = [];
+			foreach ($samples as $s) {
+				$codes[] = $s->barcode ?? $s->sample_code;
+			}
+			$marked_numbers = implode(', ', array_unique(array_filter($codes)));
+		}
+		if (empty($marked_numbers)) {
+			$marked_numbers = $batch->batch_code;
+		}
+
+		$exhibit_type = $batch->sample_type?->name;
+		if (empty($exhibit_type)) {
+			$types = [];
+			foreach ($samples as $s) {
+				if ($s->sample_type_id) {
+					$st = \App\SampleType::find($s->sample_type_id);
+					if ($st) {
+						$types[] = $st->name;
+					}
+				}
+			}
+			$exhibit_type = implode(', ', array_unique(array_filter($types)));
+		}
+		if (empty($exhibit_type)) {
+			$exhibit_type = $isSwahili ? 'Dawa za Kulevya' : 'Narcotic Substance';
+		}
+
+		$cert_time = time();
+		$cert_day = date('d', $cert_time);
+		$cert_year_short = date('y', $cert_time);
+		$cert_year_full = date('Y', $cert_time);
+		$cert_month_num = date('m', $cert_time);
+		$cert_month_en = $monthsEn[$cert_month_num] ?? 'January';
+		$cert_month_sw = $monthsSw[$cert_month_num] ?? 'Januari';
+
+		$data = [
+			'batch' => $batch,
+			'customer' => $customer,
+			'company' => $company,
+			'language' => $language,
+			'chemist_name' => $examiningName,
+			'institution' => $institution,
+			'receipt_day' => $receipt_day,
+			'receipt_month_en' => $receipt_month_en,
+			'receipt_month_sw' => $receipt_month_sw,
+			'receipt_year' => $receipt_year,
+			'receipt_place' => $receipt_place,
+			'sending_institution' => $sending_institution,
+			'sending_place' => $sending_place,
+			'quantity' => count($samples),
+			'marked_numbers' => $marked_numbers,
+			'exhibit_type' => $exhibit_type,
+			'seal_description' => $batch->sample_appearance_description ?? ($isSwahili ? 'Laki Rasmi ya Kufungia' : 'Official Sealing Wax'),
+			'lab_no' => $batch->batch_code,
+			'exhibits' => $exhibits,
+			'examining_officer' => [
+				'name' => $examiningName,
+				'title' => $examiningTitle,
+				'signature' => $resolveUserSignature($examiningUser),
+			],
+			'certifying_officer' => [
+				'name' => $certifyingName,
+				'title' => $certifyingTitle,
+				'signature' => $resolveUserSignature($certifyingUser),
+			],
+			'certification_date' => date('d/m/Y', strtotime(getTodayDate())),
+			'dcea_logo' => $dceaLogo,
+			'form_no' => $form_no,
+			'officer_sending_samples' => $officer_sending_samples,
+			'officer_bringing_samples' => $officer_bringing_samples,
+			'cert_day' => $cert_day,
+			'cert_month_en' => $cert_month_en,
+			'cert_month_sw' => $cert_month_sw,
+			'cert_year_short' => $cert_year_short,
+			'cert_year_full' => $cert_year_full,
+			'cert_time' => $cert_time,
+		];
+
+		ini_set('max_execution_time', 300);
+		$pdf = app('dompdf.wrapper');
+		$pdf->getDomPDF()->set_option("enable_php", true);
+		$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
+		$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
+
+		$pdf = PDF::loadView('batch.attachments.dcea-009-form-pdf', $data);
+
+		$filename = $filename ?? ($customer_name . '-DCEA009-' . preg_replace('/[^A-Za-z0-9]/', '', $batch->batch_code) . '-' . date('d-M-Y-H-i-s') . '.pdf');
+		$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
+		if (!is_dir(storage_path() . '/app/reports/' . $customer_name)) {
+			mkdir(storage_path() . '/app/reports/' . $customer_name, 0755, true);
+		}
+		$pdf->save($tempFile);
+
+		$dceaReportUrl = '/reports/' . $customer_name . '/' . $filename;
+		$publicReportPath = storage_path('app/public' . $dceaReportUrl);
+		if (!is_dir(dirname($publicReportPath))) {
+			mkdir(dirname($publicReportPath), 0755, true);
+		}
+		$pdf->save($publicReportPath);
+
+		// Save database record in batch_attachments
+		try {
+			$attachmentTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
+				->resolveOrCreateAttachmentTypeId('DCEA 009 Form');
+			
+			$fallbackUser = \App\User::first();
+			
+			$attachment = new \App\BatchAttachment();
+			$attachment->batch_id = $batch->id;
+			$attachment->title = 'DCEA 009 Form - ' . ($language === 'sw' ? 'Kiswahili' : 'English');
+			$attachment->attachment_url = $dceaReportUrl;
+			$attachment->attachment_type = $attachmentTypeId;
+			$attachment->is_internal = 0;
+			$attachment->show_on_coa = 0;
+			$attachment->uploaded_by = auth()->id() ?? ($fallbackUser ? $fallbackUser->id : null);
+			$attachment->save();
+		} catch (\Exception $attEx) {
+			\Log::error("Failed to auto-save DCEA 009 report as attachment: " . $attEx->getMessage());
 		}
 
 		if ($mergeWithAttachments && !empty($attachmentIds)) {

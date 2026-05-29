@@ -394,7 +394,7 @@ class Attachments extends Component
 
     public function getReportAttachmentsProperty()
     {
-        $reportTitles = ['Certificate of Analysis', 'Analysis Report', 'Case File', 'COA', 'GCLA 02'];
+        $reportTitles = ['Certificate of Analysis', 'Analysis Report', 'Case File', 'COA', 'GCLA 02', 'DCEA 009'];
         $reports = $this->attachments->filter(function($a) use ($reportTitles) {
             $name = str_replace('_', ' ', strtolower($a->title));
             $type = str_replace('_', ' ', strtolower($a->attachtypename ?? ''));
@@ -409,7 +409,7 @@ class Attachments extends Component
             return stripos(str_replace('_', ' ', strtolower($a->title)), 'case file') !== false;
         });
         
-        if (!$hasCaseFileAttachment) {
+        if (!$hasCaseFileAttachment && $this->batch->isMicrobiologyOnly()) {
             $caseForm = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
             if ($caseForm) {
                 $reports->push((object)[
@@ -439,6 +439,7 @@ class Attachments extends Component
             'Sample Rejection', 
             'COA',
             'GCLA 02',
+            'DCEA 009',
             'SRO',
             'Disclaimer'
         ];
@@ -480,6 +481,11 @@ class Attachments extends Component
 
     public function openCaseFileModal()
     {
+        if (!$this->batch->isMicrobiologyOnly()) {
+            session()->flash('error', 'Case File Review is only available for Microbiology batches.');
+            return;
+        }
+
         $caseFile = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->first();
         
         if ($caseFile) {
@@ -535,6 +541,11 @@ class Attachments extends Component
 
     public function saveCaseFile()
     {
+        if (!$this->batch->isMicrobiologyOnly()) {
+            session()->flash('error', 'Case File Review is only available for Microbiology batches.');
+            return;
+        }
+
         // Simple required validation, mostly boolean and nullable string fields so validation is light
         $this->validate([
             'caseFileForm.lab_no' => 'required',
@@ -553,8 +564,8 @@ class Attachments extends Component
         // Use Livewire dispatch to notify success or just let it refresh
         $this->dispatch('attachmentsUpdated');
         
-        // This alerts the browser if needed, or simply re-renders
-        return redirect()->route('view-case-file-pdf', \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->value('id'));
+        $pdfId = \App\Models\CaseFileReviewForm::where('batch_id', $this->batch->id)->value('id');
+        $this->dispatch('open-new-tab', url: route('view-case-file-pdf', $pdfId));
     }
 
     public function regenerateAcceptanceForm()

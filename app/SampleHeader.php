@@ -256,6 +256,85 @@ class SampleHeader extends Model implements Auditable
 		return $str ? array_unique($labStr) : array_unique($labs);
 	}
 
+	/**
+	 * Returns a Collection of Lab model instances associated with this batch,
+	 * combining direct lab_id assignments on sample_details and lab_id from analysis types.
+	 */
+	public function getBatchLabs(): \Illuminate\Support\Collection
+	{
+		$labIds = [];
+
+		// 1. From sample_details.lab_id
+		$directLabIds = \App\SampleDetails::where('sample_header_id', $this->id)
+			->whereNotNull('lab_id')
+			->pluck('lab_id')
+			->toArray();
+		$labIds = array_merge($labIds, $directLabIds);
+
+		// 2. From analysis types assigned to the samples
+		$samples = \App\SampleDetails::where('sample_header_id', $this->id)->get();
+		foreach ($samples as $sample) {
+			$analysisIDs = array_filter(explode(',', (string) $sample->analysis_type_id));
+			if (!empty($analysisIDs)) {
+				$typeLabIds = \App\AnalysisType::whereIn('id', $analysisIDs)
+					->whereNotNull('lab_id')
+					->pluck('lab_id')
+					->toArray();
+				$labIds = array_merge($labIds, $typeLabIds);
+			}
+		}
+
+		$uniqueLabIds = array_unique(array_filter($labIds));
+		if (empty($uniqueLabIds)) {
+			return collect();
+		}
+
+		return \App\Lab::whereIn('id', $uniqueLabIds)->get();
+	}
+
+	/**
+	 * Returns true only if every laboratory associated with this batch is a Microbiology lab.
+	 * Returns false if there are no labs or if any lab is not Microbiology.
+	 */
+	public function isMicrobiologyOnly(): bool
+	{
+		$labs = $this->getBatchLabs();
+
+		if ($labs->isEmpty()) {
+			return false;
+		}
+
+		foreach ($labs as $lab) {
+			$isMicro = \Illuminate\Support\Str::contains(strtolower((string) $lab->name), 'microbiology')
+				|| strtoupper((string) $lab->code) === 'LAB-MIC';
+			if (!$isMicro) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Returns true if this batch has at least one sample associated with a
+	 * Forensic Chemistry laboratory (code starts with LAB-FCH, or name
+	 * contains "Forensic Chemistry").
+	 */
+	public function hasForensicChemistryLab(): bool
+	{
+		foreach ($this->labs() as $lab) {
+			$code = $lab[0] ?? '';
+			$name = $lab[1] ?? '';
+			if (
+				str_starts_with($code, 'LAB-FCH') ||
+				stripos($name, 'Forensic Chemistry') !== false
+			) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public function get_target_date(){
 		return $this->hasOne(SampleDate::class)->where('name', 'Target Date');
 	}

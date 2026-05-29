@@ -402,6 +402,9 @@
                         <select name="report_format" id="report_format" class="form-control no-select2">
                             <option value="">Choose Report Format</option>
                             <option value="gcla_02">GCLA 02 Form (Certificate of Analysis)</option>
+                            @if(isset($batch) && $batch->hasForensicChemistryLab())
+                            <option value="dcea_009">DCEA 009 Form (Government Laboratory Analyst Report)</option>
+                            @endif
                             @if(isset($report_formats) && $report_formats->isNotEmpty())
                                 @foreach($report_formats as $format)
                                 <option value="{{ $format->id }}" {{ isset($format->is_default) && $format->is_default ? 'selected' : '' }}>
@@ -492,6 +495,9 @@
                             <select name="report_format" id="report_format_select_again" class="form-control no-select2" required>
                                 <option value="">Select Report Format</option>
                                 <option value="gcla_02">GCLA 02 Form (Certificate of Analysis)</option>
+                                @if(isset($batch) && $batch->hasForensicChemistryLab())
+                                <option value="dcea_009">DCEA 009 Form (Government Laboratory Analyst Report)</option>
+                                @endif
                                 @if(isset($report_formats) && $report_formats->isNotEmpty())
                                     @foreach($report_formats as $format)
                                     <option value="{{ $format->id }}" {{ isset($format->is_default) && $format->is_default ? 'selected' : '' }}>
@@ -752,7 +758,7 @@
 
 			// Show/hide language choice group based on format selection
 			$modal.find('#report_format').off('change').on('change', function () {
-				if ($(this).val() === 'gcla_02') {
+				if ($(this).val() === 'gcla_02' || $(this).val() === 'dcea_009') {
 					$modal.find('#gcla_language_group').removeClass('hidden');
 				} else {
 					$modal.find('#gcla_language_group').addClass('hidden');
@@ -851,7 +857,7 @@
 			$modal.find('#report_format_select_again').val('').trigger('change');
 
 			$modal.find('#report_format_select_again').off('change').on('change', function () {
-				if ($(this).val() === 'gcla_02') {
+				if ($(this).val() === 'gcla_02' || $(this).val() === 'dcea_009') {
 					$modal.find('#gcla_language_group_again').removeClass('hidden');
 				} else {
 					$modal.find('#gcla_language_group_again').addClass('hidden');
@@ -874,7 +880,7 @@
 			url = url.replace(':batch_id', batchId);
 			url = url.replace(':report_format', reportFormat);
 
-			if (reportFormat === 'gcla_02') {
+			if (reportFormat === 'gcla_02' || reportFormat === 'dcea_009') {
 				var lang = $('#gcla_language_again').val() || 'sw';
 				url += '?gcla_language=' + lang;
 			}

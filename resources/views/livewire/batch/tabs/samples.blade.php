@@ -360,7 +360,7 @@
                                     <span class="tag-badge">
                                         {{ $type['name'] }}
                                         <i class="mdi mdi-close-circle"
-                                            wire:click.stop="toggleAnalysisType({{ $index }}, {{ $type['id'] }})"></i>
+                                            wire:click.stop="toggleAnalysisType({{ $index }}, '{{ $type['id'] }}')"></i>
                                     </span>
                                     @endif
                                     @endforeach
@@ -381,7 +381,7 @@
                                     @if(count($filteredTypes) > 0)
                                     @foreach($filteredTypes as $type)
                                     <div class="tag-dropdown-item"
-                                        wire:click.stop="toggleAnalysisType({{ $index }}, {{ $type['id'] }})">
+                                        wire:click.stop="toggleAnalysisType({{ $index }}, '{{ $type['id'] }}')">
                                         <div class="d-flex justify-content-between align-items-center w-100">
                                             <span>{{ $type['name'] }} <small
                                                     class="text-muted">({{ $type['code'] }})</small></span>
@@ -757,7 +757,7 @@
                                     @php $filteredSubUnits = $this->getFilteredSubUnits(); @endphp
                                     @if(count($filteredSubUnits) > 0)
                                     @foreach($filteredSubUnits as $unit)
-                                    <div class="tag-dropdown-item" wire:click.stop="selectSubUnit({{ $unit['id'] }})">
+                                    <div class="tag-dropdown-item" wire:click.stop="selectSubUnit('{{ $unit['id'] }}')">
                                         {{ $unit['name'] }}
                                     </div>
                                     @endforeach
@@ -796,7 +796,7 @@
                                     @if(count($filteredSampleTypes) > 0)
                                     @foreach($filteredSampleTypes as $type)
                                     <div class="tag-dropdown-item"
-                                        wire:click.stop="selectSampleType({{ $type['id'] }})">
+                                        wire:click.stop="selectSampleType('{{ $type['id'] }}')">
                                         {{ $type['name'] }}
                                     </div>
                                     @endforeach
@@ -822,7 +822,7 @@
                                     <span class="tag-badge">
                                         {{ $type['name'] }}
                                         <i class="mdi mdi-close-circle"
-                                            wire:click.stop="toggleStagingAnalysisType({{ $type['id'] }})"></i>
+                                            wire:click.stop="toggleStagingAnalysisType('{{ $type['id'] }}')"></i>
                                     </span>
                                     @endif
                                     @endforeach
@@ -839,13 +839,13 @@
                                     @if(count($filteredStagingTypes) > 0)
                                     @foreach($filteredStagingTypes as $type)
                                     <div class="tag-dropdown-item"
-                                        wire:click.stop="toggleStagingAnalysisType({{ $type['id'] }})">
+                                        wire:click.stop="toggleStagingAnalysisType('{{ $type['id'] }}')">
                                         <div class="d-flex justify-content-between align-items-center w-100">
-                                            <span>{{ $type['name'] }} <small
-                                                    class="text-muted">({{ $type['code'] }})</small></span>
-                                            @if(in_array($type['id'], $stagingForm['analysis_type_ids']))
-                                            <i class="mdi mdi-check text-success"></i>
-                                            @endif
+                                             <span>{{ $type['name'] }} <small
+                                                     class="text-muted">({{ $type['code'] }})</small></span>
+                                             @if(in_array($type['id'], $stagingForm['analysis_type_ids']))
+                                             <i class="mdi mdi-check text-success"></i>
+                                             @endif
                                         </div>
                                     </div>
                                     @endforeach
@@ -1468,21 +1468,24 @@
             flex-wrap: wrap;
             align-items: center;
             gap: 6px;
-            min-height: 42px;
-            padding: 6px 12px;
+            min-height: 38px;
+            padding: 4px 10px;
             background: #fff;
-            border: 2px solid #e0e0e0;
+            border: 1.5px solid #cbd5e1;
             border-radius: 8px;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease-in-out;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         .tag-select-input:hover {
-            border-color: #007bff;
+            border-color: #94a3b8;
+            background: #f8fafc;
         }
 
         .tag-select-input:focus-within {
-            border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            border-color: #3b82f6;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
             outline: none;
         }
 
@@ -1490,60 +1493,75 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 4px 10px;
-            background-color: #007bff;
-            color: white;
-            border-radius: 16px;
-            font-size: 0.875rem;
-            font-weight: 500;
+            padding: 3px 8px;
+            background-color: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
             white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+
+        .tag-badge:hover {
+            background-color: #dbeafe;
         }
 
         .tag-badge i {
             cursor: pointer;
-            font-size: 1rem;
-            opacity: 0.8;
-            transition: opacity 0.2s;
+            font-size: 0.95rem;
+            color: #1e40af;
+            opacity: 0.7;
+            transition: all 0.15s ease;
         }
 
         .tag-badge i:hover {
             opacity: 1;
+            color: #ef4444;
         }
 
         .tag-input {
             flex: 1;
-            min-width: 120px;
+            min-width: 100px;
             border: none;
             outline: none;
-            padding: 4px;
-            font-size: 0.9rem;
+            padding: 2px 4px;
+            font-size: 0.85rem;
+            background: transparent;
+            color: #1e293b;
         }
 
         .tag-dropdown {
             position: absolute;
-            top: 100%;
+            top: calc(100% + 4px);
             left: 0;
             right: 0;
-            background: white;
-            border: 2px solid #007bff;
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            max-height: 250px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            max-height: 240px;
             overflow-y: auto;
-            z-index: 1050;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-top: -2px;
+            z-index: 9999; /* Float clearly over other table rows/modals */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            padding: 4px;
         }
 
         .tag-dropdown-item {
-            padding: 10px 16px;
+            padding: 8px 12px;
             cursor: pointer;
-            transition: background-color 0.2s;
-            border-bottom: 1px solid #f0f0f0;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #334155;
+            transition: all 0.15s ease;
+            border-bottom: none;
+            display: flex;
+            align-items: center;
         }
 
         .tag-dropdown-item:hover {
-            background-color: #f8f9fa;
+            background-color: #f1f5f9;
+            color: #0f172a;
         }
 
         .tag-dropdown-item:last-child {
@@ -1551,20 +1569,24 @@
         }
 
         .tag-dropdown-create {
-            background-color: #f8f9fa;
+            background-color: #f8fafc;
             font-weight: 600;
             display: flex;
             align-items: center;
             gap: 8px;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            color: #3b82f6;
         }
 
         .tag-dropdown-create:hover {
-            background-color: #e9ecef;
+            background-color: #eff6ff;
         }
 
         .tag-dropdown-divider {
             height: 1px;
-            background-color: #dee2e6;
+            background-color: #e2e8f0;
             margin: 4px 0;
         }
 

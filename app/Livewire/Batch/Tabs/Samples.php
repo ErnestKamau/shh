@@ -1781,6 +1781,10 @@ class Samples extends Component
             $this->sampleForms[$index]['analysis_type_id'] = [];
         }
 
+        // Normalize all elements to string to ensure exact matching of UUIDs
+        $this->sampleForms[$index]['analysis_type_id'] = array_map('strval', $this->sampleForms[$index]['analysis_type_id']);
+        $analysisTypeId = (string) $analysisTypeId;
+
         $key = array_search($analysisTypeId, $this->sampleForms[$index]['analysis_type_id']);
 
         if ($key !== false) {

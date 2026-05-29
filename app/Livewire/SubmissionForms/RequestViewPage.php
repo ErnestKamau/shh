@@ -23,6 +23,10 @@ class RequestViewPage extends Component
 
     public $newAttachment;
 
+    public string $newAttachmentType = '';
+
+    public string $newAttachmentHeading = '';
+
     public string $submissionFormId;
 
     public string $instanceId;
@@ -109,6 +113,8 @@ class RequestViewPage extends Component
 
         $this->validate([
             'newAttachment' => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,webp,txt'],
+            'newAttachmentType' => ['nullable', 'string', 'max:100'],
+            'newAttachmentHeading' => ['nullable', 'string', 'max:255'],
         ], [
             'newAttachment.max' => 'The attachment must not be greater than 10MB.',
             'newAttachment.mimes' => 'The attachment must be a file of type: pdf, doc, docx, xls, xlsx, png, jpg, jpeg, webp, txt.',
@@ -121,9 +127,11 @@ class RequestViewPage extends Component
             'file_path' => $path,
             'original_name' => $originalName,
             'uploaded_by' => $user->id,
+            'attachment_type' => $this->newAttachmentType ?: null,
+            'attachment_heading' => $this->newAttachmentHeading ?: null,
         ]);
 
-        $this->reset('newAttachment');
+        $this->reset('newAttachment', 'newAttachmentType', 'newAttachmentHeading');
         session()->flash('request_view_message', 'Attachment uploaded successfully.');
     }
 

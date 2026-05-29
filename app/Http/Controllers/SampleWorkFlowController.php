@@ -8645,14 +8645,132 @@ class SampleWorkFlowController extends Controller
         $form = \App\Models\CaseFileReviewForm::findOrFail($id);
         $batch = \App\SampleHeader::findOrFail($form->batch_id);
 
+        // Restrict access: Case File PDFs are only valid for Microbiology batches
+        if (!$batch->isMicrobiologyOnly()) {
+            abort(403, 'Case File Review is only available for Microbiology batches.');
+        }
+
+        $logoDataUri = $this->resolveLogoAsDataUri();
+
         $pdf = app('dompdf.wrapper');
         $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
         
         $pdf->loadView('batch.attachments.case-file-pdf', [
             'batch' => $batch,
-            'form' => $form
+            'form' => $form,
+            'logo' => $logoDataUri,
         ]);
         
+        // Save PDF to public storage
+        $pdfFilename = 'case-file-review-form-batch-' . $batch->id . '.pdf';
+        $pdfStoragePath = 'batch-attachments/' . $pdfFilename;
+        $pdfPublicUrl = '/storage/batch-attachments/' . urlencode($pdfFilename);
+        
+        \Illuminate\Support\Facades\Storage::disk('public')->put($pdfStoragePath, $pdf->output());
+
+        // Create or update BatchAttachment
+        $attachmentTypeId = app(\App\Services\System\AttachmentTypeResolver::class)
+            ->resolveOrCreateAttachmentTypeId('Case File');
+        $title = 'Case File Review Form (DNA/F/12)';
+
+        $attachment = \App\BatchAttachment::where('batch_id', $batch->id)
+            ->where('title', $title)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$attachment) {
+            $attachment = new \App\BatchAttachment();
+            $attachment->batch_id = $batch->id;
+            $attachment->uploaded_by = auth()->id() ?? 1;
+            $attachment->title = $title;
+            $attachment->is_internal = 0;
+            $attachment->show_on_coa = 0;
+        }
+
+        $attachment->attachment_type = $attachmentTypeId;
+        $attachment->attachment_url = $pdfPublicUrl;
+        $attachment->save();
+        
         return $pdf->stream('case-file-' . $batch->batch_code . '.pdf');
+    }
+
+    private function resolveLogoAsDataUri(): string
+    {
+        $company = getActiveCompany();
+
+        if ($company && !empty($company->logo)) {
+            $path = $company->logo;
+
+            // Strip URL prefix if stored as a full URL
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                $path = parse_url($path, PHP_URL_PATH) ?? $path;
+            }
+            $path = ltrim($path, '/');
+            $filename = basename($path);
+
+            if ($filename !== '') {
+                // 1) Public storage disk (storage/app/public/...)
+                $relative = preg_replace('#^storage/#', '', $path);
+                if ($relative !== $path) {
+                    $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relative);
+                    if (file_exists($fullPath)) {
+                        return $this->imagePathToDataUri($fullPath);
+                    }
+                }
+
+                // 2) App convention: storage/app/companies/<filename>
+                $fullPath = storage_path('app/companies/' . $filename);
+                if (file_exists($fullPath)) {
+                    return $this->imagePathToDataUri($fullPath);
+                }
+
+                // 3) The company logo field may also be a public/ relative path
+                if (file_exists(public_path($path))) {
+                    return $this->imagePathToDataUri(public_path($path));
+                }
+
+                // 4) public/ ltrim fallback
+                if (file_exists(public_path(ltrim($path, '/')))) {
+                    return $this->imagePathToDataUri(public_path(ltrim($path, '/')));
+                }
+            }
+        }
+
+        // Fallback: default logo
+        $defaultLogo = public_path('images/logo.png');
+        if (file_exists($defaultLogo)) {
+            return $this->imagePathToDataUri($defaultLogo);
+        }
+
+        $defaultReportLogo = public_path('images/logo-report.png');
+        if (file_exists($defaultReportLogo)) {
+            return $this->imagePathToDataUri($defaultReportLogo);
+        }
+
+        return '';
+    }
+
+    private function imagePathToDataUri(string $absolutePath): string
+    {
+        if ($absolutePath === '' || !is_readable($absolutePath)) {
+            return '';
+        }
+
+        $contents = @file_get_contents($absolutePath);
+        if ($contents === false) {
+            return '';
+        }
+
+        $ext = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'png'        => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif'        => 'image/gif',
+            'webp'       => 'image/webp',
+            'svg'        => 'image/svg+xml',
+            default      => 'image/png',
+        };
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 }

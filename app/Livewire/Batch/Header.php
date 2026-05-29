@@ -421,10 +421,12 @@ class Header extends Component
             return;
         }
 
-        // Save Case File Review Form
-        $caseFormModel = \App\Models\CaseFileReviewForm::firstOrNew(['batch_id' => $batch->id]);
-        $caseFormModel->fill($this->caseFormData);
-        $caseFormModel->save();
+        // Save Case File Review Form — only for Microbiology batches
+        if ($batch->isMicrobiologyOnly()) {
+            $caseFormModel = \App\Models\CaseFileReviewForm::firstOrNew(['batch_id' => $batch->id]);
+            $caseFormModel->fill($this->caseFormData);
+            $caseFormModel->save();
+        }
 
         // We check if at least one laboratory has a manager or we have a manager assigned
         $hasManagers = false;
@@ -803,6 +805,11 @@ class Header extends Component
 
     public function saveStandaloneCaseFile()
     {
+        if (!$this->batch->isMicrobiologyOnly()) {
+            session()->flash('error', 'Case File Review is only available for Microbiology batches.');
+            return;
+        }
+
         $this->validate([
             'caseFormData.lab_no' => 'required',
         ]);
@@ -819,7 +826,7 @@ class Header extends Component
         
         $this->dispatch('batchUpdated');
         
-        return redirect()->route('view-case-file-pdf', $caseFile->id);
+        $this->dispatch('open-new-tab', url: route('view-case-file-pdf', $caseFile->id));
     }
 }
 

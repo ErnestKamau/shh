@@ -17,7 +17,9 @@ class SubmissionFormInstanceAttachment extends Model
         'submission_form_instance_id',
         'file_path',
         'original_name',
-        'uploaded_by'
+        'uploaded_by',
+        'attachment_type',
+        'attachment_heading',
     ];
 
     public function submissionFormInstance(): BelongsTo
@@ -28,6 +30,11 @@ class SubmissionFormInstanceAttachment extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(\App\User::class, 'uploaded_by');
+    }
+
+    public function getFileNameAttribute()
+    {
+        return $this->original_name;
     }
 
     public function getFileUrlAttribute()

@@ -385,6 +385,31 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'is_required' => false,
             'sort_order' => 9,
         ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'select',
+            'label' => 'Attachment Type',
+            'name' => 'attachment_type',
+            'options' => [
+                ['value' => 'permit', 'label' => 'Permit'],
+                ['value' => 'invoice', 'label' => 'Invoice'],
+                ['value' => 'packing_list', 'label' => 'Packing List'],
+                ['value' => 'report', 'label' => 'Report'],
+                ['value' => 'certificate', 'label' => 'Certificate'],
+                ['value' => 'authorization_letter', 'label' => 'Authorization Letter'],
+                ['value' => 'other', 'label' => 'Other'],
+            ],
+            'is_required' => false,
+            'sort_order' => 10,
+        ]);
+
+        $additionalHolder->elements()->create([
+            'element_type' => 'text',
+            'label' => 'Attachment Heading',
+            'name' => 'attachment_heading',
+            'is_required' => false,
+            'sort_order' => 11,
+        ]);
     }
 
 }
