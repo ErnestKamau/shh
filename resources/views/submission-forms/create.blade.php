@@ -266,19 +266,27 @@
                 </div>
 
                 <div class="form-group">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="is_customer_portal_form" name="is_customer_portal_form" value="1" {{ old('is_customer_portal_form') ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_customer_portal_form">Filled only from customer portal</label>
+                  <div class="checkbox-option-card d-flex align-items-start p-3" style="background:#f8fafc;border:1px solid #e3e8ee;border-radius:8px;gap:12px;">
+                    <div class="mt-1">
+                      <input class="form-check-input" type="checkbox" id="is_customer_portal_form" name="is_customer_portal_form" value="1" {{ old('is_customer_portal_form') ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
+                    </div>
+                    <div>
+                      <label class="form-check-label font-weight-semibold mb-0" for="is_customer_portal_form" style="cursor:pointer;font-size:0.92rem;">Filled only from customer portal</label>
+                      <p class="text-muted small mb-0 mt-1">If checked, this form can only be submitted via customer portal and will route to LIMS destination page(s).</p>
+                    </div>
                   </div>
-                  <small class="form-text text-muted">If checked, this form can only be submitted via customer portal and will route to LIMS destination page(s).</small>
                 </div>
 
-                <div class="form-group ml-4" id="customer-request-form-wrapper" style="display:none;">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="is_customer_request_form" name="is_customer_request_form" value="1" {{ old('is_customer_request_form') ? 'checked' : '' }}>
-                    <label class="form-check-label" for="is_customer_request_form">Mark as customer request form</label>
+                <div class="form-group" id="customer-request-form-wrapper" style="display:none;">
+                  <div class="checkbox-option-card d-flex align-items-start p-3 ml-4" style="background:#f0f4ff;border:1px solid #c7d5f8;border-radius:8px;gap:12px;">
+                    <div class="mt-1">
+                      <input class="form-check-input" type="checkbox" id="is_customer_request_form" name="is_customer_request_form" value="1" {{ old('is_customer_request_form') ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
+                    </div>
+                    <div>
+                      <label class="form-check-label font-weight-semibold mb-0" for="is_customer_request_form" style="cursor:pointer;font-size:0.92rem;">Mark as customer request form</label>
+                      <p class="text-muted small mb-0 mt-1">When multiple forms are marked, the portal API returns the most recently updated one as the default customer request form.</p>
+                    </div>
                   </div>
-                  <small class="form-text text-muted">When multiple forms are marked, the portal API returns the most recently updated one as the default customer request form.</small>
                 </div>
 
                 <div class="form-group" id="target-pages-wrapper">
@@ -353,10 +361,16 @@
                   </div>
                 </div>
 
-                <div class="form-group form-check mt-3">
-                  <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
-                  <label class="form-check-label" for="is_active">Active</label>
-                  <small class="form-text text-muted">Inactive forms cannot be used to create new instances.</small>
+                <div class="form-group mt-3">
+                  <div class="checkbox-option-card d-flex align-items-start p-3" style="background:#f8fafc;border:1px solid #e3e8ee;border-radius:8px;gap:12px;">
+                    <div class="mt-1">
+                      <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }} style="width:18px;height:18px;cursor:pointer;">
+                    </div>
+                    <div>
+                      <label class="form-check-label font-weight-semibold mb-0" for="is_active" style="cursor:pointer;font-size:0.92rem;">Active</label>
+                      <p class="text-muted small mb-0 mt-1">Inactive forms cannot be used to create new instances.</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="form-group">
@@ -370,13 +384,15 @@
                   </small>
                 </div>
 
-                <div class="form-group mb-0">
-                  <button type="submit" class="btn btn-primary">
-                    <i class="mdi mdi-check"></i> Create Form
-                  </button>
-                  <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary ml-2">
-                    <i class="mdi mdi-close"></i> Cancel
-                  </a>
+                <div class="form-group mb-0 pt-3" style="border-top:1px solid #e9ecef;">
+                  <div class="d-flex align-items-center" style="gap:10px;">
+                    <button type="submit" class="btn btn-primary px-4" style="border-radius:8px;font-weight:600;box-shadow:0 2px 8px rgba(0,93,255,0.15);">
+                      <i class="mdi mdi-content-save mr-1"></i> Create Form
+                    </button>
+                    <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-secondary" style="border-radius:8px;">
+                      <i class="mdi mdi-close mr-1"></i> Cancel
+                    </a>
+                  </div>
                 </div>
               </form>
             </div>

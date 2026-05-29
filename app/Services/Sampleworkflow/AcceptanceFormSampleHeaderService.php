@@ -84,8 +84,27 @@ class AcceptanceFormSampleHeaderService
 
         $referenceNumber = $this->firstNonEmptyString([
             $mappedHeader['reference_number'] ?? null,
+            $portalRequest?->gcla_file_reference_number ?? null,
             $batchCode,
         ]);
+
+        $receivingOfficerName = $this->firstNonEmptyString([
+            $portalRequest?->received_by_full_name,
+            $receiptPayload['receiver_name'] ?? null,
+            $mappedHeader['receiving_officer_name'] ?? null,
+        ]);
+
+        $crmContactId = $portalRequest?->crm_contact_id ?? $instance?->crm_contact_id ?? null;
+
+        $scheduleCustomerEmail = $this->firstNonEmptyString([
+            $portalRequest?->email,
+            $receiptPayload['email'] ?? null,
+            $mappedHeader['schedule_customer_email'] ?? null,
+        ]);
+
+        $caseId = $portalRequest?->is_police_sample
+            ? ($portalRequest->ir_number ?? $portalRequest->case_no)
+            : ($mappedHeader['case_id'] ?? null);
 
         return [
             'batch_code' => $batchCode,
@@ -116,6 +135,10 @@ class AcceptanceFormSampleHeaderService
             'is_client_order' => 1,
             'submission_form_instance_id' => $form->submission_form_instance_id,
             'sample_tracking_stage' => $reviewStage?->id,
+            'receiving_officer_name' => $receivingOfficerName,
+            'crm_contact_id' => $crmContactId,
+            'schedule_customer_email' => $scheduleCustomerEmail,
+            'case_id' => $caseId,
         ];
     }
 

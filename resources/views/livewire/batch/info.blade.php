@@ -177,25 +177,31 @@
 					</select>
 				</div>
 
-				<div class="form-group col-md-4 btn-group-sm">
-					<label for="" class="control-label">
-						<input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{ isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : '' }}> Is QC Batch?
-					</label>
-				</div>
-				<div class="form-group col-md-4 btn-group-sm">
-					<label class="control-label">
-						<input type="checkbox" name="require_mu" value="1" {{ isset($batch->require_mu) && $batch->require_mu == 1 ? 'checked' : '' }}> Has client requested Measure of uncertainity?
-					</label>
-				</div>
-				<div class="form-group col-md-4 btn-group-sm">
-					<label class="control-label">
-						<input type="checkbox" name="client_instruction_clear" value="1" {{ isset($batch->client_instruction_clear) && $batch->client_instruction_clear == 1 ? 'checked' : '' }}> Are client`s instructions clear?
-					</label>
-				</div>
-				<div class="form-group col-md-4 btn-group-sm">
-					<label class="control-label">
-						<input type="checkbox" class="lab_capable" name="lab_capable" value="1" {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'checked' : '') : 'checked' }}> Is the laboratory capable of performing the requested tests?
-					</label>
+				<div class="row w-100 mx-0 mt-3 mb-3 p-3" style="background-color: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;">
+					<div class="form-group col-md-6 mb-3">
+						<label class="control-label d-flex align-items-center" style="cursor: pointer; font-weight: 500;">
+							<input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{ isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : '' }} style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+							<span style="margin: 0;">Is QC Batch?</span>
+						</label>
+					</div>
+					<div class="form-group col-md-6 mb-3">
+						<label class="control-label d-flex align-items-center" style="cursor: pointer; font-weight: 500;">
+							<input type="checkbox" name="require_mu" value="1" {{ isset($batch->require_mu) && $batch->require_mu == 1 ? 'checked' : '' }} style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+							<span style="margin: 0;">Has client requested Measure of uncertainity?</span>
+						</label>
+					</div>
+					<div class="form-group col-md-6 mb-2">
+						<label class="control-label d-flex align-items-center" style="cursor: pointer; font-weight: 500;">
+							<input type="checkbox" name="client_instruction_clear" value="1" {{ isset($batch->client_instruction_clear) && $batch->client_instruction_clear == 1 ? 'checked' : '' }} style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+							<span style="margin: 0;">Are client's instructions clear?</span>
+						</label>
+					</div>
+					<div class="form-group col-md-6 mb-2">
+						<label class="control-label d-flex align-items-center" style="cursor: pointer; font-weight: 500;">
+							<input type="checkbox" class="lab_capable" name="lab_capable" value="1" {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'checked' : '') : 'checked' }} style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+							<span style="margin: 0;">Is the laboratory capable of performing the requested tests?</span>
+						</label>
+					</div>
 				</div>
 
 				<div class="form-group btn-group-sm col-md-12">
@@ -237,11 +243,11 @@
 				</div>
 			</div>
 
-			<div class="form-group col-md-12 text-center pt-2 border-top" style="border-color: #f1f5f9 !important;">
+			<div class="form-group col-md-12 text-center pt-3 border-top" style="border-color: #f1f5f9 !important;">
 				@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')
 				@else
-					<button type="submit" class="btn btn-primary btn-sm btn-action-sm" style="width:60%; height:auto; min-height:36px;" id="save-headers">
-						<i class="mdi mdi-content-save"></i> Save
+					<button type="submit" class="btn btn-primary" style="padding: 8px 28px; font-size: 14px; border-radius: 4px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;" id="save-headers">
+						<i class="mdi mdi-content-save" style="margin-right: 6px;"></i> Save
 					</button>
 				@endif
 			</div>

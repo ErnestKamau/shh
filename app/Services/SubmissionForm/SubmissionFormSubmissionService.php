@@ -24,7 +24,39 @@ class SubmissionFormSubmissionService
             return;
         }
 
-        $request->merge($fields);
+        $request->merge($this->normalizeSubmissionFields($fields));
+    }
+
+    /**
+     * Normalize portal submission payloads into a request-friendly field map.
+     *
+     * Supported formats:
+     * - fields: { name: value }
+     * - fields: [ { name: string, value: mixed }, ... ]
+     * - fields: { name: { value: mixed } }
+     *
+     * @param  array<int|string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    private function normalizeSubmissionFields(array $fields): array
+    {
+        $normalized = [];
+
+        foreach ($fields as $key => $value) {
+            if (is_int($key) && is_array($value) && isset($value['name'])) {
+                $normalized[(string) $value['name']] = $value['value'] ?? null;
+                continue;
+            }
+
+            if (is_array($value) && count($value) === 1 && array_key_exists('value', $value)) {
+                $normalized[$key] = $value['value'];
+                continue;
+            }
+
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 
     /**
@@ -33,13 +65,18 @@ class SubmissionFormSubmissionService
     public function buildValidationRules(Collection $elements, Request $request): array
     {
         $rules = [];
+        $formData = $request->all();
 
         foreach ($elements as $element) {
             $fieldName = $element->name;
             $elementRules = [];
 
-            if ($element->is_required) {
-                $elementRules[] = 'required';
+            if ($this->isElementVisibleInRequest($element, $elements, $formData)) {
+                if ($element->is_required) {
+                    $elementRules[] = 'required';
+                } else {
+                    $elementRules[] = 'nullable';
+                }
             } else {
                 $elementRules[] = 'nullable';
             }
@@ -355,4 +392,77 @@ class SubmissionFormSubmissionService
             );
         });
     }
+
+    private function isElementVisibleInRequest(
+        SubmissionFormElement $element,
+        Collection $allElements,
+        array $formData
+    ): bool {
+        $logic = $element->conditional_logic;
+        if (empty($logic)) {
+            return true;
+        }
+
+        // Normalize logic into a list of conditions
+        $conditions = [];
+        if (isset($logic['operator']) || isset($logic['field_id']) || isset($logic['depends_on']) || isset($logic['field'])) {
+            $conditions[] = $logic;
+        } elseif (is_array($logic)) {
+            if (is_numeric(key($logic))) {
+                $conditions = $logic;
+            } else {
+                $conditions[] = $logic;
+            }
+        }
+
+        if (empty($conditions)) {
+            return true;
+        }
+
+        $elementsById = $allElements->keyBy(fn ($e) => (string) $e->id);
+
+        foreach ($conditions as $condition) {
+            if (!is_array($condition)) {
+                continue;
+            }
+
+            $parentName = $condition['depends_on'] ?? $condition['field'] ?? null;
+            if (empty($parentName) && !empty($condition['field_id'])) {
+                $parentEl = $elementsById->get((string) $condition['field_id']);
+                if ($parentEl) {
+                    $parentName = $parentEl->name;
+                }
+            }
+
+            if (empty($parentName)) {
+                continue;
+            }
+
+            $actual = $formData[$parentName] ?? '';
+            $op = $condition['operator'] ?? 'equals';
+            $expected = $condition['value'] ?? '';
+
+            $matched = false;
+            if ($op === '==' || $op === 'equals') {
+                $matched = ((string) $actual === (string) $expected);
+            } elseif ($op === '!=' || $op === 'not_equals') {
+                $matched = ((string) $actual !== (string) $expected);
+            } elseif ($op === 'not_empty') {
+                $matched = ($actual !== '' && $actual !== null);
+            } elseif ($op === 'empty') {
+                $matched = ($actual === '' || $actual === null);
+            } elseif ($op === 'contains') {
+                $matched = (strpos((string) $actual, (string) $expected) !== false);
+            } else {
+                $matched = true;
+            }
+
+            if (!$matched) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
+

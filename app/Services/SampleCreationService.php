@@ -56,6 +56,23 @@ class SampleCreationService
             // Create sample details
             $sampleDetails = $this->createSampleDetails($sampleHeader, $formData, $instance, $batchCount);
 
+            // Link the SampleSubmissionRequest to the created batch
+            $requestId = $instance->getAttribute('sample_submission_request_id')
+                ?? ($instance->getAttribute('target_record_type') === SampleSubmissionRequest::class
+                    ? $instance->getAttribute('target_record_id')
+                    : null)
+                ?? $instance->getAttribute('portal_request_id');
+
+            if ($requestId) {
+                $submissionRequest = SampleSubmissionRequest::find($requestId);
+                if ($submissionRequest) {
+                    $submissionRequest->update([
+                        'sample_header_id' => $sampleHeader->id,
+                        'status' => 'received_at_lab',
+                    ]);
+                }
+            }
+
             DB::commit();
 
             // Auto-create runs/formulas for worksheets
@@ -215,6 +232,28 @@ class SampleCreationService
     {
         $headerData = $formData['sample_headers'] ?? [];
 
+        $requestId = $instance->getAttribute('sample_submission_request_id')
+            ?? ($instance->getAttribute('target_record_type') === SampleSubmissionRequest::class
+                ? $instance->getAttribute('target_record_id')
+                : null)
+            ?? $instance->getAttribute('portal_request_id');
+
+        $submissionRequest = $requestId ? SampleSubmissionRequest::find($requestId) : null;
+
+        if ($submissionRequest) {
+            $headerData['crm_contact_id'] = $headerData['crm_contact_id'] ?? $submissionRequest->crm_contact_id;
+            $headerData['receiving_officer_name'] = $headerData['receiving_officer_name'] ?? $submissionRequest->received_by_full_name;
+            if (empty($headerData['receipt_date']) && ($submissionRequest->received_by_date || $submissionRequest->submission_date)) {
+                $headerData['receipt_date'] = ($submissionRequest->received_by_date?->format('Y-m-d') ?? $submissionRequest->submission_date?->format('Y-m-d'));
+            }
+            $headerData['submit_by'] = $headerData['submit_by'] ?? ($submissionRequest->submitting_officer_full_name ?? $submissionRequest->submitted_by_full_name);
+            $headerData['description'] = $headerData['description'] ?? $submissionRequest->description_of_samples;
+            $headerData['batch_scope'] = $headerData['batch_scope'] ?? $submissionRequest->group_of_samples;
+            $headerData['reference_number'] = $headerData['reference_number'] ?? $submissionRequest->gcla_file_reference_number;
+            $headerData['schedule_customer_email'] = $headerData['schedule_customer_email'] ?? $submissionRequest->email;
+            $headerData['case_id'] = $headerData['case_id'] ?? ($submissionRequest->is_police_sample ? ($submissionRequest->ir_number ?? $submissionRequest->case_no) : null);
+        }
+
         // Generate batch code if not provided
         if (empty($headerData['batch_code'])) {
             $headerData['batch_code'] = $this->generateBatchCode($headerData, $instance->id, $batchCount, $instance);
@@ -326,6 +365,17 @@ class SampleCreationService
         // Determine total sample count for smart code generation
         $sampleCount = $this->determineSampleCount($detailsData, $formData);
 
+        $requestId = $instance->getAttribute('sample_submission_request_id')
+            ?? ($instance->getAttribute('target_record_type') === SampleSubmissionRequest::class
+                ? $instance->getAttribute('target_record_id')
+                : null)
+            ?? $instance->getAttribute('portal_request_id');
+
+        $submissionRequest = $requestId ? SampleSubmissionRequest::find($requestId) : null;
+        $exhibits = $submissionRequest
+            ? $submissionRequest->exhibits()->orderBy('serial_number')->orderBy('id')->get()
+            : collect();
+
         foreach ($detailsData as $index => $detailData) {
             // Generate sample code if not provided
             if (empty($detailData['sample_code'])) {
@@ -361,6 +411,24 @@ class SampleCreationService
 
             $sampleDetail = SampleDetails::create($detailData);
             $sampleDetails[] = $sampleDetail;
+
+            // Link exhibit sequentially to this sample detail if available
+            if ($submissionRequest && isset($exhibits[$index])) {
+                $exhibit = $exhibits[$index];
+                $exhibit->update(['sample_detail_id' => $sampleDetail->id]);
+
+                $updates = [];
+                if (empty($sampleDetail->comments) && !empty($exhibit->item_description)) {
+                    $updates['comments'] = $exhibit->item_description;
+                }
+                if (empty($sampleDetail->barcode) && !empty($exhibit->serial_number)) {
+                    $updates['barcode'] = $exhibit->serial_number;
+                    $updates['customer_sample_id'] = $exhibit->serial_number;
+                }
+                if ($updates !== []) {
+                    $sampleDetail->update($updates);
+                }
+            }
 
             // Create analysis relations if analysis types are specified
             if (!empty($analysisTypeIdsStr)) {

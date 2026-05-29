@@ -594,6 +594,11 @@ class Header extends Component
 
         $batch->save();
 
+        // Set the Processing Date to today when batch is moved to verification
+        if ($status === 'Sample Verification') {
+            $batch->set_date('Processing Date', date('Y-m-d'));
+        }
+
         session()->flash('success', 'Batch move was successful');
         $this->showVerificationModal = false;
         $this->verificationActiveTab = $batch->hasDnaLab() ? 'case_file_review' : 'assign_approvers';
