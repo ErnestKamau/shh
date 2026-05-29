@@ -194,7 +194,7 @@
                             <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
                           </h6>
                           @if($section->description)
-                            <p class="text-muted small mb-2">{{ $section->description }}</p>
+                            <p class="text-muted small mb-2">{!! nl2br(e($section->description)) !!}</p>
                           @endif
                         </div>
                         <span class="badge badge-light">{{ $section->elementHolders->count() }} holder(s)</span>

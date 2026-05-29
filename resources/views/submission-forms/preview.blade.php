@@ -89,7 +89,7 @@
                           </h5>
                                                     @include('submission-forms.partials.section-logos', ['section' => $section])
                           @if($section->description)
-                            <p class="text-muted small mb-0">{{ $section->description }}</p>
+                            <p class="text-muted small mb-0">{!! nl2br(e($section->description)) !!}</p>
                           @endif
                         </div>
                         

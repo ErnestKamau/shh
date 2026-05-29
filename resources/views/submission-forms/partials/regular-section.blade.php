@@ -7,7 +7,7 @@
                         @if($holder->holder_type === 'text')
                             <div class="text-content">
                                 <h6>{{ $holder->title ?? 'Text Content' }}</h6>
-                                <p class="text-muted">{{ $holder->description ?? '' }}</p>
+                                <p class="text-muted">{!! nl2br(e($holder->description ?? '')) !!}</p>
                             </div>
                         @else
                             @if($holder->elements->count() > 0)

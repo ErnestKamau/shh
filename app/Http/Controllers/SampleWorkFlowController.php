@@ -8645,9 +8645,8 @@ class SampleWorkFlowController extends Controller
         $form = \App\Models\CaseFileReviewForm::findOrFail($id);
         $batch = \App\SampleHeader::findOrFail($form->batch_id);
 
-        // Restrict access: Case File PDFs are only valid for Microbiology batches
-        if (!$batch->isMicrobiologyOnly()) {
-            abort(403, 'Case File Review is only available for Microbiology batches.');
+        if (!$batch->hasDnaLab()) {
+            abort(403, 'Case File Review Form is only available for DNA laboratories.');
         }
 
         $logoDataUri = $this->resolveLogoAsDataUri();

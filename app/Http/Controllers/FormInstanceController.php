@@ -825,24 +825,24 @@ class FormInstanceController extends Controller
     {
         foreach ($elements as $element) {
             $fieldName = $element->name;
-            $value = $request->input($fieldName);
             // Check if this is a multiple select field (has [] in form name but not from rows)
             $isMultipleSelect = $this->isMultipleSelectField($element, $request);
-            // Handle array fields (from rows sections or multiple selects)
-            if (is_array($value)) {
+            
+            $inputValue = $request->input($fieldName);
+            $fileValue = $request->file($fieldName);
+            $isArray = is_array($inputValue) || is_array($fileValue);
+
+            if ($isArray) {
                 if ($isMultipleSelect) {
-                    // dd($value);
-                    $this->processMultipleSelectField($instance, $element, $value);
+                    $this->processMultipleSelectField($instance, $element, $inputValue ?? []);
                 } else {
                     // Handle array fields (from rows sections)
-                    $this->processArrayField($instance, $element, $value);
+                    $this->processArrayField($instance, $element, $inputValue ?? [], $request, $fieldName);
                 }
             } else {
-                $this->processSingleField($instance, $element, $value, $request);
+                $this->processSingleField($instance, $element, $inputValue, $request);
             }
         }
-
-        // dd(">>>>>>>>>>>>>>");
     }
 
     /**
@@ -869,20 +869,58 @@ class FormInstanceController extends Controller
     /**
      * Process array field values (from rows sections)
      */
-    private function processArrayField(SubmissionFormInstance $instance, SubmissionFormElement $element, array $values): void
+    private function processArrayField(SubmissionFormInstance $instance, SubmissionFormElement $element, array $values, Request $request = null, string $fieldName = null): void
     {
+        $inputs = $values;
+        $files = [];
+
+        if ($request && $fieldName) {
+            $files = $request->file($fieldName) ?? [];
+        }
+
+        $indices = array_unique(array_merge(array_keys($inputs), array_keys($files)));
+        sort($indices);
+
+        // Fetch existing values for this element to preserve already-uploaded files
+        $existingValues = $instance->values()
+            ->where('submission_form_element_id', $element->id)
+            ->get()
+            ->keyBy('array_index');
+
         SubmissionFormInstanceValue::withoutAuditing(function () use ($instance, $element): void {
             $instance->values()->where('submission_form_element_id', $element->id)->delete();
         });
 
         // Save each value with array index
-        foreach ($values as $index => $value) {
-            if (($value === null || $value === '') && $element->element_type === 'user_select' && Auth::check()) {
-                $value = Auth::id();
+        foreach ($indices as $index) {
+            $inputValue = $inputs[$index] ?? null;
+            $fileValue = $files[$index] ?? null;
+
+            $filePath = null;
+            $saveValue = $inputValue;
+
+            if (in_array($element->element_type, ['file', 'camera_photo', 'image_upload'], true)) {
+                if ($fileValue instanceof \Illuminate\Http\UploadedFile) {
+                    // Save new file upload
+                    $filename = time() . '_' . $index . '_' . Str::slug($element->name) . '.' . $fileValue->getClientOriginalExtension();
+                    $filePath = $fileValue->storeAs('submission-forms/' . $instance->id, $filename, 'public');
+                    $saveValue = null;
+                } else {
+                    // Keep existing file if it was already uploaded and no new file was uploaded
+                    $existing = $existingValues->get($index);
+                    if ($existing && $existing->file_path) {
+                        $filePath = $existing->file_path;
+                        $saveValue = null;
+                    }
+                }
             }
 
-            if ($value !== null && $value !== '') {
-                $this->saveFieldValue($instance, $element, $value, null, $index);
+            if (($saveValue === null || $saveValue === '') && $element->element_type === 'user_select' && Auth::check()) {
+                $saveValue = Auth::id();
+            }
+
+            if (($saveValue !== null && $saveValue !== '') || $filePath !== null) {
+                $this->saveFieldValue($instance, $element, $saveValue, $filePath, $index);
             }
         }
     }

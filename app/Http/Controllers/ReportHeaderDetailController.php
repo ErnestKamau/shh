@@ -340,6 +340,9 @@ class ReportHeaderDetailController extends Controller
 		}
 
 		if ($report_format === 'dcea_009' || (string) $report_format === 'dcea_009') {
+			if (!$batch->hasForensicChemistryLab()) {
+				abort(403, 'DCEA 009 report is only available for Forensic Chemistry laboratories.');
+			}
 			return $this->processDCEA009Report(
 				$batch,
 				$customer,

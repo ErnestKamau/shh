@@ -313,7 +313,7 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         ]);
 
         $additionalHolder->elements()->create([
-            'element_type' => 'text',
+            'element_type' => 'textarea',
             'label' => 'Purpose',
             'name' => 'purpose',
             'is_required' => false,
@@ -346,23 +346,11 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         ]);
 
         $additionalHolder->elements()->create([
-            'element_type' => 'select',
-            'label' => 'Mode of payment',
-            'name' => 'mode_of_payment',
-            'options' => [
-                ['value' => 'pre_paid', 'label' => 'Pre-Paid'],
-                ['value' => 'post_paid', 'label' => 'Post-Paid']
-            ],
-            'is_required' => false,
-            'sort_order' => 6,
-        ]);
-
-        $additionalHolder->elements()->create([
-            'element_type' => 'text',
+            'element_type' => 'textarea',
             'label' => 'Further Request',
             'name' => 'further_request',
             'is_required' => false,
-            'sort_order' => 7,
+            'sort_order' => 6,
         ]);
 
         $additionalHolder->elements()->create([
@@ -375,40 +363,47 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
                 ['value' => 'confidential', 'label' => 'Confidential']
             ],
             'is_required' => false,
-            'sort_order' => 8,
+            'sort_order' => 7,
         ]);
 
-        $additionalHolder->elements()->create([
+
+        // Section 4: Attachments
+        $this->command->info('Creating Attachments section...');
+        $attachmentsSection = $form->sections()->create([
+            'title' => 'Attachments',
+            'description' => 'Supporting documents for the submission.',
+            'section_type' => 'rows_section',
+            'sort_order' => 4,
+        ]);
+
+        $attachmentsHolder = $attachmentsSection->elementHolders()->create([
+            'holder_type' => 'field',
+            'max_elements' => 3,
+            'sort_order' => 1,
+        ]);
+
+        $attachmentsHolder->elements()->create([
             'element_type' => 'file',
-            'label' => 'Attachments',
+            'label' => 'Attachment',
             'name' => 'attachments',
             'is_required' => false,
-            'sort_order' => 9,
+            'sort_order' => 1,
         ]);
 
-        $additionalHolder->elements()->create([
-            'element_type' => 'select',
+        $attachmentsHolder->elements()->create([
+            'element_type' => 'text',
             'label' => 'Attachment Type',
             'name' => 'attachment_type',
-            'options' => [
-                ['value' => 'permit', 'label' => 'Permit'],
-                ['value' => 'invoice', 'label' => 'Invoice'],
-                ['value' => 'packing_list', 'label' => 'Packing List'],
-                ['value' => 'report', 'label' => 'Report'],
-                ['value' => 'certificate', 'label' => 'Certificate'],
-                ['value' => 'authorization_letter', 'label' => 'Authorization Letter'],
-                ['value' => 'other', 'label' => 'Other'],
-            ],
             'is_required' => false,
-            'sort_order' => 10,
+            'sort_order' => 2,
         ]);
 
-        $additionalHolder->elements()->create([
+        $attachmentsHolder->elements()->create([
             'element_type' => 'text',
-            'label' => 'Attachment Heading',
+            'label' => 'Attachment Description',
             'name' => 'attachment_heading',
             'is_required' => false,
-            'sort_order' => 11,
+            'sort_order' => 3,
         ]);
     }
 

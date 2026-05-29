@@ -1,34 +1,56 @@
 <div class="workflow-board-panel-body flush-top px-0">
     <div class="p-3 border-bottom bg-light">
         <form wire:submit.prevent="uploadAttachment">
-            <div class="row align-items-end">
-                <div class="col-md-4 mb-2">
-                    <label class="small font-weight-bold text-muted mb-1" for="newAttachment">File</label>
-                    <div class="custom-file">
-                        <input type="file" class="custom-file-input" id="newAttachment" wire:model="newAttachment">
-                        <label class="custom-file-label" for="newAttachment">Choose document...</label>
+            @error('newAttachments')
+                <div class="alert alert-danger mb-3">{{ $message }}</div>
+            @enderror
+
+            @foreach($newAttachments as $index => $attachment)
+                <div wire:key="attachment-row-{{ $index }}" class="row align-items-end mb-3">
+                    <div class="col-md-4 mb-2">
+                        <label class="small font-weight-bold text-muted mb-1" for="newAttachmentFile-{{ $index }}">File</label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="newAttachmentFile-{{ $index }}" wire:model="newAttachments.{{ $index }}.file">
+                            <label class="custom-file-label" for="newAttachmentFile-{{ $index }}">Choose document...</label>
+                        </div>
+                        @error("newAttachments.$index.file") <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
                     </div>
-                    @error('newAttachment') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
+                    <div class="col-md-3 mb-2">
+                        <label class="small font-weight-bold text-muted mb-1" for="newAttachmentType-{{ $index }}">Attachment Type</label>
+                        <input type="text" class="form-control" id="newAttachmentType-{{ $index }}" wire:model="newAttachments.{{ $index }}.type" placeholder="e.g. Permit">
+                        @error("newAttachments.$index.type") <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="small font-weight-bold text-muted mb-1" for="newAttachmentHeading-{{ $index }}">Attachment Description</label>
+                        <input type="text" class="form-control" id="newAttachmentHeading-{{ $index }}" wire:model="newAttachments.{{ $index }}.heading" placeholder="e.g. Sample import permit">
+                        @error("newAttachments.$index.heading") <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
+                    </div>
+                    <div class="col-md-2 mb-2 d-flex align-items-end">
+                        @if(count($newAttachments) > 1)
+                            <button type="button" class="btn btn-outline-danger w-100" wire:click.prevent="removeAttachmentRow({{ $index }})">
+                                <i class="mdi mdi-minus"></i>
+                            </button>
+                        @else
+                            <button type="button" class="btn btn-outline-success w-100" wire:click.prevent="addAttachmentRow" title="Add another attachment">
+                                <i class="mdi mdi-plus"></i>
+                            </button>
+                        @endif
+                    </div>
                 </div>
-                <div class="col-md-3 mb-2">
-                    <label class="small font-weight-bold text-muted mb-1" for="newAttachmentType">Attachment Type</label>
-                    <select class="form-control" id="newAttachmentType" wire:model="newAttachmentType">
-                        <option value="">— Select Type —</option>
-                        <option value="permit">Permit</option>
-                        <option value="invoice">Invoice</option>
-                        <option value="packing_list">Packing List</option>
-                        <option value="report">Report</option>
-                        <option value="certificate">Certificate</option>
-                        <option value="authorization_letter">Authorization Letter</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="col-md-3 mb-2">
-                    <label class="small font-weight-bold text-muted mb-1" for="newAttachmentHeading">Attachment Heading</label>
-                    <input type="text" class="form-control" id="newAttachmentHeading" wire:model="newAttachmentHeading" placeholder="e.g. Sample Import Permit">
-                </div>
+            @endforeach
+
+            <div class="row align-items-end">
+                <div class="col-md-10"></div>
                 <div class="col-md-2 mb-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100" wire:loading.attr="disabled" wire:target="newAttachment, uploadAttachment">
+                    <button type="button" class="btn btn-outline-success w-100" wire:click.prevent="addAttachmentRow" title="Add another attachment">
+                        <i class="mdi mdi-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="row align-items-end">
+                <div class="col-md-12 mb-2 text-right">
+                    <button type="submit" class="btn btn-primary" wire:loading.attr="disabled" wire:target="newAttachments, uploadAttachment">
                         <span wire:loading wire:target="uploadAttachment" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
                         Upload
                     </button>
@@ -46,7 +68,7 @@
                     <tr>
                         <th>Name</th>
                         <th>Attachment Type</th>
-                        <th>Attachment Heading</th>
+                        <th>Attachment Description</th>
                         <th>Type / Source</th>
                         <th>Status</th>
                         <th>Date</th>

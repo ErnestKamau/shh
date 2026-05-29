@@ -21,11 +21,7 @@ class RequestViewPage extends Component
 {
     use WithFileUploads;
 
-    public $newAttachment;
-
-    public string $newAttachmentType = '';
-
-    public string $newAttachmentHeading = '';
+    public array $newAttachments = [];
 
     public string $submissionFormId;
 
@@ -50,6 +46,9 @@ class RequestViewPage extends Component
     ): void {
         $this->submissionFormId = $submissionFormId;
         $this->instanceId = $instanceId;
+        $this->newAttachments = [
+            ['file' => null, 'type' => '', 'heading' => ''],
+        ];
 
         $this->submissionForm = SubmissionForm::query()->findOrFail($submissionFormId);
         $this->instance = SubmissionFormInstance::query()
@@ -106,33 +105,61 @@ class RequestViewPage extends Component
         session()->flash('request_view_message', 'Note saved successfully.');
     }
 
+    public function addAttachmentRow(): void
+    {
+        $this->newAttachments[] = ['file' => null, 'type' => '', 'heading' => ''];
+    }
+
+    public function removeAttachmentRow(int $index): void
+    {
+        if (isset($this->newAttachments[$index])) {
+            unset($this->newAttachments[$index]);
+            $this->newAttachments = array_values($this->newAttachments);
+        }
+    }
+
     public function uploadAttachment(): void
     {
         $user = auth()->user();
         $this->authorizeFormAccess($user);
 
-        $this->validate([
-            'newAttachment' => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,webp,txt'],
-            'newAttachmentType' => ['nullable', 'string', 'max:100'],
-            'newAttachmentHeading' => ['nullable', 'string', 'max:255'],
-        ], [
-            'newAttachment.max' => 'The attachment must not be greater than 10MB.',
-            'newAttachment.mimes' => 'The attachment must be a file of type: pdf, doc, docx, xls, xlsx, png, jpg, jpeg, webp, txt.',
+        $filledAttachments = array_filter($this->newAttachments, fn ($row) => ! empty($row['file']));
+
+        if (count($filledAttachments) === 0) {
+            $this->addError('newAttachments', 'Please attach at least one file before uploading.');
+            return;
+        }
+
+        $rules = [];
+        foreach (array_keys($filledAttachments) as $index) {
+            $rules["newAttachments.$index.file"] = ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,webp,txt'];
+            $rules["newAttachments.$index.type"] = ['nullable', 'string', 'max:100'];
+            $rules["newAttachments.$index.heading"] = ['nullable', 'string', 'max:255'];
+        }
+
+        $this->validate($rules, [
+            'newAttachments.*.file.max' => 'Each attachment must not be greater than 10MB.',
+            'newAttachments.*.file.mimes' => 'Each attachment must be a file of type: pdf, doc, docx, xls, xlsx, png, jpg, jpeg, webp, txt.',
         ]);
 
-        $originalName = $this->newAttachment->getClientOriginalName();
-        $path = $this->newAttachment->store('request-attachments', 'public');
+        foreach ($filledAttachments as $attachmentRow) {
+            $originalName = $attachmentRow['file']->getClientOriginalName();
+            $path = $attachmentRow['file']->store('request-attachments', 'public');
 
-        $this->instance->customAttachments()->create([
-            'file_path' => $path,
-            'original_name' => $originalName,
-            'uploaded_by' => $user->id,
-            'attachment_type' => $this->newAttachmentType ?: null,
-            'attachment_heading' => $this->newAttachmentHeading ?: null,
-        ]);
+            $this->instance->customAttachments()->create([
+                'file_path' => $path,
+                'original_name' => $originalName,
+                'uploaded_by' => $user->id,
+                'attachment_type' => $attachmentRow['type'] ?: null,
+                'attachment_heading' => $attachmentRow['heading'] ?: null,
+            ]);
+        }
 
-        $this->reset('newAttachment', 'newAttachmentType', 'newAttachmentHeading');
-        session()->flash('request_view_message', 'Attachment uploaded successfully.');
+        $this->newAttachments = [
+            ['file' => null, 'type' => '', 'heading' => ''],
+        ];
+
+        session()->flash('request_view_message', 'Attachment(s) uploaded successfully.');
     }
 
     private function authorizeFormAccess(?\App\User $user): void

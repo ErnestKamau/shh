@@ -25,7 +25,7 @@
 @endphp
 
 <div class="form-group">
-    @if(!isset($hideLabel) || !$hideLabel)
+    @if((!isset($hideLabel) || !$hideLabel) && !in_array($element->element_type, ['plain_text', 'static_text']))
         <label for="{{ $fieldId }}" class="{{ $element->is_required ? 'required' : '' }}">
             {{ $element->label }}
         </label>
@@ -96,6 +96,7 @@
             @break
             
         @case('plain_text')
+        @case('static_text')
             @php
                 $plainTextValue = trim((string) ($fieldValue ?: $element->default_value ?: ''));
             @endphp
