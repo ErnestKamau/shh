@@ -483,25 +483,21 @@ class FormulaWorksheet extends Component
                 throw new \Exception('Worksheet data not found');
             }
 
-            $captured = CapturedResult::findOrFail($capturedResultId);
+            $captured = CapturedResult::with(['sample.sample_point', 'analysisElement.analyte'])
+                ->findOrFail($capturedResultId);
 
             // Create or update worksheet
             $worksheet = SampleCapturedWorksheetFormula::updateOrCreate(
                 ['captured_result_id' => $capturedResultId],
-                [
-                    'sample_header_id' => $this->batch->id,
-                    'sample_detail_id' => $captured->sample_detail_id,
-                    'formular_id' => $this->formula->id,
+                array_merge($this->defaultWorksheetAttributes($captured), [
                     'date' => $data['date'],
-                    'lab_no' => $this->batch->batch_code,
-                    'sample_details' => $captured->sample->sample_code . ' - ' . ($captured->analysisElement->analyte->name ?? '') . ' - ' . ($captured->sample->sample_point->name ?? ''),
                     'time_in' => $data['time_in'],
                     'done_by_user_id' => $data['done_by_user_id'],
                     'time_out' => $data['time_out'] ?: null,
                     'read_by_user_id' => $data['read_by_user_id'] ?: null,
                     'read_date' => $data['read_date'] ?: null,
                     'final_result' => $data['final_result'] ?: null,
-                ]
+                ])
             );
 
             // Save step data
@@ -792,20 +788,57 @@ class FormulaWorksheet extends Component
         $this->recalculateSharedDerivedValues();
     }
 
+    protected function resolveCapturedResult(string $capturedResultId): CapturedResult
+    {
+        $captured = collect($this->capturedResults)->firstWhere('id', $capturedResultId);
+
+        if ($captured instanceof CapturedResult) {
+            return $captured;
+        }
+
+        return CapturedResult::with(['sample.sample_point', 'analysisElement.analyte'])
+            ->findOrFail($capturedResultId);
+    }
+
+    protected function sampleDetailsLabel(CapturedResult $captured): string
+    {
+        $captured->loadMissing(['sample.sample_point', 'analysisElement.analyte']);
+
+        return $captured->sample->sample_code
+            .' - '
+            .($captured->analysisElement->analyte->name ?? '')
+            .' - '
+            .($captured->sample->sample_point->name ?? '');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function defaultWorksheetAttributes(CapturedResult $captured): array
+    {
+        return [
+            'sample_header_id' => $this->batch->id,
+            'sample_detail_id' => $captured->sample_detail_id,
+            'formular_id' => $this->formula->id,
+            'lab_no' => $this->batch->batch_code,
+            'date' => $this->sharedWorksheetMeta['date'] ?? now()->format('Y-m-d'),
+            'sample_details' => $this->sampleDetailsLabel($captured),
+            'done_by_user_id' => $this->sharedWorksheetMeta['done_by_user_id'] ?? Auth::id(),
+        ];
+    }
+
+    protected function firstOrCreateWorksheetForCaptured(CapturedResult $captured): SampleCapturedWorksheetFormula
+    {
+        return SampleCapturedWorksheetFormula::firstOrCreate(
+            ['captured_result_id' => $captured->id],
+            $this->defaultWorksheetAttributes($captured)
+        );
+    }
+
     protected function saveSharedCheckboxSteps(): void
     {
         foreach ($this->capturedResults as $captured) {
-            $worksheet = SampleCapturedWorksheetFormula::firstOrCreate(
-                ['captured_result_id' => $captured->id],
-                [
-                    'sample_header_id'  => $this->batch->id,
-                    'sample_detail_id'  => $captured->sample_detail_id,
-                    'formular_id'       => $this->formula->id,
-                    'lab_no'            => $this->batch->batch_code,
-                    'date'              => $this->sharedWorksheetMeta['date'] ?? now()->format('Y-m-d'),
-                    'done_by_user_id'   => $this->sharedWorksheetMeta['done_by_user_id'] ?? Auth::id(),
-                ]
-            );
+            $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
 
             foreach ($this->sharedCheckboxStepData as $stepId => $selected) {
                 $worksheet->stepData()->updateOrCreate(
@@ -976,17 +1009,7 @@ class FormulaWorksheet extends Component
     protected function saveSharedPcrPlateMapSteps(): void
     {
         foreach ($this->capturedResults as $captured) {
-            $worksheet = SampleCapturedWorksheetFormula::firstOrCreate(
-                ['captured_result_id' => $captured->id],
-                [
-                    'sample_header_id' => $this->batch->id,
-                    'sample_detail_id' => $captured->sample_detail_id,
-                    'formular_id'      => $this->formula->id,
-                    'lab_no'           => $this->batch->batch_code,
-                    'date'             => $this->sharedWorksheetMeta['date'] ?? now()->format('Y-m-d'),
-                    'done_by_user_id'  => $this->sharedWorksheetMeta['done_by_user_id'] ?? Auth::id(),
-                ]
-            );
+            $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
 
             foreach ($this->sharedPcrPlateMapData as $stepId => $data) {
                 $wells = $data['wells'] ?? [];
@@ -1020,17 +1043,7 @@ class FormulaWorksheet extends Component
         }
 
         foreach ($this->capturedResults as $captured) {
-            $worksheet = SampleCapturedWorksheetFormula::firstOrCreate(
-                ['captured_result_id' => $captured->id],
-                [
-                    'sample_header_id' => $this->batch->id,
-                    'sample_detail_id' => $captured->sample_detail_id,
-                    'formular_id'      => $this->formula->id,
-                    'lab_no'           => $this->batch->batch_code,
-                    'date'             => $this->sharedWorksheetMeta['date'] ?? now()->format('Y-m-d'),
-                    'done_by_user_id'  => $this->sharedWorksheetMeta['done_by_user_id'] ?? Auth::id(),
-                ]
-            );
+            $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
 
             $capturedKey = (string) $captured->id;
             $this->formulaStepTableRowsByCaptured[$capturedKey] = [];
@@ -1078,18 +1091,8 @@ class FormulaWorksheet extends Component
         string $columnKey,
         mixed $value,
     ): void {
-        $captured = collect($this->capturedResults)->firstWhere('id', $capturedResultId);
-        $worksheet = SampleCapturedWorksheetFormula::firstOrCreate(
-            ['captured_result_id' => $capturedResultId],
-            [
-                'sample_header_id' => $this->batch->id,
-                'sample_detail_id' => $captured?->sample_detail_id,
-                'formular_id'      => $this->formula->id,
-                'lab_no'           => $this->batch->batch_code,
-                'date'             => $this->sharedWorksheetMeta['date'] ?? now()->format('Y-m-d'),
-                'done_by_user_id'  => $this->sharedWorksheetMeta['done_by_user_id'] ?? Auth::id(),
-            ]
-        );
+        $captured = $this->resolveCapturedResult($capturedResultId);
+        $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
         $step = FormulaStep::find($stepId);
         if (! $step) {
             return;
@@ -1123,18 +1126,8 @@ class FormulaWorksheet extends Component
             return;
         }
 
-        $captured = collect($this->capturedResults)->firstWhere('id', $capturedResultId);
-        $worksheet = SampleCapturedWorksheetFormula::firstOrCreate(
-            ['captured_result_id' => $capturedResultId],
-            [
-                'sample_header_id' => $this->batch->id,
-                'sample_detail_id' => $captured?->sample_detail_id,
-                'formular_id'      => $this->formula->id,
-                'lab_no'           => $this->batch->batch_code,
-                'date'             => $this->sharedWorksheetMeta['date'] ?? now()->format('Y-m-d'),
-                'done_by_user_id'  => $this->sharedWorksheetMeta['done_by_user_id'] ?? Auth::id(),
-            ]
-        );
+        $captured = $this->resolveCapturedResult($capturedResultId);
+        $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
 
         $instance = app(FormulaStepTableRowGeneratorService::class)->firstOrCreateInstance($worksheet, $step);
         app(FormulaStepTableRowGeneratorService::class)->syncRows($instance, $worksheet, $step);
@@ -1148,18 +1141,8 @@ class FormulaWorksheet extends Component
             return;
         }
 
-        $captured = collect($this->capturedResults)->firstWhere('id', $capturedResultId);
-        $worksheet = SampleCapturedWorksheetFormula::firstOrCreate(
-            ['captured_result_id' => $capturedResultId],
-            [
-                'sample_header_id' => $this->batch->id,
-                'sample_detail_id' => $captured?->sample_detail_id,
-                'formular_id'      => $this->formula->id,
-                'lab_no'           => $this->batch->batch_code,
-                'date'             => $this->sharedWorksheetMeta['date'] ?? now()->format('Y-m-d'),
-                'done_by_user_id'  => $this->sharedWorksheetMeta['done_by_user_id'] ?? Auth::id(),
-            ]
-        );
+        $captured = $this->resolveCapturedResult($capturedResultId);
+        $worksheet = $this->firstOrCreateWorksheetForCaptured($captured);
 
         $instance = app(FormulaStepTableRowGeneratorService::class)->firstOrCreateInstance($worksheet, $step);
         app(FormulaStepTableRowGeneratorService::class)->addManualRow($instance, $step);
