@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Concerns\HasVarcharUuidRelationships;
 use App\Models\CRM\CRMCustomer;
 use App\Models\QcModule\Configurations\QcTypes;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ use App\Casts\SafeEncrypted;
 class SampleHeader extends Model implements Auditable
 {
 	use HasUuids;
+	use HasVarcharUuidRelationships;
 
 	protected $keyType = 'string';
 	public $incrementing = false;
@@ -359,7 +361,7 @@ class SampleHeader extends Model implements Auditable
 
 	public function sample_type()
 	{
-		return $this->belongsTo('App\SampleType');
+		return $this->uuidBelongsTo('App\SampleType');
 	}
 
 	public function stages($wkFlow = false)
@@ -380,17 +382,17 @@ class SampleHeader extends Model implements Auditable
 
 	public function client()
 	{
-		return $this->belongsTo('App\Models\CRM\CRMCustomer', 'crm_customer_id');
+		return $this->uuidBelongsTo('App\Models\CRM\CRMCustomer', 'crm_customer_id');
 	}
 
 	public function specialist_analyst()
 	{
-		return $this->belongsTo('App\User', 'specialist_analyst_id');
+		return $this->uuidBelongsTo('App\User', 'specialist_analyst_id');
 	}
 
 	public function submissionFormInstance()
 	{
-		return $this->belongsTo('App\Models\SubmissionFormInstance', 'submission_form_instance_id');
+		return $this->uuidBelongsTo('App\Models\SubmissionFormInstance', 'submission_form_instance_id');
 	}
 
 	public function sampleSubmissionRequest()
@@ -533,11 +535,11 @@ class SampleHeader extends Model implements Auditable
 	}
 	public function invoice()
 	{
-		return $this->belongsTo(Invoice::class, 'invoice_id');
+		return $this->uuidBelongsTo(Invoice::class, 'invoice_id');
 	}
 	public function customer()
 	{
-		return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
+		return $this->uuidBelongsTo(CRMCustomer::class, 'crm_customer_id');
 	}
 	public function receivingofficer()
 	{
@@ -545,7 +547,7 @@ class SampleHeader extends Model implements Auditable
 	}
 	public function qctype()
 	{
-		return $this->belongsTo(QcTypes::class, 'qc_type_id');
+		return $this->uuidBelongsTo(QcTypes::class, 'qc_type_id');
 	}
 
 	/**

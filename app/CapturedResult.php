@@ -5,6 +5,7 @@ namespace App;
 use App\Models\System\SystemConfiguration;
 use App\Observers\CapturedObserver;
 use App\BatchAttachment;
+use App\Concerns\HasVarcharUuidRelationships;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 class CapturedResult extends Model implements Auditable
 {
 	use \Illuminate\Database\Eloquent\Concerns\HasUuids;
+	use HasVarcharUuidRelationships;
 	protected $keyType = 'string';
 	public $incrementing = false;
 
@@ -227,25 +229,6 @@ class CapturedResult extends Model implements Auditable
 	public function user()
 	{
 		return $this->uuidBelongsTo(User::class, 'user_id');
-	}
-
-	protected function uuidBelongsTo($related, $foreignKey = null, $ownerKey = null, $relation = null)
-	{
-		if (is_null($relation)) {
-			$relation = $this->guessBelongsToRelation();
-		}
-
-		$instance = $this->newRelatedInstance($related);
-
-		if (is_null($foreignKey)) {
-			$foreignKey = \Illuminate\Support\Str::snake($relation).'_id';
-		}
-
-		$ownerKey = $ownerKey ?: $instance->getKeyName();
-
-		return new \App\Relations\UuidBelongsTo(
-			$instance->newQuery(), $this, $foreignKey, $ownerKey, $relation
-		);
 	}
 
 	public function assignAnalyst(?string $userId): void

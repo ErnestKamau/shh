@@ -11,8 +11,9 @@ use App\Models\SubmissionFormInstance;
 use App\SampleAnalysisStage;
 use App\SampleHeader;
 use App\Services\SubmissionFormBatchSyncService;
-use App\SystemConfiguration;
+use App\Models\System\SystemConfiguration;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AcceptanceFormSampleHeaderService
@@ -57,7 +58,7 @@ class AcceptanceFormSampleHeaderService
 
         $receivingOfficer = $this->resolveReceivingOfficer($context);
 
-        return [
+        $attributes = [
             'batch_code' => $batchCode,
             'status' => 'Samples Request Review',
             'crm_customer_id' => $this->resolveCrmCustomerId($form, $context),
@@ -103,10 +104,15 @@ class AcceptanceFormSampleHeaderService
             'current_account_status' => $this->resolveCurrentAccountStatus($form->crm_customer_id),
             'is_routine' => false,
             'routine_frequency' => 0,
-            'is_client_order' => 1,
             'submission_form_instance_id' => $form->submission_form_instance_id,
             'sample_tracking_stage' => $reviewStage?->id,
         ];
+
+        if (Schema::hasColumn('sample_headers', 'is_client_order')) {
+            $attributes['is_client_order'] = 1;
+        }
+
+        return $attributes;
     }
 
     /**

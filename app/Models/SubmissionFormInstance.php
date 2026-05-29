@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use OwenIt\Auditing\Contracts\Auditable;
 
+use App\Concerns\HasVarcharUuidRelationships;
 use App\User;
 use App\Models\CRM\CRMCustomer;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ use Carbon\Carbon;
 class SubmissionFormInstance extends Model implements Auditable
 {
     use HasUuids;
+    use HasVarcharUuidRelationships;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -116,7 +118,7 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function batches(): HasMany
     {
-        return $this->hasMany(\App\SampleHeader::class, 'submission_form_instance_id');
+        return $this->uuidHasMany(\App\SampleHeader::class, 'submission_form_instance_id');
     }
 
     /**

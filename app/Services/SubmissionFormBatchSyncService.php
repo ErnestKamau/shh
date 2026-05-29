@@ -203,7 +203,7 @@ class SubmissionFormBatchSyncService
     {
         $proposed = $this->collectProposedHeaderAttributeMap($header, $headerData);
 
-        $crmUnitId = $proposed['crm_unit_id'] ?? '';
+        $crmUnitId = $proposed['crm_unit_id'] ?? null;
         $crmUnitName = $proposed['crm_unit_name'] ?? '';
 
         $attributes = $proposed;
@@ -214,7 +214,7 @@ class SubmissionFormBatchSyncService
             static fn ($v) => $v !== null && $v !== ''
         );
 
-        $header->crm_unit_id = $crmUnitId;
+        $header->crm_unit_id = ($crmUnitId === '' || $crmUnitId === null) ? null : (string) $crmUnitId;
         $header->crm_unit_name = $crmUnitName;
 
         if ($attributes !== []) {
@@ -517,9 +517,9 @@ class SubmissionFormBatchSyncService
      */
     private function resolveCrmUnit(array $headerData, callable $getSingleValue, callable $getIntegerValue): array
     {
-        $crmCustomerId = $getIntegerValue($headerData['crm_customer_id'] ?? null);
+        $crmCustomerId = $getSingleValue($headerData['crm_customer_id'] ?? null);
         $crmUnit = $getSingleValue($headerData['crm_unit_name'] ?? null);
-        $crmUnitId = '';
+        $crmUnitId = null;
         $crmUnitName = '';
 
         if ($crmCustomerId && ! $crmUnit) {
@@ -551,8 +551,14 @@ class SubmissionFormBatchSyncService
                     $unit = CRMCompanyUnit::query()->where('name', $crmUnit)->first();
                 }
             }
-            $crmUnitId = $unit->id ?? '';
+            $crmUnitId = $unit->id ?? null;
             $crmUnitName = $unit->name ?? '';
+        }
+
+        if ($crmUnitId === '' || $crmUnitId === null) {
+            $crmUnitId = null;
+        } else {
+            $crmUnitId = (string) $crmUnitId;
         }
 
         return [$crmUnitId, $crmUnitName];
