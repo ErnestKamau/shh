@@ -57,6 +57,8 @@
                                 @endphp
                                 @if($col->column_type === 'derived')
                                 <span class="text-muted">{{ $tableData[$row->id][$col->key] ?? '—' }}</span>
+                                @elseif($col->column_type === 'dataset' && ($col->model_tied_to ?? '') === 'samples')
+                                <span class="text-muted">{{ $this->resolveCustomTableDatasetValue($col, $captured) ?: '—' }}</span>
                                 @elseif($isFixedColumn)
                                 <span class="text-muted">{{ $tableData[$row->id][$col->key] ?? '—' }}</span>
                                 @elseif($col->input_data_type === 'textarea')

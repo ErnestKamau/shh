@@ -340,13 +340,14 @@
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button wire:click="showEditFieldModalInit(@js($field['id']))" 
-                                                                class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <div class="d-flex flex-wrap">
+                                                        <button wire:click="showEditFieldModalInit(@js($field['id']))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--edit"
+                                                                title="Edit">
                                                             <i class="mdi mdi-pencil"></i>
                                                         </button>
-                                                        <button wire:click="showDeleteFieldModal(@js($field['id']))" 
-                                                                class="btn btn-sm btn-outline-danger" 
+                                                        <button wire:click="showDeleteFieldModal(@js($field['id']))"
+                                                                class="btn btn-sm rm-act-btn rm-act-btn--delete"
                                                                 title="Delete">
                                                             <i class="mdi mdi-delete"></i>
                                                         </button>
@@ -2118,26 +2119,39 @@
         pointer-events: none;
     }
 
-    .fm-mandatory-modal .fm-placement-tag-select {
-        display: block;
+    .fm-field-placement-section {
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .fm-field-placement-intro {
+        line-height: 1.45;
+        margin-bottom: 0.5rem;
+    }
+
+    .fm-placement-options--field {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
         width: 100%;
     }
 
-    .fm-mandatory-modal .fm-placement-tag-select .tag-select-input {
-        min-height: 38px;
-        padding: 4px 10px;
-        width: 100%;
+    .fm-placement-options--field .fm-placement-chip {
+        flex: 0 0 auto;
+        min-height: 0;
+        padding: 0.28rem 0.7rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border-radius: 999px;
+        box-shadow: none;
     }
 
-    .fm-mandatory-modal .fm-placement-tag-select .tag-dropdown {
-        width: 100%;
-        z-index: 1060;
+    .fm-placement-options--field .fm-placement-chip i {
+        font-size: 0.85rem;
     }
 
-    .fm-mandatory-modal .tag-badge {
-        background-color: #3b82f6;
-        font-size: 0.8125rem;
-        padding: 3px 10px;
+    .fm-placement-options--field .fm-placement-chip.is-active {
+        box-shadow: none;
     }
 
     .fm-mandatory-modal .fs-modal-dialog {

@@ -12,6 +12,8 @@ use Illuminate\Support\Str;
 
 trait InteractsWithFormulaStepTableConfiguration
 {
+    public string $configuringStepTableMode = 'dynamic';
+
     protected function tableEditorNotify(string $message, string $type = 'success'): void
     {
         if (method_exists($this, 'setMessage')) {
@@ -52,6 +54,7 @@ trait InteractsWithFormulaStepTableConfiguration
         }
 
         $this->configuringStepId = $stepId;
+        $this->configuringStepTableMode = (string) ($step->table_mode ?: 'dynamic');
         $this->configureTableWizardStep = 1;
         $this->loadStepTableColumns();
         $this->loadStepStaticRows();
@@ -62,13 +65,14 @@ trait InteractsWithFormulaStepTableConfiguration
     {
         $this->showConfigureTableModal = false;
         $this->configuringStepId = null;
+        $this->configuringStepTableMode = 'dynamic';
         $this->configureTableWizardStep = 1;
         $this->resetStepColumnForm();
     }
 
     public function configureTableWizardGoTo(int $step): void
     {
-        if ($step < 1 || $step > 3) {
+        if ($step < 1 || $step > $this->configureTableMaxStep()) {
             return;
         }
 
@@ -88,7 +92,7 @@ trait InteractsWithFormulaStepTableConfiguration
 
     public function configureTableWizardNext(): void
     {
-        if ($this->configureTableWizardStep >= 3) {
+        if ($this->configureTableWizardStep >= $this->configureTableMaxStep()) {
             $this->closeConfigureTableModal();
 
             return;
@@ -272,6 +276,15 @@ trait InteractsWithFormulaStepTableConfiguration
                 array_map('strval', is_array($config['static_options'] ?? null) ? $config['static_options'] : [])
             );
         }
+        if ($this->stepColumnType === 'dataset') {
+            $this->stepColumnDatasetSourceTable = (string) ($config['source_table'] ?? '');
+            $this->stepColumnDatasetDisplayMode = (string) ($config['display_mode'] ?? 'direct');
+            $this->stepColumnDatasetSourceColumn = (string) ($config['source_display_column'] ?? '');
+            $this->stepColumnDatasetFkColumn = (string) ($config['foreign_key_column'] ?? '');
+            $this->stepColumnDatasetReferencedTable = (string) ($config['referenced_table'] ?? '');
+            $this->stepColumnDatasetReferencedKeyColumn = (string) ($config['referenced_key_column'] ?? 'id');
+            $this->stepColumnDatasetReferencedDisplayColumn = (string) ($config['referenced_display_column'] ?? '');
+        }
         $this->showCreateStepColumnModal = false;
         $this->showEditStepColumnModal = true;
     }
@@ -284,6 +297,7 @@ trait InteractsWithFormulaStepTableConfiguration
 
         $this->validate($this->stepColumnRules());
         $this->validateStepColumnExpression();
+        $this->validateStepColumnDatasetConfig();
 
         [$storageColumnType, $storageInputType, $datasetConfig] = $this->stepColumnStoragePayload();
         if ($this->getErrorBag()->has('stepColumnStaticOptions')) {
@@ -318,6 +332,7 @@ trait InteractsWithFormulaStepTableConfiguration
 
         $this->validate($this->stepColumnRules());
         $this->validateStepColumnExpression();
+        $this->validateStepColumnDatasetConfig();
 
         if (! $this->editingStepColumn) {
             return;
@@ -452,6 +467,13 @@ trait InteractsWithFormulaStepTableConfiguration
     {
         if ($this->stepColumnType !== 'dataset') {
             $this->stepColumnModelTiedTo = '';
+            $this->stepColumnDatasetSourceTable = '';
+            $this->stepColumnDatasetDisplayMode = 'direct';
+            $this->stepColumnDatasetSourceColumn = '';
+            $this->stepColumnDatasetFkColumn = '';
+            $this->stepColumnDatasetReferencedTable = '';
+            $this->stepColumnDatasetReferencedKeyColumn = 'id';
+            $this->stepColumnDatasetReferencedDisplayColumn = '';
         }
         if ($this->stepColumnType !== 'derived') {
             $this->stepColumnExpression = '';
@@ -515,6 +537,32 @@ trait InteractsWithFormulaStepTableConfiguration
         }
     }
 
+    protected function validateStepColumnDatasetConfig(): void
+    {
+        if ($this->stepColumnType !== 'dataset') {
+            return;
+        }
+
+        if ($this->stepColumnModelTiedTo === '') {
+            $this->addError('stepColumnModelTiedTo', 'Select a dataset source.');
+        }
+
+        if ($this->stepColumnModelTiedTo === 'samples') {
+            if ($this->stepColumnDatasetDisplayMode === 'foreign_key') {
+                if ($this->stepColumnDatasetFkColumn === '') {
+                    $this->addError('stepColumnDatasetFkColumn', 'Select the foreign key column.');
+                }
+                if ($this->stepColumnDatasetReferencedDisplayColumn === '') {
+                    $this->addError('stepColumnDatasetReferencedDisplayColumn', 'Select the referenced display column.');
+                }
+            } else {
+                if ($this->stepColumnDatasetSourceColumn === '') {
+                    $this->addError('stepColumnDatasetSourceColumn', 'Select the source display column.');
+                }
+            }
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -527,6 +575,7 @@ trait InteractsWithFormulaStepTableConfiguration
             'stepColumnInputDataType' => 'required_if:stepColumnType,input|in:string,number,date,time,datetime,boolean,textarea,radio,checkbox,select',
             'stepColumnExpression' => 'nullable|required_if:stepColumnType,derived|string',
             'stepColumnModelTiedTo' => 'nullable|required_if:stepColumnType,dataset|string',
+            'stepColumnDatasetDisplayMode' => 'nullable|in:direct,foreign_key',
             'stepColumnChoiceControl' => 'nullable|in:radio,checkbox,select',
             'stepColumnStaticOptions' => 'nullable|string',
             'stepColumnOrder' => 'required|integer|min:1',
@@ -544,6 +593,13 @@ trait InteractsWithFormulaStepTableConfiguration
         $this->stepColumnInputDataType = 'string';
         $this->stepColumnExpression = '';
         $this->stepColumnModelTiedTo = '';
+        $this->stepColumnDatasetSourceTable = '';
+        $this->stepColumnDatasetDisplayMode = 'direct';
+        $this->stepColumnDatasetSourceColumn = '';
+        $this->stepColumnDatasetFkColumn = '';
+        $this->stepColumnDatasetReferencedTable = '';
+        $this->stepColumnDatasetReferencedKeyColumn = 'id';
+        $this->stepColumnDatasetReferencedDisplayColumn = '';
         $this->stepColumnOrder = 1;
         $this->stepColumnIsRequired = false;
         $this->stepColumnHelpText = '';
@@ -574,6 +630,28 @@ trait InteractsWithFormulaStepTableConfiguration
             : 'string';
 
         $datasetConfig = null;
+        if ($this->stepColumnType === 'dataset') {
+            $sourceTable = $this->stepColumnModelTiedTo === 'samples'
+                ? 'sample_details'
+                : $this->stepColumnDatasetSourceTable;
+            $datasetConfig = [
+                'source_table' => $sourceTable,
+                'display_mode' => $this->stepColumnDatasetDisplayMode,
+                'source_display_column' => $this->stepColumnDatasetDisplayMode === 'direct'
+                    ? $this->stepColumnDatasetSourceColumn
+                    : null,
+                'foreign_key_column' => $this->stepColumnDatasetDisplayMode === 'foreign_key'
+                    ? $this->stepColumnDatasetFkColumn
+                    : null,
+                'referenced_table' => $this->stepColumnDatasetDisplayMode === 'foreign_key'
+                    ? $this->stepColumnDatasetReferencedTable
+                    : null,
+                'referenced_key_column' => $this->stepColumnDatasetReferencedKeyColumn ?: 'id',
+                'referenced_display_column' => $this->stepColumnDatasetDisplayMode === 'foreign_key'
+                    ? $this->stepColumnDatasetReferencedDisplayColumn
+                    : null,
+            ];
+        }
         if ($this->stepColumnType === 'input' && in_array($this->stepColumnInputDataType, ['radio', 'checkbox', 'select'], true)) {
             $options = collect(preg_split('/\r\n|\r|\n/', $this->stepColumnStaticOptions) ?: [])
                 ->map(fn ($option) => trim((string) $option))
@@ -597,6 +675,16 @@ trait InteractsWithFormulaStepTableConfiguration
         }
 
         return [$this->stepColumnType, $inputType, $datasetConfig];
+    }
+
+    public function isStaticTableConfiguration(): bool
+    {
+        return ($this->configuringStepTableMode ?? 'dynamic') === 'static';
+    }
+
+    public function configureTableMaxStep(): int
+    {
+        return $this->isStaticTableConfiguration() ? 3 : 2;
     }
 
 

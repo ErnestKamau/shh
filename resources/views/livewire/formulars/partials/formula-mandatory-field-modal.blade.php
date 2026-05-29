@@ -24,6 +24,11 @@
                 </div>
 
                 <div class="modal-body fs-modal-body">
+                    @if($message)
+                        <div class="alert alert-{{ $this->messageAlertClass() }} mb-3" role="alert">
+                            {{ $message }}
+                        </div>
+                    @endif
                     @if($errors->any())
                         <div class="alert alert-danger mb-3" role="alert">
                             <h6 class="alert-heading mb-2">
@@ -50,8 +55,7 @@
                                                wire:model="fieldLabel"
                                                class="form-control fs-input @error('fieldLabel') is-invalid @enderror"
                                                id="{{ $isEdit ? 'editFieldLabel' : 'fieldLabel' }}"
-                                               placeholder="e.g. Equipment used"
-                                               required>
+                                               placeholder="e.g. Equipment used">
                                         @error('fieldLabel') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                     <div class="mb-0">
@@ -60,10 +64,9 @@
                                                wire:model="fieldValueName"
                                                class="form-control fs-input @error('fieldValueName') is-invalid @enderror"
                                                id="{{ $isEdit ? 'editFieldValueName' : 'fieldValueName' }}"
-                                               placeholder="e.g. equipment_id"
-                                               required>
+                                               placeholder="e.g. capture_date">
                                         @error('fieldValueName') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                        <span class="fm-field-hint">Key used when storing captured values.</span>
+                                        <span class="fm-field-hint">Lowercase key with underscores only (e.g. capture_date).</span>
                                     </div>
                                 </section>
                             </div>
@@ -118,37 +121,39 @@
                             @error('fieldType') <div class="invalid-feedback d-block mt-1">{{ $message }}</div> @enderror
                         </section>
 
-                        <section class="fs-form-section mt-4 mb-0">
-                            <label class="fs-form-label d-block">Form field placement <span class="text-danger">*</span></label>
-                            <div class="tag-select-container fm-placement-tag-select w-100 @error('fieldFormPlacement') is-invalid @enderror"
-                                 wire:click="$set('showFieldFormPlacementDropdown', true)"
-                                 wire:click.outside="closeFieldFormPlacementDropdown">
-                                <div class="tag-select-input" wire:click.stop>
-                                    @if($this->selectedFieldFormPlacementLabel)
-                                        <span class="tag-badge">
-                                            <span class="tag-badge-label">{{ $this->selectedFieldFormPlacementLabel }}</span>
-                                        </span>
-                                    @endif
-                                    <input type="text"
-                                           class="tag-input"
-                                           readonly
-                                           placeholder="{{ $this->selectedFieldFormPlacementLabel ? '' : 'Select placement…' }}"
-                                           style="cursor: pointer;">
-                                </div>
-                                @if($showFieldFormPlacementDropdown)
-                                    <div class="tag-dropdown" wire:click.stop>
-                                        @foreach($this->fieldFormPlacementOptions as $value => $label)
-                                            <div class="tag-dropdown-item {{ $fieldFormPlacement === $value ? 'active' : '' }}"
-                                                 wire:click.stop="selectFieldFormPlacement('{{ $value }}')">
-                                                <i class="mdi mdi-arrow-{{ $value === 'top' ? 'up' : 'down' }}-bold mr-1"></i>
-                                                {{ $label }}
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @endif
+                        <section class="fs-form-section mt-4 mb-0 fm-field-placement-section">
+                            <label class="fs-form-label d-block mb-1">Form field placement <span class="text-danger">*</span></label>
+                            <p class="fm-field-placement-intro text-muted small mb-2">
+                                Choose where this field appears on the worksheet when analysts capture results.
+                            </p>
+                            <div class="fm-placement-options fm-placement-options--field @error('fieldFormPlacement') is-invalid @enderror"
+                                 role="radiogroup"
+                                 aria-label="Form field placement">
+                                <label class="fm-placement-chip {{ $fieldFormPlacement === 'top' ? 'is-active' : '' }}"
+                                       title="Top of form — above the sample table">
+                                    <input type="radio"
+                                           wire:model.live="fieldFormPlacement"
+                                           value="top"
+                                           class="fm-placement-input"
+                                           name="{{ $isEdit ? 'edit_field_form_placement' : 'create_field_form_placement' }}">
+                                    <i class="mdi mdi-arrow-up-bold" aria-hidden="true"></i>
+                                    <span>Top</span>
+                                </label>
+                                <label class="fm-placement-chip {{ $fieldFormPlacement === 'bottom' ? 'is-active' : '' }}"
+                                       title="Bottom of form — below the sample table">
+                                    <input type="radio"
+                                           wire:model.live="fieldFormPlacement"
+                                           value="bottom"
+                                           class="fm-placement-input"
+                                           name="{{ $isEdit ? 'edit_field_form_placement' : 'create_field_form_placement' }}">
+                                    <i class="mdi mdi-arrow-down-bold" aria-hidden="true"></i>
+                                    <span>Bottom</span>
+                                </label>
                             </div>
                             @error('fieldFormPlacement') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                            <span class="fm-field-hint d-block mt-1">Where this field appears relative to the sample table.</span>
+                            <span class="fm-field-hint d-block mt-2">
+                                <strong>Top</strong> shows the field above the sample table; <strong>Bottom</strong> shows it below the table.
+                            </span>
                         </section>
 
                         @if($fieldType === 'checkbox')
@@ -217,8 +222,7 @@
                                     <label class="fs-form-label" for="{{ $isEdit ? 'editFieldModelTiedTo' : 'fieldModelTiedTo' }}">Dataset model <span class="text-danger">*</span></label>
                                     <select wire:model="fieldModelTiedTo"
                                             class="form-select fs-input modern-select no-select2 @error('fieldModelTiedTo') is-invalid @enderror"
-                                            id="{{ $isEdit ? 'editFieldModelTiedTo' : 'fieldModelTiedTo' }}"
-                                            required>
+                                            id="{{ $isEdit ? 'editFieldModelTiedTo' : 'fieldModelTiedTo' }}">
                                         <option value="">Select dataset model</option>
                                         <option value="equipments">Equipments</option>
                                         <option value="users">Users</option>
@@ -233,11 +237,18 @@
 
                 <div class="modal-footer fs-modal-footer">
                     <button type="button" class="btn btn-light" wire:click="closeMandatoryFieldModal">Cancel</button>
-                    <button type="submit"
-                            form="{{ $isEdit ? 'edit-formula-mandatory-field-form' : 'create-formula-mandatory-field-form' }}"
-                            class="btn btn-primary px-4">
-                        <i class="mdi mdi-content-save-outline mr-1"></i>
-                        {{ $isEdit ? 'Update Field' : 'Create Field' }}
+                    <button type="button"
+                            wire:click="{{ $isEdit ? 'updateMandatoryField' : 'createMandatoryField' }}"
+                            class="btn btn-primary px-4"
+                            wire:loading.attr="disabled"
+                            wire:target="{{ $isEdit ? 'updateMandatoryField' : 'createMandatoryField' }}">
+                        <span wire:loading.remove wire:target="{{ $isEdit ? 'updateMandatoryField' : 'createMandatoryField' }}">
+                            <i class="mdi mdi-content-save-outline mr-1"></i>
+                            {{ $isEdit ? 'Update Field' : 'Create Field' }}
+                        </span>
+                        <span wire:loading wire:target="{{ $isEdit ? 'updateMandatoryField' : 'createMandatoryField' }}">
+                            Saving…
+                        </span>
                     </button>
                 </div>
             </div>

@@ -17,6 +17,8 @@ use App\Models\Formulars\FormulaStepTableColumn;
 use App\Services\Formulars\FormulaEvaluator;
 use App\Services\LogEntryWorksheets\LogEntryDatabaseSchemaService;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -112,6 +114,20 @@ class FormulaStepEditor extends Component
 
     public string $stepColumnModelTiedTo = '';
 
+    public string $stepColumnDatasetSourceTable = '';
+
+    public string $stepColumnDatasetDisplayMode = 'direct';
+
+    public string $stepColumnDatasetSourceColumn = '';
+
+    public string $stepColumnDatasetFkColumn = '';
+
+    public string $stepColumnDatasetReferencedTable = '';
+
+    public string $stepColumnDatasetReferencedKeyColumn = 'id';
+
+    public string $stepColumnDatasetReferencedDisplayColumn = '';
+
     public int $stepColumnOrder = 1;
 
     public bool $stepColumnIsRequired = false;
@@ -190,9 +206,14 @@ class FormulaStepEditor extends Component
         return [
             'fieldLabel' => 'required|string|max:255',
             'fieldType' => 'required|in:input,datetime,date,checkbox,dataset_related',
-            'fieldValueName' => 'required|string|max:255',
+            'fieldValueName' => ['required', 'string', 'max:255', 'regex:/^[a-z][a-z0-9_]*$/'],
             'fieldHelpText' => 'nullable|string',
-            'fieldModelTiedTo' => 'nullable|required_if:fieldType,dataset_related|in:equipments,users,methods',
+            'fieldOrder' => 'required|integer|min:1',
+            'fieldModelTiedTo' => [
+                Rule::excludeIf(fn (): bool => $this->fieldType !== 'dataset_related'),
+                'required',
+                Rule::in(['equipments', 'users', 'methods']),
+            ],
             'fieldIsRequired' => 'boolean',
             'fieldFormPlacement' => 'required|in:top,bottom',
             'fieldChoiceOptions' => 'nullable|array',
@@ -250,11 +271,34 @@ class FormulaStepEditor extends Component
         $users = User::orderBy('name')->get();
         $methods = AnalysisMethod::orderBy('name')->get();
         
+        $stepColumnSourceTable = $this->stepColumnModelTiedTo === 'samples'
+            ? 'sample_details'
+            : $this->stepColumnDatasetSourceTable;
+
         return view('livewire.formulars.formula-step-editor', [
             'lookupTables' => $lookupTables,
             'globalVariables' => $globalVariables,
             'availableVariables' => $availableVariables,
             'mandatoryFieldTypes' => FormulaMandatoryField::getFieldTypes(),
+            'stepColumnTypeOptions' => [
+                'input' => 'Input',
+                'derived' => 'Derived',
+                'dataset' => 'Dataset',
+                'static' => 'Static',
+            ],
+            'stepTableDatasetOptions' => FormulaStepTableColumn::datasetPresetOptions(),
+            'inputDataTypeOptions' => [
+                'string' => 'Text',
+                'number' => 'Number',
+                'date' => 'Date',
+                'time' => 'Time',
+                'datetime' => 'Date & time',
+                'boolean' => 'Yes/No',
+                'textarea' => 'Long text',
+                'radio' => 'Radio buttons (single choice)',
+                'checkbox' => 'Checkboxes (multi choice)',
+                'select' => 'Select dropdown (single choice)',
+            ],
             'analytes' => $analytes,
             'equipments' => $equipments,
             'users' => $users,
@@ -269,6 +313,16 @@ class FormulaStepEditor extends Component
                 : [],
             'checkboxDatasetReferencedColumns' => $this->checkboxDatasetReferencedTable !== ''
                 ? $logEntrySchema->columnOptions($this->checkboxDatasetReferencedTable)
+                : [],
+            'stepColumnDatasetTables' => $logEntrySchema->tableOptions(),
+            'stepColumnDatasetColumns' => $stepColumnSourceTable !== ''
+                ? $logEntrySchema->columnOptions($stepColumnSourceTable)
+                : [],
+            'stepColumnDatasetForeignKeys' => $stepColumnSourceTable !== ''
+                ? $logEntrySchema->foreignKeyOptions($stepColumnSourceTable)
+                : [],
+            'stepColumnDatasetReferencedColumns' => $this->stepColumnDatasetReferencedTable !== ''
+                ? $logEntrySchema->columnOptions($this->stepColumnDatasetReferencedTable)
                 : [],
         ]);
     }
@@ -703,6 +757,48 @@ class FormulaStepEditor extends Component
         }
     }
 
+    public function updatedStepColumnDatasetSourceTable(): void
+    {
+        if ($this->stepColumnModelTiedTo === 'samples') {
+            $this->stepColumnDatasetSourceTable = 'sample_details';
+        }
+        $this->stepColumnDatasetSourceColumn = '';
+        $this->stepColumnDatasetFkColumn = '';
+        $this->stepColumnDatasetReferencedTable = '';
+        $this->stepColumnDatasetReferencedDisplayColumn = '';
+    }
+
+    public function updatedStepColumnDatasetFkColumn(): void
+    {
+        $sourceTable = $this->stepColumnModelTiedTo === 'samples'
+            ? 'sample_details'
+            : $this->stepColumnDatasetSourceTable;
+        if ($this->stepColumnDatasetFkColumn === '' || $sourceTable === '') {
+            return;
+        }
+
+        $fks = app(LogEntryDatabaseSchemaService::class)->foreignKeyOptions($sourceTable);
+        $match = collect($fks)->firstWhere('column', $this->stepColumnDatasetFkColumn);
+        if ($match) {
+            $this->stepColumnDatasetReferencedTable = $match['referenced_table'];
+            $this->stepColumnDatasetReferencedKeyColumn = $match['referenced_column'];
+            $this->stepColumnDatasetReferencedDisplayColumn = '';
+        }
+    }
+
+    public function updatedStepColumnModelTiedTo(): void
+    {
+        if ($this->stepColumnModelTiedTo === 'samples') {
+            $this->stepColumnDatasetSourceTable = 'sample_details';
+            $this->stepColumnDatasetDisplayMode = 'direct';
+            $this->stepColumnDatasetSourceColumn = '';
+            $this->stepColumnDatasetFkColumn = '';
+            $this->stepColumnDatasetReferencedTable = '';
+            $this->stepColumnDatasetReferencedKeyColumn = 'id';
+            $this->stepColumnDatasetReferencedDisplayColumn = '';
+        }
+    }
+
     public function addCheckboxStaticOption(): void
     {
         $label = trim($this->checkboxNewOption);
@@ -1116,6 +1212,7 @@ class FormulaStepEditor extends Component
 
     public function createMandatoryField()
     {
+        $this->fieldValueName = $this->normalizedFieldValueName();
         $this->validate($this->mandatoryFieldRules());
         $this->validateChoiceOptionsForCheckbox();
 
@@ -1133,6 +1230,7 @@ class FormulaStepEditor extends Component
 
     public function updateMandatoryField()
     {
+        $this->fieldValueName = $this->normalizedFieldValueName();
         $this->validate($this->mandatoryFieldRules());
         $this->validateChoiceOptionsForCheckbox();
 
@@ -1221,6 +1319,8 @@ class FormulaStepEditor extends Component
         )));
 
         if ($choices === []) {
+            $this->addError('fieldChoiceOptions', 'Add at least one checkbox option.');
+
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'fieldChoiceOptions' => ['Add at least one checkbox option.'],
             ]);
@@ -1237,20 +1337,38 @@ class FormulaStepEditor extends Component
             $this->fieldChoiceOptions
         )));
 
-        return [
+        $payload = [
             'formula_version_id' => $this->formulaVersion->id,
             'label' => $this->fieldLabel,
             'field_type' => $this->fieldType,
             'order' => $this->fieldOrder,
-            'form_placement' => $this->fieldFormPlacement,
             'help_text' => $this->fieldHelpText ?: null,
             'model_tied_to' => $this->fieldType === 'dataset_related' ? $this->fieldModelTiedTo : null,
             'is_required' => $this->fieldIsRequired,
             'field_value_name' => $this->fieldValueName,
-            'field_options' => $this->fieldType === 'checkbox'
-                ? ['options' => $choices]
-                : null,
         ];
+
+        // Backward-compatible payload while migrations are being applied.
+        if (Schema::hasColumn('formula_mandatory_fields', 'form_placement')) {
+            $payload['form_placement'] = $this->fieldFormPlacement;
+        }
+
+        if (Schema::hasColumn('formula_mandatory_fields', 'field_options')) {
+            $payload['field_options'] = $this->fieldType === 'checkbox'
+                ? ['options' => $choices]
+                : null;
+        }
+
+        return $payload;
+    }
+
+    protected function normalizedFieldValueName(): string
+    {
+        $normalized = strtolower(trim($this->fieldValueName));
+        $normalized = preg_replace('/[^a-z0-9_]+/', '_', $normalized) ?? '';
+        $normalized = trim($normalized, '_');
+
+        return $normalized;
     }
 
     protected function resetFieldForm()
