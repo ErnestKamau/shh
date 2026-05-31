@@ -346,9 +346,9 @@ class Samples extends Component
 
             foreach ($combos as $group) {
                 $first = $group->first();
-                $worksheetId = (int) $first->procedure_worksheet_id;
-                $analyteId = (int) $first->analyte_id;
-                $capturedIds = $group->pluck('id')->map(fn ($v) => (int) $v)->values()->all();
+                $worksheetId = (string) $first->procedure_worksheet_id;
+                $analyteId = (string) $first->analyte_id;
+                $capturedIds = $group->pluck('id')->map(fn ($v) => (string) $v)->values()->all();
 
                 // If any captured result in this group has worksheet_posted = true,
                 // treat this worksheet/parameter as already posted and skip warning.

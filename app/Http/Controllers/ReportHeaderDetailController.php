@@ -1172,9 +1172,17 @@ class ReportHeaderDetailController extends Controller
 				];
 			}
 			
+			$appearance = $sample->notes_body;
+			if (is_string($appearance)) {
+				$appearance = trim(html_entity_decode(strip_tags($appearance), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+			}
+			if ($appearance === null || $appearance === '') {
+				$appearance = $sample->material_status ?? 'Liquid';
+			}
+
 			$samplesData[] = [
 				'sample_code' => $sample->sample_code,
-				'appearance' => $sample->notes_body ?? ($sample->material_status ?? 'Liquid'),
+				'appearance' => $appearance,
 				'results' => $results,
 			];
 		}

@@ -333,7 +333,7 @@ class SampleHeader extends Model implements Auditable
 	{
 		// For Login Date, automatically return the submission form instance creation date if it exists
 		if ($type === 'Login Date' && $this->submission_form_instance_id) {
-			$submissionFormInstance = $this->submissionFormInstance();
+			$submissionFormInstance = $this->submissionFormInstance;
 			if ($submissionFormInstance) {
 				$submissionDate = $submissionFormInstance->created_at ? date('Y-m-d', strtotime($submissionFormInstance->created_at)) : null;
 				if ($submissionDate) {

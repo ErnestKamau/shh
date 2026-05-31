@@ -3805,7 +3805,7 @@ class SampleWorkFlowController extends Controller
                         continue;
                     }
 
-                    $analyteId = (int) $combo->analyte_id;
+                    $analyteId = (string) $combo->analyte_id;
 
                     // Optionally scope to samples that have this analyte + worksheet in this batch.
                     $sampleIds = CapturedResult::where('sample_header_id', $header->id)

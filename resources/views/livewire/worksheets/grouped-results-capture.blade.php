@@ -36,8 +36,7 @@
             <p class="mb-0 mt-2 text-muted">No parameters or samples found for results capture on this pipeline.</p>
         </div>
     @else
-        @include('livewire.worksheets.partials.grouped-results-capture-actions-script')
-        <div x-data="window.groupedResultsCaptureActions($wire)">
+        <div x-data="groupedResultsCaptureActions">
         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
             <div class="mb-2 mb-md-0">
                 <h6 class="mb-1">Results capture</h6>
@@ -261,4 +260,50 @@
         </div>
         </div>
     @endif
+
+    @script
+    <script>
+        Alpine.data('groupedResultsCaptureActions', () => ({
+            activeSampleId() {
+                const samples = $wire.get('samples') || [];
+                const index = $wire.get('activeSampleIndex') ?? 0;
+                const sample = samples[index];
+
+                return sample && sample.sample_detail_id ? sample.sample_detail_id : null;
+            },
+            async syncActiveEditors() {
+                if (typeof tinymce === 'undefined') {
+                    return;
+                }
+
+                const sampleId = this.activeSampleId();
+                if (!sampleId) {
+                    return;
+                }
+
+                const comments = {
+                    header_body: '',
+                    main_body: '',
+                    notes_body: '',
+                };
+
+                [
+                    { editorId: 'grc-header-' + sampleId, field: 'header_body' },
+                    { editorId: 'grc-main-' + sampleId, field: 'main_body' },
+                    { editorId: 'grc-notes-' + sampleId, field: 'notes_body' },
+                ].forEach(({ editorId, field }) => {
+                    const editor = tinymce.get(editorId);
+                    if (!editor) {
+                        return;
+                    }
+
+                    editor.save();
+                    comments[field] = editor.getContent();
+                });
+
+                await $wire.setSampleCommentsForSample(sampleId, comments);
+            },
+        }));
+    </script>
+    @endscript
 </div>

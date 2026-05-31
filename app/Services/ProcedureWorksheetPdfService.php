@@ -149,7 +149,7 @@ class ProcedureWorksheetPdfService
         $stepAnalystMap = [];
         $analyteIds = $capturedResults->pluck('analyte_id')->filter()->unique()->values();
         if ($analyteIds->count() === 1) {
-            $activeAnalyteId = (int) $analyteIds->first();
+            $activeAnalyteId = (string) $analyteIds->first();
             $stepAnalystRows = ProcedureWorksheetStepAnalyst::where('batch_id', $batch->id)
                 ->where('analyte_id', $activeAnalyteId)
                 ->where('procedure_worksheet_id', $worksheet->id)
@@ -407,7 +407,10 @@ class ProcedureWorksheetPdfService
             // Ensure each (worksheet, analyte) combination gets its own file
             $analyteSuffix = '';
             if (! empty($analyteIds)) {
-                $analyteSuffix = '-analyte-' . implode('_', array_map('intval', $analyteIds));
+                $analyteSuffix = '-analyte-' . implode('_', array_map(
+                    fn ($id) => str_replace('-', '', (string) $id),
+                    $analyteIds
+                ));
             }
 
             $filename = 'procedure-worksheet-' . $worksheet->id . '-batch-' . $batch->id . $analyteSuffix . '.pdf';
