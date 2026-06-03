@@ -118,6 +118,7 @@ class WorkflowBoard extends Component
     public string $submissionFormsSearch = '';
     public string $submissionFormsStatus = '';
     public string $submissionFormsPriority = '';
+    public string $natureOfSampleFilter = '';
     
     /**
      * Expandable advanced filters (Samples Receiving layout).
@@ -233,6 +234,11 @@ class WorkflowBoard extends Component
     }
 
     public function updatingSubmissionFormsPriority(): void
+    {
+        $this->resetPage('forms_page');
+    }
+
+    public function updatingNatureOfSampleFilter(): void
     {
         $this->resetPage('forms_page');
     }
@@ -524,6 +530,16 @@ class WorkflowBoard extends Component
             $query->whereDate('submitted_at', '<=', $this->receiptDateTo);
         }
 
+        if ($this->natureOfSampleFilter) {
+            $filter = $this->natureOfSampleFilter;
+            $instanceIds = \App\Models\SubmissionFormInstanceValue::query()
+                ->whereHas('element', fn ($q) => $q->where('name', 'nature_of_sample'))
+                ->get()
+                ->filter(fn ($v) => $v->value === $filter)
+                ->pluck('submission_form_instance_id');
+            $query->whereIn('id', $instanceIds);
+        }
+
         if ($this->submissionFormsSearch) {
             $search = $this->submissionFormsSearch;
             $query->where(function ($q) use ($search) {
@@ -623,6 +639,16 @@ class WorkflowBoard extends Component
 
         if ($this->submissionFormsStatus) {
             $query->where('status', $this->submissionFormsStatus);
+        }
+
+        if ($this->natureOfSampleFilter) {
+            $filter = $this->natureOfSampleFilter;
+            $instanceIds = \App\Models\SubmissionFormInstanceValue::query()
+                ->whereHas('element', fn ($q) => $q->where('name', 'nature_of_sample'))
+                ->get()
+                ->filter(fn ($v) => $v->value === $filter)
+                ->pluck('submission_form_instance_id');
+            $query->whereIn('id', $instanceIds);
         }
 
         if ($this->submissionFormsSearch) {
@@ -1070,6 +1096,7 @@ class WorkflowBoard extends Component
         $this->submissionFormsSearch = '';
         $this->submissionFormsStatus = '';
         $this->submissionFormsPriority = '';
+        $this->natureOfSampleFilter = '';
     }
 
     public function toggleAdvancedFilters(): void
@@ -1725,8 +1752,17 @@ class WorkflowBoard extends Component
         // Compute once to avoid running the query twice (tatTodayCount calls tatTodayBatches).
         $tatTodayBatches = $this->tatTodayBatches;
 
+        $natureOfSampleOptions = \App\Models\System\SystemConfigurationsType::where('configuration_type', 'Nature of Sample')
+            ->with('configurations')
+            ->first()
+            ?->configurations
+            ?->sortBy('key')
+            ?->values()
+            ?? collect();
+
         return view('livewire.sampleworkflow.workflow-board', [
             'batches' => $this->batches,
+            'natureOfSampleOptions' => $natureOfSampleOptions,
             'labsections' => $this->labsections,
             'analysts' => $this->analysts,
             'users' => $this->users,

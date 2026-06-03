@@ -403,6 +403,7 @@
                     <option value="user_signature">User Signature</option>
                     <option value="depended_field">Depended Field</option>
                     <option value="pricelist_viewer">Pricelist Viewer</option>
+                    <option value="system_config_select">System Config Select</option>
                   </select>
                 </div>
               </div>
@@ -1266,7 +1267,7 @@ const FormBuilder = {
     handleElementTypeChange() {
         const elementType = $('#element-type').val();
         const needsOptions = ['select', 'radio', 'checkbox'].includes(elementType);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'contact_signature', 'depended_field', 'zone_select'].includes(elementType);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'contact_signature', 'depended_field', 'zone_select', 'system_config_select'].includes(elementType);
         
         // Show/hide depends configuration for user_signature and contact_signature
         if (elementType === 'user_signature') {
@@ -1392,7 +1393,7 @@ const FormBuilder = {
         
         // Collect options if needed
         const needsOptions = ['select', 'radio', 'checkbox'].includes(formData.element_type);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'depended_field', 'zone_select'].includes(formData.element_type);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'depended_field', 'zone_select', 'system_config_select'].includes(formData.element_type);
         
         // Handle user_signature and contact_signature - save depends in options
         if (formData.element_type === 'user_signature' || formData.element_type === 'contact_signature') {

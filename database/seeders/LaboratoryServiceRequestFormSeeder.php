@@ -241,11 +241,13 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
         ]);
 
         $samplesHolder->elements()->create([
-            'element_type' => 'text',
+            'element_type' => 'system_config_select',
             'label' => 'Nature of Sample',
             'name' => 'nature_of_sample',
             'is_required' => false,
             'sort_order' => 6,
+            'source_table' => 'system_configuration_types',
+            'source_field' => 'Nature of Sample',
         ]);
 
         $samplesHolder->elements()->create([

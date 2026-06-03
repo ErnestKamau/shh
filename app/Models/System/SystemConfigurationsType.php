@@ -23,4 +23,9 @@ class SystemConfigurationsType extends Model implements Auditable
     ];
 
     protected $table = 'system_configuration_types';
+
+    public function configurations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SystemConfiguration::class, 'configuration_type_id');
+    }
 }

@@ -25,6 +25,7 @@ class FormSchemaBuilder
         'standard_select',
         'sample_point_select',
         'user_select',
+        'system_config_select',
     ];
 
     /** @var list<string> */

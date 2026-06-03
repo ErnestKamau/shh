@@ -10,7 +10,7 @@ trait ComparesVarcharForeignKeyToUuid
     {
         if (DB::connection()->getDriverName() === 'pgsql') {
             return sprintf(
-                "NULLIF(TRIM(%s), '')::uuid = %s",
+                "NULLIF(TRIM(%s::text), '')::uuid = %s",
                 $varcharQualifiedColumn,
                 $uuidQualifiedColumn,
             );

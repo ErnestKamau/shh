@@ -1306,7 +1306,7 @@
 							@if($showAdvancedFilters)
 								<div class="workflow-filters-advanced">
 									<div class="row">
-										<div class="col-md-3">
+										<div class="col-md-2">
 											<div class="form-group mb-3 mb-md-0">
 												<label class="form-label small fw-bold">Priority</label>
 												<select wire:model.live="submissionFormsPriority" class="form-control form-control-sm">
@@ -1318,7 +1318,18 @@
 												</select>
 											</div>
 										</div>
-										<div class="col-md-5">
+										<div class="col-md-2">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Nature of Sample</label>
+												<select wire:model.live="natureOfSampleFilter" class="form-control form-control-sm">
+													<option value="">All</option>
+													@foreach($natureOfSampleOptions as $opt)
+														<option value="{{ $opt->value }}">{{ $opt->key }}</option>
+													@endforeach
+												</select>
+											</div>
+										</div>
+										<div class="col-md-4">
 											<div class="form-group mb-3 mb-md-0">
 												<label class="form-label small fw-bold">Customer</label>
 												<div class="position-relative">
@@ -1369,7 +1380,7 @@
 												</div>
 											</div>
 										</div>
-										<div class="col-md-3">
+										<div class="col-md-2">
 											<div class="form-group mb-3 mb-md-0">
 												<label class="form-label small fw-bold">Sample Type</label>
 												<select wire:model.live="sampleTypeFilter" class="form-control form-control-sm">
@@ -1542,7 +1553,18 @@
 													</select>
 												</div>
 											</div>
-											<div class="col-md-5">
+											<div class="col-md-2">
+												<div class="form-group mb-3 mb-md-0">
+													<label class="form-label small fw-bold">Nature of Sample</label>
+													<select wire:model.live="natureOfSampleFilter" class="form-control form-control-sm">
+														<option value="">All</option>
+														@foreach($natureOfSampleOptions as $opt)
+															<option value="{{ $opt->value }}">{{ $opt->key }}</option>
+														@endforeach
+													</select>
+												</div>
+											</div>
+											<div class="col-md-3">
 												<div class="form-group mb-3 mb-md-0">
 													<label class="form-label small fw-bold">Customer</label>
 													<div class="position-relative">

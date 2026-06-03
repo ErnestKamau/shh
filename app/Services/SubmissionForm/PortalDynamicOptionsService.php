@@ -17,6 +17,7 @@ use App\SampleCondition;
 use App\SampleType;
 use App\Standards;
 use App\User;
+use App\Models\System\SystemConfigurationsType;
 use App\Zone;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -39,6 +40,7 @@ class PortalDynamicOptionsService
         'sample_point_select',
         'user_select',
         'zone_select',
+        'system_config_select',
     ];
 
     private const MAX_PER_PAGE = 100;
@@ -79,6 +81,7 @@ class PortalDynamicOptionsService
             'sample_point_select' => ['options' => $this->samplePoints($clientUnitId)],
             'user_select' => $this->userSelect($search, $page, $perPage),
             'zone_select' => ['options' => $this->zones()],
+            'system_config_select' => ['options' => $this->systemConfigOptions((string) $request->input('source_field', ''))],
             default => ['options' => []],
         };
     }
@@ -417,6 +420,27 @@ class PortalDynamicOptionsService
     /**
      * @return list<array{value: mixed, label: string}>
      */
+    private function systemConfigOptions(string $typeName): array
+    {
+        if ($typeName === '') {
+            return [];
+        }
+
+        $type = SystemConfigurationsType::where('configuration_type', $typeName)->first();
+
+        if (! $type) {
+            return [];
+        }
+
+        return $type->configurations()
+            ->where('status', true)
+            ->orderBy('key')
+            ->get()
+            ->map(fn ($cfg) => ['value' => $cfg->value, 'label' => $cfg->key])
+            ->values()
+            ->all();
+    }
+
     private function zones(): array
     {
         $element = new SubmissionFormElement(['element_type' => 'zone_select']);
