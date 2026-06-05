@@ -127,4 +127,9 @@ class CRMCustomer extends Model implements Auditable
           ->orderBy('display_order')
           ->orderBy('id');
   }
+
+  public function documentAttachments()
+  {
+      return $this->hasMany(CrmCustomerAttachment::class, 'crm_customer_id');
+  }
 }

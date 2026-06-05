@@ -112,6 +112,24 @@
                                     <span class="fw-semibold">{{ __('crm.amendments') }}</span>
                                 </button>
                             </li>
+                            {{-- Certifications tab disabled (use Documents tab instead)
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link modern-tab-link {{ $activeTab === 'certifications' ? 'active' : '' }}"
+                                        wire:click="setActiveTab('certifications')"
+                                        type="button">
+                                    <i class="mdi mdi-file-certificate me-2"></i>
+                                    <span class="fw-semibold">{{ __('crm.certifications') }}</span>
+                                </button>
+                            </li>
+                            --}}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link modern-tab-link {{ $activeTab === 'documents' ? 'active' : '' }}"
+                                        wire:click="setActiveTab('documents')"
+                                        type="button">
+                                    <i class="mdi mdi-paperclip me-2"></i>
+                                    <span class="fw-semibold">{{ __('crm.documents') }}</span>
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -561,6 +579,17 @@
             <!-- Amendments Tab -->
             @if($activeTab === 'amendments')
                 @livewire(\App\Livewire\Amendments\AmendmentViewer::class, ['customerId' => $customerId])
+            @endif
+
+            {{-- Certifications tab disabled (use Documents tab instead)
+            @if($activeTab === 'certifications')
+                @livewire(\App\Livewire\Crm\Customer\Tabs\AttachmentsManager::class, ['customer' => $customer], key('tab-certifications-' . $customer->id))
+            @endif
+            --}}
+
+            <!-- Documents Tab -->
+            @if($activeTab === 'documents')
+                @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerAttachmentsTab::class, ['customer' => $customer], key('tab-documents-' . $customer->id))
             @endif
         </div>
     </div>

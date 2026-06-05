@@ -57,8 +57,13 @@
 							<a class="crm-tab-link" id="Quotations-tab" data-toggle="tab" href="#quotations" role="tab" aria-controls="quotations" aria-selected="false"><i class="mdi mdi-file-settings"></i> {{ __('crm.quotation') }}</a>
 						</li>
 						@endif
+						{{-- Certifications tab disabled (use Documents tab instead)
 						<li class="crm-tab-item">
-							<a class="crm-tab-link" id="Certification-tab" data-toggle="tab" href="#Certification" role="tab" aria-controls="Certification" aria-selected="false"><i class="mdi mdi-file-certificate"></i> {{ __('crm.attachments') }}</a>
+							<a class="crm-tab-link" id="Certification-tab" data-toggle="tab" href="#Certification" role="tab" aria-controls="Certification" aria-selected="false"><i class="mdi mdi-file-certificate"></i> {{ __('crm.certifications') }}</a>
+						</li>
+						--}}
+						<li class="crm-tab-item">
+							<a class="crm-tab-link" id="Documents-tab" data-toggle="tab" href="#Documents" role="tab" aria-controls="Documents" aria-selected="false"><i class="mdi mdi-paperclip"></i> {{ __('crm.documents') }}</a>
 						</li>
 						<li class="crm-tab-item">
 							<a class="crm-tab-link" id="Configurations-tab" data-toggle="tab" href="#Configurations" role="tab" aria-controls="Configurations" aria-selected="false"><i class="mdi mdi-cog-outline"></i> Configurations</a>
@@ -107,8 +112,14 @@
 					</div>
 					@endif
 
+					{{-- Certifications tab disabled (use Documents tab instead)
 					<div class="tab-pane fade p-3" id="Certification" role="tabpanel" aria-labelledby="Certification-tab">
 						@livewire(\App\Livewire\Crm\Customer\Tabs\AttachmentsManager::class, ['customer' => $customer], key('tab-attachments'))
+					</div>
+					--}}
+
+					<div class="tab-pane fade p-3" id="Documents" role="tabpanel" aria-labelledby="Documents-tab">
+						@livewire(\App\Livewire\Crm\Customer\Tabs\CustomerAttachmentsTab::class, ['customer' => $customer], key('tab-documents'))
 					</div>
 
 					{{-- Configurations tab disabled

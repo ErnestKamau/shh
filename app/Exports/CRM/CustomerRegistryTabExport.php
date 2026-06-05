@@ -10,6 +10,7 @@ use App\Models\CRM\CustomerContact;
 use App\Models\CRM\Complaint;
 use App\Models\CRM\CustomerFeedback;
 use App\Models\CRM\CustomerCertification;
+use App\Models\CRM\CrmCustomerAttachment;
 use App\Models\CRM\CompanyProduct;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\SamplePoint;
@@ -83,6 +84,19 @@ class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
                         $query->where('certification_body', 'like', '%' . $this->search . '%');
                     });
 
+            case 'documents':
+                return CrmCustomerAttachment::query()
+                    ->where('crm_customer_id', $this->customerId)
+                    ->where('is_delete', '!=', 1)
+                    ->when($this->search, function ($query) {
+                        $query->where(function ($q) {
+                            $q->where('title', 'like', '%' . $this->search . '%')
+                                ->orWhere('type', 'like', '%' . $this->search . '%')
+                                ->orWhere('description', 'like', '%' . $this->search . '%');
+                        });
+                    })
+                    ->orderBy('created_at', 'desc');
+
             case 'products':
                 return CompanyProduct::query()
                     ->whereHas('unit', function ($query) {
@@ -151,6 +165,8 @@ class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
                 return ['Reference', 'Comments', 'Rating', 'Date Received'];
             case 'certifications':
                 return ['Certification Body', 'Certification Name', 'Description', 'Expiry Date'];
+            case 'documents':
+                return ['Title', 'Type', 'Description', 'Posted By', 'File Path', 'Uploaded At'];
             case 'products':
                 return ['Product Name', 'Unit', 'Active'];
             case 'orders':
@@ -203,6 +219,15 @@ class CustomerRegistryTabExport implements FromQuery, WithHeadings, WithMapping
                     $row->name, // Appended attribute
                     $row->description, // Appended attribute
                     $row->expiry_date
+                ];
+            case 'documents':
+                return [
+                    $row->title,
+                    $row->type,
+                    $row->description ?? '',
+                    $row->posted_by,
+                    $row->file_path,
+                    $row->created_at ? $row->created_at->format('Y-m-d H:i') : '',
                 ];
             case 'products':
                 return [

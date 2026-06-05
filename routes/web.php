@@ -1153,6 +1153,8 @@ Route::post('/customer/{id}', 'CRM\CRMCustomerController@edit')->name('edit-cust
 Route::post('/customer/{id}/label', 'CRM\CRMCustomerController@edit_label')->name('change-client-label-name')->middleware('can:crm.customers.edit');
 Route::post('/delete-customer', 'CRM\CRMCustomerController@delete_customer')->name('delete_customer')->middleware('can:crm.customers.delete');
 
+Route::get('/crm/customer/{customer}/attachment/{attachment}/download', 'CRM\CustomerAttachmentController@download')->name('crm.customer.attachment.download')->middleware('can:crm.customers.view');
+
 Route::post('/add/customer-certification/{id}', 'CRM\CustomerCertificationController@add')->name('add-customer-certification')->middleware('can:crm.certifications.add');
 Route::post('/edit/customer-certification/{id}', 'CRM\CustomerCertificationController@edit')->name('edit-customer-certification')->middleware('can:crm.certifications.edit');
 Route::post('/delete/customer-certification/{id}', 'CRM\CustomerCertificationController@delete')->name('delete-customer-certification')->middleware('can:crm.certifications.delete');
