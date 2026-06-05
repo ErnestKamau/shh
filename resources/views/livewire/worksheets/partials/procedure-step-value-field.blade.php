@@ -18,7 +18,7 @@
     <select
         class="{{ $inputClass }}"
         wire:model.live.debounce.500ms="{{ $wireModel }}"
-        wire:change="autosaveStepValue(@js($step->id))"
+        wire:change="autosaveStepValue(@js($step->id), @js($capturedResultId ?? null))"
     >
         <option value="">Select...</option>
         @if($valueType === 'method_select')
@@ -44,7 +44,7 @@
             data-confirm-label="{{ $confirmLabel }}"
         @endif
         wire:model.live.debounce.1000ms="{{ $wireModel }}"
-        wire:blur="autosaveStepValue(@js($step->id))"
+        wire:blur="autosaveStepValue(@js($step->id), @js($capturedResultId ?? null))"
         @if($valueType === 'number') step="any" @endif
     >
 @endif

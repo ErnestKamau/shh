@@ -53,6 +53,7 @@ class ProcedureWorksheetManager extends Component
     public bool $groupedCaptureLayout = false;
 
     public $activeTabs = []; // This will hold an array of active Analyte IDs
+    public string $viewMode = 'form';
     public $selectedWorksheetId = null;
     public $selectedSamples = []; // Array of sample_detail_ids
     public $inputValues = []; // [captured_result_id => [step_id => value]]
@@ -986,12 +987,13 @@ class ProcedureWorksheetManager extends Component
     {
         $parts = explode('.', (string) $key);
         if (count($parts) >= 2) {
+            $capturedResultId = (string) $parts[0];
             $stepId = (string) $parts[1];
-            $this->autosaveStepValue($stepId);
+            $this->autosaveStepValue($stepId, $capturedResultId);
         }
     }
 
-    public function autosaveStepValue(string $stepId): void
+    public function autosaveStepValue(string $stepId, ?string $capturedResultId = null): void
     {
         if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             return;
@@ -999,6 +1001,63 @@ class ProcedureWorksheetManager extends Component
 
         $step = ProcedureWorksheetStep::find($stepId);
         if ($step && ($step->isCustomTable() || $step->isStaticText())) {
+            return;
+        }
+
+        if ($this->viewMode === 'table') {
+            $id = $capturedResultId;
+            if (!$id) {
+                return;
+            }
+
+            if (! isset($this->inputValues[$id][$stepId])) {
+                return;
+            }
+
+            $val = $this->inputValues[$id][$stepId] ?? '';
+            $valueToStore = is_array($val) ? json_encode($val) : ($val ?? '');
+
+            CapturedProcedureValue::updateOrCreate(
+                [
+                    'captured_result_id' => $id,
+                    'procedure_worksheet_step_id' => $stepId,
+                ],
+                [
+                    'value' => $valueToStore,
+                ]
+            );
+
+            // When this step is first saved, optionally assign the analyst as the logged-in user
+            $userId = Auth::id();
+            $analysisSamples = $this->analysisSamples;
+            $currentAnalyteIds = $analysisSamples->pluck('analyte_id')->filter()->unique()->values();
+            $activeAnalyteId = $currentAnalyteIds->count() === 1 ? $currentAnalyteIds->first() : null;
+
+            if ($userId && $activeAnalyteId && $this->selectedWorksheetId) {
+                $current = $this->stepAnalystOverrides[$stepId] ?? [];
+                if (! is_array($current)) {
+                    $current = $current !== null && $current !== '' ? [(string) $current] : [];
+                }
+
+                if (empty($current)) {
+                    $newAnalysts = [(string) $userId];
+
+                    ProcedureWorksheetStepAnalyst::updateOrCreate(
+                        [
+                            'batch_id' => $this->batchId,
+                            'analyte_id' => $activeAnalyteId,
+                            'procedure_worksheet_id' => $this->selectedWorksheetId,
+                            'procedure_worksheet_step_id' => $stepId,
+                        ],
+                        [
+                            'analyst_ids' => $newAnalysts,
+                        ]
+                    );
+
+                    $this->stepAnalystOverrides[$stepId] = $newAnalysts;
+                    $this->dispatch('syncStepAnalystSelect', stepId: $stepId, analystIds: $newAnalysts);
+                }
+            }
             return;
         }
 
@@ -1094,12 +1153,13 @@ class ProcedureWorksheetManager extends Component
     {
         $parts = explode('.', (string) $key);
         if (count($parts) >= 2) {
+            $capturedResultId = (string) $parts[0];
             $fieldId = (string) $parts[1];
-            $this->autosaveConfigField($fieldId);
+            $this->autosaveConfigField($fieldId, $capturedResultId);
         }
     }
 
-    public function autosaveConfigField(string $fieldId): void
+    public function autosaveConfigField(string $fieldId, ?string $capturedResultId = null): void
     {
         if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             return;
@@ -1107,6 +1167,32 @@ class ProcedureWorksheetManager extends Component
 
         $field = ProcedureConfigField::find($fieldId);
         if ($field && ProcedureConfigField::isSampleDerivedType($field->field_type)) {
+            return;
+        }
+
+        if ($this->viewMode === 'table') {
+            $id = $capturedResultId;
+            if (!$id) {
+                return;
+            }
+
+            if (! isset($this->configFieldValues[$id][$fieldId])) {
+                return;
+            }
+
+            $val = $this->configFieldValues[$id][$fieldId] ?? '';
+            $valueToStore = is_array($val) ? implode(',', $val) : ($val ?? '');
+
+            CapturedProcedureConfigValue::updateOrCreate(
+                [
+                    'captured_result_id' => $id,
+                    'procedure_worksheet_id' => $this->selectedWorksheetId,
+                    'procedure_config_field_id' => $fieldId,
+                ],
+                [
+                    'value' => $valueToStore,
+                ]
+            );
             return;
         }
 
@@ -1200,6 +1286,17 @@ class ProcedureWorksheetManager extends Component
         $this->loadSamples();
 
         return;
+    }
+
+    public function toggleAllSamples(): void
+    {
+        $allIds = $this->analysisSamples->pluck('sample.id')->filter()->unique()->values()->toArray();
+        if (count($this->selectedSamples) === count($allIds)) {
+            $this->selectedSamples = [];
+        } else {
+            $this->selectedSamples = $allIds;
+        }
+        $this->updatedSelectedSamples();
     }
 
     public function resolveConfigFieldDisplayValue(ProcedureConfigField $field, ?CapturedResult $capturedResult): string

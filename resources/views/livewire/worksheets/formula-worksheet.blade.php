@@ -61,229 +61,474 @@
     @endif
 
     @if($capturedResults->count() > 0)
-        @php
-            $mandatoryFieldsTop = $mandatoryFields->filter(fn ($f) => ($f->form_placement ?? 'bottom') === 'top');
-            $mandatoryFieldsBottom = $mandatoryFields->filter(fn ($f) => ($f->form_placement ?? 'bottom') !== 'top');
-        @endphp
-
-        @if($mandatoryFieldsTop->isNotEmpty())
-            @include('livewire.worksheets.partials.formula-mandatory-fields', [
-                'mandatoryFields' => $mandatoryFieldsTop,
-                'title' => 'Mandatory Fields — Top of Form',
-            ])
-        @endif
-
-        {{-- ── Section 1: Worksheet run metadata ──────────────────────────────── --}}
-        <div class="card border-0 shadow-sm mb-4 fws-card">
-            <div class="card-header fws-card-header">
-                <i class="mdi mdi-clipboard-text-outline text-primary"></i>
-                <span>Worksheet Run Details</span>
+        {{-- View Layout Mode Switcher --}}
+        <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
+            <div>
+                <h5 class="mb-0 text-muted small">
+                    <i class="mdi mdi-eye-outline text-primary mr-1"></i> Layout View Mode
+                </h5>
             </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-6 col-md-2">
-                        <label class="fws-label">Date</label>
-                        <input type="date" class="form-control form-control-sm"
-                               wire:model="sharedWorksheetMeta.date">
+            <div class="btn-group shadow-sm" role="group">
+                <button type="button" 
+                    wire:click="$set('viewMode', 'form')" 
+                    class="btn btn-sm {{ $viewMode === 'form' ? 'btn-primary' : 'btn-outline-secondary' }}"
+                    style="border-top-left-radius: 8px; border-bottom-left-radius: 8px;">
+                    <i class="mdi mdi-card-bulleted-outline"></i> Form Layout
+                </button>
+                <button type="button" 
+                    wire:click="$set('viewMode', 'table')" 
+                    class="btn btn-sm {{ $viewMode === 'table' ? 'btn-primary' : 'btn-outline-secondary' }}"
+                    style="border-top-right-radius: 8px; border-bottom-right-radius: 8px;">
+                    <i class="mdi mdi-table"></i> Tabular Layout
+                </button>
+            </div>
+        </div>
+
+        @if($viewMode === 'table')
+            <div class="card border-0 shadow-sm mb-4 fws-card">
+                <div class="card-header fws-card-header bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="mdi mdi-table-large text-success mr-2"></i>
+                        <span class="font-weight-bold text-dark">Tabular Worksheet Entry</span>
                     </div>
-                    <div class="col-6 col-md-2">
-                        <label class="fws-label">Lab No</label>
-                        <input type="text" class="form-control form-control-sm bg-light"
-                               value="{{ $batch->batch_code }}" readonly>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" wire:click="saveWorksheetLevel" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="saveWorksheetLevel">
+                                <i class="mdi mdi-content-save"></i> Save All
+                            </span>
+                            <span wire:loading wire:target="saveWorksheetLevel">
+                                <i class="mdi mdi-loading mdi-spin"></i> Saving...
+                            </span>
+                        </button>
                     </div>
-                    <div class="col-6 col-md-2">
-                        <label class="fws-label">Time In</label>
-                        <input type="time" class="form-control form-control-sm"
-                               wire:model="sharedWorksheetMeta.time_in">
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <label class="fws-label">Done By</label>
-                        <select class="form-control form-control-sm no-select2"
-                                wire:model="sharedWorksheetMeta.done_by_user_id">
-                            @foreach($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <label class="fws-label">Time Out</label>
-                        <input type="time" class="form-control form-control-sm"
-                               wire:model="sharedWorksheetMeta.time_out">
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <label class="fws-label">Read Date</label>
-                        <input type="date" class="form-control form-control-sm"
-                               wire:model="sharedWorksheetMeta.read_date">
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="fws-label">Read By</label>
-                        <select class="form-control form-control-sm no-select2"
-                                wire:model="sharedWorksheetMeta.read_by_user_id">
-                            <option value="">Select...</option>
-                            @foreach($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                            @endforeach
-                        </select>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped mb-0 text-center align-middle" style="font-size: 0.85rem; min-width: 1000px;">
+                            <thead class="thead-light">
+                                <!-- First Header Row: Sections -->
+                                <tr>
+                                    <th colspan="7" class="bg-light text-primary font-weight-bold border-bottom">Sample Metadata &amp; Run Details</th>
+                                    @if($mandatoryFields->isNotEmpty())
+                                        <th colspan="{{ $mandatoryFields->count() }}" class="bg-light text-warning font-weight-bold border-bottom">Mandatory Fields</th>
+                                    @endif
+                                    @php
+                                        $tabularSteps = $formulaSteps->whereIn('step_type', ['input', 'dataset', 'checkbox', 'derived', 'lookup'])->sortBy('step_number');
+                                    @endphp
+                                    @if($tabularSteps->isNotEmpty())
+                                        <th colspan="{{ $tabularSteps->count() }}" class="bg-light text-info font-weight-bold border-bottom">Formula Steps &amp; Measurands</th>
+                                    @endif
+                                    <th class="bg-light text-success font-weight-bold border-bottom">Result</th>
+                                </tr>
+                                <!-- Second Header Row: Column Names -->
+                                <tr>
+                                    <!-- Metadata Columns -->
+                                    <th style="min-width: 140px;">Sample Code</th>
+                                    <th style="min-width: 130px;">Date</th>
+                                    <th style="min-width: 100px;">Time In</th>
+                                    <th style="min-width: 150px;">Done By</th>
+                                    <th style="min-width: 100px;">Time Out</th>
+                                    <th style="min-width: 150px;">Read By</th>
+                                    <th style="min-width: 130px;">Read Date</th>
+                                    <!-- Mandatory Fields Columns -->
+                                    @foreach($mandatoryFields as $field)
+                                        <th style="min-width: 140px;">{{ $field->field_label }}</th>
+                                    @endforeach
+                                    <!-- Steps Columns -->
+                                    @foreach($tabularSteps as $step)
+                                        <th style="min-width: 140px;">
+                                            <div>{{ $step->label }}</div>
+                                            <span class="badge badge-light border text-muted small" style="font-size: 0.7rem;">
+                                                {{ strtoupper($step->step_type) }}
+                                            </span>
+                                        </th>
+                                    @endforeach
+                                    <!-- Result Column -->
+                                    <th style="min-width: 110px;">Final Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($capturedResults as $captured)
+                                    @php
+                                        $crId = (string) $captured->id;
+                                    @endphp
+                                    <tr wire:key="row-{{ $crId }}">
+                                        <!-- Sample Code -->
+                                        <td class="font-weight-bold align-middle bg-white">
+                                            {{ $captured->sample->sample_code }}
+                                        </td>
+                                        <!-- Date -->
+                                        <td class="align-middle">
+                                            <input type="date" class="form-control form-control-sm text-center border-0 bg-transparent"
+                                                wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.date"
+                                                wire:blur="saveWorksheet('{{ $crId }}')">
+                                        </td>
+                                        <!-- Time In -->
+                                        <td class="align-middle">
+                                            <input type="time" class="form-control form-control-sm text-center border-0 bg-transparent"
+                                                wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.time_in"
+                                                wire:blur="saveWorksheet('{{ $crId }}')">
+                                        </td>
+                                        <!-- Done By -->
+                                        <td class="align-middle">
+                                            <select class="form-control form-control-sm border-0 bg-transparent text-center"
+                                                wire:model.live="worksheetData.{{ $crId }}.done_by_user_id"
+                                                wire:change="saveWorksheet('{{ $crId }}')">
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <!-- Time Out -->
+                                        <td class="align-middle">
+                                            <input type="time" class="form-control form-control-sm text-center border-0 bg-transparent"
+                                                wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.time_out"
+                                                wire:blur="saveWorksheet('{{ $crId }}')">
+                                        </td>
+                                        <!-- Read By -->
+                                        <td class="align-middle">
+                                            <select class="form-control form-control-sm border-0 bg-transparent text-center"
+                                                wire:model.live="worksheetData.{{ $crId }}.read_by_user_id"
+                                                wire:change="saveWorksheet('{{ $crId }}')">
+                                                <option value="">Select...</option>
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <!-- Read Date -->
+                                        <td class="align-middle">
+                                            <input type="date" class="form-control form-control-sm text-center border-0 bg-transparent"
+                                                wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.read_date"
+                                                wire:blur="saveWorksheet('{{ $crId }}')">
+                                        </td>
+                                        
+                                        <!-- Mandatory Fields -->
+                                        @foreach($mandatoryFields as $field)
+                                            @php
+                                                $fieldId = (string) $field->id;
+                                                $fieldType = $field->field_type ?? 'text';
+                                            @endphp
+                                            <td class="align-middle">
+                                                @if($fieldType === 'select')
+                                                    <select class="form-control form-control-sm border-0 bg-transparent text-center"
+                                                        wire:model.live="worksheetData.{{ $crId }}.mandatory.{{ $fieldId }}"
+                                                        wire:change="saveWorksheet('{{ $crId }}')">
+                                                        <option value="">Select...</option>
+                                                        @foreach(explode(',', $field->select_options ?? '') as $opt)
+                                                            @php $opt = trim($opt); @endphp
+                                                            @if($opt)
+                                                                <option value="{{ $opt }}">{{ $opt }}</option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                @elseif($fieldType === 'date')
+                                                    <input type="date" class="form-control form-control-sm border-0 bg-transparent text-center"
+                                                        wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.mandatory.{{ $fieldId }}"
+                                                        wire:blur="saveWorksheet('{{ $crId }}')">
+                                                @elseif($fieldType === 'checkbox')
+                                                    <input type="checkbox" class="form-check-input"
+                                                        wire:model.live="worksheetData.{{ $crId }}.mandatory.{{ $fieldId }}"
+                                                        wire:change="saveWorksheet('{{ $crId }}')"
+                                                        value="1">
+                                                @else
+                                                    <input type="text" class="form-control form-control-sm border-0 bg-transparent text-center"
+                                                        wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.mandatory.{{ $fieldId }}"
+                                                        wire:blur="saveWorksheet('{{ $crId }}')">
+                                                @endif
+                                            </td>
+                                        @endforeach
+
+                                        <!-- Steps Columns -->
+                                        @foreach($tabularSteps as $step)
+                                            @php
+                                                $stepId = (string) $step->id;
+                                                $stepType = $step->step_type;
+                                            @endphp
+                                            <td class="align-middle">
+                                                @if(in_array($stepType, ['input', 'dataset']))
+                                                    <input type="text" class="form-control form-control-sm border-0 bg-transparent text-center"
+                                                        wire:model.live.debounce.1000ms="worksheetData.{{ $crId }}.steps.{{ $stepId }}"
+                                                        wire:blur="saveWorksheet('{{ $crId }}')">
+                                                @elseif($stepType === 'checkbox')
+                                                    @php
+                                                        $cbOptions = $this->checkboxOptionsForStep($step);
+                                                        $cbSelected = $worksheetData[$crId]['steps'][$stepId] ?? [];
+                                                        if (is_string($cbSelected)) {
+                                                            $cbSelected = json_decode($cbSelected, true) ?: [];
+                                                        }
+                                                    @endphp
+                                                    <div class="d-flex flex-wrap gap-1 justify-content-center">
+                                                        @foreach($cbOptions as $opt)
+                                                            @php
+                                                                $optId = (string) $opt->id;
+                                                                $isChecked = in_array($optId, $cbSelected, true);
+                                                            @endphp
+                                                            <div class="form-check form-check-inline m-0">
+                                                                <input type="checkbox" class="form-check-input"
+                                                                    id="cb-{{ $crId }}-{{ $stepId }}-{{ $optId }}"
+                                                                    wire:click="toggleCheckboxForSample('{{ $crId }}', '{{ $stepId }}', '{{ $optId }}')"
+                                                                    @if($isChecked) checked @endif>
+                                                                <label class="form-check-label small" for="cb-{{ $crId }}-{{ $stepId }}-{{ $optId }}">
+                                                                    {{ $opt->label }}
+                                                                </label>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @elseif(in_array($stepType, ['derived', 'lookup']))
+                                                    @php
+                                                        $val = $worksheetData[$crId]['steps'][$stepId] ?? '';
+                                                        $hasVal = $val !== '';
+                                                    @endphp
+                                                    <span class="badge {{ $hasVal ? 'badge-success' : 'badge-light border' }} p-2">
+                                                        {{ $val !== '' ? $val : '—' }}
+                                                    </span>
+                                                @else
+                                                    —
+                                                @endif
+                                            </td>
+                                        @endforeach
+
+                                        <!-- Final Result Column -->
+                                        <td class="align-middle font-weight-bold bg-white">
+                                            @php
+                                                $finalRes = $worksheetData[$crId]['final_result'] ?? '';
+                                            @endphp
+                                            <span class="badge badge-primary p-2">
+                                                {{ $finalRes !== '' ? $finalRes : '—' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
-        </div>
+        @else
+            @php
+                $mandatoryFieldsTop = $mandatoryFields->filter(fn ($f) => ($f->form_placement ?? 'bottom') === 'top');
+                $mandatoryFieldsBottom = $mandatoryFields->filter(fn ($f) => ($f->form_placement ?? 'bottom') !== 'top');
+            @endphp
 
-        {{-- ── Section 2: Formula steps in execution order ───────────────────────── --}}
-        @php
-            $execSteps = $formulaSteps
-                ->whereIn('step_type', ['input', 'dataset', 'checkbox', 'derived', 'lookup', 'static_text'])
-                ->sortBy('step_number');
-            $hasExecSteps = $execSteps->isNotEmpty();
-        @endphp
-        @if($hasExecSteps)
-        <div class="card border-0 shadow-sm mb-4 fws-card">
-            <div class="card-header fws-card-header">
-                <i class="mdi mdi-function-variant text-info"></i>
-                <span>Formula Inputs &amp; Calculated Values</span>
-                <span class="fws-all-samples-badge ml-auto">
-                    <i class="mdi mdi-account-multiple-outline"></i> Applied to all samples
-                </span>
+            @if($mandatoryFieldsTop->isNotEmpty())
+                @include('livewire.worksheets.partials.formula-mandatory-fields', [
+                    'mandatoryFields' => $mandatoryFieldsTop,
+                    'title' => 'Mandatory Fields — Top of Form',
+                ])
+            @endif
+
+            {{-- ── Section 1: Worksheet run metadata ──────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4 fws-card">
+                <div class="card-header fws-card-header">
+                    <i class="mdi mdi-clipboard-text-outline text-primary"></i>
+                    <span>Worksheet Run Details</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-2">
+                            <label class="fws-label">Date</label>
+                            <input type="date" class="form-control form-control-sm"
+                                   wire:model="sharedWorksheetMeta.date">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="fws-label">Lab No</label>
+                            <input type="text" class="form-control form-control-sm bg-light"
+                                   value="{{ $batch->batch_code }}" readonly>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="fws-label">Time In</label>
+                            <input type="time" class="form-control form-control-sm"
+                                   wire:model="sharedWorksheetMeta.time_in">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="fws-label">Done By</label>
+                            <select class="form-control form-control-sm no-select2"
+                                    wire:model="sharedWorksheetMeta.done_by_user_id">
+                                @foreach($users as $user)
+                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="fws-label">Time Out</label>
+                            <input type="time" class="form-control form-control-sm"
+                                   wire:model="sharedWorksheetMeta.time_out">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="fws-label">Read Date</label>
+                            <input type="date" class="form-control form-control-sm"
+                                   wire:model="sharedWorksheetMeta.read_date">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="fws-label">Read By</label>
+                            <select class="form-control form-control-sm no-select2"
+                                    wire:model="sharedWorksheetMeta.read_by_user_id">
+                                <option value="">Select...</option>
+                                @foreach($users as $user)
+                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body px-4 py-4">
-                {{-- Group consecutive steps of the same display category together in rows --}}
-                @php
-                    $fieldStepTypes = ['input', 'dataset', 'derived', 'lookup'];
-                    $fieldSteps = $execSteps->whereIn('step_type', $fieldStepTypes);
-                    $textSteps  = $execSteps->where('step_type', 'static_text');
-                    $cbSteps    = $execSteps->where('step_type', 'checkbox');
-                @endphp
 
-                {{-- Render all steps in strict step_number order --}}
-                @foreach($execSteps as $step)
-                    {{-- ─ INPUT / DATASET ─ --}}
-                    @if(in_array($step->step_type, ['input', 'dataset']))
-                        @if($loop->first || !in_array($execSteps->get($loop->index - 1)?->step_type ?? '', ['input','dataset']))
-                        <div class="fws-step-group-label">
-                            <i class="mdi mdi-pencil-outline"></i> Inputs
-                        </div>
-                        <div class="row g-3 mb-4">
-                        @endif
-                            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                                <label class="fws-label">
-                                    {{ $step->label }}
-                                    <span class="fws-type-pill fws-type-pill--input">{{ strtoupper($step->step_type) }}</span>
-                                </label>
-                                <input type="text"
-                                       class="form-control form-control-sm fws-input"
-                                       wire:model.live="sharedInputStepValues.{{ $step->id }}"
-                                       placeholder="Enter value">
-                            </div>
-                        @if($loop->last || !in_array($execSteps->get($loop->index + 1)?->step_type ?? '', ['input','dataset']))
-                        </div>
-                        @endif
+            {{-- ── Section 2: Formula steps in execution order ───────────────────────── --}}
+            @php
+                $execSteps = $formulaSteps
+                    ->whereIn('step_type', ['input', 'dataset', 'checkbox', 'derived', 'lookup', 'static_text'])
+                    ->sortBy('step_number');
+                $hasExecSteps = $execSteps->isNotEmpty();
+            @endphp
+            @if($hasExecSteps)
+            <div class="card border-0 shadow-sm mb-4 fws-card">
+                <div class="card-header fws-card-header">
+                    <i class="mdi mdi-function-variant text-info"></i>
+                    <span>Formula Inputs &amp; Calculated Values</span>
+                    <span class="fws-all-samples-badge ml-auto">
+                        <i class="mdi mdi-account-multiple-outline"></i> Applied to all samples
+                    </span>
+                </div>
+                <div class="card-body px-4 py-4">
+                    {{-- Group consecutive steps of the same display category together in rows --}}
+                    @php
+                        $fieldStepTypes = ['input', 'dataset', 'derived', 'lookup'];
+                        $fieldSteps = $execSteps->whereIn('step_type', $fieldStepTypes);
+                        $textSteps  = $execSteps->where('step_type', 'static_text');
+                        $cbSteps    = $execSteps->where('step_type', 'checkbox');
+                    @endphp
 
-                    {{-- ─ CHECKBOX ─ --}}
-                    @elseif($step->step_type === 'checkbox')
-                        @php
-                            $cbOptions  = $this->checkboxOptionsForStep($step);
-                            $cbSelected = $sharedCheckboxStepData[$step->id] ?? [];
-                        @endphp
-                        <div class="fws-checkbox-block mb-4" wire:key="cb-{{ $step->id }}">
+                    {{-- Render all steps in strict step_number order --}}
+                    @foreach($execSteps as $step)
+                        {{-- ─ INPUT / DATASET ─ --}}
+                        @if(in_array($step->step_type, ['input', 'dataset']))
+                            @if($loop->first || !in_array($execSteps->get($loop->index - 1)?->step_type ?? '', ['input','dataset']))
                             <div class="fws-step-group-label">
-                                <i class="mdi mdi-checkbox-marked-outline"></i> {{ $step->label }}
-                                <span class="fws-type-pill fws-type-pill--checkbox">CHECKBOX</span>
+                                <i class="mdi mdi-pencil-outline"></i> Inputs
                             </div>
-                            @if($step->description)
-                                <p class="text-muted small mb-3">{{ $step->description }}</p>
+                            <div class="row g-3 mb-4">
                             @endif
-                            @if($cbOptions->isEmpty())
-                                <p class="text-muted small">No options configured.</p>
-                            @else
-                                <div class="fws-checkbox-options">
-                                    @foreach($cbOptions as $opt)
-                                        @php $optId = (string) $opt->id; $isChecked = in_array($optId, $cbSelected, true); @endphp
-                                        <label class="fws-checkbox-option {{ $isChecked ? 'fws-checkbox-option--checked' : '' }}"
-                                               wire:key="cbopt-{{ $optId }}"
-                                               wire:click="toggleSharedCheckboxOption(@js($step->id), @js($optId))">
-                                            <span class="fws-checkbox-indicator">
-                                                @if($isChecked)
-                                                    <i class="mdi mdi-check-circle text-primary"></i>
-                                                @else
-                                                    <i class="mdi mdi-circle-outline text-muted"></i>
-                                                @endif
-                                            </span>
-                                            <span class="fws-checkbox-text">{{ $opt->label }}</span>
-                                        </label>
-                                    @endforeach
+                                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                                    <label class="fws-label">
+                                        {{ $step->label }}
+                                        <span class="fws-type-pill fws-type-pill--input">{{ strtoupper($step->step_type) }}</span>
+                                    </label>
+                                    <input type="text"
+                                           class="form-control form-control-sm fws-input"
+                                           wire:model.live="sharedInputStepValues.{{ $step->id }}"
+                                           placeholder="Enter value">
                                 </div>
+                            @if($loop->last || !in_array($execSteps->get($loop->index + 1)?->step_type ?? '', ['input','dataset']))
+                            </div>
                             @endif
-                        </div>
 
-                    {{-- ─ DERIVED / LOOKUP ─ --}}
-                    @elseif(in_array($step->step_type, ['derived', 'lookup']))
-                        @if($loop->first || !in_array($execSteps->get($loop->index - 1)?->step_type ?? '', ['derived','lookup']))
-                        @php
-                            $derivedGroupCount = 0;
-                            for ($derivedIdx = $loop->index; $derivedIdx < $execSteps->count(); $derivedIdx++) {
-                                $derivedStep = $execSteps->values()[$derivedIdx] ?? null;
-                                if (! $derivedStep || ! in_array($derivedStep->step_type, ['derived', 'lookup'], true)) {
-                                    break;
+                        {{-- ─ CHECKBOX ─ --}}
+                        @elseif($step->step_type === 'checkbox')
+                            @php
+                                $cbOptions  = $this->checkboxOptionsForStep($step);
+                                $cbSelected = $sharedCheckboxStepData[$step->id] ?? [];
+                            @endphp
+                            <div class="fws-checkbox-block mb-4" wire:key="cb-{{ $step->id }}">
+                                <div class="fws-step-group-label">
+                                    <i class="mdi mdi-checkbox-marked-outline"></i> {{ $step->label }}
+                                    <span class="fws-type-pill fws-type-pill--checkbox">CHECKBOX</span>
+                                </div>
+                                @if($step->description)
+                                    <p class="text-muted small mb-3">{{ $step->description }}</p>
+                                @endif
+                                @if($cbOptions->isEmpty())
+                                    <p class="text-muted small">No options configured.</p>
+                                @else
+                                    <div class="fws-checkbox-options">
+                                        @foreach($cbOptions as $opt)
+                                            @php $optId = (string) $opt->id; $isChecked = in_array($optId, $cbSelected, true); @endphp
+                                            <label class="fws-checkbox-option {{ $isChecked ? 'fws-checkbox-option--checked' : '' }}"
+                                                   wire:key="cbopt-{{ $optId }}"
+                                                   wire:click="toggleSharedCheckboxOption(@js($step->id), @js($optId))">
+                                                <span class="fws-checkbox-indicator">
+                                                    @if($isChecked)
+                                                        <i class="mdi mdi-check-circle text-primary"></i>
+                                                    @else
+                                                        <i class="mdi mdi-circle-outline text-muted"></i>
+                                                    @endif
+                                                </span>
+                                                <span class="fws-checkbox-text">{{ $opt->label }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+
+                        {{-- ─ STATIC TEXT ─ --}}
+                        @elseif($step->step_type === 'static_text')
+                            @php $txtContent = $step->staticTextContent(); @endphp
+                            @if(trim($txtContent) !== '')
+                            <div class="fws-static-text-block mb-4" wire:key="st-{{ $step->id }}">
+                                <div class="fws-step-group-label">
+                                    <i class="mdi mdi-text-box-outline"></i> {{ $step->label }}
+                                </div>
+                                <div class="fws-static-text-body">{{ $txtContent }}</div>
+                            </div>
+                            @endif
+
+                        {{-- ─ DERIVED / LOOKUP ─ --}}
+                        @elseif(in_array($step->step_type, ['derived', 'lookup']))
+                            @if($loop->first || !in_array($execSteps->get($loop->index - 1)?->step_type ?? '', ['derived','lookup']))
+                            @php
+                                $derivedGroupCount = 0;
+                                for ($derivedIdx = $loop->index; $derivedIdx < $execSteps->count(); $derivedIdx++) {
+                                    $derivedStep = $execSteps->values()[$derivedIdx] ?? null;
+                                    if (! $derivedStep || ! in_array($derivedStep->step_type, ['derived', 'lookup'], true)) {
+                                        break;
+                                    }
+                                    $derivedGroupCount++;
                                 }
-                                $derivedGroupCount++;
-                            }
-                            $derivedGridClass = match (true) {
-                                $derivedGroupCount === 1 => 'fws-calc-fields-row--one',
-                                $derivedGroupCount === 2 => 'fws-calc-fields-row--two',
-                                default => 'fws-calc-fields-row--three',
-                            };
-                        @endphp
-                        <div class="fws-step-group-label">
-                            <i class="mdi mdi-calculator-variant-outline"></i> Calculated Values
-                        </div>
-                        <div class="fws-calc-fields-row {{ $derivedGridClass }} mb-4">
-                        @endif
-                            <div class="fws-calc-field-item">
-                                <div class="fws-calc-field-wrap">
-                                <label class="fws-label fws-label--calc">
-                                    {{ $step->label }}
-                                    <span class="fws-type-pill fws-type-pill--derived">{{ strtoupper($step->step_type) }}</span>
-                                </label>
-                                @php $derivedVal = $sharedDerivedStepValues[$step->id] ?? ''; @endphp
-                                @if($step->step_type === 'lookup')
-                                <div class="d-flex gap-1 fws-calc-field-body">
-                                    <div class="fws-calc-field flex-grow-1 {{ $derivedVal !== '' ? 'fws-calc-field--has-value' : '' }}">
+                                $derivedGridClass = match (true) {
+                                    $derivedGroupCount === 1 => 'fws-calc-fields-row--one',
+                                    $derivedGroupCount === 2 => 'fws-calc-fields-row--two',
+                                    default => 'fws-calc-fields-row--three',
+                                };
+                            @endphp
+                            <div class="fws-step-group-label">
+                                <i class="mdi mdi-calculator-variant-outline"></i> Calculated Values
+                            </div>
+                            <div class="fws-calc-fields-row {{ $derivedGridClass }} mb-4">
+                            @endif
+                                <div class="fws-calc-field-item">
+                                    <div class="fws-calc-field-wrap">
+                                    <label class="fws-label fws-label--calc">
+                                        {{ $step->label }}
+                                        <span class="fws-type-pill fws-type-pill--derived">{{ strtoupper($step->step_type) }}</span>
+                                    </label>
+                                    @php $derivedVal = $sharedDerivedStepValues[$step->id] ?? ''; @endphp
+                                    @if($step->step_type === 'lookup')
+                                    <div class="d-flex gap-1 fws-calc-field-body">
+                                        <div class="fws-calc-field flex-grow-1 {{ $derivedVal !== '' ? 'fws-calc-field--has-value' : '' }}">
+                                            {{ $derivedVal !== '' ? $derivedVal : '—' }}
+                                        </div>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary fws-lookup-btn"
+                                                wire:click="openChangeLookupModal('{{ $capturedResults->first()?->id }}', '{{ $step->id }}')"
+                                                title="Change Lookup Table">
+                                            <i class="mdi mdi-swap-horizontal"></i>
+                                        </button>
+                                    </div>
+                                    @else
+                                    <div class="fws-calc-field fws-calc-field-body {{ $derivedVal !== '' ? 'fws-calc-field--has-value' : '' }}">
                                         {{ $derivedVal !== '' ? $derivedVal : '—' }}
                                     </div>
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-secondary fws-lookup-btn"
-                                            wire:click="openChangeLookupModal('{{ $capturedResults->first()?->id }}', '{{ $step->id }}')"
-                                            title="Change Lookup Table">
-                                        <i class="mdi mdi-swap-horizontal"></i>
-                                    </button>
+                                    @endif
+                                    </div>
                                 </div>
-                                @else
-                                <div class="fws-calc-field fws-calc-field-body {{ $derivedVal !== '' ? 'fws-calc-field--has-value' : '' }}">
-                                    {{ $derivedVal !== '' ? $derivedVal : '—' }}
-                                </div>
-                                @endif
-                                </div>
+                            @if($loop->last || !in_array($execSteps->get($loop->index + 1)?->step_type ?? '', ['derived','lookup']))
                             </div>
-                        @if($loop->last || !in_array($execSteps->get($loop->index + 1)?->step_type ?? '', ['derived','lookup']))
-                        </div>
+                            @endif
                         @endif
-
-                    {{-- ─ STATIC TEXT ─ --}}
-                    @elseif($step->step_type === 'static_text')
-                        @php $txtContent = $step->staticTextContent(); @endphp
-                        @if(trim($txtContent) !== '')
-                        <div class="fws-static-text-block mb-4" wire:key="st-{{ $step->id }}">
-                            <div class="fws-step-group-label">
-                                <i class="mdi mdi-text-box-outline"></i> {{ $step->label }}
-                            </div>
-                            <div class="fws-static-text-body">{{ $txtContent }}</div>
-                        </div>
-                        @endif
-                    @endif
-                @endforeach
+                    @endforeach
+                </div>
             </div>
-        </div>
-        @endif
+            @endif
 
         {{-- ── Section 3: Save button ───────────────────────────────────────────── --}}
         <div class="d-flex justify-content-end mb-4">

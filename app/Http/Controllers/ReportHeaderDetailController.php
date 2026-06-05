@@ -689,6 +689,110 @@ class ReportHeaderDetailController extends Controller
 		return file_exists($defaultLogo) ? $defaultLogo : '';
 	}
 
+	private function resolveSingleLogoPath(?string $path): ?string
+	{
+		if (empty($path)) {
+			return null;
+		}
+
+		if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+			$path = parse_url($path, PHP_URL_PATH) ?? $path;
+		}
+		$path = ltrim($path, '/');
+		
+		if (file_exists($path)) {
+			return $path;
+		}
+
+		$filename = basename($path);
+		if ($filename !== '') {
+			$relative = preg_replace('#^storage/#', '', $path);
+			if ($relative !== $path) {
+				$fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relative);
+				if (file_exists($fullPath)) {
+					return $fullPath;
+				}
+			}
+
+			$fullPath = storage_path('app/companies/' . $filename);
+			if (file_exists($fullPath)) {
+				return $fullPath;
+			}
+
+			if (file_exists(public_path($path))) {
+				return public_path($path);
+			}
+
+			if (file_exists(base_path('public/' . $path))) {
+				return base_path('public/' . $path);
+			}
+		}
+
+		return null;
+	}
+
+	private function getResolvedTanzaniaLogo($company): ?string
+	{
+		if ($company) {
+			$paths = [
+				$company->getReportLogoPath('coat_of_arms'),
+				$company->getReportLogoPath('tz_flag'),
+				$company->report_logo,
+			];
+			foreach ($paths as $path) {
+				$resolved = $this->resolveSingleLogoPath($path);
+				if ($resolved) {
+					return $this->resolveImageAsDataUri($resolved);
+				}
+			}
+		}
+
+		$fallbacks = [
+			public_path('images/forms/tanzanialogo.jpeg'),
+			public_path('images/forms/tanzanialogo.jpg'),
+			base_path('public/images/forms/tanzanialogo.jpeg'),
+			base_path('public/images/forms/tanzanialogo.jpg'),
+		];
+		foreach ($fallbacks as $fallback) {
+			if (is_file($fallback)) {
+				return $this->resolveImageAsDataUri($fallback);
+			}
+		}
+
+		return null;
+	}
+
+	private function getResolvedGclaLogo($company): ?string
+	{
+		if ($company) {
+			$paths = [
+				$company->getReportLogoPath('gcla_logo'),
+				$company->getReportLogoPath('gcla'),
+				$company->logo,
+			];
+			foreach ($paths as $path) {
+				$resolved = $this->resolveSingleLogoPath($path);
+				if ($resolved) {
+					return $this->resolveImageAsDataUri($resolved);
+				}
+			}
+		}
+
+		$fallbacks = [
+			public_path('images/forms/gclalogo.png'),
+			public_path('images/forms/gclalogo.jpg'),
+			base_path('public/images/forms/gclalogo.png'),
+			base_path('public/images/forms/gclalogo.jpg'),
+		];
+		foreach ($fallbacks as $fallback) {
+			if (is_file($fallback)) {
+				return $this->resolveImageAsDataUri($fallback);
+			}
+		}
+
+		return null;
+	}
+
 	/**
 	 * Convert an image at the given absolute path to a base64 data URI string.
 	 * Returns the original path string if the file cannot be read (DomPDF can try local paths).
@@ -1026,32 +1130,9 @@ class ReportHeaderDetailController extends Controller
 		$data['ungrouped_samples'] = $ungroupedSamples;
 		$data['sample_type_name'] = $sampleTypeName;
 
-		// Resolve GCLA logos for forensic DNA report templates
-		$tanzaniaCandidates = [
-			public_path('images/forms/tanzanialogo.jpeg'),
-			public_path('images/forms/tanzanialogo.jpg'),
-			'/home/kaarr/Downloads/tanzanialogo.jpeg',
-		];
-		$tanzaniaLogo = null;
-		foreach ($tanzaniaCandidates as $candidate) {
-			if (is_file($candidate)) {
-				$tanzaniaLogo = $this->resolveImageAsDataUri($candidate);
-				break;
-			}
-		}
-
-		$gclaCandidates = [
-			public_path('images/forms/gclalogo.png'),
-			public_path('images/forms/gclalogo.jpg'),
-			'/home/kaarr/Downloads/gclalogo.png',
-		];
-		$gclaLogo = null;
-		foreach ($gclaCandidates as $candidate) {
-			if (is_file($candidate)) {
-				$gclaLogo = $this->resolveImageAsDataUri($candidate);
-				break;
-			}
-		}
+		// Resolve GCLA logos for forensic DNA report templates dynamically from settings/defaults
+		$tanzaniaLogo = $this->getResolvedTanzaniaLogo($company);
+		$gclaLogo = $this->getResolvedGclaLogo($company);
 
 		$data['logos'] = [
 			'tanzania' => $tanzaniaLogo,
@@ -1120,32 +1201,9 @@ class ReportHeaderDetailController extends Controller
 	{
 		$language = request('gcla_language', 'sw');
 
-		// 1. Resolve Coat of Arms and GCLA Logos as Base64 Data URIs
-		$tanzaniaCandidates = [
-			public_path('images/forms/tanzanialogo.jpeg'),
-			public_path('images/forms/tanzanialogo.jpg'),
-			'/home/kaarr/Downloads/tanzanialogo.jpeg',
-		];
-		$tanzaniaLogo = null;
-		foreach ($tanzaniaCandidates as $candidate) {
-			if (is_file($candidate)) {
-				$tanzaniaLogo = $this->resolveImageAsDataUri($candidate);
-				break;
-			}
-		}
-
-		$gclaCandidates = [
-			public_path('images/forms/gclalogo.png'),
-			public_path('images/forms/gclalogo.jpg'),
-			'/home/kaarr/Downloads/gclalogo.png',
-		];
-		$gclaLogo = null;
-		foreach ($gclaCandidates as $candidate) {
-			if (is_file($candidate)) {
-				$gclaLogo = $this->resolveImageAsDataUri($candidate);
-				break;
-			}
-		}
+		// 1. Resolve Coat of Arms and GCLA Logos as Base64 Data URIs dynamically from settings/defaults
+		$tanzaniaLogo = $this->getResolvedTanzaniaLogo($company);
+		$gclaLogo = $this->getResolvedGclaLogo($company);
 
 		// 2. Resolve Samples Data and Captured Results
 		$samples = \App\SampleDetails::where('sample_header_id', $batch->id)->get();
@@ -1235,6 +1293,8 @@ class ReportHeaderDetailController extends Controller
 			$candidates = [
 				public_path($path),
 				public_path('storage/' . $path),
+				base_path('public/' . $path),
+				base_path('public/storage/' . $path),
 				storage_path('app/public/' . $path),
 				$path
 			];
@@ -1417,19 +1477,9 @@ class ReportHeaderDetailController extends Controller
 			}
 		}
 
-		// Fallback to tanzanialogo
+		// Fallback to tanzanialogo dynamically from settings/defaults
 		if (!$dceaLogo) {
-			$tanzaniaCandidates = [
-				public_path('images/forms/tanzanialogo.jpeg'),
-				public_path('images/forms/tanzanialogo.jpg'),
-				'/home/kaarr/Downloads/tanzanialogo.jpeg',
-			];
-			foreach ($tanzaniaCandidates as $candidate) {
-				if (is_file($candidate)) {
-					$dceaLogo = $this->resolveImageAsDataUri($candidate);
-					break;
-				}
-			}
+			$dceaLogo = $this->getResolvedTanzaniaLogo($company);
 		}
 
 		// 2. Receipt Date details
@@ -1565,6 +1615,8 @@ class ReportHeaderDetailController extends Controller
 			$candidates = [
 				public_path($path),
 				public_path('storage/' . $path),
+				base_path('public/' . $path),
+				base_path('public/storage/' . $path),
 				storage_path('app/public/' . $path),
 				$path
 			];

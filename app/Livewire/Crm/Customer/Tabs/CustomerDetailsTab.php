@@ -35,7 +35,7 @@ class CustomerDetailsTab extends BaseCrmComponent
     public function mount($customer)
     {
         $this->customer = $customer;
-        $this->countries = \App\Country::all();
+        $this->countries = \App\Country::orderBy('name')->get();
         
         // Load Account Settings
         $this->account_settings = getConfigTypeByName('Account Settings');
@@ -86,7 +86,6 @@ class CustomerDetailsTab extends BaseCrmComponent
                     return str_contains(strtolower($country->name), $search);
                 });
             })
-            ->take(50)
             ->values();
     }
 

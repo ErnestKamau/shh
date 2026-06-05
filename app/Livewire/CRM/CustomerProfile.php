@@ -238,14 +238,13 @@ class CustomerProfile extends Component
         $countries = collect($this->countries);
 
         if ($search === '') {
-            return $countries->take(10)->values();
+            return $countries->values();
         }
 
         return $countries
             ->filter(function ($country) use ($search) {
                 return str_contains(strtolower((string) data_get($country, 'name', '')), $search);
             })
-            ->take(10)
             ->values();
     }
 

@@ -37,6 +37,7 @@ class FormulaWorksheet extends Component
     public $mandatoryFields = [];
 
     public $sharedMandatoryData = [];
+    public string $viewMode = 'form';
 
     /**
      * Worksheet-level metadata shared across all samples.
@@ -341,6 +342,29 @@ class FormulaWorksheet extends Component
 
         // Load shared worksheet-level state from the first captured result
         $this->bootstrapSharedWorksheetState();
+
+        // Pre-populate steps and mandatory values for all captured results to prevent Livewire binding errors in tabular mode
+        foreach ($this->capturedResults as $captured) {
+            $crId = (string) $captured->id;
+            if (! isset($this->worksheetData[$crId]['steps'])) {
+                $this->worksheetData[$crId]['steps'] = [];
+            }
+            if (! isset($this->worksheetData[$crId]['mandatory'])) {
+                $this->worksheetData[$crId]['mandatory'] = [];
+            }
+
+            foreach ($this->formulaSteps as $step) {
+                if (! isset($this->worksheetData[$crId]['steps'][(string) $step->id])) {
+                    $this->worksheetData[$crId]['steps'][(string) $step->id] = $this->sharedInputStepValues[(string) $step->id] ?? '';
+                }
+            }
+
+            foreach ($this->mandatoryFields as $field) {
+                if (! isset($this->worksheetData[$crId]['mandatory'][(string) $field->id])) {
+                    $this->worksheetData[$crId]['mandatory'][(string) $field->id] = $this->sharedMandatoryData[(string) $field->id] ?? '';
+                }
+            }
+        }
     }
 
     /**
@@ -544,8 +568,11 @@ class FormulaWorksheet extends Component
                 }
             }
 
-            // Save shared mandatory data to this worksheet
-            foreach ($this->sharedMandatoryData as $fieldId => $value) {
+            // Save mandatory data
+            $mandatoryValues = (isset($data['mandatory']) && !empty($data['mandatory'])) 
+                ? $data['mandatory'] 
+                : $this->sharedMandatoryData;
+            foreach ($mandatoryValues as $fieldId => $value) {
                 $worksheet->mandatoryData()->updateOrCreate(
                     ['formula_mandatory_field_id' => $fieldId],
                     ['field_value' => $value]
@@ -702,7 +729,14 @@ class FormulaWorksheet extends Component
             }
 
             foreach ($this->formulaSteps->where('step_type', 'checkbox') as $step) {
-                $selected = $this->sharedCheckboxStepData[(string) $step->id] ?? [];
+                if ($this->viewMode === 'table') {
+                    $selected = $data['steps'][(string) $step->id] ?? [];
+                    if (is_string($selected)) {
+                        $selected = json_decode($selected, true) ?: [];
+                    }
+                } else {
+                    $selected = $this->sharedCheckboxStepData[(string) $step->id] ?? [];
+                }
                 $filledInputs[$step->variable_name] = $this->checkboxValueForEvaluator($step, $selected);
             }
 
@@ -2269,6 +2303,28 @@ class FormulaWorksheet extends Component
         }
 
         return $this->getOriginalLookupTable($stepId);
+    }
+
+    public function toggleCheckboxForSample(string $capturedResultId, string $stepId, string $optionId): void
+    {
+        $current = $this->worksheetData[$capturedResultId]['steps'][$stepId] ?? [];
+        if (is_string($current)) {
+            $current = json_decode($current, true) ?: [];
+        }
+
+        if (in_array($optionId, $current, true)) {
+            $current = array_values(array_diff($current, [$optionId]));
+        } else {
+            $current[] = $optionId;
+        }
+
+        $this->worksheetData[$capturedResultId]['steps'][$stepId] = $current;
+
+        // Recalculate derived formula steps
+        $this->calculateFormulaResult($capturedResultId);
+
+        // Auto-save the change
+        $this->saveWorksheet($capturedResultId);
     }
 
     public function render()

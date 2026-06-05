@@ -607,12 +607,12 @@ class CustomerManager extends Component
         $countries = collect($this->countries);
         
         if (empty($this->countrySearch)) {
-            return $countries->take(100);
+            return $countries;
         }
         
         return $countries->filter(function($country) {
             return stripos($country->name ?? '', $this->countrySearch) !== false;
-        })->take(100);
+        });
     }
 
     public function getFilteredAccountsProperty()

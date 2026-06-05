@@ -98,6 +98,22 @@
                 @if($groupedCaptureLayout || !empty($activeTabs))
                 @if($selectedWorksheetId)
 
+                <div class="fws-view-mode-bar d-flex align-items-center mb-3 justify-content-between p-3 border-bottom">
+                    <div>
+                        <span class="mr-2 font-weight-bold text-secondary">Layout Mode:</span>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary {{ $viewMode === 'form' ? 'active' : '' }}" wire:click="$set('viewMode', 'form')">
+                                <i class="mdi mdi-form-textbox"></i> Form View
+                            </button>
+                            <button type="button" class="btn btn-outline-primary {{ $viewMode === 'table' ? 'active' : '' }}" wire:click="$set('viewMode', 'table')">
+                                <i class="mdi mdi-table"></i> Tabular View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                @if($viewMode === 'form')
+
                 {{-- Step progress bar --}}
                 <div class="procedure-step-nav mb-4">
                     @foreach($stepLabels as $stepIdx => $stepLabel)
@@ -603,6 +619,351 @@
                 </div>
                 @endif
 
+                @else
+                    @php
+                        $allResults = $this->analysisSamples;
+                        $allConfigFields = $this->getConfigFieldsProperty();
+                        $allSteps = $this->getScalarStepsProperty();
+                        $captureSections = $this->getCaptureSectionsProperty();
+                        $selectedResults = $allResults->filter(fn($r) => $r->sample && in_array($r->sample->id, $selectedSamples))->values();
+                    @endphp
+                    
+                    {{-- Dashboard panel --}}
+                    <div class="row g-3 mb-4 p-3 bg-light border-bottom align-items-center">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-muted small uppercase">File Number Registry</label>
+                            <div class="input-group input-group-sm" style="max-width: 300px;">
+                                <span class="input-group-text"><i class="mdi mdi-identifier"></i></span>
+                                <input type="text"
+                                    class="form-control bg-light"
+                                    value="{{ $batch?->file_no ?? '—' }}"
+                                    readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" class="btn btn-sm btn-success" wire:click="toggleExternalPanel">
+                                <i class="mdi mdi-plus"></i> Add Samples from Other Batches
+                            </button>
+                        </div>
+                    </div>
+
+                    @if($showExternalPanel)
+                    <div class="card mb-4 border mx-3">
+                        <div class="card-body p-3">
+                            <label class="form-label small text-muted fw-bold">Add samples from other batches</label>
+                            <p class="text-muted small mb-2">Search and select samples, then click Add Selected.</p>
+
+                            <div class="tag-select-container worksheet-external-select"
+                                wire:click="$set('showExternalDropdown', true)"
+                                wire:click.outside="$set('showExternalDropdown', false)">
+                                <div class="tag-select-input">
+                                    @foreach($externalSelectionItems as $item)
+                                    <span class="tag-badge">
+                                        {{ $item['batch_code'] }} – {{ $item['sample_code'] }}
+                                        <i class="mdi mdi-close-circle" wire:click.stop="removeExternalSampleFromSelection({{ $item['id'] }})"></i>
+                                    </span>
+                                    @endforeach
+                                    <input type="text"
+                                        class="tag-input"
+                                        wire:model.live.debounce.300ms="externalSearch"
+                                        placeholder="{{ count($externalSelectionItems) > 0 ? '' : 'Search by batch or sample code...' }}"
+                                        autocomplete="off">
+                                </div>
+                                @if($showExternalDropdown && count($externalSearchResults) > 0)
+                                <div class="tag-dropdown">
+                                    @foreach($externalSearchResults as $row)
+                                    <div class="tag-dropdown-item"
+                                        wire:click.stop="addExternalSampleToSelection({{ $row['captured_result_id'] }})">
+                                        <strong>{{ $row['batch_code'] }}</strong> – {{ $row['sample_code'] }}
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @elseif($showExternalDropdown && $externalSearch !== '' && count($externalSearchResults) === 0)
+                                <div class="tag-dropdown">
+                                    <div class="tag-dropdown-item text-muted">No matching samples</div>
+                                </div>
+                                @endif
+                            </div>
+
+                            <div class="mt-3 d-flex align-items-center justify-content-end gap-2">
+                                @if(count($externalSelectionItems) > 0)
+                                <span class="text-muted small">{{ count($externalSelectionItems) }} selected</span>
+                                @endif
+                                <button type="button" class="btn btn-sm btn-success" wire:click="addSelectedExternalSamples"
+                                    @if(empty($externalSelectionItems)) disabled @endif>
+                                    <i class="mdi mdi-plus-circle-outline"></i> Add Selected
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    @if($allSteps->isNotEmpty())
+                    {{-- Collapsible step configurations/overrides --}}
+                    <div class="card shadow-sm border border-light mb-4 mx-3">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center" style="cursor: pointer;" data-toggle="collapse" data-target="#step-configs-collapse">
+                            <h6 class="mb-0 text-dark fw-bold">
+                                <i class="mdi mdi-tune text-success mr-2"></i>
+                                Step-Level Overrides &amp; Configurations
+                            </h6>
+                            <span class="text-muted small">Click to toggle</span>
+                        </div>
+                        <div id="step-configs-collapse" class="collapse">
+                            <div class="card-body p-3">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered bg-white mb-0">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Step Name</th>
+                                                <th>Measurand(s)</th>
+                                                <th>Equipment</th>
+                                                <th>Analyst(s)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($allSteps as $step)
+                                            <tr wire:key="tbl-step-cfg-{{ $step->id }}">
+                                                <td class="fw-medium text-dark align-middle">{{ $step->step }}</td>
+                                                <td>
+                                                    <div wire:ignore
+                                                        class="procedure-select2-wrap"
+                                                        data-select-type="measurand"
+                                                        data-step-id="{{ $step->id }}"
+                                                        data-initial='@json($stepMeasurandOverrides[$step->id] ?? [])'>
+                                                        <select class="form-control form-control-sm procedure-select2 no-select2" multiple="multiple" data-placeholder="Select measurand(s)...">
+                                                            @foreach($this->measurandOptions as $opt)
+                                                            <option value="{{ $opt->id }}">{{ $opt->label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div wire:ignore
+                                                        class="procedure-select2-wrap"
+                                                        data-select-type="equipment"
+                                                        data-step-id="{{ $step->id }}"
+                                                        data-initial='@json($stepEquipmentOverrides[$step->id] ?? [])'>
+                                                        <select class="form-control form-control-sm procedure-select2 no-select2" multiple="multiple" data-placeholder="Select equipment...">
+                                                            @foreach($this->equipmentOptions as $opt)
+                                                            <option value="{{ $opt->id }}">{{ $opt->label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div wire:ignore
+                                                        class="procedure-select2-wrap"
+                                                        data-select-type="analyst"
+                                                        data-step-id="{{ $step->id }}"
+                                                        data-initial='@json($stepAnalystOverrides[$step->id] ?? [])'>
+                                                        <select class="form-control form-control-sm procedure-select2 no-select2" multiple="multiple" data-placeholder="Select analyst(s)...">
+                                                            @foreach($this->analystOptions as $opt)
+                                                            <option value="{{ $opt->id }}">{{ $opt->label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    {{-- Main Worksheet Grid Table --}}
+                    <div class="card shadow-sm border-0 mb-4 mx-3">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-dark fw-bold">
+                                <i class="mdi mdi-table text-success mr-2"></i>
+                                Worksheet Data Entry Grid
+                            </h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0 align-middle">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th class="text-center" style="width: 40px; vertical-align: middle;">
+                                                <input class="form-check-input" type="checkbox"
+                                                       id="toggle-all-samples-th"
+                                                       wire:click="toggleAllSamples"
+                                                       @if(count($selectedSamples) === count($this->analysisSamples->pluck('sample.id')->filter()->unique()->toArray()) && count($selectedSamples) > 0) checked @endif>
+                                            </th>
+                                            <th style="min-width: 150px; vertical-align: middle;">Sample Info</th>
+                                            @foreach($allConfigFields as $field)
+                                            <th style="min-width: 150px; vertical-align: middle;">
+                                                {{ $field->label }}
+                                                @if($field->is_required)
+                                                <span class="text-danger">*</span>
+                                                @endif
+                                            </th>
+                                            @endforeach
+                                            @foreach($allSteps as $step)
+                                            <th style="min-width: 180px; vertical-align: middle;">
+                                                {{ $step->step }}
+                                            </th>
+                                            @endforeach
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($allResults as $result)
+                                        @if($result->sample)
+                                        @php
+                                            $isSelected = in_array($result->sample->id, $selectedSamples);
+                                        @endphp
+                                        <tr class="{{ $isSelected ? 'table-active' : '' }}" wire:key="row-cr-{{ $result->id }}">
+                                            <td class="text-center" style="vertical-align: middle;">
+                                                <input class="form-check-input" type="checkbox"
+                                                       value="{{ $result->sample->id }}"
+                                                       wire:model.live="selectedSamples">
+                                            </td>
+                                            <td style="vertical-align: middle;">
+                                                <div class="fw-bold">{{ $result->sample->sample_code }}</div>
+                                                <div class="text-muted small">{{ $result->sample->resolvedCustomerSampleId() ?: '—' }}</div>
+                                                @if($result->sample->sample_id_file)
+                                                    <div class="badge badge-light border text-dark mt-1">{{ $result->sample->sample_id_file }}</div>
+                                                @endif
+                                            </td>
+                                            
+                                            {{-- Config/Parameters columns --}}
+                                            @foreach($allConfigFields as $field)
+                                            <td style="vertical-align: middle;">
+                                                @php
+                                                    $type = $field->field_type ?: (
+                                                        in_array($field->model_tied_to ?? '', ['users','sample_details','sample_types','methods','captured_results','report_formats'])
+                                                        ? 'dataset'
+                                                        : 'input'
+                                                    );
+                                                @endphp
+                                                
+                                                @if(\App\Models\Procedures\ProcedureConfigField::isSampleDerivedType($field->field_type))
+                                                    <input type="text"
+                                                        class="form-control form-control-sm bg-light"
+                                                        readonly
+                                                        value="{{ $this->resolveConfigFieldDisplayValue($field, $result) }}">
+                                                @elseif($type === 'datetime')
+                                                    <input type="datetime-local"
+                                                        class="form-control form-control-sm"
+                                                        wire:model.live.debounce.1000ms="configFieldValues.{{ $result->id }}.{{ $field->id }}"
+                                                        wire:blur="autosaveConfigField('{{ $field->id }}', '{{ $result->id }}')">
+                                                @elseif($type === 'date')
+                                                    <input type="date"
+                                                        class="form-control form-control-sm"
+                                                        wire:model.live.debounce.1000ms="configFieldValues.{{ $result->id }}.{{ $field->id }}"
+                                                        wire:blur="autosaveConfigField('{{ $field->id }}', '{{ $result->id }}')">
+                                                @elseif($type === 'number')
+                                                    <input type="number"
+                                                        class="form-control form-control-sm"
+                                                        wire:model.live.debounce.1000ms="configFieldValues.{{ $result->id }}.{{ $field->id }}"
+                                                        wire:blur="autosaveConfigField('{{ $field->id }}', '{{ $result->id }}')">
+                                                @elseif($type === 'checkbox')
+                                                    <div class="form-check text-center mb-0">
+                                                        <input type="checkbox"
+                                                            class="form-check-input"
+                                                            wire:model.live="configFieldValues.{{ $result->id }}.{{ $field->id }}"
+                                                            value="1"
+                                                            wire:change="autosaveConfigField('{{ $field->id }}', '{{ $result->id }}')">
+                                                    </div>
+                                                @elseif($type === 'textarea')
+                                                    <textarea
+                                                        class="form-control form-control-sm"
+                                                        rows="1"
+                                                        wire:model.live.debounce.1000ms="configFieldValues.{{ $result->id }}.{{ $field->id }}"
+                                                        wire:blur="autosaveConfigField('{{ $field->id }}', '{{ $result->id }}')"></textarea>
+                                                @elseif($type === 'input' || $type === '' || $type === null)
+                                                    <input type="text"
+                                                        class="form-control form-control-sm"
+                                                        wire:model.live.debounce.1000ms="configFieldValues.{{ $result->id }}.{{ $field->id }}"
+                                                        wire:blur="autosaveConfigField('{{ $field->id }}', '{{ $result->id }}')">
+                                                @elseif($type === 'dataset')
+                                                    <div wire:ignore
+                                                        class="procedure-select2-wrap"
+                                                        data-select-type="config"
+                                                        data-config-mode="single"
+                                                        data-captured-result-id="{{ $result->id }}"
+                                                        data-field-id="{{ $field->id }}"
+                                                        data-initial='@json(isset($configFieldValues[$result->id][$field->id]) && $configFieldValues[$result->id][$field->id] ? [$configFieldValues[$result->id][$field->id]] : [])'>
+                                                        <select class="form-control form-control-sm procedure-select2 no-select2" data-placeholder="Select...">
+                                                            <option value="">Select...</option>
+                                                            @foreach($this->getDatasetOptions($field->model_tied_to ?? '', $field) as $option)
+                                                                <option value="{{ $option->id }}">{{ $option->label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                @elseif($type === 'dataset_multiselect')
+                                                    <div wire:ignore
+                                                        class="procedure-select2-wrap"
+                                                        data-select-type="config"
+                                                        data-config-mode="multiple"
+                                                        data-captured-result-id="{{ $result->id }}"
+                                                        data-field-id="{{ $field->id }}"
+                                                        data-initial='@json(isset($configFieldValues[$result->id][$field->id]) && is_array($configFieldValues[$result->id][$field->id]) ? $configFieldValues[$result->id][$field->id] : (isset($configFieldValues[$result->id][$field->id]) && $configFieldValues[$result->id][$field->id] ? [$configFieldValues[$result->id][$field->id]] : []))'>
+                                                        <select class="form-control form-control-sm procedure-select2 no-select2" multiple="multiple" data-placeholder="Select...">
+                                                            @foreach($this->getDatasetOptions($field->model_tied_to ?? '', $field) as $option)
+                                                                <option value="{{ $option->id }}">{{ $option->label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            @endforeach
+                                            
+                                            {{-- Steps columns --}}
+                                            @foreach($allSteps as $step)
+                                            <td style="vertical-align: middle;">
+                                                @php
+                                                    $selectedMeasurandIds = $stepMeasurandOverrides[$step->id] ?? [];
+                                                    $measurandLookup = collect($this->measurandOptions ?? [])->keyBy('id');
+                                                @endphp
+                                                @if(!empty($selectedMeasurandIds))
+                                                    @foreach($selectedMeasurandIds as $mId)
+                                                        @php
+                                                            $label = optional($measurandLookup->get($mId))->label ?? $mId;
+                                                        @endphp
+                                                        <div class="d-flex align-items-center mb-1" style="gap: 5px;">
+                                                            <span class="badge bg-light text-dark border mr-1" style="font-size: 0.75rem; white-space: nowrap;">
+                                                                {{ $label }}
+                                                            </span>
+                                                            @include('livewire.worksheets.partials.procedure-step-value-field', [
+                                                                'step' => $step,
+                                                                'wireModel' => "inputValues.{$result->id}.{$step->id}.{$mId}",
+                                                                'confirmLabel' => $step->step . ' - ' . $label,
+                                                                'compact' => true,
+                                                                'capturedResultId' => $result->id,
+                                                            ])
+                                                        </div>
+                                                    @endforeach
+                                                @else
+                                                    @include('livewire.worksheets.partials.procedure-step-value-field', [
+                                                        'step' => $step,
+                                                        'wireModel' => "inputValues.{$result->id}.{$step->id}",
+                                                        'confirmLabel' => $step->step,
+                                                        'compact' => true,
+                                                        'capturedResultId' => $result->id,
+                                                    ])
+                                                @endif
+                                            </td>
+                                            @endforeach
+                                        </tr>
+                                        @endif
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Custom tables rendered below the grid --}}
+                    @foreach($captureSections as $sectionIndex => $section)
+                        @if($section['type'] === 'custom_table')
+                            @include('livewire.worksheets.partials.procedure-step-custom-table', ['step' => $section['step'], 'stepGroup' => $section['step_group'] ?? null])
+                        @endif
+                    @endforeach
+                @endif
+
                 {{-- Autosave is enabled per step and per config field; no manual Save button needed. --}}
                 @else
                 <div class="alert alert-info mb-0">Select a worksheet to proceed.</div>
@@ -685,6 +1046,21 @@
             background: #dee2e6;
             min-width: 12px;
             max-width: 40px;
+        }
+
+        .fws-view-mode-bar {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .fws-view-mode-bar .btn-outline-primary {
+            border-color: #28a745;
+            color: #28a745;
+        }
+        .fws-view-mode-bar .btn-outline-primary:hover,
+        .fws-view-mode-bar .btn-outline-primary.active {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: #fff;
         }
 
         .procedure-worksheet-manager {
