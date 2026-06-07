@@ -107,12 +107,7 @@ class CustomerList extends BaseCrmComponent
             return;
         }
 
-        $allowedKeys = ['POSTPAID', 'PREPAID'];
-
         $this->accounts = collect(getconfigByID($this->account_settings->id))
-            ->filter(function ($account) use ($allowedKeys) {
-                return in_array(strtoupper((string) ($account->key ?? '')), $allowedKeys, true);
-            })
             ->values();
 
         $this->accountLabelMap = $this->accounts
@@ -144,7 +139,7 @@ class CustomerList extends BaseCrmComponent
         }
 
         if ($this->accountStatusFilter !== '') {
-            $query->where('account_status', (int) $this->accountStatusFilter);
+            $query->where('account_status', (string) $this->accountStatusFilter);
         }
 
         // Date range filter

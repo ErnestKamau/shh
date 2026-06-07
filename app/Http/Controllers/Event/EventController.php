@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use App\Event;
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
+use App\Models\SamplingSchedule;
+use App\SampleType;
+use App\AnalysisType;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 use Response;
@@ -22,6 +25,21 @@ class EventController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('calendar_events', 'contract_valid_from')) {
+                \Illuminate\Support\Facades\Schema::table('calendar_events', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->date('contract_valid_from')->nullable();
+                });
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('calendar_events', 'contract_valid_to')) {
+                \Illuminate\Support\Facades\Schema::table('calendar_events', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->date('contract_valid_to')->nullable();
+                });
+            }
+        } catch (\Exception $e) {
+            // Silently catch exceptions
+        }
     }
     public function indexed()
     {
@@ -32,6 +50,21 @@ class EventController extends Controller
     }
     public function created(Request $request)
     {
+        if (isset($request->is_routine)) {
+            $startDate = \Carbon\Carbon::parse($request->start_date);
+            $endDate = \Carbon\Carbon::parse($request->end_date);
+            $diffInDays = $startDate->diffInDays($endDate, false);
+
+            if ($diffInDays < 7) {
+                if ($request->frequency != 1) {
+                    return redirect()->back()->with('error', 'For tasks shorter than a week, the frequency must be Daily.')->withInput();
+                }
+            } elseif ($diffInDays < 30) {
+                if ($request->frequency != 1 && $request->frequency != 7) {
+                    return redirect()->back()->with('error', 'For tasks shorter than a month, the frequency must be Daily or Weekly.')->withInput();
+                }
+            }
+        }
         // return response()->json($request->all());
         $newEvent = new Event();
         $newEvent->title = $request->title;
@@ -47,13 +80,15 @@ class EventController extends Controller
         $newEvent->longitude = $request->longitude;
         $newEvent->logistics = $request->logistics;
         $newEvent->status = $request->event_status;
+        $newEvent->contract_valid_from = $request->contract_valid_from;
+        $newEvent->contract_valid_to = $request->contract_valid_to;
         if (isset($request->notify_client)) {
             $client = getCrmCustomerByID($request->client_id);
             $company = getActiveCompany();
             if (isset($client->id)) {
                 $body = 'Hi ' . $client->name . ' ,<br>We hereby inform you that you have a ' . $request->status . ' new calendar event that starts at <b>' . $request->start_date . '</b> and ends at <b>' . $request->end_date . '</b>.<br>Kindly prepare in advance.<br>Regards,<br>' . $company->name;
                 $subject = '[' . $company->name . '] - Calendar Notification - ' . $request->title;
-                $contacts = CustomerContact::where('receive_report', 1)->where('crm_customer_id', $request->id)->get();
+                $contacts = CustomerContact::where('receive_report', 1)->where('crm_customer_id', $client->id)->get();
                 if (sizeof($contacts) > 0) {
                     foreach ($contacts as $c) {
                         notify_user($body, $c->email, $subject);
@@ -84,8 +119,6 @@ class EventController extends Controller
             $newEvent->frequency = $request->frequency;
             $newEvent->is_routine = 1;
 
-
-
             $reset_start = $newEvent->start_date;
             $reset_end = $newEvent->end_date;
             $interval = floor(360 / intval($request->frequency));
@@ -108,7 +141,9 @@ class EventController extends Controller
                 $event->client_id = $request->client_id;
                 $event->location = $request->location;
                 $event->responsible_id = implode(',', $request->responsible_id);
-                $event->status = $request->event_status;
+                $event->status = 'Pending';
+                $event->contract_valid_from = $request->contract_valid_from;
+                $event->contract_valid_to = $request->contract_valid_to;
                 $event->is_routine = 1;
                 $event->parent_id = $newEvent->id;
                 $event->frequency = $request->frequency;
@@ -166,6 +201,11 @@ class EventController extends Controller
         $new->action_by = auth()->user()->id;
         $new->save();
         $newEvent->save();
+
+        if (isset($request->is_routine)) {
+            self::syncRoutineStatuses($newEvent->id);
+        }
+
         return redirect()->back()->with('success', 'Event added successfully!');
     }
     public function getEvents(Request $request)
@@ -175,16 +215,41 @@ class EventController extends Controller
     }
     public function index()
     {
+        Event::where('status', 'Upcoming')
+            ->where('start_date', '<=', date('Y-m-d'))
+            ->update(['status' => 'In-progress']);
+
         $statusCounts = Event::selectRaw('status, COUNT(*) as count')
-            ->whereIn('status', ['Upcoming', 'Complete', 'Delayed', 'Cancelled', 'Expired'])
+            ->whereIn('status', ['Upcoming', 'Complete', 'Delayed', 'Cancelled', 'Expired', 'In-progress'])
+            ->where('status', '!=', 'Pending')
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
             ->groupBy('status')
             ->pluck('count', 'status');
         $today = getTodayDate();
         $end = date('Y-m-t', strtotime($today));
         $start = date("Y-m-01");
-        $data = Event::all();
+        $data = Event::where('status', '!=', 'Pending')
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->get();
         $today_date = getTodayDate();
-        $data2 = Event::whereIn('status', ['Upcoming', 'Delayed'])->get();
+        $data2 = Event::whereIn('status', ['Upcoming', 'Delayed', 'In-progress'])
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->get();
         $events = [];
         
         foreach ($data2 as $d) {
@@ -194,6 +259,9 @@ class EventController extends Controller
                     break;
                 case 'Delayed':
                     $color = '#e65100';
+                    break;
+                case 'In-progress':
+                    $color = '#0000ff';
                     break;
                 default:
                     $color = '#000000'; // default color if needed
@@ -219,16 +287,113 @@ class EventController extends Controller
         // $dl = Event::where('status', 'Delayed')->count();
         // $canc = Event::where('status', 'Cancelled')->count();
         // $exp = Event::where('status', 'Expired')->count();
-        $ong = Event::where('start_date', date('Y-m-d'))->count();
+        $ong = Event::where('status', 'In-progress')
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->count();
 
         $clients = CRMCustomer::where('active', 1)->get();
-        return view('layouts.configuration.system.fullcalendar_', compact('users', 'clients', 'events', 'data','ong','statusCounts'));
+        return view('layouts.planner.calendar', compact('users', 'clients', 'events', 'data','ong','statusCounts'));
+    }
+
+    public function tasks()
+    {
+        Event::where('status', 'Upcoming')
+            ->where('start_date', '<=', date('Y-m-d'))
+            ->update(['status' => 'In-progress']);
+
+        $statusCounts = Event::selectRaw('status, COUNT(*) as count')
+            ->whereIn('status', ['Upcoming', 'Complete', 'Delayed', 'Cancelled', 'Expired', 'In-progress'])
+            ->where('status', '!=', 'Pending')
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->groupBy('status')
+            ->pluck('count', 'status');
+        $today = getTodayDate();
+        $end = date('Y-m-t', strtotime($today));
+        $start = date("Y-m-01");
+        $data = Event::where('status', '!=', 'Pending')
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->get();
+        $today_date = getTodayDate();
+        $data2 = Event::whereIn('status', ['Upcoming', 'Delayed', 'In-progress'])
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->get();
+        $events = [];
+        
+        foreach ($data2 as $d) {
+            switch ($d->status) {
+                case 'Upcoming':
+                    $color = '#2196f3';
+                    break;
+                case 'Delayed':
+                    $color = '#e65100';
+                    break;
+                case 'In-progress':
+                    $color = '#0000ff';
+                    break;
+                default:
+                    $color = '#000000'; // default color if needed
+            }
+            
+            $events[] = [
+                'allDay' => false,
+                'title' => $d->title,
+                'start' => $d->start_date . ' ' . $d->start_time,
+                'end' => $d->end_date . ' ' . $d->end_time,
+                'id' => $d->id,
+                'responsible_id' => $d->responsible_id,
+                'color' => $color,
+                'textColor' => 'white',
+                'status' => $d->status,
+            ];
+        }
+        // return response()->json($events);
+
+        $users = User::where('is_client', 0)->whereNull('supplier_id')->where('active', 1)->where('is_support_staff', 0)->get();
+        $ong = Event::where('status', 'In-progress')
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->count();
+
+        $clients = CRMCustomer::where('active', 1)->get();
+        return view('layouts.planner.tasks', compact('users', 'clients', 'events', 'data','ong','statusCounts'));
     }
 
 
     public function getEventByUser(Request $request)
     {
-        $raw_data = Event::where('responsible_id', auth()->user()->id)->get();
+        $raw_data = Event::where('responsible_id', auth()->user()->id)
+            ->where('status', '!=', 'Pending')
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->get();
         $events = [];
         foreach ($raw_data as $data) {
             $events[] = [
@@ -247,7 +412,14 @@ class EventController extends Controller
         $user = auth()->user();
         $position = ModulePreConfigs::find($user->position);
         $today_date = getTodayDate();
-        $data = Event::all();
+        $data = Event::where('status', '!=', 'Pending')
+            ->where(function($query) {
+                $query->whereNull('parent_id')
+                      ->orWhereColumn('id', 'parent_id')
+                      ->orWhere('is_routine', '!=', 1)
+                      ->orWhereNotIn('frequency', [1, 7, 30]);
+            })
+            ->get();
         $events = [];
         $frequecy = [
             90 => 'Quarterly',
@@ -266,9 +438,9 @@ class EventController extends Controller
                 }
                 $res_name = [];
                 foreach ($res_id as $id) {
-                    $user = getUserById($id);
-                    if (isset($user->id)) {
-                        array_push($res_name, $user->name);
+                    $u = getUserById($id);
+                    if (isset($u->id)) {
+                        array_push($res_name, $u->name);
                     }
                 }
                 $dt->responsible_name = implode(',', $res_name);
@@ -289,10 +461,24 @@ class EventController extends Controller
         if (!isset($event->id)) {
             return redirect()->back()->with('error', 'No Event with specified ID!');
         }
+        if (isset($request->is_routine)) {
+            $startDate = \Carbon\Carbon::parse($request->start_date);
+            $endDate = \Carbon\Carbon::parse($request->end_date);
+            $diffInDays = $startDate->diffInDays($endDate, false);
+
+            if ($diffInDays < 7) {
+                if ($request->frequency != 1) {
+                    return redirect()->back()->with('error', 'For tasks shorter than a week, the frequency must be Daily.')->withInput();
+                }
+            } elseif ($diffInDays < 30) {
+                if ($request->frequency != 1 && $request->frequency != 7) {
+                    return redirect()->back()->with('error', 'For tasks shorter than a month, the frequency must be Daily or Weekly.')->withInput();
+                }
+            }
+        }
         $event->status = $request->event_status;
         $event->title = $request->title;
         $event->start_date = $request->start_date;
-        $event->end_date = $request->end_date;
         $event->end_date = $request->end_date;
         $event->start_time = $request->start_time;
         $event->description = $request->description;
@@ -302,13 +488,69 @@ class EventController extends Controller
         $event->latitude = $request->latitude;
         $event->longitude = $request->longitude;
         $event->logistics = $request->logistics;
+        $event->contract_valid_from = $request->contract_valid_from;
+        $event->contract_valid_to = $request->contract_valid_to;
 
-        if (isset($request->is_routine)) {
-            $event->is_routine = 1;
-            $event->frequency = $request->frequency;
-        } else {
-            $event->frequency = '';
+        if ($event->id == $event->parent_id) {
+            $childIds = Event::where('parent_id', $event->id)->where('id', '!=', $event->id)->pluck('id');
+            CalendarEventsNotification::whereIn('calendar_event_id', $childIds)->delete();
+            Event::whereIn('id', $childIds)->delete();
+
+            if (isset($request->is_routine)) {
+                $event->is_routine = 1;
+                $event->frequency = $request->frequency;
+
+                $reset_start = $event->start_date;
+                $reset_end = $event->end_date;
+                $interval = floor(360 / intval($request->frequency));
+                foreach (range(1, $interval - 1) as $days) {
+                    $set = ' + ' . $request->frequency . ' days';
+                    $start_date = date('Y-m-d', strtotime($reset_start . $set));
+                    $end_date = date('Y-m-d', strtotime($reset_end . $set));
+                    $reset_start = $start_date;
+                    $reset_end = $end_date;
+
+                    $child = new Event();
+                    $child->title = $request->title;
+                    $child->description = $request->description;
+                    $child->start_date = $reset_start;
+                    $child->end_date = $reset_end;
+                    $child->start_time = $request->start_time;
+                    $child->end_time = $request->end_time;
+                    $child->client_id = $request->client_id;
+                    $child->location = $request->location;
+                    $child->responsible_id = implode(',', $request->responsible_id);
+                    $child->status = 'Pending';
+                    $child->contract_valid_from = $request->contract_valid_from;
+                    $child->contract_valid_to = $request->contract_valid_to;
+                    $child->is_routine = 1;
+                    $child->parent_id = $event->id;
+                    $child->frequency = $request->frequency;
+                    $child->save();
+
+                    if (isset($request->duration) && $request->duration != '') {
+                        $loop = 0;
+                        foreach ($request->duration as $duration) {
+                            if ($duration != '') {
+                                $child->has_notification = 1;
+
+                                $notification = new CalendarEventsNotification();
+                                $notification->duration = $duration;
+                                $notification->rate = $request->rate[$loop];
+                                $notification->calendar_event_id = $child->id;
+                                $notification->save();
+                            }
+                            ++$loop;
+                        }
+                    }
+                    $child->save();
+                }
+            } else {
+                $event->is_routine = 0;
+                $event->frequency = '';
+            }
         }
+
         if ($request->hasFile('attachment')) {
             $path = $request->attachment->path();
             $file = Storage::putFile('Event', new File($path));
@@ -321,10 +563,11 @@ class EventController extends Controller
             $loop = 0;
             foreach ($request->notification_id as $id) {
                 $notification = CalendarEventsNotification::find($id);
-                $notification->duration = $request->duration[$loop];
-                $notification->rate = $request->rate[$loop];
-                $notification->save();
-                // return response()->json($notification,200);
+                if ($notification) {
+                    $notification->duration = $request->duration[$loop];
+                    $notification->rate = $request->rate[$loop];
+                    $notification->save();
+                }
                 ++$loop;
             }
         }
@@ -334,6 +577,11 @@ class EventController extends Controller
         $new->status = $request->event_status;
         $new->action_by = auth()->user()->id;
         $new->save();
+
+        if ($event->parent_id) {
+            self::syncRoutineStatuses($event->parent_id);
+        }
+
         return redirect()->back()->with('success', 'Event updated successfully!');
     }
 
@@ -344,28 +592,144 @@ class EventController extends Controller
             return redirect()->back()->with('error', 'No Event with the specified ID!');
         }
         $parent = $event->parent_id;
-        if (isset($request->delete_future)) {
-            $events = Event::where('id', '>', $event->id)->where('parent_id', $event->parent_id)->get();
-            // return response()->json($events);
-            foreach ($events as $e) {
-                $e->delete();
+        if ($event->id == $event->parent_id) {
+            Event::where('parent_id', $event->parent_id)->delete();
+        } else {
+            if (isset($request->delete_future)) {
+                $events = Event::where('start_date', '>', $event->start_date)->where('parent_id', $event->parent_id)->get();
+                foreach ($events as $e) {
+                    $e->delete();
+                }
             }
+            $event->delete();
         }
-        $event->delete();
         // return response()->json($request->all());
         return redirect()->back()->with('success', 'Event deleted successfully!');
     }
     public function getEvent($id)
     {
+        Event::where('status', 'Upcoming')
+            ->where('start_date', '<=', date('Y-m-d'))
+            ->update(['status' => 'In-progress']);
+
         $event = Event::find($id);
+        if ($event && $event->parent_id) {
+            self::syncRoutineStatuses($event->parent_id);
+            $event = Event::find($id);
+        }
         $history = EventHistory::where('event_id', $event->id)->join('users', 'users.id', '=', 'event_history.action_by')->selectRaw('event_history.*,users.name')->get();
         $notification = getEventNotification($event->id);
-        return ['event' => $event, 'history' => $history, 'notification' => $notification];
+        $occurrences = [];
+        if (isset($event->id)) {
+            $occurrences = Event::where('parent_id', $event->parent_id)
+                ->whereRaw('id != parent_id')
+                ->orderBy('start_date', 'asc')
+                ->get();
+        }
+        return ['event' => $event, 'history' => $history, 'notification' => $notification, 'occurrences' => $occurrences];
     }
 
     public function eventUpdateSchedule()
     {
         $expired = Event::where('end_date', '<', date('Y-m-d'))->update(['status' => 'Expired']);
+        Event::where('status', 'Upcoming')
+            ->where('start_date', '<=', date('Y-m-d'))
+            ->update(['status' => 'In-progress']);
+        self::syncAllRoutines();
         return response()->json('success');
     }
+
+    public function updateOccurrenceStatus(Request $request)
+    {
+        $event = Event::find($request->occurrence_id);
+        if (!isset($event->id)) {
+            return response()->json(['error' => 'Occurrence not found'], 404);
+        }
+        $old_status = $event->status;
+        $event->status = $request->status;
+        $event->save();
+
+        $new = new EventHistory();
+        $new->event_id = $event->id;
+        $new->remark = 'Updated occurrence status from ' . $old_status . ' to ' . $request->status . ' via occurrence management.';
+        $new->status = $request->status;
+        $new->action_by = auth()->user()->id;
+        $new->save();
+
+        if ($event->parent_id) {
+            self::syncRoutineStatuses($event->parent_id);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public static function syncRoutineStatuses($parentId)
+    {
+        $occurrences = Event::where('parent_id', $parentId)
+            ->orderBy('start_date', 'asc')
+            ->get();
+
+        $terminalStatuses = ['Complete', 'Completed', 'Cancelled', 'Expired'];
+
+        $hasActive = false;
+        foreach ($occurrences as $occ) {
+            if (!in_array($occ->status, $terminalStatuses) && $occ->status !== 'Pending') {
+                $hasActive = true;
+                break;
+            }
+        }
+
+        if (!$hasActive) {
+            foreach ($occurrences as $occ) {
+                if ($occ->status === 'Pending') {
+                    $occ->status = 'Upcoming';
+                    $occ->save();
+
+                    $history = new EventHistory();
+                    $history->event_id = $occ->id;
+                    $history->remark = 'Routine occurrence activated to Upcoming.';
+                    $history->status = 'Upcoming';
+                    $history->action_by = auth()->check() ? auth()->user()->id : ($occ->created_by ?? 1);
+                    $history->save();
+
+                    break;
+                }
+            }
+        }
+
+        $occurrences = Event::where('parent_id', $parentId)
+            ->orderBy('start_date', 'asc')
+            ->get();
+
+        foreach ($occurrences as $occ) {
+            if ($occ->status === 'Upcoming' && $occ->start_date <= date('Y-m-d')) {
+                $occ->status = 'In-progress';
+                $occ->save();
+
+                $history = new EventHistory();
+                $history->event_id = $occ->id;
+                $history->remark = 'Event started: transitioned to In-progress.';
+                $history->status = 'In-progress';
+                $history->action_by = auth()->check() ? auth()->user()->id : ($occ->created_by ?? 1);
+                $history->save();
+            }
+        }
+    }
+
+    public static function syncAllRoutines()
+    {
+        $parentIds = Event::where('is_routine', 1)
+            ->whereRaw('id = parent_id')
+            ->pluck('id');
+
+        foreach ($parentIds as $parentId) {
+            self::syncRoutineStatuses($parentId);
+        }
+    }
+
+    public function scheduleSamplingIndex()
+    {
+        return view('layouts.planner.schedule_sampling');
+    }
 }
+

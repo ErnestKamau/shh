@@ -20,6 +20,9 @@ $developerWebhookController = 'App\\Http\\Controllers\\Api\\DeveloperWebhookCont
 
 Route::post('/kcb/receive', 'KCBIntegrationController@receivepayment')->name('receive-payment');
 
+Route::match(['get', 'post'], '/whatsapp/webhook', [\App\Http\Controllers\Messaging\MetaWebhookController::class, 'handle'])
+    ->name('api.whatsapp.webhook');
+
 // Include Knowledge Assistant routes (Phase 2 integration)
 require __DIR__ . '/api/knowledge.php';
 

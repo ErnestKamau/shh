@@ -30,6 +30,8 @@ class StoreCustomerRequest extends FormRequest
             'lpos_required' => ['nullable', 'boolean'],
             'zoho_code' => ['nullable'],
             'currency_id' => ['nullable', 'integer'],
+            'contract_valid_from' => ['nullable', 'date'],
+            'contract_valid_to' => ['nullable', 'date'],
         ];
     }
 }

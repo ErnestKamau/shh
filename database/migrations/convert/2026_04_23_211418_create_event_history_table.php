@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('event_history', function (Blueprint $table) {
             $table->uuid('id');
             $table->timestamps();
-            $table->integer('event_id');
+            $table->uuid('event_id');
             $table->longText('remark')->nullable();
-            $table->integer('action_by');
+            $table->uuid('action_by');
             $table->string('status');
             $table->primary(['id']);
         });

@@ -236,6 +236,14 @@
 						<label for="" class="control-label">KRA PIN </label>
 						<input type="text" name="vat_no" class="form-control">
 					</div>
+					<div class="form-group">
+						<label class="control-label">Contract Validity From</label>
+						<input type="date" class="form-control" name="contract_valid_from" />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Contract Validity To</label>
+						<input type="date" class="form-control" name="contract_valid_to" />
+					</div>
 					<div class="row">
 						<div class="col-sm-6">
 							<div class="form-check">
@@ -368,6 +376,14 @@
 					<div class="form-group">
 						<label for="" class="control-label">KRA PIN </label>
 						<input type="text" name="vat_no" value="${customer.vat_no}" class="form-control">
+					</div>
+					<div class="form-group">
+						<label class="control-label">Contract Validity From</label>
+						<input type="date" class="form-control" name="contract_valid_from" value="${customer.contract_valid_from ? customer.contract_valid_from.substring(0, 10) : ''}" />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Contract Validity To</label>
+						<input type="date" class="form-control" name="contract_valid_to" value="${customer.contract_valid_to ? customer.contract_valid_to.substring(0, 10) : ''}" />
 					</div>
 					<div class="row">
 						<div class="col-sm-6">

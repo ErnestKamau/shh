@@ -31,12 +31,12 @@
 <body onload="window.print()" class="container">
     <div class="card mt-5">
         <div class="card-header">
-        {!! $company->show_on_reports == 1 ? '<img src='.$company->logo.' style="height: 16%;position:absolute;top:0%" class="float-left mt-3" />':'' !!}
+        {!! optional($company)->show_on_reports == 1 ? '<img src="'.optional($company)->logo.'" style="height: 16%;position:absolute;top:0%" class="float-left mt-3" />':'' !!}
         <div class="details float-right" style="text-align: left;">
-            <p><b>Name: </b>{{$user->name}}</p>
-            <p><b>Email: </b>{{$user->email}}</p>
+            <p><b>Name: </b>{{ optional($user)->name ?? 'N/A' }}</p>
+            <p><b>Email: </b>{{ optional($user)->email ?? 'N/A' }}</p>
 
-            <p><b>Position: </b>{{$position->name}}</p>
+            <p><b>Position: </b>{{ optional($position)->name ?? 'N/A' }}</p>
             <p><b>Tasks: </b>{{sizeof($events)}}</p>
         </div>
         
@@ -67,8 +67,8 @@
                              $create = getUserById($event->created_by);
                              $client = getCrmCustomerByID($event->client_id);
                             ?>
-                            <td>{{$create->name}}</td>
-                            <td>{{$client->name}}</td>
+                            <td>{{ optional($create)->name ?? 'N/A' }}</td>
+                            <td>{{ optional($client)->name ?? 'N/A' }}</td>
                             <td>{{$event->responsible_name}}</td>
                             <td>{{$event->description}}</td>
                             
@@ -81,8 +81,8 @@
             </div>
         </div>
         <div class="card-footer text-center" style="font-size: 12px;">
-            {{Auth::user()->name}}
-            <p>&copy; {{$company->name}}<p>
+            {{ optional(Auth::user())->name }}
+            <p>&copy; {{ optional($company)->name ?? 'N/A' }}<p>
         </div>
     </div>
 </body>

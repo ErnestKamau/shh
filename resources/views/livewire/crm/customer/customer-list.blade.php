@@ -47,7 +47,7 @@
                                 wire:model.live="accountStatusFilter" wire:key="account-status-filter-select">
                                 <option value="">{{ __('crm.all_account_settings') }}</option>
                                 @foreach($accounts as $account)
-                                    <option value="{{ $account->id }}">{{ $account->key }}</option>
+                                    <option value="{{ data_get($account, 'id') }}">{{ data_get($account, 'key') }}</option>
                                 @endforeach
                             </select>
                         </div>

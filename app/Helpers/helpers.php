@@ -1136,7 +1136,14 @@ function getEventNotification($id)
 }
 function getUserEvents()
 {
-	return App\Event::where('responsible_id', auth()->user()->id)->get();
+	return App\Event::where('responsible_id', auth()->user()->id)
+		->where(function($query) {
+			$query->whereNull('parent_id')
+			      ->orWhereColumn('id', 'parent_id')
+			      ->orWhere('is_routine', '!=', 1)
+			      ->orWhereNotIn('frequency', [1, 7, 30]);
+		})
+		->get();
 }
 function getUserChats()
 {

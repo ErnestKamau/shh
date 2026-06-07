@@ -102,7 +102,7 @@
                                         <div class="tag-dropdown">
                                             @if(count($this->filteredUnits) > 0)
                                                 @foreach($this->filteredUnits as $unit)
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectUnit({{ $unit->id }})">
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectUnit('{{ $unit->id }}')">
                                                         {{ $unit->name }}
                                                     </div>
                                                 @endforeach

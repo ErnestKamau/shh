@@ -37,6 +37,8 @@ class UpdateCustomerRequest extends FormRequest
             'show_lod' => ['nullable', 'integer', 'in:0,1'],
             'show_test_conformance' => ['nullable', 'integer', 'in:0,1'],
             'show_grade' => ['nullable', 'integer', 'in:0,1'],
+            'contract_valid_from' => ['nullable', 'date'],
+            'contract_valid_to' => ['nullable', 'date'],
         ];
     }
 }

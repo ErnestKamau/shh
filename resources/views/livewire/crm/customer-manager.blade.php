@@ -327,7 +327,9 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-earth text-primary"></i> {{ __('crm.country') }} <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container" wire:click="toggleCountryDropdown()">
+                                        <div class="tag-select-container"
+                                            wire:click="$set('showCountryDropdown', true)"
+                                            wire:click.outside="$set('showCountryDropdown', false)">
                                             <div class="tag-select-input">
                                                 @if($this->selectedCountryName)
                                                     <span class="tag-badge">
@@ -340,7 +342,6 @@
                                                     wire:model.live.debounce.300ms="countrySearch"
                                                     class="tag-input"
                                                     placeholder="{{ $this->selectedCountryName ? '' : 'Search countries...' }}"
-                                                    wire:focus="toggleCountryDropdown()"
                                                     autocomplete="off"
                                                 >
                                             </div>
@@ -360,7 +361,9 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> {{ __('crm.account_settings') }} <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container" wire:click="toggleAccountDropdown()">
+                                        <div class="tag-select-container"
+                                            wire:click="$set('showAccountDropdown', true)"
+                                            wire:click.outside="$set('showAccountDropdown', false)">
                                             <div class="tag-select-input">
                                                 @if($this->selectedAccountName)
                                                     <span class="tag-badge">
@@ -373,15 +376,14 @@
                                                     wire:model.live.debounce.300ms="accountSearch"
                                                     class="tag-input"
                                                     placeholder="{{ $this->selectedAccountName ? '' : 'Search account settings...' }}"
-                                                    wire:focus="toggleAccountDropdown()"
                                                     autocomplete="off"
                                                 >
                                             </div>
-                                            @if($showAccountDropdown && $this->filteredAccounts->count() > 0)
+                                            @if($showAccountDropdown && count($this->filteredAccounts) > 0)
                                                 <div class="tag-dropdown">
                                                     @foreach($this->filteredAccounts as $account)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccount('{{ is_object($account) ? $account->id : ($account['id'] ?? 0) }}')">
-                                                            {{ is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '') }}
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccount('{{ data_get($account, 'id') }}')">
+                                                            {{ data_get($account, 'key') }}
                                                         </div>
                                                     @endforeach
                                                 </div>
@@ -432,6 +434,22 @@
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">{{ __('crm.credit_days') }}</label>
                                         <input type="number" wire:model="customerForm.credit_days" class="form-control" placeholder="{{ __('crm.credit_days_placeholder') }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">Contract Validity From</label>
+                                        <input type="date" wire:model="customerForm.contract_valid_from" class="form-control">
+                                        @error('customerForm.contract_valid_from') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold">Contract Validity To</label>
+                                        <input type="date" wire:model="customerForm.contract_valid_to" class="form-control">
+                                        @error('customerForm.contract_valid_to') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                             </div>

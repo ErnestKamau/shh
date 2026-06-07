@@ -48,6 +48,7 @@ class WorkflowBoard extends Component
             'in_review' => 'In Review',
             'in_additional_info' => 'Request Additional Info',
             'complete' => 'Complete Requests',
+            'scheduled_sampling' => 'Scheduled Sampling',
             'interzone_transfers' => 'Interzone Transfers',
         ];
     }
@@ -577,6 +578,10 @@ class WorkflowBoard extends Component
                 $counts[$tabKey] = \App\Models\Sampleworkflow\InterzoneTransfer::query()->count();
                 continue;
             }
+            if ($tabKey === 'scheduled_sampling') {
+                $counts[$tabKey] = \App\Models\SamplingSchedule::query()->count();
+                continue;
+            }
             $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
         }
 
@@ -606,6 +611,19 @@ class WorkflowBoard extends Component
             'in_review' => $inReviewQuery->count(),
             'accepted'  => $acceptedQuery->count(),
         ];
+    }
+
+    /**
+     * Get sampling schedules for the Scheduled Sampling tab.
+     *
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function getSamplingSchedulesProperty()
+    {
+        return \App\Models\SamplingSchedule::query()
+            ->with(['client', 'contact', 'personnel'])
+            ->orderBy('sampling_datetime', 'desc')
+            ->paginate($this->submissionFormsPerPage);
     }
 
     protected function requestReviewSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder

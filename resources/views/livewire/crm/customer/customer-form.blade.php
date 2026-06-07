@@ -51,7 +51,7 @@
                                         <div class="tag-select-input">
                                             @if($this->selectedCountry)
                                                 <span class="tag-badge">
-                                                    {{ $this->selectedCountry->name }}
+                                                    {{ data_get($this->selectedCountry, 'name') }}
                                                     <i class="mdi mdi-close-circle" wire:click.stop="clearCountry"></i>
                                                 </span>
                                             @endif
@@ -67,8 +67,8 @@
                                             <div class="tag-dropdown">
                                                 @if(count($this->filteredCountries) > 0)
                                                     @foreach($this->filteredCountries as $country)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectCountry('{{ $country->id }}')">
-                                                            {{ $country->name }}
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectCountry('{{ data_get($country, 'id') }}')">
+                                                            {{ data_get($country, 'name') }}
                                                         </div>
                                                     @endforeach
                                                 @else
@@ -141,7 +141,7 @@
                                         <div class="tag-select-input">
                                             @if($this->selectedAccount)
                                                 <span class="tag-badge">
-                                                    {{ $this->selectedAccount->key }}
+                                                    {{ data_get($this->selectedAccount, 'key') }}
                                                     <i class="mdi mdi-close-circle" wire:click.stop="clearAccountStatus"></i>
                                                 </span>
                                             @endif
@@ -157,8 +157,8 @@
                                             <div class="tag-dropdown">
                                                 @if(count($this->filteredAccounts) > 0)
                                                     @foreach($this->filteredAccounts as $account)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ $account->id }}')">
-                                                            {{ $account->key }}
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ data_get($account, 'id') }}')">
+                                                            {{ data_get($account, 'key') }}
                                                         </div>
                                                     @endforeach
                                                 @else
@@ -168,6 +168,22 @@
                                         @endif
                                     </div>
                                     @error('account_status') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row border-top pt-3 mt-3">
+                            <div class="col-sm-6">
+                                <div class="form-group">
+                                    <label class="control-label">Contract Validity From</label>
+                                    <input type="date" wire:model="contract_valid_from" class="form-control @error('contract_valid_from') is-invalid @enderror" />
+                                    @error('contract_valid_from') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-group">
+                                    <label class="control-label">Contract Validity To</label>
+                                    <input type="date" wire:model="contract_valid_to" class="form-control @error('contract_valid_to') is-invalid @enderror" />
+                                    @error('contract_valid_to') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>

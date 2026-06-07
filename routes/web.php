@@ -168,6 +168,7 @@ Route::get('/system-settings/module-visibility', 'ConfigurationController@module
 Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware('can:system.translations.view');
 Route::get('/system-settings/preferences', 'ConfigurationController@preferences')->name('system-settings.preferences')->middleware('can:settings.module.access');
 Route::post('/system-settings/preferences', 'ConfigurationController@updatePreferences')->name('system-settings.preferences.update')->middleware('can:settings.module.access');
+Route::get('/system-settings/whatsapp', 'ConfigurationController@whatsapp')->name('system-settings.whatsapp')->middleware('can:settings.module.access');
 
 // Bulk Data Import
 Route::get('/bulk-import', 'ConfigurationController@bulkImport')->name('bulk-import')->middleware('can:settings.module.access');
@@ -182,6 +183,8 @@ Route::post('/company-activate', 'CompanyController@activate_company')->name('ac
 
 //######################################SYSTEM###########################################
 Route::get('/full-calendar/view/{date?}', 'Event\EventController@index')->name('full-calendar')->middleware('can:calendar.module.access');
+Route::get('/system-planner/tasks', 'Event\EventController@tasks')->name('system-planner.tasks')->middleware('can:calendar.module.access');
+Route::get('/system-planner/schedule-sampling', 'Event\EventController@scheduleSamplingIndex')->name('system-planner.schedule-sampling')->middleware('can:calendar.module.access');
 Route::post('/full-calendar/add', 'Event\EventController@created')->name('full-calendar-create')->middleware('can:sampling-planner.components.all events.add');
 
 Route::post('/fullcalendareventmaster/create', 'Event\EventController@create')->middleware('can:sampling-planner.components.all events.add');
@@ -192,6 +195,7 @@ Route::get('/fullcalendar/print-user-task', 'Event\EventController@printUserEven
 Route::post('/full-callendar/edit', 'Event\EventController@editEvent')->name('editEvent')->middleware('can:sampling-planner.components.all events.edit');
 Route::post('/delete-events', 'Event\EventController@delete_event')->name('delete-events')->middleware('can:sampling-planner.components.all events.delete');
 Route::get('/get/event/id/{id}', 'Event\EventController@getEvent')->name('getEventByID')->middleware('can:sampling-planner.components.all events.view');
+Route::post('/event/occurrence/update-status', 'Event\EventController@updateOccurrenceStatus')->name('updateOccurrenceStatus')->middleware('can:sampling-planner.components.all events.edit');
 
 //#############CONFIGURATIONS END###############################################################################
 //######################################dashboard Ajax###############################################

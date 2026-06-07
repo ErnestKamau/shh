@@ -215,7 +215,7 @@
                                                     <div class="tag-dropdown">
                                                         @if(count($this->filteredCountries) > 0)
                                                             @foreach($this->filteredCountries as $country)
-                                                                <div class="tag-dropdown-item" wire:click.stop="selectCountry({{ data_get($country, 'id') }})">
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectCountry('{{ data_get($country, 'id') }}')">
                                                                     {{ data_get($country, 'name') }}
                                                                 </div>
                                                             @endforeach
@@ -253,7 +253,7 @@
                                                     <div class="tag-dropdown">
                                                         @if(count($this->filteredAccounts) > 0)
                                                             @foreach($this->filteredAccounts as $account)
-                                                                <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus({{ data_get($account, 'id') }})">
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ data_get($account, 'id') }}')">
                                                                     {{ data_get($account, 'key') }}
                                                                 </div>
                                                             @endforeach
@@ -306,6 +306,23 @@
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">{{ __('crm.credit_days') }}</label>
                                             <input type="number" wire:model="customerForm.credit_days" class="form-control">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">Contract Validity From</label>
+                                            <input type="date" wire:model="customerForm.contract_valid_from" class="form-control">
+                                            @error('customerForm.contract_valid_from') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">Contract Validity To</label>
+                                            <input type="date" wire:model="customerForm.contract_valid_to" class="form-control">
+                                            @error('customerForm.contract_valid_to') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                 </div>
@@ -487,6 +504,29 @@
                                                     @else
                                                         <span class="text-muted">N/A</span>
                                                     @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-calendar text-primary"></i> Contract Validity From
+                                                </div>
+                                                <div class="info-value">
+                                                    {{ $customer->contract_valid_from ? \Carbon\Carbon::parse($customer->contract_valid_from)->format('d-M-Y') : 'N/A' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-calendar text-primary"></i> Contract Validity To
+                                                </div>
+                                                <div class="info-value">
+                                                    {{ $customer->contract_valid_to ? \Carbon\Carbon::parse($customer->contract_valid_to)->format('d-M-Y') : 'N/A' }}
                                                 </div>
                                             </div>
                                         </div>

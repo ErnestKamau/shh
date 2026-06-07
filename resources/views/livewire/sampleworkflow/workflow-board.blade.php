@@ -1406,6 +1406,70 @@
 									'workflowSubTab' => $workflowSubTab,
 								], key('interzone-receiving-panel'))
 							@endif
+							@if($workflowSubTab === 'scheduled_sampling')
+								<div class="mt-3">
+									@php
+										$samplingSchedules = $this->samplingSchedules;
+									@endphp
+									@if($samplingSchedules->count() > 0)
+										<div class="table-responsive">
+											<table class="table table-sm table-hover workflow-table mb-0">
+												<thead>
+													<tr>
+														<th>Customer Name</th>
+														<th>Date for Sampling</th>
+														<th>Sample Details</th>
+														<th>Frequency</th>
+														<th>Personnel</th>
+													</tr>
+												</thead>
+												<tbody>
+													@foreach($samplingSchedules as $schedule)
+														@php
+															$sampleDetailsList = [];
+															if (!empty($schedule->sample_details) && is_array($schedule->sample_details)) {
+																foreach ($schedule->sample_details as $entry) {
+																	$st = \App\SampleType::find($entry['sample_type_id'] ?? null);
+																	$at = \App\AnalysisType::find($entry['analysis_type_id'] ?? null);
+																	$paramCount = count($entry['parameters'] ?? []);
+																	if ($st) {
+																		$detailText = $st->name;
+																		if ($at) $detailText .= ' - ' . $at->name;
+																		if ($paramCount > 0) $detailText .= ' (' . $paramCount . ' params)';
+																		$sampleDetailsList[] = $detailText;
+																	}
+																}
+															} elseif ($schedule->sample_type) {
+																$detailText = $schedule->sample_type->name;
+																if ($schedule->analysis_type) $detailText .= ' - ' . $schedule->analysis_type->name;
+																$paramCount = count($schedule->parameters ?? []);
+																if ($paramCount > 0) $detailText .= ' (' . $paramCount . ' params)';
+																$sampleDetailsList[] = $detailText;
+															}
+															$sampleDetailsText = implode('; ', $sampleDetailsList);
+														@endphp
+														<tr>
+															<td>{{ $schedule->client->name ?? 'N/A' }}</td>
+															<td>{{ $schedule->sampling_datetime ? $schedule->sampling_datetime->format('M d, Y H:i') : 'N/A' }}</td>
+															<td>{{ $sampleDetailsText ?: 'N/A' }}</td>
+															<td><span class="badge badge-info">{{ $schedule->frequency ?? 'One-time' }}</span></td>
+															<td>{{ $schedule->personnel->name ?? 'N/A' }}</td>
+														</tr>
+													@endforeach
+												</tbody>
+											</table>
+										</div>
+										<div class="mt-2">
+											{{ $samplingSchedules->links() }}
+										</div>
+									@else
+										<div class="text-center py-5">
+											<i class="mdi mdi-calendar-clock text-muted" style="font-size: 3rem;"></i>
+											<p class="text-muted mt-3">No scheduled sampling found.</p>
+										</div>
+									@endif
+								</div>
+							@endif
 						@elseif($status === 'Samples Request Review')
 							<div class="workflow-receiving-tabs mb-3" role="tablist">
 								@foreach($requestReviewTabs as $tabKey => $tabLabel)

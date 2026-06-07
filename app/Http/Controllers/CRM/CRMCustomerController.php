@@ -58,25 +58,25 @@ class CRMCustomerController extends Controller
 
 	public function show($id)
 	{
-		return view('layouts.crm.customer-show-wrapper', ['customerId' => (int) $id]);
+		return view('layouts.crm.customer-show-wrapper', ['customerId' => (string) $id]);
 	}
 
 	public function edit_label(UpdateCustomerLabelRequest $request, $id, CRMCustomerService $service)
 	{
-		$service->updateLabel((int) $id, $request->validated('column'), $request->validated('name'));
+		$service->updateLabel((string) $id, $request->validated('column'), $request->validated('name'));
 		return redirect()->back()->with('success', 'Configuration Saved.');
 	}
 
 
 	public function edit(UpdateCustomerRequest $request, $id, CRMCustomerService $service)
 	{
-		$service->update((int) $id, $request->validated());
+		$service->update((string) $id, $request->validated());
 		return redirect()->back()->with('success', 'Customer edited.');
 	}
 
 	public function editConfigurations(UpdateCustomerConfigurationsRequest $request, $id, CRMCustomerService $service)
 	{
-		$service->updateConfigurations((int) $id, $request->validated());
+		$service->updateConfigurations((string) $id, $request->validated());
 		return redirect()->back()->with('success', 'Configurations saved.');
 	}
 
@@ -110,7 +110,7 @@ class CRMCustomerController extends Controller
 	public function delete_customer(Request $request, CRMCustomerService $service)
 	{
 		try {
-			$service->softDelete((int) $request->customer_id);
+			$service->softDelete((string) $request->customer_id);
 			return redirect()->back()->with('success', 'Crm Customer deleted successfully!');
 		} catch (\RuntimeException $e) {
 			return redirect()->back()->with('error', $e->getMessage());

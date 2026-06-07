@@ -412,7 +412,7 @@
 			<span class="menu-collapsed">Labs</span>
 		</div>
 	</a> --}}
-	@if($canProducts || $canSampleTypes || $canChecklistApprovals || $canConfigRouteAccess || $canRftForms)
+	@if($canProducts || $canSampleTypes || $canChecklistApprovals || $canConfigRouteAccess || $canRftForms || auth()->user()->can('settings.module.access'))
 	<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
@@ -448,6 +448,13 @@
 
 		<a href="{{route('templates.index')}}" class="list-group-item list-group-item-action">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Report Templates
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+		@endif
+
+		@if(auth()->user()->can('settings.module.access'))
+		<a href="{{ route('system-settings.whatsapp') }}" class="list-group-item list-group-item-action">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Whatsapp Configuration
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		@endif

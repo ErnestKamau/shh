@@ -15,6 +15,8 @@ use App\BatchAmmendment;
 use App\Country;
 use App\ModulePreConfigs;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CustomerProfile extends Component
 {
@@ -48,7 +50,9 @@ class CustomerProfile extends Component
         'active' => true,
         'account_status' => null,
         'vat_no' => '',
-        'lpos_required' => false
+        'lpos_required' => false,
+        'contract_valid_from' => '',
+        'contract_valid_to' => '',
     ];
 
     // Supporting Data
@@ -72,15 +76,25 @@ class CustomerProfile extends Component
     public $messageType = '';
     public $editingCustomer = false;
 
-    protected $rules = [
-        'customerForm.name' => 'required|string|max:255',
-        'customerForm.postal_address' => 'required|string|max:500',
-        'customerForm.physical_address' => 'required|string|max:500',
-        'customerForm.email' => 'required|email|max:255',
-        'customerForm.telephone1' => 'required|string|max:50',
-        'customerForm.country_id' => 'required|exists:countries,id',
-        'customerForm.account_status' => 'required|exists:module_pre_configs,id',
-    ];
+    protected function rules()
+    {
+        $allowedAccountIds = collect($this->accounts)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        return [
+            'customerForm.name' => 'required|string|max:255',
+            'customerForm.postal_address' => 'required|string|max:500',
+            'customerForm.physical_address' => 'required|string|max:500',
+            'customerForm.email' => 'required|email|max:255',
+            'customerForm.telephone1' => 'required|string|max:50',
+            'customerForm.country_id' => 'required|exists:countries,id',
+            'customerForm.account_status' => ['required', Rule::in($allowedAccountIds)],
+            'customerForm.contract_valid_from' => 'nullable|date',
+            'customerForm.contract_valid_to' => 'nullable|date',
+        ];
+    }
 
     protected $messages = [
         'customerForm.name.required' => 'Customer name is required.',
@@ -125,7 +139,9 @@ class CustomerProfile extends Component
             'active' => $this->customer->active == 1,
             'account_status' => $this->customer->account_status,
             'vat_no' => $this->customer->vat_no ?? '',
-            'lpos_required' => $this->customer->lpos_required == 1
+            'lpos_required' => $this->customer->lpos_required == 1,
+            'contract_valid_from' => $this->customer->contract_valid_from ? substr($this->customer->contract_valid_from, 0, 10) : '',
+            'contract_valid_to' => $this->customer->contract_valid_to ? substr($this->customer->contract_valid_to, 0, 10) : '',
         ];
 
         $this->hydrateDropdownLabels();
@@ -272,7 +288,7 @@ class CustomerProfile extends Component
             return null;
         }
 
-        return collect($this->accounts)->firstWhere('id', (int) $this->customerForm['account_status']);
+        return collect($this->accounts)->firstWhere('id', (string) $this->customerForm['account_status']);
     }
 
     public function getFilteredAccountsProperty()
@@ -294,10 +310,10 @@ class CustomerProfile extends Component
 
     public function selectAccountStatus($accountId): void
     {
-        $account = collect($this->accounts)->firstWhere('id', (int) $accountId);
+        $account = collect($this->accounts)->firstWhere('id', (string) $accountId);
 
         if ($account) {
-            $this->customerForm['account_status'] = (int) data_get($account, 'id');
+            $this->customerForm['account_status'] = (string) data_get($account, 'id');
             $this->accountSearch = (string) data_get($account, 'key', '');
             $this->showAccountDropdown = false;
         }
@@ -331,6 +347,8 @@ class CustomerProfile extends Component
             $this->customer->account_status = $this->customerForm['account_status'];
             $this->customer->vat_no = $this->customerForm['vat_no'];
             $this->customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
+            $this->customer->contract_valid_from = $this->customerForm['contract_valid_from'] ?: null;
+            $this->customer->contract_valid_to = $this->customerForm['contract_valid_to'] ?: null;
 
             $this->customer->save();
 

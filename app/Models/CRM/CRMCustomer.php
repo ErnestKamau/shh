@@ -28,6 +28,8 @@ class CRMCustomer extends Model implements Auditable
 		'email' => \App\Casts\SafeEncrypted::class,
 		'telephone1' => \App\Casts\SafeEncrypted::class,
 		'telephone2' => \App\Casts\SafeEncrypted::class,
+		'contract_valid_from' => 'date',
+		'contract_valid_to' => 'date',
 	];
 
 	public function country(){
