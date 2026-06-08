@@ -224,7 +224,7 @@ class ContactsManager extends Component
             } else {
                 User::deactivatePortalUsersForCustomerContact(
                     $contact,
-                    (int) $this->customerId,
+                    (string) $this->customerId,
                     $this->editingContact?->email
                 );
             }

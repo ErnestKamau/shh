@@ -198,6 +198,7 @@ class CRMLanguageSeeder extends Seeder
             'job_title_placeholder' => ['en' => 'Job title...', 'sw' => 'Cheo cha kazi...'],
             'occupation' => ['en' => 'Occupation', 'sw' => 'Kazi'],
             'occupation_placeholder' => ['en' => 'Occupation...', 'sw' => 'Kazi...'],
+            'department' => ['en' => 'Department', 'sw' => 'Idara'],
             'signature' => ['en' => 'Signature', 'sw' => 'Sahihi'],
             'current_signature' => ['en' => 'Current signature', 'sw' => 'Sahihi ya sasa'],
             'signature_upload_hint' => ['en' => 'Upload a signature image (JPG, PNG, etc.)', 'sw' => 'Pakia picha ya sahihi (JPG, PNG, n.k.)'],

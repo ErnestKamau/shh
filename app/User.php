@@ -455,7 +455,7 @@ class User extends Authenticatable implements Auditable
 	 */
 	public static function deactivatePortalUsersForCustomerContact(
 		CustomerContact $contact,
-		int $crmCustomerId,
+		string $crmCustomerId,
 		?string $previousContactEmail = null
 	): void {
 		$emails = array_values(array_unique(array_filter([
