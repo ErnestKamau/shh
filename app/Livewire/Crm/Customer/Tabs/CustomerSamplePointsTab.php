@@ -88,9 +88,20 @@ class CustomerSamplePointsTab extends BaseCrmComponent
             ->paginate($this->perPage);
     }
 
-    public function openPointForm($pointId = null)
+    public function openPointForm(?string $pointId = null): void
     {
-        $this->editingPoint = $pointId ? SamplePoint::find($pointId) : null;
+        if ($pointId) {
+            $this->editingPoint = SamplePoint::find($pointId);
+
+            if (! $this->editingPoint) {
+                $this->showError('Sample point not found.');
+
+                return;
+            }
+        } else {
+            $this->editingPoint = null;
+        }
+
         $this->showForm = true;
     }
 

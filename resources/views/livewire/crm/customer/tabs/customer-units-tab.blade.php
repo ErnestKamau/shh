@@ -102,7 +102,7 @@
                             <td nowrap>
                                 <x-crm.action-buttons>
                                     <button class="btn crm-btn crm-btn-edit btn-sm"
-                                        wire:click.prevent="openUnitForm({{$unit->id}})">
+                                        wire:click.prevent="openUnitForm('{{ $unit->id }}')">
                                         <i class="mdi mdi-pencil-outline"></i>
                                     </button>
                                 </x-crm.action-buttons>

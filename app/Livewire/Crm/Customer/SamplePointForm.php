@@ -25,7 +25,7 @@ class SamplePointForm extends BaseCrmComponent
 
     public function getSelectedUnitProperty()
     {
-        return collect($this->units)->firstWhere('id', (int) $this->unitId);
+        return collect($this->units)->firstWhere('id', (string) $this->unitId);
     }
 
     public function getFilteredUnitsProperty()
