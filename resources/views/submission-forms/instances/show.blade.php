@@ -40,14 +40,24 @@ $(document).on('click', '.create-samples-btn', function (e) {
     const instanceId = $(this).data('instance-id');
     const $btn = $(this);
     $btn.prop('disabled', true);
+    console.log('Create Job No. clicked for instance:', instanceId);
+    
     $.ajax({
         url: '{{ route('submission-forms.instances.create-samples', ':instance') }}'.replace(':instance', instanceId),
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         success: function (response) {
+            console.log('Create Job No. response:', response);
             if (response.success) {
                 location.reload();
+            } else {
+                alert(response.message || 'Failed to create Job No.');
             }
+        },
+        error: function (xhr, status, error) {
+            console.error('Create Job No. error:', error);
+            console.error('Response:', xhr.responseText);
+            alert('Error creating Job No.: ' + error);
         },
         complete: function () {
             $btn.prop('disabled', false);

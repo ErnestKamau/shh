@@ -612,15 +612,15 @@
     }
 
     .modern-select:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #6D0A0E;
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
         background: #ffffff;
         outline: none;
     }
 
     .modern-select:hover {
-        border-color: #007bff;
-        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+        border-color: #6D0A0E;
+        box-shadow: 0 4px 8px rgba(109, 10, 14, 0.15);
     }
 
     .modern-select option {
@@ -706,12 +706,12 @@
     }
 
     .tag-select-input:hover {
-        border-color: #007bff;
+        border-color: #6D0A0E;
     }
 
     .tag-select-input:focus-within {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #6D0A0E;
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
         outline: none;
     }
 
@@ -720,7 +720,7 @@
         align-items: center;
         gap: 4px;
         padding: 4px 10px;
-        background-color: #007bff;
+        background-color: #6D0A0E;
         color: white;
         border-radius: 16px;
         font-size: 0.875rem;
@@ -754,7 +754,7 @@
         left: 0;
         right: 0;
         background: white;
-        border: 2px solid #007bff;
+        border: 2px solid #6D0A0E;
         border-top: none;
         border-radius: 0 0 8px 8px;
         max-height: 250px;

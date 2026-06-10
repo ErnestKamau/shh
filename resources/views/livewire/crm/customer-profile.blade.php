@@ -598,10 +598,10 @@
     }
 
     .modern-tab-link:hover {
-        background: rgba(0, 123, 255, 0.08) !important;
-        color: #007bff !important;
+        background: rgba(109, 10, 14, 0.08) !important;
+        color: #6D0A0E !important;
         transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15) !important;
+        box-shadow: 0 4px 12px rgba(109, 10, 14, 0.15) !important;
         border: none !important;
         outline: none !important;
     }
@@ -619,8 +619,8 @@
     }
 
     .modern-tab-link.active {
-        background: linear-gradient(135deg, rgba(0, 123, 255, 0.08) 0%, rgba(74, 144, 226, 0.05) 100%) !important;
-        color: #4a90e2 !important;
+        background: linear-gradient(135deg, rgba(109, 10, 14, 0.08) 0%, rgba(109, 10, 14, 0.03) 100%) !important;
+        color: #6D0A0E !important;
         transform: translateY(-1px) !important;
         border: none !important;
     }
@@ -836,12 +836,12 @@
     }
 
     .tag-select-input:hover {
-        border-color: #007bff;
+        border-color: #6D0A0E;
     }
 
     .tag-select-input:focus-within {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #6D0A0E;
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
         outline: none;
     }
 
@@ -854,7 +854,7 @@
         align-items: center;
         gap: 4px;
         padding: 4px 10px;
-        background-color: #007bff;
+        background-color: #6D0A0E;
         color: white;
         border-radius: 16px;
         font-size: 0.875rem;
@@ -889,7 +889,7 @@
         left: 0;
         right: 0;
         background: white;
-        border: 2px solid #007bff;
+        border: 2px solid #6D0A0E;
         border-top: none;
         border-radius: 0 0 8px 8px;
         max-height: 250px;

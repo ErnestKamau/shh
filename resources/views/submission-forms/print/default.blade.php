@@ -68,7 +68,7 @@
             background: #e9ecef;
             padding: 10px 15px;
             margin-bottom: 15px;
-            border-left: 4px solid #007bff;
+            border-left: 4px solid #6D0A0E;
         }
         
         .element-group {
@@ -95,7 +95,7 @@
         }
         
         .file-value {
-            color: #007bff;
+            color: #6D0A0E;
             text-decoration: underline;
         }
         

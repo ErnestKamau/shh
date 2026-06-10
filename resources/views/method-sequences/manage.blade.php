@@ -30,12 +30,12 @@
     }
 
     .tab-card-header > .nav-tabs > li > a.show {
-        border-bottom: 2px solid #007bff;
-        color: #007bff;
+        border-bottom: 2px solid #6D0A0E;
+        color: #6D0A0E;
     }
 
     .tab-card-header > .nav-tabs > li > a:hover {
-        color: #007bff;
+        color: #6D0A0E;
     }
 
     .tab-card .nav-link.active {

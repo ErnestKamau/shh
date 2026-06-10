@@ -39,6 +39,18 @@
             text-align: center;
             color: #6c757d;
         }
+        .text-primary {
+            color: #6D0A0E !important;
+        }
+        .btn-outline-primary {
+            color: #6D0A0E !important;
+            border-color: #6D0A0E !important;
+        }
+        .btn-outline-primary:hover {
+            background-color: #6D0A0E !important;
+            border-color: #6D0A0E !important;
+            color: #fff !important;
+        }
     </style>
 
     <div class="d-flex align-items-center justify-content-between px-4 pt-4 pb-3">
@@ -225,9 +237,9 @@
                     datasets: [{
                         label: 'Usage Duration (minutes)',
                         data: parsed.durations || [],
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.12)',
-                        pointBackgroundColor: '#007bff',
+                        borderColor: '#6D0A0E',
+                        backgroundColor: 'rgba(109, 10, 14, 0.12)',
+                        pointBackgroundColor: '#6D0A0E',
                         pointRadius: 3,
                         borderWidth: 2,
                         tension: 0.2,

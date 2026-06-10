@@ -325,16 +325,18 @@ Route::get('/livewire/labs/{lab}', [LabAppController::class, 'labProfile'])
 // Livewire Test Page
 Route::get('/livewire-test', function () {
     try {
-        $stdVals = \App\StandardValue::limit(5)->get();
-        $standards = \App\Standards::limit(5)->get();
-        $stdAnalytes = \App\StandardAnalytes::limit(5)->get();
-        
-        $output = "DATABASE SAMPLES:\n\n";
-        $output .= "StandardValue (first 5):\n" . $stdVals->toJson(JSON_PRETTY_PRINT) . "\n\n";
-        $output .= "Standards (first 5):\n" . $standards->toJson(JSON_PRETTY_PRINT) . "\n\n";
-        $output .= "StandardAnalytes (first 5):\n" . $stdAnalytes->toJson(JSON_PRETTY_PRINT) . "\n\n";
-        
-        return response($output)->header('Content-Type', 'text/plain');
+        \App\Models\TestRequestForm::seedDefaults();
+        $form = \App\Models\TestRequestForm::first();
+        if ($form) {
+            $output = "Class: " . get_class($form) . "\n";
+            $output .= "ID: " . $form->id . "\n";
+            $output .= "Name: " . $form->name . "\n";
+            $output .= "form_fields type: " . gettype($form->form_fields) . "\n";
+            $output .= "form_fields: " . json_encode($form->form_fields, JSON_PRETTY_PRINT) . "\n";
+            return response($output)->header('Content-Type', 'text/plain');
+        } else {
+            return "No forms found";
+        }
     } catch (\Throwable $t) {
         return "Error: " . $t->getMessage() . "\n" . $t->getTraceAsString();
     }
@@ -870,6 +872,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::post('/{instance}/apply-to-batches', 'FormInstanceController@applyToBatches')->name('apply-to-batches')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples')->middleware('can:laboratory.components.all samples.add');
         Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status')->middleware('can:submission-forms.access');
+        Route::get('/{instance}/sample-collection-label', 'FormInstanceController@sampleCollectionLabel')->name('sample-collection-label')->middleware('can:submission-forms.access');
         Route::post('/{instance}/intake-case/confirm', 'LabIntakeCaseController@confirm')->name('intake-case.confirm')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/intake-case/accept', 'LabIntakeCaseController@accept')->name('intake-case.accept')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/intake-case/reject', 'LabIntakeCaseController@reject')->name('intake-case.reject')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');

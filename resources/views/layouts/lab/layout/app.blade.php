@@ -1,10 +1,55 @@
 @extends('layouts.app')
 
 @section('module-name')
-<li class="nav-item">
+<li class="nav-item d-flex align-items-center">
 	<a class="nav-link module-name" href="{{ route('dashboard-lab') }}"><i class="mdi mdi-flask"></i> Lab Management</a>
+	<button type="button" 
+		class="btn btn-sm ml-3 workflow-header-receive-btn"
+		data-sf-trigger="workflow-receive-sample"
+		disabled>
+		<i class="mdi mdi-package-variant-closed"></i> Receive
+	</button>
 </li>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+	const headerReceiveBtn = document.querySelector('.workflow-header-receive-btn');
+	if (headerReceiveBtn) {
+		const updateHeaderButton = function() {
+			const selectedCount = document.querySelectorAll('input[data-instance-select]:checked').length;
+			if (selectedCount > 0) {
+				headerReceiveBtn.disabled = false;
+			} else {
+				headerReceiveBtn.disabled = true;
+			}
+		};
+		
+		document.addEventListener('change', function(e) {
+			if (e.target && e.target.matches && e.target.matches('input[data-instance-select]')) {
+				updateHeaderButton();
+			}
+		});
+		
+		if (typeof Livewire !== 'undefined') {
+			Livewire.hook('morph.updated', updateHeaderButton);
+		}
+		
+		updateHeaderButton();
+		
+		headerReceiveBtn.addEventListener('click', function(e) {
+			e.preventDefault();
+			// Find and click the original receive button in the workflow panel
+			const originalReceiveBtn = document.querySelector('button[data-sf-trigger="workflow-receive-sample"]:not(.workflow-header-receive-btn)');
+			if (originalReceiveBtn) {
+				originalReceiveBtn.click();
+			}
+		});
+	}
+});
+</script>
+@endpush
 
 @section('title')
 <style type="text/css">	.tab-card {
@@ -77,6 +122,38 @@
 
 	.text-primary {
 		color: var(--sys-primary-color) !important;
+	}
+
+	.workflow-header-receive-btn {
+		height: 32px;
+		padding: 0 14px !important;
+		font-size: 0.82rem !important;
+		border-radius: 6px !important;
+		display: inline-flex !important;
+		align-items: center;
+		justify-content: center;
+		gap: 5px;
+		font-weight: 500 !important;
+		background-color: #6D0A0E !important;
+		border-color: #6D0A0E !important;
+		color: #ffffff !important;
+		transition: all 0.2s ease-in-out;
+		vertical-align: middle;
+	}
+
+	.workflow-header-receive-btn:hover:not(:disabled) {
+		background-color: #8B1E22 !important;
+		border-color: #8B1E22 !important;
+		color: #ffffff !important;
+		box-shadow: 0 4px 8px rgba(109, 10, 14, 0.3) !important;
+	}
+
+	.workflow-header-receive-btn:disabled {
+		background-color: #6D0A0E !important;
+		border-color: #6D0A0E !important;
+		color: #ffffff !important;
+		opacity: 0.65;
+		cursor: not-allowed;
 	}
 </style>
 @yield('title2')

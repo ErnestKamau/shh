@@ -28,6 +28,7 @@ class BulkImportService
                     'standard' => 'Standard & Analytes',
                     'sample_condition' => 'Sample Condition',
                     'lab_hierarchy' => 'Unified Lab Hierarchy (Sample Type -> Analysis Type -> Analysis Elements -> Analytes & Standards)',
+                    'amspec_parameters' => 'Amspec Parameters (Sample Types, Analysis Types, Parameters)',
                 ],
             ],
             'equipment' => [
@@ -168,6 +169,7 @@ class BulkImportService
                 'standard' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
                 'sample_condition' => 'App\Imports\Lab\SampleConditionImporter',
                 'lab_hierarchy' => 'App\Imports\Lab\UnifiedLabHierarchyImporter',
+                'amspec_parameters' => 'App\Imports\Lab\AmspecParametersImporter',
             ],
             'equipment' => [
                 'asset_type' => 'App\Imports\Equipment\AssetTypeImporter',

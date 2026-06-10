@@ -8,7 +8,7 @@
             {{-- Section Title --}}
             <div class="clinical-section-header">
                 <h3 class="clinical-section-title">
-                    <i class="mdi mdi-folder-outline" style="color: #0059bb; margin-right: 0.75rem;"></i>
+                    <i class="mdi mdi-folder-outline" style="color: #6D0A0E; margin-right: 0.75rem;"></i>
                     {{ $section['title'] }}
                 </h3>
                 @if($section['description'])
@@ -410,14 +410,14 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: #3b82f6;
+    color: #6D0A0E;
     font-weight: 500;
     text-decoration: none;
     transition: color 0.15s ease;
 }
 
 .clinical-file-link:hover {
-    color: #2563eb;
+    color: #8c1419;
 }
 
 /* Empty State */

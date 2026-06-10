@@ -125,6 +125,13 @@
             </div>
         </div>
     </div>
+    <style>
+        .btn-primary { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
+        .btn-primary:hover { background-color: #55080b !important; border-color: #55080b !important; color: white !important; }
+        .btn-outline-primary { color: #6D0A0E !important; border-color: #6D0A0E !important; }
+        .btn-outline-primary:hover { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
+        .bg-primary { background-color: #6D0A0E !important; }
+    </style>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>

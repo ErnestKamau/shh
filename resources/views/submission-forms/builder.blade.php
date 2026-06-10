@@ -2160,7 +2160,7 @@ $(document).on('change', '#mapping-table', function() {
 
 .element-type:hover {
     background-color: #f8f9fa;
-    border-color: #007bff;
+    border-color: #6D0A0E;
 }
 
 .element-type i {
@@ -2179,12 +2179,12 @@ $(document).on('change', '#mapping-table', function() {
 }
 
 .holder-item.active {
-    border-color: #007bff !important;
-    background-color: #f0f8ff;
+    border-color: #6D0A0E !important;
+    background-color: rgba(109, 10, 14, 0.05);
 }
 
 .holder-item.active .holder-header {
-    background-color: rgba(0, 123, 255, 0.1);
+    background-color: rgba(109, 10, 14, 0.08);
 }
 }
 
@@ -2205,7 +2205,7 @@ $(document).on('change', '#mapping-table', function() {
 .sortable-fallback {
     display: block !important;
     background: #fff;
-    border: 2px dashed #007bff;
+    border: 2px dashed #6D0A0E;
     border-radius: 4px;
     padding: 10px;
     margin: 5px 0;
@@ -2273,7 +2273,7 @@ $(document).on('change', '#mapping-table', function() {
 
 .loading-spinner i {
     font-size: 2rem;
-    color: #007bff;
+    color: #6D0A0E;
 }
 
 .section-item {

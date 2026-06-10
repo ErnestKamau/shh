@@ -31,6 +31,7 @@ class SamplingSchedule extends Model implements Auditable
         'personnel_id',
         'description',
         'company_id',
+        'is_collected',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class SamplingSchedule extends Model implements Auditable
         'number_of_samples' => 'integer',
         'parameters' => 'array',
         'sample_details' => 'array',
+        'is_collected' => 'boolean',
     ];
 
     public function client()
@@ -65,4 +67,10 @@ class SamplingSchedule extends Model implements Auditable
     {
         return $this->belongsTo(\App\User::class, 'personnel_id');
     }
+
+    public function testRequestFormInstances()
+    {
+        return $this->hasMany(\App\Models\TestRequestFormInstance::class, 'sampling_schedule_id');
+    }
 }
+

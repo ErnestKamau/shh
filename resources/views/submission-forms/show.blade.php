@@ -811,7 +811,7 @@ waitForJQuery(function() {
   }
   
   .form-structure .section-item {
-    border-left: 3px solid #007bff;
+    border-left: 3px solid #6D0A0E;
     padding-left: 15px;
   }
   

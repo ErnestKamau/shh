@@ -83,6 +83,9 @@ class RequestViewPage extends Component
                 'notes.author',
                 'analysisAcceptanceForms',
                 'attachmentInstances.submissionForm',
+                'testRequestFormInstance.testRequestForm',
+                'testRequestFormInstance.creator',
+                'testRequestFormInstance.samplingSchedule',
             ])
             ->where('submission_form_id', $submissionFormId)
             ->findOrFail($instanceId);
@@ -93,11 +96,27 @@ class RequestViewPage extends Component
         }
 
         $this->loadAvailableAttachmentTypes();
+
+        try {
+            $debugData = [
+                'timestamp' => now()->toIso8601String(),
+                'submissionFormId' => $submissionFormId,
+                'instanceId' => $instanceId,
+                'has_trfi_relation' => $this->instance->testRequestFormInstance ? 'Yes' : 'No',
+                'trfi_db_exists' => $this->instance->testRequestFormInstance()->exists() ? 'Yes' : 'No',
+                'trf_instances_count' => $this->instance->testRequestFormInstances()->count(),
+                'trf_first_id' => $this->instance->testRequestFormInstances()->first()?->id,
+                'form_data' => $this->instance->testRequestFormInstances()->first()?->form_data,
+            ];
+            @file_put_contents(storage_path('logs/debug.log'), json_encode($debugData) . PHP_EOL, FILE_APPEND);
+        } catch (\Exception $e) {
+            // ignore
+        }
     }
 
     public function setTab(string $tab): void
     {
-        if (! in_array($tab, ['samples', 'notes', 'attachments', 'custody'], true)) {
+        if (! in_array($tab, ['samples', 'notes', 'attachments', 'custody', 'attached'], true)) {
             return;
         }
 

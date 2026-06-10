@@ -82,12 +82,16 @@
 </div>
 
 <style>
-    .border-left-primary { border-left: 4px solid #007bff !important; }
+    .border-left-primary { border-left: 4px solid #6D0A0E !important; }
     .border-left-info { border-left: 4px solid #17a2b8 !important; }
     .border-left-success { border-left: 4px solid #28a745 !important; }
     .icon-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-    .bg-primary-light { background-color: rgba(0, 123, 255, 0.1); }
+    .bg-primary-light { background-color: rgba(109, 10, 14, 0.1); }
     .bg-info-light { background-color: rgba(23, 162, 184, 0.1); }
     .bg-success-light { background-color: rgba(40, 167, 69, 0.1); }
+    .badge-primary { background-color: #6D0A0E !important; color: white !important; }
+    .btn-primary { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
+    .btn-primary:hover { background-color: #55080b !important; border-color: #55080b !important; color: white !important; }
+    .text-primary { color: #6D0A0E !important; }
 </style>
 </div>

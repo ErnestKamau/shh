@@ -129,6 +129,36 @@
 					outline: 2px solid #795548;
 					outline-offset: 2px;
 				}
+
+				/* AmSpec Maroon & White theme overrides */
+				.w3-border-brown {
+					border-color: #6D0A0E !important;
+				}
+				.btn-primary {
+					background-color: #6D0A0E !important;
+					border-color: #6D0A0E !important;
+					color: #ffffff !important;
+					font-weight: 600;
+					padding: 8px 20px;
+					border-radius: 4px;
+					transition: all 0.2s ease;
+				}
+				.btn-primary:hover,
+				.btn-primary:focus {
+					background-color: #8B1E22 !important;
+					border-color: #8B1E22 !important;
+					color: #ffffff !important;
+					box-shadow: 0 4px 8px rgba(109, 10, 14, 0.3);
+				}
+				.btn-link {
+					color: #6D0A0E !important;
+					font-weight: 500;
+				}
+				.btn-link:hover,
+				.btn-link:focus {
+					color: #8B1E22 !important;
+					text-decoration: underline;
+				}
 		  </style>
 	 </head>
 	 <body>

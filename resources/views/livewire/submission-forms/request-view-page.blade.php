@@ -63,11 +63,9 @@
                             <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" class="dropdown-item">
                                 <i class="mdi mdi-pencil mr-2"></i> Edit information
                             </a>
-                            @if($canCreateSamples && ($sampleStatus['status'] ?? '') === 'ready')
-                                <a href="#" class="dropdown-item create-samples-btn" data-instance-id="{{ $instance->id }}">
-                                    <i class="mdi mdi-flask mr-2"></i> Create batch
-                                </a>
-                            @endif
+                            <a href="#" class="dropdown-item create-samples-btn" data-instance-id="{{ $instance->id }}">
+                                <i class="mdi mdi-flask mr-2"></i> Create Job No.
+                            </a>
                             @if($instance->batches->isNotEmpty() && $linkedBatchesOutOfSyncWithForm)
                                 <form method="POST" action="{{ route('submission-forms.instances.apply-to-batches', $instance->id) }}" class="d-inline w-100" onsubmit="return confirm('Update all linked batches from the current saved form data?');">
                                     @csrf
@@ -82,6 +80,9 @@
                                 <i class="mdi mdi-pencil mr-2"></i> Continue editing
                             </a>
                         @endif
+                        <a href="{{ route('submission-forms.instances.sample-collection-label', $instance->id) }}" target="_blank" class="dropdown-item">
+                            <i class="mdi mdi-label mr-2"></i> SAMPLE COLLECTION LABEL
+                        </a>
                         @php $firstBatch = $instance->batches->first(); @endphp
                         @if($firstBatch)
                             <a href="{{ route('view-batch-details', ['batch' => $firstBatch->id, 'client' => 0, 'portal' => 0, 'status' => $firstBatch->status]) }}" class="dropdown-item">
@@ -197,6 +198,13 @@
                         <span class="badge">{{ count($this->sampleLines) }}</span>
                     </button>
                 </li>
+                @if($instance->testRequestFormInstance)
+                    <li class="nav-item">
+                        <button type="button" class="nav-link {{ $activeTab === 'attached' ? 'active' : '' }}" wire:click="setTab('attached')">
+                            <i class="mdi mdi-paperclip"></i> Attached
+                        </button>
+                    </li>
+                @endif
                 <li class="nav-item">
                     <button type="button" class="nav-link {{ $activeTab === 'notes' ? 'active' : '' }}" wire:click="setTab('notes')">
                         <i class="mdi mdi-comment-text-outline"></i> Notes
@@ -222,6 +230,10 @@
                         'sampleLines' => $this->sampleLines,
                         'acceptanceForm' => $acceptanceForm,
                         'boardStatus' => $boardStatus,
+                    ])
+                @elseif($activeTab === 'attached')
+                    @include('livewire.submission-forms.request-view.tabs.attached', [
+                        'instance' => $instance,
                     ])
                 @elseif($activeTab === 'notes')
                     @include('livewire.submission-forms.request-view.tabs.notes')

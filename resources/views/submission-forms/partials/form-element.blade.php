@@ -832,17 +832,17 @@
                     position: relative;
                     overflow: hidden;
                     transition: all 0.3s ease;
-                    box-shadow: 0 0 10px rgba(0, 123, 255, 0.4);
-                    border: 1px solid #007bff;
+                    box-shadow: 0 0 10px rgba(109, 10, 14, 0.4);
+                    border: 1px solid #6D0A0E;
                     font-weight: 600;
                     padding: 8px 24px;
                     border-radius: 30px;
-                    background: linear-gradient(145deg, #ffffff, #f0f8ff);
+                    background: linear-gradient(145deg, #ffffff, rgba(109, 10, 14, 0.05));
                 }
                 .glowing-button:hover {
-                    box-shadow: 0 0 20px rgba(0, 123, 255, 0.8), 0 0 40px rgba(0, 123, 255, 0.3);
+                    box-shadow: 0 0 20px rgba(109, 10, 14, 0.8), 0 0 40px rgba(109, 10, 14, 0.3);
                     transform: translateY(-2px);
-                    background: linear-gradient(145deg, #e6f2ff, #ffffff);
+                    background: linear-gradient(145deg, rgba(109, 10, 14, 0.1), #ffffff);
                 }
                 .glowing-button::after {
                     content: '';
@@ -1319,8 +1319,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Hover effects
     canvas.addEventListener('mouseenter', function() {
         if (!hasSignature) {
-            canvas.style.borderColor = '#007bff';
-            canvas.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.25)';
+            canvas.style.borderColor = '#6D0A0E';
+            canvas.style.boxShadow = '0 0 0 2px rgba(109, 10, 14, 0.25)';
         }
     });
     
@@ -1434,8 +1434,8 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .signature-pad-wrapper:hover {
-    border-color: #007bff;
-    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+    border-color: #6D0A0E;
+    box-shadow: 0 4px 8px rgba(109, 10, 14, 0.15);
 }
 
 .signature-canvas {

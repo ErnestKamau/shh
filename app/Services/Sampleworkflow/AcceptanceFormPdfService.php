@@ -80,6 +80,27 @@ class AcceptanceFormPdfService
         $customerEmail = $submissionRequest?->contact?->email ?? $submissionRequest?->email ?? $submissionRequest?->customer?->email ?? '';
         $customerTel = $submissionRequest?->mobile_telephone_no ?? $submissionRequest?->office_telephone_no ?? $submissionRequest?->customer?->telephone1 ?? '';
 
+        // Try to get data from Test Request Form Instance if available
+        $trfData = [];
+        if ($form->testRequestFormInstance) {
+            $trfData = $form->testRequestFormInstance->form_data ?? [];
+        }
+
+        // Use TRF data if available, otherwise fall back to existing form data
+        $conformityRequest = 'not_requested';
+        $managerCapability = 'has';
+        $laboratoryManagerName = $form->manager_signer_name ?? 'Manager';
+
+        if (!empty($trfData)) {
+            $statement = $trfData['statement_of_conformity'] ?? '';
+            if (is_array($statement)) {
+                $isSequential = array_keys($statement) === range(0, count($statement) - 1);
+                $statement = $isSequential ? implode(', ', $statement) : implode(', ', array_keys(array_filter($statement)));
+            }
+            $conformityRequest = stripos((string)$statement, 'YES') !== false ? 'requested' : 'not_requested';
+            $laboratoryManagerName = $trfData['lab_received_by'] ?? $trfData['manager_name'] ?? $laboratoryManagerName;
+        }
+
         return [
             'customer_name' => $form->customer_name,
             'customer_address' => $customerAddress,
@@ -87,18 +108,18 @@ class AcceptanceFormPdfService
             'number_of_samples' => $form->number_of_samples,
             'mode_of_work' => $form->mode_of_work,
             'type_of_samples' => $batch->sample_type?->name ?? '',
-            'date_of_sampling' => $form->date_of_sampling ?? $submissionRequest?->date_of_seizure,
+            'date_of_sampling' => $form->date_of_sampling ?? $submissionRequest?->date_of_seizure ?? $trfData['sampling_date'] ?? $trfData['collection_date'] ?? '',
             'date' => $form->request_date ?? now()->format('Y-m-d'),
             'tel' => $customerTel,
-            'deviation_answer' => 'No', // Defaulting as this might not be explicitly tracked on the new model
+            'deviation_answer' => 'No',
             'customer_certification_text' => $form->customer_certification_text,
             'customer_name_certified' => $form->customer_signer_name,
             'customer_signature' => $form->customer_signature,
             'customer_date' => $form->customer_signed_at ? \Carbon\Carbon::parse($form->customer_signed_at)->format('Y-m-d') : '',
-            'conformity_request' => 'not_requested', // Assuming default, add field to model if needed
-            'manager_capability' => 'has', // Assuming has capability since manager is signing
+            'conformity_request' => $conformityRequest,
+            'manager_capability' => $managerCapability,
             'laboratory_name' => config('app.name'),
-            'laboratory_manager_name' => $form->manager_signer_name,
+            'laboratory_manager_name' => $laboratoryManagerName,
             'manager_signature' => $form->manager_signature,
             'manager_date' => $form->manager_signed_at ? \Carbon\Carbon::parse($form->manager_signed_at)->format('Y-m-d') : '',
         ];
