@@ -71,11 +71,11 @@
                             <td nowrap>
                                 <x-crm.action-buttons>
                                     <button class="btn crm-btn crm-btn-edit btn-sm"
-                                        wire:click="openContactForm({{ $contact->id }})">
+                                        wire:click="openContactForm('{{ $contact->id }}')">
                                         <i class="mdi mdi-pencil-outline"></i>
                                     </button>
                                     <button class="btn crm-btn crm-btn-delete btn-sm"
-                                        wire:click="deleteContact({{ $contact->id }})"
+                                        wire:click="deleteContact('{{ $contact->id }}')"
                                         wire:confirm="{{ __('crm.delete_contact_confirm') }}">
                                         <i class="mdi mdi-trash-can-outline"></i>
                                     </button>

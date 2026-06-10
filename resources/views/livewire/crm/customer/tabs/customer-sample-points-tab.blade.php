@@ -89,7 +89,7 @@
                             <td nowrap>
                                 <x-crm.action-buttons>
                                     <button class="btn crm-btn crm-btn-edit btn-sm" title="{{ __('crm.edit') }}"
-                                        wire:click="openPointForm({{ $point->id }})">
+                                        wire:click="openPointForm('{{ $point->id }}')">
                                         <i class="mdi mdi-pencil-outline"></i>
                                     </button>
                                 </x-crm.action-buttons>

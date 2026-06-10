@@ -533,7 +533,7 @@ class CustomerManager extends Component
 
     public function viewCustomer($id)
     {
-        return redirect()->route('livewire.customer-profile', ['customerId' => $id]);
+        return redirect()->route('crm.customer.show', $id);
     }
 
     public function closeCustomerModal()

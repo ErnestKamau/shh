@@ -11,9 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('crm_customers')) {
+            return;
+        }
+
         Schema::table('crm_customers', function (Blueprint $table) {
-            $table->date('contract_valid_from')->nullable()->after('currency_id');
-            $table->date('contract_valid_to')->nullable()->after('contract_valid_from');
+            if (! Schema::hasColumn('crm_customers', 'contract_valid_from')) {
+                $table->date('contract_valid_from')->nullable()->after('currency_id');
+            }
+            if (! Schema::hasColumn('crm_customers', 'contract_valid_to')) {
+                $table->date('contract_valid_to')->nullable()->after('contract_valid_from');
+            }
         });
     }
 

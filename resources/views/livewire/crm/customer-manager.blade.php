@@ -190,7 +190,7 @@
                                         <tr>
                                            
                                         <td>
-                                            <a href="{{ route('livewire.customer-profile', ['customerId' => $customer->id]) }}" class="btn btn-sm rm-act-btn rm-act-btn--view">{{ $customer->code }}</a>
+                                            <a href="{{ route('crm.customer.show', $customer->id) }}" class="btn btn-sm rm-act-btn rm-act-btn--view">{{ $customer->code }}</a>
                                         </td>
                                         <td>
                                             <div>
@@ -226,7 +226,7 @@
                                         </td>
                                             <td nowrap style="width: 150px;">
                                             <div class="d-flex">
-                                                <a href="{{ route('livewire.customer-profile', ['customerId' => $customer->id]) }}"
+                                                <a href="{{ route('crm.customer.show', $customer->id) }}"
                                                    class="btn btn-sm rm-act-btn rm-act-btn--view"
                                                    title="{{ __('crm.view_profile') }}">
                                                     <i class="mdi mdi-eye-outline"></i>

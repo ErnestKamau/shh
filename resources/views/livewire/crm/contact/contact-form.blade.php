@@ -141,7 +141,7 @@
                                                 @foreach($this->selectedUnits as $unit)
                                                     <span class="tag-badge">
                                                         {{ $unit->name }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="removeUnitSelection({{ $unit->id }})"></i>
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="removeUnitSelection('{{ $unit->id }}')"></i>
                                                     </span>
                                                 @endforeach
 
@@ -157,7 +157,7 @@
                                                     @if(count($this->filteredUnits) > 0)
                                                         @foreach($this->filteredUnits as $unit)
                                                             <div class="tag-dropdown-item d-flex justify-content-between align-items-center"
-                                                                wire:click.stop="toggleUnitSelection({{ $unit->id }})">
+                                                                wire:click.stop="toggleUnitSelection('{{ $unit->id }}')">
                                                                 <span>{{ $unit->name }}</span>
                                                                 @if($this->isUnitSelected($unit->id))
                                                                     <i class="mdi mdi-check text-success"></i>
@@ -214,7 +214,7 @@
                                                 @foreach($this->selectedOtherCustomers as $cust)
                                                     <span class="tag-badge">
                                                         {{ $cust->name }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="removeOtherCustomerSelection({{ $cust->id }})"></i>
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="removeOtherCustomerSelection('{{ $cust->id }}')"></i>
                                                     </span>
                                                 @endforeach
 
@@ -230,7 +230,7 @@
                                                     @if(count($this->filteredCustomers) > 0)
                                                         @foreach($this->filteredCustomers as $cust)
                                                             <div class="tag-dropdown-item d-flex justify-content-between align-items-center"
-                                                                wire:click.stop="toggleOtherCustomerSelection({{ $cust->id }})">
+                                                                wire:click.stop="toggleOtherCustomerSelection('{{ $cust->id }}')">
                                                                 <span>{{ $cust->name }}</span>
                                                                 @if($this->isOtherCustomerSelected($cust->id))
                                                                     <i class="mdi mdi-check text-success"></i>

@@ -145,72 +145,71 @@
         </div>
     </template>
 
+    <style>
+        .tag-select-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .tag-select-input {
+            min-height: 38px;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            background-color: #fff;
+        }
+
+        .tag-input {
+            border: none;
+            outline: none;
+            flex: 1;
+            min-width: 120px;
+            font-size: 0.9rem;
+        }
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0f2f5;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 0.85rem;
+        }
+
+        .tag-badge i {
+            cursor: pointer;
+        }
+
+        .tag-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 1100;
+        }
+
+        .tag-dropdown-item {
+            padding: 8px 10px;
+            cursor: pointer;
+        }
+
+        .tag-dropdown-item:hover {
+            background: #f8f9fa;
+        }
+
+        .tag-select-container.is-invalid .tag-select-input {
+            border-color: #dc3545;
+        }
+    </style>
 </div>
-
-<style>
-    .tag-select-container {
-        position: relative;
-        width: 100%;
-    }
-
-    .tag-select-input {
-        min-height: 38px;
-        border: 1px solid #ced4da;
-        border-radius: 0.25rem;
-        padding: 4px 8px;
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        background-color: #fff;
-    }
-
-    .tag-input {
-        border: none;
-        outline: none;
-        flex: 1;
-        min-width: 120px;
-        font-size: 0.9rem;
-    }
-
-    .tag-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: #f0f2f5;
-        border-radius: 12px;
-        padding: 2px 8px;
-        font-size: 0.85rem;
-    }
-
-    .tag-badge i {
-        cursor: pointer;
-    }
-
-    .tag-dropdown {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        background: #fff;
-        border: 1px solid #ced4da;
-        border-radius: 0.25rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        max-height: 220px;
-        overflow-y: auto;
-        z-index: 1100;
-    }
-
-    .tag-dropdown-item {
-        padding: 8px 10px;
-        cursor: pointer;
-    }
-
-    .tag-dropdown-item:hover {
-        background: #f8f9fa;
-    }
-
-    .tag-select-container.is-invalid .tag-select-input {
-        border-color: #dc3545;
-    }
-</style>

@@ -10,6 +10,7 @@ use App\Livewire\Crm\BaseCrmComponent;
 use App\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class ContactForm extends BaseCrmComponent
 {
@@ -57,7 +58,7 @@ class ContactForm extends BaseCrmComponent
                 $this->second_name = $contact->middle_name;
                 $this->third_name = $contact->last_name;
                 $this->job_occupation = $contact->job_occupation;
-                $this->unit_name = array_values(array_filter(explode(',', $contact->unit_name ?? ''), fn($id) => $id !== ''));
+                $this->unit_name = $this->normalizeStoredUnitValues($contact->unit_name);
                 $this->email = $contact->email;
                 $this->telephone = $contact->telephone;
                 $this->mobile = $contact->mobile;
@@ -68,7 +69,7 @@ class ContactForm extends BaseCrmComponent
                 $this->receive_feedback = (bool) ($contact->receive_feedback ?? 0);
                 $this->active = (bool) ($contact->active ?? 0);
                 $this->can_login = (bool) ($contact->can_login ?? 0);
-                $this->other_customers = array_values(array_filter(explode(',', $contact->other_customers ?? ''), fn($id) => $id !== ''));
+                $this->other_customers = $this->normalizeStoredCustomerIds($contact->other_customers);
             }
         }
     }
@@ -103,26 +104,26 @@ class ContactForm extends BaseCrmComponent
 
     public function getSelectedUnitsProperty()
     {
-        $selectedIds = collect($this->unit_name)->map(fn($id) => (int) $id)->all();
+        $selectedIds = $this->normalizedUnitIds();
 
         return collect($this->units)
-            ->filter(fn($unit) => in_array((int) $unit->id, $selectedIds, true))
+            ->filter(fn($unit) => in_array((string) $unit->id, $selectedIds, true))
             ->values();
     }
 
     public function getSelectedOtherCustomersProperty()
     {
-        $selectedIds = collect($this->other_customers)->map(fn($id) => (int) $id)->all();
+        $selectedIds = $this->normalizedCustomerIds();
 
         return collect($this->customers)
-            ->filter(fn($customer) => in_array((int) $customer->id, $selectedIds, true))
+            ->filter(fn($customer) => in_array((string) $customer->id, $selectedIds, true))
             ->values();
     }
 
-    public function toggleUnitSelection($unitId)
+    public function toggleUnitSelection(string $unitId): void
     {
-        $unitId = (int) $unitId;
-        $selected = collect($this->unit_name)->map(fn($id) => (int) $id)->all();
+        $unitId = (string) $unitId;
+        $selected = $this->normalizedUnitIds();
 
         if (in_array($unitId, $selected, true)) {
             $selected = array_values(array_filter($selected, fn($id) => $id !== $unitId));
@@ -131,30 +132,29 @@ class ContactForm extends BaseCrmComponent
         }
 
         $this->unit_name = $selected;
+        $this->unitSearch = '';
+        $this->showUnitDropdown = false;
     }
 
-    public function removeUnitSelection($unitId)
+    public function removeUnitSelection(string $unitId): void
     {
-        $unitId = (int) $unitId;
+        $unitId = (string) $unitId;
 
         $this->unit_name = array_values(array_filter(
-            collect($this->unit_name)->map(fn($id) => (int) $id)->all(),
+            $this->normalizedUnitIds(),
             fn($id) => $id !== $unitId
         ));
     }
 
-    public function isUnitSelected($unitId)
+    public function isUnitSelected($unitId): bool
     {
-        $unitId = (int) $unitId;
-        $selected = collect($this->unit_name)->map(fn($id) => (int) $id)->all();
-
-        return in_array($unitId, $selected, true);
+        return in_array((string) $unitId, $this->normalizedUnitIds(), true);
     }
 
-    public function toggleOtherCustomerSelection($customerId)
+    public function toggleOtherCustomerSelection(string $customerId): void
     {
-        $customerId = (int) $customerId;
-        $selected = collect($this->other_customers)->map(fn($id) => (int) $id)->all();
+        $customerId = (string) $customerId;
+        $selected = $this->normalizedCustomerIds();
 
         if (in_array($customerId, $selected, true)) {
             $selected = array_values(array_filter($selected, fn($id) => $id !== $customerId));
@@ -163,24 +163,73 @@ class ContactForm extends BaseCrmComponent
         }
 
         $this->other_customers = $selected;
+        $this->otherCustomerSearch = '';
+        $this->showOtherCustomersDropdown = false;
     }
 
-    public function removeOtherCustomerSelection($customerId)
+    public function removeOtherCustomerSelection(string $customerId): void
     {
-        $customerId = (int) $customerId;
+        $customerId = (string) $customerId;
 
         $this->other_customers = array_values(array_filter(
-            collect($this->other_customers)->map(fn($id) => (int) $id)->all(),
+            $this->normalizedCustomerIds(),
             fn($id) => $id !== $customerId
         ));
     }
 
-    public function isOtherCustomerSelected($customerId)
+    public function isOtherCustomerSelected($customerId): bool
     {
-        $customerId = (int) $customerId;
-        $selected = collect($this->other_customers)->map(fn($id) => (int) $id)->all();
+        return in_array((string) $customerId, $this->normalizedCustomerIds(), true);
+    }
 
-        return in_array($customerId, $selected, true);
+    protected function normalizedUnitIds(): array
+    {
+        return collect($this->unit_name)
+            ->map(fn($id) => trim((string) $id))
+            ->filter(fn($id) => $id !== '')
+            ->values()
+            ->all();
+    }
+
+    protected function normalizedCustomerIds(): array
+    {
+        return collect($this->other_customers)
+            ->map(fn($id) => trim((string) $id))
+            ->filter(fn($id) => $id !== '' && Str::isUuid($id))
+            ->values()
+            ->all();
+    }
+
+    protected function normalizeStoredUnitValues(?string $stored): array
+    {
+        $values = array_values(array_filter(
+            array_map('trim', explode(',', $stored ?? '')),
+            fn($value) => $value !== ''
+        ));
+
+        return collect($values)
+            ->map(function (string $value) {
+                if (Str::isUuid($value)) {
+                    return $value;
+                }
+
+                $matchedUnit = collect($this->units)->first(
+                    fn($unit) => strcasecmp((string) $unit->name, $value) === 0
+                );
+
+                return $matchedUnit ? (string) $matchedUnit->id : null;
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    protected function normalizeStoredCustomerIds(?string $stored): array
+    {
+        return collect(array_values(array_filter(
+            array_map('trim', explode(',', $stored ?? '')),
+            fn($value) => $value !== '' && Str::isUuid($value)
+        )))->values()->all();
     }
 
     protected function rules()
@@ -259,7 +308,7 @@ class ContactForm extends BaseCrmComponent
         if (! $this->can_login) {
             User::deactivatePortalUsersForCustomerContact(
                 $contact,
-                (int) $this->customerId,
+                (string) $this->customerId,
                 $previousContactEmail
             );
         }
@@ -302,10 +351,11 @@ class ContactForm extends BaseCrmComponent
             $user->email = $this->email;
             $user->company_id = $this->getUserCompany();
             $user->is_client = 1;
-            $user->crm_contact_id = $this->customerId; // Controller uses $cust_id
-            $user->client_id = $this->customerId;      // Controller uses $cust_id
-            $user->crmcontact_id = $contact->id;       // Link to the contact we just saved
-            
+            $user->client_id = (string) $this->customerId;
+            $user->crm_contact_id = $contact->id;
+            $user->crmcontact_id = $contact->id;
+            $user->active = 1;
+
             $user->save();
 
             // Send welcome email only on new contact creation (not when editing credentials)

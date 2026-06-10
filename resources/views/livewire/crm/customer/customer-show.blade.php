@@ -44,67 +44,75 @@
                         <ul class="crm-tab-nav" id="Elements-tabs" role="tablist">
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'company-units' ? 'active' : '' }}"
-                                    wire:click="switchTab('company-units')" href="#Company-Units" role="tab">
+                                    wire:click.prevent="switchTab('company-units')" href="#Company-Units" role="tab">
                                     <i class="mdi mdi-sitemap"></i>
                                     {{ trim($customer->unit_configurable_name) != "" ? $customer->unit_configurable_name : __('crm.company_units') }}
                                 </a>
                             </li>
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'sample-points' ? 'active' : '' }}"
-                                    wire:click="switchTab('sample-points')" href="#Sample-Points" role="tab">
+                                    wire:click.prevent="switchTab('sample-points')" href="#Sample-Points" role="tab">
                                     <i class="mdi mdi-map-marker"></i>
                                     {{ trim($customer->sample_point_configurable_name) != "" ? $customer->sample_point_configurable_name : __('crm.sample_points') }}
                                 </a>
                             </li>
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'contacts' ? 'active' : '' }}"
-                                    wire:click="switchTab('contacts')" href="#Contacts" role="tab">
+                                    wire:click.prevent="switchTab('contacts')" href="#Contacts" role="tab">
                                     <i class="mdi mdi-account-box-outline"></i> {{ __('crm.contacts') }}
                                 </a>
                             </li>
                             @if(isset($isQplus->id))
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'orders' ? 'active' : '' }}"
-                                    wire:click="switchTab('orders')" href="#Orders" role="tab">
+                                    wire:click.prevent="switchTab('orders')" href="#Orders" role="tab">
                                     <i class="mdi mdi-eyedropper-plus"></i> {{ __('crm.orders') }}
                                 </a>
                             </li>
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'reports' ? 'active' : '' }}"
-                                    wire:click="switchTab('reports')" href="#Samples" role="tab">
+                                    wire:click.prevent="switchTab('reports')" href="#Samples" role="tab">
                                     <i class="mdi mdi-test-tube"></i> {{ __('crm.reports') }}
                                 </a>
                             </li>
                             @endif
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'complaints' ? 'active' : '' }}"
-                                    wire:click="switchTab('complaints')" href="#Complaints" role="tab">
+                                    wire:click.prevent="switchTab('complaints')" href="#Complaints" role="tab">
                                     <i class="mdi mdi-comment-alert"></i> {{ __('crm.complaints') }}
                                 </a>
                             </li>
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'feedbacks' ? 'active' : '' }}"
-                                    wire:click="switchTab('feedbacks')" href="#Feedbacks" role="tab">
+                                    wire:click.prevent="switchTab('feedbacks')" href="#Feedbacks" role="tab">
                                     <i class="mdi mdi-file-account"></i> {{ __('crm.customer_feedback') }}
                                 </a>
                             </li>
                             @if(isset($isQplus->id))
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'quotations' ? 'active' : '' }}"
-                                    wire:click="switchTab('quotations')" href="#quotations" role="tab">
+                                    wire:click.prevent="switchTab('quotations')" href="#quotations" role="tab">
                                     <i class="mdi mdi-file-settings"></i> {{ __('crm.quotation') }}
                                 </a>
                             </li>
                             @endif
+                            {{-- Certifications tab disabled (use Documents tab instead)
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'attachments' ? 'active' : '' }}"
-                                    wire:click="switchTab('attachments')" href="#Certification" role="tab">
-                                    <i class="mdi mdi-file-certificate"></i> {{ __('crm.attachments') }}
+                                    wire:click.prevent="switchTab('attachments')" href="#Certification" role="tab">
+                                    <i class="mdi mdi-file-certificate"></i> {{ __('crm.certifications') }}
+                                </a>
+                            </li>
+                            --}}
+                            <li class="crm-tab-item">
+                                <a class="crm-tab-link {{ $activeTab == 'documents' ? 'active' : '' }}"
+                                    wire:click.prevent="switchTab('documents')" href="#Documents" role="tab">
+                                    <i class="mdi mdi-paperclip"></i> {{ __('crm.documents') }}
                                 </a>
                             </li>
                             <li class="crm-tab-item">
                                 <a class="crm-tab-link {{ $activeTab == 'details' ? 'active' : '' }}"
-                                    wire:click="switchTab('details')" href="#Customer-Details" role="tab">
+                                    wire:click.prevent="switchTab('details')" href="#Customer-Details" role="tab">
                                     <i class="mdi mdi-information-outline"></i> {{ __('crm.details') }}
                                 </a>
                             </li>
@@ -144,9 +152,15 @@
                             <div class="tab-pane fade show active p-3" id="quotations" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\QuotationsList::class, ['customer' => $customer], key('tab-quotations'))
                             </div>
+                        {{-- Certifications tab disabled (use Documents tab instead)
                         @elseif($activeTab == 'attachments')
                             <div class="tab-pane fade show active p-3" id="Certification" role="tabpanel">
                                 @livewire(\App\Livewire\Crm\Customer\Tabs\AttachmentsManager::class, ['customer' => $customer], key('tab-attachments'))
+                            </div>
+                        --}}
+                        @elseif($activeTab == 'documents')
+                            <div class="tab-pane fade show active p-3" id="Documents" role="tabpanel">
+                                @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerAttachmentsTab::class, ['customer' => $customer], key('tab-documents'))
                             </div>
                         {{-- Configurations tab disabled
                         @elseif($activeTab == 'configurations')

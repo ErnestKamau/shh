@@ -31,7 +31,7 @@
                 <i class="mdi mdi-file-certificate-outline text-primary" style="font-size:1rem;"></i>
             </span>
             <div>
-                <small class="font-weight-bold text-dark" style="font-size:0.82rem;">{{ __('crm.attachments') }}</small>
+                <small class="font-weight-bold text-dark" style="font-size:0.82rem;">{{ __('crm.certifications') }}</small>
                 <small class="text-muted d-block" style="font-size:0.67rem;">{{ __('crm.certifications_documents') }}</small>
             </div>
         </div>
@@ -77,11 +77,11 @@
                             <td nowrap>
                                 <x-crm.action-buttons>
                                     <button class="btn crm-btn crm-btn-edit btn-sm" title="Edit"
-                                        wire:click="editAttachment({{ $item->id }})">
+                                        wire:click="editAttachment('{{ $item->id }}')">
                                         <i class="mdi mdi-pencil-outline"></i>
                                     </button>
                                     <button class="btn crm-btn crm-btn-delete btn-sm" title="{{ __('crm.delete') }}"
-                                        wire:click="deleteAttachment({{ $item->id }})"
+                                        wire:click="deleteAttachment('{{ $item->id }}')"
                                         wire:confirm="{{ __('crm.delete_attachment_confirm') }}">
                                         <i class="mdi mdi-delete-outline"></i>
                                     </button>
