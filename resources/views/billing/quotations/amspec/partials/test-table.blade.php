@@ -13,11 +13,11 @@
 <table class="amspec-test-table" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 14px; table-layout: fixed; width: 100%; border-collapse: collapse;">
     <thead>
         <tr>
-            <th class="amspec-th-primary" style="width: {{ $colCategory }}; background-color: {{ $primaryColor }}; color: #ffffff;">S.No.</th>
-            <th class="amspec-th-primary" style="width: {{ $colTests }}; background-color: {{ $primaryColor }}; color: #ffffff;">Tests</th>
-            <th class="amspec-th-primary" style="width: {{ $colMethod }}; background-color: {{ $primaryColor }}; color: #ffffff;">Test Method</th>
+            <th class="amspec-th-primary" bgcolor="{{ $primaryColor }}" style="width: {{ $colCategory }}; background-color: {{ $primaryColor }}; color: #ffffff;">S.No.</th>
+            <th class="amspec-th-primary" bgcolor="{{ $primaryColor }}" style="width: {{ $colTests }}; background-color: {{ $primaryColor }}; color: #ffffff;">Tests</th>
+            <th class="amspec-th-primary" bgcolor="{{ $primaryColor }}" style="width: {{ $colMethod }}; background-color: {{ $primaryColor }}; color: #ffffff;">Test Method</th>
             @if($showLoqColumn)
-                <th class="amspec-th-accent" style="width: {{ $colOptional }}; background-color: {{ $accentColor }}; color: #ffffff;">
+                <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="width: {{ $colOptional }}; background-color: {{ $accentColor }}; color: #ffffff;">
                     LOQ
                     @if($loqSubLabel !== '')
                         <span class="amspec-th-sub">{{ $loqSubLabel }}</span>
@@ -25,14 +25,14 @@
                 </th>
             @endif
             @if($showMuColumn)
-                <th class="amspec-th-accent" style="width: {{ $colOptional }}; background-color: {{ $accentColor }}; color: #ffffff;">
+                <th class="amspec-th-accent" bgcolor="{{ $accentColor }}" style="width: {{ $colOptional }}; background-color: {{ $accentColor }}; color: #ffffff;">
                     MU%
                     @if($muSubLabel !== '')
                         <span class="amspec-th-sub">{{ $muSubLabel }}</span>
                     @endif
                 </th>
             @endif
-            <th class="amspec-th-primary" style="width: {{ $colPrice }}; background-color: {{ $primaryColor }}; color: #ffffff;">Unit Price<br>({{ $currencyCode }})</th>
+            <th class="amspec-th-primary" bgcolor="{{ $primaryColor }}" style="width: {{ $colPrice }}; background-color: {{ $primaryColor }}; color: #ffffff;">Unit Price<br>({{ $currencyCode }})</th>
         </tr>
     </thead>
     <tbody>

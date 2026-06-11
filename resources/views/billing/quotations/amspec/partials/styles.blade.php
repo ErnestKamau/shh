@@ -156,11 +156,6 @@
         display: inline-block;
     }
 
-    .amspec-page-two:not(.amspec-pdf-page) {
-        page-break-before: always;
-        break-before: page;
-    }
-
     .amspec-company-name {
         font-family: var(--amspec-font-heading);
         font-weight: 700;
@@ -365,32 +360,101 @@
     }
 
     @media print {
+        @page {
+            margin: 10mm;
+            size: A4 portrait;
+        }
+
+        html,
+        body,
+        .amspec-quotation,
+        .amspec-quotation * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: #ffffff !important;
+        }
+
         .amspec-preview-body,
         .amspec-download-body,
         #quotation-document {
-            background: #fff;
-            padding: 0;
+            background: #fff !important;
+            padding: 0 !important;
         }
 
         .preview-toolbar {
             display: none !important;
         }
 
+        .amspec-watermark {
+            display: none !important;
+        }
+
+        .amspec-document-shell {
+            max-width: none !important;
+            width: 100% !important;
+        }
+
         .amspec-page-sheet {
-            width: 210mm;
-            box-shadow: none;
-            margin-bottom: 0;
-            min-height: auto;
-            page-break-after: avoid;
+            width: 100% !important;
+            max-width: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            min-height: 0 !important;
+            page-break-inside: auto;
+            break-inside: auto;
         }
 
         .amspec-page-two {
             page-break-before: always;
+            break-before: page;
+        }
+
+        .amspec-shell-preview .amspec-page-sheet,
+        .amspec-shell-public .amspec-page-sheet {
+            width: 100% !important;
+            padding: 0 !important;
         }
 
         .amspec-footer-wrap {
-            margin-top: 14px;
+            margin-top: 12px;
             padding-top: 0;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .amspec-th-primary,
+        .amspec-test-table .amspec-th-primary {
+            background-color: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
+            background: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
+            color: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .amspec-th-accent,
+        .amspec-test-table .amspec-th-accent {
+            background-color: {{ $branding['accent'] ?? '#4CAF50' }} !important;
+            background: {{ $branding['accent'] ?? '#4CAF50' }} !important;
+            color: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .amspec-category-cell {
+            background-color: #E0E0E0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .amspec-footer-disclaimer a {
+            color: {{ $branding['primary'] ?? '#6D0A0E' }} !important;
         }
     }
 </style>

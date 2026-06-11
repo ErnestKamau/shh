@@ -1,10 +1,11 @@
-{{-- DomPDF: two-page layout with footer pinned to bottom of each logical page --}}
+{{-- DomPDF: two logical pages, maroon/green table headers, no blank page breaks --}}
 @php
     $primaryColor = $branding['primary'] ?? '#6D0A0E';
+    $accentColor = $branding['accent'] ?? '#4CAF50';
 @endphp
 <style>
     @page {
-        margin: 12mm 11mm 12mm 11mm;
+        margin: 10mm 10mm 11mm 10mm;
         size: A4 portrait;
     }
 
@@ -13,9 +14,9 @@
         padding: 0;
         background: #ffffff;
         font-family: 'DejaVu Sans', sans-serif;
-        font-size: 9.5pt;
+        font-size: 10.5pt;
         color: #000000;
-        line-height: 1.3;
+        line-height: 1.28;
     }
 
     body.amspec-download-body .amspec-document-shell,
@@ -36,41 +37,18 @@
         box-sizing: border-box;
     }
 
-    /* Page 1 ends here; page 2 starts on next sheet — single break only */
-    body.amspec-download-body .amspec-pdf-page.amspec-page-one {
-        page-break-after: always;
-    }
-
+    /* Single break before page 2 only — avoids blank middle pages */
     body.amspec-download-body .amspec-pdf-page.amspec-page-two {
-        page-break-before: avoid;
+        page-break-before: always;
+    }
+
+    body.amspec-download-body .amspec-pdf-page.amspec-page-one {
         page-break-after: avoid;
-    }
-
-    body.amspec-download-body .amspec-pdf-page-layout {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
-
-    /*
-     * Printable height ≈ 297mm − 24mm margins = 273mm.
-     * Reserve ~24mm for footer row; main content uses the rest.
-     */
-    body.amspec-download-body .amspec-pdf-page-main {
-        vertical-align: top;
-        padding: 0;
-    }
-
-    body.amspec-download-body .amspec-pdf-page-footer-cell {
-        vertical-align: bottom;
-        height: 24mm;
-        padding-top: 6px;
-        page-break-inside: avoid;
     }
 
     body.amspec-download-body .amspec-quotation {
         font-family: 'DejaVu Sans', sans-serif;
-        font-size: 9.5pt;
+        font-size: 10.5pt;
         color: #000000;
         width: 100%;
     }
@@ -78,7 +56,7 @@
     body.amspec-download-body .amspec-company-name {
         font-family: 'DejaVu Serif', serif;
         font-weight: 700;
-        font-size: 10.5pt;
+        font-size: 11pt;
     }
 
     body.amspec-download-body .amspec-contact-line,
@@ -105,19 +83,38 @@
 
     body.amspec-download-body .amspec-company-address {
         font-weight: 700;
-        font-size: 9pt;
+        font-size: 10pt;
     }
 
-    body.amspec-download-body .amspec-meta-label,
+    body.amspec-download-body .amspec-contact-line {
+        font-size: 10pt;
+    }
+
+    body.amspec-download-body .amspec-meta-table {
+        width: auto !important;
+        max-width: 100%;
+        table-layout: auto !important;
+    }
+
+    body.amspec-download-body .amspec-meta-label {
+        width: auto !important;
+        white-space: nowrap;
+        padding-right: 2px;
+        font-size: 10pt;
+        font-weight: 700;
+    }
+
     body.amspec-download-body .amspec-meta-value,
     body.amspec-download-body .amspec-meta-value strong {
-        font-size: 9pt;
+        width: auto !important;
+        padding-left: 0 !important;
+        font-size: 10pt;
         font-weight: 700;
     }
 
     body.amspec-download-body .amspec-intro {
-        margin-top: 10px;
-        font-size: 9pt;
+        margin-top: 8px;
+        font-size: 10pt;
     }
 
     body.amspec-download-body .amspec-page-logo {
@@ -125,39 +122,52 @@
     }
 
     body.amspec-download-body .amspec-category-cell {
-        background-color: #E0E0E0;
+        background-color: #E0E0E0 !important;
     }
 
     body.amspec-download-body .amspec-test-table {
         width: 100%;
         table-layout: fixed;
         border-collapse: collapse;
-        margin-top: 10px !important;
+        margin-top: 8px !important;
     }
 
     body.amspec-download-body .amspec-test-table th,
     body.amspec-download-body .amspec-test-table td {
         word-wrap: break-word;
         overflow-wrap: break-word;
-        font-size: 7.5pt;
-        padding: 2px 2px;
-        line-height: 1.25;
+        font-size: 8.5pt;
+        padding: 3px 3px;
+        line-height: 1.22;
+        border: 1px solid #999999;
     }
 
-    body.amspec-download-body .amspec-th-primary,
+    body.amspec-download-body .amspec-th-primary {
+        background-color: {{ $primaryColor }} !important;
+        color: #ffffff !important;
+        font-size: 8pt !important;
+        font-weight: 700 !important;
+        padding: 4px 3px !important;
+        text-align: center !important;
+    }
+
     body.amspec-download-body .amspec-th-accent {
-        font-size: 7pt !important;
-        padding: 3px 2px !important;
+        background-color: {{ $accentColor }} !important;
+        color: #ffffff !important;
+        font-size: 8pt !important;
+        font-weight: 700 !important;
+        padding: 4px 3px !important;
+        text-align: center !important;
     }
 
     body.amspec-download-body .amspec-terms {
         margin-top: 2px;
-        font-size: 8.5pt;
+        font-size: 9.5pt;
     }
 
     body.amspec-download-body .amspec-terms-title {
         margin-bottom: 4px;
-        font-size: 9pt;
+        font-size: 10pt;
     }
 
     body.amspec-download-body .amspec-terms ol {
@@ -171,8 +181,8 @@
     }
 
     body.amspec-download-body .amspec-signature {
-        margin-top: 10px;
-        font-size: 8.5pt;
+        margin-top: 8px;
+        font-size: 9.5pt;
     }
 
     body.amspec-download-body .amspec-signature p {
@@ -180,8 +190,8 @@
     }
 
     body.amspec-download-body .amspec-signature-entity {
-        margin-top: 10px;
-        font-size: 8.5pt;
+        margin-top: 8px;
+        font-size: 9.5pt;
     }
 
     body.amspec-download-body .amspec-signature .amspec-sig-space {
@@ -189,8 +199,9 @@
     }
 
     body.amspec-download-body .amspec-footer-wrap {
-        margin-top: 0;
+        margin-top: 10px;
         width: 100%;
+        page-break-inside: avoid;
     }
 
     body.amspec-download-body .amspec-footer {
@@ -213,8 +224,8 @@
     }
 
     body.amspec-download-body .amspec-footer-disclaimer {
-        font-size: 6pt;
-        line-height: 1.25;
+        font-size: 6.5pt;
+        line-height: 1.22;
         word-wrap: break-word;
         overflow-wrap: break-word;
         margin: 0;
@@ -237,7 +248,7 @@
 
     body.amspec-download-body .amspec-brand-row {
         width: 100%;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
 
     body.amspec-download-body .amspec-brand-left {
@@ -252,10 +263,10 @@
     }
 
     body.amspec-download-body .amspec-logo-wordmark {
-        width: 180px;
-        height: 42px;
-        max-width: 180px;
-        max-height: 42px;
+        max-width: 200px;
+        max-height: 48px;
+        width: auto;
+        height: auto;
     }
 
     body.amspec-download-body .amspec-hex-cluster {
@@ -264,12 +275,7 @@
         max-width: 110px;
     }
 
-    /* Keep totals + footer together when possible */
     body.amspec-download-body .amspec-test-table tfoot {
         page-break-inside: avoid;
-    }
-
-    body.amspec-download-body .amspec-pdf-page-footer-cell .amspec-footer-wrap {
-        page-break-before: avoid;
     }
 </style>

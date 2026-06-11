@@ -103,7 +103,8 @@
     );
         ?>
         <x-bread-crumb :items="$items"></x-bread-crumb>
-        <h4 class=" mt-2">
+        @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
+        <h4 class="mt-2 quotation-preview-hover-parent">
             <?php
     $header_id = $header[0]->id;
 
@@ -144,28 +145,20 @@
             @endif
 
             <a href="{{ route('quotation.preview', ['id' => $header[0]->id]) }}" target="_blank"
-                class="btn btn-white btn-sm float-right mr-2"><i class="mdi mdi-file-eye"></i> Preview</a>
+                class="btn btn-sm float-right mr-2 quotation-preview-quote-btn" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
             @if($header[0]->is_complete == 1)
                 <span class="btn btn-white btn-sm float-right" data-target="#print-quotation" data-header="{{$header[0]->id}}"
                     data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
                 @if($header[0]->is_print == 1)
-                    <?php        $path = '/storage' . $header[0]->upload_url;?>
                     <button data-toggle="modal" data-target="#quotation-upload" class="btn btn-white btn-sm float-right mr-2"><i
                             class="mdi mdi-share-all"></i> Send Quotation</button>
 
-                    <a href="{{$path}}" target="_blank" class="btn btn-white btn-sm float-right mr-2"><i class="mdi mdi-eye"></i>
-                        View Quote</a>
                     @if($header[0]->quotation_type == 'Analysis')
                         @if($header[0]->is_batch_generate == 0)
                             <span class="btn btn-sm btn-white mr-2 float-right" data-target="#generate-batch" data-toggle="modal"><i
                                     class="mdi mdi-cog"></i> Generate Batch</span>
                         @endif
                     @endif
-                @else
-
-                    <a href="/billing-quotation-view-final/{{$header[0]->id}}" target="_blank"
-                        class="btn btn-outline-success view-quote mr-2 float-right btn-sm hidden"><i
-                            class="mdi mdi-sync-circle"></i> Refresh Page</a>
                 @endif
             @endif
 
@@ -291,8 +284,6 @@
                         </div>
                         `);
                         $('#print-quotation').find('.loading').append(complete_text);
-
-                        $('.view-quote').removeClass('hidden');
                     },
                     error: function (data) {
                         console.log(data);

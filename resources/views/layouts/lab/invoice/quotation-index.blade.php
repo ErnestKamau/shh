@@ -93,6 +93,7 @@
     );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
+    @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
     <h4 class="p-4">
         <i class="mdi mdi-file-cad"></i>Billing | Quotations - {{$stage}}
         @if($stage == 'Quote In Preparation')
@@ -227,7 +228,7 @@
                         </thead>
                         <tbody>
                             @foreach($quotations as $quotation)
-                            <tr>
+                            <tr class="quotation-preview-hover-parent">
                                 <td>{{$loop->iteration}}</td>
                                 <td>
                                     <a href="{{ route('add-qoute-details-view',['id'=>$quotation->id]) }}">{{$quotation->quote_number}}</a>
@@ -252,7 +253,7 @@
 
                                 <td>
                                     <a href="{{ route('add-qoute-details-view',['id'=> $quotation->id,'stage'=>'Quote In Reception']) }}" class="btn btn-sm btn-outline-primary " data-toggle="tooltip" title="Edit"><i class="mdi mdi-pencil"></i></a>
-                                    <a href="{{ route('add-qoute-details-view',['id'=>$quotation->id]) }}" class="btn btn-outline-success btn-sm" data-toggle="tooltip" title="View"><i class="mdi mdi-eye"></i></a>
+                                    <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}" class="btn btn-sm quotation-preview-quote-btn" data-toggle="tooltip" title="Preview quotation document" target="_blank"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
                                     <a href="{{ route('clone_quotation',['id'=>$quotation->id]) }}" class="btn btn-sm btn-outline-warning"><i class="mdi mdi-content-duplicate" data-toggle="tooltip" title="Clone"></i></a>
                                 </td>
 

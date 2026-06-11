@@ -1,6 +1,6 @@
 @include('billing.quotations.amspec.partials.brand-mark')
 
-<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 10px; width: 100%; table-layout: fixed; border-collapse: collapse;">
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: {{ ($forPdf ?? false) ? '6px' : '10px' }}; width: 100%; table-layout: fixed; border-collapse: collapse;">
     <tr>
         <td style="width: 55%; vertical-align: top; word-wrap: break-word;">
             <div class="amspec-company-name">{{ $company->name ?? '' }}</div>

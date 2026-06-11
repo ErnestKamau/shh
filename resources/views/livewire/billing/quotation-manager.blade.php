@@ -176,7 +176,7 @@
                                 </thead>
                                 <tbody>
                                     @foreach($this->quotations as $quotation)
-                                        <tr>
+                                        <tr class="quotation-preview-hover-parent">
                                             <td>
                                                 <strong>{{ $quotation->quote_number }}</strong>
                                             </td>
@@ -221,16 +221,11 @@
                                                        title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </a>
-                                                    <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}" 
-                                                       class="btn btn-sm btn-outline-info mr-1" 
-                                                       title="Preview"
+                                                    <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}"
+                                                       class="btn btn-sm mr-1 quotation-preview-quote-btn"
+                                                       title="Preview quotation document"
                                                        target="_blank">
-                                                        <i class="mdi mdi-file-eye"></i>
-                                                    </a>
-                                                    <a href="{{ route('view_quotation_final', ['id' => $quotation->id]) }}" 
-                                                       class="btn btn-sm btn-outline-secondary mr-1" 
-                                                       title="View Full">
-                                                        <i class="mdi mdi-open-in-new"></i>
+                                                        <i class="mdi mdi-file-eye"></i> Preview Quote
                                                     </a>
                                                     <button wire:click="cloneQuotation({{ $quotation->id }})" 
                                                             class="btn btn-sm btn-outline-secondary mr-1" 
@@ -368,16 +363,18 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeQuotationDetails">Close</button>
-                        <a href="{{ route('view_quotation_final', ['id' => $this->selectedQuotation->id]) }}" 
-                           class="btn btn-primary" 
+                        <a href="{{ route('quotation.preview', ['id' => $this->selectedQuotation->id]) }}"
+                           class="btn quotation-preview-quote-btn"
                            target="_blank">
-                            <i class="mdi mdi-printer"></i> Print Quotation
+                            <i class="mdi mdi-file-eye"></i> Preview Quote
                         </a>
                     </div>
                 </div>
             </div>
         </div>
     @endif
+
+    @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
 
     <style>
     .modal.show {

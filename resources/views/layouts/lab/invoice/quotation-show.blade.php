@@ -101,17 +101,14 @@
     );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h2 class="p-4">
+    @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
+    <h2 class="p-4 quotation-preview-hover-parent">
         <span class="float-left">
             <i class="mdi mdi-file-table"></i>Billing | Quotations
         </span>
-       
-        <a href="{{ route('quotation.preview', ['id' => $header->id]) }}" target="_blank" class="btn btn-default btn-sm float-right ml-2" style="background-color: white;"><i class="mdi mdi-file-eye"></i> Preview</a>
+
+        <a href="{{ route('quotation.preview', ['id' => $header->id]) }}" target="_blank" class="btn btn-sm float-right ml-2 quotation-preview-quote-btn" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
         <span class="btn btn-default btn-sm float-right ml-2" style="background-color: white;" data-target="#print-quotation" data-header="{{$header->id}}" data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
-        @if($header->is_print == 1)
-        <?php 	$path = '/storage'.$header->upload_url;?>
-        <a href="{{$path}}" target="_blank" class="btn btn-outline-success btn-sm float-right ml-2"><i class="mdi mdi-eye"></i> View Quote</a>
-        @endif
         @if($header->status == "Quote In Preparation")
         <span data-target="#save-draft" data-toggle="modal" class="btn btn-outline-warning btn-sm float-right"><i class="mdi mdi-download-outline"></i> Save As Draft</span>
         <span data-target="#delete-quotation" data-toggle="modal" class="btn btn-outline-danger mr-2 btn-sm float-right"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
@@ -854,8 +851,6 @@
                     </div>
                     `);
                     $('#print-quotation').find('.loading').append(complete_text);
-                    
-                    $('.view-quote').removeClass('hidden');
                 },
                 error:function(data){
                     console.log(data);

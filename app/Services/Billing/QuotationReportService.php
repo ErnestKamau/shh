@@ -331,20 +331,33 @@ class QuotationReportService
     }
 
     /**
-     * @return array{primary: string, accent: string, logoSrc: string, watermarkSrc: string, wordmarkDataUri: string, hexClusterDataUri: string}
+     * @return array{
+     *     primary: string,
+     *     accent: string,
+     *     logoSrc: string,
+     *     logoUrl: string,
+     *     logoDataUri: string,
+     *     watermarkSrc: string,
+     *     wordmarkDataUri: string,
+     *     hexClusterDataUri: string
+     * }
      */
     public function resolveCompanyBranding(bool $forPdf = false): array
     {
         $primary = $this->configValue('sys_quotation_primary_color')
             ?: $this->configValue('sys_theme_primary_color', '#6D0A0E');
         $accent = $this->configValue('sys_quotation_accent_color', '#4CAF50');
-        $logoSrc = $this->resolveLogoAsDataUri($forPdf);
+        $logoDataUri = $this->resolveCompanyLogoDataUri();
+        $logoUrl = $this->resolveCompanyLogoUrl();
+        $logoSrc = $forPdf ? $logoDataUri : ($logoUrl !== '' ? $logoUrl : $logoDataUri);
 
         return [
             'primary' => $primary,
             'accent' => $accent,
             'logoSrc' => $logoSrc,
-            'watermarkSrc' => $logoSrc,
+            'logoUrl' => $logoUrl,
+            'logoDataUri' => $logoDataUri,
+            'watermarkSrc' => $logoDataUri !== '' ? $logoDataUri : $logoSrc,
             'wordmarkDataUri' => $this->buildAmSpecWordmarkDataUri($primary),
             'hexClusterDataUri' => $this->buildHexClusterDataUri($primary),
         ];
@@ -541,7 +554,8 @@ class QuotationReportService
         $dompdf->set_option('enable_php', true);
         $dompdf->set_option('defaultFont', 'DejaVu Sans');
         $dompdf->set_option('isRemoteEnabled', true);
-        $dompdf->set_option('defaultMediaType', 'screen');
+        $dompdf->set_option('defaultMediaType', 'print');
+        $dompdf->set_option('isFontSubsettingEnabled', true);
         $pdf->setPaper('a4', 'portrait');
 
         return $pdf;
@@ -598,30 +612,55 @@ class QuotationReportService
         return filled($config?->value) ? (string) $config->value : $default;
     }
 
-    private function resolveLogoAsDataUri(bool $forPdf): string
+    private function resolveCompanyLogoDataUri(): string
     {
         $company = getActiveCompany();
         if (! $company) {
-            return $this->fallbackLogoDataUri();
+            return '';
         }
 
-        $candidates = array_filter([
-            $company->getReportLogoPath('quotation'),
-            $company->report_logo,
-            $company->logo,
-        ]);
-
-        foreach ($candidates as $path) {
-            $dataUri = $this->pathToDataUri((string) $path);
-            if ($dataUri !== '') {
-                return $dataUri;
+        foreach ($this->companyLogoCandidates($company) as $path) {
+            $absolutePath = $this->resolveAbsoluteLogoPath((string) $path);
+            if ($absolutePath !== '') {
+                return $this->imagePathToDataUri($absolutePath);
             }
         }
 
-        return $this->fallbackLogoDataUri();
+        return '';
     }
 
-    private function pathToDataUri(string $path): string
+    private function resolveCompanyLogoUrl(): string
+    {
+        $company = getActiveCompany();
+        if (! $company) {
+            return '';
+        }
+
+        foreach ($this->companyLogoCandidates($company) as $path) {
+            $url = $this->normalizeLogoUrl((string) $path);
+            if ($url !== '') {
+                return $url;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Company-details logo first, then related fallbacks from the same company record.
+     *
+     * @return list<string>
+     */
+    private function companyLogoCandidates(\App\Company $company): array
+    {
+        return array_values(array_filter([
+            $company->logo,
+            $company->report_logo,
+            $company->getReportLogoPath('quotation'),
+        ]));
+    }
+
+    private function normalizeLogoUrl(string $path): string
     {
         if ($path === '') {
             return '';
@@ -632,38 +671,62 @@ class QuotationReportService
         }
 
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/storage/')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, 'storage/')) {
+            return '/'.$path;
+        }
+
+        if (str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        return '/storage/'.ltrim($path, '/');
+    }
+
+    private function resolveAbsoluteLogoPath(string $path): string
+    {
+        if ($path === '') {
+            return '';
+        }
+
+        if (str_starts_with($path, 'data:')) {
+            return '';
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             $path = parse_url($path, PHP_URL_PATH) ?? $path;
         }
 
-        $path = ltrim($path, '/');
+        $path = ltrim((string) $path, '/');
         $relative = preg_replace('#^storage/#', '', $path);
 
         if ($relative !== $path) {
             $fullPath = Storage::disk('public')->path($relative);
             if (is_readable($fullPath)) {
-                return $this->imagePathToDataUri($fullPath);
+                return $fullPath;
             }
         }
 
         $filename = basename($path);
-        $storagePath = storage_path('app/companies/'.$filename);
-        if (is_readable($storagePath)) {
-            return $this->imagePathToDataUri($storagePath);
+        if ($filename !== '') {
+            $storagePath = storage_path('app/companies/'.$filename);
+            if (is_readable($storagePath)) {
+                return $storagePath;
+            }
         }
 
         if (is_readable(public_path($path))) {
-            return $this->imagePathToDataUri(public_path($path));
+            return public_path($path);
         }
 
-        return '';
-    }
-
-    private function fallbackLogoDataUri(): string
-    {
-        foreach ([public_path('images/logo-report.png'), public_path('images/logo.png')] as $path) {
-            if (is_readable($path)) {
-                return $this->imagePathToDataUri($path);
-            }
+        if (is_readable(public_path(ltrim($path, '/')))) {
+            return public_path(ltrim($path, '/'));
         }
 
         return '';
