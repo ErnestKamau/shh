@@ -383,7 +383,12 @@ Route::get('/billing/invoices/{id}', function (string $id) {
 })->name('billing.invoices.show')->middleware('can:laboratory.components.proforma invoices.view');
 
 Route::get('/billing/quotations', function () {
-    return view('layouts.billing.quotations-index');
+    $customers = \App\Models\CRM\CRMCustomer::query()
+        ->where('active', 1)
+        ->orderBy('name')
+        ->get();
+
+    return view('layouts.billing.quotations-index', compact('customers'));
 })->name('billing.quotations')->middleware('can:laboratory.components.quotation.view');
 
 Route::get('/billing/sales-order/create', function () {
@@ -651,6 +656,9 @@ Route::get('/billing/redirect_from_docs/{id}/{stage?}', 'Invoice\QuotationContro
 Route::get('/billing/clone_quotation/{id}', 'Invoice\QuotationController@clone_quotation')->name('clone_quotation')->middleware('can:laboratory.components.quotation.add');
 Route::post('/billing/save-quotation-final/{id}', 'Invoice\QuotationController@save_quotation_final')->name('save_quotation_final')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/delete_quotation/{id}', 'Invoice\QuotationController@delete_quotation')->name('delete_quotation')->middleware('can:laboratory.components.quotation.delete');
+Route::get('/billing/quotations/{id}/report/{token}', 'Invoice\QuotationController@publicReportView')->name('quotation.public.report');
+Route::get('/billing/quotations/{id}/preview', 'Invoice\QuotationController@previewQuotation')->name('quotation.preview')->middleware('can:laboratory.components.quotation.view');
+Route::get('/billing/quotations/{id}/preview.pdf', 'Invoice\QuotationController@streamQuotationPdf')->name('quotation.preview.pdf')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/print_quotation/{id}', 'Invoice\QuotationController@print_quotation')->name('print_quotation')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/upload_quotation/{id}', 'Invoice\QuotationController@upload_quotation')->name('upload_quotation')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/approve-workflow', 'Invoice\QuotationController@approve_workflow')->name('approve-workflow')->middleware('can:laboratory.components.quotation.edit');

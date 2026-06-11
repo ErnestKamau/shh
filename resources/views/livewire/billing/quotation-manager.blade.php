@@ -12,9 +12,9 @@
                             </h2>
                             <p class="text-muted mb-0">View and manage customer quotations</p>
                         </div>
-                        <a href="{{ route('add-quotation-header') }}" class="btn btn-primary">
+                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#add-quotation">
                             <i class="mdi mdi-plus"></i> Create Quotation
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -221,8 +221,14 @@
                                                        title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </a>
-                                                    <a href="{{ route('view_quotation_final', ['id' => $quotation->id]) }}" 
+                                                    <a href="{{ route('quotation.preview', ['id' => $quotation->id]) }}" 
                                                        class="btn btn-sm btn-outline-info mr-1" 
+                                                       title="Preview"
+                                                       target="_blank">
+                                                        <i class="mdi mdi-file-eye"></i>
+                                                    </a>
+                                                    <a href="{{ route('view_quotation_final', ['id' => $quotation->id]) }}" 
+                                                       class="btn btn-sm btn-outline-secondary mr-1" 
                                                        title="View Full">
                                                         <i class="mdi mdi-open-in-new"></i>
                                                     </a>

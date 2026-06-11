@@ -7851,7 +7851,7 @@ class SampleWorkFlowController extends Controller
                 'form_number' => null,
                 'sequence_number' => null,
                 'due_date' => now()->addDays(7), // Default 7 days from now
-                'priority' => 'medium'
+                'priority' => 'normal'
             ]);
 
             return response()->json([

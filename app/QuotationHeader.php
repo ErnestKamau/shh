@@ -4,7 +4,9 @@ namespace App;
 
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
+use App\Models\CRM\SamplePoint;
 use App\Models\Currency;
+use App\SampleHeader;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -38,5 +40,22 @@ class QuotationHeader extends Model implements Auditable
     public function currency(){
         return $this->belongsTo(Currency::class,'currency_id');
     }
-   
+
+    public function samplePoint()
+    {
+        return $this->belongsTo(SamplePoint::class, 'sample_point_id');
+    }
+
+    public function batches()
+    {
+        return $this->hasMany(SampleHeader::class, 'quote_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'show_loq_column' => 'boolean',
+            'show_mu_column' => 'boolean',
+        ];
+    }
 }

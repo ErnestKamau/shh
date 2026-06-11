@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app', ['dataTable' => $dataTable ?? false, 'select2' => $select2 ?? false, 'datePicker' => $datePicker ?? false])
 
 @section('module-name')
 <li class="nav-item d-flex align-items-center">
