@@ -1,33 +1,31 @@
+@php
+    $companyHeader = $companyHeader ?? [];
+@endphp
 <table class="trf-header-table">
     <tr>
-        <td style="width: 18%;">
+        <td style="width: 14%;">
             @if(!empty($logoSrc))
                 <img src="{{ $logoSrc }}" class="trf-logo" alt="Company Logo">
             @endif
         </td>
-        <td style="width: 52%;">
-            <div class="trf-company-name">{{ $company->name ?? '' }}</div>
+        <td style="width: 46%;">
+            <div class="trf-company-name">{{ $companyHeader['name'] ?? ($company->name ?? '') }}</div>
             <div class="trf-company-meta">
-                @if(!empty($company->telephone))Tel: {{ $company->telephone }}<br>@endif
-                @if(!empty($company->email))Email: {{ $company->email }}<br>@endif
-                @if(!empty($company->address))Address: {{ $company->address }}@if(!empty($company->street)), {{ $company->street }}@endif<br>@endif
-                @if(!empty($company->location)){{ $company->location }}<br>@endif
+                Tel: {{ $companyHeader['telephone'] ?? '' }}<br>
+                Email: {{ $companyHeader['email'] ?? '' }}<br>
+                Address: {{ $companyHeader['address'] ?? '' }}
             </div>
         </td>
-        <td style="width: 15%; text-align: right;">
-            @if(!empty($hexClusterSrc))
-                <img src="{{ $hexClusterSrc }}" class="trf-hex" alt="">
-            @endif
-        </td>
-        <td style="width: 15%;">
+        <td style="width: 40%;" class="trf-right">
+            <div class="trf-serial">S. No. {{ $serialNumber }}</div>
             <div class="trf-company-meta trf-right">
-                PO Box: {{ $company->client_number ?? '' }}<br>
-                Fax: {{ $company->fax ?? '' }}<br>
-                Website: {{ $company->website ?? '' }}
+                PO Box: {{ $companyHeader['po_box'] ?? '' }}<br>
+                Fax: {{ $companyHeader['fax'] ?? '' }}<br>
+                Website: {{ $companyHeader['website'] ?? '' }}
             </div>
         </td>
     </tr>
+    <tr class="trf-title-row">
+        <td colspan="3" class="trf-title">{{ $formTitle }}</td>
+    </tr>
 </table>
-
-<div class="trf-title">{{ $formTitle }}</div>
-<div class="trf-serial">S. No. {{ $serialNumber }}</div>

@@ -82,7 +82,9 @@ class TestRequestFormReportDataBuilder
 
         $customer = $this->resolveCustomerFields($formData, $submission);
         $collection = $this->resolveCollectionFields($formData, $variant);
+        $collectionGrid = $this->resolveCollectionGrid($collection, $variant);
         $sampleRows = $this->resolveSampleRows($formData, $variant);
+        $companyHeader = $this->resolveCompanyHeader($company);
         $conformity = $this->normalizeSingleSelect(
             $formData['statement_of_conformity'] ?? '',
             self::FOOD_OPTIONS['statement_of_conformity']
@@ -97,11 +99,12 @@ class TestRequestFormReportDataBuilder
                 : 'AMS/QMS/LWS/020 - Test Request Form - Water - V0',
             'serialNumber' => $this->resolveSerialNumber($submission),
             'company' => $company,
+            'companyHeader' => $companyHeader,
             'branding' => $branding,
             'logoSrc' => $branding['logoSrc'],
-            'hexClusterSrc' => $branding['hexClusterDataUri'],
             'customer' => $customer,
             'collection' => $collection,
+            'collectionGrid' => $collectionGrid,
             'sampleRows' => $sampleRows,
             'signatures' => [
                 'statement_of_conformity' => $conformity,
@@ -119,6 +122,51 @@ class TestRequestFormReportDataBuilder
     /**
      * @return array{L: bool, SS: bool, S: bool}
      */
+    /**
+     * @return array<string, bool>
+     */
+    public static function sampleTypeChecks(?string $stored): array
+    {
+        $selected = self::normalizeSingleSelect($stored ?? '', self::FOOD_OPTIONS['sample_type']);
+
+        return [
+            'Raw' => strcasecmp($selected, 'Raw') === 0,
+            'Cooked' => strcasecmp($selected, 'Cooked') === 0,
+            'Ready To Eat' => strcasecmp($selected, 'Ready To Eat') === 0,
+        ];
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public static function sampleConditionChecks(?string $stored): array
+    {
+        $selected = self::normalizeSingleSelect($stored ?? '', self::FOOD_OPTIONS['sample_condition']);
+
+        return [
+            'Acceptable' => strcasecmp($selected, 'Acceptable') === 0,
+            'Chilled' => strcasecmp($selected, 'Chilled') === 0,
+            'Frozen' => strcasecmp($selected, 'Frozen') === 0,
+            'Ambient' => strcasecmp($selected, 'Ambient') === 0,
+        ];
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public static function samplingPointChecks(?string $stored): array
+    {
+        $selected = self::normalizeSingleSelect($stored ?? '', self::WATER_OPTIONS['sampling_point']);
+
+        return [
+            'Tap' => strcasecmp($selected, 'Tap') === 0,
+            'Tank' => strcasecmp($selected, 'Tank') === 0,
+            'Pool' => strcasecmp($selected, 'Pool') === 0,
+            'Shower Head' => strcasecmp($selected, 'Shower Head') === 0,
+            'Others' => strcasecmp($selected, 'Others') === 0,
+        ];
+    }
+
     public static function stateOfSampleChecks(?string $stored): array
     {
         $map = [
@@ -253,7 +301,8 @@ class TestRequestFormReportDataBuilder
         $options = $variant === 'food' ? self::FOOD_OPTIONS : self::WATER_OPTIONS;
 
         return [
-            'sampling_date' => $this->formatDate($formData['sampling_date'] ?? ''),
+            'sampling_date' => $this->formatOrdinalDate($formData['sampling_date'] ?? ''),
+            'sampling_date_raw' => $this->formatDate($formData['sampling_date'] ?? ''),
             'sampling_time' => (string) ($formData['sampling_time'] ?? ''),
             'sampling_location' => (string) ($formData['sampling_location'] ?? ''),
             'thermometer_id' => (string) ($formData['thermometer_id'] ?? ''),
@@ -282,14 +331,18 @@ class TestRequestFormReportDataBuilder
             }
 
             if ($variant === 'food') {
+                $sampleType = self::normalizeSingleSelect($row['sample_type'] ?? '', self::FOOD_OPTIONS['sample_type']);
+                $sampleCondition = self::normalizeSingleSelect($row['sample_condition'] ?? '', self::FOOD_OPTIONS['sample_condition']);
                 $normalized[] = [
                     'serial' => $index + 1,
                     'sample_no' => (string) ($row['sample_no'] ?? ''),
                     'sample_description' => (string) ($row['sample_description'] ?? ''),
                     'sampling_point' => (string) ($row['sampling_point'] ?? ''),
                     'qty' => (string) ($row['qty'] ?? ''),
-                    'sample_type' => self::normalizeSingleSelect($row['sample_type'] ?? '', self::FOOD_OPTIONS['sample_type']),
-                    'sample_condition' => self::normalizeSingleSelect($row['sample_condition'] ?? '', self::FOOD_OPTIONS['sample_condition']),
+                    'sample_type' => $sampleType,
+                    'sample_type_checks' => self::sampleTypeChecks($sampleType),
+                    'sample_condition' => $sampleCondition,
+                    'sample_condition_checks' => self::sampleConditionChecks($sampleCondition),
                     'sample_temp' => (string) ($row['sample_temp'] ?? ''),
                     'production_date' => $this->formatDate($row['production_date'] ?? ''),
                     'expiration_date' => $this->formatDate($row['expiration_date'] ?? ''),
@@ -300,13 +353,15 @@ class TestRequestFormReportDataBuilder
                 continue;
             }
 
+            $samplingPoint = self::normalizeSingleSelect($row['sampling_point'] ?? '', self::WATER_OPTIONS['sampling_point']);
             $normalized[] = [
                 'serial' => $index + 1,
                 'sample_no' => (string) ($row['sample_no'] ?? ''),
                 'sample_description' => (string) ($row['sample_description'] ?? ''),
                 'location' => (string) ($row['location'] ?? ''),
                 'qty' => (string) ($row['qty'] ?? ''),
-                'sampling_point' => self::normalizeSingleSelect($row['sampling_point'] ?? '', self::WATER_OPTIONS['sampling_point']),
+                'sampling_point' => $samplingPoint,
+                'sampling_point_checks' => self::samplingPointChecks($samplingPoint),
                 'ph' => (string) ($row['ph'] ?? ''),
                 'appearance' => (string) ($row['appearance'] ?? ''),
                 'residual_chlorine' => (string) ($row['residual_chlorine'] ?? ''),
@@ -376,6 +431,194 @@ class TestRequestFormReportDataBuilder
         }
     }
 
+    private function formatOrdinalDate($value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        try {
+            $date = Carbon::parse($value);
+            $day = (int) $date->format('j');
+            $suffix = match ($day % 10) {
+                1 => $day % 100 === 11 ? 'th' : 'st',
+                2 => $day % 100 === 12 ? 'th' : 'nd',
+                3 => $day % 100 === 13 ? 'th' : 'rd',
+                default => 'th',
+            };
+
+            return $day . $suffix . ' ' . $date->format('F Y');
+        } catch (\Throwable) {
+            return (string) $value;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $collection
+     * @return array<string, mixed>
+     */
+    private function resolveCollectionGrid(array $collection, string $variant): array
+    {
+        $apparatus = $collection['sampling_apparatus'] ?? [];
+        $method = $collection['method_of_sampling'] ?? [];
+        $reason = $collection['reason_of_collection'] ?? [];
+        $transport = $collection['transport_condition'] ?? [];
+
+        if ($variant === 'food') {
+            return [
+                'rows' => [
+                    [
+                        'meta' => 'Sampling Date: ' . ($collection['sampling_date'] ?? ''),
+                        'apparatus' => $apparatus,
+                        'apparatus_keys' => ['STERILE BAG', 'AIR SAMPLER'],
+                        'method' => $method,
+                        'method_keys' => ['APHA', 'US FDA'],
+                        'reason' => $reason,
+                        'reason_keys' => ['CONTRACT'],
+                        'transport' => $transport,
+                        'transport_keys' => ['CHILLER VEHICLE'],
+                    ],
+                    [
+                        'meta' => 'Sampling Time: ' . ($collection['sampling_time'] ?? ''),
+                        'apparatus' => $apparatus,
+                        'apparatus_keys' => ['STERILE BOTTLE', 'GRABBER'],
+                        'method' => $method,
+                        'method_keys' => ['SASO', 'CCFRA'],
+                        'reason' => $reason,
+                        'reason_keys' => ['NON-CONTRACT'],
+                        'transport' => $transport,
+                        'transport_keys' => ['FROZEN'],
+                    ],
+                    [
+                        'meta' => 'Sampling Location: ' . ($collection['sampling_location'] ?? ''),
+                        'apparatus' => $apparatus,
+                        'apparatus_keys' => ['STERILE SWAB', 'OTHERS'],
+                        'method' => $method,
+                        'method_keys' => ['ASTM', 'DM'],
+                        'reason' => $reason,
+                        'reason_keys' => ['HACCP REQUIREMENT'],
+                        'transport' => $transport,
+                        'transport_keys' => ['AMBIENT'],
+                    ],
+                    [
+                        'meta' => '&nbsp;',
+                        'apparatus' => $apparatus,
+                        'apparatus_keys' => [],
+                        'method' => $method,
+                        'method_keys' => ['OTHERS', 'SOP'],
+                        'reason' => $reason,
+                        'reason_keys' => ['DISPUTED/AUDIT'],
+                        'transport' => $transport,
+                        'transport_keys' => [],
+                    ],
+                    [
+                        'meta' => 'Thermometer ID: ' . ($collection['thermometer_id'] ?? ''),
+                        'apparatus' => [],
+                        'apparatus_keys' => [],
+                        'method' => [],
+                        'method_keys' => [],
+                        'reason' => [],
+                        'reason_keys' => [],
+                        'transport' => [],
+                        'transport_keys' => [],
+                    ],
+                ],
+            ];
+        }
+
+        return [
+            'rows' => [
+                [
+                    'meta' => 'Sampling Date: ' . ($collection['sampling_date'] ?? ''),
+                    'apparatus' => $apparatus,
+                    'apparatus_keys' => ['STERILE BAG', 'GRABBER'],
+                    'method' => $method,
+                    'method_keys' => ['APHA', 'US FDA'],
+                    'reason' => $reason,
+                    'reason_keys' => ['CONTRACT'],
+                    'transport' => $transport,
+                    'transport_keys' => ['CHILLER VEHICLE'],
+                ],
+                [
+                    'meta' => 'Sampling Time: ' . ($collection['sampling_time'] ?? ''),
+                    'apparatus' => $apparatus,
+                    'apparatus_keys' => ['STERILE BOTTLE', 'OTHERS'],
+                    'method' => $method,
+                    'method_keys' => ['SASO', 'CCFRA'],
+                    'reason' => $reason,
+                    'reason_keys' => ['NON-CONTRACT'],
+                    'transport' => $transport,
+                    'transport_keys' => ['FROZEN'],
+                ],
+                [
+                    'meta' => 'Sampling Location: ' . ($collection['sampling_location'] ?? ''),
+                    'apparatus' => $apparatus,
+                    'apparatus_keys' => [],
+                    'method' => $method,
+                    'method_keys' => ['ASTM', 'DM', 'OTHERS', 'SOP'],
+                    'reason' => $reason,
+                    'reason_keys' => ['HACCP REQUIREMENT', 'DISPUTED/AUDIT'],
+                    'transport' => $transport,
+                    'transport_keys' => ['AMBIENT'],
+                ],
+                [
+                    'meta' => 'Thermometer ID: ' . ($collection['thermometer_id'] ?? ''),
+                    'apparatus' => [],
+                    'apparatus_keys' => [],
+                    'method' => [],
+                    'method_keys' => [],
+                    'reason' => [],
+                    'reason_keys' => [],
+                    'transport' => [],
+                    'transport_keys' => [],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  object|null  $company
+     * @return array<string, string>
+     */
+    private function resolveCompanyHeader($company): array
+    {
+        if (! $company) {
+            return [
+                'name' => '',
+                'telephone' => '',
+                'email' => '',
+                'address' => '',
+                'po_box' => '',
+                'fax' => '',
+                'website' => '',
+            ];
+        }
+
+        $addressParts = array_filter([
+            $company->address ?? null,
+            $company->street ?? null,
+            $company->location ?? null,
+        ]);
+
+        $poBox = '';
+        foreach (['po_box', 'postal_address', 'postal_box'] as $field) {
+            if (! empty($company->{$field})) {
+                $poBox = (string) $company->{$field};
+                break;
+            }
+        }
+
+        return [
+            'name' => (string) ($company->name ?? ''),
+            'telephone' => (string) ($company->telephone ?? $company->telephone1 ?? ''),
+            'email' => (string) ($company->email ?? ''),
+            'address' => implode(', ', $addressParts),
+            'po_box' => $poBox,
+            'fax' => (string) ($company->fax ?? ''),
+            'website' => (string) ($company->website ?? ''),
+        ];
+    }
+
     /**
      * @return array<string, string>
      */
@@ -394,7 +637,6 @@ class TestRequestFormReportDataBuilder
         return [
             'primary' => $primary,
             'logoSrc' => $logoSrc,
-            'hexClusterDataUri' => $this->buildHexClusterDataUri($primary),
         ];
     }
 
@@ -467,19 +709,4 @@ class TestRequestFormReportDataBuilder
         return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 
-    private function buildHexClusterDataUri(string $primaryColor): string
-    {
-        $primary = htmlspecialchars($primaryColor, ENT_QUOTES, 'UTF-8');
-        $grey = '#8a8a8a';
-        $svg = <<<SVG
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 118 88" aria-hidden="true">
-  <polygon points="86,2 96,8 96,20 86,26 76,20 76,8" fill="{$primary}" />
-  <polygon points="58,18 78,29 78,51 58,62 38,51 38,29" fill="none" stroke="{$grey}" stroke-width="1.3" />
-  <polygon points="22,34 34,41 34,55 22,62 10,55 10,41" fill="none" stroke="{$grey}" stroke-width="1.3" />
-  <polygon points="68,44 92,58 92,82 68,96 44,82 44,58" fill="none" stroke="{$grey}" stroke-width="1.3" stroke-dasharray="4,3" transform="translate(0,-12)" />
-</svg>
-SVG;
-
-        return 'data:image/svg+xml;base64,' . base64_encode($svg);
-    }
 }

@@ -8,10 +8,9 @@
 <body>
     @include('workflow.forms.test-request.partials.header')
     @include('workflow.forms.test-request.partials.customer-details')
-    @include('workflow.forms.test-request.partials.sample-collection')
+    @include('workflow.forms.test-request.partials.sample-collection-food')
     @include('workflow.forms.test-request.partials.sample-details-food')
-    @include('workflow.forms.test-request.partials.conformity-signatures')
-    @include('workflow.forms.test-request.partials.lab-use-only')
+    @include('workflow.forms.test-request.partials.footer-sections')
     @include('workflow.forms.test-request.partials.footer')
 </body>
 </html>

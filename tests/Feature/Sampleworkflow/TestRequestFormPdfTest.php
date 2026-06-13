@@ -93,6 +93,41 @@ class TestRequestFormPdfTest extends TestCase
         $response->assertSee('TEST REQUEST FORM - WATER');
         $response->assertSee('ABC COMPANY');
         $response->assertSee('AMS/QMS/LWS/020');
+        $response->assertDontSee('trf-hex');
+        $response->assertSee('FIELD DATA');
+        $response->assertSee('TEST REQUIREMENTS');
+    }
+
+    public function test_food_preview_renders_collection_grid_and_checkbox_columns(): void
+    {
+        $trfi = $this->createTrfi('Food', 'SMP-FOOD', [
+            'customer_name' => 'ABC COMPANY',
+            'sampling_date' => '2026-06-03',
+            'sampling_apparatus' => ['STERILE SWAB'],
+            'method_of_sampling' => ['APHA'],
+            'reason_of_collection' => ['CONTRACT'],
+            'transport_condition' => ['CHILLER VEHICLE'],
+            'sample_rows' => [
+                [
+                    'sample_no' => '1',
+                    'sample_description' => 'Chicken Salad',
+                    'sample_type' => 'Ready To Eat',
+                    'sample_condition' => 'Chilled',
+                    'state_of_sample' => 'Semi Solid',
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('test-request-form.preview', $trfi->id));
+
+        $response->assertOk();
+        $response->assertSee('TEST REQUEST FORM - FOOD');
+        $response->assertSee('Sample Collection Data');
+        $response->assertSee('AMS/QMS/LWS/019');
+        $response->assertDontSee('trf-hex');
+        $response->assertSee('Ready To Eat');
+        $response->assertSee('Chilled');
     }
 
     public function test_pdf_route_streams_document(): void

@@ -1,25 +1,23 @@
 <div class="trf-section-title">Customer Details</div>
 <table class="trf-table">
     <tr>
-        <td style="width: 20%;"><span class="trf-field-label">JOB NUMBER:</span></td>
-        <td style="width: 80%;" colspan="3">{{ $customer['job_number'] }}</td>
+        <td style="width: 18%;"><span class="trf-field-label">JOB NUMBER:</span></td>
+        <td style="width: 82%;" colspan="3"><span class="trf-field-value">{{ $customer['job_number'] ?: '&nbsp;' }}</span></td>
     </tr>
     <tr>
         <td><span class="trf-field-label">Name:</span></td>
-        <td colspan="3">{{ $customer['customer_name'] }}</td>
-    </tr>
-    <tr>
-        <td><span class="trf-field-label">Address:</span></td>
-        <td colspan="3">{{ $customer['customer_address'] }}</td>
+        <td style="width: 32%;"><span class="trf-field-value">{{ $customer['customer_name'] ?: '&nbsp;' }}</span></td>
+        <td style="width: 18%;"><span class="trf-field-label">Address:</span></td>
+        <td style="width: 32%;"><span class="trf-field-value">{{ $customer['customer_address'] ?: '&nbsp;' }}</span></td>
     </tr>
     <tr>
         <td><span class="trf-field-label">Tel/ Fax No.:</span></td>
-        <td style="width: 30%;">{{ $customer['customer_phone'] }}</td>
-        <td style="width: 20%;"><span class="trf-field-label">Contact Person:</span></td>
-        <td style="width: 30%;">{{ $customer['contact_person'] }}</td>
+        <td><span class="trf-field-value">{{ $customer['customer_phone'] ?: '&nbsp;' }}</span></td>
+        <td><span class="trf-field-label">Contact Person:</span></td>
+        <td><span class="trf-field-value">{{ $customer['contact_person'] ?: '&nbsp;' }}</span></td>
     </tr>
     <tr>
         <td><span class="trf-field-label">Mobile Number:</span></td>
-        <td colspan="3">{{ $customer['mobile_number'] }}</td>
+        <td colspan="3"><span class="trf-field-value">{{ $customer['mobile_number'] ?: '&nbsp;' }}</span></td>
     </tr>
 </table>
