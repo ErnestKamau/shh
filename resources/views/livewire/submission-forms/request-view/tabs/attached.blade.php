@@ -25,6 +25,9 @@
                                 <strong>By:</strong> {{ $trfi->creator->name }}
                             </span>
                         @endif
+                        <span class="text-muted small d-block mt-1">
+                            Use <strong>Actions → Generate Test Request Form</strong> to generate and view the report.
+                        </span>
                     </div>
                 </div>
 

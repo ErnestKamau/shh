@@ -5,6 +5,7 @@ namespace Tests\Feature\SampleWorkflow;
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
+use App\Models\TestRequestForm;
 use App\Models\Workflow\Approval;
 use App\Models\Workflow\ApprovalLog;
 use App\Models\Workflow\ChecklistResponse;
@@ -78,6 +79,7 @@ class ReceiveSampleRequestTest extends TestCase
     {
         $form = $this->createTemplateForm();
         $instance = $this->createSubmittedInstance($form);
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR');
 
         $itemIds = $this->approval->fresh('checklistItems')->checklistItems->pluck('id')->all();
         $responses = [];
@@ -91,6 +93,15 @@ class ReceiveSampleRequestTest extends TestCase
                 'selectedFormSummaries' => [
                     ['id' => $instance->id, 'label' => 'CR001', 'customer' => 'Acme'],
                 ],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'customer_name' => 'Acme',
+                'sampling_date' => now()->toDateString(),
+                'sample_rows' => [[
+                    'sample_no' => '1',
+                    'sample_description' => 'Tap Water',
+                ]],
             ])
             ->set('responses', $responses)
             ->call('confirmReceive')
@@ -119,6 +130,7 @@ class ReceiveSampleRequestTest extends TestCase
         $form = $this->createTemplateForm();
         $first = $this->createSubmittedInstance($form, ['form_number' => 'CR001']);
         $second = $this->createSubmittedInstance($form, ['form_number' => 'CR002']);
+        $sampleType = $this->createSampleType('Water', 'SMP-WTR');
 
         $itemIds = $this->approval->fresh('checklistItems')->checklistItems->pluck('id')->all();
         $responses = array_fill_keys($itemIds, true);
@@ -126,6 +138,15 @@ class ReceiveSampleRequestTest extends TestCase
         Livewire::actingAs($this->user)
             ->test(ReceiveSampleRequest::class, [
                 'selectedFormInstanceIds' => [$first->id, $second->id],
+            ])
+            ->set('selectedSampleTypeId', $sampleType->id)
+            ->set('formData', [
+                'customer_name' => 'Acme',
+                'sampling_date' => now()->toDateString(),
+                'sample_rows' => [[
+                    'sample_no' => '1',
+                    'sample_description' => 'Tap Water',
+                ]],
             ])
             ->set('responses', $responses)
             ->call('confirmReceive')
@@ -193,5 +214,19 @@ class ReceiveSampleRequestTest extends TestCase
             'submitted_by' => $this->user->id,
             'priority' => 'normal',
         ], $overrides));
+    }
+
+    private function createSampleType(string $name, string $code): \App\SampleType
+    {
+        TestRequestForm::seedDefaults();
+
+        return \App\SampleType::query()->firstOrCreate(
+            ['code' => $code],
+            [
+                'id' => (string) Str::uuid7(),
+                'name' => $name,
+                'active' => true,
+            ]
+        );
     }
 }

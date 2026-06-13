@@ -350,7 +350,20 @@
         <div class="receive-sample-alert receive-sample-alert--warning alert alert-warning mt-3 mb-0">{{ $message }}</div>
     @enderror
 
-    <footer class="receive-sample-modal-footer d-flex justify-content-end border-top pt-3" style="gap: 8px;">
+    <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3">
+        <div>
+            @if($formTemplate && $selectedSampleTypeId)
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    wire:click="previewDraft"
+                    wire:loading.attr="disabled"
+                >
+                    <i class="mdi mdi-file-eye-outline mr-1"></i> Preview Test Request Form
+                </button>
+            @endif
+        </div>
+        <div style="gap: 8px;" class="d-flex">
         <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
         <button
             type="button"
@@ -367,5 +380,16 @@
                 Processing…
             </span>
         </button>
+        </div>
     </footer>
 </div>
+
+@script
+<script>
+    $wire.on('open-test-request-preview', ({ url }) => {
+        if (url) {
+            window.open(url, '_blank');
+        }
+    });
+</script>
+@endscript
