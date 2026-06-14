@@ -32,6 +32,20 @@ class TestRequestFormReportDataBuilder
         'lab_sample_condition' => ['Acceptable', 'Not Acceptable'],
     ];
 
+    /** @var array<string, list<string>> */
+    private const WASTE_WATER_OPTIONS = [
+        'sampling_apparatus' => ['STERILE BOTTLE', 'BOTTLE CATCHER', 'OTHERS'],
+        'method_of_sampling' => ['APHA', 'US FDA', 'EPA', 'CCFRA', 'DM', 'SOP', 'OTHERS'],
+        'reason_of_collection' => ['CONTRACT', 'NON-CONTRACT', 'DM REQUIREMENT', 'DISPUTED/AUDIT'],
+        'sampling_technique' => ['GRAB', 'COMPOSITE', 'OTHER'],
+        'sampling_source' => ['TANK', 'HOLDING TANK', 'IND./DOMESTIC EFFLUENT', 'POOL WATER', 'DISCHARGE TO MARINE', 'GROUND WATER', 'STP', 'MUNICIPAL TAP WATER'],
+        'sample_types_ww' => ['LIQUID', 'SEMI SOLID', 'SLUDGE', 'MARINE SEDIMENT'],
+        'transport_condition' => ['CHILLER VEHICLE', 'FROZEN', 'AMBIENT'],
+        'field_data_requirements' => ['MICROBIOLOGY', 'CHEMISTRY', 'MICROBIOLOGY + CHEMISTRY'],
+        'statement_of_conformity' => ['YES', 'No', 'As per Contract', 'As per Email'],
+        'lab_sample_condition' => ['Acceptable', 'Not Acceptable'],
+    ];
+
     /**
      * @return array<string, mixed>
      */
@@ -47,7 +61,8 @@ class TestRequestFormReportDataBuilder
             $instance->form_data ?? [],
             $instance->testRequestForm?->sampleType,
             $instance->submissionFormInstance,
-            $forPdf
+            $forPdf,
+            $instance->creator
         );
     }
 
@@ -74,7 +89,8 @@ class TestRequestFormReportDataBuilder
         array $formData,
         ?\App\SampleType $sampleType,
         $submission,
-        bool $forPdf
+        bool $forPdf,
+        $creator = null
     ): array {
         $variant = TestRequestForm::resolveReportVariant($sampleType);
         $company = getActiveCompany();
@@ -83,20 +99,35 @@ class TestRequestFormReportDataBuilder
         $customer = $this->resolveCustomerFields($formData, $submission);
         $collection = $this->resolveCollectionFields($formData, $variant);
         $collectionGrid = $this->resolveCollectionGrid($collection, $variant);
-        $sampleRows = $this->resolveSampleRows($formData, $variant);
+        $sampleRows = $variant === 'waste_water'
+            ? []
+            : $this->resolveSampleRows($formData, $variant);
+        $wasteWaterFields = $variant === 'waste_water'
+            ? $this->resolveWasteWaterFields($formData)
+            : [];
         $companyHeader = $this->resolveCompanyHeader($company);
-        $conformity = $this->normalizeSingleSelect(
+        $conformity = self::normalizeSingleSelect(
             $formData['statement_of_conformity'] ?? '',
             self::FOOD_OPTIONS['statement_of_conformity']
         );
-        $labUse = $this->resolveLabUseFields($formData);
+        $labUse = $this->resolveLabUseFields($formData, $submission, $creator);
+
+        $formTitle = match ($variant) {
+            'food' => 'TEST REQUEST FORM - FOOD',
+            'waste_water' => 'TEST REQUEST FORM - WASTE WATER',
+            default => 'TEST REQUEST FORM - WATER',
+        };
+
+        $documentRef = match ($variant) {
+            'food' => 'AMS/QMS/LWS/019 - Test Request Form - Food - V0',
+            'waste_water' => 'AMS/QMS/LWS/021 - Test Request Form - Waste Water - V0',
+            default => 'AMS/QMS/LWS/020 - Test Request Form - Water - V0',
+        };
 
         return [
             'variant' => $variant,
-            'formTitle' => $variant === 'food' ? 'TEST REQUEST FORM - FOOD' : 'TEST REQUEST FORM - WATER',
-            'documentRef' => $variant === 'food'
-                ? 'AMS/QMS/LWS/019 - Test Request Form - Food - V0'
-                : 'AMS/QMS/LWS/020 - Test Request Form - Water - V0',
+            'formTitle' => $formTitle,
+            'documentRef' => $documentRef,
             'serialNumber' => $this->resolveSerialNumber($submission),
             'company' => $company,
             'companyHeader' => $companyHeader,
@@ -106,15 +137,20 @@ class TestRequestFormReportDataBuilder
             'collection' => $collection,
             'collectionGrid' => $collectionGrid,
             'sampleRows' => $sampleRows,
+            'wasteWaterFields' => $wasteWaterFields,
             'signatures' => [
                 'statement_of_conformity' => $conformity,
-                'sampled_by' => (string) ($formData['sampled_by'] ?? ''),
+                'sampled_by' => (string) ($formData['sampled_by'] ?? $creator?->name ?? ''),
                 'customer_rep_name' => (string) ($formData['customer_rep_name'] ?? ''),
                 'customer_rep_contact' => (string) ($formData['customer_rep_contact'] ?? ''),
                 'remarks' => (string) ($formData['remarks'] ?? ''),
             ],
             'labUse' => $labUse,
-            'options' => $variant === 'food' ? self::FOOD_OPTIONS : self::WATER_OPTIONS,
+            'options' => match ($variant) {
+                'food' => self::FOOD_OPTIONS,
+                'waste_water' => self::WASTE_WATER_OPTIONS,
+                default => self::WATER_OPTIONS,
+            },
             'forPdf' => $forPdf,
         ];
     }
@@ -283,13 +319,40 @@ class TestRequestFormReportDataBuilder
         $contact = $crm && method_exists($crm, 'contacts') ? $crm->contacts()->first() : null;
 
         return [
-            'job_number' => (string) ($formData['job_number'] ?? ''),
+            'job_number' => $this->resolveJobNumber($formData, $submission),
             'customer_name' => (string) ($formData['customer_name'] ?? $formData['client_name'] ?? $crm?->name ?? ''),
             'customer_address' => (string) ($formData['customer_address'] ?? $formData['address'] ?? $crm?->physical_address ?? $crm?->postal_address ?? ''),
             'customer_phone' => (string) ($formData['customer_phone'] ?? $formData['tel_fax_no'] ?? $crm?->telephone1 ?? $crm?->telephone2 ?? ''),
             'contact_person' => (string) ($formData['contact_person'] ?? $contact?->name ?? ''),
-            'mobile_number' => (string) ($formData['mobile_number'] ?? $crm?->cell_phone ?? ''),
+            'mobile_number' => (string) ($formData['mobile_number'] ?? $contact?->phone ?? $crm?->cell_phone ?? ''),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $formData
+     */
+    private function resolveJobNumber(array $formData, $submission): string
+    {
+        if (! empty($formData['job_number'])) {
+            return (string) $formData['job_number'];
+        }
+
+        if ($submission) {
+            $value = \App\Models\SubmissionFormInstanceValue::query()
+                ->where('submission_form_instance_id', $submission->id)
+                ->whereHas('element', static fn ($query) => $query->where('name', 'job_number'))
+                ->value('value');
+
+            if (! empty($value)) {
+                return (string) $value;
+            }
+
+            if (! empty($submission->form_number)) {
+                return (string) $submission->form_number;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -298,7 +361,11 @@ class TestRequestFormReportDataBuilder
      */
     private function resolveCollectionFields(array $formData, string $variant): array
     {
-        $options = $variant === 'food' ? self::FOOD_OPTIONS : self::WATER_OPTIONS;
+        $options = match ($variant) {
+            'food' => self::FOOD_OPTIONS,
+            'waste_water' => self::WASTE_WATER_OPTIONS,
+            default => self::WATER_OPTIONS,
+        };
 
         return [
             'sampling_date' => $this->formatOrdinalDate($formData['sampling_date'] ?? ''),
@@ -380,9 +447,13 @@ class TestRequestFormReportDataBuilder
      * @param  array<string, mixed>  $formData
      * @return array<string, mixed>
      */
-    private function resolveLabUseFields(array $formData): array
+    private function resolveLabUseFields(array $formData, $submission = null, $creator = null): array
     {
         $receivedAt = $formData['lab_received_datetime'] ?? '';
+        if ($receivedAt === '' && $submission?->submitted_at) {
+            $receivedAt = $submission->submitted_at;
+        }
+
         if ($receivedAt !== '') {
             try {
                 $receivedAt = Carbon::parse($receivedAt)->format('d/m/Y H:i');
@@ -393,7 +464,7 @@ class TestRequestFormReportDataBuilder
 
         return [
             'lab_received_datetime' => $receivedAt,
-            'lab_received_by' => (string) ($formData['lab_received_by'] ?? ''),
+            'lab_received_by' => (string) ($formData['lab_received_by'] ?? $creator?->name ?? ''),
             'lab_sample_condition' => self::normalizeSingleSelect(
                 $formData['lab_sample_condition'] ?? '',
                 self::FOOD_OPTIONS['lab_sample_condition']
@@ -463,8 +534,13 @@ class TestRequestFormReportDataBuilder
         $method = $collection['method_of_sampling'] ?? [];
         $reason = $collection['reason_of_collection'] ?? [];
         $transport = $collection['transport_condition'] ?? [];
+        $thermometerId = (string) ($collection['thermometer_id'] ?? '');
 
         if ($variant === 'food') {
+            $thermometerMeta = $thermometerId !== ''
+                ? '<span class="trf-check trf-check-on"></span> THERMOMETER ID ' . e($thermometerId)
+                : '<span class="trf-check trf-check-off"></span> THERMOMETER ID';
+
             return [
                 'rows' => [
                     [
@@ -512,7 +588,7 @@ class TestRequestFormReportDataBuilder
                         'transport_keys' => [],
                     ],
                     [
-                        'meta' => 'Thermometer ID: ' . ($collection['thermometer_id'] ?? ''),
+                        'meta' => $thermometerMeta,
                         'apparatus' => [],
                         'apparatus_keys' => [],
                         'method' => [],
@@ -525,6 +601,10 @@ class TestRequestFormReportDataBuilder
                 ],
             ];
         }
+
+        $thermometerExtra = $thermometerId !== ''
+            ? '<br><span class="trf-check trf-check-on"></span> THERMOMETER ID: ' . e($thermometerId)
+            : '<br><span class="trf-check trf-check-off"></span> THERMOMETER ID:';
 
         return [
             'rows' => [
@@ -554,25 +634,81 @@ class TestRequestFormReportDataBuilder
                     'meta' => 'Sampling Location: ' . ($collection['sampling_location'] ?? ''),
                     'apparatus' => $apparatus,
                     'apparatus_keys' => [],
+                    'apparatus_extra' => $thermometerExtra,
                     'method' => $method,
-                    'method_keys' => ['ASTM', 'DM', 'OTHERS', 'SOP'],
+                    'method_keys' => ['ASTM', 'DM'],
                     'reason' => $reason,
-                    'reason_keys' => ['HACCP REQUIREMENT', 'DISPUTED/AUDIT'],
+                    'reason_keys' => ['HACCP REQUIREMENT'],
                     'transport' => $transport,
                     'transport_keys' => ['AMBIENT'],
                 ],
                 [
-                    'meta' => 'Thermometer ID: ' . ($collection['thermometer_id'] ?? ''),
-                    'apparatus' => [],
+                    'meta' => '&nbsp;',
+                    'apparatus' => $apparatus,
                     'apparatus_keys' => [],
-                    'method' => [],
-                    'method_keys' => [],
-                    'reason' => [],
-                    'reason_keys' => [],
-                    'transport' => [],
+                    'method' => $method,
+                    'method_keys' => ['OTHERS', 'SOP'],
+                    'reason' => $reason,
+                    'reason_keys' => ['DISPUTED/AUDIT'],
+                    'transport' => $transport,
                     'transport_keys' => [],
                 ],
             ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $formData
+     * @return array<string, mixed>
+     */
+    private function resolveWasteWaterFields(array $formData): array
+    {
+        return [
+            'sample_number' => (string) ($formData['sample_number'] ?? ''),
+            'sample_description' => (string) ($formData['sample_description'] ?? ''),
+            'sampling_apparatus' => self::normalizeCheckboxGroup(
+                $formData['sampling_apparatus'] ?? [],
+                self::WASTE_WATER_OPTIONS['sampling_apparatus']
+            ),
+            'thermometer_id' => (string) ($formData['thermometer_id'] ?? ''),
+            'ph_meter_id' => (string) ($formData['ph_meter_id'] ?? ''),
+            'chlorine_meter_id' => (string) ($formData['chlorine_meter_id'] ?? ''),
+            'sampling_apparatus_others' => (string) ($formData['sampling_apparatus_others'] ?? ''),
+            'method_of_sampling' => self::normalizeCheckboxGroup(
+                $formData['method_of_sampling'] ?? [],
+                self::WASTE_WATER_OPTIONS['method_of_sampling']
+            ),
+            'reason_of_collection' => self::normalizeCheckboxGroup(
+                $formData['reason_of_collection'] ?? [],
+                self::WASTE_WATER_OPTIONS['reason_of_collection']
+            ),
+            'sampling_technique' => self::normalizeCheckboxGroup(
+                $formData['sampling_technique'] ?? [],
+                self::WASTE_WATER_OPTIONS['sampling_technique']
+            ),
+            'sampling_source' => self::normalizeCheckboxGroup(
+                $formData['sampling_source'] ?? [],
+                self::WASTE_WATER_OPTIONS['sampling_source']
+            ),
+            'sample_types_ww' => self::normalizeCheckboxGroup(
+                $formData['sample_types_ww'] ?? [],
+                self::WASTE_WATER_OPTIONS['sample_types_ww']
+            ),
+            'transport_condition' => self::normalizeCheckboxGroup(
+                $formData['transport_condition'] ?? [],
+                self::WASTE_WATER_OPTIONS['transport_condition']
+            ),
+            'field_data_quantity' => (string) ($formData['field_data_quantity'] ?? ''),
+            'field_data_appearance' => (string) ($formData['field_data_appearance'] ?? ''),
+            'field_data_color' => (string) ($formData['field_data_color'] ?? ''),
+            'field_data_odor' => (string) ($formData['field_data_odor'] ?? ''),
+            'field_data_ph' => (string) ($formData['field_data_ph'] ?? ''),
+            'field_data_temperature' => (string) ($formData['field_data_temperature'] ?? ''),
+            'field_data_free_chlorine' => (string) ($formData['field_data_free_chlorine'] ?? ''),
+            'field_data_requirements' => self::normalizeCheckboxGroup(
+                $formData['field_data_requirements'] ?? [],
+                self::WASTE_WATER_OPTIONS['field_data_requirements']
+            ),
         ];
     }
 

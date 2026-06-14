@@ -17,12 +17,12 @@
             </div>
         </td>
         <td style="width: 40%;" class="trf-right">
-            <div class="trf-serial">S. No. {{ $serialNumber }}</div>
             <div class="trf-company-meta trf-right">
                 PO Box: {{ $companyHeader['po_box'] ?? '' }}<br>
                 Fax: {{ $companyHeader['fax'] ?? '' }}<br>
                 Website: {{ $companyHeader['website'] ?? '' }}
             </div>
+            <div class="trf-serial">S. No. {{ $serialNumber }}</div>
         </td>
     </tr>
     <tr class="trf-title-row">

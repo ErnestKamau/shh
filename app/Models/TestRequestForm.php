@@ -74,7 +74,15 @@ class TestRequestForm extends Model
     {
         $classification = self::classifySampleType($sampleType);
 
-        return $classification['is_food'] ? 'food' : 'water';
+        if ($classification['is_food']) {
+            return 'food';
+        }
+
+        if ($classification['is_waste_water']) {
+            return 'waste_water';
+        }
+
+        return 'water';
     }
 
     /**
@@ -119,8 +127,14 @@ class TestRequestForm extends Model
     public static function seedDefaults()
     {
         // Ensure Waste Water sample type exists
-        $company = \App\Company::first();
-        $companyId = $company ? $company->id : null;
+        $company = function_exists('getActiveCompany') ? getActiveCompany() : null;
+        $company ??= \App\Company::query()->where('active', 1)->first()
+            ?? \App\Company::query()->first();
+        $companyId = $company?->id;
+
+        if (! $companyId) {
+            return;
+        }
 
         $wasteWaterType = \App\SampleType::where('name', 'like', '%Waste Water%')
             ->orWhere('code', 'SMP-WWTR')

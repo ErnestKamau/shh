@@ -35,13 +35,6 @@ class TestRequestFormReportDataBuilderTest extends TestCase
             'active' => true,
         ]);
 
-        $wasteWater = SampleType::query()->create([
-            'id' => (string) Str::uuid7(),
-            'name' => 'Waste Water',
-            'code' => 'SMP-WWTR',
-            'active' => true,
-        ]);
-
         $other = SampleType::query()->create([
             'id' => (string) Str::uuid7(),
             'name' => 'Soil',
@@ -50,8 +43,19 @@ class TestRequestFormReportDataBuilderTest extends TestCase
         ]);
 
         $this->assertSame('water', TestRequestForm::resolveReportVariant($water));
-        $this->assertSame('water', TestRequestForm::resolveReportVariant($wasteWater));
         $this->assertSame('water', TestRequestForm::resolveReportVariant($other));
+    }
+
+    public function test_resolve_report_variant_returns_waste_water_for_waste_water_type(): void
+    {
+        $wasteWater = SampleType::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Waste Water',
+            'code' => 'SMP-WWTR',
+            'active' => true,
+        ]);
+
+        $this->assertSame('waste_water', TestRequestForm::resolveReportVariant($wasteWater));
     }
 
     public function test_state_of_sample_checks_maps_full_words_and_abbreviations(): void

@@ -93,9 +93,11 @@ class TestRequestFormPdfTest extends TestCase
         $response->assertSee('TEST REQUEST FORM - WATER');
         $response->assertSee('ABC COMPANY');
         $response->assertSee('AMS/QMS/LWS/020');
+        $response->assertSee('TEST REQUIRMENTS');
+        $response->assertSee('Shower');
         $response->assertDontSee('trf-hex');
+        $response->assertDontSee('#6D0A0E');
         $response->assertSee('FIELD DATA');
-        $response->assertSee('TEST REQUIREMENTS');
     }
 
     public function test_food_preview_renders_collection_grid_and_checkbox_columns(): void
@@ -123,11 +125,38 @@ class TestRequestFormPdfTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('TEST REQUEST FORM - FOOD');
-        $response->assertSee('Sample Collection Data');
+        $response->assertSee('SAMPLE COLLECTION DATA');
+        $response->assertSee('CUSTOMER DETAILS');
+        $response->assertSee('JOB NUMBER:');
+        $response->assertSee('SAMPLE DETAILS');
         $response->assertSee('AMS/QMS/LWS/019');
+        $response->assertSee('FOR LAB USE ONLY');
+        $response->assertSee('Statement of Conformity Required in Reports:');
         $response->assertDontSee('trf-hex');
+        $response->assertDontSee('#6D0A0E');
         $response->assertSee('Ready To Eat');
         $response->assertSee('Chilled');
+    }
+
+    public function test_waste_water_preview_renders_waste_water_template(): void
+    {
+        $trfi = $this->createTrfi('Waste Water', 'SMP-WWTR', [
+            'customer_name' => 'ABC COMPANY',
+            'job_number' => 'JOB-WW-001',
+            'sampling_date' => '2026-06-03',
+            'sample_description' => 'Effluent discharge point',
+            'sampling_source' => ['STP'],
+            'field_data_requirements' => ['MICROBIOLOGY'],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('test-request-form.preview', $trfi->id));
+
+        $response->assertOk();
+        $response->assertSee('TEST REQUEST FORM - WASTE WATER');
+        $response->assertSee('AMS/QMS/LWS/021');
+        $response->assertSee('FIELD DATA & REQUIREMENTS');
+        $response->assertSee('Effluent discharge point');
     }
 
     public function test_pdf_route_streams_document(): void

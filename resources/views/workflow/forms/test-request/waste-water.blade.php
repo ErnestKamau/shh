@@ -8,7 +8,7 @@
 <body>
     @include('workflow.forms.test-request.partials.header')
     @include('workflow.forms.test-request.partials.customer-details')
-    @include('workflow.forms.test-request.partials.sample-data-food')
+    @include('workflow.forms.test-request.partials.sample-data-waste-water')
     @include('workflow.forms.test-request.partials.footer')
 </body>
 </html>

@@ -16,8 +16,6 @@ class TestRequestFormDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        TestRequestForm::seedDefaults();
-
         $company = Company::query()->where('active', 1)->first()
             ?? Company::query()->first();
 
@@ -36,6 +34,8 @@ class TestRequestFormDemoSeeder extends Seeder
             ]);
         }
 
+        TestRequestForm::seedDefaults();
+
         $user = User::query()->first();
 
         $foodType = SampleType::query()
@@ -49,6 +49,11 @@ class TestRequestFormDemoSeeder extends Seeder
                 $q->where('name', 'like', '%Water%')
                     ->where('name', 'not like', '%Waste%');
             })
+            ->first();
+
+        $wasteWaterType = SampleType::query()
+            ->where('code', 'SMP-WWTR')
+            ->orWhere('name', 'like', '%Waste Water%')
             ->first();
 
         if (! $foodType) {
@@ -75,6 +80,9 @@ class TestRequestFormDemoSeeder extends Seeder
 
         $foodTrf = TestRequestForm::query()->where('sample_type_id', $foodType->id)->first();
         $waterTrf = TestRequestForm::query()->where('sample_type_id', $waterType->id)->first();
+        $wasteWaterTrf = $wasteWaterType
+            ? TestRequestForm::query()->where('sample_type_id', $wasteWaterType->id)->first()
+            : null;
 
         if (! $foodTrf || ! $waterTrf) {
             $this->command?->warn('Test request form templates not found after seedDefaults.');
@@ -105,6 +113,10 @@ class TestRequestFormDemoSeeder extends Seeder
 
         $this->seedFoodDemo($submissionForm, $foodTrf, $user);
         $this->seedWaterDemo($submissionForm, $waterTrf, $user);
+
+        if ($wasteWaterType && $wasteWaterTrf) {
+            $this->seedWasteWaterDemo($submissionForm, $wasteWaterTrf, $user);
+        }
 
         $this->command?->info('Test Request Form demo instances seeded (Food: 2600001, Water: 2500001).');
     }
@@ -334,6 +346,69 @@ class TestRequestFormDemoSeeder extends Seeder
                             'chemical_analysis' => true,
                         ],
                     ],
+                ],
+            ]
+        );
+    }
+
+    private function seedWasteWaterDemo(SubmissionForm $form, TestRequestForm $trf, ?User $user): void
+    {
+        $instance = SubmissionFormInstance::query()->updateOrCreate(
+            ['form_number' => '2700001'],
+            [
+                'submission_form_id' => $form->id,
+                'title' => 'Waste Water TRF Demo',
+                'status' => 'received',
+                'submitted_at' => now(),
+                'submitted_by' => $user?->id,
+                'priority' => 'normal',
+            ]
+        );
+
+        TestRequestFormInstance::query()->updateOrCreate(
+            ['submission_form_instance_id' => $instance->id],
+            [
+                'test_request_form_id' => $trf->id,
+                'status' => 'submitted',
+                'created_by' => $user?->id,
+                'form_data' => [
+                    'job_number' => 'JOB-WW-2026-001',
+                    'customer_name' => 'ABC COMPANY',
+                    'customer_address' => 'Industrial Zone, Dubai',
+                    'customer_phone' => '+971 50 123 4567',
+                    'contact_person' => 'Operations Manager',
+                    'mobile_number' => '+971 55 987 6543',
+                    'sample_number' => 'WW-001',
+                    'sampling_date' => '2026-06-10',
+                    'sampling_time' => '08:30 AM',
+                    'sampling_location' => 'STP Outlet - Building C',
+                    'sample_description' => 'Final effluent discharge before marine outfall',
+                    'sampling_apparatus' => ['STERILE BOTTLE'],
+                    'thermometer_id' => 'AMS/C/INS/136',
+                    'ph_meter_id' => 'AMS/C/INS/134',
+                    'chlorine_meter_id' => 'AMS/C/INS/079',
+                    'method_of_sampling' => ['APHA'],
+                    'reason_of_collection' => ['CONTRACT'],
+                    'sampling_technique' => ['GRAB'],
+                    'sampling_source' => ['STP'],
+                    'sample_types_ww' => ['LIQUID'],
+                    'transport_condition' => ['CHILLER VEHICLE'],
+                    'field_data_quantity' => '2',
+                    'field_data_appearance' => 'Turbid',
+                    'field_data_color' => 'Grey',
+                    'field_data_odor' => 'Mild',
+                    'field_data_ph' => '7.1',
+                    'field_data_temperature' => '29',
+                    'field_data_free_chlorine' => '0.2',
+                    'field_data_requirements' => ['MICROBIOLOGY + CHEMISTRY'],
+                    'statement_of_conformity' => 'As per Contract',
+                    'sampled_by' => 'Field Tech / EMP-003',
+                    'customer_rep_name' => 'Operations Manager',
+                    'customer_rep_contact' => '+971 55 987 6543',
+                    'remarks' => 'Routine STP monitoring sample.',
+                    'lab_received_datetime' => '2026-06-10T11:00',
+                    'lab_received_by' => 'Lab Receiver',
+                    'lab_sample_condition' => 'Acceptable',
                 ],
             ]
         );

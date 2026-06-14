@@ -36,28 +36,30 @@ class TestRequestFormPdfService
     {
         $data = $this->buildViewData($instance);
 
-        return $data['variant'] === 'food'
-            ? 'workflow.forms.test-request.food'
-            : 'workflow.forms.test-request.water';
+        return $this->viewForVariant($data['variant']);
     }
 
     public function buildHtml(TestRequestFormInstance $instance, bool $forPdf = true): string
     {
         $viewData = $this->buildViewData($instance, $forPdf);
-        $viewName = $viewData['variant'] === 'food'
-            ? 'workflow.forms.test-request.food'
-            : 'workflow.forms.test-request.water';
 
-        return view($viewName, $viewData)->render();
+        return view($this->viewForVariant($viewData['variant']), $viewData)->render();
+    }
+
+    private function viewForVariant(string $variant): string
+    {
+        return match ($variant) {
+            'food' => 'workflow.forms.test-request.food',
+            'waste_water' => 'workflow.forms.test-request.waste-water',
+            default => 'workflow.forms.test-request.water',
+        };
     }
 
     public function generateAndStore(TestRequestFormInstance $instance): string
     {
         try {
             $viewData = $this->buildViewData($instance, true);
-            $viewName = $viewData['variant'] === 'food'
-                ? 'workflow.forms.test-request.food'
-                : 'workflow.forms.test-request.water';
+            $viewName = $this->viewForVariant($viewData['variant']);
 
             $pdf = app('dompdf.wrapper');
             $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
@@ -81,9 +83,7 @@ class TestRequestFormPdfService
     public function stream(TestRequestFormInstance $instance)
     {
         $viewData = $this->buildViewData($instance, true);
-        $viewName = $viewData['variant'] === 'food'
-            ? 'workflow.forms.test-request.food'
-            : 'workflow.forms.test-request.water';
+        $viewName = $this->viewForVariant($viewData['variant']);
 
         $pdf = app('dompdf.wrapper');
         $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
