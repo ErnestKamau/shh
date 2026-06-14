@@ -22,7 +22,7 @@
                 Fax: {{ $companyHeader['fax'] ?? '' }}<br>
                 Website: {{ $companyHeader['website'] ?? '' }}
             </div>
-            <div class="trf-serial">S. No. {{ $serialNumber }}</div>
+            <div class="trf-serial trf-accent">S. No. {{ $serialNumber }}</div>
         </td>
     </tr>
     <tr class="trf-title-row">

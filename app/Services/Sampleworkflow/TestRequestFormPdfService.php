@@ -55,6 +55,15 @@ class TestRequestFormPdfService
         };
     }
 
+    private function applyPaperSettings($pdf, string $variant): void
+    {
+        if (in_array($variant, ['food', 'water'], true)) {
+            $pdf->setPaper('a4', 'landscape');
+        } else {
+            $pdf->setPaper('a4', 'portrait');
+        }
+    }
+
     public function generateAndStore(TestRequestFormInstance $instance): string
     {
         try {
@@ -64,7 +73,7 @@ class TestRequestFormPdfService
             $pdf = app('dompdf.wrapper');
             $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
             $pdf->loadView($viewName, $viewData);
-            $pdf->setPaper('a4', 'portrait');
+            $this->applyPaperSettings($pdf, $viewData['variant']);
 
             $storagePath = $this->resolveStoragePath($instance);
             Storage::disk('public')->put($storagePath, $pdf->output());
@@ -88,7 +97,7 @@ class TestRequestFormPdfService
         $pdf = app('dompdf.wrapper');
         $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
         $pdf->loadView($viewName, $viewData);
-        $pdf->setPaper('a4', 'portrait');
+        $this->applyPaperSettings($pdf, $viewData['variant']);
 
         $filename = 'test-request-form-' . ($viewData['serialNumber'] ?: $instance->id) . '.pdf';
 

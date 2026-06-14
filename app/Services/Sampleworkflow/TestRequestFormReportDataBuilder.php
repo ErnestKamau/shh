@@ -101,7 +101,10 @@ class TestRequestFormReportDataBuilder
         $collectionGrid = $this->resolveCollectionGrid($collection, $variant);
         $sampleRows = $variant === 'waste_water'
             ? []
-            : $this->resolveSampleRows($formData, $variant);
+            : $this->padSampleRows(
+                $this->resolveSampleRows($formData, $variant),
+                $variant === 'food' ? 5 : 4
+            );
         $wasteWaterFields = $variant === 'waste_water'
             ? $this->resolveWasteWaterFields($formData)
             : [];
@@ -524,6 +527,33 @@ class TestRequestFormReportDataBuilder
         }
     }
 
+    private function formatMetaField(string $label, string $value = ''): string
+    {
+        $valueHtml = $value !== '' ? e($value) : '&nbsp;';
+
+        return '<span class="trf-meta-key">' . e($label) . '</span>'
+            . '<span class="trf-meta-val">' . $valueHtml . '</span>';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function padSampleRows(array $rows, int $minRows): array
+    {
+        if (count($rows) >= $minRows) {
+            return $rows;
+        }
+
+        $padded = $rows;
+        $start = count($rows) + 1;
+        for ($i = $start; $i <= $minRows; $i++) {
+            $padded[] = ['serial' => $i];
+        }
+
+        return $padded;
+    }
+
     /**
      * @param  array<string, mixed>  $collection
      * @return array<string, mixed>
@@ -544,7 +574,7 @@ class TestRequestFormReportDataBuilder
             return [
                 'rows' => [
                     [
-                        'meta' => 'Sampling Date: ' . ($collection['sampling_date'] ?? ''),
+                        'meta' => $this->formatMetaField('Sampling Date:', (string) ($collection['sampling_date'] ?? '')),
                         'apparatus' => $apparatus,
                         'apparatus_keys' => ['STERILE BAG', 'AIR SAMPLER'],
                         'method' => $method,
@@ -555,7 +585,7 @@ class TestRequestFormReportDataBuilder
                         'transport_keys' => ['CHILLER VEHICLE'],
                     ],
                     [
-                        'meta' => 'Sampling Time: ' . ($collection['sampling_time'] ?? ''),
+                        'meta' => $this->formatMetaField('Sampling Time:', (string) ($collection['sampling_time'] ?? '')),
                         'apparatus' => $apparatus,
                         'apparatus_keys' => ['STERILE BOTTLE', 'GRABBER'],
                         'method' => $method,
@@ -566,7 +596,7 @@ class TestRequestFormReportDataBuilder
                         'transport_keys' => ['FROZEN'],
                     ],
                     [
-                        'meta' => 'Sampling Location: ' . ($collection['sampling_location'] ?? ''),
+                        'meta' => $this->formatMetaField('Sampling Location:', (string) ($collection['sampling_location'] ?? '')),
                         'apparatus' => $apparatus,
                         'apparatus_keys' => ['STERILE SWAB', 'OTHERS'],
                         'method' => $method,
@@ -603,13 +633,13 @@ class TestRequestFormReportDataBuilder
         }
 
         $thermometerExtra = $thermometerId !== ''
-            ? '<br><span class="trf-check trf-check-on"></span> THERMOMETER ID: ' . e($thermometerId)
-            : '<br><span class="trf-check trf-check-off"></span> THERMOMETER ID:';
+            ? '<table class="trf-check-grid"><tr><td><span class="trf-check trf-check-on"></span> THERMOMETER ID: ' . e($thermometerId) . '</td></tr></table>'
+            : '<table class="trf-check-grid"><tr><td><span class="trf-check trf-check-off"></span> THERMOMETER ID:</td></tr></table>';
 
         return [
             'rows' => [
                 [
-                    'meta' => 'Sampling Date: ' . ($collection['sampling_date'] ?? ''),
+                    'meta' => $this->formatMetaField('Sampling Date:', (string) ($collection['sampling_date'] ?? '')),
                     'apparatus' => $apparatus,
                     'apparatus_keys' => ['STERILE BAG', 'GRABBER'],
                     'method' => $method,
@@ -620,7 +650,7 @@ class TestRequestFormReportDataBuilder
                     'transport_keys' => ['CHILLER VEHICLE'],
                 ],
                 [
-                    'meta' => 'Sampling Time: ' . ($collection['sampling_time'] ?? ''),
+                    'meta' => $this->formatMetaField('Sampling Time:', (string) ($collection['sampling_time'] ?? '')),
                     'apparatus' => $apparatus,
                     'apparatus_keys' => ['STERILE BOTTLE', 'OTHERS'],
                     'method' => $method,
@@ -631,7 +661,7 @@ class TestRequestFormReportDataBuilder
                     'transport_keys' => ['FROZEN'],
                 ],
                 [
-                    'meta' => 'Sampling Location: ' . ($collection['sampling_location'] ?? ''),
+                    'meta' => $this->formatMetaField('Sampling Location:', (string) ($collection['sampling_location'] ?? '')),
                     'apparatus' => $apparatus,
                     'apparatus_keys' => [],
                     'apparatus_extra' => $thermometerExtra,
