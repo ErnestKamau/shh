@@ -529,7 +529,11 @@ class TestRequestFormReportDataBuilder
 
     private function formatMetaField(string $label, string $value = ''): string
     {
-        $valueHtml = $value !== '' ? e($value) : '&nbsp;';
+        if ($value !== '') {
+            $valueHtml = nl2br(e($value));
+        } else {
+            $valueHtml = '&nbsp;';
+        }
 
         return '<span class="trf-meta-key">' . e($label) . '</span>'
             . '<span class="trf-meta-val">' . $valueHtml . '</span>';
@@ -663,7 +667,7 @@ class TestRequestFormReportDataBuilder
                 [
                     'meta' => $this->formatMetaField('Sampling Location:', (string) ($collection['sampling_location'] ?? '')),
                     'apparatus' => $apparatus,
-                    'apparatus_keys' => [],
+                    'apparatus_keys' => ['STERILE SWAB', 'OTHERS'],
                     'apparatus_extra' => $thermometerExtra,
                     'method' => $method,
                     'method_keys' => ['ASTM', 'DM'],

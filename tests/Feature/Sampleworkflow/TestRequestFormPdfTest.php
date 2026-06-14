@@ -117,8 +117,12 @@ class TestRequestFormPdfTest extends TestCase
         $this->assertStringContainsString('TEST REQUIRMENTS', $html);
         $this->assertStringContainsString('FIELD DATA', $html);
         $this->assertStringContainsString('trf-banner-row', $html);
-        $this->assertStringContainsString('trf-vtext', $html);
+        $this->assertStringContainsString('trf-vtext-br', $html);
         $this->assertStringContainsString('trf-meta-key', $html);
+        $this->assertStringContainsString('trf-lab-box', $html);
+        $this->assertStringNotContainsString('max-width: 820px', $html);
+        $this->assertStringContainsString('trf-customer-right', $html);
+        $this->assertStringContainsString('<td class="trf-center">4</td>', $html);
     }
 
     public function test_food_preview_renders_collection_grid_and_checkbox_columns(): void
@@ -155,13 +159,16 @@ class TestRequestFormPdfTest extends TestCase
         $this->assertStringContainsString('trf-accent', $html);
         $this->assertStringContainsString('trf-job-label', $html);
         $this->assertStringContainsString('trf-meta-key', $html);
-        $this->assertStringContainsString('trf-vtext', $html);
+        $this->assertStringContainsString('trf-vtext-br', $html);
         $this->assertStringContainsString('SAMPLE TYPE', $html);
         $this->assertStringContainsString('SAMPLE CONDITION', $html);
-        $this->assertStringContainsString('Ready To Eat', $html);
+        $this->assertStringContainsString('Ready', $html);
         $this->assertStringContainsString('Chilled', $html);
         $this->assertStringContainsString('trf-check-grid', $html);
         $this->assertStringContainsString('<td class="trf-center">5</td>', $html);
+        $this->assertStringContainsString('trf-lab-box', $html);
+        $this->assertStringNotContainsString('max-width: 820px', $html);
+        $this->assertStringContainsString('trf-customer-right', $html);
     }
 
     public function test_waste_water_preview_renders_waste_water_template(): void

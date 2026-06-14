@@ -15,7 +15,7 @@
         <th colspan="4">TRANSPORT CONDITION</th>
     </tr>
     @foreach($grid['rows'] ?? [] as $row)
-        <tr class="trf-collection-row">
+        <tr>
             <td colspan="3" class="trf-meta-cell">{!! $row['meta'] ?? '&nbsp;' !!}</td>
             <td colspan="4">
                 @include('workflow.forms.test-request.partials.checkbox-grid', [
@@ -45,33 +45,33 @@
         </tr>
     @endforeach
     <tr>
-        <th rowspan="2" class="trf-vtext-wrap" style="width: 3%;"><span class="trf-vtext">S. NO.</span></th>
-        <th rowspan="2" style="width: 5%;">SAMPLE NO.</th>
-        <th rowspan="2" style="width: 10%;">SAMPLE DESCRIPTION</th>
-        <th rowspan="2" style="width: 7%;">LOCATION</th>
-        <th rowspan="2" class="trf-vtext-wrap" style="width: 3%;"><span class="trf-vtext">QTY.</span></th>
+        <th rowspan="2" style="width: 3%;">S. NO.</th>
+        <th rowspan="2" style="width: 6%;">SAMPLE NO.</th>
+        <th rowspan="2" style="width: 12%;">SAMPLE DESCRIPTION</th>
+        <th rowspan="2" style="width: 8%;">LOCATION</th>
+        <th rowspan="2" style="width: 3%;">QTY.</th>
         <th colspan="5">SAMPLING POINT</th>
         <th colspan="5">FIELD DATA</th>
         <th colspan="3">TEST REQUIRMENTS</th>
     </tr>
     <tr>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Tap</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Tank</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Pool</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Shower Head</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Others</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">pH</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Appearance</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Residual Chlorine</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Odor</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Sample Temp(°C)</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Microbiology</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Legionella</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Chemical Analysis</span></th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Tap']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Tank']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Pool']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Shower', 'Head']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Others']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['pH']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Appear-', 'ance']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Residual', 'Chlorine']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Odor']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Sample', 'Temp(°C)']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Micro-', 'biology']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Legion-', 'ella']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Chemical', 'Analysis']])</th>
     </tr>
     @foreach($sampleRows as $row)
         @php $sp = $row['sampling_point_checks'] ?? []; @endphp
-        <tr>
+        <tr class="trf-data-row">
             <td class="trf-center">{{ $row['serial'] ?? '' }}</td>
             <td>{{ $row['sample_no'] ?? '' }}</td>
             <td>{{ $row['sample_description'] ?? '' }}</td>

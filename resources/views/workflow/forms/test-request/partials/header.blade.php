@@ -3,12 +3,12 @@
 @endphp
 <table class="trf-header-table">
     <tr>
-        <td style="width: 14%;">
+        <td style="width: 12%;">
             @if(!empty($logoSrc))
                 <img src="{{ $logoSrc }}" class="trf-logo" alt="Company Logo">
             @endif
         </td>
-        <td style="width: 46%;">
+        <td style="width: 50%;">
             <div class="trf-company-name">{{ $companyHeader['name'] ?? ($company->name ?? '') }}</div>
             <div class="trf-company-meta">
                 Tel: {{ $companyHeader['telephone'] ?? '' }}<br>
@@ -16,7 +16,7 @@
                 Address: {{ $companyHeader['address'] ?? '' }}
             </div>
         </td>
-        <td style="width: 40%;" class="trf-right">
+        <td style="width: 38%;" class="trf-right">
             <div class="trf-company-meta trf-right">
                 PO Box: {{ $companyHeader['po_box'] ?? '' }}<br>
                 Fax: {{ $companyHeader['fax'] ?? '' }}<br>

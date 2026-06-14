@@ -13,7 +13,5 @@ class TestRequestFormSeeder extends Seeder
     public function run(): void
     {
         TestRequestForm::seedDefaults();
-
-        $this->call(TestRequestFormDemoSeeder::class);
     }
 }

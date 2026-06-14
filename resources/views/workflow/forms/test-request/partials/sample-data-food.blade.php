@@ -16,7 +16,7 @@
         <th colspan="5">TRANSPORT CONDITION</th>
     </tr>
     @foreach($grid['rows'] ?? [] as $row)
-        <tr class="trf-collection-row">
+        <tr>
             <td colspan="2" class="trf-meta-cell">{!! $row['meta'] ?? '&nbsp;' !!}</td>
             <td colspan="4">
                 @include('workflow.forms.test-request.partials.checkbox-grid', [
@@ -45,28 +45,28 @@
         </tr>
     @endforeach
     <tr>
-        <th rowspan="2" class="trf-vtext-wrap"><span class="trf-vtext">S. No.</span></th>
-        <th rowspan="2">SAMPLE NO.</th>
-        <th rowspan="2">SAMPLE DESCRIPTION</th>
-        <th rowspan="2" class="trf-vtext-wrap"><span class="trf-vtext">SAMPLING POINT/ LOCATION</span></th>
-        <th rowspan="2" class="trf-vtext-wrap"><span class="trf-vtext">QTY.</span></th>
+        <th rowspan="2" style="width: 3%;">S. No.</th>
+        <th rowspan="2" style="width: 5%;">SAMPLE NO.</th>
+        <th rowspan="2" style="width: 10%;">SAMPLE DESCRIPTION</th>
+        <th rowspan="2" style="width: 8%;">SAMPLING POINT/ LOCATION</th>
+        <th rowspan="2" style="width: 3%;">QTY.</th>
         <th colspan="3">SAMPLE TYPE</th>
         <th colspan="5">SAMPLE CONDITION</th>
-        <th rowspan="2" class="trf-vtext-wrap"><span class="trf-vtext">Production Date</span></th>
-        <th rowspan="2" class="trf-vtext-wrap"><span class="trf-vtext">Expiration Date</span></th>
-        <th rowspan="2" class="trf-vtext-wrap"><span class="trf-vtext">Batch Number</span></th>
-        <th rowspan="2" class="trf-vtext-wrap"><span class="trf-vtext">Micro/Chem Parameters</span></th>
-        <th rowspan="2" class="trf-vtext-wrap"><span class="trf-vtext">State of Sample</span></th>
+        <th rowspan="2" style="width: 5%;">Production Date</th>
+        <th rowspan="2" style="width: 5%;">Expiration Date</th>
+        <th rowspan="2" style="width: 5%;">Batch Number</th>
+        <th rowspan="2" style="width: 6%;">Micro/Chem Parameters</th>
+        <th rowspan="2" style="width: 6%;">State of Sample</th>
     </tr>
     <tr>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Raw</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Cooked</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Ready To Eat</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Acceptable</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Chilled</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Frozen</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Ambient</span></th>
-        <th class="trf-subheader trf-vtext-wrap"><span class="trf-vtext">Sample Temp(°C)</span></th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Raw']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Cooked']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Ready', 'To Eat']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Accept-', 'able']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Chilled']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Frozen']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Ambient']])</th>
+        <th class="trf-subheader trf-vtext-wrap">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Sample', 'Temp(°C)']])</th>
     </tr>
     @foreach($sampleRows as $row)
         @php
@@ -74,7 +74,7 @@
             $conditionChecks = $row['sample_condition_checks'] ?? [];
             $state = $row['state_of_sample'] ?? [];
         @endphp
-        <tr>
+        <tr class="trf-data-row">
             <td class="trf-center">{{ $row['serial'] ?? '' }}</td>
             <td>{{ $row['sample_no'] ?? '' }}</td>
             <td>{{ $row['sample_description'] ?? '' }}</td>
@@ -95,7 +95,7 @@
             <td class="trf-center">{{ $row['expiration_date'] ?? '' }}</td>
             <td>{{ $row['batch_number'] ?? '' }}</td>
             <td>{{ $row['parameters'] ?? '' }}</td>
-            <td class="trf-center">
+            <td class="trf-state-cell">
                 <span class="{{ ($state['L'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>
                 <span class="{{ ($state['SS'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>
                 <span class="{{ ($state['S'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>
