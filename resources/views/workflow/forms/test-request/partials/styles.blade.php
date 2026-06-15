@@ -1,6 +1,5 @@
 @php
     $maroon = $branding['primary'] ?? '#800000';
-    $serialRed = '#CC0000';
 @endphp
 <style>
     @page { size: A4 landscape; margin: 3mm 4mm; }
@@ -61,7 +60,7 @@
         color: #000;
         text-transform: uppercase;
     }
-    .trf-serial { text-align: center; font-size: 12pt; font-weight: bold; white-space: nowrap; color: {{ $serialRed }}; display: block; line-height: 1.1; }
+    .trf-serial { text-align: center; font-size: 12pt; font-weight: bold; white-space: nowrap; color: {{ $maroon }}; display: block; line-height: 1.1; }
     .trf-company-center { text-align: center; }
     .trf-company-name { font-weight: bold; font-size: 8.5pt; color: #000; line-height: 1.2; }
     .trf-company-meta { font-size: 7pt; line-height: 1.2; color: #000; font-weight: normal; }
@@ -70,9 +69,9 @@
     .trf-field-value { font-size: 7pt; font-weight: normal; color: #000; }
     .trf-job-label { font-weight: bold; font-size: 7pt; color: #000; }
     .trf-check { font-family: DejaVu Sans, sans-serif; font-size: 7pt; display: inline; line-height: 1; }
-    .trf-check-on::before { content: "\2611"; color: {{ $serialRed }}; display: inline; }
+    .trf-check-on::before { content: "\2611"; color: {{ $maroon }}; display: inline; }
     .trf-check-off::before { content: "\2610"; color: #000; display: inline; }
-    .trf-tick { font-weight: bold; font-size: 8pt; color: {{ $serialRed }}; }
+    .trf-tick { font-weight: bold; font-size: 8pt; color: {{ $maroon }}; }
     .trf-mark { font-weight: bold; font-size: 8pt; color: #000; line-height: 1; }
     .trf-check-only { display: inline-block; text-align: center; width: 100%; }
     .trf-small { font-size: 5.5pt; color: #333; }
@@ -85,7 +84,7 @@
     .trf-meta-cell { vertical-align: middle; padding: 3px 4px; min-height: 18px; border: 1px solid #000; word-wrap: break-word; line-height: 1.2; background: #fff; }
     .trf-collection-section-header { background: #d9d9d9 !important; }
     .trf-collection-check-cell { vertical-align: top; padding: 0; border: 1px solid #000; background: #fff; }
-    .trf-dotted-leader { color: {{ $serialRed }}; letter-spacing: 0.5px; }
+    .trf-dotted-leader { color: {{ $maroon }}; letter-spacing: 0.5px; }
     .trf-tick-col-header { background: #d9d9d9 !important; }
     .trf-tick-cell { background: #fff; vertical-align: middle; text-align: center; border: 1px solid #000; min-height: 18px; height: 18px; }
     .trf-water-table .trf-sample-header-row th,
@@ -136,6 +135,33 @@
     .trf-check-grid-bordered tr td:last-child { border-right: none; }
     .trf-check-grid-bordered tr:first-child td { border-top: none; }
     .trf-check-grid-bordered tr:last-child td { border-bottom: none; }
+    .trf-check-grid-bordered.trf-check-grid-2 td {
+        width: 50%;
+        min-height: 17px;
+        height: 17px;
+        vertical-align: top;
+    }
+    .trf-check-grid-empty-cell {
+        min-height: 17px;
+        height: 17px;
+    }
+    .trf-check-grid-empty-placeholder {
+        visibility: hidden;
+    }
+    .trf-check-grid-bordered tr.trf-check-grid-incomplete-row td {
+        height: 17px;
+        min-height: 17px;
+        vertical-align: top;
+    }
+    .trf-check-grid-subheader-cell {
+        background: #d9d9d9;
+        font-weight: bold;
+        font-size: 6.5pt;
+        text-align: center;
+        text-transform: uppercase;
+        vertical-align: middle;
+        padding: 2px 4px;
+    }
     .trf-check-grid-1 td { width: 100%; }
     .trf-check-grid-2 td { width: 50%; }
     .trf-subheader { background: #d9d9d9; font-size: 6.5pt; text-align: center; font-weight: bold; vertical-align: middle; padding: 1px; }
@@ -248,7 +274,7 @@
     .trf-lab-box .trf-lab-field { margin-bottom: 3px; }
     .trf-lab-box .trf-field-label { display: inline; margin-top: 0; }
     .trf-lab-box .trf-field-value { display: inline; }
-    .trf-footer-sign-row td { vertical-align: middle; padding: 0; border: 1px solid #000; }
+    .trf-footer-sign-row td { vertical-align: middle; padding: 0; }
     .trf-footer-cell { padding: 4px 6px; font-size: 7pt; line-height: 1.35; vertical-align: middle; min-height: 18px; }
     .trf-footer-lab-head { vertical-align: middle; }
     .trf-lab-title { font-weight: bold; font-size: 7pt; text-transform: uppercase; margin: 0; padding: 0; }
@@ -256,4 +282,445 @@
     .trf-footer-check-item .trf-check { font-size: 7pt; margin-right: 1px; }
     .trf-footer-cell .trf-field-label { font-weight: bold; font-size: 7pt; }
     .trf-footer-cell .trf-field-value { font-size: 7pt; font-weight: normal; margin-left: 2px; }
+    .trf-footer-nowrap { white-space: nowrap; overflow: hidden; }
+    .trf-footer-inline-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: none !important;
+        margin: 0;
+        table-layout: auto;
+    }
+    .trf-footer-inline-table tr { border: none !important; }
+    .trf-footer-inline-table td {
+        border: none !important;
+        padding: 0;
+        vertical-align: middle;
+        white-space: nowrap;
+        background: transparent;
+    }
+    .trf-footer-inline-label { width: auto; }
+    .trf-footer-inline-option { width: 1%; padding-left: 3px !important; }
+    .trf-footer-inline-option .trf-footer-check-item { margin-left: 0; }
+    .trf-waste-water-table col.trf-ww-col-details { width: 33.333%; }
+    .trf-waste-water-table col.trf-ww-col-apparatus { width: 33.333%; }
+    .trf-waste-water-table col.trf-ww-col-method { width: 33.334%; }
+    .trf-waste-water-table th,
+    .trf-waste-water-table td {
+        border: 1px solid #000;
+        box-sizing: border-box;
+        vertical-align: top;
+        text-align: left;
+    }
+    .trf-waste-water-table th.trf-collection-section-header,
+    .trf-waste-water-table .trf-banner-row td {
+        text-align: center;
+        vertical-align: middle;
+    }
+    .trf-ww-subheader {
+        background: #d9d9d9;
+        font-weight: bold;
+        font-size: 6.5pt;
+        text-align: center;
+        text-transform: uppercase;
+        padding: 2px 4px;
+        border-top: 1px solid #000;
+        border-bottom: 1px solid #000;
+    }
+    .trf-ww-description-cell {
+        vertical-align: top;
+        text-align: left;
+        padding: 2px 3px;
+        min-height: 14px;
+        background: #fff;
+    }
+    .trf-ww-stack-cell { vertical-align: top; padding: 0; }
+    .trf-ww-inner-grid {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+        table-layout: fixed;
+        border: none;
+    }
+    .trf-ww-inner-grid td,
+    .trf-ww-inner-grid th {
+        border: 1px solid #000;
+        box-sizing: border-box;
+        vertical-align: top;
+        text-align: left;
+        background: #fff;
+    }
+    .trf-ww-inner-grid-cell {
+        padding: 3px 4px;
+        font-size: 7pt;
+        line-height: 1.2;
+        min-height: 14px;
+        vertical-align: top;
+        text-align: left;
+        background: #fff;
+    }
+    .trf-ww-subheader-row {
+        background: #d9d9d9;
+        font-weight: bold;
+        font-size: 7pt;
+        text-align: center;
+        text-transform: uppercase;
+        padding: 3px 4px;
+        border: 1px solid #000;
+        vertical-align: middle;
+    }
+    .trf-ww-instrument-table { width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed; }
+    .trf-ww-instrument-row {
+        padding: 1px 2px;
+        font-size: 5.5pt;
+        vertical-align: top;
+        text-align: left;
+        border-top: 1px solid #b0b0b0;
+        background: #fff;
+        line-height: 1.1;
+    }
+    .trf-ww-job-sample-inner { width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed; }
+    .trf-ww-job-half,
+    .trf-ww-sample-half {
+        vertical-align: top;
+        text-align: left;
+        padding: 1px 3px;
+        border: none;
+        background: #fff;
+        line-height: 1.1;
+    }
+    .trf-ww-job-half { border-bottom: 1px solid #000; }
+    .trf-ww-anchor-cell { vertical-align: top; text-align: left; }
+    .trf-ww-field-data-cell { vertical-align: top; padding: 0; background: #fff; }
+    .trf-ww-field-table { width: 100%; border-collapse: collapse; margin: 0; }
+    .trf-ww-field-row {
+        padding: 3px 4px;
+        font-size: 6.5pt;
+        vertical-align: middle;
+        border-bottom: 1px solid #b0b0b0;
+        min-height: 17px;
+        background: #fff;
+    }
+    .trf-ww-field-table tr:last-child .trf-ww-field-row { border-bottom: none; }
+    .trf-ww-requirements-cell { vertical-align: top; padding: 0; }
+    .trf-ww-requirements-table { width: 100%; border-collapse: collapse; margin: 0; }
+    .trf-ww-requirement-row {
+        padding: 8px 4px;
+        font-size: 6.5pt;
+        vertical-align: middle;
+        text-align: left;
+        background: #fff;
+    }
+    .trf-ww-sample-number-label { margin-top: 8px; }
+    body.trf-waste-water { font-size: 8.5pt; line-height: 1.2; }
+    body.trf-waste-water .trf-page {
+        page-break-inside: avoid;
+        width: 100%;
+    }
+    body.trf-waste-water .trf-ww-customer-tbody {
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
+    body.trf-waste-water .trf-ww-customer-banner,
+    body.trf-waste-water .trf-ww-customer-row {
+        page-break-inside: avoid;
+    }
+    body.trf-waste-water .trf-ww-header-table,
+    body.trf-waste-water .trf-ww-header-table td,
+    body.trf-waste-water .trf-ww-header-company td {
+        border: none !important;
+        background: transparent;
+    }
+    body.trf-waste-water .trf-header-table { margin-bottom: 2px; border: none; page-break-after: avoid; }
+    body.trf-waste-water .trf-header-table td { border: none !important; }
+    body.trf-waste-water .trf-title { font-size: 11pt; }
+    body.trf-waste-water .trf-title-row td { padding: 0 0 2px; }
+    body.trf-waste-water .trf-logo { max-height: 34px; max-width: 64px; }
+    body.trf-waste-water .trf-header-center,
+    body.trf-waste-water .trf-header-serial { padding: 2px 0; }
+    body.trf-waste-water .trf-header-company-grid td {
+        padding: 1px 3px;
+        font-size: 7pt;
+        line-height: 1.2;
+    }
+    body.trf-waste-water .trf-company-name-cell { font-size: 7.5pt; padding-bottom: 0; }
+    body.trf-waste-water .trf-company-col-left { padding-right: 8px; }
+    body.trf-waste-water .trf-company-col-right { padding-left: 8px; }
+    body.trf-waste-water .trf-serial { font-size: 10pt; }
+    body.trf-waste-water .trf-field-label,
+    body.trf-waste-water .trf-field-value { font-size: 7.5pt; }
+    body.trf-waste-water .trf-check { font-size: 7.5pt; }
+    body.trf-waste-water .trf-waste-water-table td,
+    body.trf-waste-water .trf-waste-water-table th {
+        padding: 3px 4px;
+        font-size: 7.5pt;
+        line-height: 1.2;
+        vertical-align: top;
+        text-align: left;
+    }
+    body.trf-waste-water .trf-waste-water-table th.trf-collection-section-header,
+    body.trf-waste-water .trf-waste-water-table .trf-banner-row td,
+    body.trf-waste-water .trf-ww-subheader {
+        text-align: center;
+        vertical-align: middle;
+    }
+    body.trf-waste-water .trf-banner-row td {
+        font-size: 8pt;
+        padding: 3px 4px;
+    }
+    body.trf-waste-water .trf-waste-water-table .trf-customer-field,
+    body.trf-waste-water .trf-waste-water-table .trf-meta-cell,
+    body.trf-waste-water .trf-waste-water-table .trf-ww-description-cell {
+        padding: 3px 4px;
+        min-height: 0 !important;
+        vertical-align: top;
+        text-align: left;
+        line-height: 1.2;
+    }
+    body.trf-waste-water .trf-waste-water-table .trf-customer-field .trf-field-value {
+        font-size: 7.5pt;
+    }
+    body.trf-waste-water .trf-waste-water-table .trf-job-cell {
+        padding: 0 !important;
+        min-height: 0 !important;
+        vertical-align: top;
+        height: auto !important;
+    }
+    body.trf-waste-water .trf-ww-job-sample-cell {
+        padding: 0 !important;
+        vertical-align: top;
+    }
+    body.trf-waste-water .trf-ww-job-half,
+    body.trf-waste-water .trf-ww-sample-half {
+        padding: 3px 4px;
+        min-height: 0 !important;
+        vertical-align: top;
+        text-align: left;
+        box-sizing: border-box;
+    }
+    body.trf-waste-water .trf-ww-job-half {
+        border-bottom: 1px solid #000;
+    }
+    body.trf-waste-water .trf-job-number-value {
+        min-height: 0 !important;
+    }
+    body.trf-waste-water .trf-waste-water-table .trf-job-number-label {
+        font-size: 7.5pt;
+        margin-bottom: 1px;
+        line-height: 1.2;
+    }
+    body.trf-waste-water .trf-waste-water-table .trf-job-number-value {
+        font-size: 7.5pt;
+        min-height: 0 !important;
+        margin-bottom: 0;
+        display: inline;
+        line-height: 1.2;
+    }
+    body.trf-waste-water .trf-waste-water-table .trf-meta-cell {
+        padding: 3px 4px;
+        min-height: 0 !important;
+        line-height: 1.2;
+        vertical-align: top;
+        text-align: left;
+    }
+    body.trf-waste-water .trf-waste-water-table .trf-collection-check-cell,
+    body.trf-waste-water .trf-waste-water-table .trf-ww-stack-cell,
+    body.trf-waste-water .trf-waste-water-table .trf-ww-field-data-cell,
+    body.trf-waste-water .trf-waste-water-table .trf-ww-requirements-cell,
+    body.trf-waste-water .trf-waste-water-table .trf-ww-method-cell {
+        padding: 0 !important;
+        vertical-align: top;
+    }
+    body.trf-waste-water .trf-collection-check-cell > table,
+    body.trf-waste-water .trf-ww-stack-cell > table,
+    body.trf-waste-water .trf-ww-field-data-cell > table,
+    body.trf-waste-water .trf-ww-requirements-cell > table,
+    body.trf-waste-water .trf-ww-method-cell > table {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-collapse: collapse !important;
+        table-layout: fixed;
+    }
+    body.trf-waste-water .trf-ww-section-stack,
+    body.trf-waste-water .trf-ww-section-rows {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        table-layout: fixed;
+        border: none;
+    }
+    body.trf-waste-water .trf-ww-section-stack td,
+    body.trf-waste-water .trf-ww-section-rows td,
+    body.trf-waste-water .trf-ww-section-cell {
+        border: none !important;
+        box-sizing: border-box;
+        vertical-align: top;
+        text-align: left;
+        background: #fff;
+        padding: 3px 4px;
+        font-size: 7pt;
+        line-height: 1.2;
+        min-height: 14px;
+    }
+    body.trf-waste-water .trf-ww-section-stack tr:not(.trf-ww-section-last-row) td,
+    body.trf-waste-water .trf-ww-section-rows tr:not(.trf-ww-section-last-row) td {
+        border-bottom: 1px solid #000 !important;
+        border-left: none !important;
+        border-top: none !important;
+    }
+    body.trf-waste-water .trf-ww-section-rows.trf-check-grid-2 tr td:first-child:not([colspan]),
+    body.trf-waste-water .trf-ww-section-stack tr td:first-child:not([colspan]) {
+        border-right: 1px solid #000 !important;
+    }
+    body.trf-waste-water .trf-ww-section-stack tr td[colspan]:not([colspan="1"]) {
+        border-right: none !important;
+    }
+    body.trf-waste-water .trf-ww-subheader-row {
+        background: #d9d9d9 !important;
+        font-weight: bold;
+        font-size: 7pt;
+        text-align: center;
+        text-transform: uppercase;
+        padding: 3px 4px;
+        border: none !important;
+        vertical-align: middle;
+    }
+    body.trf-waste-water .trf-waste-water-table .trf-collection-section-header {
+        font-size: 7.5pt;
+        padding: 3px 4px;
+    }
+    body.trf-waste-water .trf-ww-subheader {
+        font-size: 7pt;
+        padding: 3px 4px;
+    }
+    body.trf-waste-water .trf-ww-description-cell {
+        padding: 3px 4px;
+        min-height: 0 !important;
+        line-height: 1.2;
+    }
+    body.trf-waste-water .trf-ww-instrument-row {
+        padding: 3px 4px;
+        font-size: 7pt;
+        line-height: 1.2;
+        vertical-align: top;
+        text-align: left;
+    }
+    body.trf-waste-water .trf-ww-field-row {
+        padding: 3px 4px;
+        font-size: 7.5pt;
+        min-height: 18px;
+        line-height: 1.25;
+        vertical-align: top;
+        text-align: left;
+    }
+    body.trf-waste-water .trf-ww-requirement-row {
+        padding: 8px 4px;
+        font-size: 7.5pt;
+        line-height: 1.25;
+        min-height: 28px;
+        vertical-align: middle;
+        border: none !important;
+    }
+    body.trf-waste-water .trf-ww-requirement-label {
+        font-size: 7.5pt;
+        margin-left: 2px;
+    }
+    body.trf-waste-water .trf-check-grid td {
+        white-space: normal;
+        word-wrap: break-word;
+    }
+    body.trf-waste-water .trf-ww-section-rows td,
+    body.trf-waste-water .trf-ww-section-stack td,
+    body.trf-waste-water .trf-ww-section-cell {
+        border: none !important;
+        padding: 3px 4px !important;
+    }
+    body.trf-waste-water .trf-ww-section-rows.trf-check-grid-normal td,
+    body.trf-waste-water .trf-ww-section-rows.trf-check-grid-normal .trf-ww-section-cell {
+        padding: 2px 3px !important;
+        font-size: 7pt !important;
+        min-height: 14px !important;
+        height: auto !important;
+        line-height: 1.2 !important;
+    }
+    body.trf-waste-water .trf-ww-section-rows.trf-check-grid-relaxed td,
+    body.trf-waste-water .trf-ww-section-rows.trf-check-grid-relaxed .trf-ww-section-cell {
+        padding: 3px 4px !important;
+        font-size: 7.5pt !important;
+        min-height: 18px !important;
+        height: auto !important;
+        line-height: 1.25 !important;
+    }
+    body.trf-waste-water .trf-ww-method-cell .trf-ww-section-rows.trf-check-grid-relaxed td {
+        min-height: 20px !important;
+    }
+    body.trf-waste-water .trf-check-grid-bordered { margin: 0; }
+    body.trf-waste-water .trf-check-grid-bordered td {
+        font-size: 7pt;
+        min-height: 14px;
+        height: 14px;
+        padding: 2px 3px;
+        vertical-align: top;
+        text-align: left;
+        white-space: normal;
+        word-wrap: break-word;
+    }
+    body.trf-waste-water .trf-check-grid-bordered.trf-check-grid-2 td {
+        min-height: 14px;
+        height: 14px;
+    }
+    body.trf-waste-water .trf-check-grid-empty-cell {
+        min-height: 14px;
+        height: 14px;
+    }
+    body.trf-waste-water .trf-check-grid-bordered tr.trf-check-grid-incomplete-row td {
+        min-height: 14px !important;
+        height: 14px !important;
+    }
+    body.trf-waste-water .trf-check-grid-subheader-cell {
+        font-size: 7pt;
+        text-align: center;
+        vertical-align: middle;
+    }
+    body.trf-waste-water .trf-footer-sign-row td { padding: 0; }
+    body.trf-waste-water .trf-footer-cell {
+        padding: 2px 3px;
+        font-size: 7pt;
+        line-height: 1.2;
+        min-height: 14px;
+    }
+    body.trf-waste-water .trf-footer-nowrap {
+        white-space: nowrap !important;
+        overflow: hidden;
+    }
+    body.trf-waste-water .trf-footer-inline-table td {
+        font-size: 6.5pt;
+        line-height: 1.15;
+    }
+    body.trf-waste-water .trf-footer-inline-option {
+        padding-left: 2px !important;
+    }
+    body.trf-waste-water .trf-footer-conformity-cell,
+    body.trf-waste-water .trf-footer-condition-cell {
+        font-size: 6.5pt;
+        padding: 2px 2px;
+    }
+    body.trf-waste-water .trf-footer-conformity-cell .trf-field-label,
+    body.trf-waste-water .trf-footer-condition-cell .trf-field-label {
+        font-size: 6.5pt;
+    }
+    body.trf-waste-water .trf-footer-check-item {
+        margin-left: 3px;
+        font-size: 6.5pt;
+    }
+    body.trf-waste-water .trf-footer-check-item .trf-check { font-size: 6.5pt; }
+    body.trf-waste-water .trf-footer-cell .trf-field-value { font-size: 7pt; }
+    body.trf-waste-water .trf-lab-title { font-size: 7pt; }
+    body.trf-waste-water .trf-footer-table { margin-top: 2px; border-top: none; }
+    body.trf-waste-water .trf-footer-table td { font-size: 7.5pt; padding-top: 1px; }
+    body.trf-waste-water .trf-waste-water-table tr.trf-footer-sign-row:last-child .trf-footer-cell {
+        min-height: 20px;
+    }
 </style>

@@ -160,4 +160,58 @@ class TestRequestFormReportDataBuilderTest extends TestCase
             TestRequestFormReportDataBuilder::samplingPointChecks('Tank')
         );
     }
+
+    public function test_build_from_draft_waste_water_includes_lws_036_and_field_checks(): void
+    {
+        $wasteWater = SampleType::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Waste Water',
+            'code' => 'SMP-WWTR',
+            'active' => true,
+        ]);
+
+        $data = app(TestRequestFormReportDataBuilder::class)->buildFromDraft(
+            [
+                'customer_name' => 'ABC COMPANY',
+                'job_number' => 'JOB-001',
+                'sample_number' => 'WW-456',
+                'sampling_date' => '2026-06-03',
+                'sampling_time' => '10:30',
+                'sampling_location' => 'Site A',
+                'sample_description' => 'Effluent discharge point',
+                'sampling_apparatus' => ['STERILE BOTTLE'],
+                'method_of_sampling' => ['APHA'],
+                'reason_of_collection' => ['CONTRACT'],
+                'sampling_technique' => ['GRAB'],
+                'sampling_source' => ['STP'],
+                'sample_types_ww' => ['LIQUID'],
+                'transport_condition' => ['AMBIENT'],
+                'field_data_quantity' => '2',
+                'field_data_ph' => '7.1',
+                'field_data_requirements' => ['MICROBIOLOGY + CHEMISTRY'],
+            ],
+            $wasteWater,
+            null,
+            false
+        );
+
+        $this->assertSame('waste_water', $data['variant']);
+        $this->assertStringContainsString('LWS/036', $data['documentRef']);
+        $this->assertSame('WW-456', $data['wasteWaterFields']['sample_number']);
+        $this->assertTrue($data['wasteWaterFields']['field_data_requirement_checks']['MICROBIOLOGY']);
+        $this->assertTrue($data['wasteWaterFields']['field_data_requirement_checks']['CHEMISTRY']);
+        $this->assertSame(['GRAB', 'COMPOSITE', 'OTHER'], $data['collectionGrid']['technique_ordered_keys']);
+    }
+
+    public function test_field_data_requirement_checks_maps_combined_option(): void
+    {
+        $checks = TestRequestFormReportDataBuilder::fieldDataRequirementChecks([
+            'MICROBIOLOGY' => false,
+            'CHEMISTRY' => false,
+            'MICROBIOLOGY + CHEMISTRY' => true,
+        ]);
+
+        $this->assertTrue($checks['MICROBIOLOGY']);
+        $this->assertTrue($checks['CHEMISTRY']);
+    }
 }

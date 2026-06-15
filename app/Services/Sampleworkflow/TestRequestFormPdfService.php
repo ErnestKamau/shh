@@ -57,11 +57,13 @@ class TestRequestFormPdfService
 
     private function applyPaperSettings($pdf, string $variant): void
     {
-        if (in_array($variant, ['food', 'water'], true)) {
-            $pdf->setPaper('a4', 'landscape');
-        } else {
-            $pdf->setPaper('a4', 'portrait');
-        }
+        $orientation = match ($variant) {
+            'waste_water' => 'portrait',
+            'food', 'water' => 'landscape',
+            default => 'portrait',
+        };
+
+        $pdf->setPaper('a4', $orientation);
     }
 
     public function generateAndStore(TestRequestFormInstance $instance): string

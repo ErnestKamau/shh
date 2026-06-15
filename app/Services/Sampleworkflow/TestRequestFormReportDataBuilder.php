@@ -98,16 +98,16 @@ class TestRequestFormReportDataBuilder
 
         $customer = $this->resolveCustomerFields($formData, $submission);
         $collection = $this->resolveCollectionFields($formData, $variant);
-        $collectionGrid = $this->resolveCollectionGrid($collection, $variant);
+        $wasteWaterFields = $variant === 'waste_water'
+            ? $this->resolveWasteWaterFields($formData)
+            : [];
+        $collectionGrid = $this->resolveCollectionGrid($collection, $variant, $wasteWaterFields);
         $sampleRows = $variant === 'waste_water'
             ? []
             : $this->padSampleRows(
                 $this->resolveSampleRows($formData, $variant),
                 $variant === 'food' ? 5 : 10
             );
-        $wasteWaterFields = $variant === 'waste_water'
-            ? $this->resolveWasteWaterFields($formData)
-            : [];
         $companyHeader = $this->resolveCompanyHeader($company);
         $conformity = self::normalizeSingleSelect(
             $formData['statement_of_conformity'] ?? '',
@@ -123,7 +123,7 @@ class TestRequestFormReportDataBuilder
 
         $documentRef = match ($variant) {
             'food' => 'AMS/QMS/LWS/019 - Test Request Form - Food - V0',
-            'waste_water' => 'AMS/QMS/LWS/021 - Test Request Form - Waste Water - V0',
+            'waste_water' => 'AMS/QMS/LWS/036 - Test Request Form - Waste Water - V0',
             default => 'AMS/QMS/LWS/020 - Test Request Form - Water - V0',
         };
 
@@ -228,10 +228,21 @@ class TestRequestFormReportDataBuilder
     }
 
     /**
-     * @param  mixed  $value
-     * @param  list<string>  $allOptions
-     * @return array<string, bool>
+     * @param  array<string, bool>  $requirements
+     * @return array{MICROBIOLOGY: bool, CHEMISTRY: bool}
      */
+    public static function fieldDataRequirementChecks(array $requirements): array
+    {
+        $microbiology = (bool) ($requirements['MICROBIOLOGY'] ?? false);
+        $chemistry = (bool) ($requirements['CHEMISTRY'] ?? false);
+        $combined = (bool) ($requirements['MICROBIOLOGY + CHEMISTRY'] ?? false);
+
+        return [
+            'MICROBIOLOGY' => $microbiology || $combined,
+            'CHEMISTRY' => $chemistry || $combined,
+        ];
+    }
+
     public static function normalizeCheckboxGroup($value, array $allOptions): array
     {
         $selected = self::normalizeToSelectedList($value);
@@ -560,9 +571,10 @@ class TestRequestFormReportDataBuilder
 
     /**
      * @param  array<string, mixed>  $collection
+     * @param  array<string, mixed>  $wasteWaterFields
      * @return array<string, mixed>
      */
-    private function resolveCollectionGrid(array $collection, string $variant): array
+    private function resolveCollectionGrid(array $collection, string $variant, array $wasteWaterFields = []): array
     {
         $apparatus = $collection['sampling_apparatus'] ?? [];
         $method = $collection['method_of_sampling'] ?? [];
@@ -602,6 +614,25 @@ class TestRequestFormReportDataBuilder
             ];
         }
 
+        if ($variant === 'waste_water') {
+            return [
+                'meta_rows' => $metaRows,
+                'sample_description' => (string) ($wasteWaterFields['sample_description'] ?? ''),
+                'apparatus' => $wasteWaterFields['sampling_apparatus'] ?? $apparatus,
+                'apparatus_ordered_keys' => self::WASTE_WATER_OPTIONS['sampling_apparatus'],
+                'thermometer_id' => (string) ($wasteWaterFields['thermometer_id'] ?? $thermometerId),
+                'ph_meter_id' => (string) ($wasteWaterFields['ph_meter_id'] ?? ''),
+                'chlorine_meter_id' => (string) ($wasteWaterFields['chlorine_meter_id'] ?? ''),
+                'sampling_apparatus_others' => (string) ($wasteWaterFields['sampling_apparatus_others'] ?? ''),
+                'method' => $wasteWaterFields['method_of_sampling'] ?? $method,
+                'method_ordered_keys' => ['APHA', 'US FDA', 'EPA', 'CCFRA', 'DM', 'SOP', 'OTHERS'],
+                'reason' => $wasteWaterFields['reason_of_collection'] ?? $reason,
+                'reason_ordered_keys' => self::WASTE_WATER_OPTIONS['reason_of_collection'],
+                'technique' => $wasteWaterFields['sampling_technique'] ?? [],
+                'technique_ordered_keys' => self::WASTE_WATER_OPTIONS['sampling_technique'],
+            ];
+        }
+
         return [
             'meta_rows' => $metaRows,
             'apparatus' => $apparatus,
@@ -622,6 +653,11 @@ class TestRequestFormReportDataBuilder
      */
     private function resolveWasteWaterFields(array $formData): array
     {
+        $fieldDataRequirements = self::normalizeCheckboxGroup(
+            $formData['field_data_requirements'] ?? [],
+            self::WASTE_WATER_OPTIONS['field_data_requirements']
+        );
+
         return [
             'sample_number' => (string) ($formData['sample_number'] ?? ''),
             'sample_description' => (string) ($formData['sample_description'] ?? ''),
@@ -664,10 +700,8 @@ class TestRequestFormReportDataBuilder
             'field_data_ph' => (string) ($formData['field_data_ph'] ?? ''),
             'field_data_temperature' => (string) ($formData['field_data_temperature'] ?? ''),
             'field_data_free_chlorine' => (string) ($formData['field_data_free_chlorine'] ?? ''),
-            'field_data_requirements' => self::normalizeCheckboxGroup(
-                $formData['field_data_requirements'] ?? [],
-                self::WASTE_WATER_OPTIONS['field_data_requirements']
-            ),
+            'field_data_requirements' => $fieldDataRequirements,
+            'field_data_requirement_checks' => self::fieldDataRequirementChecks($fieldDataRequirements),
         ];
     }
 
