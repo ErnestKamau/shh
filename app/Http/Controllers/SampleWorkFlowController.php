@@ -5479,26 +5479,103 @@ class SampleWorkFlowController extends Controller
         }
     }
 
-    /**
-     * @return array{tanzania: ?string, gcla: ?string}
-     */
-    private function resolveWorkflowFormLogos(): array
+    private function resolveSingleLogoPath(?string $path): ?string
     {
-        $tanzaniaCandidates = [
-            public_path('images/forms/tanzanialogo.jpeg'),
-            public_path('images/forms/tanzanialogo.jpg'),
-            '/home/kaarr/Downloads/tanzanialogo.jpeg',
-        ];
+        if (empty($path)) {
+            return null;
+        }
 
-        $gclaCandidates = [
-            public_path('images/forms/gclalogo.png'),
-            public_path('images/forms/gclalogo.jpg'),
-            '/home/kaarr/Downloads/gclalogo.png',
-        ];
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            $path = parse_url($path, PHP_URL_PATH) ?? $path;
+        }
+        $path = ltrim($path, '/');
+        
+        if (file_exists($path)) {
+            return $path;
+        }
+
+        $filename = basename($path);
+        if ($filename !== '') {
+            $relative = preg_replace('#^storage/#', '', $path);
+            if ($relative !== $path) {
+                $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relative);
+                if (file_exists($fullPath)) {
+                    return $fullPath;
+                }
+            }
+
+            $fullPath = storage_path('app/companies/' . $filename);
+            if (file_exists($fullPath)) {
+                return $fullPath;
+            }
+
+            if (file_exists(public_path($path))) {
+                return public_path($path);
+            }
+
+            if (file_exists(base_path('public/' . $path))) {
+                return base_path('public/' . $path);
+            }
+        }
+
+        return null;
+    }
+
+    private function getResolvedTanzaniaLogoCandidates(): array
+    {
+        $company = getActiveCompany();
+        if ($company) {
+            $paths = [
+                $company->getReportLogoPath('coat_of_arms'),
+                $company->getReportLogoPath('tz_flag'),
+                $company->report_logo,
+            ];
+            foreach ($paths as $path) {
+                $resolved = $this->resolveSingleLogoPath($path);
+                if ($resolved) {
+                    return [$resolved];
+                }
+            }
+        }
 
         return [
-            'tanzania' => $this->encodeImageAsDataUri($tanzaniaCandidates),
-            'gcla' => $this->encodeImageAsDataUri($gclaCandidates),
+            public_path('images/forms/tanzanialogo.jpeg'),
+            public_path('images/forms/tanzanialogo.jpg'),
+            base_path('public/images/forms/tanzanialogo.jpeg'),
+            base_path('public/images/forms/tanzanialogo.jpg'),
+        ];
+    }
+
+    private function getResolvedGclaLogoCandidates(): array
+    {
+        $company = getActiveCompany();
+        if ($company) {
+            $paths = [
+                $company->getReportLogoPath('gcla_logo'),
+                $company->getReportLogoPath('gcla'),
+                $company->logo,
+            ];
+            foreach ($paths as $path) {
+                $resolved = $this->resolveSingleLogoPath($path);
+                if ($resolved) {
+                    return [$resolved];
+                }
+            }
+        }
+
+        return [
+            public_path('images/forms/gclalogo.png'),
+            public_path('images/forms/gclalogo.jpg'),
+            base_path('public/images/forms/gclalogo.png'),
+            base_path('public/images/forms/gclalogo.jpg'),
+        ];
+    }
+
+    private function resolveWorkflowFormLogos(): array
+    {
+        return [
+            'tanzania' => $this->encodeImageAsDataUri($this->getResolvedTanzaniaLogoCandidates()),
+            'gcla' => $this->encodeImageAsDataUri($this->getResolvedGclaLogoCandidates()),
         ];
     }
 

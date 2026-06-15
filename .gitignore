@@ -14,6 +14,7 @@ storage/*
 vendor_old/*
 vendor_old
 /public/images
+!/public/images/forms/
 .history/
 *.md
 helpdesk-developer.backup.20260111-183650/

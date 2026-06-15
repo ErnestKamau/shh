@@ -1247,6 +1247,18 @@
 											</select>
 										</div>
 									</div>
+									<div class="col-sm-3">
+										<div class="form-group">
+											<label class="control-label">Contract Validity From</label>
+											<input type="date" class="form-control" name="contract_valid_from" value="{{ $customer->contract_valid_from ? $customer->contract_valid_from->format('Y-m-d') : '' }}" />
+										</div>
+									</div>
+									<div class="col-sm-3">
+										<div class="form-group">
+											<label class="control-label">Contract Validity To</label>
+											<input type="date" class="form-control" name="contract_valid_to" value="{{ $customer->contract_valid_to ? $customer->contract_valid_to->format('Y-m-d') : '' }}" />
+										</div>
+									</div>
 									<div class="col-sm-6">
 										<div class="form-group" style="padding-top:40px">
 											<label class="control-label"><input type="checkbox" value="1" name="active" {{ $customer->active == 1 ? 'checked' : '' }} /> Is Customer Active?</label>

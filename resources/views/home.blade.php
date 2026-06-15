@@ -471,8 +471,11 @@
 
     <div class="welcome-section">
         <div class="company-logo">
-            <?php $active = getActiveCompany() ?>
-            <img src="{{ $active->logo ?? '/images/no-logo.png' }}" alt="Company Logo" />
+            <?php 
+                $active = getActiveCompany();
+                $logoPath = ($active && !empty($active->logo)) ? $active->logo : '/images/logo.png';
+            ?>
+            <img src="{{ $logoPath }}" alt="Company Logo" onerror="this.onerror=null; this.src='/images/logo.png';" />
         </div>
         <h1 class="welcome-text">Welcome to IMARA LIMS</h1>
         <p class="welcome-subtitle">Laboratory Information Management System</p>

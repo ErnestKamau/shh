@@ -1,4 +1,4 @@
-@extends('layouts.lab.layout.app')
+@extends('layouts.lab.layout.app', ['select2' => true])
 
 @section('title2')
     <title>Quotations Management</title>
@@ -24,5 +24,10 @@
         
         @livewire('billing.quotation-manager')
     </main>
+
+    @include('layouts.lab.invoice.partials.add-quotation-modal', ['customers' => $customers])
 @endsection
 
+@section('script2')
+    @include('layouts.lab.invoice.partials.add-quotation-modal-scripts')
+@endsection

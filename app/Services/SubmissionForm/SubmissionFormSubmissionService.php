@@ -182,6 +182,9 @@ class SubmissionFormSubmissionService
             'submitted_at' => now(),
         ]);
 
+        // Create TestRequestFormInstance if this is a test request form submission
+        $this->createTestRequestFormInstanceIfApplicable($instance, $submissionForm);
+
         $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
 
         if (class_exists($labIntakeCaseServiceClass)) {
@@ -196,6 +199,61 @@ class SubmissionFormSubmissionService
         }
 
         return $instance->fresh(['submissionForm', 'values.element']);
+    }
+
+    private function createTestRequestFormInstanceIfApplicable(
+        SubmissionFormInstance $instance,
+        SubmissionForm $submissionForm
+    ): void {
+        // Check if this submission form is a test request form type
+        // by checking if it has test request form related fields
+        $elements = $this->elementsForForm($submissionForm);
+        $hasTestRequestFields = $elements->contains(function ($element) {
+            return in_array($element->name, ['sample_rows', 'customer_name', 'sampling_date'], true);
+        });
+
+        if (!$hasTestRequestFields) {
+            return;
+        }
+
+        // Extract form data from submission form instance values
+        $formData = [];
+        foreach ($instance->values as $value) {
+            $fieldName = $value->element?->name ?? $value->element_name ?? null;
+            if ($fieldName) {
+                $formData[$fieldName] = $value->value;
+            }
+        }
+
+        // Check if this has sample_rows which indicates it's a test request form
+        if (!isset($formData['sample_rows'])) {
+            return;
+        }
+
+        // Find the appropriate TestRequestForm based on sample type
+        $sampleTypeId = $submissionForm->sampleTypes->first()?->id;
+        if (!$sampleTypeId) {
+            return;
+        }
+
+        $testRequestForm = \App\Models\TestRequestForm::where('sample_type_id', $sampleTypeId)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$testRequestForm) {
+            return;
+        }
+
+        // Create TestRequestFormInstance
+        \App\Models\TestRequestFormInstance::updateOrCreate(
+            ['submission_form_instance_id' => $instance->id],
+            [
+                'test_request_form_id' => $testRequestForm->id,
+                'form_data' => $formData,
+                'status' => 'submitted',
+                'created_by' => Auth::id(),
+            ]
+        );
     }
 
     public function assignFormNumberWithRetry(

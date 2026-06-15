@@ -22,7 +22,7 @@ class AttachmentsManager extends BaseCrmComponent
 
     public bool $showCreateModal = false;
 
-    public ?int $editingId = null;
+    public ?string $editingId = null;
 
     public string $name = '';
 
@@ -68,7 +68,7 @@ class AttachmentsManager extends BaseCrmComponent
         $this->showCreateModal = true;
     }
 
-    public function editAttachment(int $id): void
+    public function editAttachment(string $id): void
     {
         $item = CustomerCertification::findOrFail($id);
         $this->editingId = $id;
@@ -152,7 +152,7 @@ class AttachmentsManager extends BaseCrmComponent
         }
     }
 
-    public function deleteAttachment(int $id): void
+    public function deleteAttachment(string $id): void
     {
         $cert = CustomerCertification::findOrFail($id);
         $cert->edited = auth()->user()->name;

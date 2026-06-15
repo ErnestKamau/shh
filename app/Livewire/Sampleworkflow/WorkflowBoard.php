@@ -51,6 +51,7 @@ class WorkflowBoard extends Component
             'in_review' => 'In Review',
             'in_additional_info' => 'Request Additional Info',
             'complete' => 'Complete Requests',
+            'scheduled_sampling' => 'Scheduled Sampling',
             'interzone_transfers' => 'Interzone Transfers',
         ];
     }
@@ -122,6 +123,7 @@ class WorkflowBoard extends Component
     public string $submissionFormsStatus = '';
     public string $submissionFormsPriority = '';
     public string $natureOfSampleFilter = '';
+    public ?string $originFilter = null;
     
     /**
      * Expandable advanced filters (Samples Receiving layout).
@@ -242,6 +244,11 @@ class WorkflowBoard extends Component
     }
 
     public function updatingNatureOfSampleFilter(): void
+    {
+        $this->resetPage('forms_page');
+    }
+
+    public function updatingOriginFilter(): void
     {
         $this->resetPage('forms_page');
     }
@@ -563,6 +570,24 @@ class WorkflowBoard extends Component
             $query->whereIn('id', $instanceIds);
         }
 
+        if ($this->originFilter) {
+            if ($this->originFilter === 'scheduled') {
+                $query->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                      ->from('test_request_form_instances')
+                      ->whereColumn('test_request_form_instances.submission_form_instance_id', 'submission_form_instances.id')
+                      ->whereNotNull('test_request_form_instances.sampling_schedule_id');
+                });
+            } elseif ($this->originFilter === 'walk-in') {
+                $query->whereNotExists(function ($q) {
+                    $q->select(DB::raw(1))
+                      ->from('test_request_form_instances')
+                      ->whereColumn('test_request_form_instances.submission_form_instance_id', 'submission_form_instances.id')
+                      ->whereNotNull('test_request_form_instances.sampling_schedule_id');
+                });
+            }
+        }
+
         if ($this->submissionFormsSearch) {
             $search = $this->submissionFormsSearch;
             $query->where(function ($q) use ($search) {
@@ -610,6 +635,10 @@ class WorkflowBoard extends Component
                 $counts[$tabKey] = (int) $readyQuery->count();
                 continue;
             }
+            if ($tabKey === 'scheduled_sampling') {
+                $counts[$tabKey] = \App\Models\SamplingSchedule::query()->where('is_collected', false)->count();
+                continue;
+            }
             $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
         }
 
@@ -639,6 +668,20 @@ class WorkflowBoard extends Component
             'in_review' => $inReviewQuery->count(),
             'accepted'  => $acceptedQuery->count(),
         ];
+    }
+
+    /**
+     * Get sampling schedules for the Scheduled Sampling tab.
+     *
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function getSamplingSchedulesProperty()
+    {
+        return \App\Models\SamplingSchedule::query()
+            ->with(['client', 'contact', 'personnel'])
+            ->where('is_collected', false)
+            ->orderBy('sampling_datetime', 'desc')
+            ->paginate($this->submissionFormsPerPage);
     }
 
     protected function requestReviewSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
@@ -725,25 +768,23 @@ class WorkflowBoard extends Component
                 ? $this->workflowSubTab
                 : 'submitted';
 
-            $eagerLoads = [
-                'submissionForm.sampleTypes',
-                'submittedBy',
-                'batches',
-                'crmCustomer',
-                'sampleSubmissionRequest',
-                'values.element',
-                'latestIntray.toUser',
-                'latestIntray.fromUser',
-                'activePendingIntray',
-            ];
-
-            $query = $this->workflowSubTab === 'ready_for_reception'
+            $query = ($this->workflowSubTab === 'ready_for_reception'
                 ? $this->readyForPhysicalReceptionSubmissionFormsQuery()
-                : $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus);
-
-            $query->with($eagerLoads)->select('submission_form_instances.*');
-
-            $query->selectSub(function ($subQuery) use ($driver) {
+                : $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus))
+                ->with([
+                    'submissionForm.sampleTypes',
+                    'submittedBy',
+                    'batches',
+                    'crmCustomer',
+                    'sampleSubmissionRequest',
+                    'values.element',
+                    'latestIntray.toUser',
+                    'latestIntray.fromUser',
+                    'activePendingIntray',
+                    'testRequestFormInstance.testRequestForm',
+                ])
+                ->select('submission_form_instances.*')
+                ->selectSub(function ($subQuery) use ($driver) {
                     $subQuery->from('submission_form_instances as attachment_instances')
                         ->selectRaw('count(*)')
                         ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id' . ($driver === 'pgsql' ? '::text' : ''));
@@ -1135,6 +1176,7 @@ class WorkflowBoard extends Component
         $this->submissionFormsStatus = '';
         $this->submissionFormsPriority = '';
         $this->natureOfSampleFilter = '';
+        $this->originFilter = null;
     }
 
     public function toggleAdvancedFilters(): void
@@ -1467,12 +1509,13 @@ class WorkflowBoard extends Component
     {
         $this->syncSelectedFormInstanceIds($ids);
 
-        if ($this->selectedFormInstanceIds === []) {
-            return;
+        $summaries = [];
+        if ($this->selectedFormInstanceIds !== []) {
+            $summaries = $this->buildReceiveFormSummaries($this->selectedFormInstanceIds);
+            $this->receiveFormSummaries = $summaries;
+        } else {
+            $this->receiveFormSummaries = [];
         }
-
-        $summaries = $this->buildReceiveFormSummaries($this->selectedFormInstanceIds);
-        $this->receiveFormSummaries = $summaries;
 
         // Dispatch into the already-mounted child so it updates state and then
         // shows the modal itself — avoids the remount race condition.
@@ -1659,6 +1702,7 @@ class WorkflowBoard extends Component
     protected function syncSelectedFormInstanceIds(array $ids): void
     {
         if ($ids === []) {
+            $this->selectedFormInstanceIds = [];
             return;
         }
 

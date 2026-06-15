@@ -560,14 +560,14 @@
         }
         
         .modern-select:focus {
-            border-color: #007bff !important;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15) !important;
+            border-color: #6D0A0E !important;
+            box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.15) !important;
             outline: none;
             background-color: #ffffff !important;
         }
         
         .modern-select:hover {
-            border-color: #007bff !important;
+            border-color: #6D0A0E !important;
         }
         
         .modern-select option {
@@ -580,13 +580,13 @@
         }
         
         .status-filter-select:focus {
-            border-color: #007bff !important;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15) !important;
+            border-color: #6D0A0E !important;
+            box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.15) !important;
             outline: none;
         }
         
         .status-filter-select:hover {
-            border-color: #007bff !important;
+            border-color: #6D0A0E !important;
         }
         
         /* Enhanced label styling */
@@ -610,13 +610,13 @@
         }
         
         .select2-container--bootstrap-5 .select2-selection:hover {
-            border-color: #007bff !important;
+            border-color: #6D0A0E !important;
         }
         
         .select2-container--bootstrap-5.select2-container--focus .select2-selection,
         .select2-container--bootstrap-5.select2-container--open .select2-selection {
-            border-color: #007bff !important;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15) !important;
+            border-color: #6D0A0E !important;
+            box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.15) !important;
         }
         
         .select2-container--bootstrap-5 .select2-selection__rendered {
@@ -629,7 +629,7 @@
         }
         
         .select2-container--bootstrap-5 .select2-dropdown {
-            border: 2px solid #007bff !important;
+            border: 2px solid #6D0A0E !important;
             border-radius: 8px !important;
         }
         
@@ -670,7 +670,7 @@
         }
         
         .select2-container--bootstrap-5 .select2-results__option--highlighted {
-            background-color: #007bff !important;
+            background-color: #6D0A0E !important;
             color: white !important;
         }
         
@@ -783,7 +783,7 @@
             left: 0;
             right: 0;
             background: white;
-            border: 2px solid #007bff;
+            border: 2px solid #6D0A0E;
             border-top: none;
             border-radius: 0 0 8px 8px;
             max-height: 200px;

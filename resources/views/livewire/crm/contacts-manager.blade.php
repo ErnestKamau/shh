@@ -620,13 +620,13 @@
         margin: 10px !important;
     }
     .preference-card:hover {
-        border-color: #007bff;
-        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
+        border-color: #6D0A0E;
+        box-shadow: 0 4px 12px rgba(109, 10, 14, 0.1);
         transform: translateY(-2px);
     }
     .preference-card.active {
-        border-color: #007bff;
-        background: rgba(0, 123, 255, 0.02);
+        border-color: #6D0A0E;
+        background: rgba(109, 10, 14, 0.02);
     }
     .preference-icon {
         width: 42px;
@@ -673,15 +673,15 @@
     }
 
     .modern-select:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #6D0A0E;
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
         background: #ffffff;
         outline: none;
     }
 
     .modern-select:hover {
-        border-color: #007bff;
-        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+        border-color: #6D0A0E;
+        box-shadow: 0 4px 8px rgba(109, 10, 14, 0.15);
     }
 
     .modern-select option {
@@ -855,13 +855,13 @@
     
     /* Form switch styling */
     .form-check-input:checked {
-        background-color: #007bff;
-        border-color: #007bff;
+        background-color: #6D0A0E;
+        border-color: #6D0A0E;
     }
     
     .form-check-input:focus {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #6D0A0E;
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
     }
     
     /* Modal animations */
@@ -882,8 +882,8 @@
     
     /* Input field styling improvements */
     .form-control:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #6D0A0E;
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
     }
     
     /* Label icon spacing */
@@ -918,7 +918,7 @@
 
     .modal-contact-units-select .tag-dropdown {
         margin-top: 4px;
-        border-top: 1px solid #007bff;
+        border-top: 1px solid #6D0A0E;
         border-radius: 8px;
     }
 

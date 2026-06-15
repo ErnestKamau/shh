@@ -250,8 +250,8 @@
     .form-section-title {
       font-size: 1.25rem;
       font-weight: 600;
-      color: #007bff;
-      border-bottom: 2px solid #007bff !important;
+      color: #6D0A0E;
+      border-bottom: 2px solid #6D0A0E !important;
       padding-bottom: 10px;
       margin-bottom: 20px;
       text-align: left !important;
@@ -263,7 +263,7 @@
     }
 
     .test-required-table th {
-      background: #007bff !important;
+      background: #6D0A0E !important;
       color: white !important;
       padding: 12px;
       text-align: left;

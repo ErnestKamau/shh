@@ -41,7 +41,45 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         try {
+            if (!file_exists(public_path('storage'))) {
+                @symlink(storage_path('app/public'), public_path('storage'));
+            }
+        } catch (\Throwable $e) {}
+
+        try {
             \Illuminate\Support\Facades\DB::statement('ALTER TABLE inventory_sub_categories ALTER COLUMN location_id TYPE varchar(255) USING location_id::varchar');
+        } catch (\Throwable $e) {}
+
+        try {
+            if (Schema::hasTable('sampling_schedules') && !Schema::hasColumn('sampling_schedules', 'is_collected')) {
+                Schema::table('sampling_schedules', function ($table) {
+                    $table->boolean('is_collected')->default(false);
+                });
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            $configs = [
+                'sys_theme_primary_color' => '#6D0A0E',
+                'sys_theme_secondary_color' => '#8B1E22',
+                'sys_theme_accent_color' => '#ffffff',
+                'sys_sidebar_bg_color' => '#6D0A0E',
+                'sys_sidebar_link_bg' => 'rgba(255, 255, 255, 0.08)',
+            ];
+            $type = \App\Models\System\SystemConfigurationsType::where('configuration_type', 'Global System Theme Settings')->first();
+            if ($type) {
+                foreach ($configs as $key => $val) {
+                    \App\Models\System\SystemConfiguration::updateOrCreate(
+                        ['key' => $key],
+                        [
+                            'configuration_type_id' => $type->id,
+                            'value' => $val,
+                            'status' => true,
+                        ]
+                    );
+                }
+                \Illuminate\Support\Facades\Cache::forget('global_theme_variables');
+            }
         } catch (\Throwable $e) {}
 
         if (config('app.env') === 'production') {

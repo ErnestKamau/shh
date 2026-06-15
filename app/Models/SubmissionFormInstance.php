@@ -66,6 +66,44 @@ class SubmissionFormInstance extends Model implements Auditable
         return $this->belongsTo(SubmissionForm::class);
     }
 
+    public function testRequestFormInstances(): HasMany
+    {
+        return $this->hasMany(TestRequestFormInstance::class, 'submission_form_instance_id');
+    }
+
+    public function testRequestFormInstance(): HasOne
+    {
+        return $this->hasOne(TestRequestFormInstance::class, 'submission_form_instance_id');
+    }
+
+    public function getOriginAttribute(): string
+    {
+        if ($this->relationLoaded('testRequestFormInstance') && $this->testRequestFormInstance) {
+            if ($this->testRequestFormInstance->sampling_schedule_id) {
+                return 'Scheduled Sampling';
+            }
+        }
+
+        if ($this->relationLoaded('testRequestFormInstances') && $this->testRequestFormInstances->isNotEmpty()) {
+            foreach ($this->testRequestFormInstances as $trf) {
+                if ($trf->sampling_schedule_id) {
+                    return 'Scheduled Sampling';
+                }
+            }
+        }
+
+        $hasSchedule = DB::table('test_request_form_instances')
+            ->where('submission_form_instance_id', $this->id)
+            ->whereNotNull('sampling_schedule_id')
+            ->exists();
+
+        if ($hasSchedule) {
+            return 'Scheduled Sampling';
+        }
+
+        return 'Walk-in';
+    }
+
     /**
      * Get the user who submitted this instance
      */
@@ -1087,6 +1125,202 @@ class SubmissionFormInstance extends Model implements Auditable
      */
     public function getFormDataForDisplay()
     {
+        $trfi = null;
+        if ($this->relationLoaded('testRequestFormInstance')) {
+            $trfi = $this->testRequestFormInstance;
+        }
+        if (!$trfi) {
+            $trfi = $this->testRequestFormInstance()->first();
+        }
+
+        if ($trfi) {
+            $trf = $trfi->testRequestForm;
+            $formData = [
+                'sections' => [],
+                'elements_metadata' => [],
+                'dependency_chain' => []
+            ];
+            
+            $jsonFields = $trf ? $trf->form_fields : null;
+            if (!$jsonFields || !is_array($jsonFields)) {
+                $jsonFields = ['sections' => []];
+            }
+            
+            $savedData = $trfi->form_data ?? [];
+            
+            // Process sections from TRF
+            $elementIndex = 1;
+            foreach ($jsonFields['sections'] ?? [] as $sectionIndex => $section) {
+                $sectionData = [
+                    'id' => 'trf_sec_' . $sectionIndex,
+                    'title' => $section['title'] ?? 'Section',
+                    'description' => $section['description'] ?? null,
+                    'section_type' => 'fields_section',
+                    'element_holders' => []
+                ];
+                
+                $holderData = [
+                    'id' => 'trf_hold_' . $sectionIndex,
+                    'title' => $section['title'] ?? 'Fields',
+                    'description' => null,
+                    'holder_type' => 'field',
+                    'elements' => [],
+                    'rows_data' => []
+                ];
+                
+                foreach ($section['fields'] ?? [] as $field) {
+                    $fieldName = $field['name'] ?? '';
+                    if (!$fieldName) continue;
+                    
+                    $val = $savedData[$fieldName] ?? 'N/A';
+                    if (is_bool($val)) {
+                        $val = $val ? 'Yes' : 'No';
+                    } elseif (is_array($val)) {
+                        $isSequential = array_keys($val) === range(0, count($val) - 1);
+                        $val = $isSequential ? implode(', ', $val) : implode(', ', array_keys(array_filter($val)));
+                    }
+                    
+                    $elementData = [
+                        'id' => 'trf_el_' . $elementIndex++,
+                        'name' => $fieldName,
+                        'label' => $field['label'] ?? $fieldName,
+                        'element_type' => $field['type'] ?? 'text',
+                        'is_required' => $field['required'] ?? false,
+                        'is_mapped' => false,
+                        'mapping_table' => null,
+                        'mapping_field' => null,
+                        'custom_element_type' => $field['type'] ?? 'text',
+                        'options' => $field['options'] ?? [],
+                        'default_value' => null,
+                        'validation_rules' => [],
+                        'dependency_info' => [
+                            'depends_on' => null,
+                            'dependency_level' => 0,
+                            'is_independent' => true
+                        ],
+                        'saved_values' => [
+                            [
+                                'value' => $val,
+                                'array_index' => 0,
+                                'file_path' => null,
+                                'display_value' => $val
+                            ]
+                        ]
+                    ];
+                    
+                    $formData['elements_metadata'][$elementData['id']] = $elementData;
+                    $holderData['elements'][] = $elementData;
+                }
+                
+                $sectionData['element_holders'][] = $holderData;
+                $formData['sections'][] = $sectionData;
+            }
+            
+            // Add Sample Details section if sample_rows exist in form_data
+            if (!empty($savedData['sample_rows']) && is_array($savedData['sample_rows'])) {
+                // Determine whether it's Food or Water/Waste Water based on the fields present or the form name
+                $isFood = $trf && (stripos($trf->name, 'Food') !== false || stripos($trf->code, 'FOOD') !== false);
+                
+                $rowSection = [
+                    'id' => 'trf_sec_samples',
+                    'title' => 'SAMPLE DETAILS',
+                    'description' => null,
+                    'section_type' => 'rows_section',
+                    'element_holders' => []
+                ];
+                
+                // Define the table elements (columns)
+                $elements = [];
+                if ($isFood) {
+                    $cols = [
+                        ['name' => 'sample_no', 'label' => 'Sample No.', 'type' => 'text'],
+                        ['name' => 'sample_description', 'label' => 'Sample Description', 'type' => 'text'],
+                        ['name' => 'sampling_point', 'label' => 'Sampling Point/Location', 'type' => 'text'],
+                        ['name' => 'qty', 'label' => 'Qty.', 'type' => 'text'],
+                        ['name' => 'sample_type', 'label' => 'Sample Type', 'type' => 'text'],
+                        ['name' => 'sample_condition', 'label' => 'Sample Condition', 'type' => 'text'],
+                        ['name' => 'sample_temp', 'label' => 'Sample Temp (°C)', 'type' => 'text'],
+                        ['name' => 'production_date', 'label' => 'Production Date', 'type' => 'text'],
+                        ['name' => 'expiration_date', 'label' => 'Expiration Date', 'type' => 'text'],
+                        ['name' => 'batch_number', 'label' => 'Batch Number', 'type' => 'text'],
+                        ['name' => 'state_of_sample', 'label' => 'State', 'type' => 'text'],
+                        ['name' => 'parameters', 'label' => 'Parameters', 'type' => 'text'],
+                    ];
+                } else {
+                    $cols = [
+                        ['name' => 'sample_no', 'label' => 'Sample No.', 'type' => 'text'],
+                        ['name' => 'sample_description', 'label' => 'Sample Description', 'type' => 'text'],
+                        ['name' => 'location', 'label' => 'Location', 'type' => 'text'],
+                        ['name' => 'qty', 'label' => 'Qty.', 'type' => 'text'],
+                        ['name' => 'sampling_point', 'label' => 'Sampling Point', 'type' => 'text'],
+                        ['name' => 'ph', 'label' => 'pH', 'type' => 'text'],
+                        ['name' => 'residual_chlorine', 'label' => 'Residual Chlorine', 'type' => 'text'],
+                        ['name' => 'sample_temp', 'label' => 'Sample Temp (°C)', 'type' => 'text'],
+                        ['name' => 'odor', 'label' => 'Odor', 'type' => 'text'],
+                        ['name' => 'appearance', 'label' => 'Appearance', 'type' => 'text'],
+                        ['name' => 'microbiology', 'label' => 'Microbiology', 'type' => 'checkbox'],
+                        ['name' => 'legionella', 'label' => 'Legionella', 'type' => 'checkbox'],
+                        ['name' => 'chemical_analysis', 'label' => 'Chemical Analysis', 'type' => 'checkbox'],
+                    ];
+                }
+                
+                foreach ($cols as $col) {
+                    $elements[] = [
+                        'id' => 'trf_col_' . $col['name'],
+                        'name' => $col['name'],
+                        'label' => $col['label'],
+                        'element_type' => $col['type'],
+                        'is_required' => false,
+                        'is_mapped' => false,
+                        'mapping_table' => null,
+                        'mapping_field' => null,
+                        'custom_element_type' => $col['type'],
+                        'options' => [],
+                        'default_value' => null,
+                        'validation_rules' => [],
+                        'dependency_info' => [
+                            'depends_on' => null,
+                            'dependency_level' => 0,
+                            'is_independent' => true
+                        ],
+                        'saved_values' => []
+                    ];
+                }
+                
+                $rowsData = [];
+                foreach ($savedData['sample_rows'] as $rowIndex => $row) {
+                    foreach ($elements as $element) {
+                        $colName = $element['name'];
+                        $val = $row[$colName] ?? 'N/A';
+                        if (is_bool($val)) {
+                            $val = $val ? 'Yes' : 'No';
+                        }
+                        
+                        $rowsData[$rowIndex][$element['id']] = [
+                            'value' => $val,
+                            'array_index' => $rowIndex,
+                            'file_path' => null,
+                            'display_value' => $val
+                        ];
+                    }
+                }
+                
+                $holderData = [
+                    'id' => 'trf_hold_samples',
+                    'title' => 'Sample Details Table',
+                    'description' => null,
+                    'holder_type' => 'rows',
+                    'elements' => $elements,
+                    'rows_data' => $rowsData
+                ];
+                
+                $rowSection['element_holders'][] = $holderData;
+                $formData['sections'][] = $rowSection;
+            }
+            
+            return $formData;
+        }
+
         // Load the form with all relationships
         $this->load([
             'submissionForm.sections.elementHolders.elements' => function ($query) {
@@ -1662,6 +1896,17 @@ class SubmissionFormInstance extends Model implements Auditable
     {
         $id = trim($id);
         if ($id === '') {
+            return $id;
+        }
+
+        // Only attempt UUID-based lookups when the value looks like a UUID
+        $looksLikeUuid = (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $id
+        );
+
+        if (!$looksLikeUuid) {
+            // Value is already a human-readable name (e.g. from TRF mapping)
             return $id;
         }
 

@@ -423,7 +423,22 @@ class SubmissionRequestSampleLineService
                     'parameter_label' => null,
                 ];
 
-                $elementRecord = AnalysisElements::query()->with('analyte')->find($token);
+                $elementRecord = null;
+                
+                // First try to find by UUID
+                if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $token)) {
+                    $elementRecord = AnalysisElements::query()->with('analyte')->find($token);
+                }
+                
+                // If not found by UUID, try to find by analyte name
+                if (!$elementRecord) {
+                    $elementRecord = AnalysisElements::query()->with('analyte')
+                        ->whereHas('analyte', function ($query) use ($token) {
+                            $query->where('name', $token);
+                        })
+                        ->first();
+                }
+                
                 if ($elementRecord) {
                     $line['analysis_element_id'] = (string) $elementRecord->id;
                     $line['analysis_type_id'] = (string) $elementRecord->analysis_type_id;
@@ -435,7 +450,18 @@ class SubmissionRequestSampleLineService
                         $line['sample_type_name'] = $this->resolveSampleTypeName($line['sample_type_id']);
                     }
                 } else {
-                    $analysisType = AnalysisType::query()->find($token);
+                    $analysisType = null;
+                    
+                    // First try to find by UUID
+                    if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $token)) {
+                        $analysisType = AnalysisType::query()->find($token);
+                    }
+                    
+                    // If not found by UUID, try to find by name
+                    if (!$analysisType) {
+                        $analysisType = AnalysisType::query()->where('name', $token)->first();
+                    }
+                    
                     if ($analysisType) {
                         $line['analysis_type_id'] = (string) $analysisType->id;
                         $line['analysis_type_name'] = $analysisType->name;

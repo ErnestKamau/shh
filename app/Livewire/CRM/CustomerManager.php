@@ -40,7 +40,9 @@ class CustomerManager extends Component
         'account_status' => null,
         'vat_no' => '',
         'lpos_required' => false,
-        'zoho_customer_id' => null
+        'zoho_customer_id' => null,
+        'contract_valid_from' => '',
+        'contract_valid_to' => '',
     ];
 
     // Supporting Data
@@ -83,10 +85,6 @@ class CustomerManager extends Component
     protected function rules()
     {
         $allowedAccountIds = collect($this->accounts)
-            ->filter(function ($account) {
-                $key = is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '');
-                return in_array(strtoupper((string) $key), ['POSTPAID', 'PREPAID'], true);
-            })
             ->pluck('id')
             ->map(fn ($id) => (string) $id)
             ->all();
@@ -100,6 +98,8 @@ class CustomerManager extends Component
             'customerForm.country_id' => 'required|exists:countries,id',
             'customerForm.account_status' => ['required', Rule::in($allowedAccountIds)],
             'customerForm.zoho_customer_id' => 'nullable|exists:zoho_customers,id',
+            'customerForm.contract_valid_from' => 'nullable|date',
+            'customerForm.contract_valid_to' => 'nullable|date',
         ];
     }
 
@@ -115,14 +115,7 @@ class CustomerManager extends Component
 
     public function mount()
     {
-        // Load account settings for table filters while keeping other form data lazy.
-        $this->accounts = Cache::remember('account_settings_list', 1800, function() {
-            $account_settings = getConfigTypeByName('Account Settings');
-            if (isset($account_settings->id)) {
-                return getconfigByID($account_settings->id);
-            }
-            return [];
-        });
+        $this->loadAccounts();
     }
 
     public function loadInitialData()
@@ -134,14 +127,22 @@ class CustomerManager extends Component
                 ->get(['id', 'name']);
         });
         
-        // Load account settings with caching
-        $this->accounts = Cache::remember('account_settings_list', 1800, function() {
-            $account_settings = getConfigTypeByName('Account Settings');
-            if (isset($account_settings->id)) {
-                return getconfigByID($account_settings->id);
-            }
-            return [];
-        });
+        $this->loadAccounts();
+    }
+
+    protected function loadAccounts()
+    {
+        $account_settings = getConfigTypeByName('Account Settings');
+        $id = data_get($account_settings, 'id');
+
+        if ($id) {
+            $rawAccounts = getconfigByID($id);
+            $this->accounts = collect($rawAccounts)
+                ->values()
+                ->toArray();
+        } else {
+            $this->accounts = [];
+        }
     }
     
     public function getCustomersProperty()
@@ -407,7 +408,9 @@ class CustomerManager extends Component
             'account_status' => $customer->account_status,
             'vat_no' => $customer->vat_no ?? '',
             'lpos_required' => $customer->lpos_required == 1,
-            'zoho_customer_id' => $zohoCustomerId
+            'zoho_customer_id' => $zohoCustomerId,
+            'contract_valid_from' => $customer->contract_valid_from ? substr($customer->contract_valid_from, 0, 10) : '',
+            'contract_valid_to' => $customer->contract_valid_to ? substr($customer->contract_valid_to, 0, 10) : '',
         ];
         
         // Load data only when modal is opened to improve performance
@@ -428,11 +431,6 @@ class CustomerManager extends Component
             DB::beginTransaction();
 
             $allowedAccountIds = collect($this->accounts)
-                ->filter(function ($account) {
-                    $key = is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '');
-                    $normalizedKey = Str::upper(str_replace([' ', '_', '-'], '', (string) $key));
-                    return in_array($normalizedKey, ['POSTPAID', 'PREPAID'], true);
-                })
                 ->map(function ($account) {
                     return (string) (is_object($account) ? ($account->id ?? '') : ($account['id'] ?? ''));
                 })
@@ -444,7 +442,7 @@ class CustomerManager extends Component
                 $customer = $this->editingCustomer;
             } else {
                 if (!$allowedAccountIds->contains((string) $this->customerForm['account_status'])) {
-                    $this->message = 'Account settings must be POSTPAID or PREPAID.';
+                    $this->message = 'Invalid account settings selection.';
                     $this->messageType = 'error';
                     DB::rollBack();
                     return;
@@ -478,6 +476,8 @@ class CustomerManager extends Component
             $customer->account_status = $this->customerForm['account_status'];
             $customer->vat_no = $this->customerForm['vat_no'];
             $customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
+            $customer->contract_valid_from = $this->customerForm['contract_valid_from'] ?: null;
+            $customer->contract_valid_to = $this->customerForm['contract_valid_to'] ?: null;
             
             // Handle zoho_customer_id as JSON array
             if ($this->customerForm['zoho_customer_id']) {
@@ -533,7 +533,7 @@ class CustomerManager extends Component
 
     public function viewCustomer($id)
     {
-        return redirect()->route('livewire.customer-profile', ['customerId' => $id]);
+        return redirect()->route('crm.customer.show', $id);
     }
 
     public function closeCustomerModal()
@@ -560,7 +560,9 @@ class CustomerManager extends Component
             'account_status' => null,
             'vat_no' => '',
             'lpos_required' => false,
-            'zoho_customer_id' => null
+            'zoho_customer_id' => null,
+            'contract_valid_from' => '',
+            'contract_valid_to' => '',
         ];
         $this->editingCustomer = null;
     }
@@ -607,28 +609,30 @@ class CustomerManager extends Component
         $countries = collect($this->countries);
         
         if (empty($this->countrySearch)) {
-            return $countries->take(100);
+            return $countries;
         }
         
         return $countries->filter(function($country) {
             return stripos($country->name ?? '', $this->countrySearch) !== false;
-        })->take(100);
+        });
     }
 
     public function getFilteredAccountsProperty()
     {
-        $accounts = collect($this->accounts)->filter(function($account) {
-            $key = is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '');
-            $normalizedKey = Str::upper(str_replace([' ', '_', '-'], '', (string) $key));
-            return in_array($normalizedKey, ['POSTPAID', 'PREPAID'], true);
-        });
+        $accounts = collect($this->accounts);
+        \Log::info('getFilteredAccountsProperty called', [
+            'accounts_count' => $accounts->count(),
+            'showAccountDropdown' => $this->showAccountDropdown,
+            'accountSearch' => $this->accountSearch,
+            'accounts_raw' => $this->accounts
+        ]);
 
         if (empty($this->accountSearch)) {
             return $accounts;
         }
 
         return $accounts->filter(function($account) {
-            $key = is_object($account) ? $account->key : ($account['key'] ?? '');
+            $key = data_get($account, 'key', '');
             return stripos($key, $this->accountSearch) !== false;
         });
     }
@@ -637,7 +641,7 @@ class CustomerManager extends Component
     {
         if ($this->customerForm['country_id']) {
             $country = collect($this->countries)->firstWhere('id', $this->customerForm['country_id']);
-            return $country ? ($country->name ?? '') : '';
+            return $country ? data_get($country, 'name', '') : '';
         }
         return '';
     }
@@ -647,7 +651,7 @@ class CustomerManager extends Component
         if ($this->customerForm['account_status']) {
             $account = collect($this->accounts)->firstWhere('id', $this->customerForm['account_status']);
             if ($account) {
-                return is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '');
+                return data_get($account, 'key', '');
             }
         }
         return '';
@@ -746,6 +750,8 @@ class CustomerManager extends Component
             $newCustomer->account_status = $this->customerToClone->account_status;
             $newCustomer->vat_no = $this->customerToClone->vat_no;
             $newCustomer->lpos_required = $this->customerToClone->lpos_required;
+            $newCustomer->contract_valid_from = $this->customerToClone->contract_valid_from;
+            $newCustomer->contract_valid_to = $this->customerToClone->contract_valid_to;
             $newCustomer->zoho_customer_id = null; // Don't clone zoho mapping
             $newCustomer->company_id = $this->customerToClone->company_id;
             $newCustomer->unit_configurable_name = $this->customerToClone->unit_configurable_name;

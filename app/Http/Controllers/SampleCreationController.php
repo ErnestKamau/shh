@@ -43,6 +43,44 @@ class SampleCreationController extends Controller
     public function createFromForm(Request $request, SubmissionFormInstance $instance)
     {
         try {
+            // Generate Job No: YYMMDD + 3 digit sequential (auto-increment per day, reset at start of new day)
+            $jobNumber = $this->generateJobNumber();
+            
+            // Update submission form instance with Job No and status
+            // Use 'received' status to indicate the request has been received at the lab
+            $instance->update([
+                'status' => 'received',
+            ]);
+            
+            // Save Job No to the submission form instance values
+            $this->saveJobNumberToInstance($instance, $jobNumber);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Job No. created successfully',
+                'job_number' => $jobNumber
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error creating Job No from form instance', [
+                'instance_id' => $instance->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while creating Job No: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Legacy method for full sample creation (kept for backward compatibility)
+     */
+    public function createSamplesFromForm(Request $request, SubmissionFormInstance $instance)
+    {
+        try {
             // Get sample batches from form 
 
             // dd($request->all());
@@ -1836,6 +1874,71 @@ class SampleCreationController extends Controller
             DB::rollBack();
             Log::error('Error adding customer sample point: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Generate Job No in format: YYMMDD + 3 digit sequential (auto-increment per day, reset at start of new day)
+     * Example: 260428001 (26 = year 26, 04 = Apr, 28 = date, 001 = first job)
+     */
+    private function generateJobNumber(): string
+    {
+        $now = Carbon::now();
+        $datePart = $now->format('ymd'); // YYMMDD
+        
+        // Find the last job number for today
+        $lastJobNumber = DB::table('submission_form_instance_values as v')
+            ->join('submission_form_elements as e', 'v.submission_form_element_id', '=', 'e.id')
+            ->where('e.name', 'job_number')
+            ->where('v.value', 'like', $datePart . '%')
+            ->orderBy('v.value', 'desc')
+            ->value('v.value');
+        
+        // Extract the sequential part and increment
+        $sequential = 1;
+        if ($lastJobNumber) {
+            $lastSequential = (int) substr($lastJobNumber, -3);
+            $sequential = $lastSequential + 1;
+        }
+        
+        // Format sequential as 3 digits with leading zeros
+        $sequentialPart = str_pad($sequential, 3, '0', STR_PAD_LEFT);
+        
+        return $datePart . $sequentialPart;
+    }
+
+    /**
+     * Save Job No to the submission form instance values
+     */
+    private function saveJobNumberToInstance(SubmissionFormInstance $instance, string $jobNumber): void
+    {
+        // Find the job_number element in the submission form
+        $jobElement = \App\Models\SubmissionFormElement::query()
+            ->whereHas('holder.section', function ($query) use ($instance) {
+                $query->where('submission_form_id', $instance->submission_form_id);
+            })
+            ->where('name', 'job_number')
+            ->first();
+        
+        if ($jobElement) {
+            // Update or create the value
+            \App\Models\SubmissionFormInstanceValue::updateOrCreate(
+                [
+                    'submission_form_instance_id' => $instance->id,
+                    'submission_form_element_id' => $jobElement->id,
+                ],
+                [
+                    'value' => $jobNumber,
+                ]
+            );
+        }
+        
+        // Also update TestRequestFormInstance if it exists
+        $testRequestFormInstance = $instance->testRequestFormInstance;
+        if ($testRequestFormInstance) {
+            $formData = $testRequestFormInstance->form_data ?? [];
+            $formData['job_number'] = $jobNumber;
+            $testRequestFormInstance->update(['form_data' => $formData]);
         }
     }
 }

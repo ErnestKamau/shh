@@ -327,7 +327,7 @@ class PersonnelTableManager extends Component
         $personnel->id_number = (string) $this->personnelForm['id_number'];
         $personnel->zone_id = null;
         $personnel->active = $this->personnelForm['active'] ? 1 : 0;
-        $personnel->is_technical = $this->personnelForm['is_technical'] ? 1 : 0;
+        $personnel->is_technical = ($this->personnelForm['is_technical'] ?? false) ? 1 : 0;
         $personnel->lab_section_id = implode(',', $this->personnelForm['lab_section_id'] ?? []);
         $plainPassword = $personnel->first_name . config('app.name') . date('Y');
         $personnel->password              = bcrypt($plainPassword);
@@ -909,6 +909,7 @@ class PersonnelTableManager extends Component
             'lab_ids' => [],
             'lab_section_id' => [],
             'active' => true,
+            'is_technical' => false,
         ];
         $this->signatureUpload = null;
         $this->signatureData = '';

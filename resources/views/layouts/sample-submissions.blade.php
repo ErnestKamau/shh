@@ -320,9 +320,12 @@
         <!-- Header -->
         <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
             <div class="container-fluid">
-                <?php $active_company = getActiveCompany(); ?>
+                <?php 
+                    $active_company = getActiveCompany(); 
+                    $logoPath = ($active_company && !empty($active_company->logo)) ? $active_company->logo : '/images/logo.png';
+                ?>
                 <a class="navbar-brand" href="{{ route('home') }}">
-                    <img src="{{ $active_company->logo }}" alt="Logo" height="40">
+                    <img src="{{ $logoPath }}" alt="Logo" height="40" onerror="this.onerror=null; this.src='/images/logo.png';">
                 </a>
                 
                 <div class="navbar-nav ms-auto">

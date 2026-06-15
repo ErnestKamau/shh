@@ -25,7 +25,7 @@
 
 @section('content2')
 <main>
-	<livewire:crm.customer.show :customerId="$customerId" />
+	<livewire:crm.customer.customer-show :customerId="$customerId" />
 </main>
 @endsection
 

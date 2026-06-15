@@ -5,6 +5,11 @@
 @section('title2')
     <title> Lab-Invoice </title>
 
+    @if(isset($branding))
+        @include('billing.quotations.amspec.partials.fonts')
+        @include('billing.quotations.amspec.partials.styles')
+    @endif
+
     <style type="text/css">
         .tab-card {
             border: 1px solid #eee;
@@ -98,7 +103,8 @@
     );
         ?>
         <x-bread-crumb :items="$items"></x-bread-crumb>
-        <h4 class=" mt-2">
+        @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
+        <h4 class="mt-2 quotation-preview-hover-parent">
             <?php
     $header_id = $header[0]->id;
 
@@ -138,195 +144,32 @@
                         class="mdi mdi-thumb-up "></i> Batch Generated </span>
             @endif
 
+            <a href="{{ route('quotation.preview', ['id' => $header[0]->id]) }}" target="_blank"
+                class="btn btn-sm float-right mr-2 quotation-preview-quote-btn" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
             @if($header[0]->is_complete == 1)
                 <span class="btn btn-white btn-sm float-right" data-target="#print-quotation" data-header="{{$header[0]->id}}"
                     data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
                 @if($header[0]->is_print == 1)
-                    <?php        $path = '/storage' . $header[0]->upload_url;?>
                     <button data-toggle="modal" data-target="#quotation-upload" class="btn btn-white btn-sm float-right mr-2"><i
                             class="mdi mdi-share-all"></i> Send Quotation</button>
 
-                    <a href="{{$path}}" target="_blank" class="btn btn-white btn-sm float-right mr-2"><i class="mdi mdi-eye"></i>
-                        View Quote</a>
                     @if($header[0]->quotation_type == 'Analysis')
                         @if($header[0]->is_batch_generate == 0)
                             <span class="btn btn-sm btn-white mr-2 float-right" data-target="#generate-batch" data-toggle="modal"><i
                                     class="mdi mdi-cog"></i> Generate Batch</span>
                         @endif
                     @endif
-                @else
-
-                    <a href="/billing-quotation-view-final/{{$header[0]->id}}" target="_blank"
-                        class="btn btn-outline-success view-quote mr-2 float-right btn-sm hidden"><i
-                            class="mdi mdi-sync-circle"></i> Refresh Page</a>
                 @endif
             @endif
 
         </h4><br>
-        <div class="card p-3 mt-5" id="quotation-document" style="clear: both;">
-            <div class="card-header p-2" style="border-bottom: 1px solid #0000ff;background-color:white ">
-                <div class="header p-3">
-
-                    {!! $company->show_on_reports == 1 ? '<img src=' . $company->logo . ' style="position:absolute;width:260px;" class="float-right mt-3" />' : '' !!}
-                    <div class="company-info float-right" style="font-size: 13px;">
-
-                        <p style="text-align: right;">
-
-                            {{$company->name}} <br>
-                            {{$company->address ?? '-'}} <br>
-                            {{$company->location ?? '-'}} <br>
-                            {{$company->street ?? '-'}} <br>
-                            Email: {{$company->email ?? '-'}} <br>
-                            Website: {{$company->website ?? '-'}} <br>
-                            Tel: {{$company->telephone}} Cell: {{$company->cell_phone ?? '-'}}
-                        </p>
-
-                    </div>
-                </div>
-
-
-            </div>
-            <div class="card-body pt-0">
-                <h5 class="text-center">QUOTATION</h5>
-                <div class="quote_header pt-0" style="font-size: 13px;">
-                    <div class="customer-details float-left">
-                        <p>{{$header[0]->name}} <br>
-                            {{$header[0]->physical_address}} <br>
-                            {{$header[0]->postal_address}}</p>
-                        <p>{{$header[0]->first_name}} {{$header[0]->middle_name}} {{$header[0]->last_name}} <br>
-                            {{$header[0]->mobile}} <br>
-                            {{$header[0]->email}}</p>
-                    </div>
-                    <div class="quotation_detail float-right">
-                        <p style="text-align: right;"><b>Quotation Number: </b>{{$header[0]->quote_number}} <br>
-                            Quote Date: {{$header[0]->quote_date}} <br>
-                            Expiring Date: {{$header[0]->expiring_date}} <br>
-                            Prepared By : {{$header[0]->prepared_by}} <br>
-                            Position: {{$header[0]->position}} <br>
-                            Phone: {{$header[0]->phone ?? '-'}} <br>
-                            Email: {{$header[0]->prepared_by_email}}</p>
-                    </div>
-                </div>
-                <table class="table  table-condensed my-small-text table-striped table-hover table-bordered table-md">
-                    <thead style="background-color: #75ee4a !important; ">
-                        <th>No</th>
-                        <th>Part No</th>
-                        <th nowrap>Description</th>
-
-                        <th nowrap>Quantity</th>
-                        <th nowrap>Unit Price</th>
-                        <th nowrap>Tax</th>
-                        <th>Extended Price</th>
-
-                    </thead>
-                    <tbody>
-                        @foreach($details as $detail)
-                            <tr>
-                                <td>{{$loop->iteration}}</td>
-                                <td>{{$detail->part_no_final}}</td>
-                                @if($header[0]->quotation_type == 'General')
-                                    <td>
-                                        @if($detail->photo_url != '')
-                                            <img src="{{$detail->photo_url}}" style="height:120px; width:auto" alt="image">
-                                        @endif
-                                        <p><b>Item Name :</b> {{$detail->item_name}}</p>
-                                        <p><b>Description :</b> {{$detail->description}}</p>
-                                    </td>
-                                @else
-                                    <td>
-                                        <p class="mb-0"><b>{{$detail->sample_type_name}}</b></p>
-                                        <p class="mb-0"><b>Description:</b></p>
-                                        @foreach($detail->default as $da)
-                                            <span>{{$da}}, </span>
-                                        @endforeach
-                                        @foreach($detail->sub_acc as $sb)
-                                            <span>{{$sb}}* <img src="/images/tick.png" height="8" width="8" alt="">, </span>
-                                        @endforeach
-                                        @foreach($detail->sub_analytes as $sa)
-                                            <span>{{$sa}}*, </span>
-
-                                        @endforeach
-                                        @foreach($detail->acc_analytes as $acc)
-                                            <span class="">{{$acc}} <img src="/images/tick.png" height="8" width="8" alt="">, </span>
-                                        @endforeach
-
-                                    </td>
-                                @endif
-                                <td class="text-center">{{$detail->quantity}}</td>
-                                <td style="text-align: right;">{{number_format($detail->unit_price, 2)}}</td>
-                                <td style="text-align: right;">{{number_format($detail->tax, 2)}}</td>
-                                <td style="text-align: right;">{{number_format($detail->extended_price, 2)}}</td>
-
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-                <div class="row">
-                    <div class="col-lg-5 col-sm-6 ml-auto">
-                        <table class="table table-clear table-sm">
-                            <tbody>
-                                <tr>
-                                    <td style="font-size: 13px; font-weight:600">
-                                        Sub Total
-                                    </td>
-                                    <td>
-                                        <b class="float-right">{{number_format($header[0]->sub_total, 2)}}</b>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="font-size: 13px; font-weight:600">
-                                        Tax
-                                    </td>
-                                    <td>
-                                        <b class="float-right">
-                                            {{number_format($header[0]->tax, 2)}}
-                                        </b>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="font-size: 13px; font-weight:600">
-                                        Total ({{$currency->name ?? '-'}})
-                                    </td>
-                                    <td>
-                                        <b class="float-right">
-                                            {{number_format($header[0]->total_price, 2)}}
-                                        </b>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <hr>
-                <div class="terms">
-                    <h4 style="font-size: 12px; font-weight:800" class="mb-2">Terms of Sale</h4>
-                    <p><b>Prices: </b>{{$terms_array['prices']}} {{$currency->name ?? '-'}} <br>
-                        <b>Service Delivery: </b>{{$header[0]->service_delivery}} <br>
-                        <b>Payments: </b>{{$header[0]->payments}} <br>
-                        <b>Quote Specification: </b>{{$header[0]->quote_specification}} <br>
-                        <b>Approved By: </b>{{getUserById($header[0]->approved_by)->name}}
-                    </p>
-
-                    <h5 style="font-size: 12px; font-weight:800" class="mt-2">Additional Information</h5>
-                    <p>{{$header[0]->additional_info}} <br>
-                        <span style="font-weight: 510;">{{$header[0]->payment_info}}</soan>
-                    </p>
-                    <div class="bank text-center" style="font-size: 12px;">
-                        <p>
-                            Cheques made payable to <b>{{$company->name}}</b> <br>
-
-                            <b>Bank Details: </b>Bank Name: <b>{{$bankarr['bank_name']}}</b> Account No:
-                            <b>{{$bankarr['account_no']}}</b> Swift Code: <b>{{$bankarr['swift_code']}}</b> <br>
-                            Bank Code: <b>{{$bankarr['bank_code']}}</b> Branch Code: <b>{{$bankarr['branch_code']}}</b> <br>
-                            <b>Mobile Remittance: </b>Mpesa Paybill: <b>{{$bankarr['paybill']}}</b> Account Name:
-                            <b>{{$bankarr['account']}}</b>
-                        </p>
-                        <span style="font-size: 30px; font-weight:600">-</span> End Of Document <span
-                            style="font-size: 30px; font-weight:600">-</span>
-                    </div>
-                </div>
-            </div>
-
+        <div class="mt-5" id="quotation-document" style="clear: both;">
+            @php
+                $shellMode = 'embedded';
+                $forPdf = false;
+                $stylesLoaded = true;
+            @endphp
+            @include('billing.quotations.amspec.shell')
         </div>
     </main>
 @endsection
@@ -441,8 +284,6 @@
                         </div>
                         `);
                         $('#print-quotation').find('.loading').append(complete_text);
-
-                        $('.view-quote').removeClass('hidden');
                     },
                     error: function (data) {
                         console.log(data);

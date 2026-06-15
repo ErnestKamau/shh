@@ -112,6 +112,24 @@
                                     <span class="fw-semibold">{{ __('crm.amendments') }}</span>
                                 </button>
                             </li>
+                            {{-- Certifications tab disabled (use Documents tab instead)
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link modern-tab-link {{ $activeTab === 'certifications' ? 'active' : '' }}"
+                                        wire:click="setActiveTab('certifications')"
+                                        type="button">
+                                    <i class="mdi mdi-file-certificate me-2"></i>
+                                    <span class="fw-semibold">{{ __('crm.certifications') }}</span>
+                                </button>
+                            </li>
+                            --}}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link modern-tab-link {{ $activeTab === 'documents' ? 'active' : '' }}"
+                                        wire:click="setActiveTab('documents')"
+                                        type="button">
+                                    <i class="mdi mdi-paperclip me-2"></i>
+                                    <span class="fw-semibold">{{ __('crm.documents') }}</span>
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -215,7 +233,7 @@
                                                     <div class="tag-dropdown">
                                                         @if(count($this->filteredCountries) > 0)
                                                             @foreach($this->filteredCountries as $country)
-                                                                <div class="tag-dropdown-item" wire:click.stop="selectCountry({{ data_get($country, 'id') }})">
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectCountry('{{ data_get($country, 'id') }}')">
                                                                     {{ data_get($country, 'name') }}
                                                                 </div>
                                                             @endforeach
@@ -253,7 +271,7 @@
                                                     <div class="tag-dropdown">
                                                         @if(count($this->filteredAccounts) > 0)
                                                             @foreach($this->filteredAccounts as $account)
-                                                                <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus({{ data_get($account, 'id') }})">
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ data_get($account, 'id') }}')">
                                                                     {{ data_get($account, 'key') }}
                                                                 </div>
                                                             @endforeach
@@ -306,6 +324,23 @@
                                         <div class="form-group mb-3">
                                             <label class="form-label fw-bold">{{ __('crm.credit_days') }}</label>
                                             <input type="number" wire:model="customerForm.credit_days" class="form-control">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">Contract Validity From</label>
+                                            <input type="date" wire:model="customerForm.contract_valid_from" class="form-control">
+                                            @error('customerForm.contract_valid_from') <span class="text-danger">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">Contract Validity To</label>
+                                            <input type="date" wire:model="customerForm.contract_valid_to" class="form-control">
+                                            @error('customerForm.contract_valid_to') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                 </div>
@@ -491,6 +526,29 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-calendar text-primary"></i> Contract Validity From
+                                                </div>
+                                                <div class="info-value">
+                                                    {{ $customer->contract_valid_from ? \Carbon\Carbon::parse($customer->contract_valid_from)->format('d-M-Y') : 'N/A' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-calendar text-primary"></i> Contract Validity To
+                                                </div>
+                                                <div class="info-value">
+                                                    {{ $customer->contract_valid_to ? \Carbon\Carbon::parse($customer->contract_valid_to)->format('d-M-Y') : 'N/A' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -521,6 +579,17 @@
             <!-- Amendments Tab -->
             @if($activeTab === 'amendments')
                 @livewire(\App\Livewire\Amendments\AmendmentViewer::class, ['customerId' => $customerId])
+            @endif
+
+            {{-- Certifications tab disabled (use Documents tab instead)
+            @if($activeTab === 'certifications')
+                @livewire(\App\Livewire\Crm\Customer\Tabs\AttachmentsManager::class, ['customer' => $customer], key('tab-certifications-' . $customer->id))
+            @endif
+            --}}
+
+            <!-- Documents Tab -->
+            @if($activeTab === 'documents')
+                @livewire(\App\Livewire\Crm\Customer\Tabs\CustomerAttachmentsTab::class, ['customer' => $customer], key('tab-documents-' . $customer->id))
             @endif
         </div>
     </div>
@@ -558,10 +627,10 @@
     }
 
     .modern-tab-link:hover {
-        background: rgba(0, 123, 255, 0.08) !important;
-        color: #007bff !important;
+        background: rgba(109, 10, 14, 0.08) !important;
+        color: #6D0A0E !important;
         transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15) !important;
+        box-shadow: 0 4px 12px rgba(109, 10, 14, 0.15) !important;
         border: none !important;
         outline: none !important;
     }
@@ -579,8 +648,8 @@
     }
 
     .modern-tab-link.active {
-        background: linear-gradient(135deg, rgba(0, 123, 255, 0.08) 0%, rgba(74, 144, 226, 0.05) 100%) !important;
-        color: #4a90e2 !important;
+        background: linear-gradient(135deg, rgba(109, 10, 14, 0.08) 0%, rgba(109, 10, 14, 0.03) 100%) !important;
+        color: #6D0A0E !important;
         transform: translateY(-1px) !important;
         border: none !important;
     }
@@ -796,12 +865,12 @@
     }
 
     .tag-select-input:hover {
-        border-color: #007bff;
+        border-color: #6D0A0E;
     }
 
     .tag-select-input:focus-within {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #6D0A0E;
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
         outline: none;
     }
 
@@ -814,7 +883,7 @@
         align-items: center;
         gap: 4px;
         padding: 4px 10px;
-        background-color: #007bff;
+        background-color: #6D0A0E;
         color: white;
         border-radius: 16px;
         font-size: 0.875rem;
@@ -849,7 +918,7 @@
         left: 0;
         right: 0;
         background: white;
-        border: 2px solid #007bff;
+        border: 2px solid #6D0A0E;
         border-top: none;
         border-radius: 0 0 8px 8px;
         max-height: 250px;

@@ -18,6 +18,7 @@ use Database\Seeders\Setup\LabModulePermissionsSeeder;
 use Database\Seeders\Setup\SystemConfigPermissionsSeeder;
 use Database\Seeders\Setup\RegistryModuleDataSeeder;
 use Database\Seeders\Setup\SystemSetupSeeder;
+use Database\Seeders\Setup\QuotationReportConfigSeeder;
 use Database\Seeders\Setup\WorkflowResponsibilityConfigSeeder;
 use Illuminate\Database\Seeder;
 
@@ -34,6 +35,7 @@ class DatabaseSeeder extends Seeder
             RegistryModuleDataSeeder::class,
             WorkflowResponsibilityConfigSeeder::class,
             AmSpecQuotationTermsSeeder::class,
+            QuotationReportConfigSeeder::class,
             PersonnelPermissionsSeeder::class,
             CRMPermissionsSeeder::class,
             LabModulePermissionsSeeder::class,

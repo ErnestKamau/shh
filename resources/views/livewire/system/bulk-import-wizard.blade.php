@@ -492,7 +492,7 @@
     }
 
     .step-indicator.active .step-number {
-        background-color: #007bff;
+        background-color: #6D0A0E;
         color: white;
     }
 
@@ -531,15 +531,15 @@
     }
 
     .zone-select-trigger:hover {
-        border-color: #007bff;
+        border-color: #6D0A0E;
         background: #f8fafc;
-    }
-
-    .zone-select-trigger.active {
-        border-color: #007bff;
+     }
+ 
+     .zone-select-trigger.active {
+        border-color: #6D0A0E;
         background: #ffffff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
-    }
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.15);
+     }
 
     .zone-select-trigger.has-value {
         border-color: #28a745;
@@ -614,7 +614,7 @@
 
     .zone-chevron.rotated {
         transform: rotate(180deg);
-        color: #007bff;
+        color: #6D0A0E;
     }
 
     /* Dropdown Panel */
@@ -660,7 +660,7 @@
     }
 
     .zone-search-input:focus {
-        border-color: #007bff !important;
+        border-color: #6D0A0E !important;
         background: #ffffff !important;
         box-shadow: none !important;
         outline: none !important;

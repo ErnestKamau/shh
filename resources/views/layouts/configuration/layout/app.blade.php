@@ -135,6 +135,9 @@
 				<a href="{{ route('system-settings.preferences') }}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> System Theming</span>
 				</a>
+				<a href="{{ route('system-settings.whatsapp') }}" class="list-group-item list-group-item-action">
+					<span class="menu-collapsed"><i class="fab fa-whatsapp text-success mr-1"></i> Whatsapp Configuration</span>
+				</a>
 			</div>
 			<div class="list-group-item copyright-lims p-4 text-center">
 				{{ __('system.copyright') }} {{ date('Y') }} <span class="text-red">Imara LIMS</span>

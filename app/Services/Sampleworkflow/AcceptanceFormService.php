@@ -48,9 +48,19 @@ class AcceptanceFormService
             $customerId = (string) ($header['crm_customer_id'] ?? $prefill['customer_id'] ?? '');
             $pricelist = $prefill['pricelist'] ?? $this->pricingService->resolvePricelist($customerId);
 
-            $form = AnalysisAcceptanceForm::query()->create([
+            // Find and link Test Request Form Instance if available
+        $testRequestFormInstanceId = null;
+        if ($submissionFormInstanceId) {
+            $trfInstance = \App\Models\TestRequestFormInstance::where('submission_form_instance_id', $submissionFormInstanceId)->first();
+            if ($trfInstance) {
+                $testRequestFormInstanceId = $trfInstance->id;
+            }
+        }
+
+        $form = AnalysisAcceptanceForm::query()->create([
                 'status' => AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN,
                 'submission_form_instance_id' => $submissionFormInstanceId,
+                'test_request_form_instance_id' => $testRequestFormInstanceId,
                 'sample_submission_request_id' => $submissionRequestId,
                 'crm_customer_id' => $customerId,
                 'pricelist_id' => $pricelist?->id,

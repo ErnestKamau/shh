@@ -92,7 +92,7 @@
                                 <div class="tag-select-input">
                                     @if($this->selectedCountry)
                                         <span class="tag-badge">
-                                            {{ $this->selectedCountry->name }}
+                                            {{ data_get($this->selectedCountry, 'name') }}
                                             <i class="mdi mdi-close-circle" wire:click.stop="clearCountry"></i>
                                         </span>
                                     @endif
@@ -108,8 +108,8 @@
                                     <div class="tag-dropdown">
                                         @if(count($this->filteredCountries) > 0)
                                             @foreach($this->filteredCountries as $country)
-                                                <div class="tag-dropdown-item" wire:click.stop="selectCountry({{ $country->id }})">
-                                                    {{ $country->name }}
+                                                <div class="tag-dropdown-item" wire:click.stop="selectCountry('{{ data_get($country, 'id') }}')">
+                                                    {{ data_get($country, 'name') }}
                                                 </div>
                                             @endforeach
                                         @else
@@ -149,7 +149,7 @@
                         </div>
                     </div>
 
-                    @if(isset($account_settings->id))
+                    @if(data_get($account_settings, 'id'))
                         <div class="form-group row">
                             <label class="col-sm-4 col-form-label">{{ __('crm.account_setting') }}:</label>
                             <div class="col-sm-8">
@@ -159,7 +159,7 @@
                                     <div class="tag-select-input">
                                         @if($this->selectedAccount)
                                             <span class="tag-badge">
-                                                {{ $this->selectedAccount->key }}
+                                                {{ data_get($this->selectedAccount, 'key') }}
                                                 <i class="mdi mdi-close-circle" wire:click.stop="clearAccountStatus"></i>
                                             </span>
                                         @endif
@@ -175,8 +175,8 @@
                                         <div class="tag-dropdown">
                                             @if(count($this->filteredAccounts) > 0)
                                                 @foreach($this->filteredAccounts as $account)
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus({{ $account->id }})">
-                                                        {{ $account->key }}
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectAccountStatus('{{ data_get($account, 'id') }}')">
+                                                        {{ data_get($account, 'key') }}
                                                     </div>
                                                 @endforeach
                                             @else
@@ -325,12 +325,12 @@
                                 @endif
                             </td>
                         </tr>
-                        @if(isset($account_settings->id))
+                        @if(data_get($account_settings, 'id'))
                             <tr>
                                 <th>{{ __('crm.account_setting') }}:</th>
                                 <td>
                                     @php
-                                        $accountName = $accounts->firstWhere('id', $customer->account_status)->key ?? '—';
+                                        $accountName = data_get($accounts->firstWhere('id', $customer->account_status), 'key', '—');
                                     @endphp
                                     {{ $accountName }}
                                 </td>
@@ -342,72 +342,72 @@
             </div>
         </div>
     @endif
+
+    <style>
+        .tag-select-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .tag-select-input {
+            min-height: 38px;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            background-color: #fff;
+        }
+
+        .tag-input {
+            border: none;
+            outline: none;
+            flex: 1;
+            min-width: 120px;
+            font-size: 0.9rem;
+        }
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0f2f5;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 0.85rem;
+        }
+
+        .tag-badge i {
+            cursor: pointer;
+        }
+
+        .tag-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 1100;
+        }
+
+        .tag-dropdown-item {
+            padding: 8px 10px;
+            cursor: pointer;
+        }
+
+        .tag-dropdown-item:hover {
+            background: #f8f9fa;
+        }
+
+        .tag-select-container.is-invalid .tag-select-input {
+            border-color: #dc3545;
+        }
+    </style>
 </div>
-
-<style>
-    .tag-select-container {
-        position: relative;
-        width: 100%;
-    }
-
-    .tag-select-input {
-        min-height: 38px;
-        border: 1px solid #ced4da;
-        border-radius: 0.25rem;
-        padding: 4px 8px;
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        background-color: #fff;
-    }
-
-    .tag-input {
-        border: none;
-        outline: none;
-        flex: 1;
-        min-width: 120px;
-        font-size: 0.9rem;
-    }
-
-    .tag-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: #f0f2f5;
-        border-radius: 12px;
-        padding: 2px 8px;
-        font-size: 0.85rem;
-    }
-
-    .tag-badge i {
-        cursor: pointer;
-    }
-
-    .tag-dropdown {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        background: #fff;
-        border: 1px solid #ced4da;
-        border-radius: 0.25rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        max-height: 220px;
-        overflow-y: auto;
-        z-index: 1100;
-    }
-
-    .tag-dropdown-item {
-        padding: 8px 10px;
-        cursor: pointer;
-    }
-
-    .tag-dropdown-item:hover {
-        background: #f8f9fa;
-    }
-
-    .tag-select-container.is-invalid .tag-select-input {
-        border-color: #dc3545;
-    }
-</style>

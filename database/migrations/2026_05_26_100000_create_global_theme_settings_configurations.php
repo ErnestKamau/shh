@@ -19,27 +19,27 @@ return new class extends Migration
         $configs = [
             [
                 'key' => 'sys_theme_primary_color',
-                'value' => '#4a90e2',
+                'value' => '#6D0A0E',
                 'status' => true,
             ],
             [
                 'key' => 'sys_theme_secondary_color',
-                'value' => '#50e3c2',
+                'value' => '#8B1E22',
                 'status' => true,
             ],
             [
                 'key' => 'sys_theme_accent_color',
-                'value' => '#f5a623',
+                'value' => '#ffffff',
                 'status' => true,
             ],
             [
                 'key' => 'sys_sidebar_bg_color',
-                'value' => '#2a2a2a',
+                'value' => '#6D0A0E',
                 'status' => true,
             ],
             [
                 'key' => 'sys_sidebar_link_bg',
-                'value' => 'rgba(255, 255, 255, 0.05)',
+                'value' => 'rgba(255, 255, 255, 0.08)',
                 'status' => true,
             ],
         ];

@@ -82,13 +82,13 @@
 		letter-spacing: 0.01em;
 	}
 	.workflow-board-header .batch-stage-pill {
-		background: #f0f4ff;
-		color: #3b5fc0;
+		background: rgba(109, 10, 14, 0.08);
+		color: #6D0A0E;
 		border-radius: 20px;
 		padding: 3px 12px;
 		font-size: 0.78rem;
 		font-weight: 600;
-		border: 1px solid #c7d7fc;
+		border: 1px solid rgba(109, 10, 14, 0.25);
 	}
 	.workflow-board-header .btn-action-sm {
 		height: 32px;
@@ -114,8 +114,8 @@
 		align-items: center;
 		padding: 3px 10px;
 		border-radius: 999px;
-		background: #eef4ff;
-		color: #1d4ed8;
+		background: rgba(109, 10, 14, 0.08);
+		color: #6D0A0E;
 		font-size: 11px;
 		font-weight: 600;
 		width: fit-content;
@@ -144,9 +144,9 @@
 		text-decoration: none;
 	}
 	.form-chip-link:hover {
-		background: #e8f1ff;
-		border-color: #bfdbfe;
-		color: #1d4ed8;
+		background: rgba(109, 10, 14, 0.08);
+		border-color: rgba(109, 10, 14, 0.25);
+		color: #6D0A0E;
 	}
 	.form-actions {
 		display: flex;
@@ -176,14 +176,14 @@
 		color: #15803d;
 	}
 	.workflow-table .rm-act-btn--edit {
-		border: 1px solid #bfdbfe;
-		color: #1d4ed8;
-		background: #eff6ff;
+		border: 1px solid rgba(109, 10, 14, 0.2);
+		color: #6D0A0E;
+		background: rgba(109, 10, 14, 0.05);
 	}
 	.workflow-table .rm-act-btn--edit:hover {
-		background: #dbeafe;
-		border-color: #93c5fd;
-		color: #1d4ed8;
+		background: rgba(109, 10, 14, 0.1);
+		border-color: rgba(109, 10, 14, 0.35);
+		color: #6D0A0E;
 	}
 	.workflow-table .rm-act-btn--delete {
 		border: 1px solid #fecdd3;
@@ -212,9 +212,9 @@
 	}
 	.form-attachment-group {
 		padding: 8px 10px;
-		border: 1px solid #dbeafe;
+		border: 1px solid rgba(109, 10, 14, 0.15);
 		border-radius: 8px;
-		background: #f8fbff;
+		background: #FAF9F9;
 	}
 	.form-attachment-group-title {
 		display: inline-flex;
@@ -222,7 +222,7 @@
 		gap: 5px;
 		font-size: 11px;
 		font-weight: 600;
-		color: #1d4ed8;
+		color: #6D0A0E;
 		margin-bottom: 6px;
 	}
 	.form-attachment-list {
@@ -305,14 +305,14 @@
 	}
 	.workflow-board-page .workflow-receiving-tab:hover {
 		background: #fff;
-		border-color: #c7d7fc;
-		color: #1e293b;
+		border-color: rgba(109, 10, 14, 0.3);
+		color: #6D0A0E;
 	}
 	.workflow-board-page .workflow-receiving-tab.is-active {
 		background: #fff;
-		border-color: #3b5fc0;
-		color: #1d4ed8;
-		box-shadow: 0 1px 4px rgba(59, 95, 192, 0.15);
+		border-color: #6D0A0E;
+		color: #6D0A0E;
+		box-shadow: 0 1px 4px rgba(109, 10, 14, 0.15);
 	}
 	.workflow-board-page .workflow-receiving-tab-badge {
 		display: inline-flex;
@@ -327,8 +327,8 @@
 		color: #475569;
 	}
 	.workflow-board-page .workflow-receiving-tab.is-active .workflow-receiving-tab-badge {
-		background: rgba(255, 255, 255, 0.25);
-		color: #fff;
+		background: rgba(109, 10, 14, 0.1);
+		color: #6D0A0E;
 	}
 
 	.workflow-review-status-legend {
@@ -449,15 +449,15 @@
 		gap: 0.35rem;
 		padding: 0.4rem 0.75rem;
 		border-radius: 999px;
-		background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
-		border: 1px solid #c7d2fe;
+		background: linear-gradient(135deg, rgba(109, 10, 14, 0.05) 0%, #f8fafc 100%);
+		border: 1px solid rgba(109, 10, 14, 0.2);
 		font-size: 0.8125rem;
 		line-height: 1.2;
 	}
 
 	.receive-sample-chip-code {
 		font-weight: 600;
-		color: #1e3a8a;
+		color: #6D0A0E;
 	}
 
 	.receive-sample-chip-meta {
@@ -576,7 +576,7 @@
 		height: 1.125rem;
 		margin: 0.15rem 0 0;
 		flex-shrink: 0;
-		accent-color: #2563eb;
+		accent-color: #6D0A0E;
 		cursor: pointer;
 	}
 
@@ -644,8 +644,8 @@
 	}
 
 	.receive-checklist-control:focus {
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+		border-color: #6D0A0E;
+		box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.15);
 	}
 
 	.receive-checklist-error {
@@ -690,10 +690,10 @@
 	}
 
 	.move-to-intray-info-card {
-		border: 1px solid #dbeafe;
+		border: 1px solid rgba(109, 10, 14, 0.2);
 		border-radius: 10px;
 		padding: 1rem;
-		background: #eff6ff;
+		background: rgba(109, 10, 14, 0.05);
 	}
 
 	.move-to-intray-info-icon {
@@ -703,7 +703,7 @@
 		width: 2.25rem;
 		height: 2.25rem;
 		border-radius: 8px;
-		background: #3b5fc0;
+		background: #6D0A0E;
 		color: #fff;
 		font-size: 1.25rem;
 		flex-shrink: 0;
@@ -733,6 +733,12 @@
 							<span class="btn btn-sm btn-danger btn-action-sm" data-toggle="modal"
 								data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
 									class="badge badge-light badge-pill pt-1">{{ $tatTodayCount }}</span></span>
+						@endif
+						@if($status === 'Samples Receiving')
+							<button type="button" class="btn btn-sm btn-outline-primary btn-action-sm"
+								@click.prevent="$wire.openReceiveModal(selectedInstanceIds())">
+								<i class="mdi mdi-package-variant-closed mr-1"></i> Receive Sample
+							</button>
 						@endif
 						<div class="btn-group" role="group">
 							<button type="button" class="btn btn-sm btn-primary btn-action-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -780,9 +786,7 @@
 									<li>
 										<span class="btn btn-sm dropdown-item"
 											data-sf-trigger="workflow-receive-sample"
-											:class="{ 'disabled': selectedCount === 0 }"
-											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedCount > 0 && $wire.openReceiveModal(selectedInstanceIds())"><i class="mdi mdi-package-variant-closed mr-2"></i> Receive Sample</span>
+											@click.prevent="$wire.openReceiveModal(selectedInstanceIds())"><i class="mdi mdi-package-variant-closed mr-2"></i> Receive Sample</span>
 									</li>
 								@endif
 								@if(in_array($status, ['Samples Receiving', 'Samples Request Review'], true))
@@ -1348,7 +1352,7 @@
 												</select>
 											</div>
 										</div>
-										<div class="col-md-4">
+										<div class="col-md-3">
 											<div class="form-group mb-3 mb-md-0">
 												<label class="form-label small fw-bold">Customer</label>
 												<div class="position-relative">
@@ -1410,6 +1414,16 @@
 												</select>
 											</div>
 										</div>
+										<div class="col-md-2">
+											<div class="form-group mb-3 mb-md-0">
+												<label class="form-label small fw-bold">Request Origin</label>
+												<select wire:model.live="originFilter" class="form-control form-control-sm">
+													<option value="">All Origins</option>
+													<option value="scheduled">Scheduled Sampling</option>
+													<option value="walk-in">Walk-in</option>
+												</select>
+											</div>
+										</div>
 										<div class="col-md-1 d-flex align-items-end">
 											<button type="button" wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100" style="height: 31px;" title="Clear Filters">
 												<i class="mdi mdi-refresh"></i>
@@ -1424,6 +1438,70 @@
 									'workflowStatus' => $status,
 									'workflowSubTab' => $workflowSubTab,
 								], key('interzone-receiving-panel'))
+							@endif
+							@if($workflowSubTab === 'scheduled_sampling')
+								<div class="mt-3">
+									@php
+										$samplingSchedules = $this->samplingSchedules;
+									@endphp
+									@if($samplingSchedules->count() > 0)
+										<div class="table-responsive">
+											<table class="table table-sm table-hover workflow-table mb-0">
+												<thead>
+													<tr>
+														<th>Customer Name</th>
+														<th>Date for Sampling</th>
+														<th>Sample Details</th>
+														<th>Frequency</th>
+														<th>Personnel</th>
+													</tr>
+												</thead>
+												<tbody>
+													@foreach($samplingSchedules as $schedule)
+														@php
+															$sampleDetailsList = [];
+															if (!empty($schedule->sample_details) && is_array($schedule->sample_details)) {
+																foreach ($schedule->sample_details as $entry) {
+																	$st = \App\SampleType::find($entry['sample_type_id'] ?? null);
+																	$at = \App\AnalysisType::find($entry['analysis_type_id'] ?? null);
+																	$paramCount = count($entry['parameters'] ?? []);
+																	if ($st) {
+																		$detailText = $st->name;
+																		if ($at) $detailText .= ' - ' . $at->name;
+																		if ($paramCount > 0) $detailText .= ' (' . $paramCount . ' params)';
+																		$sampleDetailsList[] = $detailText;
+																	}
+																}
+															} elseif ($schedule->sample_type) {
+																$detailText = $schedule->sample_type->name;
+																if ($schedule->analysis_type) $detailText .= ' - ' . $schedule->analysis_type->name;
+																$paramCount = count($schedule->parameters ?? []);
+																if ($paramCount > 0) $detailText .= ' (' . $paramCount . ' params)';
+																$sampleDetailsList[] = $detailText;
+															}
+															$sampleDetailsText = implode('; ', $sampleDetailsList);
+														@endphp
+														<tr>
+															<td>{{ $schedule->client->name ?? 'N/A' }}</td>
+															<td>{{ $schedule->sampling_datetime ? $schedule->sampling_datetime->format('M d, Y H:i') : 'N/A' }}</td>
+															<td>{{ $sampleDetailsText ?: 'N/A' }}</td>
+															<td><span class="badge badge-info">{{ $schedule->frequency ?? 'One-time' }}</span></td>
+															<td>{{ $schedule->personnel->name ?? 'N/A' }}</td>
+														</tr>
+													@endforeach
+												</tbody>
+											</table>
+										</div>
+										<div class="mt-2">
+											{{ $samplingSchedules->links() }}
+										</div>
+									@else
+										<div class="text-center py-5">
+											<i class="mdi mdi-calendar-clock text-muted" style="font-size: 3rem;"></i>
+											<p class="text-muted mt-3">No scheduled sampling found.</p>
+										</div>
+									@endif
+								</div>
 							@endif
 						@elseif($status === 'Samples Request Review')
 							<div class="workflow-receiving-tabs mb-3" role="tablist">
@@ -1852,13 +1930,15 @@
 												<tr>
 													<th style="width: 40px;"></th>
 													<th>Actions</th>
-													<th>Form Number</th>
 													<th>Customer</th>
 													@if(in_array($status, ['Samples Receiving'], true))
 														<th>Channel</th>
 														<th>Enquiry</th>
 													@endif
 													<th>Form Name</th>
+													@if($status === 'Samples Receiving')
+														<th>Origin</th>
+													@endif
 													@php
 														$useJobLabels = in_array($status, ['Samples Receiving', 'Samples Request Review'], true);
 													@endphp
@@ -2082,12 +2162,8 @@
 																@endif
 															</div>
 														</td>
-														<td>
-															{!! in_array($instance->priority, ['high', 'urgent']) ? '<i class="mdi mdi-star text-danger" title="'.ucfirst($instance->priority).' Priority"></i>' : '' !!}
-															<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}">
-																<strong>{{ $instance->getDocumentControlNumber() ?? 'Draft' }}</strong>
-															</a>
-														</td>
+
+
 														<td>
 															@if($instance->crmCustomer)
 																<span class="font-weight-medium" title="Portal customer">{{ $instance->crmCustomer->name }}</span>
@@ -2116,6 +2192,19 @@
 																<span class="badge badge-soft-primary ml-1" title="{{ $attachmentCount }} attachment form{{ $attachmentCount !== 1 ? 's' : '' }} linked">{{ $attachmentCount }} <i class="mdi mdi-paperclip" style="font-size:10px;"></i></span>
 															@endif
 														</td>
+														@if($status === 'Samples Receiving')
+															<td>
+																@if($instance->origin === 'Scheduled Sampling')
+																	<span class="badge badge-success">
+																		<i class="mdi mdi-calendar-clock mr-1"></i> Scheduled
+																	</span>
+																@else
+																	<span class="badge badge-info">
+																		<i class="mdi mdi-run mr-1"></i> Walk-in
+																	</span>
+																@endif
+															</td>
+														@endif
 														<td>
 															@if($hasBatch)
 																<span class="workflow-status-chip" style="--chip-accent: #28a745;">
@@ -4156,12 +4245,12 @@
 		}
 	
 		.workflow-board-page .tag-select-input:hover {
-			border-color: #c7d7fc;
+			border-color: rgba(109, 10, 14, 0.3);
 		}
 	
 		.workflow-board-page .tag-select-input:focus-within {
-			border-color: #3b5fc0;
-			box-shadow: 0 0 0 0.2rem rgba(59, 95, 192, 0.12);
+			border-color: #6D0A0E;
+			box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.12);
 			outline: none;
 		}
 	
@@ -4170,7 +4259,7 @@
 			align-items: center;
 			gap: 4px;
 			padding: 4px 10px;
-			background-color: #3b5fc0;
+			background-color: #6D0A0E;
 			color: white;
 			border-radius: 16px;
 			font-size: 0.875rem;
@@ -4204,7 +4293,7 @@
 			left: 0;
 			right: 0;
 			background: white;
-			border: 1px solid #c7d7fc;
+			border: 1px solid rgba(109, 10, 14, 0.3);
 			border-top: none;
 			border-radius: 0 0 6px 6px;
 			max-height: 250px;

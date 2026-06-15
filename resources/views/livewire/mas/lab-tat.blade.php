@@ -1,7 +1,7 @@
 <div>
 <style>
     .testing-dashboard { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; }
-    .kebs-title-bar { background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%); color: white; padding: 18px 20px 14px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 12px 24px -14px rgba(30,58,138,0.6); }
+    .kebs-title-bar { background: linear-gradient(135deg, #6D0A0E 0%, #a8141b 100%); color: white; padding: 18px 20px 14px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 12px 24px -14px rgba(109,10,14,0.6); }
     .tat-header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
     .tat-header-title h5 { letter-spacing: 0.04em; }
     .tat-header-title small { display: inline-block; margin-top: 4px; }
@@ -14,7 +14,7 @@
     .tat-filter-input,
     .tat-filter-date input { background: rgba(255,255,255,0.14) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.18) !important; border-radius: 10px !important; min-height: 38px; box-shadow: none !important; }
     .tat-filter-input:focus,
-    .tat-filter-date input:focus { border-color: rgba(191,219,254,0.85) !important; box-shadow: 0 0 0 3px rgba(191,219,254,0.18) !important; }
+    .tat-filter-date input:focus { border-color: rgba(255,255,255,0.85) !important; box-shadow: 0 0 0 3px rgba(255,255,255,0.18) !important; }
     .tat-filter-input:disabled { opacity: 0.55; cursor: not-allowed; }
     .tat-filter-date { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
     .tat-filter-date span { color: rgba(255,255,255,0.72); font-size: 12px; font-weight: 600; }
@@ -22,27 +22,27 @@
     .tat-reset-button { border-radius: 999px; padding-inline: 14px; }
     .tat-filter-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .tat-filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.14); color: #fff; font-size: 12px; line-height: 1; }
-    .tat-filter-chip strong { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(219,234,254,0.88); }
+    .tat-filter-chip strong { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.88); }
     .tat-filter-chip-muted { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.82); }
-    .metric-card { background-color: #0ea5e9; color: white; border-radius: 4px; text-align: center; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; height: 90px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .metric-card { background-color: #6D0A0E; color: white; border-radius: 4px; text-align: center; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; height: 90px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     .metric-card:hover { transform: translateY(-2px); }
-    .metric-card.dark { background-color: #1e3a8a; }
+    .metric-card.dark { background-color: #4a0709; }
     .metric-label { font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; opacity: 0.9; }
     .metric-value { font-size: 20px; font-weight: bold; }
     .pivot-card { background-color: white; border: 1px solid #e2e8f0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 100%; display: flex; flex-direction: column; width: 100%; margin-bottom: 0 !important; }
     .pivot-card .table-responsive { flex-grow: 1; }
-    .pivot-header { background-color: #1e3a8a; color: white; padding: 8px 15px; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0; }
+    .pivot-header { background-color: #6D0A0E; color: white; padding: 8px 15px; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0; }
     .pivot-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .pivot-table th { background-color: #e0f2fe; padding: 10px; border: 1px solid #cbd5e1; text-align: left; color: #334155; }
+    .pivot-table th { background-color: rgba(109, 10, 14, 0.08); padding: 10px; border: 1px solid #cbd5e1; text-align: left; color: #6D0A0E; }
     .pivot-table td { padding: 8px 10px; border: 1px solid #e2e8f0; color: #475569; vertical-align: middle; }
     .pivot-table tr:hover { background-color: #f8fafc; }
-    .pivot-table tr.table-active td { background-color: #dbeafe; }
+    .pivot-table tr.table-active td { background-color: rgba(109, 10, 14, 0.08); }
     .compliance-bar-container { height: 16px; background-color: #f1f5f9; border-radius: 2px; overflow: hidden; position: relative; }
     .compliance-bar { height: 100%; }
     .compliance-text { position: absolute; top:0; left:0; width:100%; height:100%; font-size:9px; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#1e293b; }
-    .scc-box { background-color: #bae6fd; border: 1px solid #7dd3fc; padding: 15px; border-radius: 4px; text-align: center; margin-bottom: 10px; }
-    .scc-label { font-size: 12px; font-weight: bold; color: #0c4a6e; margin-bottom: 5px; }
-    .scc-value { font-size: 18px; font-weight: bold; color: #0369a1; }
+    .scc-box { background-color: rgba(109, 10, 14, 0.08); border: 1px solid rgba(109, 10, 14, 0.2); padding: 15px; border-radius: 4px; text-align: center; margin-bottom: 10px; }
+    .scc-label { font-size: 12px; font-weight: bold; color: #6D0A0E; margin-bottom: 5px; }
+    .scc-value { font-size: 18px; font-weight: bold; color: #6D0A0E; }
     .opacity-75 { opacity: 0.75; }
     @media (max-width: 991.98px) {
         .tat-filter-field,

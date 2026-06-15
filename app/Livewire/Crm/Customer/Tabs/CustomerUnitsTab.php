@@ -95,12 +95,19 @@ class CustomerUnitsTab extends BaseCrmComponent
             ->paginate($this->perPage);
     }
 
-    public function openUnitForm($unitId = null)
+    public function openUnitForm(?string $unitId = null): void
     {
         $this->resetValidation();
         
         if ($unitId) {
             $this->editingUnit = CRMCompanyUnit::find($unitId);
+
+            if (! $this->editingUnit) {
+                $this->showError('Company unit not found.');
+
+                return;
+            }
+
             $this->unit_id = $this->editingUnit->id;
             $this->name = $this->editingUnit->name;
 

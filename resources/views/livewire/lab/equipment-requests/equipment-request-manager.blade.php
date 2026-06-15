@@ -42,14 +42,14 @@
         color: #1e293b;
     }
     .equipment-requests-page .batch-stage-pill {
-        background: #f0f4ff;
-        color: #3b5fc0;
+        background: rgba(109, 10, 14, 0.08);
+        color: #6D0A0E;
         border-radius: 20px;
         padding: 3px 12px;
         font-size: 0.78rem;
         font-weight: 600;
-        border: 1px solid #c7d7fc;
-    }
+        border: 1px solid rgba(109, 10, 14, 0.25);
+     }
     .equipment-requests-page .workflow-receiving-tabs {
         display: flex;
         flex-wrap: wrap;
@@ -76,14 +76,14 @@
     }
     .equipment-requests-page .workflow-receiving-tab:hover {
         background: #fff;
-        border-color: #c7d7fc;
-        color: #1e293b;
+        border-color: rgba(109, 10, 14, 0.3);
+        color: #6D0A0E;
     }
     .equipment-requests-page .workflow-receiving-tab.is-active {
         background: #fff;
-        border-color: #3b5fc0;
-        color: #1d4ed8;
-        box-shadow: 0 1px 4px rgba(59, 95, 192, 0.15);
+        border-color: #6D0A0E;
+        color: #6D0A0E;
+        box-shadow: 0 1px 4px rgba(109, 10, 14, 0.15);
     }
     .equipment-requests-page .workflow-receiving-tab-badge {
         display: inline-flex;
@@ -98,8 +98,8 @@
         color: #475569;
     }
     .equipment-requests-page .workflow-receiving-tab.is-active .workflow-receiving-tab-badge {
-        background: #eff6ff;
-        color: #1d4ed8;
+        background: rgba(109, 10, 14, 0.1);
+        color: #6D0A0E;
     }
     .equipment-requests-page .workflow-filters-primary-row {
         align-items: flex-end;
@@ -126,14 +126,14 @@
         color: #15803d;
     }
     .equipment-requests-page .workflow-table .rm-act-btn--edit {
-        border: 1px solid #bfdbfe;
-        color: #1d4ed8;
-        background: #eff6ff;
+        border: 1px solid rgba(109, 10, 14, 0.2);
+        color: #6D0A0E;
+        background: rgba(109, 10, 14, 0.05);
     }
     .equipment-requests-page .workflow-table .rm-act-btn--edit:hover {
-        background: #dbeafe;
-        border-color: #93c5fd;
-        color: #1d4ed8;
+        background: rgba(109, 10, 14, 0.1);
+        border-color: rgba(109, 10, 14, 0.35);
+        color: #6D0A0E;
     }
     .equipment-requests-page .workflow-status-chip {
         border-color: color-mix(in srgb, var(--chip-accent, #64748b) 30%, #e2e8f0);
@@ -187,7 +187,7 @@
     }
     .er-modal-header {
         padding: 1.25rem 1.5rem;
-        background: linear-gradient(180deg, #f0f4ff 0%, #ffffff 100%);
+        background: linear-gradient(180deg, rgba(109, 10, 14, 0.08) 0%, #ffffff 100%);
         border-bottom: 1px solid #e2e8f0;
     }
     .er-modal-header h5 {
@@ -244,10 +244,10 @@
         gap: 0.35rem;
         padding: 0.35rem 0.75rem;
         border-radius: 999px;
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
+        background: rgba(109, 10, 14, 0.1);
+        border: 1px solid rgba(109, 10, 14, 0.25);
         font-size: 0.8125rem;
-        color: #1e40af;
+        color: #6D0A0E;
         font-weight: 600;
     }
     .er-detail-grid {

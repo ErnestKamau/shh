@@ -138,6 +138,8 @@ class CRMCustomerService
         $customer->zoho_id = $data['zoho_code'] ?? null;
         $customer->currency_id = $data['currency_id'] ?? null;
         $customer->lpos_required = isset($data['lpos_required']) ? 1 : 0;
+        $customer->contract_valid_from = $data['contract_valid_from'] ?? null;
+        $customer->contract_valid_to = $data['contract_valid_to'] ?? null;
 
         $customer->save();
 
@@ -149,7 +151,7 @@ class CRMCustomerService
      *
      * @param  array<string, mixed>  $data
      */
-    public function update(int $id, array $data): void
+    public function update(string $id, array $data): void
     {
         $customer = CRMCustomer::findOrFail($id);
         $customer->name = $data['name'] ?? $customer->name;
@@ -168,6 +170,8 @@ class CRMCustomerService
         $customer->vat_no = $data['vat_no'] ?? '';
         $customer->zoho_id = $data['zoho_code'] ?? null;
         $customer->currency_id = $data['currency_id'] ?? null;
+        $customer->contract_valid_from = $data['contract_valid_from'] ?? null;
+        $customer->contract_valid_to = $data['contract_valid_to'] ?? null;
 
         if (isset($data['lpos_required'])) {
             $customer->lpos_required = 1;
@@ -193,7 +197,7 @@ class CRMCustomerService
      *
      * @param  array<string, mixed>  $data
      */
-    public function updateConfigurations(int $id, array $data): void
+    public function updateConfigurations(string $id, array $data): void
     {
         $customer = CRMCustomer::findOrFail($id);
 
@@ -248,7 +252,7 @@ class CRMCustomerService
      *
      * @param  'unit_configurable_name'|'sample_point_configurable_name'|'product_configurable_name'  $column
      */
-    public function updateLabel(int $id, string $column, string $name): void
+    public function updateLabel(string $id, string $column, string $name): void
     {
         $allowed = ['unit_configurable_name', 'sample_point_configurable_name', 'product_configurable_name'];
         if (! in_array($column, $allowed, true)) {
@@ -265,7 +269,7 @@ class CRMCustomerService
      *
      * @throws \RuntimeException when customer not found
      */
-    public function softDelete(int $id): void
+    public function softDelete(string $id): void
     {
         $customer = getCrmCustomerByID($id);
         if ($customer === null || ! isset($customer->id)) {
@@ -300,7 +304,7 @@ class CRMCustomerService
      *
      * @return array{customer: CRMCustomer, is_qplus: SystemConfiguration|null}
      */
-    public function getForShowMinimal(int $id): array
+    public function getForShowMinimal(string $id): array
     {
         $customer = CRMCustomer::select(['id', 'name', 'unit_configurable_name', 'sample_point_configurable_name'])
             ->findOrFail($id);
@@ -314,7 +318,7 @@ class CRMCustomerService
      *
      * @return array{customer: CRMCustomer, countries: Collection, samples: array, complaints: Collection, feedbacks: Collection, complaint_types: Collection, ordersSel: Collection, certifications: Collection, qualification_list: Collection, accounts: array|\Illuminate\Support\Collection, quotes: Collection, zoho_customers: Collection, is_qplus: SystemConfiguration|null}
      */
-    public function getForShow(int $id): array
+    public function getForShow(string $id): array
     {
         $customer = CRMCustomer::with(['reportInfoColumns', 'sampleCustomFields'])->findOrFail($id);
 

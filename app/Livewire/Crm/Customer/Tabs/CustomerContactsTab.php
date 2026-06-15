@@ -46,7 +46,7 @@ class CustomerContactsTab extends BaseCrmComponent
             ->paginate($this->perPage);
     }
 
-    public function openContactForm($contactId = null)
+    public function openContactForm(?string $contactId = null): void
     {
         $this->editingContact = $contactId ? CustomerContact::find($contactId) : null;
         $this->showForm = true;
@@ -62,7 +62,7 @@ class CustomerContactsTab extends BaseCrmComponent
         $this->editingContact = null;
     }
 
-    public function deleteContact($contactId)
+    public function deleteContact(string $contactId): void
     {
         $contact = CustomerContact::find($contactId);
         

@@ -35,7 +35,7 @@ class CustomerDetailsTab extends BaseCrmComponent
     public function mount($customer)
     {
         $this->customer = $customer;
-        $this->countries = \App\Country::all();
+        $this->countries = \App\Country::orderBy('name')->get();
         
         // Load Account Settings
         $this->account_settings = getConfigTypeByName('Account Settings');
@@ -83,16 +83,19 @@ class CustomerDetailsTab extends BaseCrmComponent
         return collect($this->countries)
             ->when($search !== '', function ($countries) use ($search) {
                 return $countries->filter(function ($country) use ($search) {
-                    return str_contains(strtolower($country->name), $search);
+                    return str_contains(strtolower((string) data_get($country, 'name', '')), $search);
                 });
             })
-            ->take(50)
             ->values();
     }
 
     public function getSelectedAccountProperty()
     {
-        return collect($this->accounts)->firstWhere('id', (int) $this->account_status);
+        if (empty($this->account_status)) {
+            return null;
+        }
+
+        return collect($this->accounts)->firstWhere('id', (string) $this->account_status);
     }
 
     public function getFilteredAccountsProperty()
@@ -102,7 +105,7 @@ class CustomerDetailsTab extends BaseCrmComponent
         return collect($this->accounts)
             ->when($search !== '', function ($accounts) use ($search) {
                 return $accounts->filter(function ($account) use ($search) {
-                    return str_contains(strtolower($account->key), $search);
+                    return str_contains(strtolower((string) data_get($account, 'key', '')), $search);
                 });
             })
             ->take(50)

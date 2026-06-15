@@ -450,13 +450,13 @@
     }
     
     .single-select-container:hover {
-        border-color: #007bff;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+        border-color: #6D0A0E;
+        box-shadow: 0 2px 8px rgba(109, 10, 14, 0.1);
     }
     
     .single-select-container:has(.searchable-input-single:focus) {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #6D0A0E;
+        box-shadow: 0 0 0 0.2rem rgba(109, 10, 14, 0.25);
     }
     
     .options-list {
@@ -490,7 +490,7 @@
     }
     
     .option-item.selected {
-        background: rgba(0, 123, 255, 0.08);
+        background: rgba(109, 10, 14, 0.08);
         font-weight: 500;
     }
     

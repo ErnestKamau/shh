@@ -1796,4 +1796,98 @@ class FormInstanceController extends Controller
             abort(403, $message);
         }
     }
+
+    /**
+     * Generate Sample Collection Label PDF
+     */
+    public function sampleCollectionLabel(SubmissionFormInstance $instance)
+    {
+        $instance->load(['submissionForm', 'crmCustomer', 'testRequestFormInstance', 'values.element']);
+        
+        // Get company logo from system settings
+        $company = \App\Models\System\SystemConfiguration::where('key', 'company_logo')->first();
+        $logoPath = $company ? $company->value : null;
+        
+        // Get form data
+        $formData = [];
+        foreach ($instance->values as $value) {
+            $fieldName = $value->element?->name ?? $value->element_name ?? null;
+            if ($fieldName) {
+                $formData[$fieldName] = $value->value;
+            }
+        }
+        
+        // Debug: Log the available form data
+        Log::info('Sample Collection Label - Form Data', [
+            'instance_id' => $instance->id,
+            'form_number' => $instance->form_number,
+            'form_data_keys' => array_keys($formData),
+            'form_data' => $formData,
+        ]);
+        
+        // Get job number - check multiple sources
+        $jobNumber = $formData['job_number'] ?? null;
+        if (!$jobNumber && $instance->testRequestFormInstance) {
+            $jobNumber = $instance->testRequestFormInstance->form_data['job_number'] ?? null;
+        }
+        if (!$jobNumber) {
+            $jobNumber = $instance->form_number ?? 'N/A';
+        }
+        
+        // Get customer details
+        $customerName = $instance->crmCustomer->name ?? $formData['customer_name'] ?? $formData['client_name'] ?? 'N/A';
+        $customerAddress = $instance->crmCustomer->physical_address ?? $formData['customer_address'] ?? $formData['address'] ?? 'N/A';
+        $customerPhone = $instance->crmCustomer->telephone1 ?? $formData['customer_phone'] ?? $formData['phone'] ?? 'N/A';
+        
+        // Get sample details - use actual field names from form data
+        $sampleType = $formData['type_of_samples'] ?? $formData['sample_type'] ?? $formData['sample_types_ww'] ?? $formData['sample_type_select'] ?? 'N/A';
+        $sampleDescription = $formData['parameter_requested'] ?? $formData['sample_description'] ?? $formData['sample_name'] ?? 'N/A';
+        $samplingDate = $formData['date_of_sampling'] ?? $formData['sampling_date'] ?? $formData['collection_date'] ?? now()->format('Y-m-d');
+        // Sampling Point/Location - check multiple field names
+        $samplingPoint = $formData['sampling_location'] ?? $formData['location'] ?? $formData['sampling_point'] ?? $formData['customer_address'] ?? 'N/A';
+        
+        // Additional fields for the label
+        $sampleName = $formData['sample_name'] ?? $formData['sample_description'] ?? 'N/A';
+        $batchNumber = $jobNumber;
+        $clientName = $customerName;
+        $siteLocation = $samplingPoint;
+        $dateTimeOfCollection = $formData['date_of_sampling'] ?? $formData['sampling_date'] ?? now()->format('Y-m-d H:i');
+        $sampleTemperature = $formData['sample_temp'] ?? 'N/A';
+        $collectedBy = $formData['collected_by'] ?? 'N/A';
+        $preservationApplied = $formData['preservation_applied'] ?? 'No';
+        $containerType = $formData['container_type'] ?? 'N/A';
+        $sampleCollectionFor = $formData['sample_collection_for'] ?? 'N/A';
+        $sampleId = $formData['sample_id'] ?? $instance->id ?? 'N/A';
+        $testRequirement = $formData['parameter_requested'] ?? $formData['test_requirement'] ?? 'N/A';
+        
+        // Get sample rows if available
+        $sampleRows = $formData['sample_rows'] ?? [];
+        
+        return view('submission-forms.instances.sample-collection-label', compact(
+            'instance',
+            'logoPath',
+            'jobNumber',
+            'customerName',
+            'customerAddress',
+            'customerPhone',
+            'sampleType',
+            'sampleDescription',
+            'samplingDate',
+            'samplingPoint',
+            'sampleRows',
+            'formData',
+            'sampleName',
+            'batchNumber',
+            'clientName',
+            'siteLocation',
+            'dateTimeOfCollection',
+            'sampleTemperature',
+            'collectedBy',
+            'preservationApplied',
+            'containerType',
+            'sampleCollectionFor',
+            'sampleId',
+            'testRequirement'
+        ));
+    }
 }

@@ -199,8 +199,8 @@
     .form-section-title {
       font-size: 1.25rem;
       font-weight: 600;
-      color: #007bff;
-      border-bottom: 2px solid #007bff;
+      color: #6D0A0E;
+      border-bottom: 2px solid #6D0A0E;
       padding-bottom: 10px;
       margin-bottom: 20px;
     }
@@ -211,7 +211,7 @@
     }
 
     .test-required-table th {
-      background: #007bff;
+      background: #6D0A0E;
       color: white;
       padding: 12px;
       text-align: left;

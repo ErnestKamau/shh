@@ -17,8 +17,8 @@
 
         .modern-search-input:focus {
             outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+            border-color: #6D0A0E;
+            box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.1);
         }
 
         .modern-search-icon {
@@ -41,8 +41,8 @@
 
         .modern-filter-select:focus {
             outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+            border-color: #6D0A0E;
+            box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.1);
         }
 
         .modern-table {
@@ -110,7 +110,7 @@
 
         .modern-action-btn:hover {
             background: #f1f3f4;
-            border-color: #007bff;
+            border-color: #6D0A0E;
         }
 
         .btn-modern {

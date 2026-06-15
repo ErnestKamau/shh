@@ -28,6 +28,8 @@ class CRMCustomer extends Model implements Auditable
 		'email' => \App\Casts\SafeEncrypted::class,
 		'telephone1' => \App\Casts\SafeEncrypted::class,
 		'telephone2' => \App\Casts\SafeEncrypted::class,
+		'contract_valid_from' => 'date',
+		'contract_valid_to' => 'date',
 	];
 
 	public function country(){
@@ -124,5 +126,10 @@ class CRMCustomer extends Model implements Auditable
           ->where('is_active', true)
           ->orderBy('display_order')
           ->orderBy('id');
+  }
+
+  public function documentAttachments()
+  {
+      return $this->hasMany(CrmCustomerAttachment::class, 'crm_customer_id');
   }
 }

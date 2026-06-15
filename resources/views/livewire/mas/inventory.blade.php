@@ -129,6 +129,13 @@
 .text-dark-50 {
     color: rgba(30, 30, 30, 0.6);
 }
+.btn-primary { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
+.btn-primary:hover { background-color: #55080b !important; border-color: #55080b !important; color: white !important; }
+.btn-outline-primary { color: #6D0A0E !important; border-color: #6D0A0E !important; }
+.btn-outline-primary:hover { background-color: #6D0A0E !important; border-color: #6D0A0E !important; color: white !important; }
+.bg-primary { background-color: #6D0A0E !important; }
+.btn-link { color: #6D0A0E !important; }
+.btn-link:hover { color: #55080b !important; }
 </style>
 
 <script>

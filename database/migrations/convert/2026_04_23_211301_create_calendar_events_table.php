@@ -19,7 +19,7 @@ return new class extends Migration
             $table->date('start_date');
             $table->date('end_date');
             $table->string('responsible_id', 500)->default('73');
-            $table->integer('client_id')->nullable();
+            $table->uuid('client_id')->nullable();
             $table->string('attachment')->nullable();
             $table->string('location')->nullable();
             $table->uuid('created_by')->nullable()->index('idx_calendar_events_created_by_87e34760');
@@ -32,7 +32,7 @@ return new class extends Migration
             $table->time('start_time')->nullable()->default('00:00:00');
             $table->time('end_time')->nullable()->default('00:00:00');
             $table->boolean('notification_sent')->nullable()->default(false);
-            $table->integer('parent_id')->nullable();
+            $table->uuid('parent_id')->nullable();
             $table->text('logistics')->nullable();
             $table->string('latitude')->nullable();
             $table->string('longitude')->nullable();

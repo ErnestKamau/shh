@@ -5,7 +5,7 @@
     .lab-general-card { border-radius: 8px; }
     .lab-general-card .card-header { background-color: #fff; border-bottom: 0; }
     .lab-general-kpi { border-left: 4px solid #e2e8f0; }
-    .lab-general-kpi-primary { border-left-color: #3b82f6; }
+    .lab-general-kpi-primary { border-left-color: #6D0A0E; }
     .lab-general-kpi-success { border-left-color: #10b981; }
     .lab-general-kpi-warning { border-left-color: #f59e0b; }
     .lab-general-kpi-danger { border-left-color: #ef4444; }
@@ -14,15 +14,15 @@
     #labHeatmap { height: 390px; border-radius: 8px; background: #f8fafc; }
     .lab-general-page .progress { border-radius: 10px; background-color: #f1f5f9; }
     .lab-general-empty { min-height: 90px; display: flex; align-items: center; justify-content: center; }
-    .lab-general-page .btn-indigo { background-color: #6366f1; color: #fff; border-color: #6366f1; }
+    .lab-general-page .btn-indigo { background-color: #6D0A0E; color: #fff; border-color: #6D0A0E; }
     .lab-general-page .btn-indigo:hover,
-    .lab-general-page .btn-indigo:focus { background-color: #4f46e5; color: #fff; border-color: #4f46e5; }
-    .lab-general-page .btn-outline-indigo { background-color: #fff; color: #6366f1; border-color: #6366f1; }
+    .lab-general-page .btn-indigo:focus { background-color: #8B1E22; color: #fff; border-color: #8B1E22; }
+    .lab-general-page .btn-outline-indigo { background-color: #fff; color: #6D0A0E; border-color: #6D0A0E; }
     .lab-general-page .btn-outline-indigo:hover,
-    .lab-general-page .btn-outline-indigo:focus { background-color: #6366f1; color: #fff; border-color: #6366f1; }
+    .lab-general-page .btn-outline-indigo:focus { background-color: #6D0A0E; color: #fff; border-color: #6D0A0E; }
     .lab-general-filter-bar { background: #fff; border-radius: 8px; padding: 14px 16px; }
     .lab-general-filter-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
-    .lab-general-range-chip { background: #eef2ff; color: #4338ca; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .lab-general-range-chip { background: rgba(109, 10, 14, 0.08); color: #6D0A0E; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 </style>
 
 <div class="container-fluid py-4 lab-general-page">
@@ -348,7 +348,7 @@
                     datasets: [{
                         label: 'Samples',
                         data: chartData.client_counts || [],
-                        backgroundColor: '#3b82f6',
+                        backgroundColor: '#6D0A0E',
                         barThickness: 20
                     }]
                 },
@@ -374,10 +374,10 @@
                     datasets: [{
                         label: 'Samples Registered',
                         data: trendData.data || [],
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        borderColor: '#6D0A0E',
+                        backgroundColor: 'rgba(109, 10, 14, 0.1)',
                         borderWidth: 3,
-                        pointBackgroundColor: '#6366f1',
+                        pointBackgroundColor: '#6D0A0E',
                         fill: true,
                         tension: 0.4
                     }]

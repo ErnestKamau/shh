@@ -101,16 +101,14 @@
     );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h2 class="p-4">
+    @include('layouts.lab.invoice.partials.quotation-preview-hover-styles')
+    <h2 class="p-4 quotation-preview-hover-parent">
         <span class="float-left">
             <i class="mdi mdi-file-table"></i>Billing | Quotations
         </span>
-       
+
+        <a href="{{ route('quotation.preview', ['id' => $header->id]) }}" target="_blank" class="btn btn-sm float-right ml-2 quotation-preview-quote-btn" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
         <span class="btn btn-default btn-sm float-right ml-2" style="background-color: white;" data-target="#print-quotation" data-header="{{$header->id}}" data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
-        @if($header->is_print == 1)
-        <?php 	$path = '/storage'.$header->upload_url;?>
-        <a href="{{$path}}" target="_blank" class="btn btn-outline-success btn-sm float-right ml-2"><i class="mdi mdi-eye"></i> View Quote</a>
-        @endif
         @if($header->status == "Quote In Preparation")
         <span data-target="#save-draft" data-toggle="modal" class="btn btn-outline-warning btn-sm float-right"><i class="mdi mdi-download-outline"></i> Save As Draft</span>
         <span data-target="#delete-quotation" data-toggle="modal" class="btn btn-outline-danger mr-2 btn-sm float-right"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
@@ -227,6 +225,27 @@
                             <div class="form-group">
                                 <label class="control-label">Prepared By</label>
                                 <input type="text" name="prepared_by" readonly value="{{$header->prepared_by_name}}" id="" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label class="control-label">Laboratory Ref</label>
+                                <input type="text" name="laboratory_ref" class="form-control" value="{{ $header->laboratory_ref }}" placeholder="Auto-generated if empty">
+                            </div>
+                            <div class="form-group">
+                                <label class="control-label">Subject</label>
+                                <input type="text" name="subject" class="form-control" value="{{ $header->subject }}" placeholder="Quotation for ...">
+                            </div>
+                            <div class="form-group">
+                                <label class="control-label">Sampling Location (Sample Point)</label>
+                                <select name="sample_point_id" class="form-control">
+                                    <option value="">Select sample point...</option>
+                                    @foreach($samplePoints ?? [] as $point)
+                                        <option value="{{ $point->id }}" {{ $header->sample_point_id == $point->id ? 'selected' : '' }}>{{ $point->display_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="control-label">Sampling Location (Text)</label>
+                                <input type="text" name="sampling_location" class="form-control" value="{{ $header->sampling_location }}" placeholder="Override or free-text location">
                             </div>
                         </div>
 
@@ -415,8 +434,8 @@
                                 <label class="control-label">Quote Currency <span class="text-danger">*</span></label>
                                 <select name="currency_id" class="form-control" Required>
                                     <option value="">Choose Currency...</option>
-                                    @foreach(getCurrencies() as $currency)
-                                    <option value="{{$currency->id}}" {{$header->currency_id == $currency->id ? 'selected' : ''}}>{{$currency->name}}</option>
+                                    @foreach($currencies as $currency)
+                                    <option value="{{ $currency->id }}" {{ $header->currency_id == $currency->id ? 'selected' : '' }}>{{ $currency->code }} - {{ $currency->description }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -445,6 +464,18 @@
                             <div class="form-group">
                                 <label class="control-label">Payment Instructions <span class="text-danger">*</span></label>
                                 <textarea class="form-control" rows="2" name="payment_info" placeholder="Payment Instructions..." required>{{$header->payment_info == '' ? 'YOU MAY SUBMIT YOUR PAYMENT IN ACCORDANCE TO THE BELOW INSTRUCTIONS BANK OR MOBILE REMITTANCE' : $header->payment_info}} </textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="control-label">Quotation T&amp;C Override <small class="text-muted">(optional — one term per line)</small></label>
+                                <textarea class="form-control" rows="4" name="terms_override" placeholder="Leave blank to use system Quotation Terms and Conditions">{{ $header->terms_override }}</textarea>
+                            </div>
+                            <div class="form-group form-check">
+                                <input type="checkbox" class="form-check-input" name="show_loq_column" value="1" id="show_loq_column" {{ ($header->show_loq_column ?? true) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="show_loq_column">Show LOQ column on quotation</label>
+                            </div>
+                            <div class="form-group form-check">
+                                <input type="checkbox" class="form-check-input" name="show_mu_column" value="1" id="show_mu_column" {{ ($header->show_mu_column ?? true) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="show_mu_column">Show MU% column on quotation</label>
                             </div>
                         </div>
 
@@ -820,8 +851,6 @@
                     </div>
                     `);
                     $('#print-quotation').find('.loading').append(complete_text);
-                    
-                    $('.view-quote').removeClass('hidden');
                 },
                 error:function(data){
                     console.log(data);

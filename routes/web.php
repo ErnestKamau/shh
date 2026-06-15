@@ -168,6 +168,7 @@ Route::get('/system-settings/module-visibility', 'ConfigurationController@module
 Route::get('/system-settings/translations', 'ConfigurationController@translations')->name('system-settings.translations')->middleware('can:system.translations.view');
 Route::get('/system-settings/preferences', 'ConfigurationController@preferences')->name('system-settings.preferences')->middleware('can:settings.module.access');
 Route::post('/system-settings/preferences', 'ConfigurationController@updatePreferences')->name('system-settings.preferences.update')->middleware('can:settings.module.access');
+Route::get('/system-settings/whatsapp', 'ConfigurationController@whatsapp')->name('system-settings.whatsapp')->middleware('can:settings.module.access');
 
 // Bulk Data Import
 Route::get('/bulk-import', 'ConfigurationController@bulkImport')->name('bulk-import')->middleware('can:settings.module.access');
@@ -182,6 +183,8 @@ Route::post('/company-activate', 'CompanyController@activate_company')->name('ac
 
 //######################################SYSTEM###########################################
 Route::get('/full-calendar/view/{date?}', 'Event\EventController@index')->name('full-calendar')->middleware('can:calendar.module.access');
+Route::get('/system-planner/tasks', 'Event\EventController@tasks')->name('system-planner.tasks')->middleware('can:calendar.module.access');
+Route::get('/system-planner/schedule-sampling', 'Event\EventController@scheduleSamplingIndex')->name('system-planner.schedule-sampling')->middleware('can:calendar.module.access');
 Route::post('/full-calendar/add', 'Event\EventController@created')->name('full-calendar-create')->middleware('can:sampling-planner.components.all events.add');
 
 Route::post('/fullcalendareventmaster/create', 'Event\EventController@create')->middleware('can:sampling-planner.components.all events.add');
@@ -192,6 +195,7 @@ Route::get('/fullcalendar/print-user-task', 'Event\EventController@printUserEven
 Route::post('/full-callendar/edit', 'Event\EventController@editEvent')->name('editEvent')->middleware('can:sampling-planner.components.all events.edit');
 Route::post('/delete-events', 'Event\EventController@delete_event')->name('delete-events')->middleware('can:sampling-planner.components.all events.delete');
 Route::get('/get/event/id/{id}', 'Event\EventController@getEvent')->name('getEventByID')->middleware('can:sampling-planner.components.all events.view');
+Route::post('/event/occurrence/update-status', 'Event\EventController@updateOccurrenceStatus')->name('updateOccurrenceStatus')->middleware('can:sampling-planner.components.all events.edit');
 
 //#############CONFIGURATIONS END###############################################################################
 //######################################dashboard Ajax###############################################
@@ -321,16 +325,18 @@ Route::get('/livewire/labs/{lab}', [LabAppController::class, 'labProfile'])
 // Livewire Test Page
 Route::get('/livewire-test', function () {
     try {
-        $stdVals = \App\StandardValue::limit(5)->get();
-        $standards = \App\Standards::limit(5)->get();
-        $stdAnalytes = \App\StandardAnalytes::limit(5)->get();
-        
-        $output = "DATABASE SAMPLES:\n\n";
-        $output .= "StandardValue (first 5):\n" . $stdVals->toJson(JSON_PRETTY_PRINT) . "\n\n";
-        $output .= "Standards (first 5):\n" . $standards->toJson(JSON_PRETTY_PRINT) . "\n\n";
-        $output .= "StandardAnalytes (first 5):\n" . $stdAnalytes->toJson(JSON_PRETTY_PRINT) . "\n\n";
-        
-        return response($output)->header('Content-Type', 'text/plain');
+        \App\Models\TestRequestForm::seedDefaults();
+        $form = \App\Models\TestRequestForm::first();
+        if ($form) {
+            $output = "Class: " . get_class($form) . "\n";
+            $output .= "ID: " . $form->id . "\n";
+            $output .= "Name: " . $form->name . "\n";
+            $output .= "form_fields type: " . gettype($form->form_fields) . "\n";
+            $output .= "form_fields: " . json_encode($form->form_fields, JSON_PRETTY_PRINT) . "\n";
+            return response($output)->header('Content-Type', 'text/plain');
+        } else {
+            return "No forms found";
+        }
     } catch (\Throwable $t) {
         return "Error: " . $t->getMessage() . "\n" . $t->getTraceAsString();
     }
@@ -377,7 +383,12 @@ Route::get('/billing/invoices/{id}', function (string $id) {
 })->name('billing.invoices.show')->middleware('can:laboratory.components.proforma invoices.view');
 
 Route::get('/billing/quotations', function () {
-    return view('layouts.billing.quotations-index');
+    $customers = \App\Models\CRM\CRMCustomer::query()
+        ->where('active', 1)
+        ->orderBy('name')
+        ->get();
+
+    return view('layouts.billing.quotations-index', compact('customers'));
 })->name('billing.quotations')->middleware('can:laboratory.components.quotation.view');
 
 Route::get('/billing/sales-order/create', function () {
@@ -645,6 +656,9 @@ Route::get('/billing/redirect_from_docs/{id}/{stage?}', 'Invoice\QuotationContro
 Route::get('/billing/clone_quotation/{id}', 'Invoice\QuotationController@clone_quotation')->name('clone_quotation')->middleware('can:laboratory.components.quotation.add');
 Route::post('/billing/save-quotation-final/{id}', 'Invoice\QuotationController@save_quotation_final')->name('save_quotation_final')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/delete_quotation/{id}', 'Invoice\QuotationController@delete_quotation')->name('delete_quotation')->middleware('can:laboratory.components.quotation.delete');
+Route::get('/billing/quotations/{id}/report/{token}', 'Invoice\QuotationController@publicReportView')->name('quotation.public.report');
+Route::get('/billing/quotations/{id}/preview', 'Invoice\QuotationController@previewQuotation')->name('quotation.preview')->middleware('can:laboratory.components.quotation.view');
+Route::get('/billing/quotations/{id}/preview.pdf', 'Invoice\QuotationController@streamQuotationPdf')->name('quotation.preview.pdf')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/print_quotation/{id}', 'Invoice\QuotationController@print_quotation')->name('print_quotation')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/upload_quotation/{id}', 'Invoice\QuotationController@upload_quotation')->name('upload_quotation')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/approve-workflow', 'Invoice\QuotationController@approve_workflow')->name('approve-workflow')->middleware('can:laboratory.components.quotation.edit');
@@ -866,6 +880,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::post('/{instance}/apply-to-batches', 'FormInstanceController@applyToBatches')->name('apply-to-batches')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples')->middleware('can:laboratory.components.all samples.add');
         Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status')->middleware('can:submission-forms.access');
+        Route::get('/{instance}/sample-collection-label', 'FormInstanceController@sampleCollectionLabel')->name('sample-collection-label')->middleware('can:submission-forms.access');
         Route::post('/{instance}/intake-case/confirm', 'LabIntakeCaseController@confirm')->name('intake-case.confirm')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/intake-case/accept', 'LabIntakeCaseController@accept')->name('intake-case.accept')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
         Route::post('/{instance}/intake-case/reject', 'LabIntakeCaseController@reject')->name('intake-case.reject')->where('instance', '[0-9]+')->middleware('can:submission-forms.process');
@@ -1149,6 +1164,8 @@ Route::get('/customer/{id}', 'CRM\CRMCustomerController@show')->name('show-custo
 Route::post('/customer/{id}', 'CRM\CRMCustomerController@edit')->name('edit-customer')->middleware('can:crm.customers.edit');
 Route::post('/customer/{id}/label', 'CRM\CRMCustomerController@edit_label')->name('change-client-label-name')->middleware('can:crm.customers.edit');
 Route::post('/delete-customer', 'CRM\CRMCustomerController@delete_customer')->name('delete_customer')->middleware('can:crm.customers.delete');
+
+Route::get('/crm/customer/{customer}/attachment/{attachment}/download', 'CRM\CustomerAttachmentController@download')->name('crm.customer.attachment.download')->middleware('can:crm.customers.view');
 
 Route::post('/add/customer-certification/{id}', 'CRM\CustomerCertificationController@add')->name('add-customer-certification')->middleware('can:crm.certifications.add');
 Route::post('/edit/customer-certification/{id}', 'CRM\CustomerCertificationController@edit')->name('edit-customer-certification')->middleware('can:crm.certifications.edit');

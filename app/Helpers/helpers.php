@@ -1136,7 +1136,14 @@ function getEventNotification($id)
 }
 function getUserEvents()
 {
-	return App\Event::where('responsible_id', auth()->user()->id)->get();
+	return App\Event::where('responsible_id', auth()->user()->id)
+		->where(function($query) {
+			$query->whereNull('parent_id')
+			      ->orWhereColumn('id', 'parent_id')
+			      ->orWhere('is_routine', '!=', 1)
+			      ->orWhereNotIn('frequency', [1, 7, 30]);
+		})
+		->get();
 }
 function getUserChats()
 {
@@ -1549,6 +1556,75 @@ function hasUnitName($unit, $unitstr)
 	$parts = explode(",", $unitstr);
 
 	return in_array($unit, $parts);
+}
+
+function getUnitNamesByID(array $unitIds): string
+{
+	$values = array_values(array_filter(
+		array_map(static fn ($id) => trim((string) $id), $unitIds),
+		static fn ($id) => $id !== ''
+	));
+
+	if ($values === []) {
+		return '—';
+	}
+
+	$uuidIds = array_values(array_filter($values, static fn ($value) => \Illuminate\Support\Str::isUuid($value)));
+
+	$resolvedById = $uuidIds === []
+		? []
+		: App\Models\CRM\CRMCompanyUnit::query()
+			->whereIn('id', $uuidIds)
+			->pluck('name', 'id')
+			->all();
+
+	$display = [];
+
+	foreach ($values as $value) {
+		if (\Illuminate\Support\Str::isUuid($value)) {
+			$display[] = $resolvedById[$value] ?? $value;
+		} else {
+			// Legacy contacts store unit names directly (e.g. "Nairobi"), not UUIDs.
+			$display[] = $value;
+		}
+	}
+
+	$display = array_values(array_filter($display, static fn ($name) => $name !== ''));
+
+	return $display !== [] ? implode(', ', $display) : '—';
+}
+
+function getOtherCustomersByID(array $customerIds): string
+{
+	$values = array_values(array_filter(
+		array_map(static fn ($id) => trim((string) $id), $customerIds),
+		static fn ($id) => $id !== ''
+	));
+
+	if ($values === []) {
+		return '—';
+	}
+
+	$uuidIds = array_values(array_filter($values, static fn ($value) => \Illuminate\Support\Str::isUuid($value)));
+
+	if ($uuidIds === []) {
+		return '—';
+	}
+
+	$resolvedById = App\Models\CRM\CRMCustomer::query()
+		->whereIn('id', $uuidIds)
+		->pluck('name', 'id')
+		->all();
+
+	$display = [];
+
+	foreach ($values as $value) {
+		if (\Illuminate\Support\Str::isUuid($value) && isset($resolvedById[$value])) {
+			$display[] = $resolvedById[$value];
+		}
+	}
+
+	return $display !== [] ? implode(', ', $display) : '—';
 }
 
 function pad_str($str, $padCount)

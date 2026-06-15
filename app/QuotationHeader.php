@@ -4,8 +4,10 @@ namespace App;
 
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
+use App\Models\CRM\SamplePoint;
 use App\Models\Currency;
 use App\Models\SampleSubmissionRequest;
+use App\SampleHeader;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,6 +34,8 @@ class QuotationHeader extends Model implements Auditable
             'sent_to_customer_at' => 'datetime',
             'prepared_by_id' => 'string',
             'approved_by' => 'string',
+            'show_loq_column' => 'boolean',
+            'show_mu_column' => 'boolean',
         ];
     }
 
@@ -66,5 +70,15 @@ class QuotationHeader extends Model implements Auditable
     public function revisionOf(): BelongsTo
     {
         return $this->belongsTo(self::class, 'revision_of_quotation_header_id');
+    }
+
+    public function samplePoint()
+    {
+        return $this->belongsTo(SamplePoint::class, 'sample_point_id');
+    }
+
+    public function batches()
+    {
+        return $this->hasMany(SampleHeader::class, 'quote_id');
     }
 }

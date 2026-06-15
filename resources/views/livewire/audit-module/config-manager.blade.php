@@ -17,8 +17,8 @@
 
         .modern-search-input:focus {
             outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+            border-color: #6D0A0E;
+            box-shadow: 0 0 0 3px rgba(109, 10, 14, 0.1);
         }
 
         .modern-search-icon {
@@ -95,7 +95,7 @@
 
         .modern-action-btn:hover {
             background: #f1f3f4;
-            border-color: #007bff;
+            border-color: #6D0A0E;
         }
 
         .btn-modern {
@@ -207,7 +207,7 @@
                         @php
                             $stepName = $item->next_workflow_step == 8 ? 'N/A' : ($workflowSteps[$item->next_workflow_step] ?? 'N/A');
                         @endphp
-                        <span class="modern-badge" style="background: #e3f2fd; color: #1976d2; font-weight: 600;">Step {{ $item->next_workflow_step }}: {{ $stepName }}</span>
+                        <span class="modern-badge" style="background: rgba(109, 10, 14, 0.08); color: #6D0A0E; font-weight: 600;">Step {{ $item->next_workflow_step }}: {{ $stepName }}</span>
                         @else
                         <span class="text-muted">Not configured</span>
                         @endif
@@ -244,7 +244,7 @@
                     @elseif($type === 'audit_statuses')
                     <td style="color: #5f6368;">
                         @if($item->workflow_step)
-                        <span class="modern-badge" style="background: #e3f2fd; color: #1976d2; font-weight: 600;">Step {{ $item->workflow_step }}</span>
+                        <span class="modern-badge" style="background: rgba(109, 10, 14, 0.08); color: #6D0A0E; font-weight: 600;">Step {{ $item->workflow_step }}</span>
                         @else
                         <span class="text-muted">-</span>
                         @endif

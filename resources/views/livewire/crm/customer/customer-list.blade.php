@@ -47,7 +47,7 @@
                                 wire:model.live="accountStatusFilter" wire:key="account-status-filter-select">
                                 <option value="">{{ __('crm.all_account_settings') }}</option>
                                 @foreach($accounts as $account)
-                                    <option value="{{ $account->id }}">{{ $account->key }}</option>
+                                    <option value="{{ data_get($account, 'id') }}">{{ data_get($account, 'key') }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -264,7 +264,7 @@
 
     .crm-btn-add-rounded:hover {
         transform: translateY(-1px);
-        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+        box-shadow: 0 8px 18px rgba(109, 10, 14, 0.18);
     }
 </style>
 

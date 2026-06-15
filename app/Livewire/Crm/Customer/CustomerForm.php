@@ -25,6 +25,8 @@ class CustomerForm extends BaseCrmComponent
     public $is_internal = false;
     public $account_status = '';
     public $lpos_required = false;
+    public $contract_valid_from = '';
+    public $contract_valid_to = '';
 
     public $countries = [];
     public $accounts = [];
@@ -50,9 +52,6 @@ class CustomerForm extends BaseCrmComponent
         if (isset($this->account_settings->id)) {
             $rawAccounts = getconfigByID($this->account_settings->id);
             $this->accounts = collect($rawAccounts)
-                ->filter(function ($account) {
-                    return in_array(strtoupper((string) ($account->key ?? '')), ['POSTPAID', 'PREPAID'], true);
-                })
                 ->values();
         } else {
             $this->accounts = collect();
@@ -75,6 +74,8 @@ class CustomerForm extends BaseCrmComponent
             $this->is_internal = (bool) ($customer->is_internal ?? false);
             $this->account_status = $customer->account_status;
             $this->lpos_required = (bool) ($customer->lpos_required ?? 0);
+            $this->contract_valid_from = $customer->contract_valid_from ? substr($customer->contract_valid_from, 0, 10) : '';
+            $this->contract_valid_to = $customer->contract_valid_to ? substr($customer->contract_valid_to, 0, 10) : '';
         }
     }
 
@@ -89,7 +90,7 @@ class CustomerForm extends BaseCrmComponent
 
         return collect($this->countries)
             ->filter(function ($country) use ($search) {
-                if ((string) $country->id === (string) $this->country_id) {
+                if ((string) data_get($country, 'id') === (string) $this->country_id) {
                     return false;
                 }
 
@@ -97,7 +98,7 @@ class CustomerForm extends BaseCrmComponent
                     return true;
                 }
 
-                return str_contains(strtolower($country->name), $search);
+                return str_contains(strtolower((string) data_get($country, 'name', '')), $search);
             })
             ->values();
     }
@@ -118,16 +119,28 @@ class CustomerForm extends BaseCrmComponent
 
     public function getSelectedAccountProperty()
     {
-        return collect($this->accounts)->firstWhere('id', (int) $this->account_status);
+        if (empty($this->account_status)) {
+            return null;
+        }
+
+        return collect($this->accounts)->firstWhere('id', (string) $this->account_status);
     }
 
     public function getFilteredAccountsProperty()
     {
         $search = trim(strtolower($this->accountSearch));
 
+        \Log::info('CustomerForm: getFilteredAccountsProperty called', [
+            'accounts_count' => collect($this->accounts)->count(),
+            'showAccountDropdown' => $this->showAccountDropdown,
+            'accountSearch' => $this->accountSearch,
+            'account_status' => $this->account_status,
+            'accounts_raw' => $this->accounts
+        ]);
+
         return collect($this->accounts)
             ->filter(function ($account) use ($search) {
-                if ((string) $account->id === (string) $this->account_status) {
+                if ((string) data_get($account, 'id') === (string) $this->account_status) {
                     return false;
                 }
 
@@ -135,7 +148,7 @@ class CustomerForm extends BaseCrmComponent
                     return true;
                 }
 
-                return str_contains(strtolower((string) $account->key), $search);
+                return str_contains(strtolower((string) data_get($account, 'key', '')), $search);
             })
             ->values();
     }
@@ -176,6 +189,8 @@ class CustomerForm extends BaseCrmComponent
             'active' => 'boolean',
             'is_internal' => 'boolean',
             'lpos_required' => 'boolean',
+            'contract_valid_from' => 'nullable|date',
+            'contract_valid_to' => 'nullable|date',
         ];
     }
 
@@ -207,6 +222,8 @@ class CustomerForm extends BaseCrmComponent
         $customer->is_internal = $this->is_internal ? 1 : 0;
         $customer->account_status = $this->account_status;
         $customer->lpos_required = $this->lpos_required ? 1 : 0;
+        $customer->contract_valid_from = $this->contract_valid_from ?: null;
+        $customer->contract_valid_to = $this->contract_valid_to ?: null;
 
         $customer->save();
 

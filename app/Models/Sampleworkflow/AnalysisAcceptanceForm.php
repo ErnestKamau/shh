@@ -8,6 +8,7 @@ use App\Models\CRM\CustomerNotification;
 use App\Models\Billing\Pricelist;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Models\TestRequestFormInstance;
 use App\SampleHeader;
 use App\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -32,6 +33,7 @@ class AnalysisAcceptanceForm extends Model
 
     protected $fillable = [
         'status',
+        'test_request_form_instance_id',
         'submission_form_instance_id',
         'sample_submission_request_id',
         'crm_customer_id',
@@ -86,6 +88,11 @@ class AnalysisAcceptanceForm extends Model
     public function submissionFormInstance(): BelongsTo
     {
         return $this->belongsTo(SubmissionFormInstance::class, 'submission_form_instance_id');
+    }
+
+    public function testRequestFormInstance(): BelongsTo
+    {
+        return $this->belongsTo(TestRequestFormInstance::class, 'test_request_form_instance_id');
     }
 
     public function sampleSubmissionRequest(): BelongsTo
