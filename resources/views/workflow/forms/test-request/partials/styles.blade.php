@@ -73,6 +73,7 @@
     .trf-check-on::before { content: "\2611"; color: {{ $serialRed }}; display: inline; }
     .trf-check-off::before { content: "\2610"; color: #000; display: inline; }
     .trf-tick { font-weight: bold; font-size: 8pt; color: {{ $serialRed }}; }
+    .trf-mark { font-weight: bold; font-size: 8pt; color: #000; line-height: 1; }
     .trf-check-only { display: inline-block; text-align: center; width: 100%; }
     .trf-small { font-size: 5.5pt; color: #333; }
     .trf-footer-table { width: 100%; border-collapse: collapse; margin-top: 3px; border-top: 1px solid #999; }
@@ -86,7 +87,18 @@
     .trf-collection-check-cell { vertical-align: top; padding: 0; border: 1px solid #000; background: #fff; }
     .trf-dotted-leader { color: {{ $serialRed }}; letter-spacing: 0.5px; }
     .trf-tick-col-header { background: #d9d9d9 !important; }
-    .trf-tick-cell { background: #fff; vertical-align: middle; text-align: center; }
+    .trf-tick-cell { background: #fff; vertical-align: middle; text-align: center; border: 1px solid #000; min-height: 18px; height: 18px; }
+    .trf-water-table .trf-sample-header-row th,
+    .trf-water-table .trf-sample-subheader-row th,
+    .trf-water-table .trf-data-row td {
+        border: 1px solid #000;
+        box-sizing: border-box;
+    }
+    .trf-water-table .trf-data-row td {
+        overflow: visible;
+        min-height: 18px;
+        height: 18px;
+    }
     .trf-state-cell { font-size: 5pt; text-align: center; vertical-align: middle; padding: 0; overflow: hidden; background: #fff; }
     .trf-check-grid { width: 100%; border-collapse: collapse; margin: 0; }
     .trf-check-grid td { border: none; padding: 1px 3px 1px 0; font-size: 6pt; vertical-align: middle; line-height: 1.2; white-space: nowrap; }

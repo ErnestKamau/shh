@@ -35,7 +35,7 @@
         'reasonColspan' => 3,
         'transportColspan' => 2,
     ])
-    <tr>
+    <tr class="trf-sample-header-row">
         <th rowspan="2" class="trf-vtext-wrap trf-vtext-col">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['S.', 'NO.']])</th>
         <th rowspan="2" class="trf-vtext-wrap trf-vtext-col">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'NO.']])</th>
         <th rowspan="2" class="trf-vtext-wrap trf-vtext-col-wide">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['SAMPLE', 'DESCRIPTION']])</th>
@@ -45,7 +45,7 @@
         <th colspan="5">FIELD DATA</th>
         <th colspan="3" class="trf-tick-col-header">TEST REQUIREMENTS</th>
     </tr>
-    <tr>
+    <tr class="trf-sample-subheader-row">
         <th class="trf-subheader trf-vtext-wrap trf-tick-col-header">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Tap']])</th>
         <th class="trf-subheader trf-vtext-wrap trf-tick-col-header">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Tank']])</th>
         <th class="trf-subheader trf-vtext-wrap trf-tick-col-header">@include('workflow.forms.test-request.partials.vtext', ['parts' => ['Pool']])</th>
@@ -70,7 +70,7 @@
             <td class="trf-center">{{ $row['qty'] ?? '' }}</td>
             @foreach($samplingPointKeys as $key)
                 <td class="trf-tick-cell">
-                    <span class="{{ ($sp[$key] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>
+                    @include('workflow.forms.test-request.partials.tick-icon', ['checked' => $sp[$key] ?? false])
                 </td>
             @endforeach
             <td class="trf-center trf-col-field">{{ $row['ph'] ?? '' }}</td>
@@ -79,13 +79,13 @@
             <td class="trf-center trf-col-field">{{ $row['odor'] ?? '' }}</td>
             <td class="trf-center trf-col-temp-cell">{{ $row['sample_temp'] ?? '' }}</td>
             <td class="trf-tick-cell">
-                <span class="{{ ($row['microbiology'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>
+                @include('workflow.forms.test-request.partials.tick-icon', ['checked' => $row['microbiology'] ?? false])
             </td>
             <td class="trf-tick-cell">
-                <span class="{{ ($row['legionella'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>
+                @include('workflow.forms.test-request.partials.tick-icon', ['checked' => $row['legionella'] ?? false])
             </td>
             <td class="trf-tick-cell">
-                <span class="{{ ($row['chemical_analysis'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>
+                @include('workflow.forms.test-request.partials.tick-icon', ['checked' => $row['chemical_analysis'] ?? false])
             </td>
         </tr>
     @endforeach
