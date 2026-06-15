@@ -2,30 +2,40 @@
     $companyHeader = $companyHeader ?? [];
 @endphp
 <table class="trf-header-table">
+    <tr class="trf-title-row">
+        <td colspan="3" class="trf-title">{{ $formTitle }}</td>
+    </tr>
     <tr>
-        <td style="width: 12%;">
+        <td class="trf-header-logo">
             @if(!empty($logoSrc))
                 <img src="{{ $logoSrc }}" class="trf-logo" alt="Company Logo">
             @endif
         </td>
-        <td style="width: 50%;">
-            <div class="trf-company-name">{{ $companyHeader['name'] ?? ($company->name ?? '') }}</div>
-            <div class="trf-company-meta">
-                Tel: {{ $companyHeader['telephone'] ?? '' }}<br>
-                Email: {{ $companyHeader['email'] ?? '' }}<br>
-                Address: {{ $companyHeader['address'] ?? '' }}
-            </div>
+        <td class="trf-header-center">
+            <table class="trf-header-company-grid" cellpadding="0" cellspacing="0">
+                <colgroup>
+                    <col class="trf-company-col-left">
+                    <col class="trf-company-col-right">
+                </colgroup>
+                <tr>
+                    <td class="trf-company-col-left trf-company-name-cell"><nobr>{{ $companyHeader['name'] ?? ($company->name ?? '') }}</nobr></td>
+                    <td class="trf-company-col-right"><nobr><span class="trf-field-label">PO Box:</span> <span class="trf-field-value">{{ $companyHeader['po_box'] ?? '' }}</span></nobr></td>
+                </tr>
+                <tr>
+                    <td class="trf-company-col-left"><nobr><span class="trf-field-label">Tel:</span> <span class="trf-field-value">{{ $companyHeader['telephone'] ?? '' }}</span></nobr></td>
+                    <td class="trf-company-col-right"><nobr><span class="trf-field-label">Fax:</span> <span class="trf-field-value">{{ $companyHeader['fax'] ?? '' }}</span></nobr></td>
+                </tr>
+                <tr>
+                    <td class="trf-company-col-left"><nobr><span class="trf-field-label">Email:</span> <span class="trf-field-value">{{ $companyHeader['email'] ?? '' }}</span></nobr></td>
+                    <td class="trf-company-col-right"><nobr><span class="trf-field-label">Website:</span> <span class="trf-field-value">{{ $companyHeader['website'] ?? '' }}</span></nobr></td>
+                </tr>
+                <tr>
+                    <td colspan="2" class="trf-company-address-cell"><nobr><span class="trf-field-label">Address:</span> <span class="trf-field-value">{{ $companyHeader['address'] ?? '' }}</span></nobr></td>
+                </tr>
+            </table>
         </td>
-        <td style="width: 38%;" class="trf-right">
-            <div class="trf-company-meta trf-right">
-                PO Box: {{ $companyHeader['po_box'] ?? '' }}<br>
-                Fax: {{ $companyHeader['fax'] ?? '' }}<br>
-                Website: {{ $companyHeader['website'] ?? '' }}
-            </div>
-            <div class="trf-serial trf-accent">S. No. {{ $serialNumber }}</div>
+        <td class="trf-header-serial">
+            <span class="trf-serial">S. No. {{ $serialNumber }}</span>
         </td>
-    </tr>
-    <tr class="trf-title-row">
-        <td colspan="3" class="trf-title">{{ $formTitle }}</td>
     </tr>
 </table>

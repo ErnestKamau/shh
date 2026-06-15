@@ -103,7 +103,7 @@ class TestRequestFormReportDataBuilder
             ? []
             : $this->padSampleRows(
                 $this->resolveSampleRows($formData, $variant),
-                $variant === 'food' ? 5 : 4
+                $variant === 'food' ? 5 : 10
             );
         $wasteWaterFields = $variant === 'waste_water'
             ? $this->resolveWasteWaterFields($formData)
@@ -570,124 +570,49 @@ class TestRequestFormReportDataBuilder
         $transport = $collection['transport_condition'] ?? [];
         $thermometerId = (string) ($collection['thermometer_id'] ?? '');
 
-        if ($variant === 'food') {
-            $thermometerMeta = $thermometerId !== ''
-                ? '<span class="trf-check trf-check-on"></span> THERMOMETER ID ' . e($thermometerId)
-                : '<span class="trf-check trf-check-off"></span> THERMOMETER ID';
+        $metaRows = [
+            [
+                'label' => 'Sampling Date:',
+                'value' => (string) ($collection['sampling_date'] ?? ''),
+            ],
+            [
+                'label' => 'Sampling Time:',
+                'value' => (string) ($collection['sampling_time'] ?? ''),
+            ],
+            [
+                'label' => 'Sampling Location:',
+                'value' => (string) ($collection['sampling_location'] ?? ''),
+            ],
+        ];
 
+        $methodOrderedKeys = ['APHA', 'US FDA', 'SASO', 'CCFRA', 'ASTM', 'DM', 'OTHERS', 'SOP'];
+
+        if ($variant === 'food') {
             return [
-                'rows' => [
-                    [
-                        'meta' => $this->formatMetaField('Sampling Date:', (string) ($collection['sampling_date'] ?? '')),
-                        'apparatus' => $apparatus,
-                        'apparatus_keys' => ['STERILE BAG', 'AIR SAMPLER'],
-                        'method' => $method,
-                        'method_keys' => ['APHA', 'US FDA'],
-                        'reason' => $reason,
-                        'reason_keys' => ['CONTRACT'],
-                        'transport' => $transport,
-                        'transport_keys' => ['CHILLER VEHICLE'],
-                    ],
-                    [
-                        'meta' => $this->formatMetaField('Sampling Time:', (string) ($collection['sampling_time'] ?? '')),
-                        'apparatus' => $apparatus,
-                        'apparatus_keys' => ['STERILE BOTTLE', 'GRABBER'],
-                        'method' => $method,
-                        'method_keys' => ['SASO', 'CCFRA'],
-                        'reason' => $reason,
-                        'reason_keys' => ['NON-CONTRACT'],
-                        'transport' => $transport,
-                        'transport_keys' => ['FROZEN'],
-                    ],
-                    [
-                        'meta' => $this->formatMetaField('Sampling Location:', (string) ($collection['sampling_location'] ?? '')),
-                        'apparatus' => $apparatus,
-                        'apparatus_keys' => ['STERILE SWAB', 'OTHERS'],
-                        'method' => $method,
-                        'method_keys' => ['ASTM', 'DM'],
-                        'reason' => $reason,
-                        'reason_keys' => ['HACCP REQUIREMENT'],
-                        'transport' => $transport,
-                        'transport_keys' => ['AMBIENT'],
-                    ],
-                    [
-                        'meta' => '&nbsp;',
-                        'apparatus' => $apparatus,
-                        'apparatus_keys' => [],
-                        'method' => $method,
-                        'method_keys' => ['OTHERS', 'SOP'],
-                        'reason' => $reason,
-                        'reason_keys' => ['DISPUTED/AUDIT'],
-                        'transport' => $transport,
-                        'transport_keys' => [],
-                    ],
-                    [
-                        'meta' => $thermometerMeta,
-                        'apparatus' => [],
-                        'apparatus_keys' => [],
-                        'method' => [],
-                        'method_keys' => [],
-                        'reason' => [],
-                        'reason_keys' => [],
-                        'transport' => [],
-                        'transport_keys' => [],
-                    ],
-                ],
+                'meta_rows' => $metaRows,
+                'apparatus' => $apparatus,
+                'apparatus_ordered_keys' => ['STERILE BAG', 'AIR SAMPLER', 'STERILE BOTTLE', 'GRABBER', 'STERILE SWAB', 'OTHERS'],
+                'thermometer_id' => $thermometerId,
+                'method' => $method,
+                'method_ordered_keys' => $methodOrderedKeys,
+                'reason' => $reason,
+                'reason_ordered_keys' => self::FOOD_OPTIONS['reason_of_collection'],
+                'transport' => $transport,
+                'transport_ordered_keys' => self::FOOD_OPTIONS['transport_condition'],
             ];
         }
 
-        $thermometerExtra = $thermometerId !== ''
-            ? '<table class="trf-check-grid"><tr><td><span class="trf-check trf-check-on"></span> THERMOMETER ID: ' . e($thermometerId) . '</td></tr></table>'
-            : '<table class="trf-check-grid"><tr><td><span class="trf-check trf-check-off"></span> THERMOMETER ID:</td></tr></table>';
-
         return [
-            'rows' => [
-                [
-                    'meta' => $this->formatMetaField('Sampling Date:', (string) ($collection['sampling_date'] ?? '')),
-                    'apparatus' => $apparatus,
-                    'apparatus_keys' => ['STERILE BAG', 'GRABBER'],
-                    'method' => $method,
-                    'method_keys' => ['APHA', 'US FDA'],
-                    'reason' => $reason,
-                    'reason_keys' => ['CONTRACT'],
-                    'transport' => $transport,
-                    'transport_keys' => ['CHILLER VEHICLE'],
-                ],
-                [
-                    'meta' => $this->formatMetaField('Sampling Time:', (string) ($collection['sampling_time'] ?? '')),
-                    'apparatus' => $apparatus,
-                    'apparatus_keys' => ['STERILE BOTTLE', 'OTHERS'],
-                    'method' => $method,
-                    'method_keys' => ['SASO', 'CCFRA'],
-                    'reason' => $reason,
-                    'reason_keys' => ['NON-CONTRACT'],
-                    'transport' => $transport,
-                    'transport_keys' => ['FROZEN'],
-                ],
-                [
-                    'meta' => $this->formatMetaField('Sampling Location:', (string) ($collection['sampling_location'] ?? '')),
-                    'apparatus' => $apparatus,
-                    'apparatus_keys' => ['STERILE SWAB', 'OTHERS'],
-                    'apparatus_extra' => $thermometerExtra,
-                    'method' => $method,
-                    'method_keys' => ['ASTM', 'DM'],
-                    'reason' => $reason,
-                    'reason_keys' => ['HACCP REQUIREMENT'],
-                    'transport' => $transport,
-                    'transport_keys' => ['AMBIENT'],
-                ],
-                [
-                    'meta' => '&nbsp;',
-                    'apparatus' => $apparatus,
-                    'apparatus_keys' => [],
-                    'method' => $method,
-                    'method_keys' => ['OTHERS', 'SOP'],
-                    'reason' => $reason,
-                    'reason_keys' => ['DISPUTED/AUDIT'],
-                    'transport' => $transport,
-                    'transport_keys' => [],
-                ],
-            ],
+            'meta_rows' => $metaRows,
+            'apparatus' => $apparatus,
+            'apparatus_ordered_keys' => ['STERILE BAG', 'GRABBER', 'STERILE BOTTLE', 'OTHERS'],
+            'thermometer_id' => $thermometerId,
+            'method' => $method,
+            'method_ordered_keys' => $methodOrderedKeys,
+            'reason' => $reason,
+            'reason_ordered_keys' => self::WATER_OPTIONS['reason_of_collection'],
+            'transport' => $transport,
+            'transport_ordered_keys' => self::WATER_OPTIONS['transport_condition'],
         ];
     }
 

@@ -64,7 +64,7 @@
                                         @endif
                                     @endforeach
 
-                                    @if(($section['title'] ?? '') === 'SAMPLE COLLECTION DATA')
+                                    @if(($section['title'] ?? '') === 'STATEMENT OF CONFORMITY & SIGNATURES')
                                         @if($this->isFood)
                                             <!-- Food Samples Table -->
                                             <div class="col-12 mb-4">
@@ -73,20 +73,17 @@
                                                     <table class="table table-bordered table-sm">
                                                         <thead class="bg-secondary text-white text-center small">
                                                             <tr>
-                                                                <th style="width: 4%">S. No.</th>
-                                                                <th style="width: 8%">Sample No.</th>
-                                                                <th style="width: 12%">Sample Description</th>
-                                                                <th style="width: 10%">Sampling Point/Location</th>
-                                                                <th style="width: 5%">Qty.</th>
-                                                                <th style="width: 9%">Sample Type</th>
-                                                                <th style="width: 9%">Sample Condition</th>
-                                                                <th style="width: 7%">Prod Date</th>
-                                                                <th style="width: 7%">Exp Date</th>
-                                                                <th style="width: 7%">Batch</th>
-                                                                <th style="width: 6%">Temp (°C)</th>
-                                                                <th style="width: 7%">State</th>
-                                                                <th style="width: 9%">Micro/Chem Param</th>
-                                                                <th style="width: 4%">Actions</th>
+                                                                <th style="width: 5%">S. No.</th>
+                                                                <th style="width: 10%">Sample No.</th>
+                                                                <th style="width: 15%">Sample Description</th>
+                                                                <th style="width: 15%">Sampling Point/Location</th>
+                                                                <th style="width: 8%">Qty.</th>
+                                                                <th style="width: 12%">Sample Type</th>
+                                                                <th style="width: 15%">Sample Condition</th>
+                                                                <th style="width: 10%">Dates & Batch</th>
+                                                                <th style="width: 10%">State</th>
+                                                                <th style="width: 10%">Micro/Chem Param</th>
+                                                                <th style="width: 5%">Actions</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody class="small">
@@ -114,25 +111,21 @@
                                                                         </select>
                                                                     </td>
                                                                     <td>
-                                                                        <select wire:model="formData.sample_rows.{{ $rowIdx }}.sample_condition" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;">
+                                                                        <select wire:model="formData.sample_rows.{{ $rowIdx }}.sample_condition" class="form-control form-control-xs mb-1" style="padding: 2px 5px; height: auto; font-size: 11px;">
                                                                             <option value="">Select Cond.</option>
                                                                             <option value="Acceptable">Acceptable</option>
                                                                             <option value="Chilled">Chilled</option>
                                                                             <option value="Frozen">Frozen</option>
                                                                             <option value="Ambient">Ambient</option>
                                                                         </select>
+                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_temp" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Temp (°C)">
                                                                     </td>
                                                                     <td>
-                                                                        <input type="date" wire:model="formData.sample_rows.{{ $rowIdx }}.production_date" class="form-control form-control-xs p-1" style="font-size: 10px; height: auto;">
-                                                                    </td>
-                                                                    <td>
-                                                                        <input type="date" wire:model="formData.sample_rows.{{ $rowIdx }}.expiration_date" class="form-control form-control-xs p-1" style="font-size: 10px; height: auto;">
-                                                                    </td>
-                                                                    <td>
+                                                                        <label class="mb-0 text-muted" style="font-size: 9px;">Prod:</label>
+                                                                        <input type="date" wire:model="formData.sample_rows.{{ $rowIdx }}.production_date" class="form-control form-control-xs p-1 mb-1" style="font-size: 10px; height: auto;">
+                                                                        <label class="mb-0 text-muted" style="font-size: 9px;">Exp:</label>
+                                                                        <input type="date" wire:model="formData.sample_rows.{{ $rowIdx }}.expiration_date" class="form-control form-control-xs p-1 mb-1" style="font-size: 10px; height: auto;">
                                                                         <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.batch_number" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Batch No.">
-                                                                    </td>
-                                                                    <td>
-                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_temp" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Temp">
                                                                     </td>
                                                                     <td>
                                                                         <select wire:model="formData.sample_rows.{{ $rowIdx }}.state_of_sample" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;">
@@ -165,25 +158,15 @@
                                                     <table class="table table-bordered table-sm">
                                                         <thead class="bg-secondary text-white text-center small">
                                                             <tr>
-                                                                <th rowspan="2" style="width: 4%">S. No.</th>
-                                                                <th rowspan="2" style="width: 8%">Sample No.</th>
-                                                                <th rowspan="2" style="width: 12%">Sample Description</th>
-                                                                <th rowspan="2" style="width: 10%">Location</th>
-                                                                <th rowspan="2" style="width: 5%">Qty.</th>
-                                                                <th rowspan="2" style="width: 10%">Sampling Point</th>
-                                                                <th colspan="5">Field Data</th>
-                                                                <th colspan="3">Test Requirements</th>
-                                                                <th rowspan="2" style="width: 4%">Actions</th>
-                                                            </tr>
-                                                            <tr>
-                                                                <th>pH</th>
-                                                                <th>Appearance</th>
-                                                                <th>Residual Chlorine</th>
-                                                                <th>Odor</th>
-                                                                <th>Temp</th>
-                                                                <th>Microbiology</th>
-                                                                <th>Legionella</th>
-                                                                <th>Chemical Analysis</th>
+                                                                <th style="width: 5%">S. No.</th>
+                                                                <th style="width: 10%">Sample No.</th>
+                                                                <th style="width: 15%">Sample Description</th>
+                                                                <th style="width: 15%">Location</th>
+                                                                <th style="width: 8%">Qty.</th>
+                                                                <th style="width: 12%">Sampling Point</th>
+                                                                <th style="width: 20%">Field Data (pH, Cl, Temp, Odor)</th>
+                                                                <th style="width: 15%">Test Requirements</th>
+                                                                <th style="width: 5%">Actions</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody class="small">
@@ -213,28 +196,35 @@
                                                                         </select>
                                                                     </td>
                                                                     <td>
-                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.ph" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="pH">
+                                                                        <div class="row no-gutters">
+                                                                            <div class="col-6 pr-1 mb-1">
+                                                                                <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.ph" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="pH">
+                                                                            </div>
+                                                                            <div class="col-6 mb-1">
+                                                                                <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.residual_chlorine" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Res. Cl">
+                                                                            </div>
+                                                                            <div class="col-6 pr-1">
+                                                                                <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_temp" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Temp (°C)">
+                                                                            </div>
+                                                                            <div class="col-6">
+                                                                                <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.odor" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Odor">
+                                                                            </div>
+                                                                        </div>
+                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.appearance" class="form-control form-control-xs mt-1" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Appearance">
                                                                     </td>
                                                                     <td>
-                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.appearance" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Appearance">
-                                                                    </td>
-                                                                    <td>
-                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.residual_chlorine" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Res. Cl">
-                                                                    </td>
-                                                                    <td>
-                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.odor" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Odor">
-                                                                    </td>
-                                                                    <td>
-                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_temp" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Temp">
-                                                                    </td>
-                                                                    <td class="text-center align-middle">
-                                                                        <input type="checkbox" id="water_micro_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.microbiology">
-                                                                    </td>
-                                                                    <td class="text-center align-middle">
-                                                                        <input type="checkbox" id="water_leg_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.legionella">
-                                                                    </td>
-                                                                    <td class="text-center align-middle">
-                                                                        <input type="checkbox" id="water_chem_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.chemical_analysis">
+                                                                        <div class="custom-control custom-checkbox small mb-1">
+                                                                            <input type="checkbox" id="water_micro_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.microbiology" class="custom-control-input">
+                                                                            <label class="custom-control-label" for="water_micro_{{ $rowIdx }}">Microbiology</label>
+                                                                        </div>
+                                                                        <div class="custom-control custom-checkbox small mb-1">
+                                                                            <input type="checkbox" id="water_leg_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.legionella" class="custom-control-input">
+                                                                            <label class="custom-control-label" for="water_leg_{{ $rowIdx }}">Legionella</label>
+                                                                        </div>
+                                                                        <div class="custom-control custom-checkbox small">
+                                                                            <input type="checkbox" id="water_chem_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.chemical_analysis" class="custom-control-input">
+                                                                            <label class="custom-control-label" for="water_chem_{{ $rowIdx }}">Chemical Analysis</label>
+                                                                        </div>
                                                                     </td>
                                                                     <td class="text-center align-middle">
                                                                         <button type="button" wire:click="removeSampleRow({{ $rowIdx }})" class="btn btn-danger btn-xs p-1"><i class="mdi mdi-trash-can"></i></button>
@@ -360,20 +350,7 @@
         <div class="receive-sample-alert receive-sample-alert--warning alert alert-warning mt-3 mb-0">{{ $message }}</div>
     @enderror
 
-    <footer class="receive-sample-modal-footer d-flex justify-content-between align-items-center border-top pt-3">
-        <div>
-            @if($formTemplate && $selectedSampleTypeId)
-                <button
-                    type="button"
-                    class="btn btn-sm btn-outline-secondary"
-                    wire:click="previewDraft"
-                    wire:loading.attr="disabled"
-                >
-                    <i class="mdi mdi-file-eye-outline mr-1"></i> Preview Test Request Form
-                </button>
-            @endif
-        </div>
-        <div style="gap: 8px;" class="d-flex">
+    <footer class="receive-sample-modal-footer d-flex justify-content-end border-top pt-3" style="gap: 8px;">
         <button type="button" class="btn btn-sm btn-light" data-dismiss="modal">Cancel</button>
         <button
             type="button"
@@ -390,16 +367,5 @@
                 Processing…
             </span>
         </button>
-        </div>
     </footer>
 </div>
-
-@script
-<script>
-    $wire.on('open-test-request-preview', ({ url }) => {
-        if (url) {
-            window.open(url, '_blank');
-        }
-    });
-</script>
-@endscript

@@ -7,48 +7,63 @@
         'food' => 'Customer Representative Contact Number:',
         default => 'Customer Representative Number:',
     };
-    $leftColspan = (int) floor(($footerColspan ?? 18) * 0.55);
-    $rightColspan = (int) ceil(($footerColspan ?? 18) * 0.45);
+    $totalCols = (int) ($footerColspan ?? 18);
+    $leftColspan = (int) round($totalCols * 0.65);
+    $rightColspan = $totalCols - $leftColspan;
 @endphp
-<tr>
-    <td colspan="{{ $leftColspan }}">
-        <span class="trf-field-label">Statement of Conformity Required in Reports:</span>
-        @foreach($statementOptions as $option)
-            <span class="{{ strcasecmp($selectedStatement, $option) === 0 ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span> {{ $option }}
-        @endforeach
+<tr class="trf-footer-sign-row">
+    <td colspan="{{ $leftColspan }}" class="trf-footer-cell">
+        <nobr>
+            <span class="trf-field-label">Statement of Conformity Required in Reports:</span>
+            @foreach($statementOptions as $option)
+                <span class="trf-footer-check-item">
+                    <span class="{{ strcasecmp($selectedStatement, $option) === 0 ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>{{ $option }}
+                </span>
+            @endforeach
+        </nobr>
     </td>
-    <td colspan="{{ $rightColspan }}" rowspan="4" class="trf-lab-box">
-        <div class="trf-lab-title">FOR LAB USE ONLY</div>
-        <span class="trf-field-label">Received Date &amp; Time:</span>
-        <span class="trf-field-value">{{ $labUse['lab_received_datetime'] ?: '' }}</span>
-        <span class="trf-field-label">Received by:</span>
-        <span class="trf-field-value">{{ $labUse['lab_received_by'] ?: '' }}</span>
-        <span class="trf-field-label">Sample Condition:</span>
-        @foreach($labConditionOptions as $option)
-            <span class="{{ strcasecmp($selectedLabCondition, $option) === 0 ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span> {{ $option }}
-        @endforeach
+    <td colspan="{{ $rightColspan }}" class="trf-footer-cell trf-footer-lab-head">
+        <span class="trf-lab-title">FOR LAB USE ONLY</span>
     </td>
 </tr>
-<tr>
-    <td colspan="{{ $leftColspan }}">
-        <span class="trf-field-label">Sampled By: Name and Employee ID</span>
+<tr class="trf-footer-sign-row">
+    <td colspan="{{ $leftColspan }}" class="trf-footer-cell">
+        <span class="trf-field-label">Sampled By:</span>
         <span class="trf-field-value">{{ $signatures['sampled_by'] ?: '' }}</span>
     </td>
+    <td colspan="{{ $rightColspan }}" class="trf-footer-cell">
+        <span class="trf-field-label">Received Date &amp; Time:</span>
+        <span class="trf-field-value">{{ $labUse['lab_received_datetime'] ?: '' }}</span>
+    </td>
 </tr>
-<tr>
-    <td colspan="{{ $leftColspan }}">
+<tr class="trf-footer-sign-row">
+    <td colspan="{{ $leftColspan }}" class="trf-footer-cell">
         <span class="trf-field-label">Customer Representative Name/Sign.:</span>
         <span class="trf-field-value">{{ $signatures['customer_rep_name'] ?: '' }}</span>
     </td>
+    <td colspan="{{ $rightColspan }}" class="trf-footer-cell">
+        <span class="trf-field-label">Received by:</span>
+        <span class="trf-field-value">{{ $labUse['lab_received_by'] ?: '' }}</span>
+    </td>
 </tr>
-<tr>
-    <td colspan="{{ $leftColspan }}">
+<tr class="trf-footer-sign-row">
+    <td colspan="{{ $leftColspan }}" class="trf-footer-cell">
         <span class="trf-field-label">{{ $contactLabel }}</span>
         <span class="trf-field-value">{{ $signatures['customer_rep_contact'] ?: '' }}</span>
     </td>
+    <td colspan="{{ $rightColspan }}" class="trf-footer-cell">
+        <nobr>
+            <span class="trf-field-label">Sample Condition:</span>
+            @foreach($labConditionOptions as $option)
+                <span class="trf-footer-check-item">
+                    <span class="{{ strcasecmp($selectedLabCondition, $option) === 0 ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span>{{ $option }}
+                </span>
+            @endforeach
+        </nobr>
+    </td>
 </tr>
-<tr>
-    <td colspan="{{ $footerColspan ?? 18 }}">
+<tr class="trf-footer-sign-row">
+    <td colspan="{{ $totalCols }}" class="trf-footer-cell">
         <span class="trf-field-label">Remarks:</span>
         <span class="trf-field-value">{{ $signatures['remarks'] ?: '' }}</span>
     </td>
