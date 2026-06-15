@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Company;
 use App\Zone;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -12,53 +13,9 @@ use Illuminate\Support\Str;
 
 class Phase2LocationSeeder extends Seeder
 {
-    public const ZONE_LOCATIONS = [
-        'EZO' => [
-            'name' => 'Eastern Zone',
-            'office' => 'Luthuli Street, Dar es Salaam',
-            'gps' => '-6.8161, 39.2888',
-            'regions' => ['Dar es Salaam', 'Pwani', 'Morogoro'],
-        ],
-        'CZO' => [
-            'name' => 'Central Zone',
-            'office' => "Secherela Street, Tambukareli Ward, Plot No. 138 & 140 'AC', Dodoma",
-            'gps' => '-6.1630, 35.7516',
-            'regions' => ['Dodoma', 'Singida', 'Tabora'],
-        ],
-        'LZO' => [
-            'name' => 'Lake Zone',
-            'office' => 'Mwanza',
-            'gps' => '-2.5164, 32.9175',
-            'regions' => ['Mwanza', 'Geita', 'Kagera', 'Shinyanga', 'Simiyu', 'Mara'],
-        ],
-        'NZO' => [
-            'name' => 'Northern Zone',
-            'office' => 'Block No. 3, Sekei, Arusha',
-            'gps' => '-3.3869, 36.6830',
-            'regions' => ['Arusha', 'Kilimanjaro', 'Tanga', 'Manyara'],
-        ],
-        'SZO' => [
-            'name' => 'Southern Zone',
-            'office' => 'Mahakama Road, Mtwara',
-            'gps' => '-10.2697, 40.1811',
-            'regions' => ['Mtwara', 'Lindi', 'Ruvuma'],
-        ],
-        'SHZO' => [
-            'name' => 'Southern Highlands Zone',
-            'office' => 'Plot F, Iwambi Area, Mbeya',
-            'gps' => '-8.9094, 33.4608',
-            'regions' => ['Mbeya', 'Njombe', 'Songwe', 'Iringa', 'Katavi', 'Rukwa'],
-        ],
-    ];
+    public const ZONE_LOCATIONS = AmSpecSeedData::ZONE_LOCATIONS;
 
-    public const ZONES = [
-        'LZO' => self::ZONE_LOCATIONS['LZO']['name'],
-        'NZO' => self::ZONE_LOCATIONS['NZO']['name'],
-        'SHZO' => self::ZONE_LOCATIONS['SHZO']['name'],
-        'SZO' => self::ZONE_LOCATIONS['SZO']['name'],
-        'CZO' => self::ZONE_LOCATIONS['CZO']['name'],
-        'EZO' => self::ZONE_LOCATIONS['EZO']['name'],
-    ];
+    public const ZONES = AmSpecSeedData::ZONE_NAMES;
 
     public function run(): void
     {
@@ -70,13 +27,18 @@ class Phase2LocationSeeder extends Seeder
             $this->command?->info('STARTING PHASE 2 SEEDING: Locations / Zones');
             $this->command?->info('====================================================');
 
-            $company = Company::query()->first();
+            $company = Company::query()
+                ->where('id', AmSpecSeedData::DUBAI_COMPANY_ID)
+                ->orWhere('active', true)
+                ->orderByDesc('active')
+                ->first();
+
             if (! $company) {
                 $this->command?->error('Base company not found. Run Phase 1 first.');
                 return;
             }
 
-            foreach (self::ZONE_LOCATIONS as $code => $location) {
+            foreach (AmSpecSeedData::zoneLocations() as $code => $location) {
                 $name = $location['name'];
                 $inventoryLocation = DB::connection('pgsql')
                     ->table('inventory_locations')
@@ -138,8 +100,10 @@ class Phase2LocationSeeder extends Seeder
             return;
         }
 
+        $prefix = AmSpecSeedData::REFERENCE_PREFIX;
+
         foreach ($units as $unit) {
-            foreach (self::ZONE_LOCATIONS as $code => $location) {
+            foreach (AmSpecSeedData::zoneLocations() as $code => $location) {
                 $pointName = "{$location['name']} - {$unit->name}";
                 $existing = DB::connection('pgsql')
                     ->table('sample_points')
@@ -159,7 +123,7 @@ class Phase2LocationSeeder extends Seeder
                 ];
 
                 if (Schema::connection('pgsql')->hasColumn('sample_points', 'code')) {
-                    $payload['code'] = 'GCLA-'.$code.'-'.substr(md5((string) $unit->id), 0, 8);
+                    $payload['code'] = $prefix.'-'.$code.'-'.substr(md5((string) $unit->id), 0, 8);
                 }
 
                 DB::connection('pgsql')->table('sample_points')->updateOrInsert(

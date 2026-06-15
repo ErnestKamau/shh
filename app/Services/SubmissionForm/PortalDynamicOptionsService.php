@@ -239,9 +239,11 @@ class PortalDynamicOptionsService
             ->get()
             ->map(function (CustomerContact $officer): array {
                 $fullName = trim($officer->first_name.' '.$officer->middle_name.' '.$officer->last_name);
-                $label = $fullName.($officer->email ? ' ('.$officer->email.')' : '');
 
-                return ['value' => $officer->id, 'label' => $label];
+                return [
+                    'value' => $officer->id,
+                    'label' => $fullName !== '' ? $fullName : 'Contact',
+                ];
             })
             ->all();
     }

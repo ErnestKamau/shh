@@ -92,10 +92,21 @@ class ReferenceDataController extends Controller
         $user       = $request->user();
         $customerId = (int) $user->client_id;
 
-        $contacts = CustomerContact::where('crm_customer_id', $customerId)
+        $contacts = CustomerContact::query()
+            ->where('crm_customer_id', $customerId)
             ->where('active', 1)
             ->orderBy('first_name')
-            ->get(['id', 'first_name', 'middle_name', 'last_name', 'email', 'telephone', 'job_occupation']);
+            ->get()
+            ->map(fn (CustomerContact $contact): array => [
+                'id' => $contact->id,
+                'first_name' => $contact->first_name,
+                'middle_name' => $contact->middle_name,
+                'last_name' => $contact->last_name,
+                'label' => trim($contact->first_name.' '.$contact->middle_name.' '.$contact->last_name) ?: 'Contact',
+                'telephone' => $contact->telephone,
+                'job_occupation' => $contact->job_occupation,
+            ])
+            ->values();
 
         return response()->json(['data' => $contacts]);
     }

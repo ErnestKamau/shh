@@ -106,6 +106,13 @@ class PortalSubmissionFormAccess
             ->first();
     }
 
+    public function testRequestTemplatesQuery(?string $crmCustomerId = null): Builder
+    {
+        return $this->portalFormsQuery($crmCustomerId)
+            ->where('document_code', 'like', 'TRF-%')
+            ->orderBy('name');
+    }
+
     public function assertInstanceBelongsToPortalContext(
         SubmissionFormInstance $instance,
         ?string $crmCustomerId,

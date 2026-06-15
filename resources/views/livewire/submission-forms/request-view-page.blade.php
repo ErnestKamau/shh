@@ -88,6 +88,24 @@
                                 <i class="mdi mdi-flask mr-2"></i> View sample batch
                             </a>
                         @endif
+                        @if($this->isTrfForm())
+                            <div class="dropdown-divider"></div>
+                            <button type="button" class="dropdown-item" wire:click="generateTrfPdf" wire:loading.attr="disabled">
+                                <i class="mdi mdi-file-pdf-box mr-2"></i>
+                                <span wire:loading.remove wire:target="generateTrfPdf">Generate TRF</span>
+                                <span wire:loading wire:target="generateTrfPdf">Generating…</span>
+                            </button>
+                            @if($trfPdfUrl)
+                                <button type="button" class="dropdown-item" wire:click="downloadTrfPdf">
+                                    <i class="mdi mdi-download mr-2"></i> Download TRF
+                                </button>
+                                <button type="button" class="dropdown-item" wire:click="sendTrfPdfToCustomer" wire:loading.attr="disabled">
+                                    <i class="mdi mdi-email-send-outline mr-2"></i>
+                                    <span wire:loading.remove wire:target="sendTrfPdfToCustomer">Send to customer</span>
+                                    <span wire:loading wire:target="sendTrfPdfToCustomer">Sending…</span>
+                                </button>
+                            @endif
+                        @endif
                         <div class="dropdown-divider"></div>
                         <form action="{{ route('submission-forms.instances.destroy', [$submissionForm->id, $instance->id]) }}" method="POST" onsubmit="return confirm('Delete this submission and all linked batches?');">
                             @csrf
@@ -101,6 +119,64 @@
             </div>
         </div>
     </div>
+
+    @if($commercialEnquiry && $commercialEnquiry->hasCustomerFeedback())
+        <div class="alert alert-warning mb-3">
+            <strong><i class="mdi mdi-comment-alert-outline"></i> Customer requested quotation changes</strong>
+            <div class="mt-2 mb-0" style="white-space: pre-wrap;">{{ $commercialEnquiry->customerFeedbackNotes() }}</div>
+        </div>
+    @endif
+
+    @if($commercialEnquiry && $commercialEnquiry->isCommercialEnquiry())
+        <div class="workflow-board-panel mb-3">
+            <div class="workflow-board-panel-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="mdi mdi-file-chart-outline"></i> Commercial / Quotation</h5>
+                @if(in_array($commercialEnquiry->status, [
+                    \App\Models\SampleSubmissionRequest::STATUS_REQUESTED,
+                    \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS,
+                    \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+                    \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
+                ], true))
+                    <button type="button" class="btn btn-sm btn-primary" wire:click="openProcessEnquiry">
+                        <i class="mdi mdi-file-chart-outline"></i> Process enquiry
+                    </button>
+                @endif
+            </div>
+            <div class="workflow-board-panel-body">
+                <div class="row small mb-2">
+                    <div class="col-md-3">
+                        <strong>Enquiry status</strong><br>
+                        {{ $commercialEnquiry->commercialStatus() }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Request #</strong><br>
+                        {{ $commercialEnquiry->formatted_number }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Channel</strong><br>
+                        {{ ucfirst(str_replace('_', ' ', $commercialEnquiry->source_channel ?? '—')) }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Current quote</strong><br>
+                        @if($commercialEnquiry->currentQuotation)
+                            {{ $commercialEnquiry->currentQuotation->quote_number }}
+                            <a href="{{ route('print_quotation', $commercialEnquiry->currentQuotation->id) }}" class="ml-1" target="_blank">PDF</a>
+                        @else
+                            —
+                        @endif
+                    </div>
+                </div>
+                @if($commercialEnquiry->hasCustomerFeedback())
+                    <div class="alert alert-light border mb-0">
+                        <strong class="d-block mb-1">Customer feedback</strong>
+                        <div style="white-space: pre-wrap;">{{ $commercialEnquiry->customerFeedbackNotes() }}</div>
+                    </div>
+                @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW)
+                    <div class="text-muted small mb-0">Quotation is under review. No customer comment was provided.</div>
+                @endif
+            </div>
+        </div>
+    @endif
 
     <div class="stat-cards-row mb-3">
         <div class="stat-card">
@@ -240,4 +316,6 @@
             </div>
         </div>
     </div>
+
+    @livewire('sampleworkflow.process-enquiry-wizard')
 </div>

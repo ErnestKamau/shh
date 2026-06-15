@@ -9,6 +9,7 @@ use App\Models\SubmissionFormElement;
 use App\Directorate;
 use App\SampleHeader;
 use App\SampleDetails;
+use App\Services\Commercial\AmSpecTrfPdfService;
 use App\Services\SubmissionFormBatchSyncService;
 use App\Zone;
 use Illuminate\Http\Request;
@@ -63,7 +64,7 @@ class FormInstanceController extends Controller
      */
     public function create(SubmissionForm $submissionForm)
     {
-        if ($submissionForm->is_customer_portal_form && request()->routeIs('submission-forms.instances.create')) {
+        if ($submissionForm->is_customer_portal_form && ! $submissionForm->isLimsFillable() && request()->routeIs('submission-forms.instances.create')) {
             return redirect()->route('submission-forms.index')
                 ->with('error', 'This form is configured for customer portal submissions only.');
         }
@@ -93,7 +94,7 @@ class FormInstanceController extends Controller
             return redirect()->back()->with('error', 'This form is not available for submission.');
         }
 
-        if ($submissionForm->is_customer_portal_form && auth()->check()) {
+        if ($submissionForm->is_customer_portal_form && ! $submissionForm->isLimsFillable() && auth()->check()) {
             return redirect()->back()->with('error', 'This form can only be submitted from the customer portal.');
         }
 
@@ -238,11 +239,16 @@ class FormInstanceController extends Controller
         return false;
     }
 
-    public function fill(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    protected function assertLimsCanFillForm(SubmissionForm $submissionForm): void
     {
-        if ($submissionForm->is_customer_portal_form) {
+        if ($submissionForm->is_customer_portal_form && ! $submissionForm->isLimsFillable()) {
             abort(403, 'This form can only be filled from the customer portal.');
         }
+    }
+
+    public function fill(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    {
+        $this->assertLimsCanFillForm($submissionForm);
 
         // Allow access if user has RFT Form permission or is admin
         if (! $this->canAccessForms()) {
@@ -286,9 +292,7 @@ class FormInstanceController extends Controller
      */
     public function fillSample(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        if ($submissionForm->is_customer_portal_form) {
-            abort(403, 'This form can only be filled from the customer portal.');
-        }
+        $this->assertLimsCanFillForm($submissionForm);
 
         // Allow access if user has RFT Form permission or is admin
         if (! $this->canAccessForms()) {
@@ -330,9 +334,7 @@ class FormInstanceController extends Controller
      */
     public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        if ($submissionForm->is_customer_portal_form) {
-            abort(403, 'This form can only be submitted from the customer portal.');
-        }
+        $this->assertLimsCanFillForm($submissionForm);
 
         $user = auth()->user();
 
@@ -394,6 +396,18 @@ class FormInstanceController extends Controller
             }
 
             DB::commit();
+
+            if ($request->input('action') === 'submit') {
+                try {
+                    app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
+                        ->syncFromSubmittedInstance($instance->fresh(['values.element', 'submissionForm', 'crmCustomer']));
+                } catch (\Throwable $th) {
+                    Log::warning('Commercial enquiry sync failed after LSR form submit.', [
+                        'instance_id' => $instance->id,
+                        'message' => $th->getMessage(),
+                    ]);
+                }
+            }
 
             $labIntakeCaseServiceClass = 'App\\Services\\LabIntakeCaseService';
 
@@ -1157,10 +1171,10 @@ class FormInstanceController extends Controller
 
                         $options = [];
                         foreach ($officers as $officer) {
-                            $fullName = trim($officer->first_name . ' ' . $officer->middle_name . ' ' . $officer->last_name);
+                            $fullName = trim($officer->first_name.' '.$officer->middle_name.' '.$officer->last_name);
                             $options[] = [
                                 'id' => $officer->id,
-                                'text' => $fullName . ' (' . $officer->email . ')'
+                                'text' => $fullName !== '' ? $fullName : 'Contact',
                             ];
                         }
                     }
@@ -1738,6 +1752,28 @@ class FormInstanceController extends Controller
             'processedSampleData',
             'testsRequiredTableGroups'
         ));
+    }
+
+    public function downloadTrfPdf(SubmissionForm $submissionForm, SubmissionFormInstance $instance, AmSpecTrfPdfService $service)
+    {
+        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
+        $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to download this TRF PDF.');
+
+        $code = strtoupper((string) ($submissionForm->document_code ?? ''));
+        if (! str_starts_with($code, 'TRF-')) {
+            abort(404, 'This form is not a test request form.');
+        }
+
+        $relativePath = $service->generateAndStore($instance);
+        $fullPath = storage_path('app'.$relativePath);
+
+        if (! is_file($fullPath)) {
+            abort(404, 'TRF PDF could not be generated.');
+        }
+
+        return response()->file($fullPath, [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 
     private function abortIfInstanceFormMismatch(SubmissionForm $submissionForm, SubmissionFormInstance $instance): void

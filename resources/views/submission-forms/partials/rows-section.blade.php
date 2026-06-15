@@ -33,7 +33,7 @@
       @endphp
       {{-- Add Row Button --}}
       <div class="mb-3">
-        <button type="button" class="btn btn-success btn-sm" id="add-row-{{ $section->id }}" data-sf-add-row="{{ $section->id }}">
+        <button type="button" class="btn btn-success btn-sm" id="add-row-{{ $section->id }}">
           <i class="mdi mdi-plus"></i> Add Row
         </button>
       </div>
@@ -144,6 +144,8 @@ $(document).ready(function() {
     return;
   }
 
+  tbody.setAttribute('data-sf-rows-managed', '1');
+
   let rowIndex = 0;
 
   // Add new row
@@ -237,13 +239,10 @@ $(document).ready(function() {
           placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
         });
         $(e).attr('style', 'width: 100%');
-        
-        // Ensure Select2 change events trigger regular change events for form tracking
-        $(e).on('select2:select select2:unselect', function() {
-          $(this).trigger('change');
-        });
       }
     });
+
+    bindRowSelect2ChangeEvents($rowElement);
     
     // Update form progress after adding new row
     if (typeof FormFill !== 'undefined' && FormFill.updateProgress) {
@@ -332,89 +331,81 @@ $(document).ready(function() {
     });
   }
 
+  function normalizeSelectValue(value) {
+    if (Array.isArray(value)) {
+      return value.length ? String(value[0]) : '';
+    }
+
+    return value ? String(value) : '';
+  }
+
+  function loadDependentOptionsForElement($dependent, elementId, elementType, parentValue, dependsOnType) {
+    const parentId = normalizeSelectValue(parentValue);
+
+    if (!parentId) {
+      clearDependentElementAndChildren($dependent);
+      return;
+    }
+
+    if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'client_submission_officers_select') {
+      loadDynamicOptions($dependent, elementId, elementType, parentId);
+    } else if (elementType === 'sample_point_select') {
+      loadDynamicOptions($dependent, elementId, elementType, null, null, null, parentId);
+    } else if (elementType === 'analysis_type_select') {
+      loadDynamicOptions($dependent, elementId, elementType, null, parentId);
+    } else if (elementType === 'analysis_elements_select') {
+      loadDynamicOptions($dependent, elementId, elementType, null, null, null, null, parentId);
+    } else if (elementType === 'store_slot_select') {
+      loadDynamicOptions($dependent, elementId, elementType, null, null, parentId);
+    } else {
+      loadDynamicOptions($dependent, elementId, elementType, parentId);
+    }
+  }
+
+  function bindRowSelect2ChangeEvents($rowElement) {
+    $rowElement.find('select').not('.hidden').each(function() {
+      const $select = $(this);
+
+      $select.off('select2:select.row-deps select2:unselect.row-deps select2:clear.row-deps')
+        .on('select2:select.row-deps select2:unselect.row-deps select2:clear.row-deps', function() {
+          $(this).trigger('change.row-dependency');
+          $(this).trigger('change.custom-elements');
+        });
+    });
+  }
+
   function setupDependentElement($this, elementId, elementType, dependsOn) {
     // Find the dependency element in the same row first
     const $row = $this.parents('tr');
     const dependsOnElement = $row.find(`[data-element-type="${dependsOn}"]`);
     
     if (dependsOnElement.length > 0) {
-      // Check if parent already has a value and load options immediately
-      const currentParentValue = dependsOnElement.val();
-      if (currentParentValue) {
-        // Load options based on current parent value
-        if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'client_submission_officers_select') {
-          loadDynamicOptions($this, elementId, elementType, currentParentValue);
-        } else if (elementType === 'sample_point_select') {
-          loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
-        } else if (elementType === 'analysis_type_select') {
-          loadDynamicOptions($this, elementId, elementType, null, currentParentValue);
-        } else if (elementType === 'analysis_elements_select') {
-          loadDynamicOptions($this, elementId, elementType, null, null, null, null, currentParentValue);
-        } else if (elementType === 'store_slot_select') {
-          loadDynamicOptions($this, elementId, elementType, null, null, currentParentValue);
-        } else {
-          loadDynamicOptions($this, elementId, elementType, currentParentValue);
-        }
-      }
+      loadDependentOptionsForElement($this, elementId, elementType, dependsOnElement.val(), dependsOn);
       
       // Set up change handler for same-row dependency
       // Remove any existing handlers first to avoid duplicates
-      dependsOnElement.off('change.row-dependency').on('change.row-dependency', function() {
-        const parentId = $(this).val();
-        if (parentId) {
-          // Handle different parameter types based on element type and dependency
-        if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'client_submission_officers_select') {
-            loadDynamicOptions($this, elementId, elementType, parentId);
-        } else if (elementType === 'sample_point_select') {
-          loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
-        } else if (elementType === 'analysis_type_select') {
-            loadDynamicOptions($this, elementId, elementType, null, parentId);
-          } else if (elementType === 'analysis_elements_select') {
-            loadDynamicOptions($this, elementId, elementType, null, null, null, null, parentId);
-          } else if (elementType === 'store_slot_select') {
-            loadDynamicOptions($this, elementId, elementType, null, null, parentId);
-          } else {
-            loadDynamicOptions($this, elementId, elementType, parentId);
-          }
-        } else {
-          clearDependentElementAndChildren($this);
-        }
-      });
+      dependsOnElement.off('change.row-dependency change.custom-elements change')
+        .on('change.row-dependency change.custom-elements change', function() {
+          loadDependentOptionsForElement($this, elementId, elementType, $(this).val(), dependsOn);
+        });
     } else {
       // Fall back to global dependency
       const globalDependsOnElement = $(document).find(`[data-element-type="${dependsOn}"]`);
       if (globalDependsOnElement.length > 0) {
         const handlerNamespace = 'change.global-dependency-' + elementId;
 
-        const handleGlobalDependencyChange = function(parentId) {
-          if (parentId) {
-            // Handle different parameter types based on element type and dependency
-            if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
-              loadDynamicOptions($this, elementId, elementType, parentId);
-            } else if (elementType === 'sample_point_select') {
-              loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
-            } else if (elementType === 'analysis_type_select') {
-              loadDynamicOptions($this, elementId, elementType, null, parentId);
-            } else if (elementType === 'analysis_elements_select') {
-              loadDynamicOptions($this, elementId, elementType, null, null, null, null, parentId);
-            } else if (elementType === 'store_slot_select') {
-              loadDynamicOptions($this, elementId, elementType, null, null, parentId);
-            } else {
-              loadDynamicOptions($this, elementId, elementType, parentId);
-            }
-          } else {
-            clearDependentElementAndChildren($this);
-          }
+        const handleGlobalDependencyChange = function(parentValue) {
+          loadDependentOptionsForElement($this, elementId, elementType, parentValue, dependsOn);
         };
 
         // Remove any existing handlers first to avoid duplicates
-        globalDependsOnElement.off(handlerNamespace).on(handlerNamespace, function() {
-          handleGlobalDependencyChange($(this).val());
-        });
+        globalDependsOnElement.off(handlerNamespace + ' change.row-dependency change.custom-elements change')
+          .on(handlerNamespace + ' change.row-dependency change.custom-elements change', function() {
+            handleGlobalDependencyChange($(this).val());
+          });
 
         // Immediately load options if the global dependency already has a value
-        const initialParentValue = globalDependsOnElement.first().val();
-        handleGlobalDependencyChange(initialParentValue);
+        handleGlobalDependencyChange(globalDependsOnElement.first().val());
       }
     }
   }
@@ -948,6 +939,15 @@ $(document).ready(function() {
                     }
                   }
                 });
+
+                bindRowSelect2ChangeEvents($existingRowElement);
+
+                $existingRowElement.find('[data-element-type="sample_type_select"]').each(function() {
+                  const $parent = $(this);
+                  if (normalizeSelectValue($parent.val())) {
+                    $parent.trigger('change.row-dependency');
+                  }
+                });
               }, 500); // Give time for dependent options to load
             }, 100);
             
@@ -984,7 +984,7 @@ $(document).ready(function() {
       var sectionId = addBtn.getAttribute('data-sf-add-row');
       var template = document.getElementById('row-template-' + sectionId);
       var tbody = document.getElementById('rows-tbody-' + sectionId);
-      if (!template || !tbody) {
+      if (!template || !tbody || tbody.getAttribute('data-sf-rows-managed') === '1') {
         return;
       }
 

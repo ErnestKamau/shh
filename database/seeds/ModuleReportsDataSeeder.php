@@ -19,8 +19,8 @@ class ModuleReportsDataSeeder extends Seeder
         if (!$company) {
             \DB::table('companies')->insert([
                 'id' => $companyId,
-                'name' => 'GCLA Authority HQ',
-                'address' => 'Baraza la Mitihani Rd, Dar es Salaam',
+                'name' => 'AmSpec Middle East Inspection & Testing Services',
+                'address' => '3801 U-bora office tower, Marasi Drive, Business Bay, Dubai',
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ]);
@@ -31,8 +31,8 @@ class ModuleReportsDataSeeder extends Seeder
         if (!$country) {
             \DB::table('countries')->insert([
                 'id' => $countryId,
-                'code' => 'TZ',
-                'name' => 'Tanzania',
+                'code' => 'AE',
+                'name' => 'United Arab Emirates',
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ]);
@@ -92,8 +92,8 @@ class ModuleReportsDataSeeder extends Seeder
         $users = [
             [
                 'id' => 'u1001',
-                'name' => 'Dkt. John Doe (Chief Forensic Analyst)',
-                'email' => 'john.forensic@gcla.go.tz',
+                'name' => 'John Doe (Chief Analytical Chemist)',
+                'email' => 'john.analytical@amspecgroup.com',
                 'password' => bcrypt('password123'),
                 'company_id' => $companyId,
                 'active' => 1,
@@ -104,8 +104,8 @@ class ModuleReportsDataSeeder extends Seeder
             ],
             [
                 'id' => 'u1002',
-                'name' => 'Prof. Jane Smith (Director of Quality)',
-                'email' => 'jane.quality@gcla.go.tz',
+                'name' => 'Jane Smith (Director of Quality)',
+                'email' => 'jane.quality@amspecgroup.com',
                 'password' => bcrypt('password123'),
                 'company_id' => $companyId,
                 'active' => 1,
@@ -119,7 +119,7 @@ class ModuleReportsDataSeeder extends Seeder
             \DB::table('users')->updateOrInsert(['id' => $user['id']], $user);
         }
 
-        // Seed GCLA Laboratories/Sections
+        // Seed AmSpec Laboratories/Sections
         $labs = [
             [
                 'id' => 'l10001',
@@ -149,9 +149,9 @@ class ModuleReportsDataSeeder extends Seeder
             [
                 'id' => 'c1001',
                 'code' => 'CUST-TPF',
-                'name' => 'Tanzania Police Force',
-                'email' => 'tpf@police.go.tz',
-                'telephone1' => '+255222111222',
+                'name' => 'Emirates National Oil Company (ENOC)',
+                'email' => 'quality@enoc.ae',
+                'telephone1' => '+971 4 337 7700',
                 'country_id' => $countryId,
                 'company_id' => $companyId,
                 'active' => true,
@@ -161,9 +161,9 @@ class ModuleReportsDataSeeder extends Seeder
             [
                 'id' => 'c1002',
                 'code' => 'CUST-MOH',
-                'name' => 'Ministry of Health Tanzania',
-                'email' => 'info@moh.go.tz',
-                'telephone1' => '+255222333444',
+                'name' => 'Petrobras International',
+                'email' => 'dubai@petrobras.com',
+                'telephone1' => '+971 4 450 1200',
                 'country_id' => $countryId,
                 'company_id' => $companyId,
                 'active' => true,

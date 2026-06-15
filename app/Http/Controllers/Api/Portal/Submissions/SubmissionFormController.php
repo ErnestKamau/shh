@@ -84,6 +84,80 @@ class SubmissionFormController extends Controller
         ]);
     }
 
+    public function resolveTestRequest(Request $request): JsonResponse
+    {
+        $customerId = $this->access->customerIdFromRequest($request);
+        $sampleTypeId = (string) $request->query('sample_type_id', '');
+
+        if ($sampleTypeId === '') {
+            return response()->json(['message' => 'sample_type_id is required.'], 422);
+        }
+
+        $forms = $this->access->testRequestTemplatesQuery($customerId)
+            ->whereHas('sampleTypes', fn ($query) => $query->where('sample_types.id', $sampleTypeId))
+            ->with(['sampleTypes:id,name,code'])
+            ->get();
+
+        if ($forms->isEmpty()) {
+            return response()->json(['message' => 'No test request form found for this sample type.'], 404);
+        }
+
+        if ($forms->count() > 1) {
+            return response()->json([
+                'message' => 'Multiple test request forms match this sample type.',
+                'data' => $forms->map(fn ($form): array => $this->schemaBuilder->buildFormMeta($form))->values()->all(),
+            ], 409);
+        }
+
+        $form = $forms->first();
+
+        return response()->json([
+            'data' => array_merge(
+                $this->schemaBuilder->buildFormMeta($form),
+                [
+                    'sample_types' => $form->sampleTypes->map(fn ($type): array => [
+                        'id' => $type->id,
+                        'name' => $type->name,
+                        'code' => $type->code,
+                    ])->values()->all(),
+                ],
+            ),
+            'meta' => [
+                'sample_type_id' => $sampleTypeId,
+                'crm_customer_id' => $customerId,
+            ],
+        ]);
+    }
+
+    public function testRequestTemplates(Request $request): JsonResponse
+    {
+        $customerId = $this->access->customerIdFromRequest($request);
+
+        $forms = $this->access->testRequestTemplatesQuery($customerId)
+            ->with(['sampleTypes:id,name,code'])
+            ->withCount('sections')
+            ->get()
+            ->map(fn ($form): array => array_merge(
+                $this->schemaBuilder->buildFormMeta($form),
+                [
+                    'section_count' => $form->sections_count,
+                    'sample_types' => $form->sampleTypes->map(fn ($type): array => [
+                        'id' => $type->id,
+                        'name' => $type->name,
+                        'code' => $type->code,
+                    ])->values()->all(),
+                ],
+            ));
+
+        return response()->json([
+            'data' => $forms,
+            'meta' => [
+                'crm_customer_id' => $customerId,
+                'count' => $forms->count(),
+            ],
+        ]);
+    }
+
     public function attachmentForms(Request $request, string $submissionForm): JsonResponse
     {
         $customerId = $this->access->customerIdFromRequest($request);

@@ -26,6 +26,8 @@ use App\Http\Controllers\Controller;
 use App\QuotationDetailAnalysisSplit;
 use App\QuotationHeaderView;
 use App\SampleType;
+use App\Services\Commercial\AmSpecQuotationNumberGenerator;
+use App\Services\Commercial\AmSpecQuotationPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use PDF;
@@ -151,17 +153,8 @@ class QuotationController extends Controller
         $header->status = 'Quote In Preparation';
         // return response()->json($header,200);
         $header->save();
-        if (!isset($request->quote_id)) {
-
-            $idstr = strval($header->id);
-            if (strlen($idstr) < 4) {
-                $count = 4 - strlen($idstr);
-                $zeros = str_repeat('0', $count);
-                $number = 'QUOTE-' . $zeros . $idstr;
-            } else {
-                $number = 'QUOTE-' . $idstr;
-            }
-            $header->quote_number = $number;
+        if (! isset($request->quote_id)) {
+            AmSpecQuotationNumberGenerator::assignIfMissing($header);
         }
         $header->is_draft = 1;
         $header->save();
@@ -223,56 +216,27 @@ class QuotationController extends Controller
         foreach ($details as $detail) {
             if ($header->quotation_type == 'Analysis') {
 
-                $detail_sub_analytes = explode(',', $detail->subcontracted_analytes);
-                $detail_accredited_analytes = explode(',', $detail->accredited_analytes);
-                $detail_part_no = explode(',', $detail->part_no);
+                $detail_sub_analytes = $this->splitCommaSeparatedIds($detail->subcontracted_analytes);
+                $detail_accredited_analytes = $this->splitCommaSeparatedIds($detail->accredited_analytes);
+                $detail_part_no = $this->splitCommaSeparatedIds($detail->part_no);
 
-                $analytes_ac = [];
-                $analyte_sa = [];
-                $analyte_sub_acc = [];
-                $default_a = [];
-                $part_no = [];
-                foreach ($detail_accredited_analytes as $ac) {
-                    $analyte = AnalysisElements::find($ac);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analytes_ac, $an->name);
-                    }
-                }
-                foreach ($detail_sub_analytes as $sa) {
-                    $analyte = AnalysisElements::find($sa);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analyte_sa, $an->name);
-                    }
-                }
-                foreach (explode(',', $detail->sub_acc_analytes) as $sc) {
-                    $analyte = AnalysisElements::find($sc);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analyte_sub_acc, $an->name);
-                    }
-                }
-                foreach (explode(',', $detail->default_analytes) as $sc) {
-                    $analyte = AnalysisElements::find($sc);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($default_a, $an->name);
-                    }
-                }
-                foreach ($detail_part_no as $pn) {
-                    $analysis = AnalysisType::find($pn);
-                    if (isset($analysis->id)) {
-                        array_push($part_no, $analysis->name);
-                    }
-                }
+                $analytes_ac = $this->resolveAnalyteNamesFromElementIds($detail_accredited_analytes);
+                $analyte_sa = $this->resolveAnalyteNamesFromElementIds($detail_sub_analytes);
+                $analyte_sub_acc = $this->resolveAnalyteNamesFromElementIds(
+                    $this->splitCommaSeparatedIds($detail->sub_acc_analytes)
+                );
+                $default_a = $this->resolveAnalyteNamesFromElementIds(
+                    $this->splitCommaSeparatedIds($detail->default_analytes)
+                );
+                $part_no = $this->resolveAnalysisTypeNames($detail_part_no);
 
                 $detail['sub_analytes'] = $analyte_sa;
                 $detail['acc_analytes'] = $analytes_ac;
                 $detail['sub_acc'] = $analyte_sub_acc;
                 $detail['default'] = $default_a;
                 $detail['part_no_final'] = implode(',', $part_no);
-                $detail['sample_type_name'] = getSampleTypeByID($detail->sample_type)->name;
+                $sampleType = getSampleTypeByID($detail->sample_type);
+                $detail['sample_type_name'] = $sampleType?->name ?? '';
             }
 
             $detail['count'] = $count;
@@ -531,48 +495,19 @@ class QuotationController extends Controller
         foreach ($details as $detail) {
 
             if ($header[0]->quotation_type != 'General') {
-                $detail_sub_analytes = explode(',', $detail->subcontracted_analytes);
-                $detail_accredited_analytes = explode(',', $detail->accredited_analytes);
-                $detail_part_no = explode(',', $detail->part_no);
-                $analytes_ac = [];
-                $analyte_sa = [];
-                $analyte_sub_acc = [];
-                $default_a = [];
-                $part_no = [];
-                foreach ($detail_accredited_analytes as $ac) {
-                    $analyte = AnalysisElements::find($ac);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analytes_ac, $an->name);
-                    }
-                }
-                foreach ($detail_sub_analytes as $sa) {
-                    $analyte = AnalysisElements::find($sa);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analyte_sa, $an->name);
-                    }
-                }
-                foreach (explode(',', $detail->sub_acc_analytes) as $sc) {
-                    $analyte = AnalysisElements::find($sc);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analyte_sub_acc, $an->name);
-                    }
-                }
-                foreach (explode(',', $detail->default_analytes) as $sc) {
-                    $analyte = AnalysisElements::find($sc);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($default_a, $an->name);
-                    }
-                }
-                foreach ($detail_part_no as $pn) {
-                    $analysis = AnalysisType::find($pn);
-                    if (isset($analysis->id)) {
-                        array_push($part_no, $analysis->name);
-                    }
-                }
+                $detail_sub_analytes = $this->splitCommaSeparatedIds($detail->subcontracted_analytes);
+                $detail_accredited_analytes = $this->splitCommaSeparatedIds($detail->accredited_analytes);
+                $detail_part_no = $this->splitCommaSeparatedIds($detail->part_no);
+
+                $analytes_ac = $this->resolveAnalyteNamesFromElementIds($detail_accredited_analytes);
+                $analyte_sa = $this->resolveAnalyteNamesFromElementIds($detail_sub_analytes);
+                $analyte_sub_acc = $this->resolveAnalyteNamesFromElementIds(
+                    $this->splitCommaSeparatedIds($detail->sub_acc_analytes)
+                );
+                $default_a = $this->resolveAnalyteNamesFromElementIds(
+                    $this->splitCommaSeparatedIds($detail->default_analytes)
+                );
+                $part_no = $this->resolveAnalysisTypeNames($detail_part_no);
 
 
                 $detail['sub_analytes'] = $analyte_sa;
@@ -580,7 +515,8 @@ class QuotationController extends Controller
                 $detail['sub_acc'] = $analyte_sub_acc;
                 $detail['default'] = $default_a;
                 $detail['part_no_final'] = implode(',', $part_no);
-                $detail['sample_type_name'] = getSampleTypeByID($detail->sample_type)->name;
+                $sampleType = getSampleTypeByID($detail->sample_type);
+                $detail['sample_type_name'] = $sampleType?->name ?? '';
             }
             $detail['extended_price'] = (int) $detail->quantity * (float) $detail->unit_price;
 
@@ -742,16 +678,7 @@ class QuotationController extends Controller
         $header_clone->pricelist_id = null; // No longer using pricelists
         $header_clone->save();
 
-        $idstr = strval($header_clone->id);
-        if (strlen($idstr) < 4) {
-            $count = 4 - strlen($idstr);
-            $zeros = str_repeat('0', $count);
-            $number = 'QUOTE-' . $zeros . $idstr;
-        } else {
-            $number = 'QUOTE-' . $idstr;
-        }
-
-        $header_clone->quote_number = $number;
+        AmSpecQuotationNumberGenerator::assignIfMissing($header_clone);
         $header_clone->is_draft = 1;
         $header_clone->save();
 
@@ -781,146 +708,34 @@ class QuotationController extends Controller
         $header->save();
         return redirect()->route('add-qoute-details-view', ['id' => $header->id, 'stage' => $header->status]);
     }
-    public function print_quotation($id)
+    public function print_quotation(Request $request, $id)
     {
         ini_set('max_execution_time', 300);
         $check = QuotationHeader::find($id);
-        $check->is_print = 1;
-        $check->save();
-
-        $header = QuotationHeader::join('crm_customers', 'crm_customers.id', '=', 'quotation_headers.crm_customer_id')
-            ->join('crm_customer_contacts', 'crm_customer_contacts.id', '=', 'quotation_headers.crm_customer_contact_id')
-
-            ->join('users', 'users.id', '=', 'quotation_headers.prepared_by_id')
-            ->join('module_pre_configs as tc', 'tc.id', '=', 'users.position')
-            ->where('quotation_headers.id', $id)
-            ->selectRaw('quotation_headers.service_delivery,quotation_headers.payments,quotation_headers.payment_info,quotation_headers.quotation_type,quotation_headers.additional_info,quotation_headers.quote_specification,quotation_headers.quote_number,quotation_headers.is_print,quotation_headers.id,quotation_headers.quote_date,quotation_headers.currency_id,quotation_headers.expiring_date,quotation_headers.email_to_customer,quotation_headers.is_draft,quotation_headers.sub_total,quotation_headers.total_amount,quotation_headers.tax,quotation_headers.is_complete,quotation_headers.email_to_customer,quotation_headers.total_amount,quotation_headers.approved_by,crm_customers.name,crm_customers.postal_address,crm_customers.physical_address,crm_customer_contacts.first_name,crm_customer_contacts.middle_name,crm_customer_contacts.last_name,crm_customer_contacts.email,crm_customer_contacts.mobile,
-        users.name as prepared_by,tc.name as position,users.email as prepared_by_email,users.phone')
-            ->first();
-
-        $details = QuotationDetails::where('quotation_header_id', $id)->get();
-
-        foreach ($details as $detail) {
-            $analysis = AnalysisType::where('id', $detail->analyte_id)->first();
-            $analytes = AnalysisElements::where('analysis_type_id', $detail->analyte_id)
-                ->join('analytes', 'analytes.id', '=', 'analysis_elements.analyte_id')->pluck('analytes.name')->toarray();
-
-            // return response()->json($header,200);
-            if ($check->quotation_type != 'General') {
-                $detail_sub_analytes = explode(',', $detail->subcontracted_analytes);
-                $detail_accredited_analytes = explode(',', $detail->accredited_analytes);
-                $detail_part_no = explode(',', $detail->part_no);
-                $analytes_ac = [];
-                $analyte_sa = [];
-                $analyte_sub_acc = [];
-                $default_a = [];
-                $part_no = [];
-                foreach ($detail_accredited_analytes as $ac) {
-                    $analyte = AnalysisElements::find($ac);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analytes_ac, $an->name);
-                    }
-                }
-                foreach ($detail_sub_analytes as $sa) {
-                    $analyte = AnalysisElements::find($sa);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analyte_sa, $an->name);
-                    }
-                }
-                foreach (explode(',', $detail->sub_acc_analytes) as $sc) {
-                    $analyte = AnalysisElements::find($sc);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($analyte_sub_acc, $an->name);
-                    }
-                }
-                foreach (explode(',', $detail->default_analytes) as $sc) {
-                    $analyte = AnalysisElements::find($sc);
-                    if (isset($analyte->id)) {
-                        $an = getAnalyteByID($analyte->analyte_id);
-                        array_push($default_a, $an->name);
-                    }
-                }
-                foreach ($detail_part_no as $pn) {
-                    $analysis = AnalysisType::find($pn);
-                    if (isset($analysis->id)) {
-                        array_push($part_no, $analysis->name);
-                    }
-                }
-                $detail['sub_analytes'] = $analyte_sa;
-                $detail['acc_analytes'] = $analytes_ac;
-                $detail['sub_acc'] = $analyte_sub_acc;
-                $detail['default'] = $default_a;
-                $detail['part_no_final'] = implode(',', $part_no);
-                $detail['sample_type_name'] = getSampleTypeByID($detail->sample_type)->name;
-            }
-            if ($detail->photo_url != '') {
-                $url_arr = explode('/', $detail->photo_url);
-                $url_arr[1] = "app";
-                $url_a = implode('/', $url_arr);
-                $detail->photo_url_approved = storage_path() . $url_a;
-            }
-            $detail['extended_price'] = (int) $detail->quantity * (float) $detail->unit_price;
-        }
-        // return response()->json(array_sum($sub_total));      
-        $terms_config = getConfigTypeByName('Terms of Sale');
-        $banks_config = getConfigTypeByName('Bank Details');
-        $terms = getconfigByID($terms_config->id);
-        $terms_array = array();
-        foreach ($terms as $term) {
-            $terms_array[$term->key] = $term->value;
-        }
-        $banks = getconfigByID($banks_config->id);
-        $bankarr = array();
-        foreach ($banks as $bank) {
-            $bankarr[$bank->key] = $bank->value;
-        }
-        // return response()->json($bankarr,200);
-        $company = getActiveCompany();
-        $customer = getCrmCustomerByID($check->crm_customer_id);
-        $customer_name = preg_replace('/[^A-Za-z0-9]/', '', $customer->name);
-
-        $filename = $customer_name . '-' . $header->quote_number . '-' . date("d-M-Y", strtotime(getTodayDate())) . '.pdf';
-        $filename = urlencode($filename);
-        $currency = getCurrencyById($check->currency_id);
-        if (isset($currency->id)) {
-            $currency_name = $currency->name;
-        } else {
-            $currency_name = '-';
-        }
-        // return response()->json($header);
-        $qr_url = url('/storage/quotations/' . $customer_name . '/' . $filename);
-        $qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
-        $path = public_path('images/logo-imara.png');
-
-
-        $tick = public_path('images/tick.png');
-        $pdf = app('dompdf.wrapper');
-        $pdf->getDomPDF()->set_option("enable_php", true);
-        $pdf = PDF::loadView('layouts.lab.invoice.print-quotation', compact('header', 'terms_array', 'bankarr', 'company', 'details', 'pdf', 'qrcode', 'path', 'tick', 'currency_name'));
-
-        if (is_dir(storage_path() . '/app/quotations/' . $customer_name)) {
-            $pdf->save(storage_path() . '/app/quotations/' . $customer_name . '/' . $filename);
-        } else {
-            $path = storage_path() . '/app/quotations/' . $customer_name;
-
-            $check_dir = mkdir($path);
-            if ($check_dir) {
-
-                $pdf->save(storage_path() . '/app/quotations/' . $customer_name . '/' . $filename);
-            } else {
-                return response()->json(['error' => 'Error while creating customer storage folder']);
-            }
+        if ($check === null) {
+            throw new \RuntimeException('Quotation not found.');
         }
 
-        $check->upload_url = '/quotations/' . $customer_name . '/' . $filename;
-        $check->save();
-        return $check;
-        // return response()->json($details,200);
+        $header = app(AmSpecQuotationPdfService::class)->generateAndStore($check);
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json($header);
+        }
 
+        $uploadUrl = (string) ($header->upload_url ?? '');
+        if ($uploadUrl === '') {
+            abort(404, 'Quotation PDF not found.');
+        }
+
+        $path = storage_path('app'.$uploadUrl);
+        if (! is_file($path)) {
+            abort(404, 'Quotation PDF not found.');
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
+        ]);
     }
     public function upload_quotation(Request $request, $id)
     {
@@ -946,48 +761,19 @@ class QuotationController extends Controller
         if (isset($detail->id)) {
             $sample_types = SampleType::find($detail->sample_type);
             $analysis_data = AnalysisType::where('sample_type_id', $detail->sample_type)->get();
-            $detail_sub_analytes = explode(',', $detail->subcontracted_analytes);
-            $detail_accredited_analytes = explode(',', $detail->accredited_analytes);
-            $detail_part_no = explode(',', $detail->part_no);
-            $analytes_ac = [];
-            $analyte_sa = [];
-            $analyte_sub_acc = [];
-            $default_a = [];
-            $part_no = [];
-            foreach ($detail_accredited_analytes as $ac) {
-                $analyte = AnalysisElements::find($ac);
-                if (isset($analyte->id)) {
-                    $an = getAnalyteByID($analyte->analyte_id);
-                    array_push($analytes_ac, $an->name);
-                }
-            }
-            foreach ($detail_sub_analytes as $sa) {
-                $analyte = AnalysisElements::find($sa);
-                if (isset($analyte->id)) {
-                    $an = getAnalyteByID($analyte->analyte_id);
-                    array_push($analyte_sa, $an->name);
-                }
-            }
-            foreach (explode(',', $detail->sub_acc_analytes) as $sc) {
-                $analyte = AnalysisElements::find($sc);
-                if (isset($analyte->id)) {
-                    $an = getAnalyteByID($analyte->analyte_id);
-                    array_push($analyte_sub_acc, $an->name);
-                }
-            }
-            foreach (explode(',', $detail->default_analytes) as $sc) {
-                $analyte = AnalysisElements::find($sc);
-                if (isset($analyte->id)) {
-                    $an = getAnalyteByID($analyte->analyte_id);
-                    array_push($default_a, $an->name);
-                }
-            }
-            foreach ($detail_part_no as $pn) {
-                $analysis = AnalysisType::find($pn);
-                if (isset($analysis->id)) {
-                    array_push($part_no, $analysis->name);
-                }
-            }
+            $detail_sub_analytes = $this->splitCommaSeparatedIds($detail->subcontracted_analytes);
+            $detail_accredited_analytes = $this->splitCommaSeparatedIds($detail->accredited_analytes);
+            $detail_part_no = $this->splitCommaSeparatedIds($detail->part_no);
+
+            $analytes_ac = $this->resolveAnalyteNamesFromElementIds($detail_accredited_analytes);
+            $analyte_sa = $this->resolveAnalyteNamesFromElementIds($detail_sub_analytes);
+            $analyte_sub_acc = $this->resolveAnalyteNamesFromElementIds(
+                $this->splitCommaSeparatedIds($detail->sub_acc_analytes)
+            );
+            $default_a = $this->resolveAnalyteNamesFromElementIds(
+                $this->splitCommaSeparatedIds($detail->default_analytes)
+            );
+            $part_no = $this->resolveAnalysisTypeNames($detail_part_no);
 
             $detail['sub_analytes'] = $analyte_sa;
             $detail['acc_analytes'] = $analytes_ac;
@@ -995,7 +781,8 @@ class QuotationController extends Controller
             $detail['default'] = $default_a;
             $detail['part_no_final'] = implode(',', $part_no);
             $detail['part_no_value'] = $detail_part_no;
-            $detail['sample_type_name'] = getSampleTypeByID($detail->sample_type)->name;
+            $sampleType = getSampleTypeByID($detail->sample_type);
+            $detail['sample_type_name'] = $sampleType?->name ?? '';
         }
         $final = [];
         $final['analysis_data'] = $analysis_data;
@@ -1206,5 +993,61 @@ class QuotationController extends Controller
         sizeof($data) > 0 ? SampleAnalysisTypeRelation::insert($data) : '';
 
         return 'success';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function splitCommaSeparatedIds(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (string $id): string => trim($id), explode(',', $value)),
+            static fn (string $id): bool => $id !== ''
+        ));
+    }
+
+    /**
+     * @param  list<string>  $elementIds
+     * @return list<string>
+     */
+    private function resolveAnalyteNamesFromElementIds(array $elementIds): array
+    {
+        $names = [];
+
+        foreach ($elementIds as $elementId) {
+            $analyte = AnalysisElements::find($elementId);
+            if ($analyte === null || ! isset($analyte->id)) {
+                continue;
+            }
+
+            $an = getAnalyteByID($analyte->analyte_id);
+            if ($an !== null && isset($an->name)) {
+                $names[] = $an->name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * @param  list<string>  $analysisTypeIds
+     * @return list<string>
+     */
+    private function resolveAnalysisTypeNames(array $analysisTypeIds): array
+    {
+        $names = [];
+
+        foreach ($analysisTypeIds as $analysisTypeId) {
+            $analysis = AnalysisType::find($analysisTypeId);
+            if ($analysis !== null && isset($analysis->id)) {
+                $names[] = $analysis->name;
+            }
+        }
+
+        return $names;
     }
 }

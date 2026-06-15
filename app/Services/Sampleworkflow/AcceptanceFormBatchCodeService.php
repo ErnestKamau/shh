@@ -10,6 +10,12 @@ use App\User;
 use App\Zone;
 use Illuminate\Support\Str;
 
+/**
+ * Generates zone-year batch codes for the portal acceptance pipeline.
+ *
+ * AmSpec target convention (YYMMDD + sequential with Micro/Legionella/Chemistry prefixes)
+ * is pending stakeholder sign-off — keep zone-year format until confirmed.
+ */
 class AcceptanceFormBatchCodeService
 {
     public function resolveBatchCodeForAcceptanceForm(

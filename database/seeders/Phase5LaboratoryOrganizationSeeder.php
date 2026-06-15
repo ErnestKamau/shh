@@ -7,6 +7,7 @@ use App\Directorate;
 use App\Lab;
 use App\User;
 use App\Zone;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -24,14 +25,19 @@ class Phase5LaboratoryOrganizationSeeder extends Seeder
             $this->command?->info('STARTING PHASE 5 SEEDING: Laboratory Organization');
             $this->command?->info('====================================================');
 
-            $company = Company::query()->first();
+            $company = Company::query()
+                ->where('id', AmSpecSeedData::DUBAI_COMPANY_ID)
+                ->orWhere('active', true)
+                ->orderByDesc('active')
+                ->first();
+
             if (! $company) {
                 $this->command?->error('Base company not found. Run Phase 1 first.');
                 return;
             }
 
             $zones = Zone::query()->get()->keyBy('key');
-            foreach (array_keys(Phase2LocationSeeder::ZONES) as $code) {
+            foreach (array_keys(AmSpecSeedData::zoneNames()) as $code) {
                 if (! $zones->has($code)) {
                     $this->command?->error("Zone {$code} not found. Run Phase 2 first.");
                     return;
@@ -41,14 +47,8 @@ class Phase5LaboratoryOrganizationSeeder extends Seeder
             $activeUser = User::query()->where('active', 1)->first() ?? User::query()->first();
             $activeUserId = $activeUser?->id;
 
-            $directorateData = [
-                'DIR-FS' => ['name' => 'Forensic Science', 'primary_zone' => 'CZO'],
-                'DIR-PED' => ['name' => 'Product and Environmental Department', 'primary_zone' => 'EZO'],
-                'DIR-TSU' => ['name' => 'Technical Service Unit', 'primary_zone' => 'CZO'],
-            ];
-
             $directorates = [];
-            foreach ($directorateData as $code => $data) {
+            foreach (AmSpecSeedData::directorates() as $code => $data) {
                 $directorate = Directorate::query()->updateOrCreate(
                     ['code' => $code],
                     [
@@ -87,21 +87,13 @@ class Phase5LaboratoryOrganizationSeeder extends Seeder
                 }
             }
 
-            $labTypes = [
-                ['code' => 'LAB-FCH', 'name' => 'Forensic Chemistry Lab', 'directorate' => 'DIR-FS'],
-                ['code' => 'LAB-FDNA', 'name' => 'Forensic DNA Lab', 'directorate' => 'DIR-FS'],
-                ['code' => 'LAB-FTOX', 'name' => 'Forensic Toxicology Lab', 'directorate' => 'DIR-FS'],
-                ['code' => 'LAB-FD', 'name' => 'Food and Drugs Lab', 'directorate' => 'DIR-PED'],
-                ['code' => 'LAB-MIC', 'name' => 'Microbiology Lab', 'directorate' => 'DIR-PED'],
-                ['code' => 'LAB-ENV', 'name' => 'Environmental Lab', 'directorate' => 'DIR-PED'],
-                ['code' => 'LAB-TSU', 'name' => 'Technical Service Unit Lab', 'directorate' => 'DIR-TSU'],
-            ];
+            $emailDomain = AmSpecSeedData::LAB_EMAIL_DOMAIN;
 
             foreach ($zones as $zone) {
-                foreach ($labTypes as $data) {
+                foreach (AmSpecSeedData::labTypes() as $data) {
                     $directorate = $directorates[$data['directorate']];
-                    $uniqueCode = $data['code'] . '-' . $zone->key;
-                    $uniqueName = $data['name'] . ' (' . $zone->value . ')';
+                    $uniqueCode = $data['code'].'-'.$zone->key;
+                    $uniqueName = $data['name'].' ('.$zone->value.')';
 
                     $lab = Lab::query()->updateOrCreate(
                         [
@@ -112,13 +104,13 @@ class Phase5LaboratoryOrganizationSeeder extends Seeder
                             'name' => $uniqueName,
                             'address' => $zone->value,
                             'location' => $zone->value,
-                            'email' => strtolower($uniqueCode).'@gcla.go.tz',
+                            'email' => strtolower($uniqueCode).'@'.$emailDomain,
                             'company_id' => $company->id,
                             'zone_id' => $zone->id,
                             'manager_id' => $activeUserId,
                             'section_head_user_id' => $activeUserId,
                             'is_external' => false,
-                            'phone1' => '+255222113383',
+                            'phone1' => '+971 4 323 0399',
                             'active' => true,
                         ]
                     );

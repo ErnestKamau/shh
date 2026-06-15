@@ -124,17 +124,34 @@ class SubmissionFormInstanceValue extends Model implements Auditable
      */
     public function getDisplayValue(): string
     {
+        $this->loadMissing(['element', 'instance']);
+
+        if ($this->element && $this->instance) {
+            $resolved = (string) $this->instance->resolveDisplayValue(
+                $this->element,
+                $this->value,
+                $this->array_index !== null ? (int) $this->array_index : null,
+            );
+
+            if ($resolved !== '' && $resolved !== 'N/A') {
+                if (in_array($this->element->element_type, ['file', 'camera_photo', 'image_upload'], true) && $this->file_path) {
+                    return basename($this->file_path);
+                }
+
+                return $resolved;
+            }
+        }
+
         $formatted = $this->getFormattedValue();
-        
+
         if ($formatted === null || $formatted === '') {
             return '-';
         }
-        
-        // Handle file uploads
+
         if ($this->element && in_array($this->element->element_type, ['file', 'camera_photo', 'image_upload'], true) && $this->file_path) {
             return basename($this->file_path);
         }
-        
+
         return (string) $formatted;
     }
 

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Lab;
 use App\User;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -52,7 +53,7 @@ class Phase6PersonnelLabInsightsSeeder extends Seeder
             $analystIds = [];
             foreach ($labs as $index => $lab) {
                 $fullName = $names[$index % count($names)];
-                $email = strtolower(str_replace([' ', '.'], '', $fullName)) . '.' . strtolower($lab->zone->key) . '@gcla-labs.com';
+                $email = strtolower(str_replace([' ', '.'], '', $fullName)).'.'.strtolower($lab->zone->key).'@'.AmSpecSeedData::PERSONNEL_EMAIL_DOMAIN;
                 $designation = $designations[$index % count($designations)];
 
                 $user = User::query()->updateOrCreate(

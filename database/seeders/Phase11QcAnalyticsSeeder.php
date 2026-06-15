@@ -207,12 +207,12 @@ class Phase11QcAnalyticsSeeder extends Seeder
                 [
                     'type_key' => 'operational',
                     'key' => 'default_currency',
-                    'value' => 'TZS',
+                    'value' => 'AED',
                 ],
                 [
                     'type_key' => 'operational',
                     'key' => 'company_email',
-                    'value' => 'support@gcla.go.tz',
+                    'value' => 'info@amspecgroup.com',
                 ],
                 [
                     'type_key' => 'operational',

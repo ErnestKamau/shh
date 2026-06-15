@@ -878,6 +878,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/{submissionForm}/{instance}', 'FormInstanceController@show')->name('show')->middleware('can:submission-forms.access');
         Route::get('/{submissionForm}/{instance}/edit', 'FormInstanceController@edit')->name('edit')->middleware('can:submission-forms.process');
         Route::get('/{submissionForm}/{instance}/print', 'FormInstanceController@print')->name('print')->middleware('can:submission-forms.access');
+        Route::get('/{submissionForm}/{instance}/trf-pdf', 'FormInstanceController@downloadTrfPdf')->name('trf-pdf')->middleware('can:submission-forms.access');
         Route::delete('/{submissionForm}/{instance}', 'FormInstanceController@destroy')->name('destroy')->middleware('can:laboratory.components.rft form.delete');
     });
 });

@@ -4,12 +4,15 @@ namespace App\Livewire\SubmissionForms;
 
 use App\ChainOfCustody;
 use App\BatchAttachment;
+use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
+use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceAttachment;
 use App\Models\SubmissionFormInstanceNote;
 use App\Services\SampleCreationService;
 use App\Services\SubmissionFormBatchSyncService;
+use App\Services\Commercial\AmSpecTrfPdfService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Contracts\View\View;
@@ -61,6 +64,12 @@ class RequestViewPage extends Component
 
     public bool $linkedBatchesOutOfSyncWithForm = false;
 
+    public ?SampleSubmissionRequest $commercialEnquiry = null;
+
+    public ?string $trfPdfUrl = null;
+
+    public bool $sendTrfEmail = true;
+
     public function mount(
         string $submissionFormId,
         string $instanceId,
@@ -75,6 +84,7 @@ class RequestViewPage extends Component
         $this->submissionForm = SubmissionForm::query()->findOrFail($submissionFormId);
         $this->instance = SubmissionFormInstance::query()
             ->with([
+                'sampleSubmissionRequest.currentQuotation',
                 'submissionForm',
                 'submittedBy',
                 'reviewedBy',
@@ -86,6 +96,12 @@ class RequestViewPage extends Component
             ])
             ->where('submission_form_id', $submissionFormId)
             ->findOrFail($instanceId);
+
+        $this->commercialEnquiry = $this->instance->sampleSubmissionRequest
+            ?? SampleSubmissionRequest::query()
+                ->with('currentQuotation')
+                ->where('submission_form_instance_id', $this->instance->id)
+                ->first();
 
         if ($this->instance->batches()->exists()) {
             $this->linkedBatchesOutOfSyncWithForm = $batchSyncService
@@ -338,6 +354,102 @@ class RequestViewPage extends Component
             ->filter(fn ($event) => $event->occurred_at !== null)
             ->sortByDesc(fn ($event) => $event->occurred_at)
             ->values();
+    }
+
+    public function openProcessEnquiry(): void
+    {
+        if ($this->commercialEnquiry === null) {
+            return;
+        }
+
+        $this->dispatch('process-enquiry-open', enquiryId: $this->commercialEnquiry->id)
+            ->to(ProcessEnquiryWizard::class);
+    }
+
+    public function isTrfForm(): bool
+    {
+        $code = strtoupper((string) ($this->submissionForm->document_code ?? ''));
+
+        return str_starts_with($code, 'TRF-');
+    }
+
+    public function generateTrfPdf(AmSpecTrfPdfService $service): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if (! $this->isTrfForm()) {
+            session()->flash('request_view_message', 'This form is not a test request form.');
+
+            return;
+        }
+
+        $this->trfPdfUrl = $service->generateAndStore($this->instance);
+        session()->flash('request_view_message', 'TRF generated successfully.');
+    }
+
+    public function downloadTrfPdf(): ?\Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->trfPdfUrl === null || $this->trfPdfUrl === '') {
+            session()->flash('request_view_message', 'Generate the TRF first.');
+
+            return null;
+        }
+
+        $fullPath = storage_path('app'.$this->trfPdfUrl);
+        if (! is_file($fullPath)) {
+            session()->flash('request_view_message', 'TRF file was not found. Generate the TRF again.');
+            $this->trfPdfUrl = null;
+
+            return null;
+        }
+
+        $filename = basename($fullPath);
+
+        return response()->download($fullPath, $filename);
+    }
+
+    public function sendTrfPdfToCustomer(): void
+    {
+        $user = auth()->user();
+        $this->authorizeFormAccess($user);
+
+        if (! $this->isTrfForm()) {
+            session()->flash('request_view_message', 'This form is not a test request form.');
+
+            return;
+        }
+
+        if ($this->trfPdfUrl === null || $this->trfPdfUrl === '') {
+            session()->flash('request_view_message', 'Generate the TRF first.');
+
+            return;
+        }
+
+        $relativePath = $this->trfPdfUrl;
+
+        $contact = $this->commercialEnquiry?->contact;
+        if ($contact === null || empty($contact->email)) {
+            session()->flash('request_view_message', 'No customer contact email is available for this request.');
+
+            return;
+        }
+
+        $file = storage_path('app'.$relativePath);
+        if (! is_file($file)) {
+            session()->flash('request_view_message', 'TRF PDF file was not found. Generate the PDF first.');
+
+            return;
+        }
+
+        $formNumber = $this->instance->getDocumentControlNumber() ?? $this->instance->form_number ?? 'TRF';
+        $subject = 'Test Request Form '.$formNumber;
+        $body = 'Please find attached your test request form '.$formNumber.'.';
+
+        notify_user($body, $contact->email, $subject, $file);
+
+        session()->flash('request_view_message', 'TRF PDF sent to '.$contact->email.'.');
     }
 
     public function workflowBoardStatus(): string

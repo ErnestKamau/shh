@@ -121,7 +121,7 @@ class Phase10AnalyticalResultsSeeder extends Seeder
                             'analyte_code' => $element->analyte->code,
                             'result' => substr($resultText, 0, 100),
                             'guide' => $element->lod.' - '.$element->hod,
-                            'comments' => 'Generated from GCLA parameter matrix.',
+                            'comments' => 'Generated from AmSpec parameter matrix.',
                             'recheck' => false,
                             'guide_low' => $guideLow,
                             'guide_high' => $guideHigh,

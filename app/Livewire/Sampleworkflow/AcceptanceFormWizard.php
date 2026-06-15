@@ -685,6 +685,9 @@ class AcceptanceFormWizard extends Component
         $this->closeWizard();
 
         $batchId = (string) ($completedForm->sample_header_id ?? '');
+        $batchCode = $batchId !== ''
+            ? (string) (\App\SampleHeader::query()->where('id', $batchId)->value('batch_code') ?? '')
+            : '';
         $redirectUrl = $batchId !== ''
             ? route('view-batch-details', [
                 'batch' => $batchId,
@@ -694,7 +697,7 @@ class AcceptanceFormWizard extends Component
             ]) . '#laboratory-acceptance-part-5'
             : route('sample-workflow', ['status' => 'Samples In Lab']);
 
-        $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl);
+        $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl, batchCode: $batchCode);
         session()->flash('success', 'Acceptance form completed and batch moved to Samples In Lab.');
     }
 

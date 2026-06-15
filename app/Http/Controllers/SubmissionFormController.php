@@ -845,11 +845,18 @@ class SubmissionFormController extends Controller
 
             case 'analysis_type_select':
                 if ($sampleTypeId) {
-                    $analysisTypes = \App\AnalysisType::where('sample_type_id', $sampleTypeId)
-                        ->where('active', 1)
-                        ->where('company_id', getUserCompany())
-                        ->orderBy('name')
-                        ->get();
+                    $analysisTypesQuery = \App\AnalysisType::where('sample_type_id', $sampleTypeId)
+                        ->where('active', 1);
+
+                    $companyId = function_exists('getUserCompany') ? getUserCompany() : null;
+                    if ($companyId) {
+                        $analysisTypesQuery->where(function ($query) use ($companyId): void {
+                            $query->where('company_id', $companyId)
+                                ->orWhereNull('company_id');
+                        });
+                    }
+
+                    $analysisTypes = $analysisTypesQuery->orderBy('name')->get();
 
                     foreach ($analysisTypes as $analysisType) {
                         $options[] = [

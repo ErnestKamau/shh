@@ -105,7 +105,7 @@ class SubmissionRequestSampleLineService
 
     /**
      * @param  iterable<int, SubmissionFormElement>  $elements
-     * @return array<int, array<string, array{element: SubmissionFormElement, value: string, display_value: string}>>
+     * @return array<int, array<string, array{element: SubmissionFormElement, value: string, display_value: string, file_path: ?string}>>
      */
     private function groupHolderRows(SubmissionFormInstance $instance, iterable $elements): array
     {
@@ -128,6 +128,7 @@ class SubmissionRequestSampleLineService
                     'element' => $element,
                     'value' => (string) ($value->value ?? ''),
                     'display_value' => (string) $instance->resolveDisplayValue($element, $value->value),
+                    'file_path' => $value->file_path,
                 ];
             }
         }
@@ -136,37 +137,41 @@ class SubmissionRequestSampleLineService
     }
 
     /**
-     * @param  array<string, array{element: SubmissionFormElement, value: string, display_value: string}>  $cells
-     * @return array{
-     *     row_index: int,
-     *     customer_sample_id: ?string,
-     *     sample_type_id: ?string,
-     *     sample_type_name: ?string,
-     *     analysis_type_id: ?string,
-     *     analysis_type_name: ?string,
-     *     analysis_element_id: ?string,
-     *     parameter_label: ?string
-     * }
+     * @param  array<string, array{element: SubmissionFormElement, value: string, display_value: string, file_path: ?string}>  $cells
+     * @return array<string, mixed>
      */
     private function mapRowCells(int $rowIndex, array $cells): array
     {
         $line = [
             'row_index' => $rowIndex,
             'customer_sample_id' => null,
+            'sample_description' => null,
+            'parameter_category' => null,
             'sample_type_id' => null,
             'sample_type_name' => null,
             'analysis_type_id' => null,
             'analysis_type_name' => null,
             'analysis_element_id' => null,
             'parameter_label' => null,
+            'number_of_samples' => null,
+            'sample_condition' => null,
+            'state_of_sample' => null,
+            'sampling_point' => null,
+            'location' => null,
+            'production_date' => null,
+            'expiration_date' => null,
+            'batch_number' => null,
+            'picture_of_samples' => null,
+            'attributes' => [],
         ];
 
         foreach ($cells as $cell) {
             $element = $cell['element'];
             $rawValue = trim($cell['value']);
             $display = trim($cell['display_value']);
+            $filePath = $cell['file_path'] ?? null;
 
-            if ($rawValue === '' && $display === '') {
+            if ($rawValue === '' && $display === '' && $filePath === null) {
                 continue;
             }
 
@@ -174,13 +179,55 @@ class SubmissionRequestSampleLineService
             $name = Str::lower((string) $element->name);
             $mapping = Str::lower((string) ($element->mapping_field ?? ''));
 
-            match (true) {
-                $type === 'sample_type_select' => $this->applySampleType($line, $rawValue, $display),
-                $type === 'analysis_type_select' => $this->applyAnalysisType($line, $rawValue, $display),
-                $type === 'analysis_elements_select' => $this->applyAnalysisElement($line, $rawValue, $display),
-                $this->isCustomerSampleIdField($name, $mapping) => $line['customer_sample_id'] = $display !== '' ? $display : $rawValue,
-                default => null,
-            };
+            $mapped = true;
+
+            if ($type === 'sample_type_select') {
+                $this->applySampleType($line, $rawValue, $display);
+            } elseif ($type === 'analysis_type_select') {
+                $this->applyAnalysisType($line, $rawValue, $display);
+            } elseif ($type === 'analysis_elements_select') {
+                $this->applyAnalysisElement($line, $rawValue, $display);
+            } elseif ($name === 'sample_description') {
+                $line['sample_description'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'parameter_category') {
+                $line['parameter_category'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'lims_sample_no') {
+                $line['customer_sample_id'] = $display !== '' ? $display : $rawValue;
+            } elseif ($this->isCustomerSampleIdField($name, $mapping)) {
+                $line['customer_sample_id'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'number_of_samples') {
+                $line['number_of_samples'] = $this->resolveNumericValue($rawValue, $display);
+            } elseif ($name === 'sample_condition') {
+                $line['sample_condition'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'food_sample_type') {
+                $line['attributes']['food_sample_type'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'tests_requested') {
+                $line['attributes']['tests_requested'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'state_of_sample') {
+                $line['state_of_sample'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'sampling_point') {
+                $line['sampling_point'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'location') {
+                $line['location'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'production_date') {
+                $line['production_date'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'expiration_date') {
+                $line['expiration_date'] = $display !== '' ? $display : $rawValue;
+            } elseif ($name === 'batch_number') {
+                $line['batch_number'] = $display !== '' ? $display : $rawValue;
+            } elseif (in_array($name, ['picture_of_samples', 'picture_of_sample'], true)) {
+                $line['picture_of_samples'] = $filePath ?? ($display !== '' ? $display : $rawValue);
+            } else {
+                $mapped = false;
+            }
+
+            if (! $mapped) {
+                $this->applyAttributeField($line, (string) $element->name, $display !== '' ? $display : $rawValue);
+            }
+        }
+
+        if ($line['attributes'] === []) {
+            unset($line['attributes']);
         }
 
         return $line;
@@ -189,10 +236,44 @@ class SubmissionRequestSampleLineService
     /**
      * @param  array<string, mixed>  $line
      */
+    private function applyAttributeField(array &$line, string $fieldName, string $value): void
+    {
+        if ($value === '') {
+            return;
+        }
+
+        if (! isset($line['attributes'])) {
+            $line['attributes'] = [];
+        }
+
+        $line['attributes'][$fieldName] = $value;
+
+        $lowerName = Str::lower($fieldName);
+        if (Str::startsWith($lowerName, 'sample_condition_')) {
+            $label = Str::title(str_replace('_', ' ', Str::after($lowerName, 'sample_condition_')));
+            $existing = (string) ($line['sample_condition'] ?? '');
+            $line['sample_condition'] = trim($existing === '' ? $label : $existing.', '.$label);
+        }
+    }
+
+    private function resolveNumericValue(string $rawValue, string $display): ?int
+    {
+        $candidate = $rawValue !== '' ? $rawValue : $display;
+        if ($candidate === '' || ! is_numeric($candidate)) {
+            return null;
+        }
+
+        return max(1, (int) $candidate);
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
     private function rowHasAnalysisData(array $line): bool
     {
         return ! empty($line['analysis_type_id'])
-            || ! empty($line['analysis_element_id']);
+            || ! empty($line['analysis_element_id'])
+            || ! empty($line['sample_description']);
     }
 
     private function isCustomerSampleIdField(string $name, string $mapping): bool

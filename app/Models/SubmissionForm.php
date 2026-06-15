@@ -155,6 +155,31 @@ class SubmissionForm extends Model implements Auditable
     }
 
     /**
+     * Whether lab staff may fill this form in LIMS (e.g. Capture Samples).
+     * Portal-only forms without samples_receiving/admin_portal placement remain portal-exclusive.
+     */
+    public function isLimsFillable(): bool
+    {
+        if (! $this->is_customer_portal_form) {
+            return true;
+        }
+
+        $slots = $this->placement_slot ?? [];
+
+        foreach ($slots as $value) {
+            if (is_string($value) && in_array($value, ['samples_receiving', 'admin_portal'], true)) {
+                return true;
+            }
+
+            if (is_array($value) && in_array((string) ($value['slot_id'] ?? ''), ['samples_receiving', 'admin_portal'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Get the permissions for this submission form
      * 
      * @return \Illuminate\Database\Eloquent\Relations\HasMany

@@ -51,17 +51,17 @@ class Phase8AnalyticalParameterMatrixSeeder extends Seeder
         ['analysis_code' => 'ANA-ARS', 'analysis_name' => 'Arsenic Spectroscopic Scan', 'sample_code' => 'SMP-MTO', 'lab_code' => 'LAB-FTOX', 'analyte_code' => 'ALY-AS', 'analyte_name' => 'Arsenic Level', 'symbol' => 'Arsenic', 'unit' => 'ug/L', 'lod' => 0.5, 'hod' => 500.0, 'sig_figs' => 1, 'hours' => 24],
         ['analysis_code' => 'ANA-PBB', 'analysis_name' => 'Lead Blood Panel', 'sample_code' => 'SMP-FBL', 'lab_code' => 'LAB-FTOX', 'analyte_code' => 'ALY-LEAD', 'analyte_name' => 'Blood Lead Level', 'symbol' => 'BloodLead', 'unit' => 'ug/dL', 'lod' => 0.1, 'hod' => 80.0, 'sig_figs' => 1, 'hours' => 24],
 
-        // LAB-FD (Food and Drugs Lab) - 10 parameters
-        ['analysis_code' => 'ANA-FOOD', 'analysis_name' => 'Food Contaminant Screen', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-AFL', 'analyte_name' => 'Aflatoxin B1', 'symbol' => 'AFB1', 'unit' => 'ppb', 'lod' => 0.5, 'hod' => 20.0, 'sig_figs' => 2, 'hours' => 48],
-        ['analysis_code' => 'ANA-DRUG', 'analysis_name' => 'Drug Product Assay', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-API', 'analyte_name' => 'Active Pharmaceutical Ingredient', 'symbol' => 'API', 'unit' => '% label claim', 'lod' => 80.0, 'hod' => 120.0, 'sig_figs' => 2, 'hours' => 72],
-        ['analysis_code' => 'ANA-PEST', 'analysis_name' => 'Pesticide Residue Analysis', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-PEST', 'analyte_name' => 'Organophosphate Residue', 'symbol' => 'Pesticide', 'unit' => 'ppm', 'lod' => 0.01, 'hod' => 10.0, 'sig_figs' => 2, 'hours' => 48],
-        ['analysis_code' => 'ANA-FHM', 'analysis_name' => 'Heavy Metals in Food', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-FHM', 'analyte_name' => 'Cadmium Content', 'symbol' => 'Cadmium', 'unit' => 'mg/kg', 'lod' => 0.001, 'hod' => 5.0, 'sig_figs' => 3, 'hours' => 48],
-        ['analysis_code' => 'ANA-FMC', 'analysis_name' => 'Food Moisture Content', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-MOIS', 'analyte_name' => 'Moisture Percentage', 'symbol' => 'Moisture', 'unit' => '% w/w', 'lod' => 0.1, 'hod' => 95.0, 'sig_figs' => 2, 'hours' => 24],
-        ['analysis_code' => 'ANA-PRES', 'analysis_name' => 'Preservative Quantitative Assay', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-SO2', 'analyte_name' => 'Sulfur Dioxide Concentration', 'symbol' => 'SO2', 'unit' => 'mg/kg', 'lod' => 1.0, 'hod' => 2000.0, 'sig_figs' => 1, 'hours' => 48],
-        ['analysis_code' => 'ANA-DIS', 'analysis_name' => 'Dissolution Rate Assay', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-DIS', 'analyte_name' => 'Dissolution Percentage', 'symbol' => 'Dissolution', 'unit' => '% dissolved', 'lod' => 10.0, 'hod' => 100.0, 'sig_figs' => 1, 'hours' => 48],
-        ['analysis_code' => 'ANA-UNI', 'analysis_name' => 'Pharmaceutical Uniformity of Mass', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-UNI', 'analyte_name' => 'Mass Deviation', 'symbol' => 'MassDev', 'unit' => '% deviation', 'lod' => 0.0, 'hod' => 10.0, 'sig_figs' => 2, 'hours' => 24],
-        ['analysis_code' => 'ANA-DPH', 'analysis_name' => 'Drug PH Level', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-DPH', 'analyte_name' => 'pH Value', 'symbol' => 'DrugPH', 'unit' => 'pH units', 'lod' => 1.0, 'hod' => 14.0, 'sig_figs' => 2, 'hours' => 24],
-        ['analysis_code' => 'ANA-EXC', 'analysis_name' => 'Excipient Identification', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-FD', 'analyte_code' => 'ALY-EXC', 'analyte_name' => 'Excipient Purity', 'symbol' => 'Excipient', 'unit' => '% w/w', 'lod' => 10.0, 'hod' => 99.9, 'sig_figs' => 2, 'hours' => 48],
+        // LAB-AGF (Agri & Food Lab) - 10 parameters
+        ['analysis_code' => 'ANA-FOOD', 'analysis_name' => 'Food Contaminant Screen', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-AFL', 'analyte_name' => 'Aflatoxin B1', 'symbol' => 'AFB1', 'unit' => 'ppb', 'lod' => 0.5, 'hod' => 20.0, 'sig_figs' => 2, 'hours' => 48],
+        ['analysis_code' => 'ANA-DRUG', 'analysis_name' => 'Drug Product Assay', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-API', 'analyte_name' => 'Active Pharmaceutical Ingredient', 'symbol' => 'API', 'unit' => '% label claim', 'lod' => 80.0, 'hod' => 120.0, 'sig_figs' => 2, 'hours' => 72],
+        ['analysis_code' => 'ANA-PEST', 'analysis_name' => 'Pesticide Residue Analysis', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-PEST', 'analyte_name' => 'Organophosphate Residue', 'symbol' => 'Pesticide', 'unit' => 'ppm', 'lod' => 0.01, 'hod' => 10.0, 'sig_figs' => 2, 'hours' => 48],
+        ['analysis_code' => 'ANA-FHM', 'analysis_name' => 'Heavy Metals in Food', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-FHM', 'analyte_name' => 'Cadmium Content', 'symbol' => 'Cadmium', 'unit' => 'mg/kg', 'lod' => 0.001, 'hod' => 5.0, 'sig_figs' => 3, 'hours' => 48],
+        ['analysis_code' => 'ANA-FMC', 'analysis_name' => 'Food Moisture Content', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-MOIS', 'analyte_name' => 'Moisture Percentage', 'symbol' => 'Moisture', 'unit' => '% w/w', 'lod' => 0.1, 'hod' => 95.0, 'sig_figs' => 2, 'hours' => 24],
+        ['analysis_code' => 'ANA-PRES', 'analysis_name' => 'Preservative Quantitative Assay', 'sample_code' => 'SMP-FOOD', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-SO2', 'analyte_name' => 'Sulfur Dioxide Concentration', 'symbol' => 'SO2', 'unit' => 'mg/kg', 'lod' => 1.0, 'hod' => 2000.0, 'sig_figs' => 1, 'hours' => 48],
+        ['analysis_code' => 'ANA-DIS', 'analysis_name' => 'Dissolution Rate Assay', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-DIS', 'analyte_name' => 'Dissolution Percentage', 'symbol' => 'Dissolution', 'unit' => '% dissolved', 'lod' => 10.0, 'hod' => 100.0, 'sig_figs' => 1, 'hours' => 48],
+        ['analysis_code' => 'ANA-UNI', 'analysis_name' => 'Pharmaceutical Uniformity of Mass', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-UNI', 'analyte_name' => 'Mass Deviation', 'symbol' => 'MassDev', 'unit' => '% deviation', 'lod' => 0.0, 'hod' => 10.0, 'sig_figs' => 2, 'hours' => 24],
+        ['analysis_code' => 'ANA-DPH', 'analysis_name' => 'Drug PH Level', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-DPH', 'analyte_name' => 'pH Value', 'symbol' => 'DrugPH', 'unit' => 'pH units', 'lod' => 1.0, 'hod' => 14.0, 'sig_figs' => 2, 'hours' => 24],
+        ['analysis_code' => 'ANA-EXC', 'analysis_name' => 'Excipient Identification', 'sample_code' => 'SMP-DRUG', 'lab_code' => 'LAB-AGF', 'analyte_code' => 'ALY-EXC', 'analyte_name' => 'Excipient Purity', 'symbol' => 'Excipient', 'unit' => '% w/w', 'lod' => 10.0, 'hod' => 99.9, 'sig_figs' => 2, 'hours' => 48],
 
         // LAB-MIC (Microbiology Lab) - 10 parameters
         ['analysis_code' => 'ANA-MIC', 'analysis_name' => 'Total Viable Count', 'sample_code' => 'SMP-MIC', 'lab_code' => 'LAB-MIC', 'analyte_code' => 'ALY-TVC', 'analyte_name' => 'Total Viable Count', 'symbol' => 'TVC', 'unit' => 'CFU/g', 'lod' => 1.0, 'hod' => 100000.0, 'sig_figs' => 0, 'hours' => 72],
@@ -122,7 +122,7 @@ class Phase8AnalyticalParameterMatrixSeeder extends Seeder
                 $sampleType = $sampleTypes->get($row['sample_code']);
 
                 if (! $sampleType) {
-                    $this->command?->warning("Skipped {$row['analysis_code']}: missing sample type.");
+                    $this->command?->warn("Skipped {$row['analysis_code']}: missing sample type.");
                     continue;
                 }
 
@@ -149,7 +149,7 @@ class Phase8AnalyticalParameterMatrixSeeder extends Seeder
                     ->get();
 
                 if ($matchingLabs->isEmpty()) {
-                    $this->command?->warning("No matching physical labs found for code: {$row['lab_code']}");
+                    $this->command?->warn("No matching physical labs found for code: {$row['lab_code']}");
                     continue;
                 }
 

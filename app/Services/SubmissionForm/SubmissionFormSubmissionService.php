@@ -123,7 +123,7 @@ class SubmissionFormSubmissionService
             if ($request->has($fieldName) && is_array($request->input($fieldName))) {
                 if ($this->isMultipleSelectField($element, $request)) {
                     $rules[$fieldName] = $elementRules;
-                    $rules[$fieldName.'.*'] = ['array'];
+                    $rules[$fieldName.'.*'] = ['nullable', 'string'];
                 } else {
                     $rules[$fieldName.'.*'] = $elementRules;
                 }

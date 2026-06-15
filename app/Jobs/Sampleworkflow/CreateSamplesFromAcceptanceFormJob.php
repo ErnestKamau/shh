@@ -2,6 +2,8 @@
 
 namespace App\Jobs\Sampleworkflow;
 
+use App\AnalysisElements;
+use App\AnalysisType;
 use App\Invoice;
 use App\InvoiceDetails;
 use App\Models\CRM\CRMCustomer;
@@ -12,6 +14,7 @@ use App\SampleDate;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\Services\Billing\InvoiceNumberGenerator;
+use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService;
@@ -25,6 +28,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 
 class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 {
@@ -108,13 +112,16 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                     ? $sampleConfigService->buildDetailPlansFromConfigs($configPayload)
                     : $this->buildDetailPlans($approvedLines, max(1, (int) $form->number_of_samples));
 
+                $elementFlagOverrides = $this->resolveElementFlagOverrides($form, $candidateIds);
+
                 $details = $this->createSampleDetails(
                     $header,
                     $batchCode,
                     $detailPlans,
                     $analysisSetupService,
                     $form->created_by ? (string) $form->created_by : null,
-                    $approvedLines
+                    $approvedLines,
+                    $elementFlagOverrides,
                 );
 
                 $targetDate = SampleDate::query()
@@ -124,7 +131,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
                 $targetDate->sample_header_id = $header->id;
                 $targetDate->name = 'Target Date';
-                $targetDate->date = now()->addDays(7)->format('Y-m-d');
+                $targetDate->date = $this->calculateTargetDate($header, $approvedLines, (string) $form->mode_of_work);
                 $targetDate->save();
 
                 $invoice = $this->createInvoiceFromForm($form, $header, $details, $pricingService, $invoiceNumberGenerator);
@@ -234,7 +241,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         array $detailPlans,
         SampleAnalysisSetupService $analysisSetupService,
         ?string $actingUserId = null,
-        $approvedLines = null
+        $approvedLines = null,
+        ?array $elementFlagOverrides = null,
     ): array {
         $usesLegacyCountShape = isset($detailPlans[0]['count']);
         $totalDetails = $usesLegacyCountShape
@@ -328,7 +336,8 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                         $analysisTypeId,
                         $sampleCode,
                         $actingUserId,
-                        is_array($elementFilter) && $elementFilter !== [] ? $elementFilter : null
+                        is_array($elementFilter) && $elementFilter !== [] ? $elementFilter : null,
+                        $elementFlagOverrides,
                     );
                 }
 
@@ -459,6 +468,76 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         return $details[0] ?? null;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, string>  $candidateIds
+     * @return array<string, array{accredited: bool, subcontracted: bool}>
+     */
+    private function resolveElementFlagOverrides(AnalysisAcceptanceForm $form, \Illuminate\Support\Collection $candidateIds): array
+    {
+        $readinessService = app(EnquiryReceptionReadinessService::class);
+
+        foreach ($candidateIds as $requestId) {
+            $submissionRequest = \App\Models\SampleSubmissionRequest::find($requestId);
+            if ($submissionRequest === null) {
+                continue;
+            }
+
+            $quotation = $readinessService->resolveAcceptedQuotation($submissionRequest);
+            $flags = $readinessService->resolveElementFlagsFromQuotation($quotation);
+            if ($flags !== []) {
+                return $flags;
+            }
+        }
+
+        if ($form->sample_submission_request_id) {
+            $submissionRequest = \App\Models\SampleSubmissionRequest::find($form->sample_submission_request_id);
+            if ($submissionRequest !== null) {
+                return $readinessService->resolveElementFlagsFromQuotation(
+                    $readinessService->resolveAcceptedQuotation($submissionRequest)
+                );
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, AnalysisAcceptanceFormLine>  $approvedLines
+     */
+    private function calculateTargetDate(SampleHeader $header, \Illuminate\Support\Collection $approvedLines, string $modeOfWork): string
+    {
+        $analysisTypeIds = $approvedLines
+            ->pluck('analysis_type_id')
+            ->filter()
+            ->unique()
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+
+        $maxReportingTime = 7;
+
+        if ($analysisTypeIds !== []) {
+            $analysisMaxReportingTime = (int) (AnalysisType::query()
+                ->whereIn('id', $analysisTypeIds)
+                ->max('reporting_time') ?? 0);
+            $elementsMaxReportingTime = (int) (AnalysisElements::query()
+                ->whereIn('analysis_type_id', $analysisTypeIds)
+                ->max('reporting_time') ?? 0);
+
+            $maxReportingTime = max(1, $analysisMaxReportingTime, $elementsMaxReportingTime);
+        }
+
+        if (strtolower($modeOfWork) === 'express') {
+            $maxReportingTime = max(1, (int) ceil($maxReportingTime * 0.75));
+        }
+
+        $baseDate = $header->receipt_date
+            ? Carbon::parse($header->receipt_date)
+            : now();
+
+        return $baseDate->copy()->addDays($maxReportingTime)->format('Y-m-d');
     }
 
 }

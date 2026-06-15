@@ -21,6 +21,10 @@ Route::prefix('v1/portal/submissions')
         Route::get('/forms', [SubmissionFormController::class, 'index'])->name('api.portal.submissions.forms.index');
         Route::get('/forms/customer-request', [SubmissionFormController::class, 'customerRequest'])
             ->name('api.portal.submissions.forms.customer-request');
+        Route::get('/forms/test-request-templates', [SubmissionFormController::class, 'testRequestTemplates'])
+            ->name('api.portal.submissions.forms.test-request-templates');
+        Route::get('/forms/resolve-test-request', [SubmissionFormController::class, 'resolveTestRequest'])
+            ->name('api.portal.submissions.forms.resolve-test-request');
         Route::get('/options', [PortalSubmissionOptionsController::class, 'index'])
             ->name('api.portal.submissions.options');
 

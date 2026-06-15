@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 use OwenIt\Auditing\Contracts\Auditable;
 
+use App\AnalysisType;
 use App\Concerns\HasVarcharUuidRelationships;
 use App\User;
 use App\Models\CRM\CRMCustomer;
@@ -111,6 +112,11 @@ class SubmissionFormInstance extends Model implements Auditable
     public function crmCustomer(): BelongsTo
     {
         return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
+    }
+
+    public function sampleSubmissionRequest(): HasOne
+    {
+        return $this->hasOne(SampleSubmissionRequest::class, 'submission_form_instance_id');
     }
 
     /**
@@ -343,7 +349,11 @@ class SubmissionFormInstance extends Model implements Auditable
             return null;
         }
 
-        return $this->resolveDisplayValue($instanceValue->element, $instanceValue->value);
+        return $this->resolveDisplayValue(
+            $instanceValue->element,
+            $instanceValue->value,
+            $instanceValue->array_index !== null ? (int) $instanceValue->array_index : null,
+        );
     }
 
     /**
@@ -1141,7 +1151,11 @@ class SubmissionFormInstance extends Model implements Auditable
                             'value' => $value->value,
                             'array_index' => $value->array_index ?? 0,
                             'file_path' => $value->file_path,
-                            'display_value' => $this->resolveDisplayValue($element, $value->value)
+                            'display_value' => $this->resolveDisplayValue(
+                                $element,
+                                $value->value,
+                                $value->array_index !== null ? (int) $value->array_index : null,
+                            )
                         ];
                     }
 
@@ -1254,7 +1268,7 @@ class SubmissionFormInstance extends Model implements Auditable
      * Resolve display value for custom field elements
      * Converts IDs to actual names/labels from the database
      */
-    public function resolveDisplayValue($element, $value)
+    public function resolveDisplayValue($element, $value, ?int $arrayIndex = null)
     {
         if (empty($value)) {
             return 'N/A';
@@ -1313,8 +1327,8 @@ class SubmissionFormInstance extends Model implements Auditable
 
         if ($isParameterLikeField && !empty($tokens)) {
             $resolved = collect($tokens)
-                ->map(function ($token) {
-                    return $this->resolveParameterToken((string) $token);
+                ->map(function ($token) use ($element, $elementType, $arrayIndex) {
+                    return $this->resolveReferenceLabel($element, $elementType, (string) $token, $arrayIndex);
                 })
                 ->filter()
                 ->unique()
@@ -1334,14 +1348,164 @@ class SubmissionFormInstance extends Model implements Auditable
             foreach ($ids as $id) {
                 $id = trim($id);
                 if (!empty($id)) {
-                    $resolvedValues[] = $this->resolveSingleValue($elementType, $id);
+                    $resolvedValues[] = $this->resolveReferenceLabel($element, $elementType, $id, $arrayIndex);
                 }
             }
 
             return implode(', ', $resolvedValues);
         }
 
-        return $this->resolveSingleValue($elementType, $value);
+        return $this->resolveReferenceLabel($element, $elementType, (string) $value, $arrayIndex);
+    }
+
+    private function resolveReferenceLabel($element, string $elementType, string $rawValue, ?int $arrayIndex): string
+    {
+        $rawValue = trim($rawValue);
+        if ($rawValue === '') {
+            return 'N/A';
+        }
+
+        $resolved = $elementType === 'analysis_elements_select'
+            ? $this->resolveParameterToken($rawValue)
+            : $this->resolveSingleValue($elementType, $rawValue);
+
+        if ($this->isUnresolvedReference($rawValue, $resolved)) {
+            $fallback = $this->resolveEnquirySampleLineLabel($element, $rawValue, $arrayIndex ?? 0);
+            if ($fallback !== null && $fallback !== '') {
+                return $fallback;
+            }
+        }
+
+        return $resolved;
+    }
+
+    private function isUnresolvedReference(string $rawValue, string $resolved): bool
+    {
+        $rawValue = trim($rawValue);
+        $resolved = trim($resolved);
+
+        return $resolved === '' || strcasecmp($resolved, $rawValue) === 0;
+    }
+
+    private function resolveEnquirySampleLineLabel($element, string $rawValue, int $arrayIndex): ?string
+    {
+        $enquiry = $this->linkedCommercialEnquiry();
+        if ($enquiry === null) {
+            return null;
+        }
+
+        $lines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        $line = collect($lines)->first(
+            fn (array $row, int $index): bool => (int) ($row['sort_order'] ?? $index) === $arrayIndex
+        ) ?? ($lines[$arrayIndex] ?? null);
+
+        if (! is_array($line)) {
+            return null;
+        }
+
+        $name = Str::lower((string) ($element->name ?? ''));
+        $type = (string) ($element->element_type ?? '');
+
+        if ($type === 'sample_type_select' || $name === 'sample_type_id') {
+            $label = trim((string) ($line['sample_type_name'] ?? ''));
+
+            return $label !== '' ? $label : null;
+        }
+
+        if ($type === 'analysis_elements_select' || Str::contains($name, ['parameter', 'parameters'])) {
+            $label = trim((string) ($line['parameter_label'] ?? ''));
+            if ($label !== '') {
+                return $label;
+            }
+
+            return $this->requestedAnalysisLabel($enquiry, $rawValue);
+        }
+
+        if ($type === 'analysis_type_select' || $name === 'analysis_type_id') {
+            $label = trim((string) ($line['analysis_type_name'] ?? ''));
+            if ($label !== '') {
+                return $label;
+            }
+
+            $lookup = $this->lookupAnalysisTypeName($rawValue);
+            if ($lookup !== null) {
+                return $lookup;
+            }
+
+            return $this->inferAnalysisTypeNameFromLineContext($line);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function inferAnalysisTypeNameFromLineContext(array $line): ?string
+    {
+        $parameterLabel = trim((string) ($line['parameter_label'] ?? ''));
+        if ($parameterLabel === '') {
+            return null;
+        }
+
+        $query = DB::table('analysis_elements')
+            ->join('analytes', 'analytes.id', '=', 'analysis_elements.analyte_id')
+            ->join('analysis_types', 'analysis_types.id', '=', 'analysis_elements.analysis_type_id')
+            ->whereRaw('analytes.name ILIKE ?', [$parameterLabel]);
+
+        $sampleTypeName = trim((string) ($line['sample_type_name'] ?? ''));
+        if ($sampleTypeName !== '') {
+            $query->join('sample_types', 'sample_types.id', '=', 'analysis_types.sample_type_id')
+                ->whereRaw('sample_types.name ILIKE ?', [$sampleTypeName]);
+        }
+
+        $match = $query->select('analysis_types.name as name')->first();
+
+        return isset($match->name) && trim((string) $match->name) !== ''
+            ? trim((string) $match->name)
+            : null;
+    }
+
+    private function linkedCommercialEnquiry(): ?SampleSubmissionRequest
+    {
+        if ($this->relationLoaded('sampleSubmissionRequest') && $this->sampleSubmissionRequest !== null) {
+            return $this->sampleSubmissionRequest;
+        }
+
+        return SampleSubmissionRequest::query()
+            ->where('submission_form_instance_id', $this->id)
+            ->first();
+    }
+
+    private function requestedAnalysisLabel(SampleSubmissionRequest $enquiry, string $rawValue): ?string
+    {
+        $enquiry->loadMissing('requestedAnalyses');
+
+        foreach ($enquiry->requestedAnalyses as $analysis) {
+            if ((string) $analysis->analysis_element_id !== $rawValue
+                && (string) $analysis->analysis_type_id !== $rawValue) {
+                continue;
+            }
+
+            $label = trim((string) ($analysis->analysis_label ?? ''));
+            if ($label !== '') {
+                return $label;
+            }
+        }
+
+        return null;
+    }
+
+    private function lookupAnalysisTypeName(string $id): ?string
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return null;
+        }
+
+        $name = AnalysisType::query()->find($id)?->name;
+
+        return is_string($name) && trim($name) !== '' ? trim($name) : null;
     }
 
     /**
@@ -1506,9 +1670,16 @@ class SubmissionFormInstance extends Model implements Auditable
             return (string) $analyte->name;
         }
 
-        $analysisElement = DB::table('analysis_elements')
-            ->leftJoin('analytes', 'analytes.id', '=', 'analysis_elements.analyte_id')
-            ->where('analysis_elements.id', $id)
+        $analysisElementQuery = DB::table('analysis_elements')
+            ->leftJoin('analytes', 'analytes.id', '=', 'analysis_elements.analyte_id');
+
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            $analysisElementQuery->whereRaw('analysis_elements.id::text = ?', [$id]);
+        } else {
+            $analysisElementQuery->where('analysis_elements.id', $id);
+        }
+
+        $analysisElement = $analysisElementQuery
             ->select('analysis_elements.method as analysis_element_name', 'analytes.name as analyte_name')
             ->first();
 
@@ -1592,7 +1763,7 @@ class SubmissionFormInstance extends Model implements Auditable
                 $rowsData[$arrayIndex][$element->id] = [
                     'element' => $element,
                     'value' => $value,
-                    'display_value' => $this->resolveDisplayValue($element, $value->value)
+                    'display_value' => $this->resolveDisplayValue($element, $value->value, (int) $arrayIndex),
                 ];
             }
         }

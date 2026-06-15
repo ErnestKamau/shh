@@ -29,7 +29,7 @@
 @endif
 
 @section($isInline ? 'content' : ($useLabLayout ? 'content2' : 'content'))
-    @if(!$isInline)
+    @if(!$isInline && !$useLabLayout)
     <?php
       $items = array(
         array(
@@ -74,6 +74,17 @@
             {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
           </span>
         </div>
+      </div>
+    </div>
+    @elseif(!$isInline && $useLabLayout)
+    <div class="px-3 pt-3">
+      <div class="alert alert-info mb-0 p-2 p-md-3">
+        <i class="mdi mdi-information-outline"></i>
+        <strong>Form Instance:</strong>
+        <span class="d-block d-sm-inline">{{ $instance->getDocumentControlNumber() ?? 'New Submission' }} — {{ $instance->title }}</span>
+        <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-0 ml-sm-2 mt-1 mt-sm-0">
+          {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
+        </span>
       </div>
     </div>
     @endif
@@ -796,13 +807,17 @@
             
             // Make AJAX request
             const ajaxUrl = '{{ auth()->check() ? route("submission-forms.dynamic-options") : route("forms.dynamic-options") }}';
+            const resolvedAnalysisTypeId = Array.isArray(analysisTypeId)
+                ? (analysisTypeId[0] || null)
+                : analysisTypeId;
+
             const ajaxData = {
                 element_type: elementType,
                 client_id: clientId,
                 sample_type_id: sampleTypeId,
                 store_id: storeId,
                 client_unit_id: clientUnitId,
-                analysis_type_id: analysisTypeId,
+                analysis_type_id: resolvedAnalysisTypeId,
                 submission_form_id: '{{ $submissionForm->id }}'
             };
             
@@ -829,7 +844,12 @@
                     // Add options from response
                     if (response.options && response.options.length > 0) {
                         response.options.forEach(function(option) {
-                            html += '<option value="' + option.value + '">' + option.label + '</option>';
+                            const optionValue = option.value ?? option.id ?? '';
+                            const optionLabel = option.label ?? option.text ?? optionValue;
+                            if (!optionValue) {
+                                return;
+                            }
+                            html += '<option value="' + optionValue + '">' + optionLabel + '</option>';
                         });
                     } else {
                         if (html === '') {
@@ -1155,15 +1175,11 @@
         // Set up sample type change handler
         $('select[data-element-type="sample_type_select"]').on('change.custom-elements', function() {
             const sampleTypeId = $(this).val();
-            //console.log('Sample type changed to:', sampleTypeId);
             
-            // Find all dependent elements
-            let dependentElements = $(this).closest('tr').find('select[data-element-type="analysis_type_select"]');
-
-            if(dependentElements.length == 0){
-                // alert("Danger");
-                dependentElements = $(document).find('select[data-element-type="analysis_type_select"]');
-            }
+            const $row = $(this).closest('tr');
+            let dependentElements = $row.length
+                ? $row.find('select[data-element-type="analysis_type_select"]')
+                : $('select[data-element-type="analysis_type_select"]');
 
             //console.log('Found', dependentElements.length, 'sample type dependent elements');
             
@@ -1202,14 +1218,14 @@
         
         // Set up analysis type change handler
         $('select[data-element-type="analysis_type_select"]').on('change.custom-elements', function() {
-            const analysisTypeId = $(this).val();
-            //console.log('Analysis type changed to:', analysisTypeId);
+            const rawAnalysisTypeId = $(this).val();
+            const analysisTypeId = Array.isArray(rawAnalysisTypeId) ? (rawAnalysisTypeId[0] || '') : rawAnalysisTypeId;
             
-            // Find all dependent elements
+            // Find dependent elements in the same row only
             let dependentElements = $(this).closest('tr').find('select[data-element-type="analysis_elements_select"]');
 
-            if(dependentElements.length == 0){
-                dependentElements = $(document).find('select[data-element-type="analysis_elements_select"]');
+            if(dependentElements.length === 0){
+                dependentElements = $(this).closest('.form-group, .custom-element-wrapper, .rows-section').find('select[data-element-type="analysis_elements_select"]');
             }
 
             //console.log('Found', dependentElements.length, 'analysis type dependent elements');

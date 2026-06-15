@@ -15,6 +15,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLog;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLogItem;
+use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
 use App\Lab;
 use App\LabDecontaminationArea;
@@ -26,6 +27,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Throwable;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -44,6 +46,7 @@ class WorkflowBoard extends Component
     {
         return [
             'submitted' => 'Submitted Requests',
+            'ready_for_reception' => 'Ready for Reception',
             'received' => 'Received Request',
             'in_review' => 'In Review',
             'in_additional_info' => 'Request Additional Info',
@@ -448,7 +451,7 @@ class WorkflowBoard extends Component
     {
         return array_values(array_filter(
             array_keys(self::receivingRequestTabs()),
-            fn (string $key) => $key !== 'interzone_transfers'
+            fn (string $key) => ! in_array($key, ['interzone_transfers', 'ready_for_reception'], true)
         ));
     }
 
@@ -504,6 +507,26 @@ class WorkflowBoard extends Component
     protected function receivingSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
     {
         return static::receivingSubmissionFormsQuery();
+    }
+
+    /**
+     * Submission forms awaiting physical check-in (quotation accepted / ready for reception).
+     */
+    protected function readyForPhysicalReceptionSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = $this->receivingSubmissionFormsBaseQuery()
+            ->where('status', 'submitted')
+            ->whereDoesntHave('batches', function ($batchQuery) {
+                $batchQuery->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
+            });
+
+        $readyStatuses = EnquiryReceptionReadinessService::RECEPTION_READY_STATUSES;
+
+        $query->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($readyStatuses) {
+            $enquiryQuery->whereIn('status', $readyStatuses);
+        });
+
+        return $query;
     }
 
     protected function applyReceivingSubmissionFormFilters(\Illuminate\Database\Eloquent\Builder $query): void
@@ -575,6 +598,16 @@ class WorkflowBoard extends Component
         foreach ($this->receivingRequestTabKeys() as $tabKey) {
             if ($tabKey === 'interzone_transfers') {
                 $counts[$tabKey] = \App\Models\Sampleworkflow\InterzoneTransfer::query()->count();
+                continue;
+            }
+            if ($tabKey === 'submitted') {
+                $counts[$tabKey] = $this->commercialEnquiriesBaseQuery()->count();
+                continue;
+            }
+            if ($tabKey === 'ready_for_reception') {
+                $readyQuery = $this->readyForPhysicalReceptionSubmissionFormsQuery();
+                $this->applyReceivingSubmissionFormFilters($readyQuery);
+                $counts[$tabKey] = (int) $readyQuery->count();
                 continue;
             }
             $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
@@ -692,20 +725,25 @@ class WorkflowBoard extends Component
                 ? $this->workflowSubTab
                 : 'submitted';
 
-            $query = $this->receivingSubmissionFormsBaseQuery()
-                ->with([
-                    'submissionForm.sampleTypes',
-                    'submittedBy',
-                    'batches',
-                    'crmCustomer',
-                    'values.element',
-                    'latestIntray.toUser',
-                    'latestIntray.fromUser',
-                    'activePendingIntray',
-                ])
-                ->select('submission_form_instances.*')
-                ->where('status', $tabStatus)
-                ->selectSub(function ($subQuery) use ($driver) {
+            $eagerLoads = [
+                'submissionForm.sampleTypes',
+                'submittedBy',
+                'batches',
+                'crmCustomer',
+                'sampleSubmissionRequest',
+                'values.element',
+                'latestIntray.toUser',
+                'latestIntray.fromUser',
+                'activePendingIntray',
+            ];
+
+            $query = $this->workflowSubTab === 'ready_for_reception'
+                ? $this->readyForPhysicalReceptionSubmissionFormsQuery()
+                : $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus);
+
+            $query->with($eagerLoads)->select('submission_form_instances.*');
+
+            $query->selectSub(function ($subQuery) use ($driver) {
                     $subQuery->from('submission_form_instances as attachment_instances')
                         ->selectRaw('count(*)')
                         ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id' . ($driver === 'pgsql' ? '::text' : ''));
@@ -1246,6 +1284,48 @@ class WorkflowBoard extends Component
     }
 
     /**
+     * Commercial enquiry queue for Phase 1 (portal / walk-in LSR).
+     */
+    public function getCommercialEnquiriesProperty()
+    {
+        if (! $this->isSamplesReceiving() || $this->workflowSubTab !== 'submitted') {
+            return null;
+        }
+
+        $query = $this->commercialEnquiriesBaseQuery()
+            ->with(['customer', 'contact', 'currentQuotation', 'submissionFormInstance.submissionForm'])
+            ->orderByDesc('created_at');
+
+        if (! empty($this->search)) {
+            $search = '%'.$this->search.'%';
+            $query->where(function ($q) use ($search): void {
+                $q->where('unique_identification', 'like', $search)
+                    ->orWhere('reference_number', 'like', $search)
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $search));
+            });
+        }
+
+        return $query->paginate($this->batchesPerPage, ['*'], 'commercial_enquiries_page');
+    }
+
+    protected function commercialEnquiriesBaseQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $excludedStatuses = [
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+        ];
+
+        $statuses = array_values(array_filter(
+            SampleSubmissionRequest::COMMERCIAL_PIPELINE_STATUSES,
+            fn (string $status): bool => ! in_array($status, $excludedStatuses, true)
+        ));
+
+        return SampleSubmissionRequest::query()
+            ->whereIn('status', $statuses)
+            ->whereNull('sample_header_id');
+    }
+
+    /**
      * Computed list of portal submission requests for the Sample Receiving Requests tab.
      * Shows SampleSubmissionRequest records that have been submitted but not yet assigned to a batch.
      */
@@ -1402,6 +1482,30 @@ class WorkflowBoard extends Component
         );
     }
 
+    /**
+     * @param  array<int, string>  $ids
+     */
+    public function openProcessEnquiryModal(array $ids = []): void
+    {
+        $enquiryId = trim((string) ($ids[0] ?? ''));
+        if ($enquiryId === '') {
+            return;
+        }
+
+        $this->dispatch('process-enquiry-open', enquiryId: $enquiryId);
+    }
+
+    public function onProcessEnquiryCompleted(): void
+    {
+        // Livewire will re-render lists on next request; nothing else required.
+    }
+
+    #[On('process-enquiry-completed')]
+    public function handleProcessEnquiryCompleted(): void
+    {
+        $this->onProcessEnquiryCompleted();
+    }
+
     public function onReceiveCompleted(): void
     {
         $this->selectedFormInstanceIds = [];
@@ -1416,7 +1520,7 @@ class WorkflowBoard extends Component
     protected function buildReceiveFormSummaries(array $ids): array
     {
         return SubmissionFormInstance::query()
-            ->with(['crmCustomer', 'submittedBy', 'submissionForm'])
+            ->with(['crmCustomer', 'submittedBy', 'submissionForm', 'sampleSubmissionRequest'])
             ->whereIn('id', $ids)
             ->get()
             ->map(function (SubmissionFormInstance $instance): array {
@@ -1772,6 +1876,7 @@ class WorkflowBoard extends Component
             'customers' => $this->customers,
             'submissionFormAttachmentTypeId' => $this->submissionFormAttachmentTypeId,
             'portalSubmissions' => $this->portalSubmissions,
+            'commercialEnquiries' => $this->commercialEnquiries,
             'samplesReceptionStats' => $this->samplesReceptionStats,
             'receivingRequestTabs' => self::receivingRequestTabs(),
             'receivingRequestTabCounts' => $this->receivingRequestTabCounts,

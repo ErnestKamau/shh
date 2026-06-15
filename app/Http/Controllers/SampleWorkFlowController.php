@@ -176,6 +176,11 @@ class SampleWorkFlowController extends Controller
 
     public function showSampleSubmissionRequest(\App\Models\SampleSubmissionRequest $request): \Illuminate\Http\RedirectResponse|\Illuminate\View\View
     {
+        if ($request->isCommercialEnquiry() && ! $request->submission_form_instance_id) {
+            app(\App\Services\Commercial\PortalEnquiryFormInstanceSyncService::class)->syncFromEnquiry($request);
+            $request->refresh();
+        }
+
         $request->load([
             'batch',
             'customer',
@@ -186,7 +191,17 @@ class SampleWorkFlowController extends Controller
             'supportingDocumentTemplates',
             'supportingDocumentInstances.template',
             'workflowForms',
+            'submissionFormInstance.submissionForm',
         ]);
+
+        $linkedInstance = $request->resolveLinkedFormInstance();
+
+        if ($linkedInstance?->submissionForm) {
+            return redirect()->route('submission-forms.instances.show', [
+                $linkedInstance->submissionForm,
+                $linkedInstance,
+            ]);
+        }
 
         if ($request->batch && ! request()->boolean('details')) {
             return redirect()->route('view-batch-details', [
@@ -7774,7 +7789,7 @@ class SampleWorkFlowController extends Controller
                 'form_number' => null,
                 'sequence_number' => null,
                 'due_date' => now()->addDays(7), // Default 7 days from now
-                'priority' => 'medium'
+                'priority' => 'normal'
             ]);
 
             return response()->json([

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Portal\Submissions\StoreSubmissionFormInstanceRequest;
 use App\Http\Requests\Api\Portal\Submissions\SubmitSubmissionFormInstanceRequest;
 use App\Models\SubmissionFormInstance;
+use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\SubmissionForm\FormSchemaBuilder;
 use App\Services\SubmissionForm\PortalDependedFieldResolver;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
@@ -249,6 +250,24 @@ class SubmissionFormInstanceController extends Controller
         $instanceModel = $this->findAuthorizedInstance($request, $instance);
 
         if ($instanceModel->status !== 'draft') {
+            if (in_array($instanceModel->status, ['submitted', 'Submitted'], true)) {
+                $instanceModel->load(['submissionForm', 'values.element', 'crmCustomer']);
+
+                try {
+                    app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance($instanceModel);
+                } catch (\Throwable $th) {
+                    Log::warning('Commercial enquiry sync failed for already-submitted portal instance.', [
+                        'instance_id' => $instanceModel->id,
+                        'message' => $th->getMessage(),
+                    ]);
+                }
+
+                return response()->json([
+                    'data' => $this->buildInstanceResponse($instanceModel, includeValues: true),
+                    'message' => 'Form was already submitted.',
+                ]);
+            }
+
             throw ValidationException::withMessages([
                 'action' => ['This submission has already been finalized.'],
             ]);
@@ -297,7 +316,16 @@ class SubmissionFormInstanceController extends Controller
             throw $e;
         }
 
-        $instanceModel->load(['submissionForm', 'values.element']);
+        $instanceModel->load(['submissionForm', 'values.element', 'crmCustomer']);
+
+        try {
+            app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance($instanceModel);
+        } catch (\Throwable $th) {
+            Log::warning('Commercial enquiry sync failed after portal form submit.', [
+                'instance_id' => $instanceModel->id,
+                'message' => $th->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'data' => $this->buildInstanceResponse($instanceModel, includeValues: true),
@@ -402,7 +430,7 @@ class SubmissionFormInstanceController extends Controller
         }
 
         $payload['fields'] = $instance->values
-            ->map(function ($value): array {
+            ->map(function ($value) use ($instance): array {
                 $element = $value->element;
                 $file = null;
 
@@ -420,7 +448,13 @@ class SubmissionFormInstanceController extends Controller
                     'type' => $element?->element_type,
                     'array_index' => $value->array_index,
                     'value' => $value->value,
-                    'display_value' => $value->getDisplayValue(),
+                    'display_value' => $element
+                        ? $instance->resolveDisplayValue(
+                            $element,
+                            $value->value,
+                            $value->array_index !== null ? (int) $value->array_index : null,
+                        )
+                        : $value->getDisplayValue(),
                     'file' => $file,
                 ];
             })

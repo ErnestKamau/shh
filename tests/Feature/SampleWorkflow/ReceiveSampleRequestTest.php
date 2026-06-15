@@ -3,11 +3,13 @@
 namespace Tests\Feature\SampleWorkflow;
 
 use App\Livewire\Sampleworkflow\ReceiveSampleRequest;
+use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\Workflow\Approval;
 use App\Models\Workflow\ApprovalLog;
 use App\Models\Workflow\ChecklistResponse;
+use App\QuotationHeader;
 use App\Services\WorkflowService;
 use App\Models\System\SystemConfiguration;
 use App\User;
@@ -114,6 +116,53 @@ class ReceiveSampleRequestTest extends TestCase
         );
     }
 
+    public function test_confirm_receive_blocks_commercial_trf_without_accepted_quotation(): void
+    {
+        $form = $this->createCommercialTrfForm();
+        $instance = $this->createSubmittedInstance($form);
+        $this->createEnquiryForInstance($instance, SampleSubmissionRequest::STATUS_QUOTATION_SENT);
+
+        $itemIds = $this->approval->fresh('checklistItems')->checklistItems->pluck('id')->all();
+        $responses = array_fill_keys($itemIds, true);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [$instance->id],
+            ])
+            ->set('responses', $responses)
+            ->call('confirmReceive')
+            ->assertHasErrors(['selection']);
+
+        $this->assertSame('submitted', $instance->fresh()->status);
+    }
+
+    public function test_confirm_receive_allows_commercial_trf_when_ready_for_reception(): void
+    {
+        $form = $this->createCommercialTrfForm();
+        $instance = $this->createSubmittedInstance($form);
+        $quotation = QuotationHeader::query()->create([
+            'id' => (string) Str::uuid7(),
+            'quote_number' => 'AMSQ260609-001',
+            'quote_date' => now()->toDateString(),
+            'sent_to_customer_at' => now(),
+            'status' => 'Quote Complete',
+        ]);
+        $this->createEnquiryForInstance($instance, SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION, $quotation->id);
+
+        $itemIds = $this->approval->fresh('checklistItems')->checklistItems->pluck('id')->all();
+        $responses = array_fill_keys($itemIds, true);
+
+        Livewire::actingAs($this->user)
+            ->test(ReceiveSampleRequest::class, [
+                'selectedFormInstanceIds' => [$instance->id],
+            ])
+            ->set('responses', $responses)
+            ->call('confirmReceive')
+            ->assertDispatched('receive-completed');
+
+        $this->assertSame('received', $instance->fresh()->status);
+    }
+
     public function test_confirm_receive_applies_same_checklist_to_multiple_instances(): void
     {
         $form = $this->createTemplateForm();
@@ -181,6 +230,28 @@ class ReceiveSampleRequestTest extends TestCase
         ]);
     }
 
+    private function createCommercialTrfForm(): SubmissionForm
+    {
+        return SubmissionForm::query()->create([
+            'id' => (string) Str::uuid7(),
+            'name' => 'Test Request Form — Water',
+            'document_code' => 'TRF-WATER',
+            'description' => 'Commercial TRF',
+            'naming_convention_prefix' => 'TRF',
+            'naming_convention_format' => '{prefix}/{year}/{sequence}',
+            'is_published' => true,
+            'is_active' => true,
+            'is_customer_portal_form' => true,
+            'version' => '1.0',
+            'issue_date' => now()->toDateString(),
+            'form_type' => 'template',
+            'placement_mode' => 'button_trigger',
+            'display_mode' => 'expanded',
+            'target_pages' => [],
+            'lims_destination_pages' => ['sample-workflow'],
+        ]);
+    }
+
     private function createSubmittedInstance(SubmissionForm $form, array $overrides = []): SubmissionFormInstance
     {
         return SubmissionFormInstance::query()->create(array_merge([
@@ -193,5 +264,25 @@ class ReceiveSampleRequestTest extends TestCase
             'submitted_by' => $this->user->id,
             'priority' => 'normal',
         ], $overrides));
+    }
+
+    private function createEnquiryForInstance(
+        SubmissionFormInstance $instance,
+        string $status,
+        ?string $acceptedQuotationId = null,
+    ): SampleSubmissionRequest {
+        return SampleSubmissionRequest::query()->create([
+            'id' => (string) Str::uuid7(),
+            'submission_form_instance_id' => $instance->id,
+            'status' => $status,
+            'source_channel' => 'portal',
+            'accepted_quotation_header_id' => $acceptedQuotationId,
+            'current_quotation_header_id' => $acceptedQuotationId,
+            'quotation_accepted_at' => in_array($status, [
+                SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+                SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            ], true) ? now() : null,
+            'number_of_samples' => 1,
+        ]);
     }
 }

@@ -13,7 +13,7 @@ class GCLA01FormSeeder extends Seeder
     public function run()
     {
         $targetName = 'SAMPLE RECEIPT NOTIFICATION';
-        $targetCode = 'GCLA 01';
+        $targetCode = 'AMSPEC 01';
 
         $formByName = SubmissionForm::where('name', $targetName)->first();
         $formByCode = SubmissionForm::where('document_code', $targetCode)->first();
@@ -56,9 +56,9 @@ class GCLA01FormSeeder extends Seeder
         $form->fill([
             'name' => $targetName,
             'document_code' => $targetCode,
-            'description' => 'THE UNITED REPUBLIC OF TANZANIA - GOVERNMENT CHEMIST LABORATORY AUTHORITY',
-            'naming_convention_prefix' => 'GCLA01',
-            'naming_convention_format' => 'GCLA01-{YYYY}{MM}-{0000}',
+            'description' => 'AmSpec Middle East - Sample Receipt Notification',
+            'naming_convention_prefix' => 'AMSPEC01',
+            'naming_convention_format' => 'AMSPEC01-{YYYY}{MM}-{0000}',
             'is_published' => true,
             'is_active' => true,
             'is_customer_portal_form' => false,
@@ -91,7 +91,7 @@ class GCLA01FormSeeder extends Seeder
             $this->command->warn('Failed to clear cache: ' . $e->getMessage());
         }
 
-        $this->command->info('GCLA 01 Form seeded/updated successfully.');
+        $this->command->info('AMSPEC 01 Form seeded/updated successfully.');
     }
 
     private function createFormSections($form)

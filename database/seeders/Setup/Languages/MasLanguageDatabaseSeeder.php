@@ -340,13 +340,13 @@ class MasLanguageDatabaseSeeder extends Seeder
     ),
     'brand_footer' => 
     array (
-      'en' => 'GCLA IMARA LIMS',
-      'sw' => 'GCLA IMARA LIMS',
+      'en' => 'AmSpec LIMS',
+      'sw' => 'AmSpec LIMS',
     ),
     'brand_name' => 
     array (
-      'en' => 'GCLA IMARA',
-      'sw' => 'GCLA IMARA',
+      'en' => 'AmSpec',
+      'sw' => 'AmSpec',
     ),
     'client' => 
     array (
@@ -2344,6 +2344,6 @@ class MasLanguageDatabaseSeeder extends Seeder
             }
         }
 
-        $this->command->info("MAS translations seeded: {$count} keys");
+        $this->command?->info("MAS translations seeded: {$count} keys");
     }
 }

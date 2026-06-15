@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Company;
+use Carbon\Carbon;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class ModuleReportsDataSeeder extends Seeder
 {
@@ -16,29 +18,19 @@ class ModuleReportsDataSeeder extends Seeder
     public function run()
     {
         // 1. Resolve active structural identifiers dynamically to preserve constraints
-        $company = \DB::table('companies')->first();
-        $companyId = $company ? $company->id : (string) Str::uuid();
-        if (!$company) {
-            \DB::table('companies')->insert([
-                'id' => $companyId,
-                'name' => 'GCLA Authority HQ',
-                'address' => 'Baraza la Mitihani Rd, Dar es Salaam',
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ]);
+        $uae = AmSpecSeedData::resolveUaeCountry();
+        $company = Company::query()->find(AmSpecSeedData::DUBAI_COMPANY_ID)
+            ?? Company::query()->where('active', true)->first();
+
+        if (! $company && $uae) {
+            $company = Company::query()->create(array_merge(
+                ['id' => AmSpecSeedData::DUBAI_COMPANY_ID],
+                AmSpecSeedData::dubaiCompanyAttributes($uae->id)
+            ));
         }
 
-        $country = \DB::table('countries')->first();
-        $countryId = $country ? $country->id : (string) Str::uuid();
-        if (!$country) {
-            \DB::table('countries')->insert([
-                'id' => $countryId,
-                'code' => 'TZ',
-                'name' => 'Tanzania',
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ]);
-        }
+        $companyId = $company?->id ?? (string) Str::uuid();
+        $countryId = $uae?->id ?? \DB::table('countries')->value('id') ?? (string) Str::uuid();
 
         // 2. Define valid UUID formats for all our seed master and transaction records (PostgreSQL compliance)
         $userId1 = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4101';
@@ -126,13 +118,13 @@ class ModuleReportsDataSeeder extends Seeder
         }
 
 
-        // 3. Seed Master & Filterable GCLA LIMS Entities
+        // 3. Seed Master & Filterable AmSpec LIMS Entities
         // Seed users/analysts/directors
         $users = [
             [
                 'id' => $userId1,
-                'name' => 'Dkt. John Doe (Chief Forensic Analyst)',
-                'email' => 'john.forensic@gcla.go.tz',
+                'name' => 'John Doe (Chief Analytical Chemist)',
+                'email' => 'john.analytical@amspecgroup.com',
                 'password' => bcrypt('password123'),
                 'company_id' => $companyId,
                 'active' => 1,
@@ -143,8 +135,8 @@ class ModuleReportsDataSeeder extends Seeder
             ],
             [
                 'id' => $userId2,
-                'name' => 'Prof. Jane Smith (Director of Quality)',
-                'email' => 'jane.quality@gcla.go.tz',
+                'name' => 'Jane Smith (Director of Quality)',
+                'email' => 'jane.quality@amspecgroup.com',
                 'password' => bcrypt('password123'),
                 'company_id' => $companyId,
                 'active' => 1,
@@ -158,24 +150,24 @@ class ModuleReportsDataSeeder extends Seeder
             \DB::table('users')->updateOrInsert(['id' => $user['id']], $user);
         }
 
-        // Seed GCLA Laboratories/Sections
+        // Seed AmSpec Laboratories/Sections
         $labs = [
             [
                 'id' => $labId1,
-                'name' => 'Forensic Biology Laboratory',
-                'code' => 'LAB-FB',
+                'name' => 'Fuels & LPG Laboratory',
+                'code' => 'LAB-FUEL',
                 'company_id' => $companyId,
-                'phone1' => '+255222110220',
+                'phone1' => '+971 4 323 0399',
                 'active' => 1,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
                 'id' => $labId2,
-                'name' => 'Toxicology & Drugs Lab',
-                'code' => 'LAB-TX',
+                'name' => 'Crude Oil Laboratory',
+                'code' => 'LAB-CRD',
                 'company_id' => $companyId,
-                'phone1' => '+255222110221',
+                'phone1' => '+971 4 323 0399',
                 'active' => 1,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
@@ -189,15 +181,15 @@ class ModuleReportsDataSeeder extends Seeder
         $customers = [
             [
                 'id' => $custId1,
-                'code' => 'CUST-TPF',
-                'name' => 'Tanzania Police Force',
-                'email' => 'tpf@police.go.tz',
-                'telephone1' => '+255222111222',
-                'telephone2' => '+255222111223',
-                'postal_address' => 'P.O. Box 9050, Dar es Salaam',
-                'physical_address' => 'Police HQ, Dar es Salaam',
-                'website' => 'https://www.police.go.tz',
-                'fax' => '+255222111223',
+                'code' => 'EXT-ENRG-001',
+                'name' => 'Emirates National Oil Company (ENOC)',
+                'email' => 'quality@enoc.ae',
+                'telephone1' => '+971 4 337 7700',
+                'telephone2' => '+971 50 123 4567',
+                'postal_address' => 'P.O. Box 6692, Dubai, UAE',
+                'physical_address' => 'ENOC Building, Sheikh Zayed Road, Dubai',
+                'website' => 'https://www.enoc.com',
+                'fax' => '+971 4 337 7701',
                 'country_id' => $countryId,
                 'company_id' => $companyId,
                 'active' => true,
@@ -206,15 +198,15 @@ class ModuleReportsDataSeeder extends Seeder
             ],
             [
                 'id' => $custId2,
-                'code' => 'CUST-MOH',
-                'name' => 'Ministry of Health Tanzania',
-                'email' => 'info@moh.go.tz',
-                'telephone1' => '+255222333444',
-                'telephone2' => '+255222333445',
-                'postal_address' => 'P.O. Box 9083, Dar es Salaam',
-                'physical_address' => 'MOH Building, Dar es Salaam',
-                'website' => 'https://www.moh.go.tz',
-                'fax' => '+255222111445',
+                'code' => 'EXT-ENRG-003',
+                'name' => 'Petrobras International',
+                'email' => 'dubai@petrobras.com',
+                'telephone1' => '+971 4 450 1200',
+                'telephone2' => '+971 50 987 6543',
+                'postal_address' => 'Dubai Multi Commodities Centre, Dubai, UAE',
+                'physical_address' => 'Jumeirah Lakes Towers, Cluster Y, Dubai',
+                'website' => 'https://www.petrobras.com',
+                'fax' => '+971 4 450 1201',
                 'country_id' => $countryId,
                 'company_id' => $companyId,
                 'active' => true,

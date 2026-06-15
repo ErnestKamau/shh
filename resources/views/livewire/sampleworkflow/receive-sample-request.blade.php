@@ -24,8 +24,89 @@
                     <span class="receive-sample-chip receive-sample-chip--muted">{{ count($selectedFormInstanceIds) }} request(s)</span>
                 @endif
             </div>
-            <p class="receive-sample-selected-hint">Complete every required item below to receive all selected requests.</p>
+            <p class="receive-sample-selected-hint">Verify the enquiry summary below, then complete every required checklist item to receive.</p>
         </section>
+
+        @if ($checkInContexts !== [])
+            <section class="receive-sample-checkin mb-3">
+                <header class="receive-sample-checklist-head mb-2">
+                    <h6 class="receive-sample-checklist-title mb-0">Check-in summary</h6>
+                </header>
+                @foreach ($checkInContexts as $context)
+                    <div class="card mb-2 border" wire:key="receive-context-{{ $context['instance_id'] ?? $loop->index }}">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap">
+                                <div>
+                                    <strong>{{ $context['form_number'] ?? 'Request' }}</strong>
+                                    @if (!empty($context['customer_name']))
+                                        <span class="text-muted"> — {{ $context['customer_name'] }}</span>
+                                    @endif
+                                </div>
+                                @if (!empty($context['source_channel']))
+                                    <span class="badge badge-light border text-uppercase">{{ str_replace('_', ' ', $context['source_channel']) }}</span>
+                                @endif
+                            </div>
+                            @if (! ($context['can_receive'] ?? true))
+                                <div class="alert alert-warning py-1 px-2 mt-2 mb-2 small">
+                                    {{ $context['receive_block_reason'] ?? 'This request cannot be received yet.' }}
+                                </div>
+                            @endif
+                            <dl class="row mb-0 small mt-2">
+                                @if (!empty($context['sample_description']))
+                                    <dt class="col-sm-4 mb-1">Sample description</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['sample_description'] }}</dd>
+                                @endif
+                                @if (!empty($context['number_of_samples']))
+                                    <dt class="col-sm-4 mb-1">Number of samples</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['number_of_samples'] }}</dd>
+                                @endif
+                                @if (!empty($context['sampling_date']))
+                                    <dt class="col-sm-4 mb-1">Sampling date</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['sampling_date'] }}</dd>
+                                @endif
+                                @if (!empty($context['sampling_location']))
+                                    <dt class="col-sm-4 mb-1">Sampling location</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['sampling_location'] }}</dd>
+                                @endif
+                                @if (!empty($context['sampling_apparatus']))
+                                    <dt class="col-sm-4 mb-1">Sampling apparatus</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['sampling_apparatus'] }}</dd>
+                                @endif
+                                @if (!empty($context['thermometer_id']))
+                                    <dt class="col-sm-4 mb-1">Thermometer</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['thermometer_id'] }}</dd>
+                                @endif
+                                @if (!empty($context['quotation_number']))
+                                    <dt class="col-sm-4 mb-1">Accepted quotation</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['quotation_number'] }}</dd>
+                                @endif
+                                @if (!empty($context['client_po_number']))
+                                    <dt class="col-sm-4 mb-1">Client PO</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['client_po_number'] }}</dd>
+                                @endif
+                                @if (!empty($context['advance_payment_reference']))
+                                    <dt class="col-sm-4 mb-1">Advance payment ref</dt>
+                                    <dd class="col-sm-8 mb-1">{{ $context['advance_payment_reference'] }}</dd>
+                                @endif
+                                @if (!empty($context['enquiry_status']))
+                                    <dt class="col-sm-4 mb-0">Enquiry status</dt>
+                                    <dd class="col-sm-8 mb-0">{{ $context['enquiry_status'] }}</dd>
+                                @endif
+                            </dl>
+                            <div class="mt-2">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    wire:click="openRejectWizard('{{ $context['instance_id'] }}')"
+                                >
+                                    <i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </section>
+        @endif
 
         @if ($approval)
             <section class="receive-sample-checklist">

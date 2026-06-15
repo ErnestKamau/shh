@@ -867,7 +867,7 @@
             <script>
                 if (!window.pricelistViewerInitialized) {
                     window.pricelistViewerInitialized = true;
-                    document.addEventListener('DOMContentLoaded', function() {
+                    (function initPricelistViewer() {
                         // Create single global modal dynamically if not exists
                         let modalId = 'globalPricelistModal';
                         if (!document.getElementById(modalId)) {
@@ -927,8 +927,16 @@
                             
                             const form = btn.closest('form') || document;
                             const clientSelect = form.querySelector('[data-element-type="client_select"]');
-                            const clientId = clientSelect ? clientSelect.value : null;
+                            let clientId = clientSelect ? clientSelect.value : null;
+                            if (!clientId && typeof $ !== 'undefined' && clientSelect) {
+                                clientId = $(clientSelect).val();
+                            }
                             
+                            if (typeof $ === 'undefined' || !$.fn || !$.fn.modal) {
+                                console.error('Pricelist viewer requires jQuery and Bootstrap modal.');
+                                return;
+                            }
+
                             $(`#${modalId}`).modal('show');
                             
                             document.getElementById(`${modalId}_loader`).style.display = 'block';
@@ -984,7 +992,7 @@
                                     console.error(err);
                                 });
                         });
-                    });
+                    })();
                 }
             </script>
             @endPushOnce

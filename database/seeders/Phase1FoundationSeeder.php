@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Company;
-use App\Country;
 use App\User;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -28,30 +28,28 @@ class Phase1FoundationSeeder extends Seeder
             $this->command?->info('STARTING PHASE 1 SEEDING: Foundation');
             $this->command?->info('====================================================');
 
-            $tanzania = Country::query()->where('name', 'like', '%Tanzania%')->first()
-                ?? Country::query()->where('name', 'like', '%Kenya%')->first()
-                ?? Country::query()->first();
+            $uae = AmSpecSeedData::resolveUaeCountry();
+            $brazil = AmSpecSeedData::resolveBrazilCountry();
 
-            $company = Company::query()->first();
-            if (! $company) {
-                $company = Company::query()->create([
-                    'name' => 'Government Chemist Laboratory Authority',
-                    'logo' => '/images/no-logo.png',
-                    'location' => 'Dar es Salaam, Tanzania',
-                    'address' => 'P.O. Box 164, Dar es Salaam',
-                    'country_id' => $tanzania?->id,
-                    'website' => 'https://www.gcla.go.tz',
-                    'email' => 'gcla@gcla.go.tz',
-                    'cell_phone' => '+255222113383',
-                    'telephone' => '+255222113384',
-                    'street' => 'Luthuli Street',
-                    'active' => true,
-                    'show_on_reports' => true,
-                ]);
+            $company = Company::query()->find(AmSpecSeedData::DUBAI_COMPANY_ID);
+            if (! $company && $uae) {
+                $company = Company::query()->create(array_merge(
+                    ['id' => AmSpecSeedData::DUBAI_COMPANY_ID],
+                    AmSpecSeedData::dubaiCompanyAttributes($uae->id)
+                ));
 
                 $this->command?->info("Created base company: {$company->name}");
-            } else {
+            } elseif ($company) {
                 $this->command?->info("Using existing base company: {$company->name}");
+            }
+
+            if ($brazil && ! Company::query()->find(AmSpecSeedData::BRAZIL_COMPANY_ID)) {
+                Company::query()->create(array_merge(
+                    ['id' => AmSpecSeedData::BRAZIL_COMPANY_ID],
+                    AmSpecSeedData::brazilCompanyAttributes($brazil->id)
+                ));
+
+                $this->command?->info('Created Brazil company: AmSpec Rio Crude Oil Center');
             }
 
             $templateUser = User::query()->where('active', 1)->first() ?? User::query()->first();

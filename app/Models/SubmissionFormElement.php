@@ -408,10 +408,10 @@ class SubmissionFormElement extends Model implements Auditable
 
         $options = [];
         foreach ($contacts as $contact) {
-            $fullName = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);
+            $fullName = trim($contact->first_name.' '.$contact->middle_name.' '.$contact->last_name);
             $options[] = [
                 'value' => $contact->id,
-                'label' => $fullName . ' (' . $contact->email . ')'
+                'label' => $fullName !== '' ? $fullName : 'Contact',
             ];
         }
         return $options;

@@ -60,7 +60,8 @@ class SampleAnalysisSetupService
         string $analysisTypeId,
         string $sampleCode,
         ?string $actingUserId = null,
-        ?array $analysisElementIds = null
+        ?array $analysisElementIds = null,
+        ?array $elementFlagOverrides = null,
     ): void {
         $query = AnalysisElements::query()
             ->where('analysis_type_id', $analysisTypeId)
@@ -141,8 +142,8 @@ class SampleAnalysisSetupService
                 'method_id' => $element->method,
                 'reporting_unit_id' => $reportingUnit?->id,
                 'ltm_method_id' => $element->ltm_method_id,
-                'analyte_accredited' => $element->non_accredited ? 0 : 1,
-                'analyte_status_contracted' => $lab->is_external ?? 0,
+                'analyte_accredited' => $this->resolveAccreditedFlag($element, $elementFlagOverrides),
+                'analyte_status_contracted' => $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides),
                 'lab_section_id' => $labSectionId,
                 'parameters_order' => $element->level ?? 0,
                 'remark_is_manual' => $element->remark_is_manual,
@@ -169,7 +170,7 @@ class SampleAnalysisSetupService
                 'unit_code' => $element->reporting_unit,
                 'reporting_symbol' => $element->reporting_symbol ?? null,
                 'recheck' => 0,
-                'analyte_status_contracted' => $lab->is_external ?? 0,
+                'analyte_status_contracted' => $this->resolveSubcontractedFlag($element, $lab, $elementFlagOverrides),
                 'lab_section_id' => $labSectionId,
                 'parameters_order' => $element->level ?? 0,
                 'remark_is_manual' => $element->remark_is_manual,
@@ -197,5 +198,31 @@ class SampleAnalysisSetupService
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, array{accredited?: bool, subcontracted?: bool}>|null  $elementFlagOverrides
+     */
+    private function resolveAccreditedFlag(AnalysisElements $element, ?array $elementFlagOverrides): int
+    {
+        $elementId = (string) $element->id;
+        if ($elementFlagOverrides !== null && isset($elementFlagOverrides[$elementId]['accredited'])) {
+            return $elementFlagOverrides[$elementId]['accredited'] ? 1 : 0;
+        }
+
+        return $element->non_accredited ? 0 : 1;
+    }
+
+    /**
+     * @param  array<string, array{accredited?: bool, subcontracted?: bool}>|null  $elementFlagOverrides
+     */
+    private function resolveSubcontractedFlag(AnalysisElements $element, ?Lab $lab, ?array $elementFlagOverrides): int
+    {
+        $elementId = (string) $element->id;
+        if ($elementFlagOverrides !== null && isset($elementFlagOverrides[$elementId]['subcontracted'])) {
+            return $elementFlagOverrides[$elementId]['subcontracted'] ? 1 : 0;
+        }
+
+        return (int) ($lab?->is_external ?? 0);
     }
 }

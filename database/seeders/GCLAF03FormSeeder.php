@@ -13,7 +13,7 @@ class GCLAF03FormSeeder extends Seeder
     public function run()
     {
         $targetName = 'Laboratory Analysis Acceptance Form';
-        $targetCode = 'GCLA/F/03';
+        $targetCode = 'AMSPEC/F/03';
 
         $formByName = SubmissionForm::where('name', $targetName)->first();
         $formByCode = SubmissionForm::where('document_code', $targetCode)->first();
@@ -57,8 +57,8 @@ class GCLAF03FormSeeder extends Seeder
             'name' => $targetName,
             'document_code' => $targetCode,
             'description' => 'Laboratory Analysis Acceptance Form',
-            'naming_convention_prefix' => 'GCLA-F03',
-            'naming_convention_format' => 'GCLA-F03-{YYYY}{MM}-{0000}',
+            'naming_convention_prefix' => 'AMSPEC-F03',
+            'naming_convention_format' => 'AMSPEC-F03-{YYYY}{MM}-{0000}',
             'is_published' => true,
             'is_active' => true,
             'is_customer_portal_form' => false,
@@ -91,7 +91,7 @@ class GCLAF03FormSeeder extends Seeder
             $this->command->warn('Failed to clear cache: ' . $e->getMessage());
         }
 
-        $this->command->info('GCLA/F/03 Form seeded/updated successfully.');
+        $this->command->info('AMSPEC/F/03 Form seeded/updated successfully.');
     }
 
     private function createFormSections($form)

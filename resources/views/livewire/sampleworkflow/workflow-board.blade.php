@@ -4,11 +4,14 @@
 		selectedInstanceIds() {
 			return Array.from(document.querySelectorAll('input[data-instance-select]:checked')).map((el) => el.value);
 		},
+		selectedEnquiryIds() {
+			return Array.from(document.querySelectorAll('input[data-enquiry-select]:checked')).map((el) => el.value);
+		},
 		refreshSelectionCount() {
-			this.selectedCount = document.querySelectorAll('input[data-instance-select]:checked').length;
+			this.selectedCount = document.querySelectorAll('input[data-instance-select]:checked, input[data-enquiry-select]:checked').length;
 		},
 		onSelectionChange(event) {
-			if (event.target && event.target.matches && event.target.matches('input[data-instance-select]')) {
+			if (event.target && event.target.matches && (event.target.matches('input[data-instance-select]') || event.target.matches('input[data-enquiry-select]'))) {
 				this.refreshSelectionCount();
 				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
 					window.rebuildWorkflowSelectionLists();
@@ -767,6 +770,15 @@
 								@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 									<li>
 										<span class="btn btn-sm dropdown-item"
+											data-sf-trigger="workflow-process-enquiry"
+											:class="{ 'disabled': selectedEnquiryIds().length === 0 }"
+											:style="selectedEnquiryIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedEnquiryIds().length > 0 && $wire.openProcessEnquiryModal(selectedEnquiryIds())"><i class="mdi mdi-file-chart-outline mr-2"></i> Process enquiry</span>
+									</li>
+								@endif
+								@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
+									<li>
+										<span class="btn btn-sm dropdown-item"
 											data-sf-trigger="workflow-receive-sample"
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
@@ -1123,9 +1135,16 @@
 									x-cloak>
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 										<button type="button"
+											class="btn btn-sm btn-outline-success"
+											@click.prevent="selectedEnquiryIds().length > 0 && $wire.openProcessEnquiryModal(selectedEnquiryIds())">
+											<i class="mdi mdi-file-chart-outline mr-1"></i> Process enquiry
+										</button>
+									@endif
+									@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
+										<button type="button"
 											class="btn btn-sm btn-outline-primary"
 											data-sf-trigger="workflow-receive-sample"
-											@click.prevent="selectedCount > 0 && $wire.openReceiveModal(selectedInstanceIds())">
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.openReceiveModal(selectedInstanceIds())">
 											<i class="mdi mdi-package-variant-closed mr-1"></i> Receive
 										</button>
 									@endif
@@ -1799,14 +1818,17 @@
 							|| ($this->isReceivingStage() && $status !== 'Samples Receiving' && $workflowSubTab === 'requests')
 						)
 							@php
-								$submissionForms = $this->submissionForms;
+								$isCommercialSubmittedTab = $status === 'Samples Receiving' && $workflowSubTab === 'submitted';
+								$commercialEnquiries = $isCommercialSubmittedTab ? $this->commercialEnquiries : null;
+								$submissionForms = $isCommercialSubmittedTab ? null : $this->submissionForms;
 								$portalSubmissions = in_array($status, ['Samples Receiving', 'Samples Request Review'], true) ? null : $this->portalSubmissions;
-								$hasSubmissions = $submissionForms->count() > 0 || ($portalSubmissions && $portalSubmissions->count() > 0);
+								$hasSubmissions = ($submissionForms && $submissionForms->count() > 0)
+									|| ($commercialEnquiries && $commercialEnquiries->count() > 0)
+									|| ($portalSubmissions && $portalSubmissions->count() > 0);
 							@endphp
 
-							<!-- Submission Forms Table -->
 							@if($hasSubmissions)
-								@if($submissionForms->count() > 0)
+								@if($submissionForms && $submissionForms->count() > 0)
 									@if($status === 'Samples Request Review' && $workflowSubTab === 'in_review')
 										<div class="workflow-review-status-legend mb-3">
 											<span class="legend-label">Row border:</span>
@@ -1832,9 +1854,16 @@
 													<th>Actions</th>
 													<th>Form Number</th>
 													<th>Customer</th>
+													@if(in_array($status, ['Samples Receiving'], true))
+														<th>Channel</th>
+														<th>Enquiry</th>
+													@endif
 													<th>Form Name</th>
-													<th>Batch Status</th>
-													<th>Batches</th>
+													@php
+														$useJobLabels = in_array($status, ['Samples Receiving', 'Samples Request Review'], true);
+													@endphp
+													<th>{{ $useJobLabels ? 'Job Status' : 'Batch Status' }}</th>
+													<th>{{ $useJobLabels ? 'Job No' : 'Batches' }}</th>
 													<th>Sample Type</th>
 													<th>Tests Required</th>
 													<th>Status</th>
@@ -2068,6 +2097,19 @@
 																<span class="text-muted small">—</span>
 															@endif
 														</td>
+														@if($status === 'Samples Receiving')
+															@php
+																$linkedEnquiry = $instance->sampleSubmissionRequest;
+															@endphp
+															<td>{{ ucfirst(str_replace('_', ' ', $linkedEnquiry->source_channel ?? '—')) }}</td>
+															<td>
+																@if($linkedEnquiry)
+																	<span class="small">{{ $linkedEnquiry->commercialStatus() }}</span>
+																@else
+																	<span class="text-muted small">—</span>
+																@endif
+															</td>
+														@endif
 														<td>
 															{{ $instance->submissionForm->name }}
 															@if(($instance->submissionForm->form_type ?? '') === 'template' && $attachmentCount > 0)
@@ -2077,7 +2119,7 @@
 														<td>
 															@if($hasBatch)
 																<span class="workflow-status-chip" style="--chip-accent: #28a745;">
-																	{{ $instance->batches->count() }} Batch{{ $instance->batches->count() > 1 ? 'es' : '' }} created
+																	{{ $instance->batches->count() }} {{ $useJobLabels ? 'Job' : 'Batch' }}{{ $instance->batches->count() > 1 ? 's' : '' }} created
 																</span>
 															@else
 																<span class="workflow-status-chip" style="--chip-accent: #dc3545;">
@@ -2202,6 +2244,66 @@
 									</div>
 								@endif
 
+								@if($commercialEnquiries && $commercialEnquiries->count() > 0)
+									<div class="table-responsive">
+										<table class="table table-hover workflow-table">
+											<thead>
+												<tr>
+													<th style="width: 40px;"></th>
+													<th>Actions</th>
+													<th>Request #</th>
+													<th>Customer</th>
+													<th>Reference</th>
+													<th>Channel</th>
+													<th>Status</th>
+													<th>Submitted</th>
+												</tr>
+											</thead>
+											<tbody>
+												@foreach($commercialEnquiries as $enquiry)
+													@php
+														$color = match($enquiry->status) {
+															'Requested' => '#17a2b8',
+															'Quotation In Progress' => '#ffc107',
+															'Quotation Sent' => '#28a745',
+															'Quotation Under Review' => '#fd7e14',
+															'Quotation Accepted' => '#20c997',
+															'Ready for Reception' => '#20c997',
+															default => '#6c757d',
+														};
+													@endphp
+													<tr>
+														<td>
+															<input type="checkbox" name="commercial_enquiry_id[]" value="{{ $enquiry->id }}" data-enquiry-select="1">
+														</td>
+														<td nowrap>
+															<a href="{{ $enquiry->staffViewUrl() }}" class="btn btn-sm rm-act-btn rm-act-btn--view" title="View details">
+																<i class="mdi mdi-eye"></i>
+															</a>
+														</td>
+														<td><strong>{{ $enquiry->getFormattedNumberAttribute() }}</strong></td>
+														<td>{{ $enquiry->customer->name ?? 'N/A' }}</td>
+														<td>{{ $enquiry->unique_identification ?? $enquiry->reference_number ?? '—' }}</td>
+														<td>{{ ucfirst(str_replace('_', ' ', $enquiry->source_channel ?? '—')) }}</td>
+														<td>
+															<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
+																{{ $enquiry->commercialStatus() }}
+															</span>
+															@if($enquiry->hasCustomerFeedback() || $enquiry->status === 'Quotation Under Review')
+																<span class="badge badge-warning ml-1" title="{{ $enquiry->customerFeedbackNotes() }}">Changes requested</span>
+															@endif
+														</td>
+														<td nowrap>{{ optional($enquiry->submitted_by_date ?? $enquiry->created_at)->format('Y-m-d') ?? 'N/A' }}</td>
+													</tr>
+												@endforeach
+											</tbody>
+										</table>
+									</div>
+									<div class="mt-2">
+										{{ $commercialEnquiries->links() }}
+									</div>
+								@endif
+
 								@if($portalSubmissions && $portalSubmissions->count() > 0)
 									<!-- Portal Submissions (Legal Requests) Table -->
 									<div class="workflow-board-section-label mt-4">
@@ -2280,7 +2382,15 @@
 								<div class="text-center py-5 workflow-empty-state">
 									<i class="mdi mdi-file-document-outline" style="font-size: 3rem;"></i>
 									<h5 class="mt-3">No submissions found</h5>
-									<p class="mb-0">No portal-submitted requests match your current filters.</p>
+									<p class="mb-0">
+										@if($isCommercialSubmittedTab ?? false)
+											No commercial enquiries match your current filters.
+										@elseif($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
+											No test requests are ready for physical receive. Quotation must be accepted first.
+										@else
+											No portal-submitted requests match your current filters.
+										@endif
+									</p>
 								</div>
 							@endif
 						@elseif($status !== 'Samples Receiving' && $status !== 'Samples Request Review')
@@ -3244,7 +3354,7 @@
 				</div>
 			</div>
 		</div>
-		@if($status == 'Samples Reception')
+		@if($status == 'Samples Reception' || $status == 'Samples Receiving')
 			<div class="modal fade" id="send-schedule-analysis" role="dialog">
 				<div class="modal-dialog">
 					<div class="modal-content">
@@ -5740,6 +5850,7 @@
 	@endpush
 
 	@livewire('sampleworkflow.acceptance-form-wizard')
+	@livewire('sampleworkflow.process-enquiry-wizard')
 	@livewire('sampleworkflow.sample-rejection-wizard')
 	@livewire('sampleworkflow.customer-acceptance-sign-modal')
 	@livewire('sampleworkflow.manager-acceptance-sign-modal')
@@ -5768,6 +5879,31 @@
 			});
 			Livewire.on('acceptance-form-completed', function (event) {
 				const redirectUrl = event?.redirectUrl ?? event?.detail?.redirectUrl;
+				const batchCode = event?.batchCode ?? event?.detail?.batchCode ?? '';
+
+				if (batchCode && confirm('Acceptance complete. Print sample labels now?')) {
+					const form = document.createElement('form');
+					form.method = 'POST';
+					form.action = @json(route('print-labels'));
+					form.target = '_blank';
+
+					const csrf = document.createElement('input');
+					csrf.type = 'hidden';
+					csrf.name = '_token';
+					csrf.value = @json(csrf_token());
+					form.appendChild(csrf);
+
+					const codeInput = document.createElement('input');
+					codeInput.type = 'hidden';
+					codeInput.name = 'sample_code[]';
+					codeInput.value = batchCode;
+					form.appendChild(codeInput);
+
+					document.body.appendChild(form);
+					form.submit();
+					form.remove();
+				}
+
 				if (redirectUrl) {
 					window.location.href = redirectUrl;
 					return;

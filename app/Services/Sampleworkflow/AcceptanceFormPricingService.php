@@ -9,6 +9,7 @@ use App\Models\Billing\PricelistCustomer;
 use App\Models\Billing\PricelistItem;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use App\SampleDetails;
 use App\SampleType;
@@ -33,6 +34,14 @@ class AcceptanceFormPricingService
      */
     public function buildPrefillFromSelection(?string $submissionRequestId, ?string $submissionFormInstanceId): array
     {
+        $enquiry = $this->resolveEnquiryForPrefill($submissionRequestId, $submissionFormInstanceId);
+        if ($enquiry !== null) {
+            $quotationPrefill = $this->buildPrefillFromAcceptedQuotation($enquiry);
+            if ($quotationPrefill !== null) {
+                return $quotationPrefill;
+            }
+        }
+
         $parameters = [];
         $customerId = null;
         $sampleTypeId = null;
@@ -851,5 +860,111 @@ class AcceptanceFormPricingService
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values()
             ->all();
+    }
+
+    private function resolveEnquiryForPrefill(?string $submissionRequestId, ?string $submissionFormInstanceId): ?SampleSubmissionRequest
+    {
+        if ($submissionRequestId) {
+            return SampleSubmissionRequest::query()->find($submissionRequestId);
+        }
+
+        if ($submissionFormInstanceId) {
+            return SampleSubmissionRequest::query()
+                ->where('submission_form_instance_id', $submissionFormInstanceId)
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{
+     *     lines: list<array<string, mixed>>,
+     *     customer_id: ?string,
+     *     sample_type_id: ?string,
+     *     pricelist: ?Pricelist,
+     *     customer_name: string,
+     *     request_date: ?string,
+     *     number_of_samples: int,
+     *     mode_of_work: string,
+     *     date_of_sampling: ?string
+     * }|null
+     */
+    private function buildPrefillFromAcceptedQuotation(SampleSubmissionRequest $enquiry): ?array
+    {
+        $readinessService = app(EnquiryReceptionReadinessService::class);
+        if (! $readinessService->isEligibleForPhysicalReceive($enquiry) && $enquiry->quotation_accepted_at === null) {
+            return null;
+        }
+
+        $quotation = $readinessService->resolveAcceptedQuotation($enquiry);
+        if ($quotation === null) {
+            return null;
+        }
+
+        $quotation->loadMissing('details');
+        if ($quotation->details->isEmpty()) {
+            return null;
+        }
+
+        $enquiry->loadMissing(['crmCustomer', 'submissionFormInstance']);
+        $customerId = (string) $enquiry->crm_customer_id;
+        $pricelist = $this->resolvePricelist($customerId);
+        $lines = [];
+
+        foreach ($quotation->details as $index => $detail) {
+            $sampleTypeId = (string) ($detail->sample_type ?? $enquiry->sample_type_id ?? '');
+            $analysisTypeId = (string) ($detail->part_no ?? '');
+            $elementId = trim((string) ($detail->accredited_analytes ?? ''));
+            $subcontractedIds = array_filter(array_map(
+                'trim',
+                explode(',', (string) ($detail->subcontracted_analytes ?? ''))
+            ));
+
+            $label = 'Parameter';
+            if ($elementId !== '') {
+                $element = AnalysisElements::query()->with('analyte')->find($elementId);
+                if ($element !== null) {
+                    $label = (string) ($element->analyte->name ?? $element->name ?? $label);
+                }
+            } elseif ($analysisTypeId !== '') {
+                $label = (string) (AnalysisType::find($analysisTypeId)?->name ?? 'Analysis');
+            }
+
+            $lines[] = [
+                'line_no' => $index + 1,
+                'sample_type_id' => $sampleTypeId !== '' ? $sampleTypeId : null,
+                'sample_type_name' => $sampleTypeId !== '' ? (SampleType::find($sampleTypeId)?->name ?? '') : '',
+                'analysis_type_id' => $analysisTypeId !== '' ? $analysisTypeId : null,
+                'analysis_type_name' => $analysisTypeId !== '' ? (AnalysisType::find($analysisTypeId)?->name ?? '') : '',
+                'analysis_element_id' => $elementId !== '' ? $elementId : null,
+                'parameter_label' => $label,
+                'unit_amount' => (float) ($detail->unit_price ?? 0),
+                'number_of_samples' => max(1, (int) ($detail->quantity ?? 1)),
+                'is_approved' => true,
+                'sort_order' => $index,
+                'subcontracted' => $elementId !== '' && in_array($elementId, $subcontractedIds, true),
+                'accredited' => $elementId !== '' && ! in_array($elementId, $subcontractedIds, true),
+            ];
+        }
+
+        $lines = $this->deduplicateRedundantAnalysisTypeLines($lines);
+
+        $instance = $enquiry->submissionFormInstance;
+        $modeOfWork = strtolower((string) ($enquiry->mode_of_service_priority ?? $instance?->priority ?? '')) === 'express'
+            ? 'Express'
+            : 'Normal';
+
+        return [
+            'lines' => $lines,
+            'customer_id' => $customerId,
+            'sample_type_id' => $lines[0]['sample_type_id'] ?? null,
+            'pricelist' => $pricelist,
+            'customer_name' => (string) ($enquiry->crmCustomer?->name ?? ''),
+            'request_date' => optional($enquiry->created_at)->format('Y-m-d'),
+            'number_of_samples' => max(1, (int) ($enquiry->number_of_samples ?? 1)),
+            'mode_of_work' => $modeOfWork,
+            'date_of_sampling' => optional($enquiry->date_of_seizure)->format('Y-m-d'),
+        ];
     }
 }

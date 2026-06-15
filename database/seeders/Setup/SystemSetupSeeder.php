@@ -3,7 +3,9 @@
 namespace Database\Seeders\Setup;
 
 use App\Company;
+use App\Country;
 use App\InventoryDepartment;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use App\InventoryLocation;
 use App\InventoryLocationUser;
 use App\ModulePreConfigs;
@@ -199,75 +201,106 @@ class SystemSetupSeeder extends Seeder
                 $this->command?->info("  Migrated {$mpcCount} module_pre_configs row(s).");
 
                 // ----------------------------------------------------------------
-                // STEP 5 — Ensure Tanzania country exists, then create Company: GCLA
+                // STEP 5 — AmSpec companies: Dubai (active) + Brazil Rio (inactive)
                 // ----------------------------------------------------------------
-                $this->command?->info('Step 5: Creating company GCLA...');
+                $this->command?->info('Step 5: Creating AmSpec companies...');
 
-                $tanzaniaRecord = \App\Country::where('name', 'like', '%Tanzania%')->first();
-
-                if (! $tanzaniaRecord) {
-                    $sourceTanzania = DB::connection($sourceConnection)
+                $uaeRecord = AmSpecSeedData::resolveUaeCountry();
+                if (! $uaeRecord) {
+                    $sourceUae = DB::connection($sourceConnection)
                         ->table('countries')
-                        ->where('name', 'like', '%Tanzania%')
+                        ->where(function ($query): void {
+                            $query->where('iso_code_2', 'AE')
+                                ->orWhere('name', 'like', '%United Arab Emirates%');
+                        })
                         ->first();
 
-                    if ($sourceTanzania) {
-                        $tanzaniaRecord = \App\Country::firstOrCreate(
-                            ['name' => $sourceTanzania->name],
+                    if ($sourceUae) {
+                        $uaeRecord = Country::firstOrCreate(
+                            ['name' => $sourceUae->name],
                             [
-                                'iso_code_2'       => $sourceTanzania->iso_code_2 ?? 'TZ',
-                                'iso_code_3'       => $sourceTanzania->iso_code_3 ?? 'TZA',
-                                'address_format'   => $sourceTanzania->address_format ?? '{firstname} {lastname}',
-                                'postcode_required' => $sourceTanzania->postcode_required ?? 0,
-                                'status'           => $sourceTanzania->status ?? 1,
+                                'iso_code_2' => $sourceUae->iso_code_2 ?? 'AE',
+                                'iso_code_3' => $sourceUae->iso_code_3 ?? 'ARE',
+                                'address_format' => $sourceUae->address_format ?? '{firstname} {lastname}',
+                                'postcode_required' => $sourceUae->postcode_required ?? 0,
+                                'status' => $sourceUae->status ?? 1,
                             ]
                         );
                     } else {
-                        $tanzaniaRecord = \App\Country::firstOrCreate(
-                            ['name' => 'Tanzania'],
+                        $uaeRecord = Country::firstOrCreate(
+                            ['name' => 'United Arab Emirates'],
                             [
-                                'iso_code_2'       => 'TZ',
-                                'iso_code_3'       => 'TZA',
-                                'address_format'   => '{firstname} {lastname}',
+                                'iso_code_2' => 'AE',
+                                'iso_code_3' => 'ARE',
+                                'address_format' => '{firstname} {lastname}',
                                 'postcode_required' => 0,
-                                'status'           => 1,
+                                'status' => 1,
                             ]
                         );
                     }
                 }
 
-                $countryId = $tanzaniaRecord->id;
+                $brazilRecord = AmSpecSeedData::resolveBrazilCountry();
+                if (! $brazilRecord) {
+                    $sourceBrazil = DB::connection($sourceConnection)
+                        ->table('countries')
+                        ->where(function ($query): void {
+                            $query->where('iso_code_2', 'BR')
+                                ->orWhere('name', 'like', '%Brazil%');
+                        })
+                        ->first();
+
+                    if ($sourceBrazil) {
+                        $brazilRecord = Country::firstOrCreate(
+                            ['name' => $sourceBrazil->name],
+                            [
+                                'iso_code_2' => $sourceBrazil->iso_code_2 ?? 'BR',
+                                'iso_code_3' => $sourceBrazil->iso_code_3 ?? 'BRA',
+                                'address_format' => $sourceBrazil->address_format ?? '{firstname} {lastname}',
+                                'postcode_required' => $sourceBrazil->postcode_required ?? 0,
+                                'status' => $sourceBrazil->status ?? 1,
+                            ]
+                        );
+                    } else {
+                        $brazilRecord = Country::firstOrCreate(
+                            ['name' => 'Brazil'],
+                            [
+                                'iso_code_2' => 'BR',
+                                'iso_code_3' => 'BRA',
+                                'address_format' => '{firstname} {lastname}',
+                                'postcode_required' => 0,
+                                'status' => 1,
+                            ]
+                        );
+                    }
+                }
+
+                Company::query()
+                    ->whereNotIn('id', [AmSpecSeedData::DUBAI_COMPANY_ID, AmSpecSeedData::BRAZIL_COMPANY_ID])
+                    ->update(['active' => false]);
 
                 $company = Company::updateOrCreate(
-                    ['id' => '019dde3f-07d3-73d0-a0f2-a01ac58346b4'],
-                    [
-                        'name'           => 'Government Chemist Laboratory Authority',
-                        'logo'           => '/images/no-logo.png',
-                        'report_logo'    => null,
-                        'location'       => 'Dar es Salaam, Tanzania',
-                        'address'        => 'P.O. Box 164, Dar es Salaam',
-                        'country_id'     => $countryId,
-                        'website'        => 'https://www.gcla.go.tz',
-                        'email'          => 'gcla@gcla.go.tz',
-                        'cell_phone'     => '+255222113383',
-                        'telephone'      => '+255222113384',
-                        'street'         => 'Luthuli Street',
-                        'active'         => true,
-                        'show_on_reports' => true,
-                    ]
+                    ['id' => AmSpecSeedData::DUBAI_COMPANY_ID],
+                    AmSpecSeedData::dubaiCompanyAttributes($uaeRecord->id)
                 );
 
-                $this->command?->info("  Company '{$company->name}' ready (id: {$company->id}).");
+                $brazilCompany = Company::updateOrCreate(
+                    ['id' => AmSpecSeedData::BRAZIL_COMPANY_ID],
+                    AmSpecSeedData::brazilCompanyAttributes($brazilRecord->id)
+                );
+
+                $this->command?->info("  Company '{$company->name}' ready (id: {$company->id}, active).");
+                $this->command?->info("  Company '{$brazilCompany->name}' ready (id: {$brazilCompany->id}, inactive).");
 
                 // ----------------------------------------------------------------
-                // STEP 6 — Inventory Locations: GCLA HQ + SystemAdmin
+                // STEP 6 — Inventory Locations: AmSpec Dubai HQ + SystemAdmin
                 // ----------------------------------------------------------------
                 $this->command?->info('Step 6: Creating inventory locations...');
 
-                $location = InventoryLocation::firstOrCreate(
-                    ['id' => '019dde3f-07d9-73bf-86f3-d4fd6df2eece'],
+                $location = InventoryLocation::updateOrCreate(
+                    ['id' => AmSpecSeedData::DUBAI_HQ_LOCATION_ID],
                     [
-                        'name'       => 'GCLA HQ',
+                        'name'       => 'AmSpec Dubai HQ',
                         'company_id' => $company->id,
                         'level'      => 1,
                         'active'     => 1,

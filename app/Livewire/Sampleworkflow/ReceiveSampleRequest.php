@@ -4,6 +4,7 @@ namespace App\Livewire\Sampleworkflow;
 
 use App\Models\SubmissionFormInstance;
 use App\Models\Workflow\Approval;
+use App\Services\Sampleworkflow\SampleReceivingCheckInService;
 use App\Services\WorkflowService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +24,9 @@ class ReceiveSampleRequest extends Component
     /** @var array<int, array{id: string, label: string, customer: string}> */
     public array $selectedFormSummaries = [];
 
+    /** @var list<array<string, mixed>> */
+    public array $checkInContexts = [];
+
     public array $responses = [];
 
     public string $remarks = '';
@@ -35,11 +39,13 @@ class ReceiveSampleRequest extends Component
         $this->selectedFormSummaries = $selectedFormSummaries;
         $this->syncLoadErrorFromApproval();
         $this->initializeResponses();
+        $this->refreshCheckInContexts();
     }
 
     public function updatedSelectedFormInstanceIds(): void
     {
         $this->initializeResponses();
+        $this->refreshCheckInContexts();
     }
 
     /**
@@ -58,8 +64,8 @@ class ReceiveSampleRequest extends Component
         $this->syncLoadErrorFromApproval();
         $this->responses = [];
         $this->initializeResponses();
+        $this->refreshCheckInContexts();
 
-        // Dispatched after state is set — JS listener shows the modal.
         $this->dispatch('show-receive-sample-modal');
     }
 
@@ -68,6 +74,12 @@ class ReceiveSampleRequest extends Component
         return [
             'receive-modal-open' => 'handleReceiveModalOpen',
         ];
+    }
+
+    public function openRejectWizard(string $instanceId): void
+    {
+        $this->dispatch('open-rejection-wizard', submissionFormInstanceId: $instanceId);
+        $this->dispatch('hide-receive-sample-modal');
     }
 
     public function confirmReceive(): void
@@ -84,29 +96,36 @@ class ReceiveSampleRequest extends Component
         }
 
         $rules = $this->rulesForApproval($approval);
-        if (!empty($rules)) {
+        if (! empty($rules)) {
             $this->validate($rules, $this->messagesForApproval($approval));
         }
 
         $user = Auth::user();
-        if (!$user instanceof User) {
+        if (! $user instanceof User) {
             $this->addError('selection', 'You must be signed in to receive samples.');
 
             return;
         }
 
+        $checkInService = app(SampleReceivingCheckInService::class);
         $processed = 0;
         $skipped = 0;
+        $blockedReasons = [];
 
-        DB::transaction(function () use ($approval, $user, &$processed, &$skipped) {
+        DB::transaction(function () use ($approval, $user, $checkInService, &$processed, &$skipped, &$blockedReasons) {
             $instances = SubmissionFormInstance::query()
-                ->with(['batches', 'submissionForm'])
+                ->with(['batches', 'submissionForm', 'sampleSubmissionRequest'])
                 ->whereIn('id', $this->selectedFormInstanceIds)
                 ->get();
 
             foreach ($instances as $instance) {
-                if (!$this->canReceiveInstance($instance)) {
+                if (! $checkInService->canReceiveInstance($instance)) {
                     $skipped++;
+                    $reason = $checkInService->receiveBlockReason($instance);
+                    if ($reason !== null) {
+                        $blockedReasons[] = $reason;
+                    }
+
                     continue;
                 }
 
@@ -126,7 +145,13 @@ class ReceiveSampleRequest extends Component
         });
 
         if ($processed === 0) {
-            $this->addError('selection', 'No eligible submitted requests were received. They may already be received or have batches created.');
+            $message = 'No eligible submitted requests were received.';
+            if ($blockedReasons !== []) {
+                $message .= ' '.collect($blockedReasons)->unique()->implode(' ');
+            } else {
+                $message .= ' They may already be received or have batches created.';
+            }
+            $this->addError('selection', $message);
 
             return;
         }
@@ -148,6 +173,18 @@ class ReceiveSampleRequest extends Component
         return view('livewire.sampleworkflow.receive-sample-request', [
             'approval' => $this->resolveApproval(),
         ]);
+    }
+
+    private function refreshCheckInContexts(): void
+    {
+        if ($this->selectedFormInstanceIds === []) {
+            $this->checkInContexts = [];
+
+            return;
+        }
+
+        $this->checkInContexts = app(SampleReceivingCheckInService::class)
+            ->buildCheckInContexts($this->selectedFormInstanceIds);
     }
 
     private function resolveApproval(): ?Approval
@@ -175,24 +212,10 @@ class ReceiveSampleRequest extends Component
         }
 
         foreach ($approval->checklistItems as $item) {
-            if (!array_key_exists($item->id, $this->responses) && $item->type === 'checkbox') {
+            if (! array_key_exists($item->id, $this->responses) && $item->type === 'checkbox') {
                 $this->responses[$item->id] = false;
             }
         }
-    }
-
-    private function canReceiveInstance(SubmissionFormInstance $instance): bool
-    {
-        if ($instance->status !== 'submitted') {
-            return false;
-        }
-
-        if ($instance->batches->isNotEmpty()) {
-            return false;
-        }
-
-        return $instance->submissionForm !== null
-            && ($instance->submissionForm->form_type ?? '') === 'template';
     }
 
     private function rulesForApproval(Approval $approval): array
@@ -200,7 +223,7 @@ class ReceiveSampleRequest extends Component
         $rules = [];
 
         foreach ($approval->checklistItems as $item) {
-            $key = 'responses.' . $item->id;
+            $key = 'responses.'.$item->id;
 
             if ($item->type === 'checkbox') {
                 $rules[$key] = $item->is_required ? ['accepted'] : ['nullable', 'boolean'];
@@ -227,10 +250,10 @@ class ReceiveSampleRequest extends Component
         $messages = [];
 
         foreach ($approval->checklistItems as $item) {
-            $key = 'responses.' . $item->id;
-            $messages[$key . '.required'] = $item->label . ' is required.';
-            $messages[$key . '.accepted'] = $item->label . ' must be checked.';
-            $messages[$key . '.in'] = 'Select a valid option for ' . $item->label . '.';
+            $key = 'responses.'.$item->id;
+            $messages[$key.'.required'] = $item->label.' is required.';
+            $messages[$key.'.accepted'] = $item->label.' must be checked.';
+            $messages[$key.'.in'] = 'Select a valid option for '.$item->label.'.';
         }
 
         return $messages;

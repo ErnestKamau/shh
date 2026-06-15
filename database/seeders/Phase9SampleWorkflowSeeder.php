@@ -13,6 +13,7 @@ use App\SampleHeader;
 use App\User;
 use App\Zone;
 use Carbon\Carbon;
+use Database\Seeders\Concerns\AmSpecSeedData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -60,15 +61,15 @@ class Phase9SampleWorkflowSeeder extends Seeder
             ];
 
             $offences = [
-                'Possession with Intent to Supply',
-                'Drug Trafficking',
-                'Food Product Compliance',
-                'Water Quality Surveillance',
-                'Environmental Contamination Investigation',
-                'Court Ordered Independent Analysis',
-                'Port Entry Product Verification',
-                'Suspected Poisoning',
-                'Wildlife Trafficking',
+                'Crude Oil Quality Verification',
+                'Marine Bunker Fuel Inspection',
+                'LPG Composition Analysis',
+                'Agricultural Commodity Testing',
+                'Environmental Water Monitoring',
+                'Chemical Product Compliance',
+                'Port Cargo Inspection',
+                'Renewable Feedstock Analysis',
+                'Vessel Fuel Sampling',
                 'Calibration Service Request',
             ];
 
@@ -106,7 +107,7 @@ class Phase9SampleWorkflowSeeder extends Seeder
                                 ? $receiptDate->copy()->addDays(4)
                                 : null;
 
-                            $caseReference = 'GCLA/'.$year.'/'.$zoneCode.'/'.str_pad((string) $sequence[$sequenceKey], 5, '0', STR_PAD_LEFT);
+                            $caseReference = AmSpecSeedData::REFERENCE_PREFIX.'/'.$year.'/'.$zoneCode.'/'.str_pad((string) $sequence[$sequenceKey], 5, '0', STR_PAD_LEFT);
                             $dateExpected = $status['active']
                                 ? $this->dateExpectedForActiveBatch($activeBatchIndex++)
                                 : $receiptDate->copy()->addDays(5);
@@ -115,19 +116,21 @@ class Phase9SampleWorkflowSeeder extends Seeder
                                 ->where('case_no', $caseReference)
                                 ->value('id') ?? (string) Str::uuid();
 
+                            $sampleDescription = "{$offence} samples submitted through {$zone->value}.";
+
                             DB::connection('pgsql')->table('sample_submission_requests')->updateOrInsert(
                                 ['id' => $submissionId],
-                                [
+                                $this->filterTableColumns('sample_submission_requests', [
                                     'crm_customer_id' => $customer->id,
                                     'submitting_agency' => $customer->name,
                                     'submitting_officer_full_name' => $receivingUser->name,
-                                    'submitting_officer_title' => $customer->is_internal ? 'Investigating Officer' : 'Submitting Representative',
+                                    'submitting_officer_title' => $customer->is_internal ? 'Operations Manager' : 'Submitting Representative',
                                     'physical_address' => $customer->physical_address ?? $zone->value,
                                     'region' => $zone->value,
                                     'district' => $zone->value.' District',
                                     'working_station' => $zone->value.' Office',
-                                    'office_telephone_no' => '+25420'.random_int(1000000, 9999999),
-                                    'mobile_telephone_no' => '+2547'.random_int(10000000, 99999999),
+                                    'office_telephone_no' => AmSpecSeedData::dubaiPhone(),
+                                    'mobile_telephone_no' => AmSpecSeedData::dubaiMobile(),
                                     'case_no' => $caseReference,
                                     'offence' => $offence,
                                     'date_of_seizure' => $createdAt->copy()->subDays(3)->format('Y-m-d'),
@@ -146,13 +149,18 @@ class Phase9SampleWorkflowSeeder extends Seeder
                                     'submission_date' => $createdAt->format('Y-m-d'),
                                     'group_of_samples' => $analysisType->sample_type?->name,
                                     'number_of_samples' => 2,
-                                    'description_of_samples' => "{$offence} samples submitted through {$zone->value}.",
+                                    'description_of_samples' => $sampleDescription,
+                                    'sample_description' => $sampleDescription,
                                     'gcla_file_reference_number' => $caseReference,
+                                    'reference_number' => $caseReference,
                                     'is_police_sample' => (bool) $customer->is_internal,
+                                    'zone_id' => $zone->id,
+                                    'sample_type_id' => $analysisType->sample_type_id,
+                                    'date_expected' => $dateExpected->format('Y-m-d'),
                                     'status' => $status['status'],
                                     'updated_at' => $createdAt,
                                     'created_at' => $createdAt,
-                                ]
+                                ])
                             );
 
                             $headerPayload = [
@@ -413,11 +421,24 @@ class Phase9SampleWorkflowSeeder extends Seeder
         ];
 
         if (Schema::hasColumn('sample_points', 'code')) {
-            $payload['code'] = 'GCLA-'.$zoneCode.'-'.substr(md5((string) $unit->id), 0, 8);
+            $payload['code'] = AmSpecSeedData::REFERENCE_PREFIX.'-'.$zoneCode.'-'.substr(md5((string) $unit->id), 0, 8);
         }
 
         DB::connection('pgsql')->table('sample_points')->insert($payload);
 
         return $pointId;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function filterTableColumns(string $table, array $payload): array
+    {
+        return array_filter(
+            $payload,
+            fn (mixed $value, string $column): bool => Schema::hasColumn($table, $column),
+            ARRAY_FILTER_USE_BOTH
+        );
     }
 }
