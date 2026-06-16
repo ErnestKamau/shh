@@ -82,8 +82,8 @@
         <!-- HEADER -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="mb-1" style="font-weight: 700; color: #1e293b;">Welcome back, {{ explode(' ', Auth::user()->name)[0] }} 👋</h3>
-                <p class="text-muted mb-0">{{ \Carbon\Carbon::now()->format('l, jS F Y') }} &mdash; Overview of physical and digital lab operations.</p>
+                <h3 class="mb-1" style="font-weight: 700; color: #1e293b;">{{ __('dashboard.welcome_back') }}, {{ explode(' ', Auth::user()->name)[0] }} 👋</h3>
+                <p class="text-muted mb-0">{{ \Carbon\Carbon::now()->format('l, jS F Y') }} &mdash; {{ __('dashboard.overview_of_lab_operations') }}</p>
             </div>
             <div class="d-flex align-items-center gap-3">
                 @if(isset($complaint) && count($complaint) > 0)
@@ -115,18 +115,18 @@
             <!-- Intake -->
             <div class="col-md-3">
                 <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Samples%20Reception'">
-                    <div class="stat-label text-info"><i class="fas fa-inbox"></i> Samples Reception</div>
+                    <div class="stat-label text-info"><i class="fas fa-inbox"></i> {{ __('dashboard.samples_reception') }}</div>
                     <div class="stat-value">{{ $draft_forms ?? 0 }} <span style="font-size: 1.25rem; color: #94a3b8; font-weight: 500;">/ {{ $pending_submission_forms ?? 0 }}</span></div>
-                    <div class="stat-subtext">Drafts / Total Pending Forms</div>
+                    <div class="stat-subtext">{{ __('dashboard.drafts_total_pending_forms') }}</div>
                     <i class="fas fa-chevron-right pipeline-arrow d-none d-md-block"></i>
                 </div>
             </div>
             <!-- Prep -->
             <div class="col-md-3">
                 <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Sample%20Verification'">
-                    <div class="stat-label text-warning"><i class="fas fa-barcode"></i> Sample Verification</div>
+                    <div class="stat-label text-warning"><i class="fas fa-barcode"></i> {{ __('dashboard.sample_verification') }}</div>
                     <div class="stat-value">{{ $samples_verification ?? 0 }}</div>
-                    <div class="stat-subtext">Awaiting Verification</div>
+                    <div class="stat-subtext">{{ __('dashboard.awaiting_verification') }}</div>
                     <i class="fas fa-chevron-right pipeline-arrow d-none d-md-block"></i>
                 </div>
             </div>

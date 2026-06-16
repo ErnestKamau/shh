@@ -85,25 +85,35 @@ trait InteractsWithEquipmentFormWizard
 
         if ($step === 3) {
             if (! empty($this->equipmentForm['requires_daily_log'])) {
-                $type = $this->equipmentForm['daily_log_value_type'] ?? '';
-                $nature = $this->equipmentForm['daily_log_nature'] ?? '';
-
-                $rules['equipmentForm.daily_log_value_type'] = 'required|in:constant,range';
-                $rules['equipmentForm.daily_log_nature'] = 'required|in:qualitative,quantitative';
                 $rules['equipmentForm.daily_log_frequency'] = 'required|integer|min:1|max:6';
-                $rules['equipmentForm.daily_log_reporting_unit'] = 'nullable|string|max:255';
                 $rules['equipmentForm.daily_log_monitored_by_another_equipment'] = 'boolean';
                 if (! empty($this->equipmentForm['daily_log_monitored_by_another_equipment'])) {
                     $rules['equipmentForm.daily_log_monitored_equipment_id'] = 'required|string';
                 }
 
-                if ($type === 'constant') {
-                    $rules['equipmentForm.daily_log_expected_value'] = 'required|string|max:255';
-                }
+                // Validate each value type in the array
+                $valueTypes = $this->equipmentForm['daily_log_value_types'] ?? [];
+                if (empty($valueTypes)) {
+                    $rules['equipmentForm.daily_log_value_types'] = 'required|array|min:1';
+                } else {
+                    foreach ($valueTypes as $index => $vt) {
+                        $rules["equipmentForm.daily_log_value_types.{$index}.value_type"] = 'required|in:constant,range';
+                        $rules["equipmentForm.daily_log_value_types.{$index}.nature"] = 'required|in:qualitative,quantitative';
+                        $rules["equipmentForm.daily_log_value_types.{$index}.reporting_unit"] = 'nullable|string|max:255';
 
-                if ($type === 'range') {
-                    $rules['equipmentForm.daily_log_expected_min'] = 'required|numeric';
-                    $rules['equipmentForm.daily_log_expected_max'] = 'required|numeric|gte:equipmentForm.daily_log_expected_min';
+                        if (($vt['value_type'] ?? '') === 'constant') {
+                            if (($vt['nature'] ?? '') === 'qualitative') {
+                                $rules["equipmentForm.daily_log_value_types.{$index}.expected_value"] = 'required|string|max:255';
+                            } elseif (($vt['nature'] ?? '') === 'quantitative') {
+                                $rules["equipmentForm.daily_log_value_types.{$index}.expected_value"] = 'required|numeric';
+                            }
+                        }
+
+                        if (($vt['value_type'] ?? '') === 'range') {
+                            $rules["equipmentForm.daily_log_value_types.{$index}.expected_min"] = 'required|numeric';
+                            $rules["equipmentForm.daily_log_value_types.{$index}.expected_max"] = 'required|numeric';
+                        }
+                    }
                 }
             }
         }
@@ -170,18 +180,11 @@ trait InteractsWithEquipmentFormWizard
     public function updatedEquipmentFormRequiresDailyLog(): void
     {
         if (empty($this->equipmentForm['requires_daily_log'])) {
-            $this->equipmentForm['daily_log_value_type'] = '';
-            $this->equipmentForm['daily_log_nature'] = '';
-            $this->equipmentForm['daily_log_tolerance'] = null;
-            $this->equipmentForm['daily_log_expected_value'] = '';
-            $this->equipmentForm['daily_log_expected_min'] = null;
-            $this->equipmentForm['daily_log_expected_max'] = null;
-            $this->equipmentForm['daily_log_reporting_unit'] = '';
+            $this->equipmentForm['daily_log_value_types'] = [];
             $this->equipmentForm['daily_log_frequency'] = 1;
             $this->equipmentForm['daily_log_frequency_labels'] = [];
             $this->equipmentForm['daily_log_monitored_by_another_equipment'] = false;
             $this->equipmentForm['daily_log_monitored_equipment_id'] = null;
-            $this->selectedReportingUnitName = '';
             $this->selectedMonitoredEquipmentLabel = '';
             $this->monitoredEquipmentSearch = '';
 
@@ -220,29 +223,6 @@ trait InteractsWithEquipmentFormWizard
         }
     }
 
-    public function updatedEquipmentFormDailyLogValueType(): void
-    {
-        if (($this->equipmentForm['daily_log_value_type'] ?? '') === 'range') {
-            $this->equipmentForm['daily_log_nature'] = 'quantitative';
-            $this->equipmentForm['daily_log_expected_value'] = '';
-            $this->equipmentForm['daily_log_tolerance'] = null;
-        } else {
-            $this->equipmentForm['daily_log_expected_min'] = null;
-            $this->equipmentForm['daily_log_expected_max'] = null;
-        }
-    }
-
-    public function updatedEquipmentFormDailyLogNature(): void
-    {
-        if (($this->equipmentForm['daily_log_nature'] ?? '') !== 'quantitative') {
-            $this->equipmentForm['daily_log_tolerance'] = null;
-            $this->equipmentForm['daily_log_expected_min'] = null;
-            $this->equipmentForm['daily_log_expected_max'] = null;
-        } else {
-            $this->equipmentForm['daily_log_expected_value'] = '';
-        }
-    }
-
     protected function normalizeEquipmentPayload(array $data): array
     {
         $nullableNumeric = [
@@ -272,6 +252,23 @@ trait InteractsWithEquipmentFormWizard
             'end_of_life',
             'end_of_service',
         ];
+
+        // Handle daily_log_value_types array normalization
+        if (isset($data['daily_log_value_types']) && is_array($data['daily_log_value_types'])) {
+            foreach ($data['daily_log_value_types'] as &$vt) {
+                // Normalize expected_min and expected_max to null if empty
+                if (isset($vt['expected_min']) && ($vt['expected_min'] === '' || $vt['expected_min'] === false)) {
+                    $vt['expected_min'] = null;
+                }
+                if (isset($vt['expected_max']) && ($vt['expected_max'] === '' || $vt['expected_max'] === false)) {
+                    $vt['expected_max'] = null;
+                }
+                // Normalize expected_value to null if empty
+                if (isset($vt['expected_value']) && ($vt['expected_value'] === '' || $vt['expected_value'] === false)) {
+                    $vt['expected_value'] = null;
+                }
+            }
+        }
 
         foreach ($nullableNumeric as $field) {
             if (! array_key_exists($field, $data) || $data[$field] === '' || $data[$field] === false) {
@@ -497,26 +494,25 @@ trait InteractsWithEquipmentFormWizard
         ];
 
         if (! empty($this->equipmentForm['requires_daily_log'])) {
-            $type = $this->equipmentForm['daily_log_value_type'] ?? '';
-            $nature = $this->equipmentForm['daily_log_nature'] ?? '';
-
-            $rules['equipmentForm.daily_log_value_type'] = 'required|in:constant,range';
-            $rules['equipmentForm.daily_log_nature'] = 'required|in:qualitative,quantitative';
-
-            if ($type === 'constant') {
-                $rules['equipmentForm.daily_log_expected_value'] = 'required|string|max:255';
-            }
-
-            if ($type === 'range') {
-                $rules['equipmentForm.daily_log_expected_min'] = 'required|numeric';
-                $rules['equipmentForm.daily_log_expected_max'] = 'required|numeric|gte:equipmentForm.daily_log_expected_min';
-            }
-
             $rules['equipmentForm.daily_log_frequency'] = 'required|integer|min:1|max:6';
-            $rules['equipmentForm.daily_log_reporting_unit'] = 'nullable|string|max:255';
             $rules['equipmentForm.daily_log_monitored_by_another_equipment'] = 'boolean';
             if (! empty($this->equipmentForm['daily_log_monitored_by_another_equipment'])) {
                 $rules['equipmentForm.daily_log_monitored_equipment_id'] = 'required|string';
+            }
+
+            // Validate each value type in the array
+            $valueTypes = $this->equipmentForm['daily_log_value_types'] ?? [];
+            if (empty($valueTypes)) {
+                $rules['equipmentForm.daily_log_value_types'] = 'required|array|min:1';
+            } else {
+                foreach ($valueTypes as $index => $vt) {
+                    $rules["equipmentForm.daily_log_value_types.{$index}.value_type"] = 'required|in:constant,range';
+                    $rules["equipmentForm.daily_log_value_types.{$index}.nature"] = 'nullable|in:qualitative,quantitative';
+                    $rules["equipmentForm.daily_log_value_types.{$index}.reporting_unit"] = 'nullable|string|max:255';
+                    $rules["equipmentForm.daily_log_value_types.{$index}.expected_value"] = 'nullable';
+                    $rules["equipmentForm.daily_log_value_types.{$index}.expected_min"] = 'nullable|numeric';
+                    $rules["equipmentForm.daily_log_value_types.{$index}.expected_max"] = 'nullable|numeric';
+                }
             }
         }
 

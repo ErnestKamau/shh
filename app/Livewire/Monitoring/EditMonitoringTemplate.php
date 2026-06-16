@@ -301,7 +301,7 @@ class EditMonitoringTemplate extends Component
         $this->validate([
             'name' => 'required|string|max:255',
             'documentControlNumber' => 'nullable|string|max:255',
-            'version' => 'required|integer|min:1',
+            'version' => 'required|string|max:255',
             'effectiveDate' => 'nullable|date',
             'selectedLabIds' => 'required|array|min:1',
             'selectedSectionIds' => $this->templateType === 'environmental' ? 'required|array|min:1' : 'nullable',
@@ -398,7 +398,7 @@ class EditMonitoringTemplate extends Component
             1 => [
                 'name' => 'required|string|max:255',
                 'documentControlNumber' => 'nullable|string|max:255',
-                'version' => 'required|integer|min:1',
+                'version' => 'required|string|max:255',
                 'templateType' => 'required|in:environmental,equipment',
             ],
             2 => [

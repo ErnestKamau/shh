@@ -51,7 +51,7 @@ class TranslationManagementService
         ];
 
         foreach ($rows as $index => $row) {
-            $lineNumber = $index + 1;
+            $lineNumber = (int)$index + 1;
 
             try {
                 $group = trim((string) Arr::get($row, 'group', ''));

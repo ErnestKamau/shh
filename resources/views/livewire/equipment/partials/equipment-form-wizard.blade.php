@@ -99,7 +99,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            Equipment Number <span class="text-danger">*</span>
+                                            Equipment ID <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" wire:model="equipmentForm.equipment_number" class="form-control" required>
                                         @error('equipmentForm.equipment_number') <span class="text-danger">{{ $message }}</span> @enderror
@@ -489,7 +489,7 @@
                                     </div>
                                 </div>
                             @if(!empty($equipmentForm['requires_daily_log']))
-                            @php $dlType = $equipmentForm['daily_log_value_type'] ?? ''; $dlNature = $equipmentForm['daily_log_nature'] ?? ''; $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
+                            @php $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
                             <div class="eq-section-header mt-4">
                                 <i class="mdi mdi-notebook-check-outline"></i> {{ __('equipment.daily_log_configuration') }}
                             </div>
@@ -562,7 +562,7 @@
                                 @if(!empty($equipmentForm['daily_log_monitored_by_another_equipment']))
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Monitored Equipment (Equipment Number) <span class="text-danger">*</span></label>
+                                        <label class="form-label">Monitored Equipment (Equipment ID) <span class="text-danger">*</span></label>
                                         <div class="tag-select-container" wire:click="searchMonitoredEquipments">
                                             <div class="tag-select-input">
                                                 @if($selectedMonitoredEquipmentLabel)
@@ -576,7 +576,7 @@
                                                        wire:keyup="searchMonitoredEquipments"
                                                        class="tag-input"
                                                        value=""
-                                                       placeholder="{{ $selectedMonitoredEquipmentLabel ? '' : 'Search equipment number...' }}"
+                                                       placeholder="{{ $selectedMonitoredEquipmentLabel ? '' : 'Search equipment ID...' }}"
                                                        autocomplete="off">
                                             </div>
                                             @if($showMonitoredEquipmentDropdown && count($filteredMonitoredEquipments) > 0)
@@ -594,114 +594,122 @@
                                 </div>
                                 @endif
                             </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.value_type') }} <span class="text-danger">*</span></label>
-                                        <select wire:model.live="equipmentForm.daily_log_value_type" class="form-control">
-                                            <option value="">{{ __('equipment.select_option') }}</option>
-                                            <option value="constant">{{ __('equipment.constant') }}</option>
-                                            <option value="range">{{ __('equipment.range') }}</option>
-                                        </select>
-                                        @error('equipmentForm.daily_log_value_type') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">{{ __('equipment.expected_value_constant_or_range') }}</small>
-                                    </div>
+
+                            <div class="eq-section-header mt-4 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="mdi mdi-chart-line"></i> Value Types
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.nature_of_result') }} <span class="text-danger">*</span></label>
-                                        <select wire:model.live="equipmentForm.daily_log_nature" class="form-control" {{ $dlType === 'range' ? 'disabled' : '' }}>
-                                            <option value="">{{ __('equipment.select_option') }}</option>
-                                            <option value="qualitative">{{ __('equipment.qualitative') }}</option>
-                                            <option value="quantitative">{{ __('equipment.quantitative') }}</option>
-                                        </select>
-                                        @error('equipmentForm.daily_log_nature') <span class="text-danger">{{ $message }}</span> @enderror
-                                        @if($dlType === 'range')
-                                            <small class="form-text text-muted"><i class="mdi mdi-information-outline"></i> {{ __('equipment.range_values_are_always_quantitative') }}</small>
-                                        @endif
-                                    </div>
-                                </div>
+                                <button type="button" wire:click="addValueType" class="btn btn-sm btn-primary">
+                                    <i class="mdi mdi-plus"></i> Add Value Type
+                                </button>
                             </div>
-                            {{-- Constant + Qualitative: text expected value --}}
-                            @if($dlType === 'constant' && $dlNature === 'qualitative')
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.expected_value') }} <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="equipmentForm.daily_log_expected_value" class="form-control" placeholder="{{ __('equipment.daily_log_expected_text_example') }}">
-                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
+
+                            @if(empty($equipmentForm['daily_log_value_types']))
+                                <div class="alert alert-info">
+                                    <i class="mdi mdi-information-outline"></i>
+                                    No value types configured. Click "Add Value Type" to add monitoring values.
                                 </div>
-                            </div>
-                            @endif
-                            {{-- Constant + Quantitative: numeric expected value --}}
-                            @if($dlType === 'constant' && $dlNature === 'quantitative')
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.expected_value') }} <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_value" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_expected_numeric_example') }}">
-                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-                            {{-- Range + Quantitative: min and max --}}
-                            @if($dlType === 'range' && $dlNature === 'quantitative')
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_min" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_min_value_example') }}">
-                                        @error('equipmentForm.daily_log_expected_min') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="{{ __('equipment.daily_log_max_value_example') }}">
-                                        @error('equipmentForm.daily_log_expected_max') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-                            {{-- Reporting unit (shown whenever a value type is selected) --}}
-                            @if($dlType !== '')
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">{{ __('equipment.reporting_unit') }}</label>
-                                        <div class="tag-select-container" wire:click="searchReportingUnits">
-                                            <div class="tag-select-input">
-                                                @if($selectedReportingUnitName)
-                                                    <span class="tag-badge">
-                                                        {{ $selectedReportingUnitName }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearReportingUnit"></i>
-                                                    </span>
-                                                @endif
-                                                <input type="text"
-                                                       wire:model.live="reportingUnitSearch"
-                                                       wire:keyup="searchReportingUnits"
-                                                       class="tag-input"
-                                                       value=""
-                                                       placeholder="{{ $selectedReportingUnitName ? '' : __('equipment.select_unit') }}"
-                                                       autocomplete="off">
+                            @else
+                                @foreach($equipmentForm['daily_log_value_types'] as $index => $valueType)
+                                    <div class="card mb-3 value-type-card" wire:key="vt-{{ $valueType['id'] }}-{{ $valueType['value_type'] ?? '' }}-{{ $valueType['nature'] ?? '' }}">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">Value Type #{{ $index + 1 }}</h6>
+                                                <button type="button" wire:click="removeValueType('{{ $valueType['id'] }}')" class="btn btn-sm btn-outline-danger">
+                                                    <i class="mdi mdi-delete"></i> Remove
+                                                </button>
                                             </div>
-                                            @if($showReportingUnitDropdown && count($filteredReportingUnits) > 0)
-                                                <div class="tag-dropdown">
-                                                    @foreach($filteredReportingUnits as $unit)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit('{{ $unit->id }}')">
-                                                            {{ $unit->name }}
-                                                        </div>
-                                                    @endforeach
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group mb-3">
+                                                        <label class="form-label">Value Type <span class="text-danger">*</span></label>
+                                                        <select wire:model.live="equipmentForm.daily_log_value_types.{{ $index }}.value_type" wire:change="$set('equipmentForm.daily_log_value_types.{{ $index }}.nature', $event.target.value === 'range' ? 'quantitative' : '')" class="form-control">
+                                                            <option value="">Select option</option>
+                                                            <option value="constant">Constant</option>
+                                                            <option value="range">Range</option>
+                                                        </select>
+                                                        @error("equipmentForm.daily_log_value_types.{$index}.value_type") <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
                                                 </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group mb-3">
+                                                        <label class="form-label">Nature of Result <span class="text-danger">*</span></label>
+                                                        <select wire:model.live="equipmentForm.daily_log_value_types.{{ $index }}.nature" class="form-control" {{ ($valueType['value_type'] ?? '') === 'range' ? 'disabled' : '' }}>
+                                                            <option value="">Select option</option>
+                                                            <option value="qualitative">Qualitative</option>
+                                                            <option value="quantitative">Quantitative</option>
+                                                        </select>
+                                                        @error("equipmentForm.daily_log_value_types.{$index}.nature") <span class="text-danger">{{ $message }}</span> @enderror
+                                                        @if(($valueType['value_type'] ?? '') === 'range')
+                                                            <small class="form-text text-muted"><i class="mdi mdi-information-outline"></i> Range values are always quantitative</small>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {{-- Constant + Qualitative: text expected value --}}
+                                            @if(($valueType['value_type'] ?? '') === 'constant' && ($valueType['nature'] ?? '') === 'qualitative')
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group mb-3">
+                                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
+                                                        <input type="text" wire:model="equipmentForm.daily_log_value_types.{{ $index }}.expected_value" class="form-control" placeholder="e.g. Good, Fair, Poor">
+                                                        @error("equipmentForm.daily_log_value_types.{$index}.expected_value") <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @endif
+                                            {{-- Constant + Quantitative: numeric expected value --}}
+                                            @if(($valueType['value_type'] ?? '') === 'constant' && ($valueType['nature'] ?? '') === 'quantitative')
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group mb-3">
+                                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
+                                                        <input type="number" wire:model="equipmentForm.daily_log_value_types.{{ $index }}.expected_value" class="form-control" step="any" placeholder="e.g. 25.5">
+                                                        @error("equipmentForm.daily_log_value_types.{$index}.expected_value") <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @endif
+                                            {{-- Range + Quantitative: min and max --}}
+                                            @if(($valueType['value_type'] ?? '') === 'range' && ($valueType['nature'] ?? '') === 'quantitative')
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group mb-3">
+                                                        <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
+                                                        <input type="number" wire:model="equipmentForm.daily_log_value_types.{{ $index }}.expected_min" class="form-control" step="any" placeholder="e.g. 0">
+                                                        @error("equipmentForm.daily_log_value_types.{$index}.expected_min") <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group mb-3">
+                                                        <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
+                                                        <input type="number" wire:model="equipmentForm.daily_log_value_types.{{ $index }}.expected_max" class="form-control" step="any" placeholder="e.g. 4">
+                                                        @error("equipmentForm.daily_log_value_types.{$index}.expected_max") <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @endif
+                                            {{-- Reporting unit (shown whenever a value type is selected) --}}
+                                            @if(($valueType['value_type'] ?? '') !== '')
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group mb-3">
+                                                        <label class="form-label">Reporting Unit</label>
+                                                        <select wire:model="equipmentForm.daily_log_value_types.{{ $index }}.reporting_unit" class="form-control">
+                                                            <option value="">Select unit</option>
+                                                            @foreach($this->reportingUnits as $unit)
+                                                                <option value="{{ $unit->name }}">{{ $unit->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        @error("equipmentForm.daily_log_value_types.{$index}.reporting_unit") <span class="text-danger">{{ $message }}</span> @enderror
+                                                        <small class="form-text text-muted">Unit of measurement for recorded value</small>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             @endif
                                         </div>
-                                        @error('equipmentForm.daily_log_reporting_unit') <span class="text-danger">{{ $message }}</span> @enderror
-                                        <small class="form-text text-muted">{{ __('equipment.unit_of_measurement_for_recorded_value') }}</small>
                                     </div>
-                                </div>
-                            </div>
+                                @endforeach
                             @endif
                             @endif
                             </div>
@@ -778,3 +786,20 @@
                                 @include('livewire.equipment.partials.equipment-depreciation-wizard-step')
                             @endif
                         </form>
+
+                        <style>
+                            .value-type-card {
+                                border: 1px solid #e5e7eb;
+                                border-radius: 8px;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                                transition: box-shadow 0.2s ease;
+                            }
+
+                            .value-type-card:hover {
+                                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                            }
+
+                            .value-type-card .card-body {
+                                padding: 1.25rem;
+                            }
+                        </style>

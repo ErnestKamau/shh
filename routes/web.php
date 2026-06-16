@@ -256,6 +256,10 @@ Route::get('/livewire/monitoring/template/{template}/edit', [LabAppController::c
     ->name('monitoring.template.edit')
     ->middleware('can:laboratory.components.labs.view');
 
+Route::get('/livewire/monitoring/export-lws-011', [\App\Http\Controllers\Monitoring\MonitoringExportController::class, 'exportLws011'])
+    ->name('monitoring.export-lws-011')
+    ->middleware('can:laboratory.components.labs.view');
+
 // Remedies Management Routes
 Route::get('/remedies', [LabAppController::class, 'remedies'])
     ->name('remedies.index')

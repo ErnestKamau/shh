@@ -24,6 +24,7 @@ class Equipment extends Model implements Auditable
 	protected $fillable = [
 		'name',
 		'equipment_number',
+		'thermometer_id',
 		'description',
 		'make',
 		'model',
@@ -53,6 +54,7 @@ class Equipment extends Model implements Auditable
 		'is_disposal',
 		'requires_daily_log',
 		'has_logbook_tracking',
+		'daily_log_value_types',
 		'daily_log_value_type',
 		'daily_log_nature',
 		'daily_log_tolerance',
@@ -78,6 +80,7 @@ class Equipment extends Model implements Auditable
 	protected $casts = [
 		'requires_daily_log' => 'boolean',
 		'has_logbook_tracking' => 'boolean',
+		'daily_log_value_types' => 'array',
 		'daily_log_tolerance' => 'integer',
 		'daily_log_expected_min' => 'float',
 		'daily_log_expected_max' => 'float',

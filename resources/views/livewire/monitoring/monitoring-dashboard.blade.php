@@ -392,8 +392,8 @@
 
                             <div class="col-md-4 mb-3">
                                 <label class="font-weight-bold">Version</label>
-                                <input type="number" min="1" class="form-control"
-                                    wire:model.defer="templateEditInputs.version">
+                                <input type="text" class="form-control"
+                                    wire:model.defer="templateEditInputs.version" placeholder="e.g. 1.0, v1, Draft">
                                 @error('templateEditInputs.version')
                                     <div class="text-danger small mt-1">{{ $message }}</div>
                                 @enderror
@@ -501,6 +501,12 @@
                                         $type = $field->field_type;
                                         $cfg = $field->field_config ?? [];
                                         $options = is_array($cfg['options'] ?? null) ? $cfg['options'] : [];
+
+                                        $execEquipmentId = $this->executionInputs['equipment_id'] ?? null;
+                                        if (blank($execEquipmentId) && $this->selectedSection && filled($this->selectedSection->equipment_id)) {
+                                            $execEquipmentId = (string) $this->selectedSection->equipment_id;
+                                        }
+                                        $resolvedInputConfig = $this->resolveFieldInputConfig($field, $execEquipmentId);
                                     @endphp
                                     <div class="col-md-{{ in_array($type, ['textarea', 'table'], true) ? '12' : '6' }} mb-3">
                                         <label class="font-weight-bold">
@@ -565,6 +571,32 @@
                                         @else
                                             <input type="text" class="form-control"
                                                 wire:model.live="executionInputs.{{ $field->field_key }}">
+                                        @endif
+
+                                        @if($resolvedInputConfig)
+                                            @php
+                                                $vType = $resolvedInputConfig['value_type'] ?? 'text';
+                                            @endphp
+                                            @if($vType === 'constant')
+                                                <div class="text-muted small mt-1">
+                                                    <i class="mdi mdi-information-outline"></i> Expected value: <span class="badge badge-light border text-dark">{{ $resolvedInputConfig['expected_value'] ?? '—' }}</span>
+                                                </div>
+                                            @elseif($vType === 'range')
+                                                <div class="text-muted small mt-1">
+                                                    <i class="mdi mdi-arrow-left-right"></i> Allowed range: 
+                                                    <span class="badge badge-light border text-dark">
+                                                        @if(isset($resolvedInputConfig['min_value']) && $resolvedInputConfig['min_value'] !== '')
+                                                            &ge; {{ $resolvedInputConfig['min_value'] }}
+                                                        @endif
+                                                        @if(isset($resolvedInputConfig['max_value']) && $resolvedInputConfig['max_value'] !== '')
+                                                            @if(isset($resolvedInputConfig['min_value']) && $resolvedInputConfig['min_value'] !== '')
+                                                                and
+                                                            @endif
+                                                            &le; {{ $resolvedInputConfig['max_value'] }}
+                                                        @endif
+                                                    </span>
+                                                </div>
+                                            @endif
                                         @endif
 
                                         @error('executionInputs.' . $field->field_key)

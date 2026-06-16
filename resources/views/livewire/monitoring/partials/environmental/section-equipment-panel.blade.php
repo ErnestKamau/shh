@@ -18,6 +18,13 @@
 
         return rtrim(rtrim(number_format((float) $value, 6, '.', ''), '0'), '.') ?: '0';
     };
+
+    // Check calibration validity
+    $calibrationValid = false;
+    if ($calibration && $calibration->date) {
+        $calibrationExpiry = $calibration->date->copy()->addYear();
+        $calibrationValid = now()->lte($calibrationExpiry);
+    }
 @endphp
 
 <div class="env-panel">
@@ -26,19 +33,68 @@
         <div class="row g-3">
             <div class="col-md-4">
                 <div class="env-stat">
-                    <span class="env-stat__label">Equipment</span>
+                    <span class="env-stat__label">Thermometer ID (Equipment ID)</span>
                     <span class="env-stat__value">
-                        {{ $equipment->name }}
-                        @if($equipment->equipment_number)
-                            <span class="env-stat__meta">({{ $equipment->equipment_number }})</span>
-                        @endif
+                        {{ $equipment->equipment_number ?? '—' }}
                     </span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="env-stat">
+                    <span class="env-stat__label">Equipment Name</span>
+                    <span class="env-stat__value">{{ $equipment->name }}</span>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="env-stat">
                     <span class="env-stat__label">Model / serial</span>
                     <span class="env-stat__value">{{ $equipment->model ?? '—' }} / {{ $equipment->serial_number ?? '—' }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="env-stat">
+                    <span class="env-stat__label">Tolerance</span>
+                    <span class="env-stat__value">{{ $equipment->daily_log_tolerance ? $formatDecimal($equipment->daily_log_tolerance) : '—' }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="env-stat">
+                    <span class="env-stat__label">Thermometer calibration valid</span>
+                    <span class="env-stat__value">
+                        @if($calibration)
+                            @if($calibrationValid)
+                                <span class="env-badge env-badge--success">Yes</span>
+                            @else
+                                <span class="env-badge env-badge--danger">No (Expired)</span>
+                            @endif
+                        @else
+                            <span class="env-badge env-badge--danger">No (No calibration record)</span>
+                        @endif
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="env-stat">
+                    <span class="env-stat__label">Prescribed temperature ranges</span>
+                    <span class="env-stat__value">
+                        @if($equipment->daily_log_value_types && is_array($equipment->daily_log_value_types))
+                            @foreach($equipment->daily_log_value_types as $vt)
+                                @if(($vt['value_type'] ?? '') === 'range' && isset($vt['expected_min']) && isset($vt['expected_max']))
+                                    <div class="mb-1">
+                                        {{ $formatDecimal($vt['expected_min']) }} – {{ $formatDecimal($vt['expected_max']) }}
+                                        @if(isset($vt['reporting_unit'])) {{ $vt['reporting_unit'] }} @endif
+                                    </div>
+                                @elseif(($vt['value_type'] ?? '') === 'constant' && isset($vt['expected_value']))
+                                    <div class="mb-1">
+                                        Expected: {{ $vt['expected_value'] }}
+                                        @if(isset($vt['reporting_unit'])) {{ $vt['reporting_unit'] }} @endif
+                                    </div>
+                                @endif
+                            @endforeach
+                        @else
+                            —
+                        @endif
+                    </span>
                 </div>
             </div>
             @if($calibration)

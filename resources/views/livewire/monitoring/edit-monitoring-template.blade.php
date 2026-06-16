@@ -84,7 +84,7 @@
 
                                     <div class="col-md-4 mb-3">
                                         <label class="form-label form-label--modern">Version <span class="text-danger">*</span></label>
-                                        <input type="number" wire:model.defer="version" class="form-control form-control--modern" min="1" value="1" required>
+                                        <input type="text" wire:model.defer="version" class="form-control form-control--modern" placeholder="e.g. 1.0, v1, Draft" required>
                                         @error('version') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                     </div>
 
