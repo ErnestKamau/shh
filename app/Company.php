@@ -18,6 +18,7 @@ class Company extends Model implements Auditable
     protected $fillable = [
         'name',
         'logo',
+        'favicon',
         'report_logo',
         'location',
         'address',

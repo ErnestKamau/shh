@@ -33,6 +33,8 @@ class CompanyManager extends Component
     public ?string $fax = null;
     public $logoFile = null;
     public ?string $existingLogo = null;
+    public $faviconFile = null;
+    public ?string $existingFavicon = null;
     public array $reportLogos = [];
     public array $reportLogosToDelete = [];
 
@@ -108,6 +110,8 @@ class CompanyManager extends Component
         $this->fax = $company->fax;
         $this->logoFile = null;
         $this->existingLogo = $company->logo;
+        $this->faviconFile = null;
+        $this->existingFavicon = $company->favicon;
         
         $this->reportLogos = $company->reportLogos->map(function ($logo) {
             return [
@@ -152,6 +156,7 @@ class CompanyManager extends Component
             'street' => ['nullable', 'string', 'max:255'],
             'fax' => ['nullable', 'string', 'max:255'],
             'logoFile' => ['nullable', 'image', 'max:5120'],
+            'faviconFile' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,ico,gif,webp', 'max:2048'],
             'reportLogos.*.name' => ['required', 'string', 'max:255'],
             'reportLogos.*.file' => ['nullable', 'image', 'max:5120'],
             'maintenanceStartYear' => ['nullable', 'integer', 'min:2000', 'max:2100'],
@@ -187,7 +192,13 @@ class CompanyManager extends Component
             $company->report_logo = $company->logo;
         }
 
+        if ($this->faviconFile) {
+            $company->favicon = '/storage/' . $this->faviconFile->store('companies/favicons', 'public');
+        }
+
         $company->save();
+
+        \Illuminate\Support\Facades\Cache::forget('system_favicon_url');
 
         if (!empty($this->reportLogosToDelete)) {
             \App\CompanyReportLogo::whereIn('id', $this->reportLogosToDelete)->delete();
@@ -262,6 +273,8 @@ class CompanyManager extends Component
         $company->show_on_reports = $this->showOnReports ? 1 : 0;
         $company->save();
 
+        \Illuminate\Support\Facades\Cache::forget('system_favicon_url');
+
         session()->flash('success', 'Company activated successfully!');
         $this->closeStatusModal();
         $this->resetPage();
@@ -329,6 +342,8 @@ class CompanyManager extends Component
         $this->fax = null;
         $this->logoFile = null;
         $this->existingLogo = null;
+        $this->faviconFile = null;
+        $this->existingFavicon = null;
         $this->reportLogos = [];
         $this->reportLogosToDelete = [];
         $this->maintenanceStartYear = null;

@@ -5,6 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Change Password | {{ config('app.name', 'LIMS') }}</title>
+    @include('partials.favicon')
     <link rel="stylesheet" href="{{ asset('css/w3.css') }}">
     <link href="{{ asset('css/icons/css/fontawesome.min.css') }}" rel="stylesheet">
     <link href="{{ asset('css/app.css') }}" rel="stylesheet">
