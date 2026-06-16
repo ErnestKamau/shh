@@ -31,6 +31,7 @@ use App\Services\Billing\QuotationPricingResolver;
 use App\Services\Billing\QuotationReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class QuotationController extends Controller
 {
@@ -584,7 +585,7 @@ class QuotationController extends Controller
         $currency = $hd->currency_id ? Currency::find($hd->currency_id) : null;
         $header = QuotationHeader::join('crm_customers', 'crm_customers.id', '=', 'quotation_headers.crm_customer_id')
             ->join('crm_customer_contacts', 'crm_customer_contacts.id', '=', 'quotation_headers.crm_customer_contact_id')
-            ->join('users', 'users.id', '=', 'quotation_headers.prepared_by_id')
+            ->join('users', DB::raw('users.id::text'), '=', DB::raw('quotation_headers.prepared_by_id::text'))
             ->join('module_pre_configs as tc', 'tc.id', '=', 'users.position')
             ->where('quotation_headers.id', $id)
             ->selectRaw('quotation_headers.service_delivery,quotation_headers.payments,quotation_headers.payment_info,quotation_headers.quotation_type,quotation_headers.additional_info,quotation_headers.quote_specification,quotation_headers.quote_number,quotation_headers.upload_url,quotation_headers.is_print,quotation_headers.id,quotation_headers.quote_date,quotation_headers.expiring_date,quotation_headers.email_to_customer,quotation_headers.is_draft,quotation_headers.is_complete,quotation_headers.approved_by,quotation_headers.email_to_customer,quotation_headers.total_amount,quotation_headers.sub_total,quotation_headers.tax,crm_customers.name,crm_customers.postal_address,crm_customers.physical_address,crm_customer_contacts.first_name,crm_customer_contacts.middle_name,crm_customer_contacts.last_name,crm_customer_contacts.email,crm_customer_contacts.mobile,

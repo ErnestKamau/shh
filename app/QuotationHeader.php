@@ -54,6 +54,8 @@ class QuotationHeader extends Model implements Auditable
     protected function casts(): array
     {
         return [
+            'prepared_by_id' => 'string',
+            'approved_by' => 'string',
             'show_loq_column' => 'boolean',
             'show_mu_column' => 'boolean',
         ];
