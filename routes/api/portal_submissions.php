@@ -44,6 +44,9 @@ Route::prefix('v1/portal/submissions')
         Route::get('/instances/{instance}', [SubmissionFormInstanceController::class, 'show'])
             ->name('api.portal.submissions.instances.show');
 
+        Route::get('/instances/{instance}/test-request-form/pdf', [SubmissionFormInstanceController::class, 'testRequestFormPdf'])
+            ->name('api.portal.submissions.instances.test-request-form.pdf');
+
         Route::put('/instances/{instance}', [SubmissionFormInstanceController::class, 'submit'])
             ->name('api.portal.submissions.instances.submit');
 

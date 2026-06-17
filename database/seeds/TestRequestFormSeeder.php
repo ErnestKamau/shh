@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\TestRequestForm;
 use Illuminate\Database\Seeder;
 
 class TestRequestFormSeeder extends Seeder
@@ -12,6 +12,6 @@ class TestRequestFormSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        TestRequestForm::seedDefaults();
     }
 }

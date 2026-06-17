@@ -387,7 +387,12 @@ Route::get('/billing/invoices/{id}', function (string $id) {
 })->name('billing.invoices.show')->middleware('can:laboratory.components.proforma invoices.view');
 
 Route::get('/billing/quotations', function () {
-    return view('layouts.billing.quotations-index');
+    $customers = \App\Models\CRM\CRMCustomer::query()
+        ->where('active', 1)
+        ->orderBy('name')
+        ->get();
+
+    return view('layouts.billing.quotations-index', compact('customers'));
 })->name('billing.quotations')->middleware('can:laboratory.components.quotation.view');
 
 Route::get('/billing/sales-order/create', function () {
@@ -655,6 +660,9 @@ Route::get('/billing/redirect_from_docs/{id}/{stage?}', 'Invoice\QuotationContro
 Route::get('/billing/clone_quotation/{id}', 'Invoice\QuotationController@clone_quotation')->name('clone_quotation')->middleware('can:laboratory.components.quotation.add');
 Route::post('/billing/save-quotation-final/{id}', 'Invoice\QuotationController@save_quotation_final')->name('save_quotation_final')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/delete_quotation/{id}', 'Invoice\QuotationController@delete_quotation')->name('delete_quotation')->middleware('can:laboratory.components.quotation.delete');
+Route::get('/billing/quotations/{id}/report/{token}', 'Invoice\QuotationController@publicReportView')->name('quotation.public.report');
+Route::get('/billing/quotations/{id}/preview', 'Invoice\QuotationController@previewQuotation')->name('quotation.preview')->middleware('can:laboratory.components.quotation.view');
+Route::get('/billing/quotations/{id}/preview.pdf', 'Invoice\QuotationController@streamQuotationPdf')->name('quotation.preview.pdf')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/print_quotation/{id}', 'Invoice\QuotationController@print_quotation')->name('print_quotation')->middleware('can:laboratory.components.quotation.view');
 Route::post('/billing/upload_quotation/{id}', 'Invoice\QuotationController@upload_quotation')->name('upload_quotation')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/approve-workflow', 'Invoice\QuotationController@approve_workflow')->name('approve-workflow')->middleware('can:laboratory.components.quotation.edit');
@@ -713,6 +721,12 @@ Route::post('/merge-attachments', 'SampleWorkFlowController@merge_attachments')-
 Route::get('/batch/attachments/{id}/download', 'SampleWorkFlowController@downloadBatchAttachment')->name('download-attachment')->middleware('can:laboratory.components.all samples.view');
 
 // PDF Annotation routes
+Route::get('/test-request-form/preview-draft', [\App\Http\Controllers\TestRequestFormController::class, 'previewDraft'])->name('test-request-form.preview-draft');
+Route::get('/test-request-form/{instance}/preview', [\App\Http\Controllers\TestRequestFormController::class, 'preview'])->name('test-request-form.preview');
+Route::get('/test-request-form/{instance}/pdf', [\App\Http\Controllers\TestRequestFormController::class, 'pdf'])->name('test-request-form.pdf');
+Route::get('/test-request-form/{instance}/download', [\App\Http\Controllers\TestRequestFormController::class, 'download'])->name('test-request-form.download');
+Route::post('/test-request-form/{instance}/regenerate', [\App\Http\Controllers\TestRequestFormController::class, 'regenerate'])->name('test-request-form.regenerate');
+
 Route::get('/batch/acceptance-pdf/{id}', 'SampleWorkFlowController@viewAcceptancePdf')->name('view-acceptance-pdf');
 Route::get('/batch/receipt-notification-pdf/{id}', 'SampleWorkFlowController@viewReceiptNotificationPdf')->name('view-receipt-notification-pdf');
 Route::get('/batch/case-file-pdf/{id}', 'SampleWorkFlowController@viewCaseFilePdf')->name('view-case-file-pdf');

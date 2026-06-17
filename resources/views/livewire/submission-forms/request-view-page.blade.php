@@ -83,6 +83,23 @@
                         <a href="{{ route('submission-forms.instances.sample-collection-label', $instance->id) }}" target="_blank" class="dropdown-item">
                             <i class="mdi mdi-label mr-2"></i> SAMPLE COLLECTION LABEL
                         </a>
+                        @if($instance->testRequestFormInstance)
+                            <div class="dropdown-divider"></div>
+                            <button
+                                type="button"
+                                class="dropdown-item"
+                                wire:click="generateTestRequestFormReport"
+                                wire:loading.attr="disabled"
+                                wire:target="generateTestRequestFormReport"
+                            >
+                                <span wire:loading.remove wire:target="generateTestRequestFormReport">
+                                    <i class="mdi mdi-file-document-edit-outline mr-2"></i> Generate Test Request Form
+                                </span>
+                                <span wire:loading wire:target="generateTestRequestFormReport">
+                                    <span class="spinner-border spinner-border-sm mr-2" role="status"></span> Generating…
+                                </span>
+                            </button>
+                        @endif
                         @php $firstBatch = $instance->batches->first(); @endphp
                         @if($firstBatch)
                             <a href="{{ route('view-batch-details', ['batch' => $firstBatch->id, 'client' => 0, 'portal' => 0, 'status' => $firstBatch->status]) }}" class="dropdown-item">
@@ -253,3 +270,13 @@
         </div>
     </div>
 </div>
+
+@script
+<script>
+    $wire.on('open-test-request-pdf', ({ url }) => {
+        if (url) {
+            window.open(url, '_blank');
+        }
+    });
+</script>
+@endscript
