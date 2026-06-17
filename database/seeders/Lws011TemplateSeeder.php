@@ -122,26 +122,6 @@ class Lws011TemplateSeeder extends Seeder
                 'show_in_monitoring_logs' => true,
                 'input_config' => ['type' => 'number', 'required' => true],
             ],
-            [
-                'step_number' => 7,
-                'variable_name' => 'calibration_valid',
-                'variable_slug' => 'calibration_valid',
-                'step_type' => 'input',
-                'label' => 'Calibration Status',
-                'description' => 'Is calibration status valid? (Yes/No)',
-                'show_in_monitoring_logs' => true,
-                'input_config' => ['type' => 'select', 'options' => ['Yes' => 'Yes', 'No' => 'No'], 'required' => true],
-            ],
-            [
-                'step_number' => 8,
-                'variable_name' => 'wire_plug_condition',
-                'variable_slug' => 'wire_plug_condition',
-                'step_type' => 'input',
-                'label' => 'Plug & Wire Condition',
-                'description' => 'Is plug & wire condition acceptable? (Yes/No)',
-                'show_in_monitoring_logs' => true,
-                'input_config' => ['type' => 'select', 'options' => ['Yes' => 'Yes', 'No' => 'No'], 'required' => true],
-            ],
         ];
 
         $sortOrder = 1;
