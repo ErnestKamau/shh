@@ -51,7 +51,7 @@ final class EnquiryReceptionReadinessService
 
     public function isEligibleForPhysicalReceive(SampleSubmissionRequest $enquiry): bool
     {
-        if (! in_array((string) $enquiry->status, self::RECEPTION_READY_STATUSES, true)) {
+        if ((string) $enquiry->status !== SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION) {
             return false;
         }
 

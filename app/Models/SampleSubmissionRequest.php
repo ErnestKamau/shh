@@ -56,6 +56,7 @@ class SampleSubmissionRequest extends Model
         'current_quotation_header_id',
         'accepted_quotation_header_id',
         'enquiry_notes',
+        'enquiry_sample_configuration',
         'quotation_accepted_at',
         'client_po_number',
         'po_skipped',
@@ -144,6 +145,7 @@ class SampleSubmissionRequest extends Model
             'parameter_ids' => 'array',
             'collection_data' => 'array',
             'sample_lines' => 'array',
+            'enquiry_sample_configuration' => 'array',
         ];
     }
 

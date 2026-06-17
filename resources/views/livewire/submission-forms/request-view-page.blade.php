@@ -63,9 +63,11 @@
                             <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" class="dropdown-item">
                                 <i class="mdi mdi-pencil mr-2"></i> Edit information
                             </a>
+                            @if($canCreateSamples)
                             <a href="#" class="dropdown-item create-samples-btn" data-instance-id="{{ $instance->id }}">
-                                <i class="mdi mdi-flask mr-2"></i> Create Job No.
+                                <i class="mdi mdi-flask mr-2"></i> Create Job / Batch
                             </a>
+                            @endif
                             @if($instance->batches->isNotEmpty() && $linkedBatchesOutOfSyncWithForm)
                                 <form method="POST" action="{{ route('submission-forms.instances.apply-to-batches', $instance->id) }}" class="d-inline w-100" onsubmit="return confirm('Update all linked batches from the current saved form data?');">
                                     @csrf
@@ -80,9 +82,11 @@
                                 <i class="mdi mdi-pencil mr-2"></i> Continue editing
                             </a>
                         @endif
+                        @if($this->shouldShowSampleCollectionLabel())
                         <a href="{{ route('submission-forms.instances.sample-collection-label', $instance->id) }}" target="_blank" class="dropdown-item">
                             <i class="mdi mdi-label mr-2"></i> SAMPLE COLLECTION LABEL
                         </a>
+                        @endif
                         @php $firstBatch = $instance->batches->first(); @endphp
                         @if($firstBatch)
                             <a href="{{ route('view-batch-details', ['batch' => $firstBatch->id, 'client' => 0, 'portal' => 0, 'status' => $firstBatch->status]) }}" class="dropdown-item">
@@ -174,6 +178,35 @@
                     </div>
                 @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW)
                     <div class="text-muted small mb-0">Quotation is under review. No customer comment was provided.</div>
+                @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_SENT
+                    && strtolower((string) ($commercialEnquiry->source_channel ?? '')) === 'walk_in')
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                        <span class="text-muted small mb-0">Customer accepted the quotation in person?</span>
+                        <button type="button" class="btn btn-sm btn-outline-success" wire:click="recordWalkInQuotationAcceptance" wire:loading.attr="disabled">
+                            <i class="mdi mdi-check-decagram"></i> Record walk-in acceptance
+                        </button>
+                    </div>
+                @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED)
+                    <div class="alert alert-light border mb-0 mt-2">
+                        <strong class="d-block mb-2">Purchase order required</strong>
+                        <p class="small text-muted mb-2">Record the customer PO (or skip for non-credit clients) to move this request to <strong>Ready for Reception</strong>.</p>
+                        <button type="button" class="btn btn-sm btn-primary" wire:click="openPoCaptureModal">
+                            <i class="mdi mdi-file-document-edit-outline"></i> Record PO
+                        </button>
+                    </div>
+                @elseif($commercialEnquiry->status === \App\Models\SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION)
+                    <div class="alert alert-success border mb-0 mt-2">
+                        <strong class="d-block mb-1">Ready for physical reception</strong>
+                        <p class="small mb-2">Samples can be checked in at reception. AmSpec commercial acceptance does not require a laboratory acceptance form.</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-sm btn-success" wire:click="openPhysicalReceiveModal">
+                                <i class="mdi mdi-package-variant-closed"></i> Receive physical samples
+                            </button>
+                            <a href="{{ route('sample-workflow', ['status' => 'Samples Receiving']) }}?workflowSubTab=ready_for_reception" class="btn btn-sm btn-outline-primary">
+                                <i class="mdi mdi-open-in-new"></i> Open on receiving board
+                            </a>
+                        </div>
+                    </div>
                 @endif
             </div>
         </div>
@@ -330,4 +363,75 @@
     </div>
 
     @livewire('sampleworkflow.process-enquiry-wizard')
+
+    <div id="receive-sample-modal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0">
+                    <div>
+                        <h5 class="modal-title mb-1">
+                            <i class="mdi mdi-package-variant-closed text-primary mr-2"></i>
+                            Physical sample check-in
+                        </h5>
+                        <p class="text-muted small mb-0">Confirm samples arrived at reception against the accepted quotation.</p>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @livewire('sampleworkflow.receive-sample-request', key('request-view-receive-'.$instance->id))
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if($showPoCaptureModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,.45);">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Record customer PO</h5>
+                        <button type="button" class="close" wire:click="closePoCaptureModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="clientPoNumber">Client PO number</label>
+                            <input type="text" id="clientPoNumber" class="form-control" wire:model="clientPoNumber" @disabled($poSkipped)>
+                        </div>
+                        <div class="form-group form-check">
+                            <input type="checkbox" class="form-check-input" id="poSkipped" wire:model.live="poSkipped">
+                            <label class="form-check-label" for="poSkipped">Skip PO (non-credit / walk-in without PO)</label>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="advancePaymentReference">Advance payment reference (optional)</label>
+                            <input type="text" id="advancePaymentReference" class="form-control" wire:model="advancePaymentReference">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" wire:click="closePoCaptureModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="submitPoAndReadyForReception" wire:loading.attr="disabled">
+                            Save PO &amp; mark ready for reception
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
+
+@script
+<script>
+    Livewire.on('show-receive-sample-modal', function () {
+        $('#receive-sample-modal').modal('show');
+    });
+    Livewire.on('hide-receive-sample-modal', function () {
+        $('#receive-sample-modal').modal('hide');
+    });
+    Livewire.on('receive-completed', function () {
+        window.location.reload();
+    });
+</script>
+@endscript

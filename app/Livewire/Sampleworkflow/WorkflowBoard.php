@@ -15,7 +15,9 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SampleSubmissionRequest;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLog;
 use App\Models\Sampleworkflow\SampleWorkflowDecontaminationLogItem;
+use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Livewire\Sampleworkflow\ProcessEnquiryWizard;
 use App\Services\SubmissionForm\SubmissionFormIntrayService;
 use App\Lab;
 use App\LabDecontaminationArea;
@@ -51,7 +53,6 @@ class WorkflowBoard extends Component
             'in_review' => 'In Review',
             'in_additional_info' => 'Request Additional Info',
             'complete' => 'Complete Requests',
-            'scheduled_sampling' => 'Scheduled Sampling',
             'interzone_transfers' => 'Interzone Transfers',
         ];
     }
@@ -123,7 +124,6 @@ class WorkflowBoard extends Component
     public string $submissionFormsStatus = '';
     public string $submissionFormsPriority = '';
     public string $natureOfSampleFilter = '';
-    public ?string $originFilter = null;
     
     /**
      * Expandable advanced filters (Samples Receiving layout).
@@ -153,6 +153,16 @@ class WorkflowBoard extends Component
      * @var array<int, array{id: string, label: string, customer: string}>
      */
     public array $receiveFormSummaries = [];
+
+    public bool $showPoCaptureModal = false;
+
+    public ?string $poCaptureEnquiryId = null;
+
+    public string $clientPoNumber = '';
+
+    public bool $poSkipped = false;
+
+    public string $advancePaymentReference = '';
 
 
     /**
@@ -244,11 +254,6 @@ class WorkflowBoard extends Component
     }
 
     public function updatingNatureOfSampleFilter(): void
-    {
-        $this->resetPage('forms_page');
-    }
-
-    public function updatingOriginFilter(): void
     {
         $this->resetPage('forms_page');
     }
@@ -522,18 +527,43 @@ class WorkflowBoard extends Component
     protected function readyForPhysicalReceptionSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $query = $this->receivingSubmissionFormsBaseQuery()
-            ->where('status', 'submitted')
+            ->whereIn('status', ['submitted', 'Submitted'])
             ->whereDoesntHave('batches', function ($batchQuery) {
                 $batchQuery->whereNotIn('status', ['Samples En-Route', 'Samples Receiving', 'Samples Reception']);
             });
 
-        $readyStatuses = EnquiryReceptionReadinessService::RECEPTION_READY_STATUSES;
-
-        $query->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($readyStatuses) {
-            $enquiryQuery->whereIn('status', $readyStatuses);
+        $query->whereHas('sampleSubmissionRequest', function ($enquiryQuery): void {
+            $enquiryQuery->where('status', SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION);
         });
 
         return $query;
+    }
+
+    /**
+     * Submitted Requests tab: instance-based commercial pipeline before physical reception.
+     */
+    protected function submittedCommercialPipelineSubmissionFormsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $statuses = array_values(array_filter(
+            SampleSubmissionRequest::COMMERCIAL_PIPELINE_STATUSES,
+            fn (string $status): bool => ! in_array($status, [
+                SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+            ], true)
+        ));
+
+        return $this->receivingSubmissionFormsBaseQuery()
+            ->whereIn('status', ['submitted', 'Submitted'])
+            ->where(function ($query) use ($statuses): void {
+                $query->whereHas('sampleSubmissionRequest', function ($enquiryQuery) use ($statuses): void {
+                    $enquiryQuery
+                        ->whereIn('status', $statuses)
+                        ->whereNull('sample_header_id');
+                })->orWhere(function ($orphanQuery): void {
+                    $orphanQuery
+                        ->whereDoesntHave('sampleSubmissionRequest')
+                        ->whereDoesntHave('batches');
+                });
+            });
     }
 
     protected function applyReceivingSubmissionFormFilters(\Illuminate\Database\Eloquent\Builder $query): void
@@ -568,24 +598,6 @@ class WorkflowBoard extends Component
                 ->filter(fn ($v) => $v->value === $filter)
                 ->pluck('submission_form_instance_id');
             $query->whereIn('id', $instanceIds);
-        }
-
-        if ($this->originFilter) {
-            if ($this->originFilter === 'scheduled') {
-                $query->whereExists(function ($q) {
-                    $q->select(DB::raw(1))
-                      ->from('test_request_form_instances')
-                      ->whereColumn('test_request_form_instances.submission_form_instance_id', 'submission_form_instances.id')
-                      ->whereNotNull('test_request_form_instances.sampling_schedule_id');
-                });
-            } elseif ($this->originFilter === 'walk-in') {
-                $query->whereNotExists(function ($q) {
-                    $q->select(DB::raw(1))
-                      ->from('test_request_form_instances')
-                      ->whereColumn('test_request_form_instances.submission_form_instance_id', 'submission_form_instances.id')
-                      ->whereNotNull('test_request_form_instances.sampling_schedule_id');
-                });
-            }
         }
 
         if ($this->submissionFormsSearch) {
@@ -626,17 +638,15 @@ class WorkflowBoard extends Component
                 continue;
             }
             if ($tabKey === 'submitted') {
-                $counts[$tabKey] = $this->commercialEnquiriesBaseQuery()->count();
+                $submittedQuery = $this->submittedCommercialPipelineSubmissionFormsQuery();
+                $this->applyReceivingSubmissionFormFilters($submittedQuery);
+                $counts[$tabKey] = (int) $submittedQuery->count();
                 continue;
             }
             if ($tabKey === 'ready_for_reception') {
                 $readyQuery = $this->readyForPhysicalReceptionSubmissionFormsQuery();
                 $this->applyReceivingSubmissionFormFilters($readyQuery);
                 $counts[$tabKey] = (int) $readyQuery->count();
-                continue;
-            }
-            if ($tabKey === 'scheduled_sampling') {
-                $counts[$tabKey] = \App\Models\SamplingSchedule::query()->where('is_collected', false)->count();
                 continue;
             }
             $counts[$tabKey] = (int) ($rows[$tabKey] ?? 0);
@@ -668,20 +678,6 @@ class WorkflowBoard extends Component
             'in_review' => $inReviewQuery->count(),
             'accepted'  => $acceptedQuery->count(),
         ];
-    }
-
-    /**
-     * Get sampling schedules for the Scheduled Sampling tab.
-     *
-     * @return \Illuminate\Pagination\LengthAwarePaginator
-     */
-    public function getSamplingSchedulesProperty()
-    {
-        return \App\Models\SamplingSchedule::query()
-            ->with(['client', 'contact', 'personnel'])
-            ->where('is_collected', false)
-            ->orderBy('sampling_datetime', 'desc')
-            ->paginate($this->submissionFormsPerPage);
     }
 
     protected function requestReviewSubmissionFormsBaseQuery(): \Illuminate\Database\Eloquent\Builder
@@ -768,23 +764,28 @@ class WorkflowBoard extends Component
                 ? $this->workflowSubTab
                 : 'submitted';
 
-            $query = ($this->workflowSubTab === 'ready_for_reception'
-                ? $this->readyForPhysicalReceptionSubmissionFormsQuery()
-                : $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus))
-                ->with([
-                    'submissionForm.sampleTypes',
-                    'submittedBy',
-                    'batches',
-                    'crmCustomer',
-                    'sampleSubmissionRequest',
-                    'values.element',
-                    'latestIntray.toUser',
-                    'latestIntray.fromUser',
-                    'activePendingIntray',
-                    'testRequestFormInstance.testRequestForm',
-                ])
-                ->select('submission_form_instances.*')
-                ->selectSub(function ($subQuery) use ($driver) {
+            $eagerLoads = [
+                'submissionForm.sampleTypes',
+                'submittedBy',
+                'batches',
+                'crmCustomer',
+                'sampleSubmissionRequest',
+                'testRequestFormInstance',
+                'values.element',
+                'latestIntray.toUser',
+                'latestIntray.fromUser',
+                'activePendingIntray',
+            ];
+
+            $query = match ($this->workflowSubTab) {
+                'ready_for_reception' => $this->readyForPhysicalReceptionSubmissionFormsQuery(),
+                'submitted' => $this->submittedCommercialPipelineSubmissionFormsQuery(),
+                default => $this->receivingSubmissionFormsBaseQuery()->where('status', $tabStatus),
+            };
+
+            $query->with($eagerLoads)->select('submission_form_instances.*');
+
+            $query->selectSub(function ($subQuery) use ($driver) {
                     $subQuery->from('submission_form_instances as attachment_instances')
                         ->selectRaw('count(*)')
                         ->whereRaw('attachment_instances.portal_request_id = submission_form_instances.id' . ($driver === 'pgsql' ? '::text' : ''));
@@ -1176,7 +1177,6 @@ class WorkflowBoard extends Component
         $this->submissionFormsStatus = '';
         $this->submissionFormsPriority = '';
         $this->natureOfSampleFilter = '';
-        $this->originFilter = null;
     }
 
     public function toggleAdvancedFilters(): void
@@ -1509,6 +1509,31 @@ class WorkflowBoard extends Component
     {
         $this->syncSelectedFormInstanceIds($ids);
 
+        if ($this->selectedFormInstanceIds !== []) {
+            $checkInService = app(\App\Services\Sampleworkflow\SampleReceivingCheckInService::class);
+            $blockedReasons = [];
+
+            foreach ($this->selectedFormInstanceIds as $instanceId) {
+                $instance = SubmissionFormInstance::query()->find($instanceId);
+                if ($instance === null) {
+                    continue;
+                }
+
+                if (! $checkInService->canReceiveInstance($instance)) {
+                    $reason = $checkInService->receiveBlockReason($instance);
+                    if ($reason !== null) {
+                        $blockedReasons[] = $reason;
+                    }
+                }
+            }
+
+            if ($blockedReasons !== []) {
+                session()->flash('error', collect($blockedReasons)->unique()->first());
+
+                return;
+            }
+        }
+
         $summaries = [];
         if ($this->selectedFormInstanceIds !== []) {
             $summaries = $this->buildReceiveFormSummaries($this->selectedFormInstanceIds);
@@ -1517,8 +1542,6 @@ class WorkflowBoard extends Component
             $this->receiveFormSummaries = [];
         }
 
-        // Dispatch into the already-mounted child so it updates state and then
-        // shows the modal itself — avoids the remount race condition.
         $this->dispatch('receive-modal-open',
             instanceIds: $this->selectedFormInstanceIds,
             summaries: $summaries,
@@ -1528,14 +1551,193 @@ class WorkflowBoard extends Component
     /**
      * @param  array<int, string>  $ids
      */
-    public function openProcessEnquiryModal(array $ids = []): void
+    public function openPoCaptureFromInstances(array $ids = []): void
     {
-        $enquiryId = trim((string) ($ids[0] ?? ''));
-        if ($enquiryId === '') {
+        $enquiryId = $this->resolveEnquiryIdFromSelection($ids);
+
+        if ($enquiryId === null) {
+            session()->flash('error', 'Select a request with an accepted quotation to record PO and move to Ready for Reception.');
+
             return;
         }
 
-        $this->dispatch('process-enquiry-open', enquiryId: $enquiryId);
+        $this->openPoCaptureModal($enquiryId);
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    public function recordWalkInAcceptanceFromInstances(array $ids = []): void
+    {
+        $enquiryId = $this->resolveEnquiryIdFromSelection($ids);
+
+        if ($enquiryId === null) {
+            session()->flash('error', 'Select a walk-in request with a sent quotation to record acceptance.');
+
+            return;
+        }
+
+        $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
+
+        if ($enquiry === null) {
+            session()->flash('error', 'Enquiry not found.');
+
+            return;
+        }
+
+        if (strtolower((string) ($enquiry->source_channel ?? '')) !== 'walk_in') {
+            session()->flash('error', 'Walk-in acceptance only applies to in-person enquiries.');
+
+            return;
+        }
+
+        try {
+            app(\App\Services\Commercial\QuotationFromEnquiryService::class)->recordWalkInAcceptance($enquiry);
+            session()->flash('message', 'Quotation accepted. Record the customer PO to move this request to Ready for Reception.');
+        } catch (\Throwable $exception) {
+            session()->flash('error', $exception->getMessage());
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    public function openProcessEnquiryModal(array $ids = []): void
+    {
+        $enquiryId = $this->resolveEnquiryIdFromSelection($ids);
+
+        if ($enquiryId === null && $ids !== []) {
+            $enquiryId = $this->createCommercialEnquiryFromSelection($ids);
+        }
+
+        if ($enquiryId === null) {
+            session()->flash('error', 'Could not open enquiry processing. Select a submitted test request with customer details.');
+
+            return;
+        }
+
+        $this->dispatch('process-enquiry-open', enquiryId: $enquiryId)
+            ->to(ProcessEnquiryWizard::class);
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    public function openProcessEnquiryFromInstances(array $ids = []): void
+    {
+        $this->openProcessEnquiryModal($ids);
+    }
+
+    public function openPoCaptureModal(string $enquiryId): void
+    {
+        $enquiry = SampleSubmissionRequest::query()->find($enquiryId);
+        if ($enquiry === null || $enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED) {
+            session()->flash('error', 'PO can only be recorded for accepted quotations.');
+
+            return;
+        }
+
+        $this->poCaptureEnquiryId = $enquiryId;
+        $this->clientPoNumber = (string) ($enquiry->client_po_number ?? '');
+        $this->poSkipped = (bool) $enquiry->po_skipped;
+        $this->advancePaymentReference = (string) ($enquiry->advance_payment_reference ?? '');
+        $this->showPoCaptureModal = true;
+    }
+
+    public function closePoCaptureModal(): void
+    {
+        $this->showPoCaptureModal = false;
+        $this->poCaptureEnquiryId = null;
+        $this->clientPoNumber = '';
+        $this->poSkipped = false;
+        $this->advancePaymentReference = '';
+    }
+
+    public function submitPoAndReadyForReception(): void
+    {
+        if ($this->poCaptureEnquiryId === null) {
+            return;
+        }
+
+        $enquiry = SampleSubmissionRequest::query()->find($this->poCaptureEnquiryId);
+        if ($enquiry === null) {
+            $this->closePoCaptureModal();
+
+            return;
+        }
+
+        try {
+            app(EnquiryReceptionReadinessService::class)->markReadyForReception(
+                $enquiry,
+                (string) ($enquiry->accepted_quotation_header_id ?? $enquiry->current_quotation_header_id ?? ''),
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                    'po_skipped' => $this->poSkipped,
+                    'advance_payment_reference' => $this->advancePaymentReference,
+                ],
+            );
+
+            $this->closePoCaptureModal();
+            session()->flash('message', 'PO recorded. Request is ready for physical reception.');
+        } catch (Throwable $exception) {
+            session()->flash('error', $exception->getMessage());
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    protected function resolveEnquiryIdFromSelection(array $ids): ?string
+    {
+        if ($ids !== []) {
+            $firstId = trim((string) ($ids[0] ?? ''));
+            if ($firstId === '') {
+                return null;
+            }
+
+            if (SampleSubmissionRequest::query()->whereKey($firstId)->exists()) {
+                return $firstId;
+            }
+
+            $this->syncSelectedFormInstanceIds($ids);
+
+            $enquiryId = SubmissionFormInstance::query()
+                ->whereIn('id', $this->selectedFormInstanceIds)
+                ->with('sampleSubmissionRequest')
+                ->get()
+                ->map(fn (SubmissionFormInstance $instance) => $instance->sampleSubmissionRequest?->id)
+                ->filter()
+                ->first();
+
+            return $enquiryId !== null ? (string) $enquiryId : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     */
+    protected function createCommercialEnquiryFromSelection(array $ids): ?string
+    {
+        $this->syncSelectedFormInstanceIds($ids);
+
+        $instanceId = trim((string) ($this->selectedFormInstanceIds[0] ?? ''));
+        if ($instanceId === '') {
+            return null;
+        }
+
+        $instance = SubmissionFormInstance::query()
+            ->with(['submissionForm', 'values.element', 'crmCustomer', 'testRequestFormInstance', 'sampleSubmissionRequest'])
+            ->find($instanceId);
+
+        if ($instance === null) {
+            return null;
+        }
+
+        $enquiry = app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance($instance);
+
+        return $enquiry?->id !== null ? (string) $enquiry->id : null;
     }
 
     public function onProcessEnquiryCompleted(): void
@@ -1696,13 +1898,90 @@ class WorkflowBoard extends Component
         $this->dispatch('hide-request-additional-info-modal');
     }
 
+    public function openAcceptSampleWizardFromSelection(): void
+    {
+        if (count($this->selectedFormInstanceIds) !== 1) {
+            $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before accepting.');
+
+            return;
+        }
+
+        $this->dispatch(
+            'open-acceptance-wizard',
+            submissionFormInstanceId: $this->selectedFormInstanceIds[0],
+            submissionRequestId: null,
+        )->to(AcceptanceFormWizard::class);
+    }
+
+    public function openRejectSampleWizardFromSelection(): void
+    {
+        if (count($this->selectedFormInstanceIds) !== 1) {
+            $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before rejecting.');
+
+            return;
+        }
+
+        $this->dispatch(
+            'open-rejection-wizard',
+            submissionFormInstanceId: $this->selectedFormInstanceIds[0],
+            submissionRequestId: null,
+        )->to(SampleRejectionWizard::class);
+    }
+
+    /**
+     * @param  array<int, string>|string  $ids
+     */
+    public function openAcceptSampleWizard(array|string $ids = []): void
+    {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids);
+
+        if ($this->selectedFormInstanceIds === [] || count($this->selectedFormInstanceIds) > 1) {
+            $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before accepting.');
+
+            return;
+        }
+
+        $this->dispatch(
+            'open-acceptance-wizard',
+            submissionFormInstanceId: $this->selectedFormInstanceIds[0],
+            submissionRequestId: null,
+        )->to(AcceptanceFormWizard::class);
+    }
+
+    /**
+     * @param  array<int, string>|string  $ids
+     */
+    public function openRejectSampleWizard(array|string $ids = []): void
+    {
+        if (is_string($ids)) {
+            $ids = $ids !== '' ? [$ids] : [];
+        }
+
+        $this->syncSelectedFormInstanceIds($ids);
+
+        if ($this->selectedFormInstanceIds === [] || count($this->selectedFormInstanceIds) > 1) {
+            $this->dispatch('notify', type: 'error', message: 'Please select exactly one submission request or form row before rejecting.');
+
+            return;
+        }
+
+        $this->dispatch(
+            'open-rejection-wizard',
+            submissionFormInstanceId: $this->selectedFormInstanceIds[0],
+            submissionRequestId: null,
+        )->to(SampleRejectionWizard::class);
+    }
+
     /**
      * @param  array<int, string>  $ids
      */
     protected function syncSelectedFormInstanceIds(array $ids): void
     {
         if ($ids === []) {
-            $this->selectedFormInstanceIds = [];
             return;
         }
 

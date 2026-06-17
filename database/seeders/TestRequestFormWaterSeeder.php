@@ -29,28 +29,26 @@ class TestRequestFormWaterSeeder extends Seeder
             ['text', 'Sample description', 'sample_description', 1],
             ['text', 'Location', 'location', 2],
             ['number', 'Qty', 'number_of_samples', 3],
-            ['sample_type_select', 'Type of sample', 'sample_type_id', 4, null, true],
-            ['analysis_type_select', 'Sample type', 'analysis_type_id', 5, null, true],
-            ['analysis_elements_select', 'Parameters', 'parameters', 6],
-            ['text', 'Sample no.', 'lims_sample_no', 7, null, false, true],
-            ['checkbox', 'Sampling point', 'sampling_point_type', 8, [
+            ['analysis_type_select', 'Analysis type', 'analysis_type_id', 4, null, true],
+            ['analysis_elements_select', 'Parameters', 'parameters', 5],
+            ['checkbox', 'Sampling point', 'sampling_point_type', 6, [
                 ['value' => 'tap', 'label' => 'Tap'],
                 ['value' => 'tank', 'label' => 'Tank'],
                 ['value' => 'pool', 'label' => 'Pool'],
                 ['value' => 'shower_head', 'label' => 'Shower head'],
                 ['value' => 'other', 'label' => 'Other'],
             ]],
-            ['text', 'Sampling point (other)', 'sampling_point_other', 9],
-            ['text', 'Field data - pH', 'field_ph', 10],
-            ['text', 'Field data - Appearance', 'field_appearance', 11],
-            ['text', 'Field data - Residual chlorine', 'field_residual_chlorine', 12],
-            ['text', 'Field data - Odor', 'field_odor', 13],
-            ['text', 'Field data - Sample temp (°C)', 'field_sample_temp', 14],
-            ['checkbox', 'Test requirements', 'test_requirements', 15, [
+            ['text', 'Sampling point (other)', 'sampling_point_other', 7],
+            ['checkbox', 'Test requirements', 'test_requirements', 8, [
                 ['value' => 'microbiology', 'label' => 'Microbiology'],
                 ['value' => 'legionella', 'label' => 'Legionella'],
                 ['value' => 'chemical_analysis', 'label' => 'Chemical analysis'],
             ]],
+            ['text', 'Field data - pH', 'field_ph', 9],
+            ['text', 'Field data - Appearance', 'field_appearance', 10],
+            ['text', 'Field data - Residual chlorine', 'field_residual_chlorine', 11],
+            ['text', 'Field data - Odor', 'field_odor', 12],
+            ['text', 'Field data - Sample temp (°C)', 'field_sample_temp', 13],
         ]);
 
         $this->createSubmitAndSignSection($form, 4);

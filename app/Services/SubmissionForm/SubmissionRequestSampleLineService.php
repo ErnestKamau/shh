@@ -7,6 +7,7 @@ use App\AnalysisType;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
+use App\Services\TestRequestForm\TestRequestFormDataMapper;
 use Illuminate\Support\Str;
 
 class SubmissionRequestSampleLineService
@@ -29,9 +30,20 @@ class SubmissionRequestSampleLineService
             'submissionForm.sections.elementHolders.elements' => fn ($q) => $q->orderBy('sort_order'),
             'submissionForm.sampleTypes',
             'values.element',
+            'testRequestFormInstance.testRequestForm.sampleType',
         ]);
 
         $rowLines = $this->parseRowsSections($instance);
+
+        if ($this->linesHaveRichSampleDetail($rowLines)) {
+            return $rowLines;
+        }
+
+        $trfLines = $this->linesFromTestRequestFormInstance($instance);
+
+        if ($trfLines !== []) {
+            return $trfLines;
+        }
 
         if ($rowLines !== []) {
             return $rowLines;
@@ -167,8 +179,8 @@ class SubmissionRequestSampleLineService
 
         foreach ($cells as $cell) {
             $element = $cell['element'];
-            $rawValue = trim($cell['value']);
-            $display = trim($cell['display_value']);
+            $rawValue = $this->normalizeCellText($cell['value']);
+            $display = $this->normalizeCellText($cell['display_value']);
             $filePath = $cell['file_path'] ?? null;
 
             if ($rawValue === '' && $display === '' && $filePath === null) {
@@ -271,9 +283,18 @@ class SubmissionRequestSampleLineService
      */
     private function rowHasAnalysisData(array $line): bool
     {
-        return ! empty($line['analysis_type_id'])
-            || ! empty($line['analysis_element_id'])
-            || ! empty($line['sample_description']);
+        if (! empty($line['analysis_type_id']) || ! empty($line['analysis_element_id'])) {
+            return true;
+        }
+
+        $sampleDescription = $this->normalizeCellText($line['sample_description'] ?? null);
+        if ($sampleDescription !== '') {
+            return true;
+        }
+
+        $parameterLabel = $this->normalizeCellText($line['parameter_label'] ?? null);
+
+        return $parameterLabel !== '';
     }
 
     private function isCustomerSampleIdField(string $name, string $mapping): bool
@@ -325,7 +346,17 @@ class SubmissionRequestSampleLineService
             return;
         }
 
-        $elementRecord = AnalysisElements::query()->with('analyte')->find($firstToken);
+        $elementRecord = null;
+        if (Str::isUuid($firstToken)) {
+            $elementRecord = AnalysisElements::query()->with('analyte')->find($firstToken);
+        }
+
+        if (! $elementRecord) {
+            $elementRecord = AnalysisElements::query()->with('analyte')
+                ->whereHas('analyte', fn ($query) => $query->where('name', $firstToken))
+                ->first();
+        }
+
         if ($elementRecord) {
             $line['analysis_element_id'] = (string) $elementRecord->id;
             $line['parameter_label'] = $display !== '' ? $display : ($elementRecord->analyte?->name ?? 'Parameter');
@@ -341,7 +372,26 @@ class SubmissionRequestSampleLineService
             return;
         }
 
-        $line['analysis_element_id'] = $firstToken;
+        $analysisType = null;
+        if (Str::isUuid($firstToken)) {
+            $analysisType = AnalysisType::query()->find($firstToken);
+        }
+        if (! $analysisType) {
+            $analysisType = AnalysisType::query()->where('name', $firstToken)->first();
+        }
+
+        if ($analysisType) {
+            $line['analysis_type_id'] = (string) $analysisType->id;
+            $line['analysis_type_name'] = $analysisType->name;
+            $line['parameter_label'] = $display !== '' ? $display : $analysisType->name;
+            if ($analysisType->sample_type_id) {
+                $line['sample_type_id'] = (string) $analysisType->sample_type_id;
+                $line['sample_type_name'] = $this->resolveSampleTypeName($line['sample_type_id']);
+            }
+
+            return;
+        }
+
         $line['parameter_label'] = $display !== '' ? $display : $firstToken;
     }
 
@@ -483,6 +533,28 @@ class SubmissionRequestSampleLineService
         return $lines;
     }
 
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function linesHaveRichSampleDetail(array $lines): bool
+    {
+        foreach ($lines as $line) {
+            if (trim((string) ($line['sample_description'] ?? '')) !== '') {
+                return true;
+            }
+
+            if (trim((string) ($line['parameter_label'] ?? '')) !== '') {
+                return true;
+            }
+
+            if (! empty($line['analysis_element_id']) || ! empty($line['analysis_type_id'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function resolveHeaderSampleTypeId(SubmissionFormInstance $instance): ?string
     {
         foreach ($instance->values as $value) {
@@ -513,5 +585,150 @@ class SubmissionRequestSampleLineService
         }
 
         return AnalysisType::query()->whereKey($analysisTypeId)->value('name');
+    }
+
+    /**
+     * Walk-in / scheduled TRF data is stored on TestRequestFormInstance.form_data before portal rows exist.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function linesFromTestRequestFormInstance(SubmissionFormInstance $instance): array
+    {
+        $instance->loadMissing(['testRequestFormInstance.testRequestForm.sampleType']);
+
+        $trfi = $instance->testRequestFormInstance;
+        if ($trfi === null) {
+            return [];
+        }
+
+        $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
+        $mapper = app(TestRequestFormDataMapper::class);
+        $normalized = $mapper->normalizeFormData($formData, $trfi->testRequestForm);
+        $sampleRows = $normalized['sample_rows'] ?? [];
+
+        if (! is_array($sampleRows) || $sampleRows === []) {
+            return [];
+        }
+
+        $defaultSampleTypeId = $trfi->testRequestForm?->sample_type_id;
+        $defaultSampleTypeId = $defaultSampleTypeId !== null ? (string) $defaultSampleTypeId : null;
+        $defaultSampleTypeName = $this->resolveSampleTypeName($defaultSampleTypeId);
+
+        $lines = [];
+
+        foreach (array_values($sampleRows) as $rowIndex => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $line = $this->mapTrfSampleRow((int) $rowIndex, $row, $defaultSampleTypeId, $defaultSampleTypeName);
+
+            if ($this->trfRowHasDisplayData($line)) {
+                $lines[] = $line;
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function mapTrfSampleRow(
+        int $rowIndex,
+        array $row,
+        ?string $defaultSampleTypeId,
+        ?string $defaultSampleTypeName,
+    ): array {
+        $line = [
+            'row_index' => $rowIndex,
+            'customer_sample_id' => $this->nullableString($row['sample_no'] ?? $row['lims_sample_no'] ?? null),
+            'sample_description' => $this->nullableString($row['sample_description'] ?? null),
+            'parameter_category' => null,
+            'sample_type_id' => $defaultSampleTypeId,
+            'sample_type_name' => $defaultSampleTypeName,
+            'analysis_type_id' => null,
+            'analysis_type_name' => null,
+            'analysis_element_id' => null,
+            'parameter_label' => null,
+            'number_of_samples' => max(1, (int) ($row['qty'] ?? $row['number_of_samples'] ?? 1)),
+            'sample_condition' => $this->nullableString($row['sample_condition'] ?? null),
+            'state_of_sample' => $this->nullableString($row['state_of_sample'] ?? null),
+            'sampling_point' => $this->nullableString($row['sampling_point'] ?? null),
+            'location' => $this->nullableString($row['location'] ?? null),
+            'production_date' => $this->nullableString($row['production_date'] ?? null),
+            'expiration_date' => $this->nullableString($row['expiration_date'] ?? null),
+            'batch_number' => $this->nullableString($row['batch_number'] ?? null),
+            'picture_of_samples' => null,
+            'attributes' => [],
+        ];
+
+        $foodSampleType = $this->nullableString($row['sample_type'] ?? null);
+        if ($foodSampleType !== null) {
+            $line['attributes']['food_sample_type'] = $foodSampleType;
+            if ($defaultSampleTypeName !== null && $defaultSampleTypeName !== '') {
+                $line['sample_type_name'] = $defaultSampleTypeName.' — '.$foodSampleType;
+            } else {
+                $line['sample_type_name'] = $foodSampleType;
+            }
+        }
+
+        $tests = [];
+        $parameters = $this->nullableString($row['parameters'] ?? null);
+        if ($parameters !== null) {
+            $tests[] = $parameters;
+        }
+
+        foreach (['microbiology' => 'Microbiology', 'legionella' => 'Legionella', 'chemical_analysis' => 'Chemical Analysis'] as $key => $label) {
+            if (! empty($row[$key])) {
+                $tests[] = $label;
+            }
+        }
+
+        if ($tests !== []) {
+            $line['parameter_label'] = implode(', ', $tests);
+        }
+
+        if ($line['attributes'] === []) {
+            unset($line['attributes']);
+        }
+
+        return $line;
+    }
+
+    /**
+     * @param  array<string, mixed>  $line
+     */
+    private function trfRowHasDisplayData(array $line): bool
+    {
+        if ($this->rowHasAnalysisData($line)) {
+            return true;
+        }
+
+        return trim((string) ($line['sample_description'] ?? '')) !== ''
+            || trim((string) ($line['parameter_label'] ?? '')) !== '';
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $string = $this->normalizeCellText($value);
+
+        return $string !== '' ? $string : null;
+    }
+
+    private function normalizeCellText(mixed $value): string
+    {
+        $text = trim((string) ($value ?? ''));
+        if ($text === '') {
+            return '';
+        }
+
+        $normalized = strtolower(str_replace([' ', '_'], '', $text));
+        if (in_array($normalized, ['n/a', 'na', '-', '—', 'null', 'none', 'notapplicable'], true)) {
+            return '';
+        }
+
+        return $text;
     }
 }

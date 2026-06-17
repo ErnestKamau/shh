@@ -52,13 +52,13 @@ class AcceptanceFormPricingService
         $dateOfSampling = null;
 
         if ($submissionRequestId) {
-            $submissionRequest = SampleSubmissionRequest::with(['batch', 'crmCustomer'])->find($submissionRequestId);
+            $submissionRequest = SampleSubmissionRequest::with(['batch', 'customer'])->find($submissionRequestId);
             if (!$submissionRequest) {
                 return $this->emptyPrefill();
             }
 
             $customerId = (string) $submissionRequest->crm_customer_id;
-            $customerName = (string) ($submissionRequest->crmCustomer?->name ?? '');
+            $customerName = (string) ($submissionRequest->customer?->name ?? '');
             $sampleTypeId = $this->resolveSampleTypeFromSubmissionRequest($submissionRequest);
             $requestDate = optional($submissionRequest->created_at)->format('Y-m-d');
             $dateOfSampling = optional($submissionRequest->date_of_seizure)->format('Y-m-d');
@@ -467,28 +467,53 @@ class AcceptanceFormPricingService
             return ['analysis_type_id' => null, 'analysis_element_id' => null, 'sample_type_id' => null];
         }
 
-        $element = AnalysisElements::query()->find($token);
-        if ($element) {
-            $analysisType = AnalysisType::query()->find($element->analysis_type_id);
+        if (Str::isUuid($token)) {
+            $element = AnalysisElements::query()->find($token);
+            if ($element) {
+                $analysisType = AnalysisType::query()->find($element->analysis_type_id);
+
+                return [
+                    'analysis_type_id' => (string) $element->analysis_type_id,
+                    'analysis_element_id' => (string) $element->id,
+                    'sample_type_id' => $analysisType?->sample_type_id ? (string) $analysisType->sample_type_id : null,
+                ];
+            }
+
+            $analysisType = AnalysisType::query()->find($token);
+            if ($analysisType) {
+                return [
+                    'analysis_type_id' => (string) $analysisType->id,
+                    'analysis_element_id' => null,
+                    'sample_type_id' => $analysisType->sample_type_id ? (string) $analysisType->sample_type_id : null,
+                ];
+            }
+        }
+
+        $elementByName = AnalysisElements::query()
+            ->whereHas('analyte', fn ($query) => $query->where('name', $token))
+            ->first();
+
+        if ($elementByName) {
+            $analysisType = AnalysisType::query()->find($elementByName->analysis_type_id);
 
             return [
-                'analysis_type_id' => (string) $element->analysis_type_id,
-                'analysis_element_id' => (string) $element->id,
+                'analysis_type_id' => (string) $elementByName->analysis_type_id,
+                'analysis_element_id' => (string) $elementByName->id,
                 'sample_type_id' => $analysisType?->sample_type_id ? (string) $analysisType->sample_type_id : null,
             ];
         }
 
-        $analysisType = AnalysisType::query()->find($token);
-        if ($analysisType) {
+        $analysisTypeByName = AnalysisType::query()->where('name', $token)->first();
+        if ($analysisTypeByName) {
             return [
-                'analysis_type_id' => (string) $analysisType->id,
+                'analysis_type_id' => (string) $analysisTypeByName->id,
                 'analysis_element_id' => null,
-                'sample_type_id' => $analysisType->sample_type_id ? (string) $analysisType->sample_type_id : null,
+                'sample_type_id' => $analysisTypeByName->sample_type_id ? (string) $analysisTypeByName->sample_type_id : null,
             ];
         }
 
         return [
-            'analysis_type_id' => Str::isUuid($token) ? $token : null,
+            'analysis_type_id' => null,
             'analysis_element_id' => null,
             'sample_type_id' => null,
         ];
@@ -907,7 +932,7 @@ class AcceptanceFormPricingService
             return null;
         }
 
-        $enquiry->loadMissing(['crmCustomer', 'submissionFormInstance']);
+        $enquiry->loadMissing(['customer', 'submissionFormInstance']);
         $customerId = (string) $enquiry->crm_customer_id;
         $pricelist = $this->resolvePricelist($customerId);
         $lines = [];
@@ -960,11 +985,12 @@ class AcceptanceFormPricingService
             'customer_id' => $customerId,
             'sample_type_id' => $lines[0]['sample_type_id'] ?? null,
             'pricelist' => $pricelist,
-            'customer_name' => (string) ($enquiry->crmCustomer?->name ?? ''),
+            'customer_name' => (string) ($enquiry->customer?->name ?? ''),
             'request_date' => optional($enquiry->created_at)->format('Y-m-d'),
             'number_of_samples' => max(1, (int) ($enquiry->number_of_samples ?? 1)),
             'mode_of_work' => $modeOfWork,
             'date_of_sampling' => optional($enquiry->date_of_seizure)->format('Y-m-d'),
+            'quotation_locked' => true,
         ];
     }
 }

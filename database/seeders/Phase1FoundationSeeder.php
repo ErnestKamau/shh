@@ -54,7 +54,7 @@ class Phase1FoundationSeeder extends Seeder
 
             $templateUser = User::query()->where('active', 1)->first() ?? User::query()->first();
             if (! $templateUser) {
-                $this->command?->warning('No users found. Later personnel/sample phases may require an imported template user.');
+                $this->command?->warn('No users found. Later personnel/sample phases may require an imported template user.');
             } else {
                 $this->command?->info("Template user available: {$templateUser->email}");
             }

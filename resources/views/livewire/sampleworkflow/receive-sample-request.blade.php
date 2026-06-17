@@ -1,4 +1,23 @@
 <div class="receive-sample-modal-body">
+    <header class="receive-sample-modal-inline-header mb-3 pb-2 border-bottom">
+        <h5 class="mb-1 font-weight-bold text-dark">
+            @if($this->isPhysicalCheckIn)
+                <i class="mdi mdi-package-variant-closed text-primary mr-1"></i>
+                Physical sample check-in
+            @else
+                <i class="mdi mdi-walk mr-1"></i>
+                Walk-in test request
+            @endif
+        </h5>
+        <p class="text-muted small mb-0">
+            @if($this->isPhysicalCheckIn)
+                Verify the enquiry summary below and add optional remarks to confirm samples arrived at reception.
+            @else
+                Capture a new walk-in test request form and submit it to the commercial pipeline.
+            @endif
+        </p>
+    </header>
+
     @if ($loadError)
         <div class="receive-sample-alert receive-sample-alert--warning" role="alert">
             <i class="mdi mdi-alert-outline"></i>
@@ -22,7 +41,7 @@
                         <span class="receive-sample-chip receive-sample-chip--muted">{{ count($selectedFormInstanceIds) }} request(s)</span>
                     @endif
                 </div>
-                <p class="receive-sample-selected-hint text-muted small mt-1">Verify the enquiry summary below, then complete every required item to receive.</p>
+                <p class="receive-sample-selected-hint text-muted small mt-1">Verify the enquiry summary below, then confirm check-in.</p>
             </section>
         @endif
 
@@ -107,7 +126,8 @@
             </section>
         @endif
 
-        <!-- 1. Select Sample Type -->
+        @unless($this->isPhysicalCheckIn)
+        <!-- Walk-in only: Sample Type + TRF -->
         <div class="form-group mb-4">
             <label for="selectedSampleTypeId" class="font-weight-bold text-dark">Sample Type <span class="text-danger">*</span></label>
             <select id="selectedSampleTypeId" wire:model.live="selectedSampleTypeId" class="form-control form-control-sm @error('selectedSampleTypeId') is-invalid @enderror">
@@ -128,7 +148,7 @@
             @endphp
             <div class="card bg-light border-0 mb-4 shadow-none rounded">
                 <div class="card-body p-3">
-                    <h6 class="font-weight-bold mb-3 text-primary"><i class="mdi mdi-clipboard-text mr-1"></i> {{ $formTemplate->name }}</h6>
+                    <h6 class="font-weight-bold mb-3 text-primary"><i class="mdi mdi-clipboard-text mr-1"></i> Test Request Form</h6>
                     
                     @if($isSectioned)
                         @foreach($formTemplate->form_fields['sections'] as $sectionIndex => $section)
@@ -155,7 +175,6 @@
                                                         <thead class="bg-secondary text-white text-center small">
                                                             <tr>
                                                                 <th style="width: 5%">S. No.</th>
-                                                                <th style="width: 10%">Sample No.</th>
                                                                 <th style="width: 15%">Sample Description</th>
                                                                 <th style="width: 15%">Sampling Point/Location</th>
                                                                 <th style="width: 8%">Qty.</th>
@@ -171,9 +190,6 @@
                                                             @foreach($formData['sample_rows'] ?? [] as $rowIdx => $row)
                                                                 <tr wire:key="food-row-{{ $rowIdx }}">
                                                                     <td class="text-center align-middle font-weight-bold">{{ $rowIdx + 1 }}</td>
-                                                                    <td>
-                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_no" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Sample No.">
-                                                                    </td>
                                                                     <td>
                                                                         <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_description" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Description">
                                                                     </td>
@@ -240,7 +256,6 @@
                                                         <thead class="bg-secondary text-white text-center small">
                                                             <tr>
                                                                 <th style="width: 5%">S. No.</th>
-                                                                <th style="width: 10%">Sample No.</th>
                                                                 <th style="width: 15%">Sample Description</th>
                                                                 <th style="width: 15%">Location</th>
                                                                 <th style="width: 8%">Qty.</th>
@@ -254,9 +269,6 @@
                                                             @foreach($formData['sample_rows'] ?? [] as $rowIdx => $row)
                                                                 <tr wire:key="water-row-{{ $rowIdx }}">
                                                                     <td class="text-center align-middle font-weight-bold">{{ $rowIdx + 1 }}</td>
-                                                                    <td>
-                                                                        <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_no" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Sample No.">
-                                                                    </td>
                                                                     <td>
                                                                         <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_description" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Description">
                                                                     </td>
@@ -338,91 +350,18 @@
                 </div>
             </div>
         @endif
+        @endunless
 
-        <!-- 3. Checklist Items (Only when receiving existing requests) -->
-        @if ($approval && $selectedFormInstanceIds !== [])
-            <section class="receive-sample-checklist mb-4">
-                <header class="receive-sample-checklist-head d-flex justify-content-between align-items-center mb-2">
-                    <div>
-                        <h6 class="receive-sample-checklist-title mb-0 font-weight-bold">{{ $approval->name }}</h6>
-                    </div>
-                    <span class="receive-sample-legend small">
-                        <span class="receive-required-dot text-danger" aria-hidden="true">•</span> Required
-                    </span>
-                </header>
-
-                <ul class="receive-checklist-list list-group" role="list">
-                    @foreach ($approval->checklistItems as $item)
-                        <li
-                            class="receive-checklist-item list-group-item border-0 px-0 py-2 @if($item->is_required) is-required @endif"
-                            wire:key="receive-item-{{ $item->id }}"
-                        >
-                            @if ($item->type === 'checkbox')
-                                <label class="receive-checklist-row d-flex align-items-start" for="receive-item-{{ $item->id }}">
-                                    <input
-                                        type="checkbox"
-                                        id="receive-item-{{ $item->id }}"
-                                        wire:model="responses.{{ $item->id }}"
-                                        class="receive-checklist-input mr-2 mt-1 @error('responses.' . $item->id) is-invalid @enderror"
-                                    >
-                                    <span class="receive-checklist-copy small">
-                                        <span class="receive-checklist-label font-weight-semibold">{{ $item->label }}</span>
-                                        @if ($item->is_required)
-                                            <span class="badge badge-danger ml-1">Required</span>
-                                        @else
-                                            <span class="badge badge-secondary ml-1">Optional</span>
-                                        @endif
-                                    </span>
-                                </label>
-                            @else
-                                <div class="receive-checklist-field-block">
-                                    <label class="receive-checklist-field-label small font-weight-bold" for="receive-item-{{ $item->id }}">
-                                        {{ $item->label }}
-                                        @if ($item->is_required)
-                                            <span class="badge badge-danger ml-1">Required</span>
-                                        @else
-                                            <span class="badge badge-secondary ml-1">Optional</span>
-                                        @endif
-                                    </label>
-                                    @if ($item->type === 'select')
-                                        <select
-                                            id="receive-item-{{ $item->id }}"
-                                            wire:model="responses.{{ $item->id }}"
-                                            class="form-control form-control-sm receive-checklist-control @error('responses.' . $item->id) is-invalid @enderror"
-                                        >
-                                            <option value="">Select option</option>
-                                            @foreach (($item->options ?? []) as $option)
-                                                <option value="{{ $option }}">{{ $option }}</option>
-                                            @endforeach
-                                        </select>
-                                    @else
-                                        <input
-                                            type="text"
-                                            id="receive-item-{{ $item->id }}"
-                                            wire:model="responses.{{ $item->id }}"
-                                            class="form-control form-control-sm receive-checklist-control @error('responses.' . $item->id) is-invalid @enderror"
-                                            placeholder="Enter details"
-                                        >
-                                    @endif
-                                </div>
-                            @endif
-                            @error('responses.' . $item->id)
-                                <p class="receive-checklist-error text-danger small font-weight-semibold mt-1">{{ $message }}</p>
-                            @enderror
-                        </li>
-                    @endforeach
-                </ul>
-
-                <div class="receive-remarks mt-3">
-                    <label class="receive-checklist-field-label small font-weight-bold" for="receive-remarks">Remarks</label>
-                    <textarea
-                        id="receive-remarks"
-                        wire:model="remarks"
-                        rows="2"
-                        class="form-control form-control-sm receive-checklist-control"
-                        placeholder="Optional notes for this receiving action"
-                    ></textarea>
-                </div>
+        @if ($this->isPhysicalCheckIn)
+            <section class="receive-sample-checkin-remarks mb-3">
+                <label class="receive-checklist-field-label small font-weight-bold" for="receive-remarks">Remarks</label>
+                <textarea
+                    id="receive-remarks"
+                    wire:model="remarks"
+                    rows="3"
+                    class="form-control form-control-sm receive-checklist-control"
+                    placeholder="Optional notes about sample condition on arrival, packaging, etc."
+                ></textarea>
             </section>
         @endif
     @endif
@@ -438,10 +377,11 @@
             class="btn btn-sm btn-primary receive-sample-submit-btn"
             wire:click="confirmReceive"
             wire:loading.attr="disabled"
-            @if ($loadError || ! $selectedSampleTypeId) disabled @endif
+            @if ($loadError || (! $this->isPhysicalCheckIn && ! $selectedSampleTypeId)) disabled @endif
         >
             <span wire:loading.remove wire:target="confirmReceive">
-                <i class="mdi mdi-package-variant-closed mr-1"></i> Confirm receive
+                <i class="mdi mdi-package-variant-closed mr-1"></i>
+                {{ $this->isPhysicalCheckIn ? 'Confirm check-in' : 'Submit walk-in request' }}
             </span>
             <span wire:loading wire:target="confirmReceive">
                 <span class="spinner-border spinner-border-sm mr-1" role="status"></span>

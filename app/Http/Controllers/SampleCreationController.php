@@ -42,37 +42,10 @@ class SampleCreationController extends Controller
      */
     public function createFromForm(Request $request, SubmissionFormInstance $instance)
     {
-        try {
-            // Generate Job No: YYMMDD + 3 digit sequential (auto-increment per day, reset at start of new day)
-            $jobNumber = $this->generateJobNumber();
-            
-            // Update submission form instance with Job No and status
-            // Use 'received' status to indicate the request has been received at the lab
-            $instance->update([
-                'status' => 'received',
-            ]);
-            
-            // Save Job No to the submission form instance values
-            $this->saveJobNumberToInstance($instance, $jobNumber);
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Job No. created successfully',
-                'job_number' => $jobNumber
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error creating Job No from form instance', [
-                'instance_id' => $instance->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while creating Job No: ' . $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => false,
+            'message' => 'Job/batch creation is handled through the acceptance form after customer and manager signatures.',
+        ], 422);
     }
 
     /**

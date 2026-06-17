@@ -557,7 +557,7 @@ class SampleHeader extends Model implements Auditable
 	}
 	public function receivingofficer()
 	{
-		return $this->belongsTo(User::class, 'receiving_officer_name');
+		return $this->belongsTo(User::class, 'receiving_officer');
 	}
 	public function qctype()
 	{

@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SamplingScheduleNotification;
 use App\Exports\SamplingSchedulesExport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 
 class ScheduleSamplingManager extends Component
 {
@@ -1229,15 +1229,11 @@ class ScheduleSamplingManager extends Component
 
             $schedule = SamplingSchedule::findOrFail($this->selectedScheduleId);
 
-            // Find active SubmissionForm for this sample type or fallback
-            $submissionForm = \App\Models\SubmissionForm::where('is_active', true)
-                ->where('form_type', 'template')
-                ->whereHas('sampleTypes', function ($query) {
-                    $query->where('sample_types.id', $this->selectedSampleTypeId);
-                })->first() ?: \App\Models\SubmissionForm::where('is_active', true)->where('form_type', 'template')->first();
+            $submissionForm = app(PortalSubmissionFormAccess::class)
+                ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
 
             if (!$submissionForm) {
-                throw new \Exception('No active Submission Form configuration found in the LIMS. Please create a submission template first.');
+                throw new \Exception('No active Test Request Form template found for this sample type. Please seed TRF templates first.');
             }
 
             // Create SubmissionFormInstance request representing the scheduled contract client sample
@@ -1245,7 +1241,7 @@ class ScheduleSamplingManager extends Component
                 'submission_form_id' => $submissionForm->id,
                 'form_number' => null,
                 'sequence_number' => null,
-                'title' => $submissionForm->name . ' - ' . $schedule->title,
+                'title' => 'Test Request Form - ' . $schedule->title,
                 'submitted_by' => auth()->id(),
                 'status' => 'draft',
                 'priority' => 'normal',

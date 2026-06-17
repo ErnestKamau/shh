@@ -18,18 +18,41 @@ class AmspecParametersImporter extends BaseImporter
     protected $lastSampleType = null;
     protected $lastAnalysisType = null;
 
+    /** @var array<string, string> */
+    protected const SECTION_LAB_CODE_MAP = [
+        'chemical' => 'LAB-CHM',
+        'chemistry' => 'LAB-CHM',
+        'microbiology' => 'LAB-AGF',
+        'fuels' => 'LAB-FUEL',
+        'fuel' => 'LAB-FUEL',
+        'lpg' => 'LAB-FUEL',
+        'crude' => 'LAB-CRD',
+        'marine' => 'LAB-BNK',
+        'bunker' => 'LAB-BNK',
+        'agri' => 'LAB-AGF',
+        'food' => 'LAB-AGF',
+        'environmental' => 'LAB-ENV',
+        'environment' => 'LAB-ENV',
+        'technical' => 'LAB-TSU',
+        'calibration' => 'LAB-TSU',
+    ];
+
     protected function validateRow(array $row): array
     {
         $errors = [];
+        $row = $this->normalizeImporterRowKeys($row);
 
-        // Support both header formats
-        $sectionDepartment = $row['section_department'] ?? $row['lab_section'] ?? null;
-        $matrixCategory = $row['matrix_category'] ?? $row['sample_type'] ?? null;
-        $subMatrix = $row['sub_matrix'] ?? $row['analysis_type'] ?? null;
-        $parameterName = $row['parameter_name'] ?? $row['name_of_parameters_as_in_report_coa'] ?? $row['parameters'] ?? null;
-        $method = $row['method'] ?? $row['test_method_sop'] ?? null;
+        $matrixCategory = $this->resolveFieldFromRow($row, [
+            'matrix_category', 'sample_type', 'matrixcategory',
+        ], 'matrixcategory');
+        $parameterName = $this->resolveFieldFromRow($row, [
+            'name_of_parameters_as_in_report_coa', 'nameofparametersasinreportcoa',
+            'parameters', 'parameter_name', 'internalparametersname', 'internal_parameters_name',
+        ], 'nameofparameters');
+        $method = $this->resolveFieldFromRow($row, [
+            'test_method_sop', 'testmethodsop', 'method',
+        ], 'testmethod');
 
-        // Validate required fields - allow empty values if they can be inherited
         if (empty($matrixCategory) && empty($this->lastSampleType)) {
             $errors[] = 'Sample Type is required';
         }
@@ -47,24 +70,33 @@ class AmspecParametersImporter extends BaseImporter
 
     protected function transformRow(array $row): mixed
     {
-        // Normalize keys
-        $normalizedRow = [];
-        foreach ($row as $key => $value) {
-            $cleanKey = preg_replace('/[^a-z0-9_]/', '', strtolower(trim((string)$key)));
-            $normalizedRow[$cleanKey] = is_string($value) ? trim($value) : $value;
-        }
-        $row = $normalizedRow;
+        $row = $this->normalizeImporterRowKeys($row);
 
-        // Map Excel columns to internal field names (support both formats)
-        $sectionDepartment = $row['section_department'] ?? $row['lab_section'] ?? null;
-        $matrixCategory = $row['matrix_category'] ?? $row['sample_type'] ?? null;
-        $subMatrix = $row['sub_matrix'] ?? $row['analysis_type'] ?? null;
-        $parameterName = $row['parameter_name'] ?? $row['name_of_parameters_as_in_report_coa'] ?? $row['parameters'] ?? null;
-        $method = $row['method'] ?? $row['test_method_sop'] ?? null;
-        $unit = $row['unit'] ?? $row['reporting_unit'] ?? null;
-        $decimalPlaces = $row['decimal_places'] ?? 2;
-        $accreditationScope = $row['accreditation_scope'] ?? $row['accredited_nonaccredited'] ?? $row['accreditation'] ?? 'Accredited';
-        $instrument = $row['instrument'] ?? null;
+        $sectionDepartment = $this->resolveFieldFromRow($row, [
+            'section_department', 'sectiondepartment', 'lab_section',
+        ]);
+        $matrixCategory = $this->resolveFieldFromRow($row, [
+            'matrix_category', 'sample_type', 'matrixcategory',
+        ], 'matrixcategory');
+        $subMatrix = $this->resolveFieldFromRow($row, [
+            'sub_matrix', 'analysis_type', 'matrixsubcategory', 'matrix_sub_category',
+        ], 'matrixsubcategory');
+        $parameterName = $this->resolveFieldFromRow($row, [
+            'name_of_parameters_as_in_report_coa', 'nameofparametersasinreportcoa',
+            'parameters', 'parameter_name', 'internalparametersname', 'internal_parameters_name',
+        ], 'nameofparameters');
+        $method = $this->resolveFieldFromRow($row, [
+            'test_method_sop', 'testmethodsop', 'method',
+        ], 'testmethod');
+        $unit = $this->resolveFieldFromRow($row, ['unit', 'reporting_unit']);
+        $decimalPlaces = $this->resolveFieldFromRow($row, ['decimal_places', 'decimalplaces']) ?? 2;
+        $accreditationScope = $this->resolveFieldFromRow($row, [
+            'accreditation_scope', 'accreditationscopeaccreditednonaccredited',
+            'accreditation', 'accredited_nonaccredited',
+        ], 'accreditationscope') ?? 'Accredited';
+        $instrument = $this->resolveFieldFromRow($row, [
+            'instrument', 'instrumentused', 'equipment',
+        ], 'instrument');
 
         // Handle continuation pattern: empty cells mean "same as above"
         // Only inherit if the current value is truly empty (not just whitespace)
@@ -98,7 +130,8 @@ class AmspecParametersImporter extends BaseImporter
 
         // Handle non-accredited flag
         $nonAccredited = 0;
-        if (in_array(strtolower(trim((string)$accreditationScope)), ['non-accredited', 'non accredited', 'no', 'false'])) {
+        $accreditationNormalized = strtolower(trim((string) $accreditationScope));
+        if (in_array($accreditationNormalized, ['non-accredited', 'non accredited', 'no', 'false'], true)) {
             $nonAccredited = 1;
         }
 
@@ -153,16 +186,8 @@ class AmspecParametersImporter extends BaseImporter
             $hasImportedAny = true;
         }
 
-        // 2. Get or create Lab
-        $lab = Lab::where('company_id', $this->batch->company_id)->first();
-        if (!$lab) {
-            $lab = Lab::create([
-                'code' => 'LAB-DEFAULT',
-                'name' => 'Default Lab',
-                'active' => 1,
-                'company_id' => $this->batch->company_id
-            ]);
-        }
+        // 2. Resolve Lab by section department
+        $lab = $this->resolveLabForSection($transformedData['section_department'] ?? $transformedData['lab_section_name'] ?? '');
         $labId = $lab->id;
 
         // 3. Process AnalysisType (only if we have the data)
@@ -324,6 +349,99 @@ class AmspecParametersImporter extends BaseImporter
         }
 
         return $hasImportedAny;
+    }
+
+    protected function resolveLabForSection(?string $section): Lab
+    {
+        $companyId = $this->batch->company_id;
+        $labCode = $this->labCodeForSection($section);
+
+        if ($labCode) {
+            $lab = Lab::query()
+                ->where('company_id', $companyId)
+                ->where('code', $labCode)
+                ->where('active', true)
+                ->first();
+
+            if ($lab) {
+                return $lab;
+            }
+        }
+
+        $lab = Lab::query()
+            ->where('company_id', $companyId)
+            ->where('active', true)
+            ->orderBy('code')
+            ->first();
+
+        if ($lab) {
+            return $lab;
+        }
+
+        return Lab::create([
+            'code' => 'LAB-DEFAULT',
+            'name' => 'Default Lab',
+            'active' => 1,
+            'company_id' => $companyId,
+        ]);
+    }
+
+    protected function labCodeForSection(?string $section): ?string
+    {
+        if (empty($section)) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($section));
+
+        foreach (self::SECTION_LAB_CODE_MAP as $keyword => $code) {
+            if (str_contains($normalized, $keyword)) {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected function normalizeImporterRowKeys(array $row): array
+    {
+        $normalizedRow = [];
+        foreach ($row as $key => $value) {
+            $cleanKey = preg_replace('/[^a-z0-9_]/', '', strtolower(trim((string) $key))) ?? '';
+            if ($cleanKey === '') {
+                continue;
+            }
+            $normalizedRow[$cleanKey] = is_string($value) ? trim($value) : $value;
+        }
+
+        return $normalizedRow;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $aliases
+     */
+    protected function resolveFieldFromRow(array $row, array $aliases, ?string $prefix = null): ?string
+    {
+        foreach ($aliases as $alias) {
+            if (! empty($row[$alias])) {
+                return is_string($row[$alias]) ? trim($row[$alias]) : (string) $row[$alias];
+            }
+        }
+
+        if ($prefix !== null) {
+            foreach ($row as $key => $value) {
+                if (str_starts_with($key, $prefix) && $value !== null && $value !== '') {
+                    return is_string($value) ? trim($value) : (string) $value;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

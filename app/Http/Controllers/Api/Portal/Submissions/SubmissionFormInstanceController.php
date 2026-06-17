@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Api\Portal\Submissions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Portal\Submissions\StoreSubmissionFormInstanceRequest;
 use App\Http\Requests\Api\Portal\Submissions\SubmitSubmissionFormInstanceRequest;
+use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CustomerContact;
 use App\Models\SubmissionFormInstance;
+use App\Models\SubmissionFormInstanceValue;
+use App\User;
 use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\SubmissionForm\FormSchemaBuilder;
 use App\Services\SubmissionForm\PortalDependedFieldResolver;
@@ -62,7 +66,10 @@ class SubmissionFormInstanceController extends Controller
 
         $query = $this->access
             ->portalInstancesQuery($customerId)
-            ->with(['submissionForm:id,name,document_code,version,form_type'])
+            ->with([
+                'submissionForm:id,name,document_code,version,form_type',
+                'sampleSubmissionRequest:id,submission_form_instance_id,request_number,status,source_channel',
+            ])
             ->orderByDesc('updated_at');
 
         if ($request->filled('portal_account_id')) {
@@ -199,6 +206,16 @@ class SubmissionFormInstanceController extends Controller
             'priority' => $request->input('priority', 'normal'),
             'due_date' => $request->input('due_date'),
         ]);
+
+        $this->prefillPortalCustomerFields($instance, $form, $customerId, $portalAccountId);
+        try {
+            app(CommercialEnquiryFromFormService::class)->syncFromDraftInstance($instance->fresh(['values.element', 'submissionForm', 'crmCustomer']));
+        } catch (\Throwable $th) {
+            Log::warning('Commercial enquiry sync failed for draft portal instance.', [
+                'instance_id' => $instance->id,
+                'message' => $th->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'data' => $this->buildInstanceResponse($instance->fresh('submissionForm')),
@@ -397,6 +414,21 @@ class SubmissionFormInstanceController extends Controller
             ];
         }
 
+        $enquiry = $instance->relationLoaded('sampleSubmissionRequest')
+            ? $instance->sampleSubmissionRequest
+            : null;
+
+        if ($enquiry !== null) {
+            $payload['commercial_enquiry'] = [
+                'id' => $enquiry->id,
+                'request_number' => $enquiry->request_number,
+                'formatted_number' => $enquiry->formatted_number,
+                'commercial_status' => $enquiry->status,
+                'quotation_status' => $enquiry->status,
+                'source_channel' => $enquiry->source_channel,
+            ];
+        }
+
         return $payload;
     }
 
@@ -407,6 +439,8 @@ class SubmissionFormInstanceController extends Controller
         SubmissionFormInstance $instance,
         bool $includeValues = false
     ): array {
+        $instance->loadMissing(['testRequestFormInstance', 'sampleSubmissionRequest']);
+
         $payload = [
             'id' => $instance->id,
             'submission_form_id' => $instance->submission_form_id,
@@ -420,10 +454,23 @@ class SubmissionFormInstanceController extends Controller
             'portal_account_id' => $instance->portal_account_id,
             'crm_customer_id' => $instance->crm_customer_id,
             'portal_request_id' => $instance->portal_request_id,
+            'test_request_form_instance_id' => $instance->testRequestFormInstance?->id,
             'submitted_at' => $instance->submitted_at?->toIso8601String(),
             'created_at' => $instance->created_at?->toIso8601String(),
             'updated_at' => $instance->updated_at?->toIso8601String(),
         ];
+
+        $enquiry = $instance->sampleSubmissionRequest;
+        if ($enquiry !== null) {
+            $payload['commercial_enquiry'] = [
+                'id' => $enquiry->id,
+                'request_number' => $enquiry->request_number,
+                'formatted_number' => $enquiry->formatted_number,
+                'commercial_status' => $enquiry->status,
+                'quotation_status' => $enquiry->status,
+                'source_channel' => $enquiry->source_channel,
+            ];
+        }
 
         if (! $includeValues) {
             return $payload;
@@ -466,5 +513,72 @@ class SubmissionFormInstanceController extends Controller
             : null;
 
         return $payload;
+    }
+
+    private function prefillPortalCustomerFields(
+        SubmissionFormInstance $instance,
+        \App\Models\SubmissionForm $form,
+        string $customerId,
+        ?string $portalAccountId
+    ): void {
+        $customer = CRMCustomer::query()
+            ->where('id', $customerId)
+            ->first(['id', 'name', 'physical_address', 'postal_address', 'telephone1', 'telephone2']);
+
+        if ($customer === null) {
+            return;
+        }
+
+        $contactId = null;
+        if ($portalAccountId !== null && $portalAccountId !== '') {
+            $contactId = User::query()
+                ->where('id', $portalAccountId)
+                ->value('crm_contact_id');
+        }
+
+        if ($contactId === null || $contactId === '') {
+            $contactId = CustomerContact::query()
+                ->where('crm_customer_id', $customerId)
+                ->orderBy('first_name')
+                ->value('id');
+        }
+
+        $defaults = [
+            'customer_name' => (string) ($customer->name ?? ''),
+            'customer_address' => (string) ($customer->physical_address ?: $customer->postal_address ?: ''),
+            'customer_phone' => (string) ($customer->telephone1 ?? ''),
+            'mobile_number' => (string) ($customer->telephone2 ?: $customer->telephone1 ?: ''),
+            'contact_person' => $contactId !== null && $contactId !== '' ? (string) $contactId : null,
+            'crm_contact_id' => $contactId !== null && $contactId !== '' ? (string) $contactId : null,
+        ];
+
+        $form->loadMissing('sections.elementHolders.elements');
+        $elementsByName = $form->sections
+            ->flatMap(fn ($section) => $section->elementHolders)
+            ->flatMap(fn ($holder) => $holder->elements)
+            ->keyBy('name');
+
+        foreach ($defaults as $fieldName => $fieldValue) {
+            if ($fieldValue === null || $fieldValue === '') {
+                continue;
+            }
+
+            $element = $elementsByName->get($fieldName);
+            if ($element === null) {
+                continue;
+            }
+
+            SubmissionFormInstanceValue::query()->updateOrCreate(
+                [
+                    'submission_form_instance_id' => $instance->id,
+                    'submission_form_element_id' => $element->id,
+                    'array_index' => null,
+                ],
+                [
+                    'value' => $fieldValue,
+                    'file_path' => null,
+                ]
+            );
+        }
     }
 }

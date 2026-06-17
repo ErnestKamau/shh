@@ -39,6 +39,8 @@ Route::prefix('v1/portal/submissions')
             ->name('api.portal.submissions.forms.instances');
         Route::get('/forms/{submissionForm}', [SubmissionFormController::class, 'show'])->name('api.portal.submissions.forms.show');
         Route::get('/forms/{submissionForm}/schema', [SubmissionFormController::class, 'schema'])->name('api.portal.submissions.forms.schema');
+        Route::get('/forms/{submissionForm}/test-request-form-schema', [SubmissionFormController::class, 'testRequestFormSchema'])
+            ->name('api.portal.submissions.forms.test-request-form-schema');
 
         Route::post('/forms/{submissionForm}/instances', [SubmissionFormInstanceController::class, 'store'])
             ->name('api.portal.submissions.instances.store');

@@ -465,7 +465,7 @@ class SampleWorkFlowController extends Controller
     public function print_labels(Request $request)
     {
         // return response()->json(getSampleWorkFLowTotals(), 200);
-        $ids = $request->sample_code;
+        $ids = (array) $request->sample_code;
 
         if (count($ids) == 0) {
             return redirect()->back()->with('error', 'No Samples selected');
@@ -475,24 +475,29 @@ class SampleWorkFlowController extends Controller
 
         foreach ($ids as $batch_code) {
             $batch = SampleHeader::with(['receivingofficer'])->where('batch_code', $batch_code)->first();
+            if ($batch === null) {
+                continue;
+            }
+
             $strStage = 'Sample Labeling';
             $samWk = 'Samples Reception';
 
             $stage = SampleAnalysisStage::where('name', $strStage)->where('sample_workflow', $samWk)->first();
-
-            $custodyDetails = [
-                'batch_id' => $batch->id,
-                'comments' => $request->comments ?? '',
-                'current' => [
-                    'status' => $batch->status,
-                    'tracking_stage' => $batch->sample_tracking_stage,
-                ],
-                'target' => [
-                    'status' => $samWk,
-                    'tracking_stage' => $stage->id,
-                ],
-            ];
-            $this->updateChainofCustody($custodyDetails);
+            if ($stage !== null) {
+                $custodyDetails = [
+                    'batch_id' => $batch->id,
+                    'comments' => $request->comments ?? '',
+                    'current' => [
+                        'status' => $batch->status,
+                        'tracking_stage' => $batch->sample_tracking_stage,
+                    ],
+                    'target' => [
+                        'status' => $samWk,
+                        'tracking_stage' => $stage->id,
+                    ],
+                ];
+                $this->updateChainofCustody($custodyDetails);
+            }
 
             $samples = $batch->all_samples();
 
@@ -541,8 +546,10 @@ class SampleWorkFlowController extends Controller
                 $labels[] = $data;
             }
             // return response()->json($labels,200);
-            $batch->sample_tracking_stage = $stage->id;
-            $batch->save();
+            if ($stage !== null) {
+                $batch->sample_tracking_stage = $stage->id;
+                $batch->save();
+            }
         }
 
         // return response()->json($labels, 200);

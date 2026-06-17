@@ -56,7 +56,7 @@ class TestRequestFormInstance extends Model
         $requestData['customer_name'] = $formData['customer_name'] ?? $formData['client_name'] ?? $formData['customer'] ?? $formData['client'] ?? '';
         $requestData['customer_address'] = $formData['customer_address'] ?? $formData['address'] ?? $formData['physical_address'] ?? $formData['postal_address'] ?? '';
         
-        $phoneVal = $formData['customer_phone'] ?? $formData['mobile_number'] ?? $formData['phone'] ?? $formData['telephone'] ?? $formData['phone_number'] ?? '';
+        $phoneVal = $formData['customer_phone'] ?? $formData['customer_tel_fax'] ?? $formData['mobile_number'] ?? $formData['phone'] ?? $formData['telephone'] ?? $formData['phone_number'] ?? '';
         if (is_array($phoneVal)) {
             $isSequential = array_keys($phoneVal) === range(0, count($phoneVal) - 1);
             $phoneVal = $isSequential ? implode(', ', $phoneVal) : implode(', ', array_keys(array_filter($phoneVal)));

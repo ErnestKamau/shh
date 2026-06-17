@@ -2,18 +2,20 @@
 
 namespace App\Http\Controllers\Api\Portal\Submissions;
 
-use App\Exceptions\Api\Portal\PortalApiException;
 use App\Http\Controllers\Controller;
 use App\Services\SubmissionForm\FormSchemaBuilder;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
+use App\Services\SubmissionForm\PortalTestRequestFormSampleTypeResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class SubmissionFormController extends Controller
 {
     public function __construct(
         private readonly PortalSubmissionFormAccess $access,
         private readonly FormSchemaBuilder $schemaBuilder,
+        private readonly PortalTestRequestFormSampleTypeResolver $sampleTypeResolver,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -68,18 +70,54 @@ class SubmissionFormController extends Controller
 
     public function customerRequest(Request $request): JsonResponse
     {
-        $customerId = $this->access->customerIdFromRequest($request);
-        $form = $this->access->latestCustomerRequestForm($customerId);
+        return response()->json([
+            'message' => 'The customer-request form is deprecated. Use test-request-templates or resolve-test-request instead.',
+            'error' => [
+                'code' => 'customer_request_form_deprecated',
+                'alternatives' => [
+                    'GET /api/v1/portal/submissions/forms/test-request-templates',
+                    'GET /api/v1/portal/submissions/forms/resolve-test-request?sample_type_id={uuid}',
+                ],
+            ],
+        ], 410);
+    }
 
-        if (! $form) {
-            throw PortalApiException::customerRequestFormNotFound();
+    public function testRequestFormSchema(Request $request, string $submissionForm): JsonResponse
+    {
+        $customerId = $this->access->customerIdFromRequest($request);
+        $form = $this->access->findPortalForm($submissionForm, $customerId);
+
+        $documentCode = strtoupper((string) ($form->document_code ?? ''));
+        if (! str_starts_with($documentCode, 'TRF-')) {
+            return response()->json(['message' => 'This form is not a test request form template.'], 422);
+        }
+
+        $form->loadMissing('sampleTypes');
+        $sampleTypeId = $form->sampleTypes->first()?->id;
+
+        if ($sampleTypeId === null) {
+            return response()->json(['message' => 'No sample type linked to this test request form.'], 404);
+        }
+
+        $testRequestForm = \App\Models\TestRequestForm::query()
+            ->where('sample_type_id', $sampleTypeId)
+            ->where('is_active', true)
+            ->first();
+
+        if ($testRequestForm === null) {
+            return response()->json(['message' => 'No linked TestRequestForm found for this sample type.'], 404);
         }
 
         return response()->json([
-            'data' => $this->schemaBuilder->buildTemplateWithAttachments($form),
+            'data' => [
+                'submission_form_id' => $form->id,
+                'document_code' => $form->document_code,
+                'test_request_form_id' => $testRequestForm->id,
+                'sample_type_id' => $sampleTypeId,
+                'form_fields' => $testRequestForm->form_fields,
+            ],
             'meta' => [
                 'crm_customer_id' => $customerId,
-                'resolved_at' => now()->toIso8601String(),
             ],
         ]);
     }
@@ -93,10 +131,7 @@ class SubmissionFormController extends Controller
             return response()->json(['message' => 'sample_type_id is required.'], 422);
         }
 
-        $forms = $this->access->testRequestTemplatesQuery($customerId)
-            ->whereHas('sampleTypes', fn ($query) => $query->where('sample_types.id', $sampleTypeId))
-            ->with(['sampleTypes:id,name,code'])
-            ->get();
+        $forms = $this->formsMatchingSampleType($customerId, $sampleTypeId);
 
         if ($forms->isEmpty()) {
             return response()->json(['message' => 'No test request form found for this sample type.'], 404);
@@ -115,11 +150,7 @@ class SubmissionFormController extends Controller
             'data' => array_merge(
                 $this->schemaBuilder->buildFormMeta($form),
                 [
-                    'sample_types' => $form->sampleTypes->map(fn ($type): array => [
-                        'id' => $type->id,
-                        'name' => $type->name,
-                        'code' => $type->code,
-                    ])->values()->all(),
+                    'sample_types' => $this->sampleTypeResolver->mapForApi($form),
                 ],
             ),
             'meta' => [
@@ -141,11 +172,7 @@ class SubmissionFormController extends Controller
                 $this->schemaBuilder->buildFormMeta($form),
                 [
                     'section_count' => $form->sections_count,
-                    'sample_types' => $form->sampleTypes->map(fn ($type): array => [
-                        'id' => $type->id,
-                        'name' => $type->name,
-                        'code' => $type->code,
-                    ])->values()->all(),
+                    'sample_types' => $this->sampleTypeResolver->mapForApi($form),
                 ],
             ));
 
@@ -197,5 +224,20 @@ class SubmissionFormController extends Controller
             ->all();
 
         return response()->json(['data' => $attachments]);
+    }
+
+    /**
+     * @return Collection<int, \App\Models\SubmissionForm>
+     */
+    private function formsMatchingSampleType(?string $customerId, string $sampleTypeId): Collection
+    {
+        return $this->access->testRequestTemplatesQuery($customerId)
+            ->with(['sampleTypes:id,name,code'])
+            ->get()
+            ->filter(function ($form) use ($sampleTypeId): bool {
+                return $this->sampleTypeResolver->resolveForForm($form)
+                    ->contains(fn ($type): bool => (string) $type->id === (string) $sampleTypeId);
+            })
+            ->values();
     }
 }

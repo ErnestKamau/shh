@@ -1152,11 +1152,23 @@ function getUserChats()
 }
 function getUsers($all = false)
 {
+	$query = App\User::orderBy('name')
+		->where('company_id', getUserCompany())
+		->where('active', 1)
+		->where('is_support_staff', 0)
+		->where('is_client', 0)
+		->whereNull('supplier_id');
+
 	if ($all) {
-		return App\User::orderBy('name')->where('company_id', getUserCompany())->where('active', 1)->where('is_support_staff', 0)->where('is_client', 0)->whereNull('supplier_id')->get();
+		return $query->get();
 	}
-	return App\User::orderBy('name')->where('location_id', getCurrentUserLocation()->id)
-		->where('company_id', getUserCompany())->where('active', 1)->where('is_support_staff', 0)->where('is_client', 0)->whereNull('supplier_id')->get();
+
+	$location = getCurrentUserLocation();
+	if (!$location || empty($location->id)) {
+		return $query->get();
+	}
+
+	return $query->where('location_id', $location->id)->get();
 }
 
 
@@ -1728,7 +1740,8 @@ function viewableLocations()
 			$viewable_locations[$loc->name] = array_merge($viewable_locations[$loc->name], getLocationChildren($loc));
 		} else {
 			$viewable_locations[$loc->name] = $loc;
-			if (!isset(getCurrentUserLocation()->id)) {
+			$currentLocation = getCurrentUserLocation();
+			if (!$currentLocation || !isset($currentLocation->id)) {
 				Session::put('current_user_location', $loc);
 			}
 		}
@@ -1741,7 +1754,21 @@ function getCurrentUserLocation()
 {
 	// Session::forget('current_user_location');
 	$loc = Session::get('current_user_location');
-	return $loc ?? App\InventoryLocation::find(Auth::user()->location_id);
+	if ($loc) {
+		return $loc;
+	}
+
+	$user = Auth::user();
+	if (!$user || empty($user->location_id)) {
+		return null;
+	}
+
+	$locationId = (string) $user->location_id;
+	if (!\Illuminate\Support\Str::isUuid($locationId)) {
+		return null;
+	}
+
+	return App\InventoryLocation::find($locationId);
 }
 
 function getPersonnelcertification($personnel_id, $role_cert_id)
@@ -1781,7 +1808,8 @@ function getLocationChildren($location)
 			$childrenLocs[$loc->name] = array_merge($childrenLocs[$loc->name], getLocationChildren($loc));
 		} else {
 			$childrenLocs[$loc->name] = $loc;
-			if (!isset(getCurrentUserLocation()->id)) {
+			$currentLocation = getCurrentUserLocation();
+			if (!$currentLocation || !isset($currentLocation->id)) {
 				Session::put('current_user_location', $loc);
 			}
 		}

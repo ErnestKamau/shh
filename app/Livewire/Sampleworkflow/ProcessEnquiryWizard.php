@@ -2,16 +2,22 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Livewire\Sampleworkflow\Concerns\ManagesSampleConfigurationWizard;
 use App\Models\SampleSubmissionRequest;
+use App\Models\SubmissionFormInstance;
 use App\QuotationHeader;
 use App\Services\Commercial\EnquiryReviewDisplayService;
 use App\Services\Commercial\QuotationFromEnquiryService;
+use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Throwable;
 
 class ProcessEnquiryWizard extends Component
 {
+    use ManagesSampleConfigurationWizard;
+
     public bool $showModal = false;
 
     public string $activeStep = 'review';
@@ -36,13 +42,7 @@ class ProcessEnquiryWizard extends Component
     /** @var list<array{value: string, label: string, checked: bool}> */
     public array $statementOfConformityOptions = [];
 
-    /** @var list<array{
-     *     sample_description: string,
-     *     qty: string,
-     *     sample_type: string,
-     *     sample_condition: string,
-     *     tests: string
-     * }> */
+    /** @var list<array<string, string>> */
     public array $displaySampleRows = [];
 
     /** @var list<array{label: string}> */
@@ -72,12 +72,39 @@ class ProcessEnquiryWizard extends Component
 
     public bool $pdfGenerated = false;
 
+    public bool $quotationSent = false;
+
     /** @return list<array{key: string, label: string}> */
     public function getWizardStepsProperty(): array
     {
         return [
             ['key' => 'review', 'label' => 'Review enquiry'],
-            ['key' => 'quotation', 'label' => 'Quotation & send'],
+            ['key' => 'sample_config', 'label' => 'Sample configuration'],
+            ['key' => 'pricing', 'label' => 'Parameters & pricing'],
+        ];
+    }
+
+    /** @return array{sub_total: float, tax: float, total: float} */
+    public function getPricingTotalsProperty(): array
+    {
+        $subTotal = 0.0;
+        $taxTotal = 0.0;
+
+        foreach ($this->lines as $line) {
+            $qty = max(1, (int) ($line['quantity'] ?? 1));
+            $unitPrice = (float) ($line['unit_price'] ?? 0);
+            $taxRate = (float) ($line['tax'] ?? 0);
+            $extended = $qty * $unitPrice;
+            $subTotal += $extended;
+            if ($taxRate > 0) {
+                $taxTotal += ($taxRate / 100) * $extended;
+            }
+        }
+
+        return [
+            'sub_total' => $subTotal,
+            'tax' => $taxTotal,
+            'total' => $subTotal + $taxTotal,
         ];
     }
 
@@ -89,9 +116,10 @@ class ProcessEnquiryWizard extends Component
                 'customer',
                 'contact',
                 'requestedAnalyses',
-                'currentQuotation',
+                'currentQuotation.details',
                 'submissionFormInstance.submissionForm',
                 'submissionFormInstance.crmCustomer',
+                'submissionFormInstance.testRequestFormInstance',
             ])
             ->find($enquiryId);
 
@@ -99,8 +127,31 @@ class ProcessEnquiryWizard extends Component
             return;
         }
 
+        if ($enquiry->submissionFormInstance !== null) {
+            app(\App\Services\Commercial\CommercialEnquiryFromFormService::class)
+                ->resyncSampleDataFromInstance($enquiry->submissionFormInstance);
+            $enquiry = SampleSubmissionRequest::query()
+                ->with([
+                    'customer',
+                    'contact',
+                    'requestedAnalyses',
+                    'currentQuotation.details',
+                    'submissionFormInstance.submissionForm',
+                    'submissionFormInstance.crmCustomer',
+                    'submissionFormInstance.testRequestFormInstance',
+                ])
+                ->find($enquiryId);
+        }
+
+        if ($enquiry === null) {
+            return;
+        }
+
+        $quotationService = app(QuotationFromEnquiryService::class);
+        $enquiry = $quotationService->ensureEnquiryReflectsSentQuotation($enquiry);
+        $header = $enquiry->currentQuotation;
+
         $this->enquiryId = $enquiry->id;
-        $this->activeStep = 'review';
         $display = app(EnquiryReviewDisplayService::class);
 
         $this->enquiryNotes = $enquiry->staffCommercialNotes();
@@ -109,6 +160,14 @@ class ProcessEnquiryWizard extends Component
         $this->requestReference = (string) ($enquiry->unique_identification ?? $enquiry->getFormattedNumberAttribute());
         $this->enquiryStatus = (string) $enquiry->status;
         $this->sourceChannel = (string) ($enquiry->source_channel ?? '');
+        $channel = strtolower(trim($this->sourceChannel));
+        if ($channel === 'walk_in') {
+            $this->sendPortal = false;
+            $this->sendEmail = true;
+        } else {
+            $this->sendPortal = true;
+            $this->sendEmail = false;
+        }
         $this->collectionDataRows = $display->collectionDataRows($enquiry);
         $this->statementOfConformityOptions = $display->statementOfConformityOptions($enquiry);
         $this->displaySampleRows = $display->sampleRows($enquiry);
@@ -116,14 +175,26 @@ class ProcessEnquiryWizard extends Component
         $this->submissionFormInstanceId = $enquiry->submission_form_instance_id;
         $this->submissionFormId = $enquiry->submissionFormInstance?->submission_form_id;
         $this->sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        $this->crmCustomerId = (string) ($enquiry->crm_customer_id ?? '');
         $this->quotationHeaderId = $enquiry->current_quotation_header_id;
         $this->quoteNumber = (string) ($enquiry->currentQuotation?->quote_number ?? '');
-        $this->sendPortal = true;
-        $this->sendEmail = false;
         $this->statusMessage = '';
         $this->statusLevel = 'info';
-        $this->pdfGenerated = ! empty($enquiry->currentQuotation?->upload_url);
-        $this->lines = app(QuotationFromEnquiryService::class)->buildInlineLines($enquiry);
+        $this->pdfGenerated = ! empty($header?->upload_url);
+        $this->quotationSent = $this->enquiryQuotationWasSent($enquiry, $header);
+
+        if ($header !== null && $header->details->isNotEmpty()) {
+            $this->lines = $quotationService->buildInlineLinesFromQuotationHeader($header);
+        } else {
+            $this->lines = $quotationService->buildInlineLines($enquiry);
+        }
+
+        $this->loadSampleConfigs($enquiry);
+        $this->activeStep = $this->resolveOpeningStep($enquiry, $header);
+        $this->statusMessage = $this->quotationSent
+            ? 'Quotation '.$this->quoteNumber.' has been sent. Saved sample configuration and pricing are shown below.'
+            : '';
+        $this->statusLevel = $this->quotationSent ? 'info' : 'info';
         $this->showModal = true;
         $this->dispatch('show-process-enquiry-modal');
     }
@@ -136,11 +207,11 @@ class ProcessEnquiryWizard extends Component
 
     public function goToStep(string $step): void
     {
-        if (! in_array($step, ['review', 'quotation'], true)) {
+        if (! in_array($step, ['review', 'sample_config', 'pricing'], true)) {
             return;
         }
 
-        if ($step === 'quotation') {
+        if ($step === 'pricing') {
             $this->ensureQuotationHeader();
         }
 
@@ -168,9 +239,50 @@ class ProcessEnquiryWizard extends Component
         }
         $enquiry->save();
 
+        $this->activeStep = 'sample_config';
+        $this->setStatus('info', '');
+    }
+
+    public function saveSampleConfigAndContinue(): void
+    {
+        if ($this->enquiryId === null || ! $this->crmCustomerId) {
+            $this->setStatus('error', 'Customer is required for sample configuration.');
+
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs);
+
+        try {
+            $configService->validateConfigs($this->sampleConfigs);
+        } catch (Throwable $exception) {
+            $this->setStatus('error', $exception->getMessage());
+
+            return;
+        }
+
+        $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+        if ($enquiry !== null) {
+            $this->persistSampleConfiguration($enquiry);
+            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;
+            $enquiry->save();
+        }
+
+        $acceptanceLines = $configService->expandConfigsToLines($this->sampleConfigs, $this->crmCustomerId);
+        $quotationService = app(QuotationFromEnquiryService::class);
+        $enquiry = $enquiry?->fresh(['requestedAnalyses']) ?? SampleSubmissionRequest::query()->find($this->enquiryId);
+
+        if ($enquiry === null) {
+            return;
+        }
+
+        $this->lines = $quotationService->buildInlineLinesFromAcceptanceLines($enquiry, $acceptanceLines);
+
         try {
             $this->ensureQuotationHeader();
-            $this->activeStep = 'quotation';
+            $this->persistQuotationLines();
+            $this->activeStep = 'pricing';
             $this->setStatus('info', '');
         } catch (Throwable $exception) {
             $this->setStatus('error', $exception->getMessage());
@@ -187,6 +299,7 @@ class ProcessEnquiryWizard extends Component
         try {
             $header = $this->ensureQuotationHeader();
             $this->persistQuotationLines();
+            $this->persistSampleConfiguration();
 
             app(QuotationFromEnquiryService::class)->generatePdf($header);
             $header->refresh();
@@ -202,6 +315,15 @@ class ProcessEnquiryWizard extends Component
 
     public function sendQuotation(): void
     {
+        if (strtolower($this->sourceChannel) === 'walk_in') {
+            $this->sendPortal = false;
+            if (! $this->sendEmail) {
+                $this->setStatus('error', 'Email delivery is required for walk-in enquiries.');
+
+                return;
+            }
+        }
+
         if (! $this->sendPortal && ! $this->sendEmail) {
             $this->setStatus('error', 'Select at least one delivery channel (portal or email).');
 
@@ -219,6 +341,7 @@ class ProcessEnquiryWizard extends Component
 
             $header = $this->ensureQuotationHeader();
             $this->persistQuotationLines();
+            $this->persistSampleConfiguration($enquiry);
 
             app(QuotationFromEnquiryService::class)->sendToCustomer(
                 $enquiry,
@@ -227,8 +350,25 @@ class ProcessEnquiryWizard extends Component
                 $this->sendEmail,
             );
 
-            $this->closeWizard();
+            $enquiry = SampleSubmissionRequest::query()
+                ->with('currentQuotation')
+                ->find($this->enquiryId);
+
+            if ($enquiry !== null) {
+                $enquiry = app(QuotationFromEnquiryService::class)->ensureEnquiryReflectsSentQuotation($enquiry);
+                $this->enquiryStatus = (string) $enquiry->status;
+                $this->quotationSent = true;
+            }
+
             $this->dispatch('process-enquiry-completed');
+
+            if (strtolower($this->sourceChannel) === 'walk_in') {
+                $this->setStatus('success', 'Quotation sent by email. Open the request view page to record walk-in acceptance, then capture the PO.');
+
+                return;
+            }
+
+            $this->closeWizard();
             session()->flash('message', 'Quotation sent to customer.');
         } catch (Throwable $exception) {
             $this->setStatus('error', $exception->getMessage());
@@ -251,7 +391,7 @@ class ProcessEnquiryWizard extends Component
 
             $this->closeWizard();
             $this->dispatch('process-enquiry-completed');
-            session()->flash('message', 'Quotation marked as accepted. Request is ready for physical receive.');
+            session()->flash('message', 'Quotation marked as accepted. Record PO to move the request to Ready for Reception.');
         } catch (Throwable $exception) {
             $this->setStatus('error', $exception->getMessage());
         }
@@ -262,6 +402,97 @@ class ProcessEnquiryWizard extends Component
         return view('livewire.sampleworkflow.process-enquiry-wizard');
     }
 
+    private function persistSampleConfiguration(?SampleSubmissionRequest $enquiry = null): void
+    {
+        if ($this->enquiryId === null || $this->sampleConfigs === []) {
+            return;
+        }
+
+        $enquiry ??= SampleSubmissionRequest::query()->find($this->enquiryId);
+        if ($enquiry === null) {
+            return;
+        }
+
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs);
+
+        if (Schema::hasColumn('sample_submission_requests', 'enquiry_sample_configuration')) {
+            $enquiry->enquiry_sample_configuration = $this->sampleConfigs;
+            $enquiry->save();
+        }
+    }
+
+    private function enquiryQuotationWasSent(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): bool
+    {
+        if ($header?->sent_to_customer_at !== null) {
+            return true;
+        }
+
+        return in_array((string) $enquiry->status, [
+            SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+            SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+        ], true);
+    }
+
+    private function resolveOpeningStep(SampleSubmissionRequest $enquiry, ?QuotationHeader $header): string
+    {
+        if ($header !== null && ($header->details->isNotEmpty() || $header->sent_to_customer_at !== null)) {
+            return 'pricing';
+        }
+
+        $storedConfig = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
+        if ($storedConfig !== []) {
+            return 'sample_config';
+        }
+
+        return 'review';
+    }
+
+    private function loadSampleConfigs(SampleSubmissionRequest $enquiry): void
+    {
+        $configService = app(AcceptanceFormSampleConfigService::class);
+        $stored = is_array($enquiry->enquiry_sample_configuration) ? $enquiry->enquiry_sample_configuration : [];
+
+        if ($stored !== []) {
+            $this->sampleConfigs = $stored;
+
+            return;
+        }
+
+        $instance = $enquiry->submissionFormInstance;
+        $sampleLineLookup = collect(is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [])
+            ->keyBy(fn (array $line): string => (string) ($line['sample_type_id'] ?? '').'::'.(string) ($line['analysis_type_id'] ?? ''));
+
+        $prefillLines = collect($this->lines)->map(function (array $line, int $index) use ($sampleLineLookup): array {
+            $lookupKey = (string) ($line['sample_type_id'] ?? '').'::'.(string) ($line['analysis_type_id'] ?? '');
+            $enquiryLine = $sampleLineLookup->get($lookupKey);
+
+            return [
+                'line_no' => $index + 1,
+                'sample_type_id' => $line['sample_type_id'] ?? null,
+                'analysis_type_id' => $line['analysis_type_id'] ?? null,
+                'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                'parameter_label' => $line['parameter_label'] ?? 'Parameter',
+                'number_of_samples' => (int) ($line['quantity'] ?? 1),
+                'sample_condition' => is_array($enquiryLine) ? ($enquiryLine['sample_condition'] ?? null) : null,
+                'sample_condition_id' => is_array($enquiryLine) ? ($enquiryLine['sample_condition_id'] ?? null) : null,
+            ];
+        })->all();
+
+        $this->sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
+        $defaultZoneId = $configService->resolveZoneIdFromInstance($instance);
+
+        if ($defaultZoneId !== null) {
+            foreach ($this->sampleConfigs as $index => $config) {
+                if (empty($config['zone_id'])) {
+                    $this->sampleConfigs[$index]['zone_id'] = $defaultZoneId;
+                }
+            }
+        }
+    }
+
     private function persistQuotationLines(): void
     {
         $header = $this->resolveQuotationHeader();
@@ -270,7 +501,8 @@ class ProcessEnquiryWizard extends Component
         }
 
         app(QuotationFromEnquiryService::class)->persistInlineLines($header, $this->lines);
-        $this->quoteNumber = (string) $header->fresh()->quote_number;
+        $header->refresh();
+        $this->quoteNumber = (string) $header->quote_number;
     }
 
     private function resolveQuotationHeader(): ?QuotationHeader
@@ -298,11 +530,22 @@ class ProcessEnquiryWizard extends Component
 
         $quotationService = app(QuotationFromEnquiryService::class);
         $header = $quotationService->createOrOpen($enquiry);
+        $header->loadMissing('details');
         $enquiry->refresh();
 
         $this->quotationHeaderId = $header->id;
         $this->quoteNumber = (string) $header->quote_number;
-        $this->lines = $quotationService->buildInlineLines($enquiry);
+
+        if ($header->details->isNotEmpty()) {
+            $this->pdfGenerated = ! empty($header->upload_url);
+
+            return $header;
+        }
+
+        if ($this->lines === []) {
+            $this->lines = $quotationService->buildInlineLines($enquiry);
+        }
+
         $this->pdfGenerated = ! empty($header->upload_url);
 
         return $header;

@@ -44,6 +44,37 @@
                     </div>
 
                     <div class="acc-wizard-body">
+                        @if($activeStep === 'staff_accept')
+                            <section class="acc-wizard-section">
+                                <h6 class="acc-wizard-section-title">Accept samples — staff signature <span class="text-danger">*</span></h6>
+                                <p class="acc-wizard-hint mb-3">
+                                    This signature creates the job/batch and samples, and assigns the job number immediately.
+                                </p>
+
+                                <div class="row acc-wizard-fields">
+                                    <div class="col-md-6 form-group">
+                                        <label class="acc-label">Staff name</label>
+                                        <input type="text" class="form-control acc-input" wire:model="staffSignerName">
+                                        @error('staffSignerName') <small class="text-danger">{{ $message }}</small> @enderror
+                                    </div>
+                                    <div class="col-md-6 form-group">
+                                        <label class="acc-label">Date</label>
+                                        <input type="date" class="form-control acc-input" wire:model="staffSignedAt">
+                                    </div>
+                                </div>
+
+                                <label class="acc-label d-block mt-2">Signature</label>
+                                <div class="acc-signature-pad" wire:ignore>
+                                    <canvas id="acceptance-staff-signature-canvas"></canvas>
+                                    <div class="acc-signature-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="acceptance-staff-sign-clear">Clear</button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="acceptance-staff-signature-input" wire:model="staffSignature">
+                                @error('staffSignature') <small class="text-danger d-block mt-1">{{ $message }}</small> @enderror
+                            </section>
+                        @endif
+
                         @if($activeStep === 'sample_config')
                             @include('livewire.partials.acceptance-sample-config-table')
                         @endif
@@ -312,7 +343,11 @@
 
                     <div class="acc-wizard-footer">
                         <button type="button" class="btn btn-light acc-btn-ghost" wire:click="closeWizard">Close</button>
-                        @if($activeStep === 'sample_config')
+                        @if($activeStep === 'staff_accept')
+                            <button type="button" class="btn acc-btn-success" id="acceptance-staff-sign-submit" wire:loading.attr="disabled">
+                                Accept samples
+                            </button>
+                        @elseif($activeStep === 'sample_config')
                             <button type="button" class="btn acc-btn-primary" wire:click="continueToRequestStep" wire:loading.attr="disabled">
                                 <span wire:loading wire:target="continueToRequestStep" class="spinner-border spinner-border-sm mr-1"></span>
                                 Continue
@@ -1460,6 +1495,7 @@
 <script>
     (function () {
         let managerSignaturePad = null;
+        let staffSignaturePad = null;
         let wizardReceiptSubmitterPad = null;
         let wizardReceiptReceiverPad = null;
         let disclaimerClaimantPad = null;
@@ -1629,10 +1665,38 @@
             });
         }
 
+        function initStaffSignaturePad() {
+            const canvas = document.getElementById('acceptance-staff-signature-canvas');
+            if (!canvas || typeof SignaturePad === 'undefined') {
+                return;
+            }
+
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+
+            staffSignaturePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+
+            $('#acceptance-staff-sign-clear').off('click.acceptance').on('click.acceptance', function () {
+                staffSignaturePad?.clear();
+            });
+
+            $('#acceptance-staff-sign-submit').off('click.acceptance').on('click.acceptance', function () {
+                if (!staffSignaturePad || staffSignaturePad.isEmpty()) {
+                    alert('Please provide a staff signature.');
+                    return;
+                }
+                @this.set('staffSignature', staffSignaturePad.toDataURL('image/png'));
+                @this.call('submitStaffAccept');
+            });
+        }
+
         document.addEventListener('livewire:init', function () {
             Livewire.on('open-acceptance-wizard', function () {
                 resetWizardReceiptCanvasFlags();
                 setTimeout(initManagerSignaturePad, 400);
+                setTimeout(initStaffSignaturePad, 420);
                 setTimeout(initWizardReceiptPads, 460);
                 setTimeout(initDisclaimerSignaturePads, 500);
             });
@@ -1650,6 +1714,9 @@
             Livewire.hook('morph.updated', function () {
                 if (document.getElementById('acceptance-manager-signature-canvas')) {
                     setTimeout(initManagerSignaturePad, 200);
+                }
+                if (document.getElementById('acceptance-staff-signature-canvas')) {
+                    setTimeout(initStaffSignaturePad, 200);
                 }
                 if (document.getElementById('acc-wizard-receipt-submitter-canvas')) {
                     resetWizardReceiptCanvasFlags();

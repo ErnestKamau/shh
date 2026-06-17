@@ -549,7 +549,9 @@
                         <select class="form-control" name="method_id" id="settings_method_id">
                             <option value="">Select Method...</option>
                             @foreach ($methods as $item)
-                                <option value="{{ is_array($item) ? $item['id'] : $item->id }}">{{ is_array($item) ? $item['name'] : $item->name }}</option>
+                                <option value="{{ is_array($item) ? ($item['id'] ?? '') : (is_object($item) ? ($item->id ?? '') : (string) $item) }}">
+                                    {{ is_array($item) ? ($item['name'] ?? $item['id'] ?? '') : (is_object($item) ? ($item->name ?? $item->id ?? '') : (string) $item) }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -558,7 +560,9 @@
                         <select class="form-control" name="reporting_unit" id="settings_reporting_unit">
                             <option value="">Select Reporting Unit...</option>
                             @foreach ($reportingUnits as $item)
-                                <option value="{{ is_array($item) ? $item['id'] : $item->id }}">{{ is_array($item) ? $item['name'] : $item->name }}</option>
+                                <option value="{{ is_array($item) ? ($item['id'] ?? '') : (is_object($item) ? ($item->id ?? '') : (string) $item) }}">
+                                    {{ is_array($item) ? ($item['name'] ?? $item['id'] ?? '') : (is_object($item) ? ($item->name ?? $item->id ?? '') : (string) $item) }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -567,7 +571,9 @@
                         <select class="form-control" name="analyst_id" id="settings_analyst_id">
                             <option value="">Select Analyst...</option>
                             @foreach ($analysts as $item)
-                                <option value="{{ is_array($item) ? $item['id'] : $item->id }}">{{ is_array($item) ? $item['name'] : $item->name }}</option>
+                                <option value="{{ is_array($item) ? ($item['id'] ?? '') : (is_object($item) ? ($item->id ?? '') : (string) $item) }}">
+                                    {{ is_array($item) ? ($item['name'] ?? $item['id'] ?? '') : (is_object($item) ? ($item->name ?? $item->id ?? '') : (string) $item) }}
+                                </option>
                             @endforeach
                         </select>
                     </div>

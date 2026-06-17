@@ -89,34 +89,33 @@ class Phase5LaboratoryOrganizationSeeder extends Seeder
 
             $emailDomain = AmSpecSeedData::LAB_EMAIL_DOMAIN;
 
-            foreach ($zones as $zone) {
-                foreach (AmSpecSeedData::labTypes() as $data) {
-                    $directorate = $directorates[$data['directorate']];
-                    $uniqueCode = $data['code'].'-'.$zone->key;
-                    $uniqueName = $data['name'].' ('.$zone->value.')';
+            foreach (AmSpecSeedData::labTypes() as $data) {
+                $directorate = $directorates[$data['directorate']];
+                $primaryZoneKey = AmSpecSeedData::directorates()[$data['directorate']]['primary_zone'];
+                $zone = $zones[$primaryZoneKey];
 
-                    $lab = Lab::query()->updateOrCreate(
-                        [
-                            'code' => $uniqueCode,
-                            'directorate_id' => $directorate->id,
-                        ],
-                        [
-                            'name' => $uniqueName,
-                            'address' => $zone->value,
-                            'location' => $zone->value,
-                            'email' => strtolower($uniqueCode).'@'.$emailDomain,
-                            'company_id' => $company->id,
-                            'zone_id' => $zone->id,
-                            'manager_id' => $activeUserId,
-                            'section_head_user_id' => $activeUserId,
-                            'is_external' => false,
-                            'phone1' => '+971 4 323 0399',
-                            'active' => true,
-                        ]
-                    );
+                $lab = Lab::query()->updateOrCreate(
+                    [
+                        'code' => $data['code'],
+                        'company_id' => $company->id,
+                    ],
+                    [
+                        'name' => $data['name'],
+                        'directorate_id' => $directorate->id,
+                        'address' => $zone->value,
+                        'location' => $zone->value,
+                        'email' => strtolower($data['code']).'@'.$emailDomain,
+                        'company_id' => $company->id,
+                        'zone_id' => $zone->id,
+                        'manager_id' => $activeUserId,
+                        'section_head_user_id' => $activeUserId,
+                        'is_external' => false,
+                        'phone1' => '+971 4 323 0399',
+                        'active' => true,
+                    ]
+                );
 
-                    $this->command?->info("Seeded Lab: {$lab->code} - {$lab->name} ({$directorate->code}, {$zone->key})");
-                }
+                $this->command?->info("Seeded Lab: {$lab->code} - {$lab->name} ({$directorate->code}, {$zone->key})");
             }
 
             $this->command?->info('====================================================');

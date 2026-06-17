@@ -69,7 +69,7 @@ class Phase10AnalyticalResultsSeeder extends Seeder
                 }
 
                 if ($elements->count() < 2) {
-                    $this->command?->warning("Sample {$detail->sample_code} has only {$elements->count()} configured parameter(s).");
+                    $this->command?->warn("Sample {$detail->sample_code} has only {$elements->count()} configured parameter(s).");
                 }
 
                 $seededSamples++;

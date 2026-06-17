@@ -6,6 +6,7 @@ use App\Models\SubmissionForm;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
+use App\Services\TestRequestForm\TestRequestFormDataMapper;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -205,34 +206,49 @@ class SubmissionFormSubmissionService
         SubmissionFormInstance $instance,
         SubmissionForm $submissionForm
     ): void {
-        // Check if this submission form is a test request form type
-        // by checking if it has test request form related fields
+        $instance->loadMissing(['values.element']);
+        $submissionForm->loadMissing('sampleTypes');
         $elements = $this->elementsForForm($submissionForm);
-        $hasTestRequestFields = $elements->contains(function ($element) {
-            return in_array($element->name, ['sample_rows', 'customer_name', 'sampling_date'], true);
+
+        $hasTestRequestFields = $elements->contains(function ($element): bool {
+            $name = (string) ($element->name ?? '');
+            $type = (string) ($element->element_type ?? '');
+
+            return in_array($name, ['sample_rows', 'rows_section', 'customer_name', 'sampling_date'], true)
+                || in_array($type, ['sample_rows', 'rows_section', 'test_request_section'], true);
         });
 
-        if (!$hasTestRequestFields) {
+        if (! $hasTestRequestFields) {
             return;
         }
 
-        // Extract form data from submission form instance values
-        $formData = [];
-        foreach ($instance->values as $value) {
-            $fieldName = $value->element?->name ?? $value->element_name ?? null;
-            if ($fieldName) {
-                $formData[$fieldName] = $value->value;
+        $mapper = app(TestRequestFormDataMapper::class);
+        $rawFormData = $mapper->fromSubmissionFormInstance($instance, $submissionForm);
+
+        $hasRowPayload = isset($rawFormData['sample_rows']) && is_array($rawFormData['sample_rows'])
+            && $rawFormData['sample_rows'] !== [];
+
+        if (! $hasRowPayload) {
+            $hasRowPayload = $elements->contains(fn ($element): bool => in_array(
+                (string) ($element->element_type ?? ''),
+                ['sample_rows', 'rows_section'],
+                true
+            ));
+        }
+
+        if (! $hasRowPayload && ! isset($rawFormData['customer_name'])) {
+            return;
+        }
+
+        $sampleTypeId = $submissionForm->sampleTypes->first()?->id;
+        if (! $sampleTypeId && is_array($rawFormData['sample_rows'] ?? null)) {
+            $firstRow = $rawFormData['sample_rows'][0] ?? null;
+            if (is_array($firstRow) && ! empty($firstRow['sample_type_id'])) {
+                $sampleTypeId = $firstRow['sample_type_id'];
             }
         }
 
-        // Check if this has sample_rows which indicates it's a test request form
-        if (!isset($formData['sample_rows'])) {
-            return;
-        }
-
-        // Find the appropriate TestRequestForm based on sample type
-        $sampleTypeId = $submissionForm->sampleTypes->first()?->id;
-        if (!$sampleTypeId) {
+        if (! $sampleTypeId) {
             return;
         }
 
@@ -240,11 +256,12 @@ class SubmissionFormSubmissionService
             ->where('is_active', true)
             ->first();
 
-        if (!$testRequestForm) {
+        if (! $testRequestForm) {
             return;
         }
 
-        // Create TestRequestFormInstance
+        $formData = $mapper->normalizeFormData($rawFormData, $testRequestForm);
+
         \App\Models\TestRequestFormInstance::updateOrCreate(
             ['submission_form_instance_id' => $instance->id],
             [

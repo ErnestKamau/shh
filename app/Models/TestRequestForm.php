@@ -297,14 +297,14 @@ class TestRequestForm extends Model
                 $existing = self::where('sample_type_id', $sampleType->id)->first();
                 if ($existing) {
                     $existing->update([
-                        'name' => $sampleType->name . ' Test Request Form',
+                        'name' => 'Test Request Form',
                         'description' => 'Dynamic test request form for ' . $sampleType->name,
                         'form_fields' => $fields,
                         'is_active' => true,
                     ]);
                 } else {
                     self::create([
-                        'name' => $sampleType->name . ' Test Request Form',
+                        'name' => 'Test Request Form',
                         'code' => 'TRF-' . strtoupper(substr(str_replace(' ', '', $sampleType->name), 0, 5)) . '-' . rand(100, 999),
                         'description' => 'Dynamic test request form for ' . $sampleType->name,
                         'sample_type_id' => $sampleType->id,
@@ -314,7 +314,7 @@ class TestRequestForm extends Model
                 }
             } else {
                 self::create([
-                    'name' => $sampleType->name . ' Test Request Form',
+                    'name' => 'Test Request Form',
                     'code' => 'TRF-' . strtoupper(substr(str_replace(' ', '', $sampleType->name), 0, 5)) . '-' . rand(100, 999),
                     'description' => 'Dynamic test request form for ' . $sampleType->name,
                     'sample_type_id' => $sampleType->id,

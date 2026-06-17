@@ -48,19 +48,9 @@ class AcceptanceFormService
             $customerId = (string) ($header['crm_customer_id'] ?? $prefill['customer_id'] ?? '');
             $pricelist = $prefill['pricelist'] ?? $this->pricingService->resolvePricelist($customerId);
 
-            // Find and link Test Request Form Instance if available
-        $testRequestFormInstanceId = null;
-        if ($submissionFormInstanceId) {
-            $trfInstance = \App\Models\TestRequestFormInstance::where('submission_form_instance_id', $submissionFormInstanceId)->first();
-            if ($trfInstance) {
-                $testRequestFormInstanceId = $trfInstance->id;
-            }
-        }
-
-        $form = AnalysisAcceptanceForm::query()->create([
+            $form = AnalysisAcceptanceForm::query()->create([
                 'status' => AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN,
                 'submission_form_instance_id' => $submissionFormInstanceId,
-                'test_request_form_instance_id' => $testRequestFormInstanceId,
                 'sample_submission_request_id' => $submissionRequestId,
                 'crm_customer_id' => $customerId,
                 'pricelist_id' => $pricelist?->id,
@@ -108,9 +98,78 @@ class AcceptanceFormService
             'processing_error' => null,
         ]);
 
-        $this->dispatchSampleCreationJob((string) $form->id);
-
         return $form->fresh(['lines']);
+    }
+
+    /**
+     * Accept samples with a single staff signature.
+     *
+     * This creates the acceptance form, creates the batch/job + samples, and assigns the job number
+     * (batch code) in one step, without requiring customer/manager signing flows.
+     *
+     * @param  array<string, mixed>  $header
+     * @param  list<array<string, mixed>>  $lines
+     */
+    public function acceptWithStaffSignature(
+        ?string $submissionFormInstanceId,
+        ?string $submissionRequestId,
+        array $header,
+        array $lines,
+        string $signerName,
+        string $signature,
+        ?string $signedAt = null,
+        ?string $createdBy = null,
+    ): AnalysisAcceptanceForm {
+        return DB::transaction(function () use (
+            $submissionFormInstanceId,
+            $submissionRequestId,
+            $header,
+            $lines,
+            $signerName,
+            $signature,
+            $signedAt,
+            $createdBy,
+        ) {
+            $prefill = $this->pricingService->buildPrefillFromSelection($submissionRequestId, $submissionFormInstanceId);
+            $customerId = (string) ($header['crm_customer_id'] ?? $prefill['customer_id'] ?? '');
+            $pricelist = $prefill['pricelist'] ?? $this->pricingService->resolvePricelist($customerId);
+
+            $signedAtValue = $signedAt ?? now();
+
+            $form = AnalysisAcceptanceForm::query()->create([
+                'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
+                'submission_form_instance_id' => $submissionFormInstanceId,
+                'sample_submission_request_id' => $submissionRequestId,
+                'crm_customer_id' => $customerId,
+                'pricelist_id' => $pricelist?->id,
+                'currency_id' => $pricelist?->currency_id,
+                'customer_name' => (string) ($header['customer_name'] ?? $prefill['customer_name'] ?? ''),
+                'request_date' => $header['request_date'] ?? $prefill['request_date'],
+                'number_of_samples' => (int) ($header['number_of_samples'] ?? $prefill['number_of_samples'] ?? 1),
+                'mode_of_work' => (string) ($header['mode_of_work'] ?? $prefill['mode_of_work'] ?? 'Normal'),
+                'date_of_sampling' => $header['date_of_sampling'] ?? $prefill['date_of_sampling'],
+                'customer_certification_text' => self::CUSTOMER_CERTIFICATION_TEXT,
+                'customer_signer_name' => $signerName,
+                'customer_signature' => $signature,
+                'customer_signed_at' => $signedAtValue,
+                'manager_signer_name' => $signerName,
+                'manager_signature' => $signature,
+                'manager_signed_at' => $signedAtValue,
+                'manager_assignment_payload' => [
+                    'assigned_analyst_ids' => [],
+                    'lead_analyst_id' => null,
+                    'technical_signatory_id' => null,
+                ],
+                'created_by' => $createdBy,
+            ]);
+
+            $this->syncLines($form, $lines, $pricelist);
+            $form->recalculateTotal();
+
+            $this->dispatchSampleCreationJob((string) $form->id);
+
+            return $form->fresh(['lines', 'sampleHeader']);
+        });
     }
 
     private function dispatchSampleCreationJob(string $acceptanceFormId): void
@@ -140,8 +199,6 @@ class AcceptanceFormService
             throw new \InvalidArgumentException('Acceptance form is not awaiting laboratory manager signature.');
         }
 
-        $form = $this->ensureSampleBatchForManagerApproval($form);
-
         $assignedAnalystIds = array_values(array_unique(array_filter($assignedAnalystIds)));
 
         if ($leadAnalystId !== null && $leadAnalystId !== '' && ! in_array($leadAnalystId, $assignedAnalystIds, true)) {
@@ -165,9 +222,14 @@ class AcceptanceFormService
                 'status' => AnalysisAcceptanceForm::STATUS_COMPLETED,
             ]);
 
-            $this->transitionBatchToSamplesInLab($form, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds);
+            $this->dispatchSampleCreationJob((string) $form->id);
 
             $completed = $form->fresh(['lines', 'sampleHeader']);
+
+            if ($completed->sample_header_id) {
+                $this->transitionBatchToSamplesInLab($completed, $leadAnalystId, $technicalSignatoryId, $assignedAnalystIds);
+                $completed = $completed->fresh(['lines', 'sampleHeader']);
+            }
 
             \App\Jobs\Sampleworkflow\GenerateAcceptanceFormPdfJob::dispatch((string) $completed->id);
 

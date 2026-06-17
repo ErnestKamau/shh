@@ -13,6 +13,7 @@ use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
+use App\Services\Lab\UncertaintyBudgetResolver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -21,6 +22,7 @@ final class QuotationFromEnquiryService
 {
     public function __construct(
         private AcceptanceFormPricingService $pricingService,
+        private UncertaintyBudgetResolver $uncertaintyBudgetResolver,
     ) {}
 
     public function createOrOpen(SampleSubmissionRequest $enquiry): QuotationHeader
@@ -148,7 +150,87 @@ final class QuotationFromEnquiryService
             }
         }
 
-        return $lines;
+        return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics($lines);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $acceptanceLines
+     * @return list<array<string, mixed>>
+     */
+    public function buildInlineLinesFromAcceptanceLines(SampleSubmissionRequest $enquiry, array $acceptanceLines): array
+    {
+        $customerId = (string) $enquiry->crm_customer_id;
+        $pricelist = $this->pricingService->resolvePricelist($customerId);
+        $lines = [];
+
+        foreach ($acceptanceLines as $index => $line) {
+            $sampleTypeId = (string) ($line['sample_type_id'] ?? '');
+            $analysisTypeId = (string) ($line['analysis_type_id'] ?? '');
+            $elementId = (string) ($line['analysis_element_id'] ?? '');
+            $qty = max(1, (int) ($line['number_of_samples'] ?? $line['quantity'] ?? 1));
+            $unitPrice = isset($line['unit_price']) || isset($line['unit_amount'])
+                ? (float) ($line['unit_price'] ?? $line['unit_amount'] ?? 0)
+                : $this->pricingService->resolveLinePrice(
+                    $pricelist,
+                    $sampleTypeId,
+                    $analysisTypeId,
+                    $elementId !== '' ? $elementId : null,
+                );
+
+            $lines[] = [
+                'line_no' => $index + 1,
+                'sample_type_id' => $sampleTypeId,
+                'sample_type_name' => $sampleTypeId !== '' ? (SampleType::find($sampleTypeId)?->name ?? '') : '',
+                'analysis_type_id' => $analysisTypeId,
+                'analysis_type_name' => $analysisTypeId !== '' ? (AnalysisType::find($analysisTypeId)?->name ?? '') : '',
+                'analysis_element_id' => $elementId !== '' ? $elementId : null,
+                'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
+                'quantity' => $qty,
+                'unit_price' => $unitPrice,
+                'tax' => (float) ($line['tax'] ?? 0),
+                'subcontracted' => (bool) ($line['subcontracted'] ?? false),
+            ];
+        }
+
+        return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics($lines);
+    }
+
+    /**
+     * Rebuild inline editor rows from a persisted quotation header.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function buildInlineLinesFromQuotationHeader(QuotationHeader $header): array
+    {
+        $header->loadMissing('details');
+
+        $lines = [];
+
+        foreach ($header->details->sortBy('id')->values() as $index => $detail) {
+            $elementId = trim((string) ($detail->accredited_analytes ?? $detail->default_analytes ?? ''));
+            $analysisTypeId = trim((string) ($detail->part_no ?? ''));
+            $sampleTypeId = trim((string) ($detail->sample_type ?? ''));
+
+            $lines[] = [
+                'line_no' => $index + 1,
+                'sample_type_id' => $sampleTypeId,
+                'sample_type_name' => $sampleTypeId !== '' ? (SampleType::find($sampleTypeId)?->name ?? '') : '',
+                'analysis_type_id' => $analysisTypeId,
+                'analysis_type_name' => $analysisTypeId !== '' ? (AnalysisType::find($analysisTypeId)?->name ?? '') : '',
+                'analysis_element_id' => $elementId !== '' ? $elementId : null,
+                'parameter_label' => (string) ($detail->description ?? 'Parameter'),
+                'quantity' => max(1, (int) ($detail->quantity ?? 1)),
+                'unit_price' => (float) ($detail->unit_price ?? 0),
+                'tax' => (float) ($detail->tax ?? 0),
+                'subcontracted' => trim((string) ($detail->subcontracted_analytes ?? '')) !== '',
+            ];
+        }
+
+        if ($lines === []) {
+            return $lines;
+        }
+
+        return $this->uncertaintyBudgetResolver->enrichLinesWithLabMetrics($lines);
     }
 
     /**
@@ -240,14 +322,67 @@ final class QuotationFromEnquiryService
                 $this->emailQuotation($header, $enquiry);
             }
 
-            if ($sendPortal) {
-                $enquiry->current_quotation_header_id = $header->id;
-                $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
-                $enquiry->save();
-            }
+            $enquiry->current_quotation_header_id = $header->id;
+            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
+            $enquiry->save();
 
-            return $enquiry->fresh(['customer', 'contact', 'requestedAnalyses']);
+            return $this->ensureEnquiryReflectsSentQuotation($enquiry->fresh(['customer', 'contact', 'requestedAnalyses', 'currentQuotation']));
         });
+    }
+
+    public function quotationWasSentToCustomer(SampleSubmissionRequest $enquiry): bool
+    {
+        $enquiry->loadMissing('currentQuotation');
+        $quotation = $enquiry->currentQuotation;
+
+        if ($quotation === null && $enquiry->current_quotation_header_id) {
+            $quotation = QuotationHeader::query()->find($enquiry->current_quotation_header_id);
+        }
+
+        return $quotation !== null && $quotation->sent_to_customer_at !== null;
+    }
+
+    /**
+     * Align enquiry status when a quotation was sent but the enquiry row was not updated (e.g. walk-in email before status fix).
+     */
+    public function ensureEnquiryReflectsSentQuotation(SampleSubmissionRequest $enquiry, ?QuotationHeader $header = null): SampleSubmissionRequest
+    {
+        $header ??= $enquiry->currentQuotation;
+
+        if ($header === null && $enquiry->current_quotation_header_id) {
+            $header = QuotationHeader::query()->find($enquiry->current_quotation_header_id);
+        }
+
+        if ($header === null || $header->sent_to_customer_at === null) {
+            return $enquiry;
+        }
+
+        $terminalStatuses = [
+            SampleSubmissionRequest::STATUS_QUOTATION_SENT,
+            SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW,
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+        ];
+
+        $dirty = false;
+
+        if ((string) $enquiry->current_quotation_header_id !== (string) $header->id) {
+            $enquiry->current_quotation_header_id = $header->id;
+            $dirty = true;
+        }
+
+        if (! in_array((string) $enquiry->status, $terminalStatuses, true)) {
+            $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_SENT;
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $enquiry->save();
+
+            return $enquiry->fresh(['customer', 'contact', 'requestedAnalyses', 'currentQuotation']);
+        }
+
+        return $enquiry;
     }
 
     public function createRevision(SampleSubmissionRequest $enquiry, QuotationHeader $priorHeader): QuotationHeader
@@ -398,22 +533,36 @@ final class QuotationFromEnquiryService
         ?string $clientPoNumber = null,
         bool $poSkipped = false,
     ): SampleSubmissionRequest {
+        $enquiry = $this->ensureEnquiryReflectsSentQuotation(
+            $enquiry->fresh(['currentQuotation'])
+        );
+
+        if (! $this->quotationWasSentToCustomer($enquiry)) {
+            throw new RuntimeException('Quotation has not been sent to the customer yet.');
+        }
+
         if ($enquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_SENT) {
             throw new RuntimeException('Quotation can only be accepted when the enquiry is Quotation Sent.');
         }
 
         $quotation = $enquiry->currentQuotation;
-        if ($quotation === null || $quotation->sent_to_customer_at === null) {
-            throw new RuntimeException('Quotation has not been sent to the customer yet.');
+
+        $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED;
+        $enquiry->accepted_quotation_header_id = (string) $quotation->id;
+        $enquiry->quotation_accepted_at = now();
+        $enquiry->save();
+
+        if ($clientPoNumber !== null || $poSkipped) {
+            return app(EnquiryReceptionReadinessService::class)->markReadyForReception(
+                $enquiry->fresh(),
+                (string) $quotation->id,
+                [
+                    'client_po_number' => $clientPoNumber,
+                    'po_skipped' => $poSkipped,
+                ],
+            );
         }
 
-        return app(EnquiryReceptionReadinessService::class)->markReadyForReception(
-            $enquiry,
-            (string) $quotation->id,
-            [
-                'client_po_number' => $clientPoNumber,
-                'po_skipped' => $poSkipped,
-            ],
-        );
+        return $enquiry->fresh(['customer', 'contact', 'requestedAnalyses']);
     }
 }

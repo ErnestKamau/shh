@@ -4,7 +4,10 @@ namespace App\Livewire\Sampleworkflow;
 
 use App\Livewire\Sampleworkflow\Concerns\ManagesManagerAssignments;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
+use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
+use App\Services\Commercial\CommercialEnquiryFromFormService;
+use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormService;
@@ -85,6 +88,16 @@ class AcceptanceFormWizard extends Component
 
     public bool $requiresDisclaimerStep = false;
 
+    public bool $quotationLockedPath = false;
+
+    public bool $staffSignatureOnlyPath = false;
+
+    public string $staffSignerName = '';
+
+    public string $staffSignature = '';
+
+    public ?string $staffSignedAt = null;
+
     /** @var list<array{id: string, label: string}> */
     public array $incompleteChecklistItems = [];
 
@@ -94,7 +107,9 @@ class AcceptanceFormWizard extends Component
     public function mount(): void
     {
         $this->managerSignerName = (string) (Auth::user()->name ?? '');
+        $this->staffSignerName = (string) (Auth::user()->name ?? '');
         $this->requestDate = now()->format('Y-m-d');
+        $this->staffSignedAt = now()->format('Y-m-d');
     }
 
     #[On('open-acceptance-wizard')]
@@ -110,10 +125,46 @@ class AcceptanceFormWizard extends Component
             return;
         }
 
+        $instance = $this->submissionFormInstanceId
+            ? SubmissionFormInstance::query()->with('sampleSubmissionRequest')->find($this->submissionFormInstanceId)
+            : null;
+
+        $enquiry = $instance?->sampleSubmissionRequest;
+        if ($enquiry === null && $this->submissionRequestId) {
+            $enquiry = SampleSubmissionRequest::query()->find($this->submissionRequestId);
+        }
+
+        if ($instance !== null && app(CommercialEnquiryFromFormService::class)->isCommercialTestRequestForm($instance)) {
+            $readiness = app(EnquiryReceptionReadinessService::class);
+
+            if ($enquiry === null) {
+                $this->dispatch('notify', type: 'error', message: 'No commercial enquiry is linked to this test request.');
+
+                return;
+            }
+
+            if (! $readiness->isEligibleForPhysicalReceive($enquiry)) {
+                $message = match ((string) $enquiry->status) {
+                    SampleSubmissionRequest::STATUS_REQUESTED,
+                    SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS => 'Complete enquiry processing and send the quotation before accepting samples.',
+                    SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Record customer acceptance on the request view page first.',
+                    SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the customer.',
+                    SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO on the request view page before physical reception.',
+                    default => 'This commercial request is not ready for physical reception yet.',
+                };
+                $this->dispatch('notify', type: 'error', message: $message);
+
+                return;
+            }
+        }
+
         $prefill = app(AcceptanceFormPricingService::class)->buildPrefillFromSelection(
             $this->submissionRequestId,
             $this->submissionFormInstanceId
         );
+
+        $this->quotationLockedPath = (bool) ($prefill['quotation_locked'] ?? false);
+        $this->staffSignatureOnlyPath = true;
 
         $this->crmCustomerId = $prefill['customer_id'];
         $this->customerName = $prefill['customer_name'];
@@ -154,12 +205,26 @@ class AcceptanceFormWizard extends Component
                 }
             }
         }
-        $this->lines = [];
+        $this->lines = collect($prefillLines)->map(function (array $line, int $index): array {
+            return [
+                'line_no' => $index + 1,
+                'sample_type_id' => $line['sample_type_id'] ?? null,
+                'sample_type_name' => $line['sample_type_name'] ?? '',
+                'analysis_type_id' => $line['analysis_type_id'] ?? null,
+                'analysis_type_name' => $line['analysis_type_name'] ?? '',
+                'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                'parameter_label' => $line['parameter_label'] ?? '',
+                'unit_amount' => (float) ($line['unit_amount'] ?? 0),
+                'number_of_samples' => (int) ($line['number_of_samples'] ?? 1),
+                'is_approved' => true,
+                'sort_order' => $index,
+            ];
+        })->values()->all();
 
         $this->syncReceivingIntegrityState();
 
         $this->showModal = true;
-        $this->activeStep = 'sample_config';
+        $this->activeStep = 'staff_accept';
         $this->refreshReceiptNotificationFormState();
     }
 
@@ -168,6 +233,34 @@ class AcceptanceFormWizard extends Component
      */
     public function getWizardStepsProperty(): array
     {
+        if ($this->staffSignatureOnlyPath) {
+            return [
+                ['key' => 'staff_accept', 'label' => 'Accept samples', 'icon' => 'mdi-pen'],
+            ];
+        }
+
+        if ($this->quotationLockedPath) {
+            $steps = [];
+
+            if ($this->acceptanceFormId === null) {
+                $steps[] = ['key' => 'receipt', 'label' => 'Sample receipt (GCLA 01)', 'icon' => 'mdi-file-document-outline'];
+            }
+
+            if ($this->acceptanceFormId !== null) {
+                $steps[] = ['key' => 'customer', 'label' => 'Customer', 'icon' => 'mdi-account-check-outline'];
+            }
+
+            if ($this->acceptanceFormId !== null
+                && in_array($this->status, [
+                    AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
+                    AnalysisAcceptanceForm::STATUS_COMPLETED,
+                ], true)) {
+                $steps[] = ['key' => 'manager', 'label' => 'Lab manager', 'icon' => 'mdi-shield-check-outline'];
+            }
+
+            return $steps;
+        }
+
         $steps = [
             ['key' => 'sample_config', 'label' => 'Sample configuration', 'icon' => 'mdi-flask-outline'],
             ['key' => 'request', 'label' => 'Request & pricing', 'icon' => 'mdi-clipboard-list-outline'],
@@ -256,6 +349,59 @@ class AcceptanceFormWizard extends Component
     {
         $this->showModal = false;
         $this->resetWizard();
+    }
+
+    public function submitStaffAccept(): void
+    {
+        $this->validate([
+            'staffSignerName' => 'required|string|max:255',
+            'staffSignature' => 'required|string',
+        ], [
+            'staffSignerName.required' => 'Enter the staff name.',
+            'staffSignature.required' => 'Provide a staff signature.',
+        ]);
+
+        $header = [
+            'crm_customer_id' => $this->crmCustomerId,
+            'customer_name' => $this->customerName,
+            'request_date' => $this->requestDate,
+            'number_of_samples' => $this->numberOfSamples,
+            'mode_of_work' => $this->modeOfWork,
+            'date_of_sampling' => $this->dateOfSampling,
+            'sample_configuration_payload' => $this->sampleConfigs,
+        ];
+
+        $form = app(AcceptanceFormService::class)->acceptWithStaffSignature(
+            $this->submissionFormInstanceId,
+            $this->submissionRequestId,
+            $header,
+            $this->lines,
+            $this->staffSignerName,
+            $this->staffSignature,
+            $this->staffSignedAt,
+            auth()->id() ? (string) auth()->id() : null,
+        );
+
+        $batchId = (string) ($form->sample_header_id ?? '');
+        $batchCode = $batchId !== ''
+            ? (string) (\App\SampleHeader::query()->where('id', $batchId)->value('batch_code') ?? '')
+            : '';
+
+        $this->closeWizard();
+
+        if ($batchId !== '') {
+            $redirectUrl = route('view-batch-details', [
+                'batch' => $batchId,
+                'client' => 0,
+                'portal' => 0,
+                'status' => 'Samples Request Review',
+            ]);
+
+            $this->dispatch('acceptance-form-completed', redirectUrl: $redirectUrl, batchCode: $batchCode);
+            session()->flash('success', "Samples accepted. Job number {$batchCode} created.");
+        } else {
+            $this->dispatch('notify', type: 'error', message: 'Samples were accepted but the job number could not be created. Check the acceptance form processing error.');
+        }
     }
 
     public function goToStep(string $stepKey): void
@@ -1086,6 +1232,10 @@ class AcceptanceFormWizard extends Component
         $this->requiresDisclaimerStep = false;
         $this->incompleteChecklistItems = [];
         $this->disclaimerForm = SampleReceivingDisclaimerService::emptyForm();
+        $this->quotationLockedPath = false;
+        $this->staffSignatureOnlyPath = false;
+        $this->staffSignature = '';
+        $this->staffSignedAt = now()->format('Y-m-d');
     }
 
     private function syncReceivingIntegrityState(): void

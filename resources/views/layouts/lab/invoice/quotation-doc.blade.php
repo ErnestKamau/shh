@@ -139,7 +139,7 @@
                 class="badge badge-pill p-2 bg-white {{ $header[0]->is_complete > 0 ? 'text-success' : 'text-primary'}}"><i
                     class="mdi  {{ $header[0]->is_complete > 0 ? 'mdi-thumb-up' : 'mdi-alert-decagram'}}"></i>
                 {{ $header[0]->is_complete > 0 ? 'Complete' : 'Not Complete'}}</span>
-            @if($header[0]->is_batch_generate == 1)
+            @if(($header[0]->is_batch_generate ?? 0) == 1)
                 <span style="font-size: 10px;" class="badge badge-pill p-2 bg-white text-success"><i
                         class="mdi mdi-thumb-up "></i> Batch Generated </span>
             @endif
@@ -154,7 +154,7 @@
                             class="mdi mdi-share-all"></i> Send Quotation</button>
 
                     @if($header[0]->quotation_type == 'Analysis')
-                        @if($header[0]->is_batch_generate == 0)
+                        @if(($header[0]->is_batch_generate ?? 0) == 0)
                             <span class="btn btn-sm btn-white mr-2 float-right" data-target="#generate-batch" data-toggle="modal"><i
                                     class="mdi mdi-cog"></i> Generate Batch</span>
                         @endif

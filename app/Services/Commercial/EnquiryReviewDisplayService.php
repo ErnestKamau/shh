@@ -103,17 +103,26 @@ final class EnquiryReviewDisplayService
      */
     public function sampleRows(SampleSubmissionRequest $enquiry): array
     {
-        $lines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        $enquiry->loadMissing([
+            'submissionFormInstance.testRequestFormInstance.testRequestForm',
+            'submissionFormInstance.submissionForm.sampleTypes',
+        ]);
 
-        if ($lines === [] && $enquiry->submissionFormInstance !== null) {
+        $lines = [];
+
+        if ($enquiry->submissionFormInstance !== null) {
             $lines = $this->sampleLineService->linesForInstance($enquiry->submissionFormInstance);
+        }
+
+        if ($lines === []) {
+            $lines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
         }
 
         $rows = [];
 
         foreach ($lines as $line) {
             $rows[] = [
-                'sample_description' => (string) ($line['sample_description'] ?? '—'),
+                'sample_description' => $this->displayCell($line['sample_description'] ?? null),
                 'qty' => (string) ($line['number_of_samples'] ?? 1),
                 'sample_type' => $this->resolveSampleTypeLabel($line),
                 'sample_condition' => $this->formatLabel($line['sample_condition'] ?? null) ?: '—',
@@ -151,6 +160,12 @@ final class EnquiryReviewDisplayService
         $name = trim((string) ($line['sample_type_name'] ?? ''));
         if ($name !== '') {
             return $name;
+        }
+
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $foodSampleType = trim((string) ($attributes['food_sample_type'] ?? ''));
+        if ($foodSampleType !== '') {
+            return $foodSampleType;
         }
 
         $analysisName = trim((string) ($line['analysis_type_name'] ?? ''));
@@ -192,6 +207,12 @@ final class EnquiryReviewDisplayService
         $parameter = trim((string) ($line['parameter_label'] ?? ''));
         if ($parameter !== '') {
             return $parameter;
+        }
+
+        $attributes = is_array($line['attributes'] ?? null) ? $line['attributes'] : [];
+        $testsRequested = trim((string) ($attributes['tests_requested'] ?? $attributes['parameters'] ?? ''));
+        if ($testsRequested !== '') {
+            return $testsRequested;
         }
 
         $analysisName = trim((string) ($line['analysis_type_name'] ?? ''));
@@ -286,5 +307,16 @@ final class EnquiryReviewDisplayService
         }
 
         return '';
+    }
+
+    private function displayCell(mixed $value): string
+    {
+        $string = trim((string) ($value ?? ''));
+
+        if ($string === '' || strcasecmp($string, 'N/A') === 0) {
+            return '—';
+        }
+
+        return $string;
     }
 }

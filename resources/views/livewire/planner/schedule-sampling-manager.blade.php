@@ -641,7 +641,7 @@
                         @endphp
                         <div class="card bg-light border-0 mb-0 shadow-none rounded">
                             <div class="card-body p-3">
-                                <h6 class="font-weight-bold mb-3 text-primary"><i class="mdi mdi-clipboard-text mr-1"></i> {{ $formTemplate->name }}</h6>
+                                <h6 class="font-weight-bold mb-3 text-primary"><i class="mdi mdi-clipboard-text mr-1"></i> Test Request Form</h6>
                                 
                                 @if($isSectioned)
                                     @foreach($formTemplate->form_fields['sections'] as $sectionIndex => $section)
@@ -668,7 +668,6 @@
                                                                     <thead class="bg-secondary text-white text-center small">
                                                                         <tr>
                                                                             <th style="width: 5%">S. No.</th>
-                                                                            <th style="width: 10%">Sample No.</th>
                                                                             <th style="width: 15%">Sample Description</th>
                                                                             <th style="width: 15%">Sampling Point/Location</th>
                                                                             <th style="width: 8%">Qty.</th>
@@ -684,9 +683,6 @@
                                                                         @foreach($formData['sample_rows'] ?? [] as $rowIdx => $row)
                                                                             <tr wire:key="food-row-{{ $rowIdx }}">
                                                                                 <td class="text-center align-middle font-weight-bold">{{ $rowIdx + 1 }}</td>
-                                                                                <td>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_no" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Sample No.">
-                                                                                </td>
                                                                                 <td>
                                                                                     <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_description" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Description">
                                                                                 </td>
@@ -753,7 +749,6 @@
                                                                     <thead class="bg-secondary text-white text-center small">
                                                                         <tr>
                                                                             <th style="width: 5%">S. No.</th>
-                                                                            <th style="width: 10%">Sample No.</th>
                                                                             <th style="width: 15%">Sample Description</th>
                                                                             <th style="width: 15%">Location</th>
                                                                             <th style="width: 8%">Qty.</th>
@@ -767,9 +762,6 @@
                                                                         @foreach($formData['sample_rows'] ?? [] as $rowIdx => $row)
                                                                             <tr wire:key="water-row-{{ $rowIdx }}">
                                                                                 <td class="text-center align-middle font-weight-bold">{{ $rowIdx + 1 }}</td>
-                                                                                <td>
-                                                                                    <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_no" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Sample No.">
-                                                                                </td>
                                                                                 <td>
                                                                                     <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.sample_description" class="form-control form-control-xs" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Description">
                                                                                 </td>

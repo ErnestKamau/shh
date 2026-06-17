@@ -2,12 +2,14 @@
 
 namespace App\Services\Sampleworkflow;
 
+use App\AnalysisElements;
 use App\AnalysisType;
 use App\Models\SubmissionFormInstance;
 use App\SampleCondition;
 use App\SampleType;
 use App\Standards;
 use App\Zone;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -62,6 +64,11 @@ class AcceptanceFormSampleConfigService
                 $buckets[$key]['analysis_type_id'] = $analysisTypeId !== '' ? $analysisTypeId : null;
                 $buckets[$key]['zone_id'] = $defaultZoneId;
                 $buckets[$key]['number_of_samples'] = max(1, (int) ($line['number_of_samples'] ?? 1));
+                $buckets[$key]['sample_condition_id'] = $this->resolveSampleConditionId(
+                    $line['sample_condition_id'] ?? null,
+                    $line['sample_condition'] ?? null,
+                    $sampleTypeId !== '' ? $sampleTypeId : null
+                );
             }
 
             $elementId = $line['analysis_element_id'] ?? null;
@@ -133,7 +140,20 @@ class AcceptanceFormSampleConfigService
      */
     public function sampleTypesForCustomer(string $customerId, array $existingLines = []): array
     {
-        return $this->pricingService->sampleTypesForAddLinePicker($customerId, $existingLines);
+        $types = $this->pricingService->sampleTypesForAddLinePicker($customerId, $existingLines);
+        if ($types !== []) {
+            return $types;
+        }
+
+        return SampleType::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (SampleType $type) => [
+                'id' => (string) $type->id,
+                'name' => (string) $type->name,
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -145,7 +165,21 @@ class AcceptanceFormSampleConfigService
             return [];
         }
 
-        return $this->pricingService->analysisTypesForAddLinePicker($customerId, $sampleTypeId, $existingLines);
+        $analysisTypes = $this->pricingService->analysisTypesForAddLinePicker($customerId, $sampleTypeId, $existingLines);
+        if ($analysisTypes !== []) {
+            return $analysisTypes;
+        }
+
+        return AnalysisType::query()
+            ->where('sample_type_id', $sampleTypeId)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (AnalysisType $type) => [
+                'id' => (string) $type->id,
+                'name' => (string) $type->name,
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -157,7 +191,30 @@ class AcceptanceFormSampleConfigService
             return [];
         }
 
-        return $this->pricingService->parametersForAddLineSelection($customerId, $sampleTypeId, $analysisTypeId);
+        $parameters = $this->pricingService->parametersForAddLineSelection($customerId, $sampleTypeId, $analysisTypeId);
+        if ($parameters !== []) {
+            return $parameters;
+        }
+
+        return AnalysisElements::query()
+            ->where('analysis_type_id', $analysisTypeId)
+            ->with(['analyte:id,name'])
+            ->orderBy('level')
+            ->get()
+            ->map(function (AnalysisElements $element) use ($analysisTypeId, $sampleTypeId): array {
+                $label = (string) ($element->analyte?->name ?? $element->method ?? 'Parameter');
+
+                return [
+                    'id' => (string) $element->id,
+                    'analysis_element_id' => (string) $element->id,
+                    'analysis_type_id' => (string) $analysisTypeId,
+                    'sample_type_id' => $sampleTypeId,
+                    'label' => $label,
+                    'unit_amount' => 0.0,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -185,14 +242,83 @@ class AcceptanceFormSampleConfigService
         return $zoneId !== null && (string) $zoneId !== '' ? (string) $zoneId : null;
     }
 
+    private function resolveSampleConditionId(
+        mixed $conditionId,
+        mixed $conditionLabel,
+        ?string $sampleTypeId = null
+    ): ?string {
+        if (is_string($conditionId) && trim($conditionId) !== '') {
+            return trim($conditionId);
+        }
+
+        $label = trim((string) $conditionLabel);
+        if ($label === '') {
+            return null;
+        }
+
+        $query = SampleCondition::query()->orderBy('name');
+
+        if (Schema::hasColumn('sample_conditions', 'active')) {
+            $query->where(function ($activeQuery): void {
+                $activeQuery->where('active', 1)->orWhereNull('active');
+            });
+        }
+
+        if ($sampleTypeId !== null && $sampleTypeId !== '') {
+            $query->where(function ($typeQuery) use ($sampleTypeId): void {
+                $typeQuery
+                    ->where('sample_type_id', $sampleTypeId)
+                    ->orWhereNull('sample_type_id');
+            });
+        }
+
+        $match = $query
+            ->where(function ($labelQuery) use ($label): void {
+                $labelQuery
+                    ->whereRaw('name ILIKE ?', [$label])
+                    ->orWhereRaw('short_name ILIKE ?', [$label]);
+            })
+            ->value('id');
+
+        return $match !== null ? (string) $match : null;
+    }
+
     /**
      * @return list<array{id: string, name: string}>
      */
-    public function sampleConditionsForPicker(): array
+    public function sampleConditionsForPicker(?string $sampleTypeId = null): array
     {
-        return SampleCondition::query()
-            ->orderBy('name')
-            ->get(['id', 'name'])
+        $query = SampleCondition::query()->orderBy('name');
+
+        if (Schema::hasColumn('sample_conditions', 'active')) {
+            $query->where(function ($activeQuery): void {
+                $activeQuery->where('active', 1)->orWhereNull('active');
+            });
+        }
+
+        if ($sampleTypeId !== null && $sampleTypeId !== '') {
+            $query->where(function ($typeQuery) use ($sampleTypeId): void {
+                $typeQuery
+                    ->where('sample_type_id', $sampleTypeId)
+                    ->orWhereNull('sample_type_id');
+            });
+        }
+
+        $conditions = $query->get(['id', 'name']);
+
+        if ($conditions->isEmpty() && $sampleTypeId !== null && $sampleTypeId !== '') {
+            $conditions = SampleCondition::query()
+                ->orderBy('name')
+                ->when(
+                    Schema::hasColumn('sample_conditions', 'active'),
+                    fn ($fallback) => $fallback->where(function ($activeQuery): void {
+                        $activeQuery->where('active', 1)->orWhereNull('active');
+                    })
+                )
+                ->get(['id', 'name']);
+        }
+
+        return $conditions
             ->map(fn (SampleCondition $c) => ['id' => (string) $c->id, 'name' => (string) $c->name])
             ->all();
     }

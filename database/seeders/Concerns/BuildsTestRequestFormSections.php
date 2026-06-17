@@ -13,30 +13,11 @@ trait BuildsTestRequestFormSections
      */
     protected function createOrRefreshTestRequestForm(array $attributes): SubmissionForm
     {
-        $targetName = (string) $attributes['name'];
         $targetCode = (string) $attributes['document_code'];
 
-        $formByName = SubmissionForm::where('name', $targetName)->first();
-        $formByCode = SubmissionForm::where('document_code', $targetCode)->first();
-        $form = null;
-
-        if ($formByName && $formByCode && $formByName->id !== $formByCode->id) {
-            foreach ([$formByName, $formByCode] as $f) {
-                if ($f->instances()->count() > 0) {
-                    $f->update([
-                        'name' => $f->name.' (Archived '.now()->timestamp.')',
-                        'document_code' => $f->document_code.'-OLD-'.now()->timestamp,
-                        'is_active' => false,
-                        'is_published' => false,
-                    ]);
-                } else {
-                    $f->delete();
-                }
-            }
-            $form = new SubmissionForm();
-        } else {
-            $form = $formByName ?: $formByCode ?: new SubmissionForm();
-        }
+        $form = SubmissionForm::query()->firstOrNew(['document_code' => $targetCode]);
+        $hasStructure = $form->exists && $form->sections()->exists();
+        $hasInstances = $form->exists && $form->instances()->exists();
 
         $form->fill(array_merge([
             'is_published' => true,
@@ -55,12 +36,27 @@ trait BuildsTestRequestFormSections
             $this->command?->warn('Could not sync stages: '.$e->getMessage());
         }
 
+        if ($hasStructure || $hasInstances) {
+            return $form;
+        }
+
         $form->sections()->each(function ($section): void {
             $section->elementHolders()->each(function ($holder): void {
-                $holder->elements()->delete();
-                $holder->delete();
+                if ($holder->elements()->exists()) {
+                    $holder->elements()->each(function ($element): void {
+                        if (\App\Models\SubmissionFormInstanceValue::where('submission_form_element_id', $element->id)->exists()) {
+                            return;
+                        }
+                        $element->delete();
+                    });
+                }
+                if (! $holder->elements()->exists()) {
+                    $holder->delete();
+                }
             });
-            $section->delete();
+            if (! $section->elementHolders()->exists()) {
+                $section->delete();
+            }
         });
 
         return $form;
@@ -112,8 +108,8 @@ trait BuildsTestRequestFormSections
         foreach ([
             ['text', 'Name', 'customer_name', 1, true],
             ['textarea', 'Address', 'customer_address', 2, true],
-            ['text', 'Tel / Fax no.', 'customer_tel_fax', 3, false],
-            ['text', 'Mobile number', 'customer_mobile', 4, false],
+            ['text', 'Tel / Fax no.', 'customer_phone', 3, false],
+            ['text', 'Mobile number', 'mobile_number', 4, false],
             ['client_contact_select', 'Contact person', 'contact_person', 5, false],
             ['text', 'CRM contact ID', 'crm_contact_id', 6, false],
         ] as [$type, $label, $name, $order, $readonly]) {
@@ -247,8 +243,8 @@ trait BuildsTestRequestFormSections
             ]],
             ['text', 'Sampled by (name and employee ID)', 'sampled_by', 2],
             ['text', 'Customer representative name', 'customer_representative_name', 3],
-            ['signature', 'Customer representative signature', 'customer_representative_signature', 4],
-            ['text', 'Customer representative contact number', 'customer_representative_contact', 5],
+            ['text', 'Customer representative contact number', 'customer_representative_contact', 4],
+            ['signature', 'Customer representative signature', 'customer_representative_signature', 5],
             ['textarea', 'Remarks', 'remarks', 6],
         ];
 

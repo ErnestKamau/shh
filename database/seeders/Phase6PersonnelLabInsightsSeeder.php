@@ -29,7 +29,14 @@ class Phase6PersonnelLabInsightsSeeder extends Seeder
                 return;
             }
 
-            $labs = Lab::query()->with(['directorate', 'zone'])->where('active', true)->orderBy('code')->get();
+            $amspecLabCodes = array_column(AmSpecSeedData::labTypes(), 'code');
+
+            $labs = Lab::query()
+                ->with(['directorate', 'zone'])
+                ->where('active', true)
+                ->whereIn('code', $amspecLabCodes)
+                ->orderBy('code')
+                ->get();
             if ($labs->isEmpty()) {
                 $this->command?->error('No labs found. Run Phase 5 first.');
                 return;
@@ -53,7 +60,7 @@ class Phase6PersonnelLabInsightsSeeder extends Seeder
             $analystIds = [];
             foreach ($labs as $index => $lab) {
                 $fullName = $names[$index % count($names)];
-                $email = strtolower(str_replace([' ', '.'], '', $fullName)).'.'.strtolower($lab->zone->key).'@'.AmSpecSeedData::PERSONNEL_EMAIL_DOMAIN;
+                $email = strtolower(str_replace([' ', '.'], '', $fullName)).'.'.strtolower($lab->code).'@'.AmSpecSeedData::PERSONNEL_EMAIL_DOMAIN;
                 $designation = $designations[$index % count($designations)];
 
                 $user = User::query()->updateOrCreate(

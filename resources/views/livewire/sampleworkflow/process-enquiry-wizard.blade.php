@@ -50,7 +50,7 @@
                                 <h6 class="acc-wizard-section-title">Enquiry summary</h6>
                                 <div class="row acc-wizard-fields mb-3">
                                     <div class="col-md-3"><strong>Status</strong><br>{{ $enquiryStatus }}</div>
-                                    <div class="col-md-3"><strong>Channel</strong><br>{{ $sourceChannel ?: '—' }}</div>
+                                    <div class="col-md-3"><strong>Origin</strong><br>{{ ucwords(str_replace('_', ' ', $sourceChannel ?: '—')) }}</div>
                                     <div class="col-md-3"><strong>Customer</strong><br>{{ $customerName }}</div>
                                     <div class="col-md-3"><strong>Reference</strong><br>{{ $requestReference }}</div>
                                 </div>
@@ -137,12 +137,25 @@
                             <div class="acc-wizard-footer">
                                 <button type="button" class="btn btn-outline-secondary" wire:click="closeWizard">Cancel</button>
                                 <button type="button" class="btn btn-primary" wire:click="saveReviewAndContinue">
-                                    Proceed to quotation <i class="mdi mdi-arrow-right"></i>
+                                    Proceed to sample configuration <i class="mdi mdi-arrow-right"></i>
                                 </button>
                             </div>
                         @endif
 
-                        @if($activeStep === 'quotation')
+                        @if($activeStep === 'sample_config')
+                            @include('livewire.partials.acceptance-sample-config-table')
+
+                            <div class="acc-wizard-footer">
+                                <button type="button" class="btn btn-outline-secondary" wire:click="goToStep('review')">
+                                    <i class="mdi mdi-arrow-left"></i> Back
+                                </button>
+                                <button type="button" class="btn btn-primary" wire:click="saveSampleConfigAndContinue">
+                                    Continue to pricing <i class="mdi mdi-arrow-right"></i>
+                                </button>
+                            </div>
+                        @endif
+
+                        @if($activeStep === 'pricing')
                             @if($statusMessage !== '')
                                 <div class="alert alert-{{ $statusLevel === 'error' ? 'danger' : ($statusLevel === 'success' ? 'success' : 'info') }} py-2 mb-3">
                                     {{ $statusMessage }}
@@ -151,31 +164,30 @@
 
                             <section class="acc-wizard-section acc-pricing-section">
                                 <div class="acc-pricing-toolbar mb-3">
-                                    <div>
-                                        <h6 class="acc-wizard-section-title mb-0">Inline quotation</h6>
-                                    </div>
-                                    @if($quotationHeaderId)
-                                        <a href="{{ route('add-qoute-details-view', ['id' => $quotationHeaderId, 'stage' => 'Quote Complete', 'from_enquiry' => 1]) }}"
-                                           class="btn btn-sm btn-outline-secondary" target="_blank">
-                                            Open full editor
-                                        </a>
-                                    @endif
+                                    <h6 class="acc-wizard-section-title mb-0">Inline quotation</h6>
                                 </div>
 
                                 <div class="acc-pricing-table-wrap mb-3">
                                     <table class="table acc-pricing-table mb-0">
                                         <thead>
                                             <tr>
+                                                <th>No</th>
                                                 <th>Parameter</th>
-                                                <th class="text-right">Unit price</th>
-                                                <th>Qty</th>
+                                                <th class="text-center">LOQ</th>
+                                                <th class="text-center">MU%</th>
+                                                <th class="text-right">Amount</th>
+                                                <th>Samples</th>
+                                                <th class="text-right">Tax %</th>
                                                 <th class="text-center">Subcontract</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             @forelse($lines as $index => $line)
                                                 <tr wire:key="ql-{{ $index }}">
+                                                    <td>{{ $index + 1 }}</td>
                                                     <td>{{ $line['parameter_label'] ?? 'Parameter' }}</td>
+                                                    <td class="text-center text-muted small">{{ $line['loq'] ?? '—' }}</td>
+                                                    <td class="text-center text-muted small">{{ $line['mu_percent'] ?? '—' }}</td>
                                                     <td class="text-right">
                                                         <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
                                                                wire:model.blur="lines.{{ $index }}.unit_price">
@@ -184,25 +196,60 @@
                                                         <input type="number" min="1" class="form-control form-control-sm"
                                                                wire:model.blur="lines.{{ $index }}.quantity">
                                                     </td>
+                                                    <td class="text-right">
+                                                        <input type="number" min="0" step="0.01" class="form-control form-control-sm text-right"
+                                                               wire:model.blur="lines.{{ $index }}.tax">
+                                                    </td>
                                                     <td class="text-center">
                                                         <input type="checkbox" wire:model.live="lines.{{ $index }}.subcontracted">
                                                     </td>
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="4" class="text-muted text-center py-4">No quotation lines could be prefilled.</td>
+                                                    <td colspan="8" class="text-muted text-center py-4">No quotation lines could be prefilled.</td>
                                                 </tr>
                                             @endforelse
                                         </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <th colspan="6" class="text-right">Subtotal</th>
+                                                <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['sub_total'], 2) }}</th>
+                                            </tr>
+                                            <tr>
+                                                <th colspan="6" class="text-right">Tax</th>
+                                                <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['tax'], 2) }}</th>
+                                            </tr>
+                                            <tr>
+                                                <th colspan="6" class="text-right">Grand total</th>
+                                                <th colspan="2" class="text-right">{{ number_format($this->pricingTotals['total'], 2) }}</th>
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
 
+                                <div class="d-flex flex-wrap mb-3" style="gap: 8px;">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" wire:click="generatePdf" wire:loading.attr="disabled">
+                                        <i class="mdi mdi-file-pdf-box"></i> Generate PDF
+                                    </button>
+                                    @if($pdfGenerated && $quotationHeaderId)
+                                        <a href="{{ route('quotation.preview', ['id' => $quotationHeaderId]) }}"
+                                           class="btn btn-sm btn-outline-secondary" target="_blank">
+                                            Preview quotation
+                                        </a>
+                                    @endif
+                                    @if($quoteNumber !== '')
+                                        <span class="align-self-center small text-muted">Ref: {{ $quoteNumber }}</span>
+                                    @endif
+                                </div>
+
                                 <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="acc-label d-flex align-items-center gap-2">
-                                            <input type="checkbox" wire:model="sendPortal"> Send to portal
-                                        </label>
-                                    </div>
+                                    @if(strtolower($sourceChannel) !== 'walk_in')
+                                        <div class="col-md-4">
+                                            <label class="acc-label d-flex align-items-center gap-2">
+                                                <input type="checkbox" wire:model="sendPortal"> Send to portal
+                                            </label>
+                                        </div>
+                                    @endif
                                     <div class="col-md-4">
                                         <label class="acc-label d-flex align-items-center gap-2">
                                             <input type="checkbox" wire:model="sendEmail"> Email PDF to customer
@@ -212,18 +259,17 @@
                             </section>
 
                             <div class="acc-wizard-footer">
-                                <button type="button" class="btn btn-outline-secondary" wire:click="goToStep('review')">
+                                <button type="button" class="btn btn-outline-secondary" wire:click="goToStep('sample_config')">
                                     <i class="mdi mdi-arrow-left"></i> Back
                                 </button>
-                                <button type="button" class="btn btn-success" wire:click="sendQuotation" wire:loading.attr="disabled">
-                                    <span wire:loading.remove wire:target="sendQuotation"><i class="mdi mdi-send"></i> Send to customer</span>
+                                <button type="button" class="btn btn-success" wire:click="sendQuotation" wire:loading.attr="disabled"
+                                    @disabled($quotationSent)>
+                                    <span wire:loading.remove wire:target="sendQuotation">
+                                        <i class="mdi mdi-send"></i>
+                                        {{ $quotationSent ? 'Quotation already sent' : 'Send to customer' }}
+                                    </span>
                                     <span wire:loading wire:target="sendQuotation">Generating & sending…</span>
                                 </button>
-                                @if($enquiryStatus === 'Quotation Sent' && $sourceChannel === 'walk_in')
-                                    <button type="button" class="btn btn-outline-success" wire:click="recordWalkInQuotationAcceptance" wire:loading.attr="disabled">
-                                        <i class="mdi mdi-check-decagram"></i> Record walk-in acceptance
-                                    </button>
-                                @endif
                             </div>
                         @endif
                     </div>

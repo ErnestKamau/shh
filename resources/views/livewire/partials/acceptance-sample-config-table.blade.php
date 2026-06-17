@@ -19,6 +19,7 @@
                 $selectedKeys = is_array($config['parameter_keys'] ?? null) ? $config['parameter_keys'] : [];
                 $instances = is_array($config['instances'] ?? null) ? $config['instances'] : [];
                 $analysisTypes = $this->analysisTypesForConfigIndex($configIndex);
+                $sampleConditions = $this->sampleConditionsForConfigIndex($configIndex);
             @endphp
             <div
                 class="acc-sample-config-card"
@@ -50,7 +51,6 @@
                                 <th>Analysis type</th>
                                 <th>Condition of sample</th>
                                 <th>Main standard</th>
-                                <th>Zone</th>
                                 <th class="text-center" style="width: 110px;">No. of samples</th>
                             </tr>
                         </thead>
@@ -86,7 +86,7 @@
                                 <td>
                                     <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.sample_condition_id">
                                         <option value="">—</option>
-                                        @foreach($this->configSampleConditions as $condition)
+                                        @foreach($sampleConditions as $condition)
                                             <option value="{{ $condition['id'] }}">{{ $condition['name'] }}</option>
                                         @endforeach
                                     </select>
@@ -96,14 +96,6 @@
                                         <option value="">—</option>
                                         @foreach($this->configStandards as $standard)
                                             <option value="{{ $standard['id'] }}">{{ $standard['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                </td>
-                                <td>
-                                    <select class="form-control form-control-sm acc-input" wire:model.live="sampleConfigs.{{ $configIndex }}.zone_id" title="Zone">
-                                        <option value="">Select zone…</option>
-                                        @foreach($this->configZones as $zone)
-                                            <option value="{{ $zone['id'] }}">{{ $zone['name'] }}</option>
                                         @endforeach
                                     </select>
                                 </td>
@@ -119,7 +111,7 @@
                             </tr>
 
                             <tr class="acc-sample-config-params-row">
-                                <td colspan="6">
+                                <td colspan="5">
                                     <div class="acc-sample-config-params-panel">
                                         <div class="acc-sample-config-params-band">
                                             <button
@@ -188,7 +180,7 @@
 
                             @if(count($instances) > 0)
                                 <tr class="acc-sample-config-section-row">
-                                    <td colspan="6">
+                                    <td colspan="5">
                                         <div class="acc-sample-config-params-panel acc-sample-config-instances-panel">
                                             <div class="acc-sample-config-params-band acc-sample-config-instances-band">
                                                 <button

@@ -6,7 +6,9 @@ use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestForm;
 use App\Models\TestRequestFormInstance;
 use App\Models\Workflow\Approval;
+use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\Sampleworkflow\SampleReceivingCheckInService;
+use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use App\Services\WorkflowService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
@@ -464,6 +466,77 @@ class ReceiveSampleRequest extends Component
 
     public function confirmReceive(): void
     {
+        if ($this->isPhysicalCheckIn) {
+            $this->confirmPhysicalCheckIn();
+
+            return;
+        }
+
+        $this->confirmWalkInCapture();
+    }
+
+    private function confirmPhysicalCheckIn(): void
+    {
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            $this->addError('selection', 'You must be signed in to receive samples.');
+
+            return;
+        }
+
+        $checkInService = app(SampleReceivingCheckInService::class);
+        $processed = 0;
+        $skipped = 0;
+        $blockedReasons = [];
+
+        DB::transaction(function () use ($user, $checkInService, &$processed, &$skipped, &$blockedReasons): void {
+            $instances = SubmissionFormInstance::query()
+                ->with(['batches', 'submissionForm', 'sampleSubmissionRequest'])
+                ->whereIn('id', $this->selectedFormInstanceIds)
+                ->get();
+
+            foreach ($instances as $instance) {
+                if (! $checkInService->canReceiveInstance($instance)) {
+                    $skipped++;
+                    $reason = $checkInService->receiveBlockReason($instance);
+                    if ($reason !== null) {
+                        $blockedReasons[] = $reason;
+                    }
+
+                    continue;
+                }
+
+                $instance->markAsReceived($user, $this->remarks !== '' ? $this->remarks : null);
+                $processed++;
+            }
+        });
+
+        if ($processed === 0) {
+            $message = 'No eligible requests were checked in.';
+            if ($blockedReasons !== []) {
+                $message .= ' '.collect($blockedReasons)->unique()->implode(' ');
+            }
+
+            $this->addError('selection', $message);
+
+            return;
+        }
+
+        $message = $processed === 1
+            ? '1 request checked in at reception.'
+            : "{$processed} requests checked in at reception.";
+
+        if ($skipped > 0) {
+            $message .= " ({$skipped} skipped.)";
+        }
+
+        session()->flash('success', $message);
+        $this->dispatch('receive-completed');
+        $this->dispatch('hide-receive-sample-modal');
+    }
+
+    private function confirmWalkInCapture(): void
+    {
         $this->validate([
             'selectedSampleTypeId' => 'required|exists:sample_types,id',
         ], [
@@ -471,8 +544,9 @@ class ReceiveSampleRequest extends Component
         ]);
 
         $form = TestRequestForm::where('sample_type_id', $this->selectedSampleTypeId)->where('is_active', true)->first();
-        if (!$form) {
+        if (! $form) {
             $this->addError('selectedSampleTypeId', 'No active form template found for the selected sample type.');
+
             return;
         }
 
@@ -480,20 +554,13 @@ class ReceiveSampleRequest extends Component
         $rules = [];
         $messages = [];
 
-        // 1. Checklist validation (only if requests are selected)
-        $approval = $this->resolveApproval();
-        if ($this->selectedFormInstanceIds !== [] && $approval !== null) {
-            $rules = array_merge($rules, $this->rulesForApproval($approval));
-            $messages = array_merge($messages, $this->messagesForApproval($approval));
-        }
-
-        // 2. Dynamic fields validation
+        // Dynamic fields validation (walk-in TRF capture only)
         $fields = $form->getFlatFields();
         foreach ($fields as $field) {
             if (empty($field['name'])) {
                 continue;
             }
-            $key = 'formData.' . $field['name'];
+            $key = 'formData.'.$field['name'];
             $fieldRules = [];
             if ($field['required'] ?? false) {
                 $fieldRules[] = 'required';
@@ -508,110 +575,29 @@ class ReceiveSampleRequest extends Component
             }
 
             $rules[$key] = $fieldRules;
-            $messages[$key . '.required'] = ($field['label'] ?? $field['name']) . ' is required.';
+            $messages[$key.'.required'] = ($field['label'] ?? $field['name']).' is required.';
         }
 
-        if (!empty($rules)) {
+        if ($rules !== []) {
             $this->validate($rules, $messages);
         }
 
         $user = Auth::user();
-        if (!$user instanceof User) {
+        if (! $user instanceof User) {
             $this->addError('selection', 'You must be signed in to receive samples.');
+
             return;
         }
 
-        $checkInService = app(SampleReceivingCheckInService::class);
         $processed = 0;
-        $skipped = 0;
-        $blockedReasons = [];
 
-        if ($this->selectedFormInstanceIds !== []) {
-            DB::transaction(function () use ($approval, $user, $form, $checkInService, &$processed, &$skipped, &$blockedReasons) {
-                $instances = SubmissionFormInstance::query()
-                     ->with(['batches', 'submissionForm', 'sampleSubmissionRequest'])
-                     ->whereIn('id', $this->selectedFormInstanceIds)
-                     ->get();
-
-                foreach ($instances as $instance) {
-                    if (! $checkInService->canReceiveInstance($instance)) {
-                        $skipped++;
-                        $reason = $checkInService->receiveBlockReason($instance);
-                        if ($reason !== null) {
-                            $blockedReasons[] = $reason;
-                        }
-                        continue;
-                    }
-
-                    if ($approval) {
-                        $this->workflowService()->submitFormInstanceApproval(
-                            $instance->id,
-                            self::STAGE_NAME,
-                            $approval->id,
-                            $this->approvalResponses($approval),
-                            $this->remarks !== '' ? $this->remarks : null,
-                            'approved',
-                            (string) $user->id,
-                        );
-                    }
-
-                    $instance->markAsReceived($user, $this->remarks !== '' ? $this->remarks : null);
-                    $processed++;
-
-                    // Save the form values to the database using unified mapper
-                    $submissionForm = $instance->submissionForm;
-                    if ($submissionForm) {
-                        $requestData = TestRequestFormInstance::mapToSubmissionFormRequestData($this->formData, $form);
-                        $submissionService = app(\App\Services\SubmissionForm\SubmissionFormSubmissionService::class);
-                        $elements = $submissionService->elementsForForm($submissionForm);
-                        $req = new \Illuminate\Http\Request();
-                        $req->merge($requestData);
-                        $submissionService->processFormData($instance, $req, $elements);
-                    }
-
-                    // Create or update and tie TestRequestFormInstance to this received request
-                    TestRequestFormInstance::updateOrCreate(
-                        ['submission_form_instance_id' => $instance->id],
-                        [
-                            'test_request_form_id' => $form->id,
-                            'form_data' => $this->formData,
-                            'status' => 'submitted',
-                            'created_by' => $user->id,
-                        ]
-                    );
-                }
-            });
-
-            if ($processed === 0) {
-                $message = 'No eligible submitted requests were received.';
-                if ($blockedReasons !== []) {
-                    $message .= ' '.collect($blockedReasons)->unique()->implode(' ');
-                } else {
-                    $message .= ' They may already be received or have batches created.';
-                }
-                $this->addError('selection', $message);
-                return;
-            }
-
-            $message = $processed === 1
-                ? '1 request marked as received.'
-                : "{$processed} requests marked as received.";
-
-            if ($skipped > 0) {
-                $message .= " ({$skipped} skipped.)";
-            }
-        } else {
-            // Standalone receive (when no requests are selected)
-            DB::transaction(function () use ($user, $form) {
-                // Find active SubmissionForm for this sample type or fallback
-                $submissionForm = \App\Models\SubmissionForm::where('is_active', true)
-                    ->where('form_type', 'template')
-                    ->whereHas('sampleTypes', function ($query) {
-                        $query->where('sample_types.id', $this->selectedSampleTypeId);
-                    })->first() ?: \App\Models\SubmissionForm::where('is_active', true)->where('form_type', 'template')->first();
+        // Standalone walk-in capture (no pre-selected requests)
+        DB::transaction(function () use ($user, $form, &$processed): void {
+                $submissionForm = app(PortalSubmissionFormAccess::class)
+                    ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
 
                 if (!$submissionForm) {
-                    throw new \Exception('No active Submission Form configuration found in the LIMS. Please create a submission template first.');
+                    throw new \Exception('No active Test Request Form template found for this sample type. Please seed TRF templates first.');
                 }
 
                 // Try to resolve customer if selected
@@ -631,7 +617,7 @@ class ReceiveSampleRequest extends Component
                     'submission_form_id' => $submissionForm->id,
                     'form_number' => null,
                     'sequence_number' => null,
-                    'title' => $submissionForm->name . ' - ' . now()->format('Y-m-d H:i'),
+                    'title' => 'Test Request Form - ' . now()->format('Y-m-d H:i'),
                     'submitted_by' => $user->id,
                     'status' => 'draft',
                     'priority' => 'normal',
@@ -647,9 +633,8 @@ class ReceiveSampleRequest extends Component
                 $submissionService->processFormData($instance, $req, $elements);
 
                 $instance->logAction('created', $user);
-                $instance->submit($user); // status becomes 'submitted'
+                $instance->submit($user);
                 $instance->refresh();
-                $instance->markAsReceived($user, $this->remarks !== '' ? $this->remarks : null); // status becomes 'received'
 
                 TestRequestFormInstance::updateOrCreate(
                     ['submission_form_instance_id' => $instance->id],
@@ -660,14 +645,23 @@ class ReceiveSampleRequest extends Component
                         'created_by' => $user->id,
                     ]
                 );
+
+                app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance(
+                    $instance->fresh(['values.element', 'submissionForm', 'crmCustomer', 'testRequestFormInstance'])
+                );
             });
 
-            $message = 'Sample received successfully (standalone entry).';
+            $message = 'Walk-in test request submitted successfully.';
             $processed = 1;
-        }
 
         session()->flash('success', $message);
         $this->dispatch('receive-completed');
+        $this->dispatch('hide-receive-sample-modal');
+    }
+
+    public function getIsPhysicalCheckInProperty(): bool
+    {
+        return $this->selectedFormInstanceIds !== [];
     }
 
     public function render()
@@ -681,6 +675,18 @@ class ReceiveSampleRequest extends Component
             'approval' => $this->resolveApproval(),
             'formTemplate' => $formTemplate,
         ]);
+    }
+
+    private function refreshCheckInContexts(): void
+    {
+        if ($this->selectedFormInstanceIds === []) {
+            $this->checkInContexts = [];
+
+            return;
+        }
+
+        $this->checkInContexts = app(SampleReceivingCheckInService::class)
+            ->buildCheckInContexts($this->selectedFormInstanceIds);
     }
 
     private function resolveApproval(): ?Approval

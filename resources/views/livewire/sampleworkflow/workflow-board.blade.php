@@ -734,12 +734,19 @@
 								data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
 									class="badge badge-light badge-pill pt-1">{{ $tatTodayCount }}</span></span>
 						@endif
-						@if($status === 'Samples Receiving')
+						@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 							<button type="button" class="btn btn-sm btn-outline-primary btn-action-sm"
-								@click.prevent="$wire.openReceiveModal(selectedInstanceIds())">
-								<i class="mdi mdi-package-variant-closed mr-1"></i> Receive Sample
+								@click.prevent="$wire.openReceiveModal([])">
+								<i class="mdi mdi-walk mr-1"></i> Walk-in request
 							</button>
 						@endif
+						@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
+							<button type="button" class="btn btn-sm btn-outline-primary btn-action-sm"
+								@click.prevent="$wire.openReceiveModal(selectedInstanceIds())">
+								<i class="mdi mdi-package-variant-closed mr-1"></i> Check-in samples
+							</button>
+						@endif
+						{{-- Sample Submissions dropdown hidden: walk-ins use Receive Sample only (P1.1)
 						<div class="btn-group" role="group">
 							<button type="button" class="btn btn-sm btn-primary btn-action-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 								<i class="mdi mdi-form-select"></i> Sample Submissions
@@ -756,6 +763,7 @@
 								</a>
 							</div>
 						</div>
+						--}}
 						<div class="btn-group">
 							<button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
 								id="dropdownMenuButton"
@@ -777,9 +785,9 @@
 									<li>
 										<span class="btn btn-sm dropdown-item"
 											data-sf-trigger="workflow-process-enquiry"
-											:class="{ 'disabled': selectedEnquiryIds().length === 0 }"
-											:style="selectedEnquiryIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedEnquiryIds().length > 0 && $wire.openProcessEnquiryModal(selectedEnquiryIds())"><i class="mdi mdi-file-chart-outline mr-2"></i> Process enquiry</span>
+											:class="{ 'disabled': selectedInstanceIds().length === 0 }"
+											:style="selectedInstanceIds().length === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())"><i class="mdi mdi-file-chart-outline mr-2"></i> Process enquiry</span>
 									</li>
 								@endif
 								@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
@@ -918,7 +926,7 @@
 											data-sf-trigger="workflow-action-approve-request"
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedCount > 0 && window.openWorkflowAcceptSampleModal && window.openWorkflowAcceptSampleModal()">
+											wire:click.prevent="openAcceptSampleWizardFromSelection">
 											<i class="mdi mdi-check-circle-outline mr-2"></i> Accept sample
 										</span>
 									</li>
@@ -927,7 +935,7 @@
 											data-sf-trigger="workflow-action-reject-request"
 											:class="{ 'disabled': selectedCount === 0 }"
 											:style="selectedCount === 0 ? 'pointer-events: none; opacity: 0.55;' : ''"
-											@click.prevent="selectedCount > 0 && window.openWorkflowRejectSampleModal && window.openWorkflowRejectSampleModal()">
+											wire:click.prevent="openRejectSampleWizardFromSelection">
 											<i class="mdi mdi-close-circle-outline mr-2"></i> Reject sample
 										</span>
 									</li>
@@ -1140,8 +1148,18 @@
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted')
 										<button type="button"
 											class="btn btn-sm btn-outline-success"
-											@click.prevent="selectedEnquiryIds().length > 0 && $wire.openProcessEnquiryModal(selectedEnquiryIds())">
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.openProcessEnquiryFromInstances(selectedInstanceIds())">
 											<i class="mdi mdi-file-chart-outline mr-1"></i> Process enquiry
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-outline-success"
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.recordWalkInAcceptanceFromInstances(selectedInstanceIds())">
+											<i class="mdi mdi-check-decagram mr-1"></i> Walk-in acceptance
+										</button>
+										<button type="button"
+											class="btn btn-sm btn-outline-primary"
+											@click.prevent="selectedInstanceIds().length > 0 && $wire.openPoCaptureFromInstances(selectedInstanceIds())">
+											<i class="mdi mdi-file-document-edit-outline mr-1"></i> Record PO → Ready for reception
 										</button>
 									@endif
 									@if($status === 'Samples Receiving' && $workflowSubTab === 'ready_for_reception')
@@ -1172,13 +1190,13 @@
 										<button type="button"
 											class="btn btn-sm btn-outline-success"
 											data-sf-trigger="workflow-action-approve-request"
-											@click.prevent="selectedCount > 0 && window.openWorkflowAcceptSampleModal && window.openWorkflowAcceptSampleModal()">
+											wire:click.prevent="openAcceptSampleWizardFromSelection">
 											<i class="mdi mdi-check-circle-outline mr-1"></i> Accept sample
 										</button>
 										<button type="button"
 											class="btn btn-sm btn-outline-danger"
 											data-sf-trigger="workflow-action-reject-request"
-											@click.prevent="selectedCount > 0 && window.openWorkflowRejectSampleModal && window.openWorkflowRejectSampleModal()">
+											wire:click.prevent="openRejectSampleWizardFromSelection">
 											<i class="mdi mdi-close-circle-outline mr-1"></i> Reject sample
 										</button>
 									@endif
@@ -1896,12 +1914,9 @@
 							|| ($this->isReceivingStage() && $status !== 'Samples Receiving' && $workflowSubTab === 'requests')
 						)
 							@php
-								$isCommercialSubmittedTab = $status === 'Samples Receiving' && $workflowSubTab === 'submitted';
-								$commercialEnquiries = $isCommercialSubmittedTab ? $this->commercialEnquiries : null;
-								$submissionForms = $isCommercialSubmittedTab ? null : $this->submissionForms;
+								$submissionForms = $this->submissionForms;
 								$portalSubmissions = in_array($status, ['Samples Receiving', 'Samples Request Review'], true) ? null : $this->portalSubmissions;
 								$hasSubmissions = ($submissionForms && $submissionForms->count() > 0)
-									|| ($commercialEnquiries && $commercialEnquiries->count() > 0)
 									|| ($portalSubmissions && $portalSubmissions->count() > 0);
 							@endphp
 
@@ -1932,10 +1947,8 @@
 													<th>Actions</th>
 													<th>Customer</th>
 													@if(in_array($status, ['Samples Receiving'], true))
-														<th>Channel</th>
-														<th>Enquiry</th>
+														<th>Enquiry Status</th>
 													@endif
-													<th>Form Name</th>
 													@if($status === 'Samples Receiving')
 														<th>Origin</th>
 													@endif
@@ -1964,10 +1977,9 @@
 												@foreach($submissionForms as $instance)
 													@php
 														$hasBatch = $instance->batches->count() > 0;
-														$formSampleTypeNames = $instance->getResolvedSampleTypeNames();
+														$formSampleTypeNames = $instance->getReceivingSampleTypeNames();
 														$testsRequiredCount = $instance->requested_tests_count;
 														$sampleCount = count($instance->getAllSampleDetails());
-														$attachmentCount = $instance->attachment_count ?? 0;
 														$instanceValues = collect($instance->values ?? []);
 														$pickValue = function (array $fieldHints) use ($instanceValues) {
 															$hintBag = collect($fieldHints)
@@ -2076,7 +2088,7 @@
 																		data-selection-purpose="request-review"
 																		form="dispatch-to-labs-modal-form"
 																		data-form-number="{{ $instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending' }}"
-																		data-form-name="{{ $instance->submissionForm->name ?? 'Template Form' }}"
+																		data-form-name="{{ $instance->receivingFormDisplayName() }}"
 																		data-customer-name="{{ $instanceCustomerName }}"
 																		data-customer-email="{{ $instanceCustomerEmail }}"
 																		data-customer-phone="{{ $instanceCustomerPhone }}"
@@ -2120,6 +2132,14 @@
 																		title="View details">
 																		<i class="mdi mdi-eye"></i>
 																	</a>
+																	@if($status === 'Samples Receiving' && $workflowSubTab === 'submitted' && $instance->sampleSubmissionRequest && $instance->sampleSubmissionRequest->status === \App\Models\SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED)
+																		<button type="button"
+																			class="btn btn-sm rm-act-btn rm-act-btn--view"
+																			title="Record PO"
+																			wire:click="openPoCaptureModal('{{ $instance->sampleSubmissionRequest->id }}')">
+																			<i class="mdi mdi-file-document-edit-outline"></i>
+																		</button>
+																	@endif
 																@endif
 																@if(
 																	$status === 'Samples Request Review'
@@ -2173,11 +2193,10 @@
 																<span class="text-muted small">—</span>
 															@endif
 														</td>
+														@php
+															$linkedEnquiry = $instance->sampleSubmissionRequest;
+														@endphp
 														@if($status === 'Samples Receiving')
-															@php
-																$linkedEnquiry = $instance->sampleSubmissionRequest;
-															@endphp
-															<td>{{ ucfirst(str_replace('_', ' ', $linkedEnquiry->source_channel ?? '—')) }}</td>
 															<td>
 																@if($linkedEnquiry)
 																	<span class="small">{{ $linkedEnquiry->commercialStatus() }}</span>
@@ -2186,22 +2205,19 @@
 																@endif
 															</td>
 														@endif
-														<td>
-															{{ $instance->submissionForm->name }}
-															@if(($instance->submissionForm->form_type ?? '') === 'template' && $attachmentCount > 0)
-																<span class="badge badge-soft-primary ml-1" title="{{ $attachmentCount }} attachment form{{ $attachmentCount !== 1 ? 's' : '' }} linked">{{ $attachmentCount }} <i class="mdi mdi-paperclip" style="font-size:10px;"></i></span>
-															@endif
-														</td>
 														@if($status === 'Samples Receiving')
 															<td>
-																@if($instance->origin === 'Scheduled Sampling')
-																	<span class="badge badge-success">
-																		<i class="mdi mdi-calendar-clock mr-1"></i> Scheduled
-																	</span>
+																@php
+																	$originChannel = $instance->receivingOriginChannel();
+																@endphp
+																@if($originChannel === 'portal')
+																	<span class="badge badge-primary"><i class="mdi mdi-web mr-1"></i> Portal</span>
+																@elseif($originChannel === 'walk_in')
+																	<span class="badge badge-info"><i class="mdi mdi-walk mr-1"></i> Walk-in</span>
+																@elseif($originChannel === 'scheduled')
+																	<span class="badge badge-success"><i class="mdi mdi-calendar-clock mr-1"></i> Scheduled</span>
 																@else
-																	<span class="badge badge-info">
-																		<i class="mdi mdi-run mr-1"></i> Walk-in
-																	</span>
+																	<span class="badge badge-secondary">{{ ucwords(str_replace(['_', '-'], ' ', $originChannel)) }}</span>
 																@endif
 															</td>
 														@endif
@@ -2330,66 +2346,6 @@
 									</div>
 									<div class="mt-2">
 										{{ $submissionForms->links() }}
-									</div>
-								@endif
-
-								@if($commercialEnquiries && $commercialEnquiries->count() > 0)
-									<div class="table-responsive">
-										<table class="table table-hover workflow-table">
-											<thead>
-												<tr>
-													<th style="width: 40px;"></th>
-													<th>Actions</th>
-													<th>Request #</th>
-													<th>Customer</th>
-													<th>Reference</th>
-													<th>Channel</th>
-													<th>Status</th>
-													<th>Submitted</th>
-												</tr>
-											</thead>
-											<tbody>
-												@foreach($commercialEnquiries as $enquiry)
-													@php
-														$color = match($enquiry->status) {
-															'Requested' => '#17a2b8',
-															'Quotation In Progress' => '#ffc107',
-															'Quotation Sent' => '#28a745',
-															'Quotation Under Review' => '#fd7e14',
-															'Quotation Accepted' => '#20c997',
-															'Ready for Reception' => '#20c997',
-															default => '#6c757d',
-														};
-													@endphp
-													<tr>
-														<td>
-															<input type="checkbox" name="commercial_enquiry_id[]" value="{{ $enquiry->id }}" data-enquiry-select="1">
-														</td>
-														<td nowrap>
-															<a href="{{ $enquiry->staffViewUrl() }}" class="btn btn-sm rm-act-btn rm-act-btn--view" title="View details">
-																<i class="mdi mdi-eye"></i>
-															</a>
-														</td>
-														<td><strong>{{ $enquiry->getFormattedNumberAttribute() }}</strong></td>
-														<td>{{ $enquiry->customer->name ?? 'N/A' }}</td>
-														<td>{{ $enquiry->unique_identification ?? $enquiry->reference_number ?? '—' }}</td>
-														<td>{{ ucfirst(str_replace('_', ' ', $enquiry->source_channel ?? '—')) }}</td>
-														<td>
-															<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
-																{{ $enquiry->commercialStatus() }}
-															</span>
-															@if($enquiry->hasCustomerFeedback() || $enquiry->status === 'Quotation Under Review')
-																<span class="badge badge-warning ml-1" title="{{ $enquiry->customerFeedbackNotes() }}">Changes requested</span>
-															@endif
-														</td>
-														<td nowrap>{{ optional($enquiry->submitted_by_date ?? $enquiry->created_at)->format('Y-m-d') ?? 'N/A' }}</td>
-													</tr>
-												@endforeach
-											</tbody>
-										</table>
-									</div>
-									<div class="mt-2">
-										{{ $commercialEnquiries->links() }}
 									</div>
 								@endif
 
@@ -3098,9 +3054,9 @@
 							<div>
 								<h5 class="modal-title mb-1">
 									<i class="mdi mdi-package-variant-closed text-primary mr-2"></i>
-									Receive sample request(s)
+									Sample receiving
 								</h5>
-								<p class="text-muted small mb-0">Complete the receiving checklist to move requests to Received.</p>
+								<p class="text-muted small mb-0">Walk-in capture or physical check-in at reception (AmSpec phase 2).</p>
 							</div>
 							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 								<span aria-hidden="true">&times;</span>
@@ -5268,63 +5224,35 @@
 			window.rebuildWorkflowSelectionLists = rebuildSelectionLists;
 
 			window.openWorkflowAcceptSampleModal = function () {
-				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
-					window.rebuildWorkflowSelectionLists();
-				}
+				const checked = document.querySelectorAll('input[data-instance-select]:checked');
+				const ids = Array.from(checked).map((el) => el.value).filter(Boolean);
 
-				var selections = typeof getSourceSelections === 'function' ? getSourceSelections() : null;
-				var instanceId = '';
-				var requestId = '';
-
-				if (selections) {
-					if (selections.selectedFormInstanceCheckboxes && selections.selectedFormInstanceCheckboxes.length) {
-						instanceId = String(selections.selectedFormInstanceCheckboxes.first().val() || '');
-					}
-					if (selections.selectedSubmissionCheckboxes && selections.selectedSubmissionCheckboxes.length) {
-						requestId = String(selections.selectedSubmissionCheckboxes.first().val() || '');
-					}
-				}
-
-				if (!instanceId && !requestId) {
+				if (ids.length !== 1) {
 					alert('Please select exactly one submission request or form row before accepting.');
 					return;
 				}
 
 				if (typeof Livewire !== 'undefined') {
 					Livewire.dispatch('open-acceptance-wizard', {
-						submissionFormInstanceId: instanceId || null,
-						submissionRequestId: requestId || null,
+						submissionFormInstanceId: ids[0],
+						submissionRequestId: null,
 					});
 				}
 			};
 
 			window.openWorkflowRejectSampleModal = function () {
-				if (typeof window.rebuildWorkflowSelectionLists === 'function') {
-					window.rebuildWorkflowSelectionLists();
-				}
+				const checked = document.querySelectorAll('input[data-instance-select]:checked');
+				const ids = Array.from(checked).map((el) => el.value).filter(Boolean);
 
-				var selections = typeof getSourceSelections === 'function' ? getSourceSelections() : null;
-				var instanceId = '';
-				var requestId = '';
-
-				if (selections) {
-					if (selections.selectedFormInstanceCheckboxes && selections.selectedFormInstanceCheckboxes.length) {
-						instanceId = String(selections.selectedFormInstanceCheckboxes.first().val() || '');
-					}
-					if (selections.selectedSubmissionCheckboxes && selections.selectedSubmissionCheckboxes.length) {
-						requestId = String(selections.selectedSubmissionCheckboxes.first().val() || '');
-					}
-				}
-
-				if (!instanceId && !requestId) {
+				if (ids.length !== 1) {
 					alert('Please select exactly one submission request or form row before rejecting.');
 					return;
 				}
 
 				if (typeof Livewire !== 'undefined') {
 					Livewire.dispatch('open-rejection-wizard', {
-						submissionFormInstanceId: instanceId || null,
-						submissionRequestId: requestId || null,
+						submissionFormInstanceId: ids[0],
+						submissionRequestId: null,
 					});
 				}
 			};
@@ -5940,6 +5868,37 @@
 
 	@livewire('sampleworkflow.acceptance-form-wizard')
 	@livewire('sampleworkflow.process-enquiry-wizard')
+
+	@if($showPoCaptureModal)
+		<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.45);">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title">Record PO — Ready for Reception</h5>
+						<button type="button" class="close" wire:click="closePoCaptureModal"><span>&times;</span></button>
+					</div>
+					<div class="modal-body">
+						<div class="form-group">
+							<label>Client PO number</label>
+							<input type="text" class="form-control" wire:model.defer="clientPoNumber">
+						</div>
+						<div class="form-group">
+							<label>Advance payment reference</label>
+							<input type="text" class="form-control" wire:model.defer="advancePaymentReference">
+						</div>
+						<div class="form-check">
+							<input type="checkbox" class="form-check-input" id="poSkippedCheck" wire:model="poSkipped">
+							<label class="form-check-label" for="poSkippedCheck">PO not required / skipped</label>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary" wire:click="closePoCaptureModal">Cancel</button>
+						<button type="button" class="btn btn-primary" wire:click="submitPoAndReadyForReception">Mark ready for reception</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	@endif
 	@livewire('sampleworkflow.sample-rejection-wizard')
 	@livewire('sampleworkflow.customer-acceptance-sign-modal')
 	@livewire('sampleworkflow.manager-acceptance-sign-modal')

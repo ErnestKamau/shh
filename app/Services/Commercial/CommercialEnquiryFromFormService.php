@@ -38,7 +38,11 @@ final class CommercialEnquiryFromFormService
 
     public function isCommercialTestRequestForm(SubmissionFormInstance $instance): bool
     {
-        $instance->loadMissing('submissionForm');
+        $instance->loadMissing(['submissionForm', 'testRequestFormInstance']);
+
+        if ($instance->testRequestFormInstance !== null) {
+            return true;
+        }
 
         $code = strtoupper((string) ($instance->submissionForm->document_code ?? ''));
         $name = strtolower((string) ($instance->submissionForm->name ?? ''));
@@ -89,6 +93,62 @@ final class CommercialEnquiryFromFormService
         });
     }
 
+    /**
+     * Refresh enquiry sample lines from the linked submission form / TRF without resetting commercial status.
+     */
+    public function resyncSampleDataFromInstance(SubmissionFormInstance $instance): ?SampleSubmissionRequest
+    {
+        if (! $this->isCommercialTestRequestForm($instance)) {
+            return null;
+        }
+
+        $instance->loadMissing(['crmCustomer', 'values.element', 'submissionForm', 'testRequestFormInstance']);
+
+        $enquiry = SampleSubmissionRequest::query()
+            ->where('submission_form_instance_id', $instance->id)
+            ->first();
+
+        if ($enquiry === null) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($enquiry, $instance): SampleSubmissionRequest {
+            $this->applyHeaderFields($enquiry, $instance);
+            $this->syncSampleLines($enquiry, $instance);
+            $this->syncRequestedAnalyses($enquiry, $instance);
+            $enquiry->save();
+
+            return $enquiry->fresh(['requestedAnalyses', 'customer', 'submissionFormInstance.testRequestFormInstance']);
+        });
+    }
+
+    public function syncFromDraftInstance(SubmissionFormInstance $instance): ?SampleSubmissionRequest
+    {
+        if (! $this->isCommercialTestRequestForm($instance)) {
+            return null;
+        }
+
+        $instance->loadMissing(['crmCustomer', 'values.element', 'submissionForm']);
+
+        return DB::transaction(function () use ($instance): SampleSubmissionRequest {
+            $enquiry = $this->findOrCreateEnquiry($instance);
+            $this->applyHeaderFields($enquiry, $instance);
+            $this->syncSampleLines($enquiry, $instance);
+            $this->syncRequestedAnalyses($enquiry, $instance);
+
+            if (PricelistCustomer::query()->where('customer_id', $enquiry->crm_customer_id)->exists()) {
+                $enquiry->pricing_source = 'contract';
+            }
+
+            $enquiry->status = SampleSubmissionRequest::STATUS_DRAFT;
+            $enquiry->source_channel = $this->resolveSourceChannel($instance);
+            $enquiry->submission_form_instance_id = $instance->id;
+            $enquiry->save();
+
+            return $enquiry->fresh(['requestedAnalyses', 'customer']);
+        });
+    }
+
     private function findOrCreateEnquiry(SubmissionFormInstance $instance): SampleSubmissionRequest
     {
         $existing = SampleSubmissionRequest::query()
@@ -117,6 +177,12 @@ final class CommercialEnquiryFromFormService
 
     private function resolveSourceChannel(SubmissionFormInstance $instance): string
     {
+        $instance->loadMissing('testRequestFormInstance');
+
+        if ($instance->testRequestFormInstance?->sampling_schedule_id) {
+            return 'scheduled';
+        }
+
         if ($instance->portal_account_id !== null && $instance->portal_account_id !== '') {
             return 'portal';
         }
@@ -229,6 +295,8 @@ final class CommercialEnquiryFromFormService
 
     private function syncSampleLines(SampleSubmissionRequest $enquiry, SubmissionFormInstance $instance): void
     {
+        $instance->loadMissing(['testRequestFormInstance.testRequestForm', 'submissionForm.sampleTypes']);
+
         $lines = $this->sampleLineService->linesForInstance($instance);
         $payload = [];
         $totalQty = 0;

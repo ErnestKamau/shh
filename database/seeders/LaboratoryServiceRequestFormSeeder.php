@@ -68,9 +68,10 @@ class LaboratoryServiceRequestFormSeeder extends Seeder
             'description' => 'Standard Laboratory Service Request Form for sample submissions.',
             'naming_convention_prefix' => 'LSR',
             'naming_convention_format' => 'LSR-{YYYY}{MM}-{0000}',
-            'is_published' => true,
-            'is_active' => true,
+            'is_published' => false,
+            'is_active' => false,
             'is_customer_portal_form' => false,
+            'is_customer_request_form' => false,
             'form_type' => 'template',
             'placement_slot' => ['customer_portal', 'admin_portal', 'samples_receiving'],
         ]);

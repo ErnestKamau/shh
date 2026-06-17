@@ -6,6 +6,7 @@ use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
+use App\Services\SubmissionForm\PortalSubmissionFormAccess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -15,9 +16,20 @@ final class PortalEnquiryFormInstanceSyncService
 
     private const LSR_DOCUMENT_CODE = 'LSR-001';
 
+    public function __construct(
+        private readonly PortalSubmissionFormAccess $portalAccess,
+    ) {}
+
     public function syncFromEnquiry(SampleSubmissionRequest $enquiry): ?SubmissionFormInstance
     {
-        $form = $this->resolveLaboratoryServiceRequestForm();
+        if ($enquiry->submission_form_instance_id) {
+            $existing = SubmissionFormInstance::query()->find($enquiry->submission_form_instance_id);
+            if ($existing !== null) {
+                return $existing->fresh(['values']);
+            }
+        }
+
+        $form = $this->resolveSubmissionFormForEnquiry($enquiry);
         if ($form === null) {
             return null;
         }
@@ -32,7 +44,7 @@ final class PortalEnquiryFormInstanceSyncService
 
             $this->syncHeaderValues($instance, $elementMap, $enquiry);
             $this->syncSampleLineValues($instance, $elementMap, $enquiry);
-            $this->updateInstanceMetadata($instance, $enquiry);
+            $this->updateInstanceMetadata($instance, $enquiry, $form);
 
             if ($enquiry->submission_form_instance_id !== $instance->id) {
                 $enquiry->submission_form_instance_id = $instance->id;
@@ -43,7 +55,24 @@ final class PortalEnquiryFormInstanceSyncService
         });
     }
 
-    private function resolveLaboratoryServiceRequestForm(): ?SubmissionForm
+    private function resolveSubmissionFormForEnquiry(SampleSubmissionRequest $enquiry): ?SubmissionForm
+    {
+        $sampleTypeId = trim((string) ($enquiry->sample_type_id ?? $enquiry->batch_sample_type_id ?? ''));
+
+        if ($sampleTypeId !== '') {
+            $trfForms = $this->portalAccess->testRequestTemplatesQuery()
+                ->whereHas('sampleTypes', fn ($query) => $query->where('sample_types.id', $sampleTypeId))
+                ->get();
+
+            if ($trfForms->count() === 1) {
+                return $trfForms->first();
+            }
+        }
+
+        return $this->resolveLegacyLaboratoryServiceRequestForm();
+    }
+
+    private function resolveLegacyLaboratoryServiceRequestForm(): ?SubmissionForm
     {
         return SubmissionForm::query()
             ->where('document_code', self::LSR_DOCUMENT_CODE)
@@ -75,7 +104,7 @@ final class PortalEnquiryFormInstanceSyncService
             'target_record_type' => self::TARGET_RECORD_TYPE,
             'status' => 'submitted',
             'submitted_at' => now(),
-            'title' => $this->instanceTitle($enquiry),
+            'title' => $this->instanceTitle($enquiry, $form),
             'priority' => $this->instancePriority($enquiry),
         ]);
     }
@@ -118,6 +147,14 @@ final class PortalEnquiryFormInstanceSyncService
         array $elementMap,
         SampleSubmissionRequest $enquiry,
     ): void {
+        $enquiry->loadMissing('crmCustomer');
+
+        $this->storeValue($instance, $elementMap, 'customer_name', $enquiry->crmCustomer?->name);
+        $this->storeValue($instance, $elementMap, 'customer_address', $enquiry->crmCustomer?->physical_address ?? $enquiry->crmCustomer?->postal_address);
+        $this->storeValue($instance, $elementMap, 'customer_phone', $enquiry->crmCustomer?->telephone1);
+        $this->storeValue($instance, $elementMap, 'customer_tel_fax', $enquiry->crmCustomer?->telephone1);
+        $this->storeValue($instance, $elementMap, 'mobile_number', $enquiry->crmCustomer?->telephone2);
+        $this->storeValue($instance, $elementMap, 'customer_mobile', $enquiry->crmCustomer?->telephone2);
         $this->storeValue($instance, $elementMap, 'crm_customer_id', $enquiry->crm_customer_id);
         $this->storeValue($instance, $elementMap, 'reporting_language', $enquiry->reporting_language);
         $this->storeValue($instance, $elementMap, 'request_date_of_service', $this->formatDate($enquiry->request_date_of_service));
@@ -275,14 +312,17 @@ final class PortalEnquiryFormInstanceSyncService
         ];
     }
 
-    private function updateInstanceMetadata(SubmissionFormInstance $instance, SampleSubmissionRequest $enquiry): void
-    {
+    private function updateInstanceMetadata(
+        SubmissionFormInstance $instance,
+        SampleSubmissionRequest $enquiry,
+        SubmissionForm $form,
+    ): void {
         $instance->crm_customer_id = $enquiry->crm_customer_id;
         $instance->zone_id = $enquiry->zone_id;
         $instance->portal_request_id = (string) $enquiry->id;
         $instance->target_record_type = self::TARGET_RECORD_TYPE;
         $instance->status = 'submitted';
-        $instance->title = $this->instanceTitle($enquiry);
+        $instance->title = $this->instanceTitle($enquiry, $form);
         $instance->priority = $this->instancePriority($enquiry);
 
         if ($instance->submitted_at === null) {
@@ -346,7 +386,7 @@ final class PortalEnquiryFormInstanceSyncService
         }
     }
 
-    private function instanceTitle(SampleSubmissionRequest $enquiry): string
+    private function instanceTitle(SampleSubmissionRequest $enquiry, SubmissionForm $form): string
     {
         $label = trim((string) ($enquiry->unique_identification ?? $enquiry->reference_number ?? ''));
 
@@ -354,7 +394,11 @@ final class PortalEnquiryFormInstanceSyncService
             $label = $enquiry->formatted_number;
         }
 
-        return 'Laboratory Service Request — '.$label;
+        $formLabel = str_starts_with(strtoupper((string) $form->document_code), 'TRF-')
+            ? 'Test Request Form'
+            : 'Laboratory Service Request';
+
+        return $formLabel.' — '.$label;
     }
 
     private function instancePriority(SampleSubmissionRequest $enquiry): string

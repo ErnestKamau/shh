@@ -11,12 +11,17 @@ use App\QuotationDetailAnalysisSplit;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
+use App\Services\Lab\UncertaintyBudgetResolver;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use PDF;
 use RuntimeException;
 
 final class AmSpecQuotationPdfService
 {
+    public function __construct(
+        private readonly UncertaintyBudgetResolver $uncertaintyBudgetResolver,
+    ) {}
     /**
      * @return list<string>
      */
@@ -161,6 +166,19 @@ final class AmSpecQuotationPdfService
             ->get()
             ->groupBy('quotation_detail_id');
 
+        $elementIds = [];
+        foreach ($details as $detail) {
+            $elementIds = array_merge($elementIds, $this->resolveElementIds($detail));
+        }
+        $elementIds = array_values(array_unique(array_filter($elementIds)));
+
+        /** @var Collection<string, AnalysisElements> $elementsById */
+        $elementsById = $elementIds === []
+            ? collect()
+            : AnalysisElements::query()->with(['mmethod', 'ltmethod', 'analyte'])->whereIn('id', $elementIds)->get()->keyBy('id');
+
+        $budgets = $this->uncertaintyBudgetResolver->preloadForElements($elementsById->values());
+
         foreach ($details as $detail) {
             $detail->setRelation(
                 'analysisSplits',
@@ -171,14 +189,14 @@ final class AmSpecQuotationPdfService
 
             if ($elementIds === []) {
                 $sno++;
-                $rows[] = $this->buildRow($sno, $detail, null, $enquiry);
+                $rows[] = $this->buildRow($sno, $detail, null, $enquiry, $elementsById, $budgets);
 
                 continue;
             }
 
             foreach ($elementIds as $elementId) {
                 $sno++;
-                $rows[] = $this->buildRow($sno, $detail, $elementId, $enquiry);
+                $rows[] = $this->buildRow($sno, $detail, $elementId, $enquiry, $elementsById, $budgets);
             }
         }
 
@@ -201,11 +219,19 @@ final class AmSpecQuotationPdfService
     /**
      * @return array<string, mixed>
      */
-    private function buildRow(int $sno, QuotationDetails $detail, ?string $elementId, ?SampleSubmissionRequest $enquiry): array
-    {
-        $element = $elementId !== null
-            ? AnalysisElements::query()->with(['mmethod', 'ltmethod', 'analyte'])->find($elementId)
-            : null;
+    /**
+     * @param  Collection<string, AnalysisElements>  $elementsById
+     * @param  Collection<int, \App\UncertaintyBudget>  $budgets
+     */
+    private function buildRow(
+        int $sno,
+        QuotationDetails $detail,
+        ?string $elementId,
+        ?SampleSubmissionRequest $enquiry,
+        Collection $elementsById,
+        Collection $budgets,
+    ): array {
+        $element = $elementId !== null ? $elementsById->get($elementId) : null;
 
         $testName = (string) ($detail->description ?? '');
         if ($testName === '' && $element !== null) {
@@ -217,17 +243,20 @@ final class AmSpecQuotationPdfService
             $methodName = (string) ($element->ltmethod?->name ?? $element->mmethod?->name ?? '');
         }
 
-        $loq = '';
-        if ($element !== null && $element->lod !== null && (float) $element->lod > 0) {
-            $loq = rtrim(rtrim(number_format((float) $element->lod, 6, '.', ''), '0'), '.');
-        }
+        $loq = $element !== null ? $this->uncertaintyBudgetResolver->formatLoq($element) : '';
+        $budget = $element !== null
+            ? $this->uncertaintyBudgetResolver->resolveForElement($element, null, $budgets)
+            : null;
+        $mu = $element !== null
+            ? $this->uncertaintyBudgetResolver->formatMuPercent($element, $budget)
+            : '';
 
         return [
             'sno' => $sno,
             'test' => $testName,
             'method' => $methodName,
             'loq' => $loq,
-            'mu' => '',
+            'mu' => $mu,
             'unit_price' => (float) $detail->unit_price,
             'quantity' => (int) $detail->quantity,
             'subcontracted' => trim((string) $detail->subcontracted_analytes) !== '',

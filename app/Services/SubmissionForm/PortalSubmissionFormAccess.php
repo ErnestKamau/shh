@@ -113,6 +113,42 @@ class PortalSubmissionFormAccess
             ->orderBy('name');
     }
 
+    /**
+     * Resolve the canonical TRF submission template for a sample type (portal, walk-in, schedule).
+     */
+    public function testRequestFormForSampleType(string $sampleTypeId, ?string $crmCustomerId = null): ?SubmissionForm
+    {
+        $sampleTypeId = trim($sampleTypeId);
+        if ($sampleTypeId === '') {
+            return null;
+        }
+
+        $scopedToSampleType = fn (Builder $query) => $query->whereHas(
+            'sampleTypes',
+            fn (Builder $sampleTypeQuery) => $sampleTypeQuery->where('sample_types.id', $sampleTypeId)
+        );
+
+        $trfMatch = $this->testRequestTemplatesQuery($crmCustomerId)
+            ->where($scopedToSampleType)
+            ->first();
+
+        if ($trfMatch !== null) {
+            return $trfMatch;
+        }
+
+        return SubmissionForm::query()
+            ->where('is_active', true)
+            ->where('form_type', 'template')
+            ->where(function (Builder $builder): void {
+                $builder->where('document_code', 'like', 'TRF-%')
+                    ->orWhere('document_code', 'LSR-001')
+                    ->orWhereRaw('lower(name) like ?', ['%test request form%']);
+            })
+            ->where($scopedToSampleType)
+            ->orderByRaw("case when document_code like 'TRF-%' then 0 when document_code = 'LSR-001' then 1 else 2 end")
+            ->first();
+    }
+
     public function assertInstanceBelongsToPortalContext(
         SubmissionFormInstance $instance,
         ?string $crmCustomerId,

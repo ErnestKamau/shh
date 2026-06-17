@@ -79,8 +79,8 @@ final class AmSpecTrfPdfService
             },
             'customer_name' => (string) ($values['customer_name'] ?? $instance->crmCustomer?->name ?? ''),
             'customer_address' => (string) ($values['customer_address'] ?? $instance->crmCustomer?->physical_address ?? ''),
-            'customer_tel_fax' => (string) ($values['customer_tel_fax'] ?? $instance->crmCustomer?->telephone1 ?? ''),
-            'customer_mobile' => (string) ($values['customer_mobile'] ?? ''),
+            'customer_tel_fax' => (string) ($values['customer_phone'] ?? $values['customer_tel_fax'] ?? $instance->crmCustomer?->telephone1 ?? ''),
+            'customer_mobile' => (string) ($values['mobile_number'] ?? $values['customer_mobile'] ?? ''),
             'contact_person' => (string) ($values['contact_person'] ?? ''),
             'job_number' => $jobNumber,
             'collection' => [

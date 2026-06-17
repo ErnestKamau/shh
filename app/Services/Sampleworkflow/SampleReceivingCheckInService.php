@@ -167,7 +167,8 @@ final class SampleReceivingCheckInService
             SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS => 'Quotation has not been sent to the customer yet.',
             SampleSubmissionRequest::STATUS_QUOTATION_SENT => 'Waiting for the client to accept the quotation.',
             SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW => 'Quotation is under review with the client.',
-            default => 'Quotation must be accepted before physical samples can be received.',
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED => 'Record the customer PO before physical samples can be received.',
+            default => 'Quotation must be accepted and PO recorded before physical samples can be received.',
         };
     }
 

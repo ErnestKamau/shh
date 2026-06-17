@@ -13,6 +13,8 @@ use App\Models\SubmissionFormInstanceNote;
 use App\Services\SampleCreationService;
 use App\Services\SubmissionFormBatchSyncService;
 use App\Services\Commercial\AmSpecTrfPdfService;
+use App\Services\Commercial\EnquiryReceptionReadinessService;
+use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\SubmissionForm\SubmissionFormInstanceNoteService;
 use App\Services\SubmissionForm\SubmissionRequestSampleLineService;
 use Illuminate\Contracts\View\View;
@@ -70,6 +72,14 @@ class RequestViewPage extends Component
 
     public bool $sendTrfEmail = true;
 
+    public bool $showPoCaptureModal = false;
+
+    public string $clientPoNumber = '';
+
+    public bool $poSkipped = false;
+
+    public string $advancePaymentReference = '';
+
     public function mount(
         string $submissionFormId,
         string $instanceId,
@@ -112,22 +122,118 @@ class RequestViewPage extends Component
         }
 
         $this->loadAvailableAttachmentTypes();
+    }
+
+    public function shouldShowSampleCollectionLabel(): bool
+    {
+        if ($this->commercialEnquiry === null) {
+            return true;
+        }
+
+        $channel = strtolower((string) ($this->commercialEnquiry->source_channel ?? ''));
+        if (! in_array($channel, ['walk_in', 'scheduled'], true)) {
+            return true;
+        }
+
+        return ! in_array($this->commercialEnquiry->status, [
+            SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED,
+            SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION,
+        ], true);
+    }
+
+    public function recordWalkInQuotationAcceptance(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null) {
+            return;
+        }
+
+        if (strtolower((string) ($this->commercialEnquiry->source_channel ?? '')) !== 'walk_in') {
+            session()->flash('request_view_message', 'Walk-in acceptance only applies to in-person enquiries.');
+
+            return;
+        }
 
         try {
-            $debugData = [
-                'timestamp' => now()->toIso8601String(),
-                'submissionFormId' => $submissionFormId,
-                'instanceId' => $instanceId,
-                'has_trfi_relation' => $this->instance->testRequestFormInstance ? 'Yes' : 'No',
-                'trfi_db_exists' => $this->instance->testRequestFormInstance()->exists() ? 'Yes' : 'No',
-                'trf_instances_count' => $this->instance->testRequestFormInstances()->count(),
-                'trf_first_id' => $this->instance->testRequestFormInstances()->first()?->id,
-                'form_data' => $this->instance->testRequestFormInstances()->first()?->form_data,
-            ];
-            @file_put_contents(storage_path('logs/debug.log'), json_encode($debugData) . PHP_EOL, FILE_APPEND);
-        } catch (\Exception $e) {
-            // ignore
+            app(QuotationFromEnquiryService::class)->recordWalkInAcceptance($this->commercialEnquiry);
+            $this->commercialEnquiry = $this->commercialEnquiry->fresh(['currentQuotation']);
+            session()->flash('request_view_message', 'Quotation accepted. Record the customer PO below to move this request to Ready for Reception.');
+        } catch (\Throwable $exception) {
+            session()->flash('request_view_message', $exception->getMessage());
         }
+    }
+
+    public function openPoCaptureModal(): void
+    {
+        if ($this->commercialEnquiry === null
+            || $this->commercialEnquiry->status !== SampleSubmissionRequest::STATUS_QUOTATION_ACCEPTED) {
+            return;
+        }
+
+        $this->clientPoNumber = (string) ($this->commercialEnquiry->client_po_number ?? '');
+        $this->poSkipped = (bool) $this->commercialEnquiry->po_skipped;
+        $this->advancePaymentReference = (string) ($this->commercialEnquiry->advance_payment_reference ?? '');
+        $this->showPoCaptureModal = true;
+    }
+
+    public function closePoCaptureModal(): void
+    {
+        $this->showPoCaptureModal = false;
+        $this->clientPoNumber = '';
+        $this->poSkipped = false;
+        $this->advancePaymentReference = '';
+    }
+
+    public function submitPoAndReadyForReception(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null) {
+            return;
+        }
+
+        try {
+            $this->commercialEnquiry = app(EnquiryReceptionReadinessService::class)->markReadyForReception(
+                $this->commercialEnquiry,
+                (string) ($this->commercialEnquiry->accepted_quotation_header_id ?? $this->commercialEnquiry->current_quotation_header_id ?? ''),
+                [
+                    'client_po_number' => $this->clientPoNumber,
+                    'po_skipped' => $this->poSkipped,
+                    'advance_payment_reference' => $this->advancePaymentReference,
+                ],
+            );
+
+            $this->closePoCaptureModal();
+            session()->flash('request_view_message', 'PO recorded. This request is ready for physical reception on the Samples Receiving board.');
+        } catch (\Throwable $exception) {
+            session()->flash('request_view_message', $exception->getMessage());
+        }
+    }
+
+    public function openPhysicalReceiveModal(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        if ($this->commercialEnquiry === null
+            || $this->commercialEnquiry->status !== SampleSubmissionRequest::STATUS_READY_FOR_RECEPTION) {
+            session()->flash('request_view_message', 'Physical reception is only available after the quotation is accepted and PO is recorded.');
+
+            return;
+        }
+
+        $label = (string) ($this->instance->getDocumentControlNumber() ?? $this->instance->form_number ?? $this->instance->id);
+        $customer = (string) ($this->instance->crmCustomer?->name ?? '');
+
+        $this->dispatch(
+            'receive-modal-open',
+            instanceIds: [$this->instance->id],
+            summaries: [[
+                'id' => $this->instance->id,
+                'label' => $label,
+                'customer' => $customer,
+            ]],
+        );
     }
 
     public function setTab(string $tab): void
@@ -495,13 +601,13 @@ class RequestViewPage extends Component
             ->latest()
             ->get();
 
-        $canCreateSamples = $this->instance->isSubmitted() && $this->instance->submissionForm->sections()
-            ->whereHas('elements', fn ($query) => $query->where('is_mapped', true))
-            ->exists();
+        $acceptanceForm = $this->instance->analysisAcceptanceForms->first();
+
+        $canCreateSamples = $acceptanceForm !== null
+            && $acceptanceForm->status === \App\Models\Sampleworkflow\AnalysisAcceptanceForm::STATUS_COMPLETED
+            && $this->instance->batches->isEmpty();
 
         $sampleStatus = app(SampleCreationService::class)->getSampleCreationStatus($this->instance);
-
-        $acceptanceForm = $this->instance->analysisAcceptanceForms->first();
 
         $batchIds = $this->instance->batches->pluck('id');
         $batchAttachments = BatchAttachment::query()
