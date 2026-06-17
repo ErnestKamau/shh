@@ -11,6 +11,7 @@ use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceAttachment;
 use App\Models\SubmissionFormInstanceNote;
 use App\Services\SampleCreationService;
+use App\Services\Sampleworkflow\TestRequestFormPdfService;
 use App\Services\SubmissionFormBatchSyncService;
 use App\Services\Commercial\AmSpecTrfPdfService;
 use App\Services\Commercial\EnquiryReceptionReadinessService;
@@ -243,6 +244,26 @@ class RequestViewPage extends Component
         }
 
         $this->activeTab = $tab;
+    }
+
+    public function generateTestRequestFormReport(): void
+    {
+        $this->authorizeFormAccess(auth()->user());
+
+        $trfi = $this->instance->fresh(['testRequestFormInstance'])->testRequestFormInstance;
+        if (! $trfi) {
+            session()->flash('request_view_message', 'No test request form data is available for this request yet.');
+
+            return;
+        }
+
+        try {
+            app(TestRequestFormPdfService::class)->generateAndStore($trfi->fresh());
+            session()->flash('request_view_message', 'Test Request Form generated successfully.');
+            $this->dispatch('open-test-request-pdf', url: route('test-request-form.pdf', $trfi->id));
+        } catch (\Throwable $exception) {
+            session()->flash('request_view_message', 'Failed to generate Test Request Form. Please try again.');
+        }
     }
 
     public function addNote(SubmissionFormInstanceNoteService $noteService): void

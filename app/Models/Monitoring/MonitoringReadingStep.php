@@ -28,6 +28,7 @@ class MonitoringReadingStep extends Model
         'analyte_id',
         'variable_slug',
         'show_in_monitoring_logs',
+        'input_config',
     ];
 
     protected $casts = [
@@ -35,6 +36,7 @@ class MonitoringReadingStep extends Model
         'derived_config' => 'array',
         'step_number' => 'integer',
         'show_in_monitoring_logs' => 'boolean',
+        'input_config' => 'array',
     ];
 
     public function template(): BelongsTo

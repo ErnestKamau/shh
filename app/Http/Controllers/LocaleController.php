@@ -16,7 +16,13 @@ class LocaleController extends Controller
      */
     public function setLocale($locale)
     {
-        if (!in_array($locale, ['en', 'sw'])) {
+        try {
+            $activeCodes = \App\Models\System\Language::query()->active()->pluck('code')->all();
+        } catch (\Throwable $e) {
+            $activeCodes = ['en', 'sw'];
+        }
+
+        if (!in_array($locale, $activeCodes)) {
             $locale = 'en';
         }
 

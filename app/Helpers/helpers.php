@@ -71,6 +71,23 @@ function getCompanyDetails()
 		"logo" => "/images/imara-sys.png"
 	);
 }
+function getSystemFavicon()
+{
+	return \Illuminate\Support\Facades\Cache::rememberForever('system_favicon_url', function () {
+		try {
+			$company = App\Company::query()
+				->whereNotNull('favicon')
+				->where('favicon', '!=', '')
+				->orderByDesc('active')
+				->orderByDesc('show_on_reports')
+				->first();
+
+			return $company->favicon ?? null;
+		} catch (\Throwable $e) {
+			return null;
+		}
+	});
+}
 function getAllUsers()
 {
 	return App\User::where('is_client', 0)->whereNull('supplier_id')->where('active', 1)->where('is_support_staff', 0)->get();

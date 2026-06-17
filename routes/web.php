@@ -256,6 +256,10 @@ Route::get('/livewire/monitoring/template/{template}/edit', [LabAppController::c
     ->name('monitoring.template.edit')
     ->middleware('can:laboratory.components.labs.view');
 
+Route::get('/livewire/monitoring/export-lws-011', [\App\Http\Controllers\Monitoring\MonitoringExportController::class, 'exportLws011'])
+    ->name('monitoring.export-lws-011')
+    ->middleware('can:laboratory.components.labs.view');
+
 // Remedies Management Routes
 Route::get('/remedies', [LabAppController::class, 'remedies'])
     ->name('remedies.index')
@@ -717,6 +721,12 @@ Route::post('/merge-attachments', 'SampleWorkFlowController@merge_attachments')-
 Route::get('/batch/attachments/{id}/download', 'SampleWorkFlowController@downloadBatchAttachment')->name('download-attachment')->middleware('can:laboratory.components.all samples.view');
 
 // PDF Annotation routes
+Route::get('/test-request-form/preview-draft', [\App\Http\Controllers\TestRequestFormController::class, 'previewDraft'])->name('test-request-form.preview-draft');
+Route::get('/test-request-form/{instance}/preview', [\App\Http\Controllers\TestRequestFormController::class, 'preview'])->name('test-request-form.preview');
+Route::get('/test-request-form/{instance}/pdf', [\App\Http\Controllers\TestRequestFormController::class, 'pdf'])->name('test-request-form.pdf');
+Route::get('/test-request-form/{instance}/download', [\App\Http\Controllers\TestRequestFormController::class, 'download'])->name('test-request-form.download');
+Route::post('/test-request-form/{instance}/regenerate', [\App\Http\Controllers\TestRequestFormController::class, 'regenerate'])->name('test-request-form.regenerate');
+
 Route::get('/batch/acceptance-pdf/{id}', 'SampleWorkFlowController@viewAcceptancePdf')->name('view-acceptance-pdf');
 Route::get('/batch/receipt-notification-pdf/{id}', 'SampleWorkFlowController@viewReceiptNotificationPdf')->name('view-receipt-notification-pdf');
 Route::get('/batch/case-file-pdf/{id}', 'SampleWorkFlowController@viewCaseFilePdf')->name('view-case-file-pdf');

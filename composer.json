@@ -14,6 +14,7 @@
         "darkaonline/l5-swagger": "^11.0",
         "geekcom/phpjasper": "^3.3",
         "guzzlehttp/guzzle": "^7.0.1",
+        "intervention/image": "^4.1",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.0",

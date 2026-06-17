@@ -50,11 +50,91 @@ class TestRequestForm extends Model
         return $fields;
     }
 
+    /**
+     * @return array{is_food: bool, is_water: bool, is_waste_water: bool}
+     */
+    public static function classifySampleType(?\App\SampleType $sampleType): array
+    {
+        if (!$sampleType) {
+            return ['is_food' => false, 'is_water' => false, 'is_waste_water' => false];
+        }
+
+        $isFood = stripos($sampleType->name, 'Food') !== false || stripos($sampleType->code, 'FOOD') !== false;
+        $isWasteWater = stripos($sampleType->name, 'Waste Water') !== false || stripos($sampleType->code, 'WWTR') !== false;
+        $isWater = !$isWasteWater && (stripos($sampleType->name, 'Water') !== false || stripos($sampleType->code, 'WTR') !== false);
+
+        return [
+            'is_food' => $isFood,
+            'is_water' => $isWater,
+            'is_waste_water' => $isWasteWater,
+        ];
+    }
+
+    public static function resolveReportVariant(?\App\SampleType $sampleType): string
+    {
+        $classification = self::classifySampleType($sampleType);
+
+        if ($classification['is_food']) {
+            return 'food';
+        }
+
+        if ($classification['is_waste_water']) {
+            return 'waste_water';
+        }
+
+        return 'water';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function defaultSampleRow(string $variant): array
+    {
+        if ($variant === 'food') {
+            return [
+                'sample_no' => '',
+                'sample_description' => '',
+                'sampling_point' => '',
+                'qty' => '',
+                'sample_type' => '',
+                'sample_condition' => '',
+                'sample_temp' => '',
+                'production_date' => '',
+                'expiration_date' => '',
+                'batch_number' => '',
+                'parameters' => '',
+                'state_of_sample' => '',
+            ];
+        }
+
+        return [
+            'sample_no' => '',
+            'sample_description' => '',
+            'location' => '',
+            'qty' => '',
+            'sampling_point' => '',
+            'ph' => '',
+            'appearance' => '',
+            'residual_chlorine' => '',
+            'odor' => '',
+            'sample_temp' => '',
+            'microbiology' => false,
+            'legionella' => false,
+            'chemical_analysis' => false,
+        ];
+    }
+
     public static function seedDefaults()
     {
         // Ensure Waste Water sample type exists
-        $company = \App\Company::first();
-        $companyId = $company ? $company->id : null;
+        $company = function_exists('getActiveCompany') ? getActiveCompany() : null;
+        $company ??= \App\Company::query()->where('active', 1)->first()
+            ?? \App\Company::query()->first();
+        $companyId = $company?->id;
+
+        if (! $companyId) {
+            return;
+        }
 
         $wasteWaterType = \App\SampleType::where('name', 'like', '%Waste Water%')
             ->orWhere('code', 'SMP-WWTR')

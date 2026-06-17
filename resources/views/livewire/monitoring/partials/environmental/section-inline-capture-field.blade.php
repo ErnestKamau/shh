@@ -36,6 +36,9 @@
         : (str_contains(strtolower((string) ($column['key'] ?? '')), 'initial')
             ? "autoSaveInlineCapture('{$tid}')"
             : "recomputeInlineFormulaForTemplate('{$tid}')");
+
+    $equipmentId = $inputs['equipment_id'] ?? $this->selectedSection?->equipment_id;
+    $resolvedInputConfig = $field ? $this->resolveFieldInputConfig($field, $equipmentId) : null;
 @endphp
 
 <div class="env-matrix-capture-field {{ $isDerived ? 'env-matrix-capture-field--derived' : '' }} {{ $isRemarkColumn ? 'env-matrix-capture-field--remark' : '' }}">
@@ -66,6 +69,7 @@
                class="form-control form-control-sm env-inline-input"
                placeholder="{{ $column['label'] }}"
                aria-label="{{ $column['label'] }}"
+               title="@if($resolvedInputConfig)@php $vType = $resolvedInputConfig['value_type'] ?? 'text'; @endphp@if($vType === 'constant')Expected value: {{ $resolvedInputConfig['expected_value'] ?? '—' }}@elseif($vType === 'range')Range: {{ isset($resolvedInputConfig['min_value']) ? 'Min '.$resolvedInputConfig['min_value'] : '' }} {{ isset($resolvedInputConfig['max_value']) ? 'Max '.$resolvedInputConfig['max_value'] : '' }}@endif @else{{ $column['label'] }}@endif"
                wire:model.live.debounce.400ms="{{ $inputModel }}"
                wire:change="{{ $fieldChangeAction }}">
     @else
@@ -74,9 +78,22 @@
                class="form-control form-control-sm env-inline-input"
                placeholder="{{ $column['label'] }}"
                aria-label="{{ $column['label'] }}"
+               title="@if($resolvedInputConfig)@php $vType = $resolvedInputConfig['value_type'] ?? 'text'; @endphp@if($vType === 'constant')Expected value: {{ $resolvedInputConfig['expected_value'] ?? '—' }}@elseif($vType === 'range')Range: {{ isset($resolvedInputConfig['min_value']) ? 'Min '.$resolvedInputConfig['min_value'] : '' }} {{ isset($resolvedInputConfig['max_value']) ? 'Max '.$resolvedInputConfig['max_value'] : '' }}@endif @else{{ $column['label'] }}@endif"
                wire:model.live.debounce.400ms="{{ $inputModel }}"
                wire:change="{{ $fieldChangeAction }}">
     @endif
+        @if($resolvedInputConfig)
+            @php $vType = $resolvedInputConfig['value_type'] ?? 'text'; @endphp
+            @if($vType === 'constant')
+                <div class="text-muted" style="font-size: 0.65rem; line-height: 1.1; margin-top: 2px;">
+                    Exp: {{ $resolvedInputConfig['expected_value'] ?? '—' }}
+                </div>
+            @elseif($vType === 'range')
+                <div class="text-muted" style="font-size: 0.65rem; line-height: 1.1; margin-top: 2px;">
+                    Range: {{ $resolvedInputConfig['min_value'] ?? '—' }} to {{ $resolvedInputConfig['max_value'] ?? '—' }}
+                </div>
+            @endif
+        @endif
         @error($errorKey)
             <div class="env-inline-field__error">{{ $message }}</div>
         @enderror

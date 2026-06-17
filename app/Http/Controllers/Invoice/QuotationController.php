@@ -33,6 +33,7 @@ use App\Services\Billing\QuotationReportService;
 use App\Services\Commercial\AmSpecQuotationNumberGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class QuotationController extends Controller
 {
@@ -553,7 +554,7 @@ class QuotationController extends Controller
             : '0 as is_batch_generate';
         $header = QuotationHeader::join('crm_customers', 'crm_customers.id', '=', 'quotation_headers.crm_customer_id')
             ->join('crm_customer_contacts', 'crm_customer_contacts.id', '=', 'quotation_headers.crm_customer_contact_id')
-            ->join('users', 'users.id', '=', 'quotation_headers.prepared_by_id')
+            ->join('users', DB::raw('users.id::text'), '=', DB::raw('quotation_headers.prepared_by_id::text'))
             ->leftJoin('module_pre_configs as tc', function ($join): void {
                 $join->whereRaw('tc.id::text = users.position');
             })

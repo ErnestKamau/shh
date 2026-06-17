@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @include('partials.favicon')
     <link rel="stylesheet" href="/assets/css/font-awesome/all.min.css">
     <link rel="stylesheet" href="/material-design/css/materialdesignicons.min.css">
     <link rel="stylesheet" href="/assets/css/bootstrap/bootstrap4.4.1.min.css">

@@ -210,7 +210,23 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <!-- Placeholder to keep grid balanced, or we can move it below -->
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">{{ __('system.company_favicon') ?? 'Company Favicon' }}</label>
+                                        <input type="file" wire:model="faviconFile" accept="image/png,image/jpeg,image/svg+xml,image/x-icon,image/gif,image/webp" class="form-control @error('faviconFile') is-invalid @enderror">
+                                        @error('faviconFile') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <small class="text-muted d-block mt-1">{{ __('system.favicon_hint') ?? 'Shown in the browser tab. Square image recommended (e.g. 32x32 or 64x64).' }}</small>
+                                        @if($faviconFile)
+                                            <div class="mt-2">
+                                                <small class="text-muted d-block">{{ __('system.preview') ?? 'Preview' }}:</small>
+                                                <img src="{{ $faviconFile->temporaryUrl() }}" alt="Favicon preview" style="width:48px;height:48px;object-fit:contain;border:1px solid #eee;border-radius:8px;background:#fff;padding:4px;">
+                                            </div>
+                                        @elseif($existingFavicon)
+                                            <div class="mt-2">
+                                                <small class="text-muted d-block">{{ __('system.current_label') ?? 'Current' }}:</small>
+                                                <img src="{{ $existingFavicon }}" alt="Current favicon" style="width:48px;height:48px;object-fit:contain;border:1px solid #eee;border-radius:8px;background:#fff;padding:4px;">
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
 

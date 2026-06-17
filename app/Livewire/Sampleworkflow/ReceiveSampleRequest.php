@@ -44,6 +44,9 @@ class ReceiveSampleRequest extends Component
 
     public $sampleTypes = [];
 
+    /** @var array<int, string> */
+    public array $lastGeneratedTrfiIds = [];
+
     public function mount(array $selectedFormInstanceIds = [], array $selectedFormSummaries = []): void
     {
         $this->selectedFormInstanceIds = array_values(array_filter($selectedFormInstanceIds));
@@ -582,6 +585,8 @@ class ReceiveSampleRequest extends Component
             $this->validate($rules, $messages);
         }
 
+        $this->prepareLabUseFields();
+
         $user = Auth::user();
         if (! $user instanceof User) {
             $this->addError('selection', 'You must be signed in to receive samples.');
@@ -590,9 +595,10 @@ class ReceiveSampleRequest extends Component
         }
 
         $processed = 0;
+        $generatedTrfiIds = [];
 
         // Standalone walk-in capture (no pre-selected requests)
-        DB::transaction(function () use ($user, $form, &$processed): void {
+        DB::transaction(function () use ($user, $form, &$processed, &$generatedTrfiIds): void {
                 $submissionForm = app(PortalSubmissionFormAccess::class)
                     ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
 
@@ -636,7 +642,7 @@ class ReceiveSampleRequest extends Component
                 $instance->submit($user);
                 $instance->refresh();
 
-                TestRequestFormInstance::updateOrCreate(
+                $trfi = TestRequestFormInstance::updateOrCreate(
                     ['submission_form_instance_id' => $instance->id],
                     [
                         'test_request_form_id' => $form->id,
@@ -645,23 +651,74 @@ class ReceiveSampleRequest extends Component
                         'created_by' => $user->id,
                     ]
                 );
+                $generatedTrfiIds[] = $trfi->id;
 
                 app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance(
                     $instance->fresh(['values.element', 'submissionForm', 'crmCustomer', 'testRequestFormInstance'])
                 );
             });
 
-            $message = 'Walk-in test request submitted successfully.';
-            $processed = 1;
+        $message = 'Walk-in test request submitted successfully.';
+        $processed = 1;
+
+        $pdfService = app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class);
+        foreach (array_unique($generatedTrfiIds) as $trfiId) {
+            try {
+                $trfi = TestRequestFormInstance::query()->find($trfiId);
+                if ($trfi) {
+                    $pdfService->generateAndStore($trfi);
+                }
+            } catch (\Throwable) {
+                // PDF failure should not block receiving.
+            }
+        }
+
+        $this->lastGeneratedTrfiIds = array_values(array_unique($generatedTrfiIds));
 
         session()->flash('success', $message);
-        $this->dispatch('receive-completed');
+        $this->dispatch('receive-completed', trfiIds: $this->lastGeneratedTrfiIds);
         $this->dispatch('hide-receive-sample-modal');
     }
 
     public function getIsPhysicalCheckInProperty(): bool
     {
         return $this->selectedFormInstanceIds !== [];
+    }
+
+    public function previewDraft(): void
+    {
+        if (!$this->selectedSampleTypeId) {
+            $this->addError('selectedSampleTypeId', 'Select a sample type to preview the test request form.');
+            return;
+        }
+
+        $submission = null;
+        if (!empty($this->selectedFormInstanceIds)) {
+            $submission = SubmissionFormInstance::with('crmCustomer')->find($this->selectedFormInstanceIds[0]);
+        }
+
+        session([
+            'test_request_form_preview_draft' => [
+                'form_data' => $this->formData,
+                'sample_type_id' => $this->selectedSampleTypeId,
+                'submission_form_instance_id' => $submission?->id,
+            ],
+        ]);
+
+        $this->dispatch('open-test-request-preview', url: route('test-request-form.preview-draft'));
+    }
+
+    private function prepareLabUseFields(): void
+    {
+        $user = Auth::user();
+
+        if (empty($this->formData['lab_received_datetime'])) {
+            $this->formData['lab_received_datetime'] = now()->format('Y-m-d\TH:i');
+        }
+
+        if (empty($this->formData['lab_received_by']) && $user instanceof User) {
+            $this->formData['lab_received_by'] = $user->name;
+        }
     }
 
     public function render()

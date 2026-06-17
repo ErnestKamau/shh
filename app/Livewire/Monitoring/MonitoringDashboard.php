@@ -421,7 +421,7 @@ class MonitoringDashboard extends Component
         $validated = $this->validate([
             'templateEditInputs.name' => 'required|string|max:255',
             'templateEditInputs.document_control_number' => 'nullable|string|max:255',
-            'templateEditInputs.version' => 'required|integer|min:1',
+            'templateEditInputs.version' => 'required|string|max:255',
             'templateEditInputs.status' => 'required|string|max:32',
             'templateEditInputs.monitoring_category' => 'required|in:environmental,equipment',
             'templateEditInputs.is_active' => 'required|boolean',
@@ -1194,6 +1194,11 @@ class MonitoringDashboard extends Component
         $aggregatedStatuses = [];
         $statusSources = [];
 
+        $equipmentId = Arr::get($inputs, 'equipment_id');
+        if (blank($equipmentId) && $this->selectedSection && filled($this->selectedSection->equipment_id)) {
+            $equipmentId = (string) $this->selectedSection->equipment_id;
+        }
+
         foreach ($template->fields as $field) {
             if (in_array($field->field_type, ['metadata', 'formula'], true) || $field->field_key === '__meta_scope_items') {
                 continue;
@@ -1201,14 +1206,56 @@ class MonitoringDashboard extends Component
 
             $rawValue = Arr::get($inputs, $field->field_key);
             $fieldConfig = $field->field_config ?? [];
+            $status = null;
 
-            if (is_numeric($rawValue) && isset($fieldConfig['min'], $fieldConfig['max'])) {
-                $aggregatedStatuses[] = $statusEngine->statusFromRange(
+            // Resolve input_config limits
+            $resolvedInputConfig = $this->resolveFieldInputConfig($field, $equipmentId);
+            if ($resolvedInputConfig && !blank($rawValue)) {
+                $vType = $resolvedInputConfig['value_type'] ?? 'text';
+                if ($vType === 'constant') {
+                    $expected = trim((string)($resolvedInputConfig['expected_value'] ?? ''));
+                    $actual = trim((string)$rawValue);
+                    if (strcasecmp($actual, $expected) === 0) {
+                        $status = 'IN RANGE';
+                    } else {
+                        $status = 'OUT OF RANGE';
+                    }
+                } elseif ($vType === 'range') {
+                    $min = isset($resolvedInputConfig['min_value']) && $resolvedInputConfig['min_value'] !== '' ? (float)$resolvedInputConfig['min_value'] : null;
+                    $max = isset($resolvedInputConfig['max_value']) && $resolvedInputConfig['max_value'] !== '' ? (float)$resolvedInputConfig['max_value'] : null;
+                    
+                    if (is_numeric($rawValue)) {
+                        $valFloat = (float)$rawValue;
+                        $isOut = false;
+                        if ($min !== null && $valFloat < $min) {
+                            $isOut = true;
+                        }
+                        if ($max !== null && $valFloat > $max) {
+                            $isOut = true;
+                        }
+                        
+                        if ($isOut) {
+                            $status = 'OUT OF RANGE';
+                        } else {
+                            $status = 'IN RANGE';
+                        }
+                    } else {
+                        $status = 'OUT OF RANGE';
+                    }
+                }
+            }
+
+            if ($status === null && is_numeric($rawValue) && isset($fieldConfig['min'], $fieldConfig['max'])) {
+                $status = $statusEngine->statusFromRange(
                     (float) $rawValue,
                     (float) $fieldConfig['min'],
                     (float) $fieldConfig['max'],
                     isset($fieldConfig['warning_margin']) ? (float) $fieldConfig['warning_margin'] : null,
                 );
+            }
+
+            if ($status !== null) {
+                $aggregatedStatuses[] = $status;
                 $statusSources[] = 'field_range:'.$field->field_key;
             }
         }
@@ -1644,7 +1691,49 @@ class MonitoringDashboard extends Component
             $status = null;
             $pass = null;
 
-            if (is_numeric($rawValue) && isset($fieldConfig['min'], $fieldConfig['max'])) {
+            // Resolve input_config limits
+            $resolvedInputConfig = $this->resolveFieldInputConfig($field, $equipmentId);
+            if ($resolvedInputConfig && !blank($rawValue)) {
+                $vType = $resolvedInputConfig['value_type'] ?? 'text';
+                if ($vType === 'constant') {
+                    $expected = trim((string)($resolvedInputConfig['expected_value'] ?? ''));
+                    $actual = trim((string)$rawValue);
+                    if (strcasecmp($actual, $expected) === 0) {
+                        $status = 'IN RANGE';
+                        $pass = true;
+                    } else {
+                        $status = 'OUT OF RANGE';
+                        $pass = false;
+                    }
+                } elseif ($vType === 'range') {
+                    $min = isset($resolvedInputConfig['min_value']) && $resolvedInputConfig['min_value'] !== '' ? (float)$resolvedInputConfig['min_value'] : null;
+                    $max = isset($resolvedInputConfig['max_value']) && $resolvedInputConfig['max_value'] !== '' ? (float)$resolvedInputConfig['max_value'] : null;
+                    
+                    if (is_numeric($rawValue)) {
+                        $valFloat = (float)$rawValue;
+                        $isOut = false;
+                        if ($min !== null && $valFloat < $min) {
+                            $isOut = true;
+                        }
+                        if ($max !== null && $valFloat > $max) {
+                            $isOut = true;
+                        }
+                        
+                        if ($isOut) {
+                            $status = 'OUT OF RANGE';
+                            $pass = false;
+                        } else {
+                            $status = 'IN RANGE';
+                            $pass = true;
+                        }
+                    } else {
+                        $status = 'OUT OF RANGE';
+                        $pass = false;
+                    }
+                }
+            }
+
+            if ($status === null && is_numeric($rawValue) && isset($fieldConfig['min'], $fieldConfig['max'])) {
                 $status = $statusEngine->statusFromRange(
                     (float) $rawValue,
                     (float) $fieldConfig['min'],
@@ -1652,6 +1741,9 @@ class MonitoringDashboard extends Component
                     isset($fieldConfig['warning_margin']) ? (float) $fieldConfig['warning_margin'] : null,
                 );
                 $pass = in_array($status, ['IN RANGE', 'WARNING'], true);
+            }
+
+            if ($status !== null) {
                 $aggregatedStatuses[] = $status;
             }
 
@@ -1855,6 +1947,50 @@ class MonitoringDashboard extends Component
 
         session()->flash('success', 'Monitoring log captured successfully.');
         $this->closeExecutionModal();
+    }
+
+    public function resolveFieldInputConfig($field, ?string $equipmentId = null): ?array
+    {
+        if (!$field) {
+            return null;
+        }
+
+        $fieldConfig = $field->field_config ?? [];
+        $inputConfig = $fieldConfig['input_config'] ?? null;
+        
+        if (!is_array($inputConfig)) {
+            return null;
+        }
+
+        // If there's an override for the specific equipment, use it.
+        if (filled($equipmentId) && isset($inputConfig['equipment_configs'][$equipmentId])) {
+            $eqConfig = $inputConfig['equipment_configs'][$equipmentId];
+            if (is_array($eqConfig) && ($eqConfig['value_type'] ?? 'text') !== 'text') {
+                return $eqConfig;
+            }
+        }
+
+        // Otherwise return the default/top-level configuration.
+        if (($inputConfig['value_type'] ?? 'text') !== 'text') {
+            return $inputConfig;
+        }
+
+        return null;
+    }
+
+    public function resolveFieldInputConfigForFieldKey(string $fieldKey, ?string $equipmentId = null): ?array
+    {
+        $template = $this->activeTemplate;
+        if (!$template) {
+            return null;
+        }
+
+        $field = $template->fields->firstWhere('field_key', $fieldKey);
+        if (!$field) {
+            return null;
+        }
+
+        return $this->resolveFieldInputConfig($field, $equipmentId);
     }
 
     public function render()

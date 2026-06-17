@@ -262,7 +262,7 @@ class SubmissionFormSubmissionService
 
         $formData = $mapper->normalizeFormData($rawFormData, $testRequestForm);
 
-        \App\Models\TestRequestFormInstance::updateOrCreate(
+        $trfi = \App\Models\TestRequestFormInstance::updateOrCreate(
             ['submission_form_instance_id' => $instance->id],
             [
                 'test_request_form_id' => $testRequestForm->id,
@@ -271,6 +271,16 @@ class SubmissionFormSubmissionService
                 'created_by' => Auth::id(),
             ]
         );
+
+        try {
+            app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class)->generateAndStore($trfi->fresh());
+        } catch (\Throwable $exception) {
+            Log::warning('Test request form PDF generation failed after portal submit.', [
+                'instance_id' => $instance->id,
+                'trfi_id' => $trfi->id,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     public function assignFormNumberWithRetry(

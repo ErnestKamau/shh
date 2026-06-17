@@ -2,6 +2,7 @@
 <html lang="{{ app()->getLocale() }}">
 	 <head>
 		<meta charset="utf-8">
+		@include('partials.favicon')
 		<link rel="stylesheet" href="{{ asset('css/w3.css') }}">
 		<link href="{{ asset('css/icons/css/fontawesome.min.css') }}" rel="stylesheet">
 		<link href="{{ asset('css/app.css') }}" rel="stylesheet">  

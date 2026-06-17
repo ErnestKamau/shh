@@ -186,7 +186,12 @@ class MonitoringLogValueResolver
             return true;
         }
 
-        if (filled(Arr::get($field->field_config ?? [], 'variable_slug'))) {
+        $config = $field->field_config ?? [];
+        if (isset($config['step_type']) && $config['step_type'] === 'input') {
+            return false;
+        }
+
+        if (filled(Arr::get($config, 'variable_slug'))) {
             return true;
         }
 

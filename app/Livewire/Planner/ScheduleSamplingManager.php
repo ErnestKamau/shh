@@ -1261,7 +1261,7 @@ class ScheduleSamplingManager extends Component
             $instance->refresh();
             $instance->markAsReceived(auth()->user()); // status becomes 'received', putting it in Received Request
 
-            \App\Models\TestRequestFormInstance::updateOrCreate(
+            $trfi = \App\Models\TestRequestFormInstance::updateOrCreate(
                 ['submission_form_instance_id' => $instance->id],
                 [
                     'test_request_form_id' => $form->id,
@@ -1271,6 +1271,12 @@ class ScheduleSamplingManager extends Component
                     'created_by' => auth()->id(),
                 ]
             );
+
+            try {
+                app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class)->generateAndStore($trfi->fresh());
+            } catch (\Throwable) {
+                // PDF failure should not block schedule sampling save.
+            }
 
             $schedule->is_collected = true;
             $schedule->save();

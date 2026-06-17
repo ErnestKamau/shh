@@ -236,6 +236,26 @@ class SubmissionFormInstanceController extends Controller
         ]);
     }
 
+    public function testRequestFormPdf(Request $request, string $instance)
+    {
+        $instanceModel = $this->findAuthorizedInstance($request, $instance);
+        $trfi = $instanceModel->testRequestFormInstance()->first();
+
+        if (! $trfi) {
+            return response()->json([
+                'message' => 'No test request form is available for this submission.',
+            ], 404);
+        }
+
+        $pdfService = app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class);
+        $pdfService->ensureStored($trfi);
+
+        $storagePath = $pdfService->resolveStoragePath($trfi);
+        $filename = 'test-request-form-' . ($instanceModel->form_number ?: $trfi->id) . '.pdf';
+
+        return Storage::disk('public')->download($storagePath, $filename);
+    }
+
     public function destroy(Request $request, string $instance): JsonResponse
     {
         $instanceModel = $this->findAuthorizedInstance($request, $instance);
