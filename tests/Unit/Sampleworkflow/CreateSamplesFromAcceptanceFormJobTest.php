@@ -20,7 +20,9 @@ use App\SampleAnalysisStage;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SampleType;
+use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\SampleAnalysisSetupService;
+use App\Services\Sampleworkflow\SampleDetailCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -188,7 +190,9 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
             app(SampleAnalysisSetupService::class),
             app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class),
             app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class),
-            app(InvoiceNumberGenerator::class)
+            app(InvoiceNumberGenerator::class),
+            app(SampleDetailCreationService::class),
+            app(JobSampleNumberingService::class),
         );
 
         $form->refresh();
@@ -214,6 +218,14 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
 
         $header = SampleHeader::query()->find($form->sample_header_id);
         $this->assertNotNull($header);
+        $this->assertMatchesRegularExpression('/^\d{9}$/', (string) $header->batch_code);
+        foreach ($details as $detail) {
+            $this->assertMatchesRegularExpression(
+                '/^' . preg_quote((string) $header->batch_code, '/') . '-[MLC]\d{3}$/',
+                (string) $detail->sample_code,
+            );
+            $this->assertSame($header->batch_code . '-R01', $detail->report_number);
+        }
         $this->assertSame('Samples Request Review', $header->status);
         $this->assertSame($form->invoice_id, $header->invoice_id);
         $this->assertSame($lab->id, $header->lab_id);
@@ -261,7 +273,7 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
 
         $sampleType = SampleType::query()->create(['name' => 'Water', 'code' => 'W2', 'company_id' => $companyId]);
         $analysisType = AnalysisType::query()->create([
-            'name' => 'Analysis',
+            'name' => 'Microbial count',
             'code' => 'AN1',
             'sample_type_id' => $sampleType->id,
             'lab_id' => $labId,
@@ -293,11 +305,108 @@ class CreateSamplesFromAcceptanceFormJobTest extends TestCase
             app(SampleAnalysisSetupService::class),
             app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class),
             app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class),
-            app(InvoiceNumberGenerator::class)
+            app(InvoiceNumberGenerator::class),
+            app(SampleDetailCreationService::class),
+            app(JobSampleNumberingService::class),
         );
 
         $details = SampleDetails::query()->where('sample_header_id', $form->fresh()->sample_header_id)->get();
         $this->assertCount(3, $details);
         $this->assertTrue($details->every(fn (SampleDetails $d) => (string) $d->sample_type_id === (string) $sampleType->id));
+        $jobNumber = (string) SampleHeader::query()->find($form->fresh()->sample_header_id)?->batch_code;
+        $this->assertMatchesRegularExpression('/^\d{9}$/', $jobNumber);
+        $this->assertSame(
+            ['-M001', '-M002', '-M003'],
+            $details->sortBy('sample_code')->pluck('sample_code')->map(
+                fn (string $code) => substr($code, strlen($jobNumber))
+            )->all(),
+        );
+    }
+
+    public function test_job_uses_trf_category_prefix_and_customer_sample_id_from_config(): void
+    {
+        $this->mock(SampleAnalysisSetupService::class, function ($mock): void {
+            $mock->shouldReceive('syncAnalysisRelations')->andReturnNull();
+            $mock->shouldReceive('createCapturedResultsForAnalysisType')->andReturnNull();
+        });
+
+        SampleAnalysisStage::query()->create([
+            'name' => 'Request Review',
+            'code' => 'SRR3',
+            'active' => 1,
+            'sample_workflow' => 'Samples Request Review',
+            'level' => 1,
+        ]);
+
+        $customer = CRMCustomer::query()->create([
+            'name' => 'TRF Customer',
+            'code' => 'TRF001',
+        ]);
+
+        Pricelist::query()->create([
+            'description' => 'Test',
+            'active' => 1,
+            'currency_id' => (string) Str::uuid(),
+        ]);
+
+        $companyId = (string) Str::uuid();
+        $labId = (string) Str::uuid();
+
+        $sampleType = SampleType::query()->create(['name' => 'Water', 'code' => 'W3', 'company_id' => $companyId]);
+        $analysisType = AnalysisType::query()->create([
+            'name' => 'Microbiology panel',
+            'code' => 'MIC',
+            'sample_type_id' => $sampleType->id,
+            'lab_id' => $labId,
+            'company_id' => $companyId,
+            'active' => 1,
+        ]);
+
+        $form = AnalysisAcceptanceForm::query()->create([
+            'status' => AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
+            'crm_customer_id' => $customer->id,
+            'customer_name' => 'TRF Customer',
+            'number_of_samples' => 1,
+            'mode_of_work' => 'Normal',
+            'total_amount' => 75,
+            'sample_configuration_payload' => [
+                [
+                    'sample_type_id' => $sampleType->id,
+                    'analysis_type_id' => $analysisType->id,
+                    'number_of_samples' => 1,
+                    'sample_code_prefix' => JobSampleNumberingService::PREFIX_MICROBIOLOGY,
+                    'instances' => [
+                        ['customer_sample_id' => 'CUST-SAMPLE-99', 'sample_marking' => ''],
+                    ],
+                ],
+            ],
+        ]);
+
+        AnalysisAcceptanceFormLine::query()->create([
+            'analysis_acceptance_form_id' => $form->id,
+            'line_no' => 1,
+            'sample_type_id' => $sampleType->id,
+            'analysis_type_id' => $analysisType->id,
+            'parameter_label' => 'Coliform',
+            'unit_amount' => 75,
+            'is_approved' => true,
+        ]);
+
+        (new CreateSamplesFromAcceptanceFormJob((string) $form->id))->handle(
+            app(\App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService::class),
+            app(SampleAnalysisSetupService::class),
+            app(\App\Services\Sampleworkflow\AcceptanceFormPricingService::class),
+            app(\App\Services\Sampleworkflow\AcceptanceFormSampleConfigService::class),
+            app(InvoiceNumberGenerator::class),
+            app(SampleDetailCreationService::class),
+            app(JobSampleNumberingService::class),
+        );
+
+        $header = SampleHeader::query()->find($form->fresh()->sample_header_id);
+        $detail = SampleDetails::query()->where('sample_header_id', $header->id)->sole();
+
+        $this->assertSame($header->batch_code . '-M001', $detail->sample_code);
+        $this->assertSame('CUST-SAMPLE-99', $detail->customer_sample_id);
+        $this->assertSame($header->batch_code . '-R01', $detail->report_number);
     }
 }

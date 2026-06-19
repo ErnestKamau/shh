@@ -6,9 +6,10 @@ use App\Models\SubmissionFormInstance;
 use App\Models\TestRequestForm;
 use App\Models\TestRequestFormInstance;
 use App\Models\Workflow\Approval;
-use App\Services\Commercial\CommercialEnquiryFromFormService;
 use App\Services\Sampleworkflow\SampleReceivingCheckInService;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
+use App\Services\TestRequestForm\TestRequestFormSubmissionContext;
+use App\Services\TestRequestForm\TestRequestFormSubmissionService;
 use App\Services\WorkflowService;
 use App\User;
 use Illuminate\Support\Facades\Auth;
@@ -226,7 +227,10 @@ class ReceiveSampleRequest extends Component
                 'expiration_date' => '',
                 'batch_number' => '',
                 'parameters' => '',
-                'state_of_sample' => '', // L, SS, S
+                'state_of_sample' => '',
+                'microbiology' => false,
+                'chemistry' => false,
+                'test_category' => '',
             ];
         }
 
@@ -244,7 +248,8 @@ class ReceiveSampleRequest extends Component
                 'sample_temp' => '',
                 'microbiology' => false,
                 'legionella' => false,
-                'chemical_analysis' => false,
+                'chemistry' => false,
+                'test_category' => '',
             ];
         }
 
@@ -494,7 +499,7 @@ class ReceiveSampleRequest extends Component
 
         DB::transaction(function () use ($user, $checkInService, &$processed, &$skipped, &$blockedReasons): void {
             $instances = SubmissionFormInstance::query()
-                ->with(['batches', 'submissionForm', 'sampleSubmissionRequest'])
+                ->with(['batches', 'submissionForm', 'sampleSubmissionRequest', 'testRequestFormInstance'])
                 ->whereIn('id', $this->selectedFormInstanceIds)
                 ->get();
 
@@ -510,6 +515,13 @@ class ReceiveSampleRequest extends Component
                 }
 
                 $instance->markAsReceived($user, $this->remarks !== '' ? $this->remarks : null);
+
+                if ($instance->testRequestFormInstance) {
+                    $instance->testRequestFormInstance->update([
+                        'status' => TestRequestFormInstance::STATUS_RECEIVED,
+                    ]);
+                }
+
                 $processed++;
             }
         });
@@ -585,6 +597,18 @@ class ReceiveSampleRequest extends Component
             $this->validate($rules, $messages);
         }
 
+        $sampleRows = $this->formData['sample_rows'] ?? [];
+        if (is_array($sampleRows) && $sampleRows !== []) {
+            foreach (array_keys($sampleRows) as $index) {
+                $this->validate([
+                    "formData.sample_rows.{$index}.test_category" => 'required|in:microbiology,legionella,chemistry',
+                ], [
+                    "formData.sample_rows.{$index}.test_category.required" => 'Select a test category for sample row '.($index + 1).'.',
+                    "formData.sample_rows.{$index}.test_category.in" => 'Invalid test category for sample row '.($index + 1).'.',
+                ]);
+            }
+        }
+
         $this->prepareLabUseFields();
 
         $user = Auth::user();
@@ -602,60 +626,33 @@ class ReceiveSampleRequest extends Component
                 $submissionForm = app(PortalSubmissionFormAccess::class)
                     ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
 
-                if (!$submissionForm) {
+                if (! $submissionForm) {
                     throw new \Exception('No active Test Request Form template found for this sample type. Please seed TRF templates first.');
                 }
 
-                // Try to resolve customer if selected
                 $crmCustomerId = null;
-                $custName = null;
                 foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
-                    if (!empty($this->formData[$key])) {
+                    if (! empty($this->formData[$key])) {
                         $custName = $this->formData[$key];
+                        $crmCustomerId = \App\Models\CRM\CRMCustomer::where('name', $custName)->first()?->id;
                         break;
                     }
                 }
-                if ($custName) {
-                    $crmCustomerId = \App\Models\CRM\CRMCustomer::where('name', $custName)->first()?->id;
-                }
 
-                $instance = SubmissionFormInstance::create([
-                    'submission_form_id' => $submissionForm->id,
-                    'form_number' => null,
-                    'sequence_number' => null,
-                    'title' => 'Test Request Form - ' . now()->format('Y-m-d H:i'),
-                    'submitted_by' => $user->id,
-                    'status' => 'draft',
-                    'priority' => 'normal',
-                    'crm_customer_id' => $crmCustomerId,
-                ]);
-
-                // Save the form values to the database using unified mapper
-                $requestData = \App\Models\TestRequestFormInstance::mapToSubmissionFormRequestData($this->formData, $form);
-                $submissionService = app(\App\Services\SubmissionForm\SubmissionFormSubmissionService::class);
-                $elements = $submissionService->elementsForForm($submissionForm);
-                $req = new \Illuminate\Http\Request();
-                $req->merge($requestData);
-                $submissionService->processFormData($instance, $req, $elements);
-
-                $instance->logAction('created', $user);
-                $instance->submit($user);
-                $instance->refresh();
-
-                $trfi = TestRequestFormInstance::updateOrCreate(
-                    ['submission_form_instance_id' => $instance->id],
-                    [
-                        'test_request_form_id' => $form->id,
-                        'form_data' => $this->formData,
-                        'status' => 'submitted',
-                        'created_by' => $user->id,
-                    ]
+                $context = new TestRequestFormSubmissionContext(
+                    sourceChannel: TestRequestFormInstance::CHANNEL_WALK_IN,
+                    crmCustomerId: $crmCustomerId,
+                    submittedBy: (string) $user->id,
+                    portalSubmissionForm: $submissionForm,
                 );
+
+                $trfi = app(TestRequestFormSubmissionService::class)->submit(
+                    $form,
+                    $this->formData,
+                    $context,
+                );
+
                 $generatedTrfiIds[] = $trfi->id;
-
-                app(CommercialEnquiryFromFormService::class)->syncFromSubmittedInstance(
-                    $instance->fresh(['values.element', 'submissionForm', 'crmCustomer', 'testRequestFormInstance'])
-                );
             });
 
         $message = 'Walk-in test request submitted successfully.';

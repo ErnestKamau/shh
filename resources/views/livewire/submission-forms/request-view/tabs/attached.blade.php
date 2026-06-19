@@ -212,7 +212,7 @@
                                                         $reqs = [];
                                                         if (!empty($row['microbiology'])) $reqs[] = 'Microbiology';
                                                         if (!empty($row['legionella'])) $reqs[] = 'Legionella';
-                                                        if (!empty($row['chemical_analysis'])) $reqs[] = 'Chemical Analysis';
+                                                        if (!empty($row['chemistry']) || !empty($row['chemical_analysis'])) $reqs[] = 'Chemistry';
                                                     @endphp
                                                     {{ !empty($reqs) ? implode(', ', $reqs) : '—' }}
                                                 </td>

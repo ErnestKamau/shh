@@ -6290,6 +6290,9 @@ class SampleWorkFlowController extends Controller
         $batch->is_amendment = $amendment->version_number;
         $batch->save();
 
+        app(\App\Services\Sampleworkflow\JobSampleNumberingService::class)
+            ->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);
+
         // Clear previous verification approvers
         BatchLabSectionApprover::where('batch_id', $batch->id)
             ->where('batch_status', 'Sample Verification')

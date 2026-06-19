@@ -111,7 +111,7 @@ class CustomerAcceptanceSignModal extends Component
 
         $this->validate([
             'selectedContactId' => ['required', 'string'],
-            'password' => ['required', 'string'],
+            'password' => ['nullable', 'string'],
         ]);
 
         try {

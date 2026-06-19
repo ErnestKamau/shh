@@ -202,7 +202,7 @@
                 <tr  style="margin:0 !important">
                     <td colspan="2"
                         style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;">
-                        <b> TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code))}}{{$sample->ammendment_number > 1 ? '-V'.$sample->ammendment_number  : ''}} {{$report_type != '' ? ' - '.$report_type : ''}}</b></td>
+                        <b> TEST REPORT NO : {{ $sample->report_number ?? ('R' . substr($sample->sample_code, 1, strlen($sample->sample_code))) }} {{$report_type != '' ? ' - '.$report_type : ''}}</b></td>
                 </tr>
                 <tr>
                     <td style="width:20%;border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE</td>
@@ -226,7 +226,7 @@
                 </tr>
                 <tr>
                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE ID</td>
-                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sample_code ?? '-' }}{{$sample->ammendment_number > 1 ? '-V'.$sample->ammendment_number  : ''}}</td>
+                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sample_code ?? '-' }}</td>
                 </tr>
                 <tr>
                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">MARKINGS</td>

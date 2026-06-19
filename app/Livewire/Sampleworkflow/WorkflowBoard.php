@@ -1771,7 +1771,7 @@ class WorkflowBoard extends Component
             ->map(function (SubmissionFormInstance $instance): array {
                 return [
                     'id' => $instance->id,
-                    'label' => (string) ($instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending'),
+                    'label' => (string) ($instance->canonicalFormNumber() ?: 'Pending'),
                     'customer' => (string) (
                         $instance->crmCustomer->name
                         ?? $instance->submittedBy->name
@@ -1801,7 +1801,7 @@ class WorkflowBoard extends Component
             ->map(function (SubmissionFormInstance $instance): array {
                 return [
                     'id' => (string) $instance->id,
-                    'label' => (string) ($instance->getDocumentControlNumber() ?? $instance->form_number ?? 'Pending'),
+                    'label' => (string) ($instance->canonicalFormNumber() ?: 'Pending'),
                     'assignee_name' => (string) ($instance->activePendingIntray?->toUser?->name ?? ''),
                 ];
             })

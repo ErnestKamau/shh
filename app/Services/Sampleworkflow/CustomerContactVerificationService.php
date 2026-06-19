@@ -20,8 +20,6 @@ class CustomerContactVerificationService
         string $password,
         ?string $acceptanceFormId = null
     ): array {
-        $this->guardFailedAttempts($acceptanceFormId);
-
         $contact = CustomerContact::query()
             ->where('id', $contactId)
             ->where('crm_customer_id', $crmCustomerId)
@@ -29,16 +27,31 @@ class CustomerContactVerificationService
             ->where('can_login', 1)
             ->first();
 
-        if (!$contact) {
-            $this->recordFailedAttempt($acceptanceFormId);
+        if (! $contact) {
+            if (trim($password) !== '') {
+                $this->guardFailedAttempts($acceptanceFormId);
+                $this->recordFailedAttempt($acceptanceFormId);
+            }
+
             throw ValidationException::withMessages([
                 'password' => ['Invalid contact or password.'],
             ]);
         }
 
+        if (trim($password) === '') {
+            $this->clearFailedAttempts($acceptanceFormId);
+
+            return [
+                'contact_id' => (string) $contact->id,
+                'signer_name' => $this->contactDisplayName($contact),
+            ];
+        }
+
+        $this->guardFailedAttempts($acceptanceFormId);
+
         $user = $this->resolvePortalUser($contact, $crmCustomerId);
 
-        if (!$user || !Hash::check($password, (string) $user->password)) {
+        if (! $user || ! Hash::check($password, (string) $user->password)) {
             $this->recordFailedAttempt($acceptanceFormId);
             throw ValidationException::withMessages([
                 'password' => ['Invalid contact or password.'],

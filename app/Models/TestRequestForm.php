@@ -104,6 +104,10 @@ class TestRequestForm extends Model
                 'batch_number' => '',
                 'parameters' => '',
                 'state_of_sample' => '',
+                'microbiology' => false,
+                'legionella' => false,
+                'chemistry' => false,
+                'test_category' => '',
             ];
         }
 
@@ -120,7 +124,8 @@ class TestRequestForm extends Model
             'sample_temp' => '',
             'microbiology' => false,
             'legionella' => false,
-            'chemical_analysis' => false,
+            'chemistry' => false,
+            'test_category' => '',
         ];
     }
 

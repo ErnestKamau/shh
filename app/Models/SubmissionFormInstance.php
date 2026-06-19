@@ -496,6 +496,18 @@ class SubmissionFormInstance extends Model implements Auditable
         return null;
     }
 
+    public function canonicalFormNumber(): string
+    {
+        $this->loadMissing('testRequestFormInstance');
+
+        return (string) (
+            $this->testRequestFormInstance?->form_number
+            ?? $this->getDocumentControlNumber()
+            ?? $this->form_number
+            ?? ''
+        );
+    }
+
     /**
      * Get a value by element name
      */

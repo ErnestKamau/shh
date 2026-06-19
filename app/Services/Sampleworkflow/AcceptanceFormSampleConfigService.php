@@ -35,6 +35,7 @@ class AcceptanceFormSampleConfigService
             'number_of_samples' => 1,
             'parameter_keys' => [],
             'parameter_search' => '',
+            'sample_code_prefix' => null,
             'instances' => [
                 ['customer_sample_id' => '', 'sample_marking' => ''],
             ],
@@ -69,6 +70,9 @@ class AcceptanceFormSampleConfigService
                     $line['sample_condition'] ?? null,
                     $sampleTypeId !== '' ? $sampleTypeId : null
                 );
+                if (! empty($line['sample_code_prefix'])) {
+                    $buckets[$key]['sample_code_prefix'] = $line['sample_code_prefix'];
+                }
             }
 
             $elementId = $line['analysis_element_id'] ?? null;
@@ -524,6 +528,7 @@ class AcceptanceFormSampleConfigService
                     'sample_marking' => $instance['sample_marking'] !== ''
                         ? $instance['sample_marking']
                         : null,
+                    'sample_code_prefix' => $config['sample_code_prefix'] ?? null,
                 ];
             }
         }

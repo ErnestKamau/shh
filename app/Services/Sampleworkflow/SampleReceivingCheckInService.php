@@ -23,20 +23,24 @@ final class SampleReceivingCheckInService
         $instance->loadMissing([
             'crmCustomer',
             'submissionForm',
+            'testRequestFormInstance',
             'sampleSubmissionRequest.acceptedQuotation',
             'sampleSubmissionRequest.currentQuotation',
+            'sampleSubmissionRequest.testRequestFormInstance',
             'values.element',
         ]);
 
         $enquiry = $instance->sampleSubmissionRequest;
+        $trfi = $instance->testRequestFormInstance ?? $enquiry?->testRequestFormInstance;
+        $formData = is_array($trfi?->form_data) ? $trfi->form_data : [];
         $values = $this->indexedFormValues($instance);
 
         $collectionData = is_array($enquiry?->collection_data) ? $enquiry->collection_data : [];
 
-        $thermometerId = $values['thermometer_id'] ?? $collectionData['thermometer_id'] ?? null;
+        $thermometerId = $formData['thermometer_id'] ?? $values['thermometer_id'] ?? $collectionData['thermometer_id'] ?? null;
         $thermometerLabel = $this->resolveThermometerLabel($thermometerId);
 
-        $samplingApparatus = $values['sampling_apparatus'] ?? $collectionData['sampling_apparatus'] ?? null;
+        $samplingApparatus = $formData['sampling_apparatus'] ?? $values['sampling_apparatus'] ?? $collectionData['sampling_apparatus'] ?? null;
         if (is_array($samplingApparatus)) {
             $samplingApparatus = implode(', ', array_filter($samplingApparatus));
         }
@@ -47,7 +51,7 @@ final class SampleReceivingCheckInService
 
         return [
             'instance_id' => $instance->id,
-            'form_number' => (string) ($instance->getDocumentControlNumber() ?? $instance->form_number ?? ''),
+            'form_number' => $instance->canonicalFormNumber(),
             'customer_name' => (string) ($instance->crmCustomer?->name ?? ''),
             'sample_description' => (string) (
                 $enquiry?->sample_description
@@ -62,12 +66,14 @@ final class SampleReceivingCheckInService
                 ?? 1
             ),
             'sampling_date' => (string) (
-                $values['sampling_date']
+                $formData['sampling_date']
+                ?? $values['sampling_date']
                 ?? $collectionData['sampling_date']
                 ?? ''
             ),
             'sampling_location' => (string) (
-                $values['sampling_location']
+                $formData['sampling_location']
+                ?? $values['sampling_location']
                 ?? $collectionData['sampling_location']
                 ?? ''
             ),
@@ -101,7 +107,8 @@ final class SampleReceivingCheckInService
             ->with([
                 'crmCustomer',
                 'submissionForm',
-                'sampleSubmissionRequest',
+                'testRequestFormInstance',
+                'sampleSubmissionRequest.testRequestFormInstance',
                 'values.element',
             ])
             ->whereIn('id', $instanceIds)

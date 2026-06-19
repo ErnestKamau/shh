@@ -7,6 +7,7 @@ use App\AnalysisType;
 use App\Models\SubmissionFormElement;
 use App\Models\SubmissionFormInstance;
 use App\SampleType;
+use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\TestRequestForm\TestRequestFormDataMapper;
 use Illuminate\Support\Str;
 
@@ -33,16 +34,18 @@ class SubmissionRequestSampleLineService
             'testRequestFormInstance.testRequestForm.sampleType',
         ]);
 
+        $trfi = $instance->testRequestFormInstance;
+        if ($trfi !== null) {
+            $trfLines = $this->linesForTrfi($trfi);
+            if ($trfLines !== []) {
+                return $trfLines;
+            }
+        }
+
         $rowLines = $this->parseRowsSections($instance);
 
         if ($this->linesHaveRichSampleDetail($rowLines)) {
             return $rowLines;
-        }
-
-        $trfLines = $this->linesFromTestRequestFormInstance($instance);
-
-        if ($trfLines !== []) {
-            return $trfLines;
         }
 
         if ($rowLines !== []) {
@@ -50,6 +53,43 @@ class SubmissionRequestSampleLineService
         }
 
         return $this->fallbackLinesFromHeader($instance);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function linesForTrfi(\App\Models\TestRequestFormInstance $trfi): array
+    {
+        $trfi->loadMissing(['testRequestForm.sampleType']);
+
+        $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
+        $mapper = app(TestRequestFormDataMapper::class);
+        $normalized = $mapper->normalizeFormData($formData, $trfi->testRequestForm);
+        $sampleRows = $normalized['sample_rows'] ?? [];
+
+        if (! is_array($sampleRows) || $sampleRows === []) {
+            return [];
+        }
+
+        $defaultSampleTypeId = $trfi->testRequestForm?->sample_type_id;
+        $defaultSampleTypeId = $defaultSampleTypeId !== null ? (string) $defaultSampleTypeId : null;
+        $defaultSampleTypeName = $this->resolveSampleTypeName($defaultSampleTypeId);
+
+        $lines = [];
+
+        foreach (array_values($sampleRows) as $rowIndex => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $line = $this->mapTrfSampleRow((int) $rowIndex, $row, $defaultSampleTypeId, $defaultSampleTypeName);
+
+            if ($this->trfRowHasDisplayData($line)) {
+                $lines[] = $line;
+            }
+        }
+
+        return $lines;
     }
 
     /**
@@ -71,6 +111,7 @@ class SubmissionRequestSampleLineService
                 'analysis_element_id' => $line['analysis_element_id'],
                 'parameter_label' => (string) ($line['parameter_label'] ?? 'Parameter'),
                 'customer_sample_id' => $line['customer_sample_id'],
+                'sample_code_prefix' => $line['sample_code_prefix'] ?? null,
             ];
         }
 
@@ -588,7 +629,7 @@ class SubmissionRequestSampleLineService
     }
 
     /**
-     * Walk-in / scheduled TRF data is stored on TestRequestFormInstance.form_data before portal rows exist.
+     * @deprecated Use linesForTrfi() directly.
      *
      * @return list<array<string, mixed>>
      */
@@ -601,34 +642,7 @@ class SubmissionRequestSampleLineService
             return [];
         }
 
-        $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
-        $mapper = app(TestRequestFormDataMapper::class);
-        $normalized = $mapper->normalizeFormData($formData, $trfi->testRequestForm);
-        $sampleRows = $normalized['sample_rows'] ?? [];
-
-        if (! is_array($sampleRows) || $sampleRows === []) {
-            return [];
-        }
-
-        $defaultSampleTypeId = $trfi->testRequestForm?->sample_type_id;
-        $defaultSampleTypeId = $defaultSampleTypeId !== null ? (string) $defaultSampleTypeId : null;
-        $defaultSampleTypeName = $this->resolveSampleTypeName($defaultSampleTypeId);
-
-        $lines = [];
-
-        foreach (array_values($sampleRows) as $rowIndex => $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-
-            $line = $this->mapTrfSampleRow((int) $rowIndex, $row, $defaultSampleTypeId, $defaultSampleTypeName);
-
-            if ($this->trfRowHasDisplayData($line)) {
-                $lines[] = $line;
-            }
-        }
-
-        return $lines;
+        return $this->linesForTrfi($trfi);
     }
 
     /**
@@ -680,10 +694,16 @@ class SubmissionRequestSampleLineService
             $tests[] = $parameters;
         }
 
-        foreach (['microbiology' => 'Microbiology', 'legionella' => 'Legionella', 'chemical_analysis' => 'Chemical Analysis'] as $key => $label) {
+        foreach (['microbiology' => 'Microbiology', 'legionella' => 'Legionella', 'chemistry' => 'Chemistry', 'chemical_analysis' => 'Chemistry'] as $key => $label) {
             if (! empty($row[$key])) {
                 $tests[] = $label;
             }
+        }
+
+        try {
+            $line['sample_code_prefix'] = app(JobSampleNumberingService::class)->resolveCategoryPrefixFromRow($row);
+        } catch (\InvalidArgumentException) {
+            $line['sample_code_prefix'] = null;
         }
 
         if ($tests !== []) {

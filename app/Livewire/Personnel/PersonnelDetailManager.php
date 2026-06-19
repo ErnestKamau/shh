@@ -26,6 +26,7 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use App\Models\Auth\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class PersonnelDetailManager extends Component
 {
@@ -666,6 +667,7 @@ class PersonnelDetailManager extends Component
 
         if (!empty($roles)) {
             $this->user->assignRole($roles);
+            $this->flushPermissionCacheForUser();
         }
 
         $this->showAddRoleModal = false;
@@ -695,6 +697,7 @@ class PersonnelDetailManager extends Component
 
         $role = Role::query()->where('guard_name', 'web')->findOrFail((string) $this->selectedRoleId);
         $this->user->removeRole($role->name);
+        $this->flushPermissionCacheForUser();
 
         $this->showDeleteRoleModal = false;
         $this->selectedRoleId = null;
@@ -1313,6 +1316,13 @@ class PersonnelDetailManager extends Component
             ->orderBy('name')
             ->with('permissions:id,name')
             ->get(["{$rolesTable}.id", "{$rolesTable}.name", "{$rolesTable}.description"]);
+    }
+
+    private function flushPermissionCacheForUser(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->user->unsetRelation('roles');
+        $this->user->load('roles.permissions');
     }
 
     private function resetCertificationForm(): void

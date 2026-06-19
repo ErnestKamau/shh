@@ -60,7 +60,7 @@
                             <section class="acc-wizard-section">
                                 <h6 class="acc-wizard-section-title">Verify customer contact</h6>
                                 <p class="acc-wizard-hint">
-                                    The customer must select their portal contact and enter their portal password before signing.
+                                    Select the customer’s portal contact. Portal password is optional for in-person lab-assisted signing; enter it when the customer is verifying themselves.
                                 </p>
                                 <div class="row acc-wizard-fields">
                                     <div class="col-md-12 form-group">
@@ -78,7 +78,7 @@
                                         @error('selectedContactId') <small class="text-danger d-block">{{ $message }}</small> @enderror
                                     </div>
                                     <div class="col-md-12 form-group mb-0">
-                                        <label class="acc-label" for="customer-sign-password">Portal password</label>
+                                        <label class="acc-label" for="customer-sign-password">Portal password <span class="text-muted">(optional)</span></label>
                                         <div class="password-input-wrap">
                                             <input
                                                 type="password"
@@ -414,7 +414,9 @@
                     return null;
                 }
                 if (canvas.dataset.custRecReady === '1') {
-                    return null;
+                    return canvasId === 'cust-acc-receipt-submitter-canvas'
+                        ? customerReceiptSubmitterPad
+                        : customerReceiptReceiverPad;
                 }
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 canvas.width = canvas.offsetWidth * ratio;
@@ -425,28 +427,28 @@
                 if (existingVal && existingVal.startsWith('data:image')) {
                     pad.fromDataURL(existingVal);
                 }
-                pad.addEventListener('endStroke', function () {
-                    input.value = pad.isEmpty() ? '' : pad.toDataURL('image/png');
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                });
                 if (clearBtn) {
                     clearBtn.onclick = function () {
                         pad.clear();
                         input.value = '';
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
                     };
                 }
                 return pad;
             }
+
+            const submitterCanvas = document.getElementById('cust-acc-receipt-submitter-canvas');
+            const receiverCanvas = document.getElementById('cust-acc-receipt-receiver-canvas');
+            if (
+                submitterCanvas?.dataset.custRecReady === '1'
+                && receiverCanvas?.dataset.custRecReady === '1'
+                && customerReceiptSubmitterPad
+                && customerReceiptReceiverPad
+            ) {
+                return;
+            }
+
             const si = document.getElementById('cust-acc-receipt-submitter-input');
             const ri = document.getElementById('cust-acc-receipt-receiver-input');
-            ['cust-acc-receipt-submitter-canvas', 'cust-acc-receipt-receiver-canvas'].forEach(function (cid) {
-                const c = document.getElementById(cid);
-                if (c) {
-                    c.removeAttribute('data-cust-rec-ready');
-                }
-            });
             customerReceiptSubmitterPad = setup('cust-acc-receipt-submitter-canvas', 'cust-acc-receipt-submitter-input', 'cust-acc-receipt-submitter-clear', si ? si.value : '');
             customerReceiptReceiverPad = setup('cust-acc-receipt-receiver-canvas', 'cust-acc-receipt-receiver-input', 'cust-acc-receipt-receiver-clear', ri ? ri.value : '');
         }
@@ -567,6 +569,8 @@
 
         document.addEventListener('livewire:init', function () {
             Livewire.on('customer-acceptance-sign-opened', function () {
+                customerReceiptSubmitterPad = null;
+                customerReceiptReceiverPad = null;
                 setTimeout(function () {
                     initCustomerSignPasswordToggle();
                     initCustomerSignaturePad();
@@ -612,6 +616,14 @@
             });
 
             Livewire.on('customer-acceptance-sign-step3', function () {
+                customerReceiptSubmitterPad = null;
+                customerReceiptReceiverPad = null;
+                ['cust-acc-receipt-submitter-canvas', 'cust-acc-receipt-receiver-canvas'].forEach(function (cid) {
+                    const c = document.getElementById(cid);
+                    if (c) {
+                        c.removeAttribute('data-cust-rec-ready');
+                    }
+                });
                 setTimeout(function () {
                     initCustomerReceiptPads();
                     initCustomerSignSubmitButton();
@@ -625,7 +637,8 @@
                 if (document.getElementById('customer-acceptance-signature-canvas')) {
                     setTimeout(initCustomerSignaturePad, 200);
                 }
-                if (document.getElementById('cust-acc-receipt-submitter-canvas')) {
+                const receiptSubmitterCanvas = document.getElementById('cust-acc-receipt-submitter-canvas');
+                if (receiptSubmitterCanvas && receiptSubmitterCanvas.dataset.custRecReady !== '1') {
                     setTimeout(function () {
                         initCustomerReceiptPads();
                         initCustomerSignSubmitButton();
@@ -636,10 +649,9 @@
                 }
                 if (document.getElementById('cust-acc-disclaimer-claimant-canvas')) {
                     const c = document.getElementById('cust-acc-disclaimer-claimant-canvas');
-                    if (c) {
-                        c.removeAttribute('data-cust-disc-ready');
+                    if (c && c.dataset.custDiscReady !== '1') {
+                        setTimeout(initCustomerDisclaimerClaimantPad, 220);
                     }
-                    setTimeout(initCustomerDisclaimerClaimantPad, 220);
                 }
             });
         });

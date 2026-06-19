@@ -11,7 +11,7 @@
         $items = [
             'Microbiology' => $row['microbiology'] ?? false,
             'Legionella' => $row['legionella'] ?? false,
-            'Chemical Analysis' => $row['chemical_analysis'] ?? false,
+            'Chemistry' => $row['chemistry'] ?? $row['chemical_analysis'] ?? false,
         ];
         $html = '';
         foreach ($items as $label => $checked) {
@@ -46,7 +46,7 @@
         <th class="trf-subheader">Temp</th>
         <th class="trf-subheader">Microbiology</th>
         <th class="trf-subheader">Legionella</th>
-        <th class="trf-subheader">Chemical Analysis</th>
+        <th class="trf-subheader">Chemistry</th>
     </tr>
     @forelse($sampleRows as $row)
         @php $sp = $row['sampling_point_checks'] ?? []; @endphp
@@ -68,7 +68,7 @@
             <td class="trf-center">{{ $row['sample_temp'] }}</td>
             <td class="trf-center"><span class="{{ ($row['microbiology'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
             <td class="trf-center"><span class="{{ ($row['legionella'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
-            <td class="trf-center"><span class="{{ ($row['chemical_analysis'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
+            <td class="trf-center"><span class="{{ ($row['chemistry'] ?? $row['chemical_analysis'] ?? false) ? 'trf-check trf-check-on' : 'trf-check trf-check-off' }}"></span></td>
         </tr>
     @empty
         <tr>

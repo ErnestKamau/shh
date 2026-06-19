@@ -288,8 +288,15 @@ final class TestRequestFormDataMapper
             $normalizedRow = [];
             foreach ($row as $key => $value) {
                 $canonicalKey = $this->rowFieldAliases[(string) $key] ?? $this->scalarAliases[(string) $key] ?? (string) $key;
+
+                if ($canonicalKey === 'chemical_analysis') {
+                    $canonicalKey = 'chemistry';
+                }
+
                 $normalizedRow[$canonicalKey] = $value;
             }
+
+            $normalizedRow = $this->normalizeTestCategoryOnRow($normalizedRow);
 
             if ($normalizedRow !== []) {
                 $normalized[] = $normalizedRow;
@@ -297,6 +304,39 @@ final class TestRequestFormDataMapper
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function normalizeTestCategoryOnRow(array $row): array
+    {
+        $category = strtolower(trim((string) ($row['test_category'] ?? '')));
+
+        if ($category === 'chemical_analysis' || $category === 'chemical') {
+            $category = 'chemistry';
+        }
+
+        if ($category === '') {
+            if (filter_var($row['microbiology'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $category = 'microbiology';
+            } elseif (filter_var($row['legionella'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $category = 'legionella';
+            } elseif (filter_var($row['chemistry'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $category = 'chemistry';
+            }
+        }
+
+        if ($category !== '') {
+            $row['test_category'] = $category;
+            $row['microbiology'] = $category === 'microbiology';
+            $row['legionella'] = $category === 'legionella';
+            $row['chemistry'] = $category === 'chemistry';
+            unset($row['chemical_analysis']);
+        }
+
+        return $row;
     }
 
     /**

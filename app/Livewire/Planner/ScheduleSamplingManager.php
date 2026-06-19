@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\SamplingScheduleNotification;
 use App\Exports\SamplingSchedulesExport;
 use App\Services\SubmissionForm\PortalSubmissionFormAccess;
+use App\Services\TestRequestForm\TestRequestFormSubmissionContext;
+use App\Services\TestRequestForm\TestRequestFormSubmissionService;
+use App\Models\TestRequestFormInstance;
 
 class ScheduleSamplingManager extends Component
 {
@@ -908,7 +911,10 @@ class ScheduleSamplingManager extends Component
                 'expiration_date' => '',
                 'batch_number' => '',
                 'parameters' => implode(', ', $parameterNames),
-                'state_of_sample' => '', // L, SS, S
+                'state_of_sample' => '',
+                'microbiology' => false,
+                'chemistry' => false,
+                'test_category' => '',
             ];
         }
 
@@ -941,12 +947,21 @@ class ScheduleSamplingManager extends Component
                 }
             }
 
+            $testCategory = '';
+            if ($hasMicro) {
+                $testCategory = 'microbiology';
+            } elseif ($hasLegionella) {
+                $testCategory = 'legionella';
+            } elseif ($hasChem) {
+                $testCategory = 'chemistry';
+            }
+
             return [
                 'sample_no' => '',
                 'sample_description' => '',
                 'location' => '',
                 'qty' => '',
-                'sampling_point' => '', // Tap, Tank, Pool, Shower Head, Others
+                'sampling_point' => '',
                 'ph' => '',
                 'appearance' => '',
                 'residual_chlorine' => '',
@@ -954,7 +969,8 @@ class ScheduleSamplingManager extends Component
                 'sample_temp' => '',
                 'microbiology' => $hasMicro,
                 'legionella' => $hasLegionella,
-                'chemical_analysis' => $hasChem,
+                'chemistry' => $hasChem,
+                'test_category' => $testCategory,
             ];
         }
 
@@ -1232,51 +1248,24 @@ class ScheduleSamplingManager extends Component
             $submissionForm = app(PortalSubmissionFormAccess::class)
                 ->testRequestFormForSampleType((string) $this->selectedSampleTypeId);
 
-            if (!$submissionForm) {
+            if (! $submissionForm) {
                 throw new \Exception('No active Test Request Form template found for this sample type. Please seed TRF templates first.');
             }
 
-            // Create SubmissionFormInstance request representing the scheduled contract client sample
-            $instance = \App\Models\SubmissionFormInstance::create([
-                'submission_form_id' => $submissionForm->id,
-                'form_number' => null,
-                'sequence_number' => null,
-                'title' => 'Test Request Form - ' . $schedule->title,
-                'submitted_by' => auth()->id(),
-                'status' => 'draft',
-                'priority' => 'normal',
-                'crm_customer_id' => $schedule->crm_customer_id,
-            ]);
-
-            // Save the form values to the database using unified mapper
-            $requestData = \App\Models\TestRequestFormInstance::mapToSubmissionFormRequestData($this->formData, $form);
-            $submissionService = app(\App\Services\SubmissionForm\SubmissionFormSubmissionService::class);
-            $elements = $submissionService->elementsForForm($submissionForm);
-            $req = new \Illuminate\Http\Request();
-            $req->merge($requestData);
-            $submissionService->processFormData($instance, $req, $elements);
-
-            $instance->logAction('created', auth()->user());
-            $instance->submit(auth()->user());
-            $instance->refresh();
-            $instance->markAsReceived(auth()->user()); // status becomes 'received', putting it in Received Request
-
-            $trfi = \App\Models\TestRequestFormInstance::updateOrCreate(
-                ['submission_form_instance_id' => $instance->id],
-                [
-                    'test_request_form_id' => $form->id,
-                    'sampling_schedule_id' => $this->selectedScheduleId,
-                    'form_data' => $this->formData,
-                    'status' => 'submitted',
-                    'created_by' => auth()->id(),
-                ]
+            $context = new TestRequestFormSubmissionContext(
+                sourceChannel: TestRequestFormInstance::CHANNEL_SCHEDULED,
+                crmCustomerId: $schedule->crm_customer_id,
+                submittedBy: (string) auth()->id(),
+                samplingScheduleId: $this->selectedScheduleId,
+                portalSubmissionForm: $submissionForm,
+                markShadowAsReceived: true,
             );
 
-            try {
-                app(\App\Services\Sampleworkflow\TestRequestFormPdfService::class)->generateAndStore($trfi->fresh());
-            } catch (\Throwable) {
-                // PDF failure should not block schedule sampling save.
-            }
+            $trfi = app(TestRequestFormSubmissionService::class)->submit(
+                $form,
+                $this->formData,
+                $context,
+            );
 
             $schedule->is_collected = true;
             $schedule->save();

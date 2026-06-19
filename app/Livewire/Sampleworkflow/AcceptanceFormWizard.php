@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sampleworkflow;
 
+use App\Jobs\Sampleworkflow\CreateSamplesFromAcceptanceFormJob;
 use App\Livewire\Sampleworkflow\Concerns\ManagesManagerAssignments;
 use App\Models\Sampleworkflow\AnalysisAcceptanceForm;
 use App\Models\SampleSubmissionRequest;
@@ -24,7 +25,7 @@ class AcceptanceFormWizard extends Component
 
     public bool $showModal = false;
 
-    public string $activeStep = 'sample_config';
+    public string $activeStep = 'receipt';
 
     public ?string $submissionFormInstanceId = null;
 
@@ -164,7 +165,6 @@ class AcceptanceFormWizard extends Component
         );
 
         $this->quotationLockedPath = (bool) ($prefill['quotation_locked'] ?? false);
-        $this->staffSignatureOnlyPath = true;
 
         $this->crmCustomerId = $prefill['customer_id'];
         $this->customerName = $prefill['customer_name'];
@@ -223,9 +223,17 @@ class AcceptanceFormWizard extends Component
 
         $this->syncReceivingIntegrityState();
 
+        if ($this->resumeInProgressAcceptanceForm()) {
+            $this->showModal = true;
+
+            return;
+        }
+
+        // Sample configuration and Request & pricing are captured during Process Enquiry.
+        $this->activeStep = 'receipt';
         $this->showModal = true;
-        $this->activeStep = 'staff_accept';
         $this->refreshReceiptNotificationFormState();
+        $this->dispatch('acceptance-receipt-step-opened');
     }
 
     /**
@@ -239,32 +247,11 @@ class AcceptanceFormWizard extends Component
             ];
         }
 
-        if ($this->quotationLockedPath) {
-            $steps = [];
+        // Sample configuration and Request & pricing are captured during Process Enquiry — not repeated here.
+        // ['key' => 'sample_config', 'label' => 'Sample configuration', ...],
+        // ['key' => 'request', 'label' => 'Request & pricing', ...],
 
-            if ($this->acceptanceFormId === null) {
-                $steps[] = ['key' => 'receipt', 'label' => 'Sample receipt (GCLA 01)', 'icon' => 'mdi-file-document-outline'];
-            }
-
-            if ($this->acceptanceFormId !== null) {
-                $steps[] = ['key' => 'customer', 'label' => 'Customer', 'icon' => 'mdi-account-check-outline'];
-            }
-
-            if ($this->acceptanceFormId !== null
-                && in_array($this->status, [
-                    AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
-                    AnalysisAcceptanceForm::STATUS_COMPLETED,
-                ], true)) {
-                $steps[] = ['key' => 'manager', 'label' => 'Lab manager', 'icon' => 'mdi-shield-check-outline'];
-            }
-
-            return $steps;
-        }
-
-        $steps = [
-            ['key' => 'sample_config', 'label' => 'Sample configuration', 'icon' => 'mdi-flask-outline'],
-            ['key' => 'request', 'label' => 'Request & pricing', 'icon' => 'mdi-clipboard-list-outline'],
-        ];
+        $steps = [];
 
         if ($this->acceptanceFormId === null) {
             $steps[] = ['key' => 'receipt', 'label' => 'Sample receipt (GCLA 01)', 'icon' => 'mdi-file-document-outline'];
@@ -427,6 +414,14 @@ class AcceptanceFormWizard extends Component
             return;
         }
 
+        if ($stepKey === 'manager' && $this->acceptanceFormId) {
+            $form = AnalysisAcceptanceForm::query()->find($this->acceptanceFormId);
+            if ($form !== null) {
+                $form = $this->ensureSampleBatchForForm($form);
+                $this->initializeManagerAssignmentFields($form);
+            }
+        }
+
         $this->activeStep = $stepKey;
 
         if ($stepKey === 'receipt' && $this->acceptanceFormId === null) {
@@ -443,59 +438,18 @@ class AcceptanceFormWizard extends Component
         }
     }
 
-    public function continueToRequestStep(): void
-    {
-        $configService = app(AcceptanceFormSampleConfigService::class);
-        $this->sampleConfigs = $configService->normalizeConfigsForStorage($this->sampleConfigs);
-        $configService->validateConfigs($this->sampleConfigs);
-
-        if (!$this->crmCustomerId) {
-            $this->dispatch('notify', type: 'error', message: 'Customer is required for pricing.');
-
-            return;
-        }
-
-        $this->lines = $configService->expandConfigsToLines($this->sampleConfigs, $this->crmCustomerId);
-        $this->numberOfSamples = $configService->totalSampleCount($this->sampleConfigs);
-        $this->reindexLines();
-
-        $this->validate([
-            'customerName' => 'required|string|max:255',
-            'requestDate' => 'required|date',
-            'numberOfSamples' => 'required|integer|min:1',
-            'modeOfWork' => 'required|in:Normal,Express',
-            'dateOfSampling' => 'nullable|date',
-            'lines' => 'required|array|min:1',
-        ]);
-
-        $this->refreshReceiptNotificationFormState();
-        $this->activeStep = 'request';
-    }
-
-    public function backFromRequestStep(): void
-    {
-        $this->activeStep = 'sample_config';
-    }
-
-    public function continueToReceiptStep(): void
-    {
-        $this->validate([
-            'customerName' => 'required|string|max:255',
-            'requestDate' => 'required|date',
-            'numberOfSamples' => 'required|integer|min:1',
-            'modeOfWork' => 'required|in:Normal,Express',
-            'dateOfSampling' => 'nullable|date',
-            'lines' => 'required|array|min:1',
-        ]);
-
-        $this->refreshReceiptNotificationFormState();
-        $this->activeStep = 'receipt';
-        $this->dispatch('acceptance-receipt-step-opened');
-    }
+    /*
+     * Sample configuration and Request & pricing steps removed from accept wizard —
+     * enquiry lines and sample configs are prefilled from Process Enquiry.
+     *
+     * public function continueToRequestStep(): void { ... }
+     * public function backFromRequestStep(): void { ... }
+     * public function continueToReceiptStep(): void { ... }
+     */
 
     public function backFromReceiptStep(): void
     {
-        $this->activeStep = 'request';
+        $this->activeStep = 'receipt';
     }
 
     public function addSampleConfig(): void
@@ -757,7 +711,7 @@ class AcceptanceFormWizard extends Component
 
     public function backFromDisclaimerStep(): void
     {
-        $this->activeStep = $this->acceptanceFormId === null ? 'receipt' : 'sample_config';
+        $this->activeStep = 'receipt';
     }
 
     /**
@@ -1074,6 +1028,7 @@ class AcceptanceFormWizard extends Component
         $this->status = $form->status;
 
         if ($form->status === AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
+            $form = $this->ensureSampleBatchForForm($form);
             $this->activeStep = 'manager';
             $this->initializeManagerAssignmentFields($form);
         }
@@ -1212,9 +1167,95 @@ class AcceptanceFormWizard extends Component
             && (string) ($line['analysis_type_id'] ?? '') === (string) ($analysisTypeId ?? '');
     }
 
+    private function resumeInProgressAcceptanceForm(): bool
+    {
+        $form = $this->findInProgressAcceptanceForm();
+        if ($form === null) {
+            return false;
+        }
+
+        $this->acceptanceFormId = (string) $form->id;
+        $this->status = (string) $form->status;
+        $this->crmCustomerId = (string) ($form->crm_customer_id ?? '');
+        $this->customerName = (string) ($form->customer_name ?? '');
+        $this->requestDate = $form->request_date?->format('Y-m-d');
+        $this->numberOfSamples = (int) ($form->number_of_samples ?? 1);
+        $this->modeOfWork = (string) ($form->mode_of_work ?? 'Normal');
+        $this->dateOfSampling = $form->date_of_sampling?->format('Y-m-d');
+
+        if ($form->raises_sample_disclaimer) {
+            $this->requiresDisclaimerStep = true;
+            $this->disclaimerForm = app(SampleReceivingDisclaimerService::class)
+                ->resolveFormStateForAcceptanceForm($form);
+        }
+
+        $this->refreshReceiptNotificationFormState();
+
+        if ($form->status === AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN) {
+            $form = $this->ensureSampleBatchForForm($form);
+            $this->initializeManagerAssignmentFields($form);
+            $this->activeStep = 'manager';
+
+            return true;
+        }
+
+        if ($form->status === AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN) {
+            $this->activeStep = 'customer';
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function findInProgressAcceptanceForm(): ?AnalysisAcceptanceForm
+    {
+        $statuses = [
+            AnalysisAcceptanceForm::STATUS_AWAITING_CUSTOMER_SIGN,
+            AnalysisAcceptanceForm::STATUS_AWAITING_LAB_MANAGER_SIGN,
+        ];
+
+        if ($this->submissionFormInstanceId) {
+            $form = AnalysisAcceptanceForm::query()
+                ->where('submission_form_instance_id', $this->submissionFormInstanceId)
+                ->whereIn('status', $statuses)
+                ->latest()
+                ->first();
+
+            if ($form !== null) {
+                return $form;
+            }
+        }
+
+        if ($this->submissionRequestId) {
+            return AnalysisAcceptanceForm::query()
+                ->where('sample_submission_request_id', $this->submissionRequestId)
+                ->whereIn('status', $statuses)
+                ->latest()
+                ->first();
+        }
+
+        return null;
+    }
+
+    private function ensureSampleBatchForForm(AnalysisAcceptanceForm $form): AnalysisAcceptanceForm
+    {
+        if ($form->sample_header_id) {
+            return $form->fresh(['lines', 'sampleHeader']) ?? $form;
+        }
+
+        try {
+            CreateSamplesFromAcceptanceFormJob::dispatchSync((string) $form->id);
+        } catch (\Throwable) {
+            // Job logs processing_error on the form.
+        }
+
+        return $form->fresh(['lines', 'sampleHeader']) ?? $form;
+    }
+
     private function resetWizard(): void
     {
-        $this->activeStep = 'sample_config';
+        $this->activeStep = 'receipt';
         $this->submissionFormInstanceId = null;
         $this->submissionRequestId = null;
         $this->acceptanceFormId = null;

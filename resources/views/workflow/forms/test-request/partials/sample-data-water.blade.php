@@ -85,7 +85,7 @@
                 @include('workflow.forms.test-request.partials.tick-icon', ['checked' => $row['legionella'] ?? false])
             </td>
             <td class="trf-tick-cell">
-                @include('workflow.forms.test-request.partials.tick-icon', ['checked' => $row['chemical_analysis'] ?? false])
+                @include('workflow.forms.test-request.partials.tick-icon', ['checked' => $row['chemistry'] ?? $row['chemical_analysis'] ?? false])
             </td>
         </tr>
     @endforeach

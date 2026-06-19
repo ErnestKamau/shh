@@ -20,6 +20,8 @@ use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Services\GroupedWorksheets\GroupedWorksheetAssignmentService;
+use App\Services\Sampleworkflow\JobSampleNumberingService;
+use App\Services\Sampleworkflow\SampleDetailCreationService;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\DB;
@@ -1066,18 +1068,8 @@ class Samples extends Component
     private function createSampleDetailsFromStagingLivewire($sampleHeader, $staging, $samplePointId, $index, $totalSamples, $quantity = 1, $comments = '')
     {
         $dataJson = $staging->data_json;
-        // Inject quantity into dataJson for creation
         $dataJson['force_quantity'] = $quantity;
 
-        // Generate code
-        // Simple generation for now, ideally matched with controller logic
-        $sampleSeqNo = SampleDetails::where('sample_header_id', $sampleHeader->id)->count();
-        $sampleSeqNo++;
-        $sampleCodeStr = $sampleHeader->batch_code . '-' . sprintf('%02d', $sampleSeqNo);
-        $sampleNo = sprintf('%02d', $sampleSeqNo);
-        $reportNumber = $sampleHeader->batch_code;
-
-        // Defaults
         $disposal_date = null;
         if ($sampleHeader->sample_type && $sampleHeader->sample_type->disposal_count) {
             $disposal_date = \Carbon\Carbon::parse($sampleHeader->receipt_date)->addDays($sampleHeader->sample_type->disposal_count)->format('Y-m-d');
@@ -1091,25 +1083,35 @@ class Samples extends Component
             }
         }
 
-        $sampleConditionId = $dataJson['sample_condition_id'] ?? 1; // Default
+        $sampleConditionId = $dataJson['sample_condition_id'] ?? 1;
 
-        $sampleDetail = new SampleDetails();
-        $sampleDetail->fill([
-            'sample_header_id' => $sampleHeader->id,
-            'sample_code' => $sampleCodeStr,
-            'sample_no' => $sampleNo,
-            'report_number' => $reportNumber,
-            'sample_point_id' => $samplePointId,
-            'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
-            'company_product_id' => $companyProductId,
-            'sample_condition_id' => $sampleConditionId,
-            'lab_id' => $dataJson['lab_id'] ?? 1,
-            'quantity' => $dataJson['force_quantity'] ?? 1,
-            'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
-            'disposal_date' => $disposal_date,
-            'comments' => $comments,
-        ]);
-        $sampleDetail->save();
+        $numberingService = app(JobSampleNumberingService::class);
+        $detailCreationService = app(SampleDetailCreationService::class);
+
+        $prefix = (string) ($dataJson['sample_code_prefix'] ?? '');
+        if ($prefix === '' && ! empty($dataJson['test_category'])) {
+            $prefix = $numberingService->resolveCategoryPrefixFromRow($dataJson);
+        }
+        if ($prefix === '') {
+            $prefix = JobSampleNumberingService::PREFIX_CHEMISTRY;
+        }
+
+        $sampleDetail = $detailCreationService->create(
+            $sampleHeader,
+            $prefix,
+            [
+                'sample_point_id' => $samplePointId,
+                'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
+                'company_product_id' => $companyProductId,
+                'sample_condition_id' => $sampleConditionId,
+                'lab_id' => $dataJson['lab_id'] ?? 1,
+                'quantity' => $dataJson['force_quantity'] ?? 1,
+                'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
+                'disposal_date' => $disposal_date,
+                'comments' => $comments,
+            ],
+            $dataJson['customer_sample_id'] ?? null,
+        );
 
         // Create captured results (We need to replicate createCapturedResultsForAnalysisType logic or call it)
         // Since that logic is complex and involves AnalysisElements, we should duplicate it or refactor to Service.
@@ -1661,11 +1663,16 @@ class Samples extends Component
      */
     protected function generateSampleCode()
     {
-        $batchCode = $this->batch->batch_code;
+        $numberingService = app(JobSampleNumberingService::class);
+        $batchCode = (string) $this->batch->batch_code;
+
+        if ($numberingService->isJobNumberFormat($batchCode)) {
+            return $numberingService->nextSampleCode($batchCode, JobSampleNumberingService::PREFIX_CHEMISTRY);
+        }
+
         $existingCount = count($this->sampleForms);
 
-        // Format: BATCH_CODE + sequence (e.g., 2024L001-01)
-        return $batchCode . '-' . str_pad($existingCount + 1, 2, '0', STR_PAD_LEFT);
+        return $batchCode . '-' . str_pad((string) ($existingCount + 1), 2, '0', STR_PAD_LEFT);
     }
 
     /**

@@ -15,6 +15,8 @@ use App\Zone;
 use App\User;
 use App\Models\SampleSubmissionRequest;
 use App\Models\System\SystemConfiguration;
+use App\Services\Sampleworkflow\JobSampleNumberingService;
+use App\Services\Sampleworkflow\SampleDetailCreationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -22,6 +24,11 @@ use Carbon\Carbon;
 
 class SampleCreationService
 {
+    public function __construct(
+        private readonly JobSampleNumberingService $numberingService,
+        private readonly SampleDetailCreationService $sampleDetailCreationService,
+    ) {}
+
     /**
      * Create sample header and details from a submitted form instance
      */
@@ -377,39 +384,54 @@ class SampleCreationService
             : collect();
 
         foreach ($detailsData as $index => $detailData) {
-            // Generate sample code if not provided
-            if (empty($detailData['sample_code'])) {
-                $detailData['sample_code'] = $this->generateSampleCode($sampleHeader, $detailData, $sampleHeader->batch_code, $sampleCount, $batchCount);
-            }
-
-            // Set required fields
-            $detailData['sample_header_id'] = $sampleHeader->id;
-            $detailData['created_at'] = now();
-            $detailData['updated_at'] = now();
-
-            // Set default values
-            $detailData['is_ammendment'] = $detailData['is_ammendment'] ?? 0;
-            $detailData['ammendment_number'] = $detailData['ammendment_number'] ?? 1;
-            $detailData['is_disposed'] = $detailData['is_disposed'] ?? 0;
-
-            // Store original analysis type string for relations later
             $analysisTypeIdsStr = $detailData['analysis_type_id'] ?? null;
 
-            // Clean up invalid UUIDs before Eloquent insertion
-            if (!empty($detailData['analysis_type_id']) && !$this->isValidUuid($detailData['analysis_type_id'])) {
-                unset($detailData['analysis_type_id']);
-            }
-            
             $uuidColumns = ['lab_id', 'sample_condition_id', 'sample_point_id', 'company_product_id'];
             foreach ($uuidColumns as $col) {
                 if (isset($detailData[$col])) {
-                    if (empty($detailData[$col]) || !$this->isValidUuid($detailData[$col])) {
+                    if (empty($detailData[$col]) || ! $this->isValidUuid($detailData[$col])) {
                         $detailData[$col] = null;
                     }
                 }
             }
 
-            $sampleDetail = SampleDetails::create($detailData);
+            if (! empty($detailData['analysis_type_id']) && ! $this->isValidUuid($detailData['analysis_type_id'])) {
+                unset($detailData['analysis_type_id']);
+                $analysisTypeIdsStr = null;
+            }
+
+            unset($detailData['sample_code'], $detailData['sample_no'], $detailData['report_number']);
+
+            $detailData['is_ammendment'] = $detailData['is_ammendment'] ?? 0;
+            $detailData['ammendment_number'] = $detailData['ammendment_number'] ?? 1;
+            $detailData['is_disposed'] = $detailData['is_disposed'] ?? 0;
+            $detailData['created_at'] = now();
+            $detailData['updated_at'] = now();
+
+            if ($this->numberingService->isJobNumberFormat((string) $sampleHeader->batch_code)) {
+                $prefix = (string) ($detailData['sample_code_prefix'] ?? '');
+                if ($prefix === '' && ! empty($detailData['test_category'])) {
+                    $prefix = $this->numberingService->resolveCategoryPrefixFromRow($detailData);
+                }
+                if ($prefix === '') {
+                    $prefix = JobSampleNumberingService::PREFIX_CHEMISTRY;
+                }
+
+                $sampleDetail = $this->sampleDetailCreationService->create(
+                    $sampleHeader,
+                    $prefix,
+                    $detailData,
+                    $detailData['customer_sample_id'] ?? null,
+                );
+            } else {
+                if (empty($detailData['sample_code'])) {
+                    $detailData['sample_code'] = $this->generateLegacySampleCode($sampleHeader, $detailData);
+                }
+
+                $detailData['sample_header_id'] = $sampleHeader->id;
+                $sampleDetail = SampleDetails::create($detailData);
+            }
+
             $sampleDetails[] = $sampleDetail;
 
             // Link exhibit sequentially to this sample detail if available
@@ -456,25 +478,26 @@ class SampleCreationService
     private function generateBatchCode($headerData, $submissionFormInstanceId = null, $batchCount = 1, $instance = null)
     {
         try {
-            if (!$instance) {
+            if (! $instance) {
                 $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
             }
 
-            // New required format: [ZoneCode][YY]-[NNNNN], e.g. LZ26-00015
-            $zoneCode = $this->resolveZoneCodeForBatch($instance, $headerData);
-            $batchCode = $this->generateZoneYearBatchCode($zoneCode);
+            $jobNumber = $this->numberingService->generateJobNumber();
 
-            Log::info('Generated zone-based batch code', [
-                'batch_code' => $batchCode,
-                'zone_code' => $zoneCode,
+            if ($instance !== null) {
+                $this->numberingService->persistJobNumberOnSubmissionInstance($instance, $jobNumber);
+            }
+
+            Log::info('Generated job/batch code', [
+                'batch_code' => $jobNumber,
                 'batch_count' => $batchCount,
                 'form_instance_id' => $instance?->id,
             ]);
 
-            return $batchCode;
-
+            return $jobNumber;
         } catch (\Exception $e) {
-            Log::error('Error generating zone-based batch code: ' . $e->getMessage());
+            Log::error('Error generating job/batch code: ' . $e->getMessage());
+
             return $this->generateLegacyBatchCode($headerData);
         }
     }
@@ -761,54 +784,6 @@ class SampleCreationService
     }
 
     /**
-     * Generate sample code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}-{sample_no_seq_no}
-     * Smart logic: If only 1 sample, reuse batch_code; if multiple samples, use sequential codes
-     */
-    private function generateSampleCode(SampleHeader $sampleHeader, $detailData, $batchCode = null, $sampleCount = 1, $batchCount = 1)
-    {
-        // If batch code is provided, use new format
-        if ($batchCode) {
-            try {
-                // SMART LOGIC: Only reuse batch_code if this is truly a single sample in a single batch
-                if ($sampleCount === 1 && $batchCount === 1) {
-                    $sampleCode = $batchCode;
-
-                    Log::info('Smart sample code generation: Reusing batch_code for single sample in single batch', [
-                        'batch_code' => $batchCode,
-                        'sample_count' => $sampleCount,
-                        'batch_count' => $batchCount
-                    ]);
-
-                    return $sampleCode;
-                }
-
-                // Multiple samples: Use sequential sample codes
-                // Get next sample sequence for this batch
-                $sampleSeqNo = \App\Models\SampleSequence::getNextSampleSequence($batchCode);
-
-                // Generate sample code: {batch_code}-{sample_no_seq_no}
-                $sampleCode = $batchCode . '-' . sprintf('%03d', $sampleSeqNo);
-
-                Log::info('Standard sample code generation for multiple samples', [
-                    'sample_code' => $sampleCode,
-                    'sample_count' => $sampleCount,
-                    'batch_count' => $batchCount
-                ]);
-
-                return $sampleCode;
-
-            } catch (\Exception $e) {
-                Log::error('Error generating new sample code: ' . $e->getMessage());
-                // Fall back to legacy method
-                return $this->generateLegacySampleCode($sampleHeader, $detailData);
-            }
-        }
-
-        // Fall back to legacy method if no batch code provided
-        return $this->generateLegacySampleCode($sampleHeader, $detailData);
-    }
-
-    /**
      * Legacy sample code generation (fallback)
      */
     private function generateLegacySampleCode(SampleHeader $sampleHeader, $detailData)
@@ -1001,55 +976,44 @@ class SampleCreationService
      */
     public function regenerateSampleCodes(SampleHeader $sampleHeader)
     {
+        if (! $this->numberingService->isJobNumberFormat((string) $sampleHeader->batch_code)) {
+            return [
+                'success' => false,
+                'message' => 'Sample code regeneration is only supported for job-number batches.',
+            ];
+        }
+
         DB::beginTransaction();
 
         try {
             $samples = $sampleHeader->samples()->orderBy('id', 'asc')->get();
-            $batchCode = $sampleHeader->batch_code;
 
             Log::info('Regenerating sample codes for batch', [
                 'batch_id' => $sampleHeader->id,
-                'batch_code' => $batchCode,
-                'sample_count' => $samples->count()
+                'batch_code' => $sampleHeader->batch_code,
+                'sample_count' => $samples->count(),
             ]);
-
-            // Reset the sample sequence for this batch
-            $sampleSequence = \App\Models\SampleSequence::where('batch_code', $batchCode)->first();
-            if ($sampleSequence) {
-                $sampleSequence->update(['sample_sequence' => 0]);
-            } else {
-                \App\Models\SampleSequence::create([
-                    'batch_code' => $batchCode,
-                    'sample_sequence' => 0
-                ]);
-            }
 
             $updatedCodes = [];
 
-            // Regenerate codes for all samples with sequential suffixes
-            foreach ($samples as $index => $sample) {
-                $sequenceNo = $index + 1;
-                $newSampleCode = $batchCode . '-' . sprintf('%03d', $sequenceNo);
+            foreach ($samples as $sample) {
+                $prefix = JobSampleNumberingService::PREFIX_CHEMISTRY;
+                if (preg_match('/-([MLC])\d{3}$/', (string) $sample->sample_code, $matches)) {
+                    $prefix = $matches[1];
+                }
 
+                $newSampleCode = $this->numberingService->nextSampleCode((string) $sampleHeader->batch_code, $prefix);
                 $oldCode = $sample->sample_code;
-                $sample->update(['sample_code' => $newSampleCode]);
+                $sample->update([
+                    'sample_code' => $newSampleCode,
+                    'sample_no' => $this->numberingService->sampleNumberFromCode($newSampleCode),
+                ]);
 
                 $updatedCodes[] = [
                     'sample_id' => $sample->id,
                     'old_code' => $oldCode,
-                    'new_code' => $newSampleCode
+                    'new_code' => $newSampleCode,
                 ];
-
-                Log::info('Regenerated sample code', [
-                    'sample_id' => $sample->id,
-                    'old_code' => $oldCode,
-                    'new_code' => $newSampleCode
-                ]);
-            }
-
-            // Update the sequence counter
-            if ($sampleSequence) {
-                $sampleSequence->update(['sample_sequence' => $samples->count()]);
             }
 
             DB::commit();
@@ -1057,19 +1021,18 @@ class SampleCreationService
             return [
                 'success' => true,
                 'updated_codes' => $updatedCodes,
-                'message' => 'Sample codes regenerated successfully'
+                'message' => 'Sample codes regenerated successfully',
             ];
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to regenerate sample codes', [
                 'batch_id' => $sampleHeader->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'message' => 'Failed to regenerate sample codes: ' . $e->getMessage()
+                'message' => 'Failed to regenerate sample codes: ' . $e->getMessage(),
             ];
         }
     }

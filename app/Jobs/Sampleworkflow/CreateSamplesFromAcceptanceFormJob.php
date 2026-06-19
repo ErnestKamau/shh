@@ -18,7 +18,9 @@ use App\Services\Commercial\EnquiryReceptionReadinessService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleHeaderService;
+use App\Services\Sampleworkflow\JobSampleNumberingService;
 use App\Services\Sampleworkflow\SampleAnalysisSetupService;
+use App\Services\Sampleworkflow\SampleDetailCreationService;
 use App\TaxRegime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,7 +48,9 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         SampleAnalysisSetupService $analysisSetupService,
         AcceptanceFormPricingService $pricingService,
         AcceptanceFormSampleConfigService $sampleConfigService,
-        InvoiceNumberGenerator $invoiceNumberGenerator
+        InvoiceNumberGenerator $invoiceNumberGenerator,
+        SampleDetailCreationService $sampleDetailCreationService,
+        JobSampleNumberingService $numberingService,
     ): void {
         $form = AnalysisAcceptanceForm::query()
             ->with(['lines', 'submissionFormInstance.batches'])
@@ -57,7 +61,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         }
 
         try {
-            DB::transaction(function () use ($form, $sampleHeaderService, $analysisSetupService, $pricingService, $sampleConfigService, $invoiceNumberGenerator) {
+            DB::transaction(function () use ($form, $sampleHeaderService, $analysisSetupService, $pricingService, $sampleConfigService, $invoiceNumberGenerator, $sampleDetailCreationService, $numberingService) {
                 $approvedLines = $form->lines->where('is_approved', true)->values();
                 if ($approvedLines->isEmpty()) {
                     throw new \RuntimeException('No approved analysis lines on acceptance form.');
@@ -67,6 +71,16 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 $instance = $form->submission_form_instance_id
                     ? SubmissionFormInstance::query()->with('batches')->find($form->submission_form_instance_id)
                     : null;
+
+                if ($instance === null && $form->sample_submission_request_id) {
+                    $linkedInstanceId = \App\Models\SampleSubmissionRequest::query()
+                        ->whereKey($form->sample_submission_request_id)
+                        ->value('submission_form_instance_id');
+
+                    if ($linkedInstanceId) {
+                        $instance = SubmissionFormInstance::query()->with('batches')->find($linkedInstanceId);
+                    }
+                }
 
                 $configPayload = is_array($form->sample_configuration_payload)
                     ? $form->sample_configuration_payload
@@ -84,6 +98,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
                 $batchCode = (string) $headerAttributes['batch_code'];
                 $header = SampleHeader::query()->create($headerAttributes);
+
+                if ($instance !== null && $numberingService->isJobNumberFormat($batchCode)) {
+                    $numberingService->persistJobNumberOnSubmissionInstance($instance, $batchCode);
+                }
 
                 $candidateIds = collect([
                     $form->sample_submission_request_id,
@@ -116,9 +134,10 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
                 $details = $this->createSampleDetails(
                     $header,
-                    $batchCode,
                     $detailPlans,
                     $analysisSetupService,
+                    $sampleDetailCreationService,
+                    $numberingService,
                     $form->created_by ? (string) $form->created_by : null,
                     $approvedLines,
                     $elementFlagOverrides,
@@ -224,6 +243,7 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
                 'sample_type_id' => $sampleTypeKey !== '' ? $sampleTypeKey : null,
                 'analysis_type_ids' => $analysisTypeIds,
                 'count' => $singleSampleTypeGroup ? $numberOfSamples : 1,
+                'sample_code_prefix' => $this->inferPrefixForAnalysisTypes($analysisTypeIds),
             ];
         }
 
@@ -237,17 +257,15 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
      */
     private function createSampleDetails(
         SampleHeader $header,
-        string $batchCode,
         array $detailPlans,
         SampleAnalysisSetupService $analysisSetupService,
+        SampleDetailCreationService $sampleDetailCreationService,
+        JobSampleNumberingService $numberingService,
         ?string $actingUserId = null,
         $approvedLines = null,
         ?array $elementFlagOverrides = null,
     ): array {
         $usesLegacyCountShape = isset($detailPlans[0]['count']);
-        $totalDetails = $usesLegacyCountShape
-            ? array_sum(array_column($detailPlans, 'count'))
-            : count($detailPlans);
 
         $portalRequest = null;
         if ($header->submission_form_instance_id) {
@@ -274,35 +292,42 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
 
             for ($i = 0; $i < $iterations; $i++) {
                 $detailIndex++;
-                $sampleCode = $this->resolveSampleCode($batchCode, $detailIndex, max(1, $totalDetails));
+                $prefix = (string) ($plan['sample_code_prefix'] ?? '');
+                if ($prefix === '' && ! empty($plan['analysis_type_ids'])) {
+                    $prefix = $this->inferPrefixForAnalysisTypes($plan['analysis_type_ids']);
+                }
 
-                $detailData = [
-                    'sample_header_id' => $header->id,
+                $detailAttributes = [
                     'sample_type_id' => $plan['sample_type_id'] ?? null,
-                    'sample_code' => $sampleCode,
                     'analysis_type_id' => implode(',', $plan['analysis_type_ids'] ?? []),
                 ];
 
-                if (!$usesLegacyCountShape) {
-                    if (!empty($plan['sample_condition_id'])) {
-                        $detailData['sample_condition_id'] = $plan['sample_condition_id'];
+                if (! $usesLegacyCountShape) {
+                    if (! empty($plan['sample_condition_id'])) {
+                        $detailAttributes['sample_condition_id'] = $plan['sample_condition_id'];
                     }
-                    if (!empty($plan['main_standard_id'])) {
-                        $detailData['main_standard'] = $plan['main_standard_id'];
+                    if (! empty($plan['main_standard_id'])) {
+                        $detailAttributes['main_standard'] = $plan['main_standard_id'];
                     }
-                    if (!empty($plan['sample_marking'])) {
-                        $detailData['comments'] = $plan['sample_marking'];
+                    if (! empty($plan['sample_marking'])) {
+                        $detailAttributes['comments'] = $plan['sample_marking'];
                     }
-                    if (!empty($plan['customer_sample_id'])) {
-                        $detailData['barcode'] = $plan['customer_sample_id'];
-                        $detailData['customer_sample_id'] = $plan['customer_sample_id'];
+                    if (! empty($plan['customer_sample_id'])) {
+                        $detailAttributes['barcode'] = $plan['customer_sample_id'];
                     }
-                    if (!empty($plan['zone_id'])) {
-                        $detailData['processing_zone_id'] = $plan['zone_id'];
+                    if (! empty($plan['zone_id'])) {
+                        $detailAttributes['processing_zone_id'] = $plan['zone_id'];
                     }
                 }
 
-                $detail = SampleDetails::query()->create($detailData);
+                $detail = $sampleDetailCreationService->create(
+                    $header,
+                    $prefix,
+                    $detailAttributes,
+                    $plan['customer_sample_id'] ?? null,
+                );
+
+                $sampleCode = (string) $detail->sample_code;
 
                 // Link exhibit sequentially to this sample detail if available
                 if ($portalRequest && isset($exhibits[$detailIndex - 1])) {
@@ -348,13 +373,21 @@ class CreateSamplesFromAcceptanceFormJob implements ShouldQueue
         return $details;
     }
 
-    private function resolveSampleCode(string $batchCode, int $detailIndex, int $totalDetails): string
+    /**
+     * @param  list<string>  $analysisTypeIds
+     */
+    private function inferPrefixForAnalysisTypes(array $analysisTypeIds): string
     {
-        if ($totalDetails <= 1) {
-            return $batchCode;
+        $numberingService = app(JobSampleNumberingService::class);
+
+        foreach ($analysisTypeIds as $analysisTypeId) {
+            $analysis = AnalysisType::query()->find($analysisTypeId);
+            if ($analysis) {
+                return $numberingService->inferPrefixFromAnalysisTypeName($analysis->name);
+            }
         }
 
-        return $batchCode . '-' . sprintf('%02d', $detailIndex);
+        return JobSampleNumberingService::PREFIX_CHEMISTRY;
     }
 
     /**

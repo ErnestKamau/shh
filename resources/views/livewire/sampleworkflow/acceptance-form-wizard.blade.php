@@ -75,167 +75,15 @@
                             </section>
                         @endif
 
+                        {{-- Sample configuration and Request & pricing are handled in Process Enquiry — steps removed from accept wizard.
                         @if($activeStep === 'sample_config')
                             @include('livewire.partials.acceptance-sample-config-table')
                         @endif
 
                         @if($activeStep === 'request')
-                            @if($showRaiseDisclaimerOption)
-                                <div class="acc-disclaimer-alert" role="alert">
-                                    <div class="acc-disclaimer-alert-head">
-                                        <i class="mdi mdi-alert-outline"></i>
-                                        <strong>Sample integrity checklist incomplete</strong>
-                                    </div>
-                                    <p class="mb-2">One or more mandatory receiving checklist items were not marked as done:</p>
-                                    <ul class="acc-disclaimer-alert-list mb-3">
-                                        @foreach($incompleteChecklistItems as $item)
-                                            <li>{{ $item['label'] }}</li>
-                                        @endforeach
-                                    </ul>
-                                    <label class="acc-disclaimer-check mb-0">
-                                        <input type="checkbox" wire:model.live="raiseSampleDisclaimer">
-                                        <span class="acc-disclaimer-check-ui"></span>
-                                        <span class="acc-disclaimer-check-label">Raise sample disclaimer form</span>
-                                    </label>
-                                </div>
-                            @endif
-
-                            <section class="acc-wizard-section">
-                                <h6 class="acc-wizard-section-title">Request details</h6>
-                                <div class="row acc-wizard-fields">
-                                    <div class="col-md-6 form-group">
-                                        <label class="acc-label">Customer name</label>
-                                        <input type="text" class="form-control acc-input" wire:model="customerName">
-                                        @error('customerName') <small class="text-danger">{{ $message }}</small> @enderror
-                                    </div>
-                                    <div class="col-md-6 form-group">
-                                        <label class="acc-label">Request date</label>
-                                        <input type="date" class="form-control acc-input" wire:model="requestDate">
-                                    </div>
-                                    <div class="col-md-4 form-group">
-                                        <label class="acc-label">Number of samples</label>
-                                        <input type="number" min="1" class="form-control acc-input" wire:model="numberOfSamples">
-                                    </div>
-                                    <div class="col-md-4 form-group">
-                                        <label class="acc-label">Mode of work</label>
-                                        <select class="form-control acc-input" wire:model="modeOfWork">
-                                            <option value="Normal">Normal</option>
-                                            <option value="Express">Express</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 form-group">
-                                        <label class="acc-label">Date of sampling</label>
-                                        <input type="date" class="form-control acc-input" wire:model="dateOfSampling">
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section class="acc-wizard-section acc-pricing-section">
-                                <div class="acc-pricing-toolbar">
-                                    <div>
-                                        <h6 class="acc-wizard-section-title mb-1">Parameters &amp; pricing</h6>
-                                        <p class="acc-wizard-hint mb-0">Review pricing from your sample configuration. Toggle approval per line or go back to edit configuration.</p>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="backFromRequestStep">
-                                        <i class="mdi mdi-arrow-left"></i> Edit configuration
-                                    </button>
-                                </div>
-
-                                <div class="acc-pricing-table-wrap">
-                                    <table class="table acc-pricing-table mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th class="col-no">No</th>
-                                                <th class="col-param">Parameter</th>
-                                                <th class="col-amount text-right">Amount</th>
-                                                <th class="col-samples">Samples</th>
-                                                <th class="col-approve text-center">Approve</th>
-                                                <th class="col-action"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse($this->groupedLines as $sampleGroup)
-                                                <tr class="acc-row-sample-type" wire:key="st-{{ $sampleGroup['sample_type_id'] ?? 'x' }}-{{ $loop->index }}">
-                                                    <td colspan="6">
-                                                        <i class="mdi mdi-flask-outline"></i>
-                                                        {{ $sampleGroup['sample_type_name'] }}
-                                                    </td>
-                                                </tr>
-                                                @foreach($sampleGroup['analysis_groups'] as $analysisGroup)
-                                                    @php
-                                                        $headerIndex = $analysisGroup['header_line_index'] ?? null;
-                                                        $headerLine = $headerIndex !== null ? ($this->lines[$headerIndex] ?? null) : null;
-                                                    @endphp
-                                                    <tr class="acc-row-analysis-type {{ $headerLine ? 'acc-row-analysis-type--with-controls' : '' }}" wire:key="at-{{ $analysisGroup['analysis_type_id'] ?? 'x' }}-{{ $loop->parent->index }}-{{ $loop->index }}">
-                                                        <td colspan="{{ $headerLine ? 1 : 6 }}" class="acc-analysis-type-label">
-                                                            <i class="mdi mdi-chart-timeline-variant"></i>
-                                                            {{ $analysisGroup['analysis_type_name'] }}
-                                                        </td>
-                                                        @if($headerLine)
-                                                            <td colspan="2"></td>
-                                                            <td class="col-amount text-right">
-                                                                <span class="acc-amount acc-amount--on-header">{{ number_format((float) ($headerLine['unit_amount'] ?? 0), 2) }}</span>
-                                                            </td>
-                                                            <td class="col-samples">
-                                                                <input type="number" min="1" class="form-control form-control-sm acc-input-sm" wire:model.live="lines.{{ $headerIndex }}.number_of_samples">
-                                                            </td>
-                                                            <td class="col-approve text-center">
-                                                                <label class="acc-check-wrap mb-0">
-                                                                    <input type="checkbox" wire:model.live="lines.{{ $headerIndex }}.is_approved">
-                                                                    <span class="acc-check-ui"></span>
-                                                                </label>
-                                                            </td>
-                                                            <td class="col-action text-center">
-                                                                <button type="button" class="btn btn-sm acc-btn-remove" wire:click="removeLine({{ $headerIndex }})" title="Remove">
-                                                                    <i class="mdi mdi-trash-can-outline"></i>
-                                                                </button>
-                                                            </td>
-                                                        @endif
-                                                    </tr>
-                                                    @foreach($analysisGroup['items'] as $item)
-                                                        @php $index = $item['index']; $line = $item['line']; @endphp
-                                                        <tr class="acc-row-parameter" wire:key="line-{{ $index }}">
-                                                            <td class="col-no text-muted">{{ $line['line_no'] ?? $index + 1 }}</td>
-                                                            <td class="col-param">
-                                                                <span class="acc-param-name">{{ $line['parameter_label'] ?? 'Parameter' }}</span>
-                                                            </td>
-                                                            <td class="col-amount text-right">
-                                                                <span class="acc-amount">{{ number_format((float) ($line['unit_amount'] ?? 0), 2) }}</span>
-                                                            </td>
-                                                            <td class="col-samples">
-                                                                <input type="number" min="1" class="form-control form-control-sm acc-input-sm" wire:model.live="lines.{{ $index }}.number_of_samples">
-                                                            </td>
-                                                            <td class="col-approve text-center">
-                                                                <label class="acc-check-wrap mb-0">
-                                                                    <input type="checkbox" wire:model.live="lines.{{ $index }}.is_approved">
-                                                                    <span class="acc-check-ui"></span>
-                                                                </label>
-                                                            </td>
-                                                            <td class="col-action text-center">
-                                                                <button type="button" class="btn btn-sm acc-btn-remove" wire:click="removeLine({{ $index }})" title="Remove">
-                                                                    <i class="mdi mdi-trash-can-outline"></i>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                @endforeach
-                                            @empty
-                                                <tr>
-                                                    <td colspan="6" class="text-center acc-empty">No parameters loaded for this request.</td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                        <tfoot>
-                                            <tr class="acc-row-total">
-                                                <td colspan="2" class="text-right">Total (approved lines)</td>
-                                                <td class="text-right acc-total-amount">{{ number_format($this->totalAmount, 2) }}</td>
-                                                <td colspan="3"></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </section>
+                            ... request & pricing step ...
                         @endif
+                        --}}
 
                         @if($activeStep === 'disclaimer')
                             <section class="acc-wizard-section">
@@ -317,6 +165,25 @@
                         @endif
 
                         @if($activeStep === 'receipt')
+                            @if($showRaiseDisclaimerOption && !$acceptanceFormId)
+                                <div class="acc-disclaimer-alert" role="alert">
+                                    <div class="acc-disclaimer-alert-head">
+                                        <i class="mdi mdi-alert-outline"></i>
+                                        <strong>Sample integrity checklist incomplete</strong>
+                                    </div>
+                                    <p class="mb-2">One or more mandatory receiving checklist items were not marked as done:</p>
+                                    <ul class="acc-disclaimer-alert-list mb-3">
+                                        @foreach($incompleteChecklistItems as $item)
+                                            <li>{{ $item['label'] }}</li>
+                                        @endforeach
+                                    </ul>
+                                    <label class="acc-disclaimer-check mb-0">
+                                        <input type="checkbox" wire:model.live="raiseSampleDisclaimer">
+                                        <span class="acc-disclaimer-check-ui"></span>
+                                        <span class="acc-disclaimer-check-label">Raise sample disclaimer form</span>
+                                    </label>
+                                </div>
+                            @endif
                             <section class="acc-wizard-section">
                                 <div class="acc-pricing-toolbar mb-3">
                                     <div>
@@ -347,19 +214,13 @@
                             <button type="button" class="btn acc-btn-success" id="acceptance-staff-sign-submit" wire:loading.attr="disabled">
                                 Accept samples
                             </button>
+                        {{-- Sample configuration and Request & pricing footer actions removed (Process Enquiry).
                         @elseif($activeStep === 'sample_config')
-                            <button type="button" class="btn acc-btn-primary" wire:click="continueToRequestStep" wire:loading.attr="disabled">
-                                <span wire:loading wire:target="continueToRequestStep" class="spinner-border spinner-border-sm mr-1"></span>
-                                Continue
-                            </button>
+                            ...
                         @elseif($activeStep === 'request')
-                            <button type="button" class="btn btn-light" wire:click="backFromRequestStep">Back</button>
-                            <button type="button" class="btn acc-btn-primary" wire:click="continueToReceiptStep" wire:loading.attr="disabled">
-                                <span wire:loading wire:target="continueToReceiptStep" class="spinner-border spinner-border-sm mr-1"></span>
-                                Continue
-                            </button>
+                            ...
+                        --}}
                         @elseif($activeStep === 'receipt' && !$acceptanceFormId)
-                            <button type="button" class="btn btn-light" wire:click="backFromReceiptStep">Back</button>
                             <button type="button" class="btn acc-btn-primary" wire:click="submitStep1" wire:loading.attr="disabled">
                                 <span wire:loading wire:target="submitStep1" class="spinner-border spinner-border-sm mr-1"></span>
                                 @if($raiseSampleDisclaimer)

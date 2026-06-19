@@ -182,7 +182,7 @@
                                                                 <th style="width: 15%">Sample Condition</th>
                                                                 <th style="width: 10%">Dates & Batch</th>
                                                                 <th style="width: 10%">State</th>
-                                                                <th style="width: 10%">Micro/Chem Param</th>
+                                                                <th style="width: 10%">Test Category</th>
                                                                 <th style="width: 5%">Actions</th>
                                                             </tr>
                                                         </thead>
@@ -233,7 +233,7 @@
                                                                         </select>
                                                                     </td>
                                                                     <td>
-                                                                        <textarea wire:model="formData.sample_rows.{{ $rowIdx }}.parameters" class="form-control form-control-xs" rows="2" style="padding: 2px 5px; font-size: 11px;" placeholder="Micro/Chem"></textarea>
+                                                                        @include('workflow.forms.test-request.partials.test-category-radios', ['rowIdx' => $rowIdx, 'showLegionella' => false])
                                                                     </td>
                                                                     <td class="text-center align-middle">
                                                                         <button type="button" wire:click="removeSampleRow({{ $rowIdx }})" class="btn btn-danger btn-xs p-1"><i class="mdi mdi-trash-can"></i></button>
@@ -306,18 +306,7 @@
                                                                         <input type="text" wire:model="formData.sample_rows.{{ $rowIdx }}.appearance" class="form-control form-control-xs mt-1" style="padding: 2px 5px; height: auto; font-size: 11px;" placeholder="Appearance">
                                                                     </td>
                                                                     <td>
-                                                                        <div class="custom-control custom-checkbox small mb-1">
-                                                                            <input type="checkbox" id="water_micro_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.microbiology" class="custom-control-input">
-                                                                            <label class="custom-control-label" for="water_micro_{{ $rowIdx }}">Microbiology</label>
-                                                                        </div>
-                                                                        <div class="custom-control custom-checkbox small mb-1">
-                                                                            <input type="checkbox" id="water_leg_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.legionella" class="custom-control-input">
-                                                                            <label class="custom-control-label" for="water_leg_{{ $rowIdx }}">Legionella</label>
-                                                                        </div>
-                                                                        <div class="custom-control custom-checkbox small">
-                                                                            <input type="checkbox" id="water_chem_{{ $rowIdx }}" wire:model="formData.sample_rows.{{ $rowIdx }}.chemical_analysis" class="custom-control-input">
-                                                                            <label class="custom-control-label" for="water_chem_{{ $rowIdx }}">Chemical Analysis</label>
-                                                                        </div>
+                                                                        @include('workflow.forms.test-request.partials.test-category-radios', ['rowIdx' => $rowIdx, 'showLegionella' => true])
                                                                     </td>
                                                                     <td class="text-center align-middle">
                                                                         <button type="button" wire:click="removeSampleRow({{ $rowIdx }})" class="btn btn-danger btn-xs p-1"><i class="mdi mdi-trash-can"></i></button>

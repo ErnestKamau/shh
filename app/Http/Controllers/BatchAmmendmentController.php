@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\SampleHeader;
 use App\BatchAmmendment;
 use App\SampleDetails;
+use App\Services\Sampleworkflow\JobSampleNumberingService;
 
 class BatchAmmendmentController extends Controller
 {
@@ -40,6 +41,9 @@ class BatchAmmendmentController extends Controller
             $batch->status = 'Sample Verification';
             $batch->in_ammendment_proccess = 1;
             $batch->save();
+
+            app(JobSampleNumberingService::class)->syncReportNumbersForBatch($batch, (int) $batch->is_amendment);
+
             return redirect()->back()->with('success','Ammendment added successfully!');
 
         }else{
