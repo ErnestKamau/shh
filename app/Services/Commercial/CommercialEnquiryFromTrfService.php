@@ -45,7 +45,9 @@ final class CommercialEnquiryFromTrfService
                 ? SampleSubmissionRequest::STATUS_DRAFT
                 : SampleSubmissionRequest::STATUS_REQUESTED;
             $enquiry->source_channel = (string) ($trfi->source_channel ?? 'walk_in');
-            $enquiry->crm_customer_id = $trfi->crm_customer_id ?? $enquiry->crm_customer_id;
+            $resolvedCustomerId = app(CommercialEnquiryCustomerResolver::class)->resolveCustomerId($enquiry)
+                ?? $this->resolveCrmCustomerIdFromTrfi($trfi);
+            $enquiry->crm_customer_id = $trfi->crm_customer_id ?? $resolvedCustomerId ?? $enquiry->crm_customer_id;
             $enquiry->test_request_form_instance_id = $trfi->id;
 
             if ($trfi->submission_form_instance_id) {
@@ -138,11 +140,36 @@ final class CommercialEnquiryFromTrfService
         }
 
         return SampleSubmissionRequest::query()->create([
-            'crm_customer_id' => $trfi->crm_customer_id,
+            'crm_customer_id' => $trfi->crm_customer_id ?? $this->resolveCrmCustomerIdFromTrfi($trfi),
             'status' => SampleSubmissionRequest::STATUS_REQUESTED,
             'source_channel' => (string) ($trfi->source_channel ?? 'walk_in'),
             'test_request_form_instance_id' => $trfi->id,
             'submission_form_instance_id' => $trfi->submission_form_instance_id,
         ]);
+    }
+
+    private function resolveCrmCustomerIdFromTrfi(TestRequestFormInstance $trfi): ?string
+    {
+        if (! empty($trfi->crm_customer_id)) {
+            return (string) $trfi->crm_customer_id;
+        }
+
+        $formData = is_array($trfi->form_data) ? $trfi->form_data : [];
+        foreach (['customer_name', 'client_name', 'customer', 'client'] as $key) {
+            $name = trim((string) ($formData[$key] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $customerId = \App\Models\CRM\CRMCustomer::query()
+                ->whereRaw('name ILIKE ?', [$name])
+                ->value('id');
+
+            if ($customerId !== null) {
+                return (string) $customerId;
+            }
+        }
+
+        return null;
     }
 }

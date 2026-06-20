@@ -6,6 +6,7 @@ use App\Livewire\Sampleworkflow\Concerns\ManagesSampleConfigurationWizard;
 use App\Models\SampleSubmissionRequest;
 use App\Models\SubmissionFormInstance;
 use App\QuotationHeader;
+use App\Services\Commercial\CommercialEnquiryCustomerResolver;
 use App\Services\Commercial\EnquiryReviewDisplayService;
 use App\Services\Commercial\QuotationFromEnquiryService;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
@@ -175,7 +176,12 @@ class ProcessEnquiryWizard extends Component
         $this->submissionFormInstanceId = $enquiry->submission_form_instance_id;
         $this->submissionFormId = $enquiry->submissionFormInstance?->submission_form_id;
         $this->sampleLines = is_array($enquiry->sample_lines) ? $enquiry->sample_lines : [];
+        $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
         $this->crmCustomerId = (string) ($enquiry->crm_customer_id ?? '');
+        $this->customerName = $display->customerName($enquiry);
+        if ($this->customerName === '' && $this->crmCustomerId !== '') {
+            $this->customerName = (string) ($enquiry->customer?->name ?? '');
+        }
         $this->quotationHeaderId = $enquiry->current_quotation_header_id;
         $this->quoteNumber = (string) ($enquiry->currentQuotation?->quote_number ?? '');
         $this->statusMessage = '';
@@ -245,8 +251,20 @@ class ProcessEnquiryWizard extends Component
 
     public function saveSampleConfigAndContinue(): void
     {
-        if ($this->enquiryId === null || ! $this->crmCustomerId) {
-            $this->setStatus('error', 'Customer is required for sample configuration.');
+        if ($this->enquiryId === null) {
+            return;
+        }
+
+        $enquiry = SampleSubmissionRequest::query()->find($this->enquiryId);
+        if ($enquiry === null) {
+            return;
+        }
+
+        $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
+        $this->crmCustomerId = (string) ($enquiry->crm_customer_id ?? '');
+
+        if ($this->crmCustomerId === '') {
+            $this->setStatus('error', 'Customer is required for sample configuration. Ensure the walk-in TRF customer name matches a CRM customer.');
 
             return;
         }
@@ -481,6 +499,21 @@ class ProcessEnquiryWizard extends Component
             ];
         })->all();
 
+        if ($prefillLines === [] && is_array($enquiry->sample_lines) && $enquiry->sample_lines !== []) {
+            $prefillLines = collect($enquiry->sample_lines)->map(function (array $line, int $index): array {
+                return [
+                    'line_no' => $index + 1,
+                    'sample_type_id' => $line['sample_type_id'] ?? $enquiry->sample_type_id ?? null,
+                    'analysis_type_id' => $line['analysis_type_id'] ?? $enquiry->matrix_id ?? null,
+                    'analysis_element_id' => $line['analysis_element_id'] ?? null,
+                    'parameter_label' => $line['parameter_label'] ?? 'Parameter',
+                    'number_of_samples' => (int) ($line['number_of_samples'] ?? $enquiry->number_of_samples ?? 1),
+                    'sample_condition' => $line['sample_condition'] ?? null,
+                    'sample_condition_id' => $line['sample_condition_id'] ?? null,
+                ];
+            })->all();
+        }
+
         $this->sampleConfigs = $configService->buildConfigsFromPrefill($prefillLines, $instance);
         $defaultZoneId = $configService->resolveZoneIdFromInstance($instance);
 
@@ -521,12 +554,15 @@ class ProcessEnquiryWizard extends Component
         }
 
         $enquiry = SampleSubmissionRequest::query()
-            ->with(['requestedAnalyses', 'currentQuotation'])
+            ->with(['requestedAnalyses', 'currentQuotation', 'customer', 'testRequestFormInstance'])
             ->find($this->enquiryId);
 
         if ($enquiry === null) {
             throw new \RuntimeException('Enquiry not found.');
         }
+
+        $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
+        $this->crmCustomerId = (string) ($enquiry->crm_customer_id ?? '');
 
         $quotationService = app(QuotationFromEnquiryService::class);
         $header = $quotationService->createOrOpen($enquiry);

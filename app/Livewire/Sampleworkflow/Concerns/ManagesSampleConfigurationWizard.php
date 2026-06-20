@@ -3,6 +3,7 @@
 namespace App\Livewire\Sampleworkflow\Concerns;
 
 use App\Models\SubmissionFormInstance;
+use App\SampleType;
 use App\Services\Sampleworkflow\AcceptanceFormSampleConfigService;
 
 trait ManagesSampleConfigurationWizard
@@ -84,14 +85,8 @@ trait ManagesSampleConfigurationWizard
         }
 
         $config = $this->sampleConfigs[$index];
-        if (! $this->crmCustomerId || empty($config['analysis_type_id'])) {
-            $this->sampleConfigs[$index]['parameter_keys'] = [];
-
-            return;
-        }
-
         $parameters = app(AcceptanceFormSampleConfigService::class)->parametersForConfig(
-            $this->crmCustomerId,
+            $this->crmCustomerId ?? '',
             $config['sample_type_id'] ?? null,
             $config['analysis_type_id']
         );
@@ -154,12 +149,22 @@ trait ManagesSampleConfigurationWizard
      */
     public function getConfigSampleTypesProperty(): array
     {
-        if (! $this->crmCustomerId) {
-            return [];
+        $types = app(AcceptanceFormSampleConfigService::class)
+            ->sampleTypesForCustomer($this->crmCustomerId ?? '', $this->lines ?? []);
+
+        if ($types !== []) {
+            return $types;
         }
 
-        return app(AcceptanceFormSampleConfigService::class)
-            ->sampleTypesForCustomer($this->crmCustomerId, $this->lines ?? []);
+        return SampleType::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (SampleType $type) => [
+                'id' => (string) $type->id,
+                'name' => (string) $type->name,
+            ])
+            ->values()
+            ->all();
     }
 
     public function getConfigZonesProperty(): array
@@ -191,7 +196,7 @@ trait ManagesSampleConfigurationWizard
 
     public function analysisTypesForConfigIndex(int $index): array
     {
-        if (! $this->crmCustomerId || ! isset($this->sampleConfigs[$index])) {
+        if (! isset($this->sampleConfigs[$index])) {
             return [];
         }
 
@@ -201,19 +206,19 @@ trait ManagesSampleConfigurationWizard
         }
 
         return app(AcceptanceFormSampleConfigService::class)
-            ->analysisTypesForSampleType($this->crmCustomerId, $sampleTypeId, $this->lines ?? []);
+            ->analysisTypesForSampleType($this->crmCustomerId ?? '', $sampleTypeId, $this->lines ?? []);
     }
 
     public function parametersForConfigIndex(int $index): array
     {
-        if (! $this->crmCustomerId || ! isset($this->sampleConfigs[$index])) {
+        if (! isset($this->sampleConfigs[$index])) {
             return [];
         }
 
         $config = $this->sampleConfigs[$index];
 
         return app(AcceptanceFormSampleConfigService::class)->parametersForConfig(
-            $this->crmCustomerId,
+            $this->crmCustomerId ?? '',
             $config['sample_type_id'] ?? null,
             $config['analysis_type_id'] ?? null
         );

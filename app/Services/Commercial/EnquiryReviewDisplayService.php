@@ -40,7 +40,7 @@ final class EnquiryReviewDisplayService
 
     public function customerName(SampleSubmissionRequest $enquiry): string
     {
-        $name = trim((string) ($enquiry->customer->name ?? ''));
+        $name = trim((string) ($enquiry->customer?->name ?? ''));
         if ($name !== '') {
             return $name;
         }
@@ -50,7 +50,9 @@ final class EnquiryReviewDisplayService
             return $name;
         }
 
-        return $this->customerNameFromFormValues($enquiry->submissionFormInstance);
+        $resolver = app(CommercialEnquiryCustomerResolver::class);
+
+        return $resolver->customerNameFromEnquiry($enquiry);
     }
 
     /**

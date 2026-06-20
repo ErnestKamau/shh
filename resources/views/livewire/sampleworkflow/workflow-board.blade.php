@@ -5743,6 +5743,12 @@
 				$('#receive-sample-modal').modal('hide');
 			});
 
+			Livewire.on('open-test-request-pdf', ({ url }) => {
+				if (url) {
+					window.open(url, '_blank');
+				}
+			});
+
 			Livewire.on('show-request-additional-info-modal', function () {
 				$('#request-additional-info-modal').modal('show');
 			});

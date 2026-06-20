@@ -12,6 +12,14 @@ return new class extends Migration
             return;
         }
 
+        $newerViewMigrationRan = DB::table('migrations')
+            ->where('migration', '2026_06_16_123613_create_quotation_header_view')
+            ->exists();
+
+        if ($newerViewMigrationRan) {
+            return;
+        }
+
         DB::statement('DROP VIEW IF EXISTS quotation_header_view');
 
         DB::statement(<<<'SQL'

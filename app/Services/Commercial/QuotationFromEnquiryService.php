@@ -27,11 +27,14 @@ final class QuotationFromEnquiryService
 
     public function createOrOpen(SampleSubmissionRequest $enquiry): QuotationHeader
     {
+        $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
         $enquiry->loadMissing(['customer', 'contact', 'requestedAnalyses']);
 
         if ($enquiry->current_quotation_header_id) {
             $existing = QuotationHeader::query()->find($enquiry->current_quotation_header_id);
             if ($existing !== null) {
+                $existing = $this->syncHeaderCustomerFromEnquiry($existing, $enquiry);
+
                 if ($enquiry->status === SampleSubmissionRequest::STATUS_QUOTATION_UNDER_REVIEW
                     && $existing->sent_to_customer_at !== null) {
                     return $this->createRevision($enquiry, $existing);
@@ -456,7 +459,11 @@ final class QuotationFromEnquiryService
 
     public function ensureHeaderReadyForPrint(QuotationHeader $header): QuotationHeader
     {
-        $header->loadMissing(['customer', 'contact']);
+        $header->loadMissing(['customer', 'contact', 'sampleSubmissionRequest']);
+
+        if (empty($header->crm_customer_id) && $header->sampleSubmissionRequest !== null) {
+            $header = $this->syncHeaderCustomerFromEnquiry($header, $header->sampleSubmissionRequest);
+        }
 
         if (empty($header->crm_customer_contact_id) && ! empty($header->crm_customer_id)) {
             $contactId = CustomerContact::query()
@@ -494,6 +501,31 @@ final class QuotationFromEnquiryService
             ->value('id');
 
         return $fallback !== null ? (string) $fallback : null;
+    }
+
+    private function syncHeaderCustomerFromEnquiry(
+        QuotationHeader $header,
+        SampleSubmissionRequest $enquiry,
+    ): QuotationHeader {
+        $enquiry = app(CommercialEnquiryCustomerResolver::class)->persistResolvedCustomer($enquiry);
+        $enquiry->loadMissing(['customer', 'contact']);
+
+        if (empty($header->crm_customer_id) && ! empty($enquiry->crm_customer_id)) {
+            $header->crm_customer_id = $enquiry->crm_customer_id;
+        }
+
+        if (empty($header->crm_customer_contact_id)) {
+            $contactId = $this->resolveContactId($enquiry);
+            if ($contactId !== null) {
+                $header->crm_customer_contact_id = $contactId;
+            }
+        }
+
+        if ($header->isDirty()) {
+            $header->save();
+        }
+
+        return $header->fresh(['customer', 'contact']) ?? $header;
     }
 
     private function hasContractPricelist(string $customerId): bool
