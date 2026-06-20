@@ -124,7 +124,7 @@
 
     </h4>
     @if($stage == 'All Quotations' && !empty($metrics))
-        @include('layouts.lab.invoice.partials.quotation-metrics', ['metrics' => $metrics])
+        @include('layouts.lab.invoice.partials.quotation-metrics', ['metrics' => $metrics, 'kpiPeriod' => $kpiPeriod ?? null])
     @endif
     @if($stage == 'All Quotations' )
     <div class="filter">

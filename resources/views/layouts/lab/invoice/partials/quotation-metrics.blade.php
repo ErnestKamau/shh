@@ -130,7 +130,107 @@
         </div>
         @endif
     </div>
+
+    @php
+        $kpi = $kpiPeriod ?? [];
+        $kpiStart = $kpi['start_date'] ?? now()->startOfMonth()->toDateString();
+        $kpiEnd = $kpi['end_date'] ?? now()->endOfMonth()->toDateString();
+    @endphp
+
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 8px;">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                <div>
+                    <h6 class="mb-1"><i class="mdi mdi-chart-timeline-variant"></i> KPI Performance (Spec)</h6>
+                    <p class="text-muted mb-0" style="font-size: 0.85rem;">Sent, accepted, success rate and value for the selected period</p>
+                </div>
+                <form method="GET" action="{{ route('quotation-index') }}" class="form-inline">
+                    <input type="hidden" name="kpi_start_date" id="kpi_start_date_hidden" value="{{ $kpiStart }}">
+                    <input type="hidden" name="kpi_end_date" id="kpi_end_date_hidden" value="{{ $kpiEnd }}">
+                    <label class="mr-2 mb-0 text-muted" style="font-size: 0.85rem;">From</label>
+                    <input type="date" class="form-control form-control-sm mr-2" id="kpi_start_date" value="{{ $kpiStart }}">
+                    <label class="mr-2 mb-0 text-muted" style="font-size: 0.85rem;">To</label>
+                    <input type="date" class="form-control form-control-sm mr-2" id="kpi_end_date" value="{{ $kpiEnd }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary mr-2"><i class="mdi mdi-filter"></i> Apply</button>
+                </form>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-2 col-sm-4 col-6 mb-2">
+                    <div class="quotation-metric-mini flex-column align-items-start">
+                        <span class="text-muted">Quotations Sent</span>
+                        <strong style="font-size: 1.25rem;">{{ $kpi['quotations_sent'] ?? 0 }}</strong>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 col-6 mb-2">
+                    <div class="quotation-metric-mini flex-column align-items-start">
+                        <span class="text-muted">Quotations Accepted</span>
+                        <strong style="font-size: 1.25rem;">{{ $kpi['quotations_accepted'] ?? 0 }}</strong>
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-4 col-6 mb-2">
+                    <div class="quotation-metric-mini flex-column align-items-start">
+                        <span class="text-muted">Success Rate</span>
+                        <strong style="font-size: 1.25rem;">{{ ($kpi['quotations_sent'] ?? 0) > 0 ? ($kpi['success_rate_percent'] ?? 0).'%' : '—' }}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6 col-6 mb-2">
+                    <div class="quotation-metric-mini flex-column align-items-start">
+                        <span class="text-muted">Total Quotation Value</span>
+                        <strong style="font-size: 1.25rem;">{{ $kpi['total_quotation_value_formatted'] ?? '0.00' }}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6 col-6 mb-2">
+                    <div class="quotation-metric-mini flex-column align-items-start">
+                        <span class="text-muted">Accepted Value</span>
+                        <strong style="font-size: 1.25rem;">{{ $kpi['accepted_value_formatted'] ?? '0.00' }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <form method="GET" action="{{ route('quotation.kpi.export') }}" class="d-flex flex-wrap align-items-center">
+                <input type="hidden" name="start_date" value="{{ $kpiStart }}">
+                <input type="hidden" name="end_date" value="{{ $kpiEnd }}">
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="mdi mdi-file-excel"></i> Download KPI Excel
+                </button>
+                <small class="text-muted ml-3">Exports daily rows plus a TOTAL row for {{ $kpiStart }} to {{ $kpiEnd }}</small>
+            </form>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var startInput = document.getElementById('kpi_start_date');
+        var endInput = document.getElementById('kpi_end_date');
+        var startHidden = document.getElementById('kpi_start_date_hidden');
+        var endHidden = document.getElementById('kpi_end_date_hidden');
+
+        if (!startInput || !endInput) {
+            return;
+        }
+
+        function syncKpiDates() {
+            if (startHidden) {
+                startHidden.value = startInput.value;
+            }
+            if (endHidden) {
+                endHidden.value = endInput.value;
+            }
+
+            document.querySelectorAll('form[action="{{ route('quotation.kpi.export') }}"] input[name="start_date"]').forEach(function (el) {
+                el.value = startInput.value;
+            });
+            document.querySelectorAll('form[action="{{ route('quotation.kpi.export') }}"] input[name="end_date"]').forEach(function (el) {
+                el.value = endInput.value;
+            });
+        }
+
+        startInput.addEventListener('change', syncKpiDates);
+        endInput.addEventListener('change', syncKpiDates);
+    });
+</script>
 
 <style>
     .quotation-metrics-dashboard .quotation-kpi-card {

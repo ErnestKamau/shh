@@ -119,6 +119,13 @@
                 <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-file-eye"></i> Preview Quote</span>
                 <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-printer"></i> Process PDF</span>
                 @endif
+                @if(sizeof($details)>0)
+                <div class="dropdown-divider"></div>
+                <form action="{{ route('create_quotation_revision', ['id' => $header->id]) }}" method="POST" class="px-0 m-0">
+                    @csrf
+                    <button type="submit" class="dropdown-item" style="cursor: pointer;"><i class="mdi mdi-source-branch"></i> Create Revision</button>
+                </form>
+                @endif
                 @if($header->status == "Quote In Preparation")
                 <span class="dropdown-item" style="cursor: pointer;" data-target="#save-draft" data-toggle="modal"><i class="mdi mdi-download-outline"></i> Save As Draft</span>
                 <span class="dropdown-item text-danger" style="cursor: pointer;" data-target="#delete-quotation" data-toggle="modal"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
@@ -150,8 +157,28 @@
 
         <h3 class=" text-center card-header">
             <i class="mdi mdi-check-decagram mb-1" style="position: absolute;left:47.4%"></i><br> Quotation | {{$header->quote_number}}
-
+            @if(($header->revision_number ?? 1) > 1)
+                <span class="badge badge-info ml-1">Rev. {{ $header->revision_number }}</span>
+            @endif
         </h3>
+
+        @if(($revisionFamily ?? collect())->count() > 1)
+        <div class="card-body border-bottom py-2">
+            <small class="text-muted d-block mb-1"><strong>Revision history</strong></small>
+            <ul class="mb-0 pl-3" style="font-size: 12px;">
+                @foreach($revisionFamily as $revision)
+                    <li>
+                        @if($revision->id === $header->id)
+                            <strong>Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }} (current)</strong>
+                        @else
+                            <a href="{{ route('add-qoute-details-view', ['id' => $revision->id]) }}">Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }}</a>
+                            <span class="text-muted">({{ $revision->quote_date }})</span>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
 
         <div class="card-body">
 
@@ -470,14 +497,29 @@
                                 <label class="control-label">Quotation T&amp;C Override <small class="text-muted">(optional — one term per line)</small></label>
                                 <textarea class="form-control" rows="4" name="terms_override" placeholder="Leave blank to use system Quotation Terms and Conditions">{{ $header->terms_override }}</textarea>
                             </div>
-                            <div class="form-group form-check">
-                                <input type="checkbox" class="form-check-input" name="show_loq_column" value="1" id="show_loq_column" {{ ($header->show_loq_column ?? true) ? 'checked' : '' }}>
-                                <label class="form-check-label" for="show_loq_column">Show LOQ column on quotation</label>
+
+                            <h5 style="font-size: 11px; margin-top:15px"><b><u>Structured Commercial Terms</u></b></h5>
+                            @php
+                                $storedStructuredTerms = is_array($header->structured_terms) ? $header->structured_terms : [];
+                            @endphp
+                            <div class="structured-terms ml-4">
+                                @foreach(\App\Services\Billing\QuotationReportService::STRUCTURED_TERM_DEFINITIONS as $termKey => $termLabel)
+                                    <div class="form-group">
+                                        <label class="control-label">{{ $termLabel }}</label>
+                                        <textarea class="form-control" rows="2" name="structured_terms[{{ $termKey }}]" placeholder="{{ $structuredTermsConfig[$termKey] ?? '' }}">{{ $storedStructuredTerms[$termKey] ?? ($structuredTermsConfig[$termKey] ?? '') }}</textarea>
+                                    </div>
+                                @endforeach
                             </div>
+
                             <div class="form-group form-check">
                                 <input type="checkbox" class="form-check-input" name="show_mu_column" value="1" id="show_mu_column" {{ ($header->show_mu_column ?? true) ? 'checked' : '' }}>
-                                <label class="form-check-label" for="show_mu_column">Show MU% column on quotation</label>
+                                <label class="form-check-label" for="show_mu_column">Show Uncertainty column on quotation <small class="text-muted">(optional)</small></label>
                             </div>
+                            <div class="form-group form-check">
+                                <input type="checkbox" class="form-check-input" name="show_unit_price_column" value="1" id="show_unit_price_column" {{ ($header->show_unit_price_column ?? true) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="show_unit_price_column">Show Unit Price column on quotation <small class="text-muted">(optional)</small></label>
+                            </div>
+                            <p class="text-muted mb-0" style="font-size: 11px;">LOQ and Total Price columns are always shown on the quotation report.</p>
                         </div>
 
                     </form>

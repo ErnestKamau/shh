@@ -28,4 +28,35 @@ class QuotationStatisticsServiceTest extends TestCase
         $this->assertIsInt($metrics['total']);
         $this->assertIsString($metrics['total_value_formatted']);
     }
+
+    public function test_get_kpi_period_metrics_returns_spec_fields(): void
+    {
+        $service = app(QuotationStatisticsService::class);
+        $start = now()->startOfMonth();
+        $end = now()->endOfMonth();
+
+        $kpi = $service->getKpiPeriodMetrics($start, $end);
+
+        $this->assertArrayHasKey('quotations_sent', $kpi);
+        $this->assertArrayHasKey('quotations_accepted', $kpi);
+        $this->assertArrayHasKey('success_rate_percent', $kpi);
+        $this->assertArrayHasKey('total_quotation_value', $kpi);
+        $this->assertArrayHasKey('accepted_value', $kpi);
+        $this->assertIsInt($kpi['quotations_sent']);
+        $this->assertIsInt($kpi['quotations_accepted']);
+    }
+
+    public function test_get_kpi_daily_rows_includes_total_row(): void
+    {
+        $service = app(QuotationStatisticsService::class);
+        $start = now()->startOfMonth();
+        $end = now()->startOfMonth()->addDays(2);
+
+        $rows = $service->getKpiDailyRows($start, $end);
+
+        $this->assertNotEmpty($rows);
+        $this->assertSame('TOTAL', end($rows)['date']);
+        $this->assertArrayHasKey('quotations_sent', $rows[0]);
+        $this->assertArrayHasKey('success_rate_percent', $rows[0]);
+    }
 }

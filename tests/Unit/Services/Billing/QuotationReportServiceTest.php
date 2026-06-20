@@ -58,6 +58,22 @@ class QuotationReportServiceTest extends TestCase
         $this->assertSame('Custom term one', $terms['items'][0]['text']);
     }
 
+    public function test_resolve_structured_terms_merges_header_values_with_defaults(): void
+    {
+        $service = app(QuotationReportService::class);
+        $header = new QuotationHeader();
+        $header->structured_terms = [
+            'tat' => '5 working days',
+            'vat' => '5% VAT applies',
+        ];
+
+        $terms = $service->resolveStructuredTerms($header);
+
+        $this->assertNotEmpty($terms['items']);
+        $this->assertSame('5 working days', $terms['items'][0]['value']);
+        $this->assertSame('Turnaround Time (TAT)', $terms['items'][0]['label']);
+    }
+
     public function test_public_report_token_is_stable_for_quotation(): void
     {
         $service = app(QuotationReportService::class);

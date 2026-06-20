@@ -16,6 +16,7 @@
             @include('billing.quotations.amspec.partials.intro')
             @include('billing.quotations.amspec.partials.test-table')
             @include('billing.quotations.amspec.partials.terms-of-sale')
+            @include('billing.quotations.amspec.partials.structured-terms')
             @include('billing.quotations.amspec.partials.terms')
         </div>
         @include('billing.quotations.amspec.partials.footer')

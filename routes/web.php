@@ -646,6 +646,7 @@ Route::get('/regerateCustomerInvoice/{id}', 'SampleWorkFlowController@regerateCu
 Route::get('/split-contact', 'SampleWorkFlowController@splitSchoolContacts')->name('/split-contact')->middleware('can:laboratory.components.all samples.view');
 //############################################################################################################################
 Route::get('/billing-quotation/{stage?}', 'Invoice\QuotationController@index')->name('quotation-index')->middleware('can:laboratory.components.quotation.view');
+Route::get('/billing/quotations/kpi-export', 'Invoice\QuotationController@exportQuotationKpi')->name('quotation.kpi.export')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/analysis-options/{sampleTypeId}', 'Invoice\QuotationController@getAnalysisOptionsBySampleType')->name('billing.analysis-options')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/change-quotation-workflow/{id}/{stage}', 'Invoice\QuotationController@change_quotation_workflow')->name('change_quotation_workflow')->middleware('can:laboratory.components.quotation.edit');
 Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationController@view_quote_header_detail')->name('add-qoute-details-view')->middleware('can:laboratory.components.quotation.view');
@@ -658,6 +659,7 @@ Route::get('/billing/delete_quotation_detail/{id}', 'Invoice\QuotationController
 Route::post('/billing/save_draft/{id}', 'Invoice\QuotationController@save_draft')->name('save_draft')->middleware('can:laboratory.components.quotation.edit');
 Route::get('/billing/redirect_from_docs/{id}/{stage?}', 'Invoice\QuotationController@redirect_from_docs')->name('redirect_from_docs')->middleware('can:laboratory.components.quotation.view');
 Route::get('/billing/clone_quotation/{id}', 'Invoice\QuotationController@clone_quotation')->name('clone_quotation')->middleware('can:laboratory.components.quotation.add');
+Route::post('/billing/quotation/{id}/revision', 'Invoice\QuotationController@create_quotation_revision')->name('create_quotation_revision')->middleware('can:laboratory.components.quotation.add');
 Route::post('/billing/save-quotation-final/{id}', 'Invoice\QuotationController@save_quotation_final')->name('save_quotation_final')->middleware('can:laboratory.components.quotation.edit');
 Route::post('/billing/delete_quotation/{id}', 'Invoice\QuotationController@delete_quotation')->name('delete_quotation')->middleware('can:laboratory.components.quotation.delete');
 Route::get('/billing/quotations/{id}/report/{token}', 'Invoice\QuotationController@publicReportView')->name('quotation.public.report');

@@ -13,6 +13,7 @@ use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
 use App\Services\Billing\QuotationReportService;
+use App\Services\Billing\QuotationRevisionService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +25,7 @@ final class QuotationFromEnquiryService
     public function __construct(
         private AcceptanceFormPricingService $pricingService,
         private UncertaintyBudgetResolver $uncertaintyBudgetResolver,
+        private QuotationRevisionService $quotationRevisionService,
     ) {}
 
     public function createOrOpen(SampleSubmissionRequest $enquiry): QuotationHeader
@@ -73,6 +75,7 @@ final class QuotationFromEnquiryService
             AmSpecQuotationNumberGenerator::assignIfMissing($header);
 
             app(QuotationReportService::class)->seedDefaultTermsOfSale($header);
+            app(QuotationReportService::class)->seedDefaultStructuredTerms($header);
 
             $lines = $this->buildInlineLines($enquiry);
             $this->persistInlineLines($header, $lines);
@@ -394,63 +397,13 @@ final class QuotationFromEnquiryService
     public function createRevision(SampleSubmissionRequest $enquiry, QuotationHeader $priorHeader): QuotationHeader
     {
         return DB::transaction(function () use ($enquiry, $priorHeader): QuotationHeader {
-            $enquiry->loadMissing(['requestedAnalyses']);
-            $priorHeader->loadMissing('details');
-
-            $preparedById = Auth::id();
-            if ($preparedById === null) {
-                throw new RuntimeException('You must be signed in to revise a quotation.');
-            }
-
-            $header = new QuotationHeader();
-            $header->crm_customer_id = $priorHeader->crm_customer_id;
-            $header->crm_customer_contact_id = $priorHeader->crm_customer_contact_id;
-            $header->quote_date = now()->toDateString();
-            $header->expiring_date = now()->addDays(30)->toDateString();
-            $header->prepared_by_id = (string) $preparedById;
-            $header->quotation_type = $priorHeader->quotation_type ?? 'Analysis';
-            $header->status = 'Quote Complete';
-            $header->from_enquiry = true;
-            $header->sample_submission_request_id = $enquiry->id;
-            $header->pricelist_id = $priorHeader->pricelist_id;
-            $header->currency_id = $priorHeader->currency_id;
-            $header->revision_of_quotation_header_id = $priorHeader->id;
-            $header->is_draft = 0;
-            $header->is_complete = 1;
-            $header->is_approved = 1;
-            $header->sub_total = $priorHeader->sub_total;
-            $header->tax = $priorHeader->tax;
-            $header->total_amount = $priorHeader->total_amount;
-            $header->save();
-
-            AmSpecQuotationNumberGenerator::assignIfMissing($header);
-
-            foreach ($priorHeader->details as $detail) {
-                $cloned = QuotationDetails::query()->create([
-                    'quotation_header_id' => $header->id,
-                    'sample_type' => $detail->sample_type,
-                    'quantity' => $detail->quantity,
-                    'unit_price' => $detail->unit_price,
-                    'tax' => $detail->tax,
-                    'part_no' => $detail->part_no,
-                    'accredited_analytes' => $detail->accredited_analytes,
-                    'subcontracted_analytes' => $detail->subcontracted_analytes,
-                    'default_analytes' => $detail->default_analytes,
-                    'sub_acc_analytes' => $detail->sub_acc_analytes,
-                    'description' => $detail->description,
-                ]);
-
-                $split = QuotationDetailAnalysisSplit::query()
-                    ->where('quotation_detail_id', $detail->id)
-                    ->first();
-
-                if ($split !== null) {
-                    QuotationDetailAnalysisSplit::query()->create([
-                        'quotation_detail_id' => $cloned->id,
-                        'analysis_type_id' => $split->analysis_type_id,
-                    ]);
-                }
-            }
+            $header = $this->quotationRevisionService->createRevision($priorHeader, [
+                'from_enquiry' => true,
+                'sample_submission_request_id' => $enquiry->id,
+                'status' => 'Quote Complete',
+                'is_complete' => 1,
+                'is_approved' => 1,
+            ]);
 
             $enquiry->current_quotation_header_id = $header->id;
             $enquiry->status = SampleSubmissionRequest::STATUS_QUOTATION_IN_PROGRESS;

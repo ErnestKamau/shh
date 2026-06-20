@@ -148,6 +148,8 @@ final class AmSpecQuotationPdfService
             'qrcode' => '',
             'request_date_of_service' => $enquiry?->request_date_of_service,
             'service_priority' => $enquiry?->mode_of_service_priority ?? $enquiry?->priority,
+            'show_mu_column' => (bool) ($header->show_mu_column ?? true),
+            'show_unit_price_column' => (bool) ($header->show_unit_price_column ?? true),
         ];
     }
 
@@ -258,6 +260,7 @@ final class AmSpecQuotationPdfService
             'loq' => $loq,
             'mu' => $mu,
             'unit_price' => (float) $detail->unit_price,
+            'total_price' => round((float) $detail->unit_price * (int) $detail->quantity, 2),
             'quantity' => (int) $detail->quantity,
             'subcontracted' => trim((string) $detail->subcontracted_analytes) !== '',
             'category' => $this->resolveCategory($detail, $enquiry),

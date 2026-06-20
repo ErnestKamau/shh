@@ -72,8 +72,6 @@
 </head>
 <body>
 
-@php $colCount = 6; @endphp
-
 @if(!empty($watermark_path) && file_exists($watermark_path))
     <div class="watermark">
         <img src="{{ $watermark_path }}" alt="">
@@ -126,22 +124,30 @@
 <table class="lines-table">
     <thead>
         <tr>
-            <th class="th-maroon text-center" style="width: 5%;">S.No.</th>
-            <th class="th-maroon" style="width: 28%;">Tests</th>
-            <th class="th-maroon" style="width: 22%;">Test Method</th>
-            <th class="th-green text-center" style="width: 10%;">LOQ</th>
-            <th class="th-green text-center" style="width: 8%;">MU%</th>
-            <th class="th-maroon text-right" style="width: 12%;">Unit Price ({{ $currency_code }})</th>
+            <th class="th-maroon" style="width: 14%;">Sample Description</th>
+            <th class="th-maroon" style="width: 22%;">Test Parameters</th>
+            <th class="th-maroon" style="width: 18%;">Test Method</th>
+            @if($show_mu_column ?? true)
+                <th class="th-green text-center" style="width: 9%;">Uncertainty</th>
+            @endif
+            <th class="th-maroon text-center" style="width: 9%;">LOQ</th>
+            @if($show_unit_price_column ?? true)
+                <th class="th-green text-right" style="width: 11%;">Unit Price ({{ $currency_code }})</th>
+            @endif
+            <th class="th-maroon text-right" style="width: 11%;">Total Price ({{ $currency_code }})</th>
         </tr>
     </thead>
     <tbody>
+        @php
+            $legacyColCount = 4 + (($show_mu_column ?? true) ? 1 : 0) + (($show_unit_price_column ?? true) ? 1 : 0) + 1;
+            $legacyLabelColspan = $legacyColCount - 1;
+        @endphp
         @foreach($grouped_lines as $group)
-            <tr class="category-row">
-                <td colspan="{{ $colCount }}">{{ $group['category'] }}</td>
-            </tr>
-            @foreach($group['rows'] as $row)
+            @foreach($group['rows'] as $rowIndex => $row)
                 <tr>
-                    <td class="text-center">{{ $row['sno'] }}</td>
+                    @if($rowIndex === 0)
+                        <td rowspan="{{ count($group['rows']) }}" style="font-weight: bold; vertical-align: top;">{{ $group['category'] }}</td>
+                    @endif
                     <td>
                         {{ $row['test'] }}
                         @if(!empty($row['subcontracted']))
@@ -149,22 +155,27 @@
                         @endif
                     </td>
                     <td>{{ $row['method'] ?: '-' }}</td>
+                    @if($show_mu_column ?? true)
+                        <td class="text-center">{{ $row['mu'] ?: '-' }}</td>
+                    @endif
                     <td class="text-center">{{ $row['loq'] ?: '-' }}</td>
-                    <td class="text-center">{{ $row['mu'] ?: '-' }}</td>
-                    <td class="text-right">{{ number_format($row['unit_price'], 2) }}</td>
+                    @if($show_unit_price_column ?? true)
+                        <td class="text-right">{{ number_format($row['unit_price'], 2) }}</td>
+                    @endif
+                    <td class="text-right">{{ number_format($row['total_price'], 2) }}</td>
                 </tr>
             @endforeach
         @endforeach
         <tr class="totals-row">
-            <td colspan="{{ $colCount - 1 }}" class="totals-label">Net Amount</td>
+            <td colspan="{{ $legacyLabelColspan }}" class="totals-label">Net Amount</td>
             <td class="totals-value">{{ number_format($net_amount, 2) }}</td>
         </tr>
         <tr class="totals-row">
-            <td colspan="{{ $colCount - 1 }}" class="totals-label">Vat Amount ({{ number_format($vat_rate, 2) }}%)</td>
+            <td colspan="{{ $legacyLabelColspan }}" class="totals-label">Vat Amount ({{ number_format($vat_rate, 2) }}%)</td>
             <td class="totals-value">{{ number_format($vat_amount, 2) }}</td>
         </tr>
         <tr class="totals-row">
-            <td colspan="{{ $colCount - 1 }}" class="totals-label">Total Amount</td>
+            <td colspan="{{ $legacyLabelColspan }}" class="totals-label">Total Amount</td>
             <td class="totals-value">{{ number_format($total_amount, 2) }}</td>
         </tr>
     </tbody>

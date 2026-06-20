@@ -111,6 +111,9 @@
             ?>
             <span class=" mb-2 float-left">
                 <i class="mdi mdi-file-cad"></i> Billing | Quotations {{$header[0]->quote_number}}
+                @if(($reportHeader->revision_number ?? 1) > 1)
+                    <span class="badge badge-info ml-1">Rev. {{ $reportHeader->revision_number }}</span>
+                @endif
             </span>
             <div class="nav-item dropdown float-left">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" style="color:black;font-size:14px"
@@ -158,10 +161,33 @@
                     @endif
                     @endif
                     @endif
+                    <div class="dropdown-divider"></div>
+                    <form action="{{ route('create_quotation_revision', ['id' => $header[0]->id]) }}" method="POST" class="px-0 m-0">
+                        @csrf
+                        <button type="submit" class="dropdown-item" style="cursor: pointer;"><i class="mdi mdi-source-branch"></i> Create Revision</button>
+                    </form>
                 </div>
             </div>
 
-        </h4><br>
+        </h4>
+        @if(($revisionFamily ?? collect())->count() > 1)
+        <div class="mb-3" style="clear: both;">
+            <small class="text-muted d-block mb-1"><strong>Revision history</strong></small>
+            <ul class="mb-0 pl-3" style="font-size: 12px;">
+                @foreach($revisionFamily as $revision)
+                    <li>
+                        @if($revision->id === $header[0]->id)
+                            <strong>Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }} (current)</strong>
+                        @else
+                            <a href="{{ route('view_quotation_final', ['id' => $revision->id]) }}">Rev. {{ $revision->revision_number }} — {{ $revision->quote_number }}</a>
+                            <span class="text-muted">({{ $revision->quote_date }})</span>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+        <br>
         <div class="mt-5" id="quotation-document" style="clear: both;">
             @php
                 $shellMode = 'embedded';
