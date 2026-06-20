@@ -12,6 +12,7 @@ use App\QuotationDetailAnalysisSplit;
 use App\QuotationDetails;
 use App\QuotationHeader;
 use App\SampleType;
+use App\Services\Billing\QuotationReportService;
 use App\Services\Sampleworkflow\AcceptanceFormPricingService;
 use App\Services\Lab\UncertaintyBudgetResolver;
 use Illuminate\Support\Facades\Auth;
@@ -70,6 +71,8 @@ final class QuotationFromEnquiryService
             $header->save();
 
             AmSpecQuotationNumberGenerator::assignIfMissing($header);
+
+            app(QuotationReportService::class)->seedDefaultTermsOfSale($header);
 
             $lines = $this->buildInlineLines($enquiry);
             $this->persistInlineLines($header, $lines);
@@ -291,7 +294,7 @@ final class QuotationFromEnquiryService
     {
         $this->ensureHeaderReadyForPrint($header);
 
-        $header = app(AmSpecQuotationPdfService::class)->generateAndStore($header);
+        $header = app(QuotationReportService::class)->storePdf($header->fresh());
 
         if (empty($header->upload_url)) {
             throw new RuntimeException('PDF was not saved. Check quotation lines and customer contact.');

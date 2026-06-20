@@ -165,15 +165,17 @@ class QuotationController extends Controller
         $header->status = 'Quote In Preparation';
         // return response()->json($header,200);
         $header->save();
-        if (! isset($request->quote_id)) {
-            AmSpecQuotationNumberGenerator::assignIfMissing($header);
-            if (empty($header->laboratory_ref)) {
-                $header->laboratory_ref = $this->quotationReportService->generateLaboratoryRef($header);
-            }
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        if (! isset($request->quote_id) && empty($header->laboratory_ref)) {
+            $header->laboratory_ref = $this->quotationReportService->generateLaboratoryRef($header);
+            $header->save();
         }
-        $header->is_draft = 1;
+        if (! isset($request->quote_id)) {
+            $header->is_draft = 0;
+        }
         $header->save();
         $this->quotationReportService->ensureHeaderMetadata($header);
+        $this->quotationReportService->seedDefaultTermsOfSale($header);
         // return response()->json($header,200);
 
         return redirect()->route('add-qoute-details-view', ['id' => $header->id, 'stage' => $header->status]);
@@ -204,6 +206,8 @@ class QuotationController extends Controller
         // return response()->json('test');
         $customers = CRMCustomer::all();
         $header = QuotationHeader::find($id);
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        $header = $header->fresh();
         $sample_types = SampleType::all();
         if ($stage == false) {
             $header->is_draft = 0;
@@ -404,12 +408,13 @@ class QuotationController extends Controller
         $header->save();
         $this->quotationReportService->ensureHeaderMetadata($header);
 
-
+        $hasNewGeneralLines = is_array($request->part_no) && count(array_filter($request->part_no, fn ($value) => $value !== '' && $value !== null)) > 0;
+        $hasNewAnalysisLines = is_array($request->sample_type) && count(array_filter($request->sample_type, fn ($value) => $value !== '' && $value !== null)) > 0;
 
         if ($header->quotation_type == 'General') {
             $count = 0;
-            if ($request->part_no == '') {
-                return redirect()->back();
+            if (! $hasNewGeneralLines) {
+                return redirect()->back()->with('success', 'Quotation configuration saved successfully.');
             }
             foreach ($request->part_no as $id) {
                 $detail = new QuotationDetails();
@@ -437,8 +442,8 @@ class QuotationController extends Controller
             // return response()->json($request->all(),200);
 
             $count = 0;
-            if ($request->sample_type == '') {
-                return redirect()->back();
+            if (! $hasNewAnalysisLines) {
+                return redirect()->back()->with('success', 'Quotation configuration saved successfully.');
             }
             foreach ($request->sample_type as $id) {
                 $detail = new QuotationDetails();
@@ -525,6 +530,10 @@ class QuotationController extends Controller
         $header->sampling_location = $request->input('sampling_location', $header->sampling_location);
         $header->laboratory_ref = $request->input('laboratory_ref', $header->laboratory_ref);
 
+        if ($request->filled('currency_id')) {
+            $header->currency_id = $request->currency_id;
+        }
+
         // Pricelist no longer used - using invoicable items instead
         $header->pricelist_id = null;
         $header->save();
@@ -576,6 +585,13 @@ class QuotationController extends Controller
     public function previewQuotation(string $id)
     {
         $header = QuotationHeader::findOrFail($id);
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        $header = $header->fresh();
+
+        if ($header->details()->count() === 0) {
+            return redirect()->back()->with('error', 'Add at least one line item before previewing the quotation.');
+        }
+
         $this->recalculateQuotationTotals($header);
         $data = $this->quotationReportService->buildViewData($header->fresh());
 
@@ -750,6 +766,13 @@ class QuotationController extends Controller
     {
         ini_set('max_execution_time', 300);
         $header = QuotationHeader::findOrFail($id);
+        AmSpecQuotationNumberGenerator::assignIfMissing($header);
+        $header = $header->fresh();
+
+        if ($header->details()->count() === 0) {
+            return redirect()->back()->with('error', 'Add at least one line item before generating the quotation PDF.');
+        }
+
         $this->recalculateQuotationTotals($header);
         $stored = $this->quotationReportService->storePdf($header->fresh());
 

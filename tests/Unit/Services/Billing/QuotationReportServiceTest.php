@@ -9,46 +9,53 @@ use Tests\TestCase;
 
 class QuotationReportServiceTest extends TestCase
 {
-    public function test_build_placeholder_groups_matches_amspec_demo_structure(): void
+    public function test_build_view_data_marks_empty_quotes_without_placeholder_rows(): void
     {
         $service = app(QuotationReportService::class);
+        $header = new QuotationHeader();
+        $header->id = (string) Str::uuid();
 
-        $groups = $service->buildPlaceholderGroups();
+        $data = $service->buildViewData($header);
 
-        $this->assertCount(4, $groups);
-        $this->assertSame('Non Seafood', $groups[0]['sample_type_name']);
-        $this->assertSame('Seafood', $groups[1]['sample_type_name']);
-        $this->assertSame('Tap Water', $groups[2]['sample_type_name']);
-        $this->assertSame('Swimming pool', $groups[3]['sample_type_name']);
-
-        $this->assertCount(4, $groups[0]['rows']);
-        $this->assertCount(4, $groups[1]['rows']);
-        $this->assertCount(4, $groups[2]['rows']);
-        $this->assertCount(3, $groups[3]['rows']);
-
-        $this->assertSame('Test#1', $groups[0]['rows'][0]['test_name']);
-        $this->assertTrue($groups[0]['rows'][0]['is_placeholder']);
-        $this->assertSame(100.0, $groups[0]['rows'][0]['unit_price']);
-        $this->assertSame('', $groups[0]['rows'][0]['test_method']);
-        $this->assertSame('', $groups[0]['rows'][0]['loq']);
-        $this->assertSame('', $groups[0]['rows'][0]['mu_percent']);
+        $this->assertFalse($data['hasLineItems']);
+        $this->assertSame([], $data['groups']);
+        $this->assertFalse($data['isPlaceholderTable']);
     }
 
-    public function test_placeholder_groups_provide_rowspan_ready_row_counts(): void
+    public function test_resolve_terms_of_sale_falls_back_to_config_defaults(): void
     {
         $service = app(QuotationReportService::class);
-        $groups = $service->buildPlaceholderGroups();
+        $header = new QuotationHeader();
+        $header->service_delivery = '7 days after sample submission';
 
-        foreach ($groups as $group) {
-            $this->assertNotEmpty($group['sample_type_name']);
-            $this->assertGreaterThanOrEqual(3, count($group['rows']));
+        $terms = $service->resolveTermsOfSale($header);
 
-            foreach ($group['rows'] as $row) {
-                $this->assertArrayHasKey('test_name', $row);
-                $this->assertArrayHasKey('unit_price', $row);
-                $this->assertTrue($row['is_placeholder']);
-            }
-        }
+        $this->assertSame('7 days after sample submission', $terms['service_delivery']);
+        $this->assertNotEmpty($terms['payment_info']);
+    }
+
+    public function test_resolve_terms_falls_back_to_defaults_when_config_missing(): void
+    {
+        $service = app(QuotationReportService::class);
+        $header = new QuotationHeader();
+
+        $terms = $service->resolveTerms($header);
+
+        $this->assertNotEmpty($terms['items']);
+        $this->assertSame(1, $terms['items'][0]['number']);
+        $this->assertStringContainsString('30 days', $terms['items'][0]['text']);
+    }
+
+    public function test_resolve_terms_uses_override_lines_when_provided(): void
+    {
+        $service = app(QuotationReportService::class);
+        $header = new QuotationHeader();
+        $header->terms_override = "Custom term one\nCustom term two";
+
+        $terms = $service->resolveTerms($header);
+
+        $this->assertCount(2, $terms['items']);
+        $this->assertSame('Custom term one', $terms['items'][0]['text']);
     }
 
     public function test_public_report_token_is_stable_for_quotation(): void

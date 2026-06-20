@@ -15,6 +15,8 @@
             @include('billing.quotations.amspec.partials.meta')
             @include('billing.quotations.amspec.partials.intro')
             @include('billing.quotations.amspec.partials.test-table')
+            @include('billing.quotations.amspec.partials.terms-of-sale')
+            @include('billing.quotations.amspec.partials.terms')
         </div>
         @include('billing.quotations.amspec.partials.footer')
     </div>
@@ -22,7 +24,6 @@
     <div @class(['amspec-page-sheet', 'amspec-page-two', 'amspec-pdf-page' => $isPdf])>
         @include('billing.quotations.amspec.partials.page-logo')
         <div class="amspec-page-body">
-            @include('billing.quotations.amspec.partials.terms')
             @include('billing.quotations.amspec.partials.signature')
         </div>
         @include('billing.quotations.amspec.partials.footer')

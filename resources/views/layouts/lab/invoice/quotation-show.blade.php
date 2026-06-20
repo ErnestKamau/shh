@@ -107,19 +107,33 @@
             <i class="mdi mdi-file-table"></i>Billing | Quotations
         </span>
 
-        <a href="{{ route('quotation.preview', ['id' => $header->id]) }}" target="_blank" class="btn btn-sm float-right ml-2 quotation-preview-quote-btn" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
-        <span class="btn btn-default btn-sm float-right ml-2" style="background-color: white;" data-target="#print-quotation" data-header="{{$header->id}}" data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
-        @if($header->status == "Quote In Preparation")
-        <span data-target="#save-draft" data-toggle="modal" class="btn btn-outline-warning btn-sm float-right"><i class="mdi mdi-download-outline"></i> Save As Draft</span>
-        <span data-target="#delete-quotation" data-toggle="modal" class="btn btn-outline-danger mr-2 btn-sm float-right"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
-        @if(sizeof($details)>0)
-        <a href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}" class="btn btn-success btn-sm mr-2 float-right mt-1"><i class="mdi mdi-check-decagram"></i> Finalise Quotation</a>
-        @endif
-        @endif
-        @if($header->status == 'Quote In Approval')
-        <a href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}" class="btn btn-success btn-sm mr-2 float-right mt-1"><i class="mdi mdi-check-decagram"></i> Finalise Quotation</a>
-        @endif
         <div class="nav-item dropdown float-right" style="margin-top: 0px !important;">
+            <a class="nav-link dropdown-toggle btn btn-sm btn-outline-secondary" href="#" id="quotationActionsDropdown" style="color:black;font-size:14px" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <i class="mdi mdi-dots-vertical"></i> Actions
+            </a>
+            <div class="dropdown-menu dropdown-menu-right" style="font-size: 13px;" aria-labelledby="quotationActionsDropdown">
+                @if(sizeof($details) > 0)
+                <a class="dropdown-item" href="{{ route('quotation.preview', ['id' => $header->id]) }}" target="_blank" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
+                <span class="dropdown-item" style="cursor: pointer;" data-target="#print-quotation" data-header="{{$header->id}}" data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
+                @else
+                <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-file-eye"></i> Preview Quote</span>
+                <span class="dropdown-item text-muted" title="Add at least one line item first"><i class="mdi mdi-printer"></i> Process PDF</span>
+                @endif
+                @if($header->status == "Quote In Preparation")
+                <span class="dropdown-item" style="cursor: pointer;" data-target="#save-draft" data-toggle="modal"><i class="mdi mdi-download-outline"></i> Save As Draft</span>
+                <span class="dropdown-item text-danger" style="cursor: pointer;" data-target="#delete-quotation" data-toggle="modal"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
+                @if(sizeof($details)>0)
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item text-success" href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}"><i class="mdi mdi-check-decagram"></i> Finalise Quotation</a>
+                @endif
+                @endif
+                @if($header->status == 'Quote In Approval' && sizeof($details)>0)
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item text-success" href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}"><i class="mdi mdi-check-decagram"></i> Finalise Quotation</a>
+                @endif
+            </div>
+        </div>
+        <div class="nav-item dropdown float-right mr-2" style="margin-top: 0px !important;">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" style="color:black;font-size:14px" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <i class="mdi mdi-compare-vertical"></i> Move To workflow
             </a>
@@ -814,6 +828,13 @@
 <script>
     var analysis = [];
     $(function() {
+        $('select[name="currency_id"]').on('change', function() {
+            var selected = $(this).find('option:selected');
+            var currencyId = $(this).val();
+            var label = selected.text();
+            $('#currency-id-edit').val(currencyId || '');
+            $('#display-currency-edit').val(currencyId ? label : '');
+        });
 
         $('#print-quotation').on('show.bs.modal', function(e) {
             var header_id = $(e.relatedTarget).data('header');
