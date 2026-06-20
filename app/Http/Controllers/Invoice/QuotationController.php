@@ -30,6 +30,7 @@ use App\QuotationHeaderView;
 use App\SampleType;
 use App\Services\Billing\QuotationPricingResolver;
 use App\Services\Billing\QuotationReportService;
+use App\Services\Billing\QuotationStatisticsService;
 use App\Services\Commercial\AmSpecQuotationNumberGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -39,7 +40,8 @@ class QuotationController extends Controller
 {
     public function __construct(
         private readonly QuotationReportService $quotationReportService,
-        private readonly QuotationPricingResolver $quotationPricingResolver
+        private readonly QuotationPricingResolver $quotationPricingResolver,
+        private readonly QuotationStatisticsService $quotationStatisticsService,
     ) {
         $this->middleware('auth');
     }
@@ -69,7 +71,11 @@ class QuotationController extends Controller
         // }
         $sample_types = SampleType::where('active', 1)->get();
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types'));
+        $metrics = $stage === 'All Quotations'
+            ? $this->quotationStatisticsService->getOverviewMetrics()
+            : null;
+
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics'));
     }
     public function filterQuotations(Request $request)
     {
@@ -100,8 +106,9 @@ class QuotationController extends Controller
         $stage = 'All Quotations';
         $customers = CRMCustomer::where('active', 1)->orderBy('name')->get();
         $sample_types = SampleType::where('active', 1)->get();
+        $metrics = $this->quotationStatisticsService->getOverviewMetrics();
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types'));
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types', 'metrics'));
     }
     public function populateQuotationDetailSplit()
     {

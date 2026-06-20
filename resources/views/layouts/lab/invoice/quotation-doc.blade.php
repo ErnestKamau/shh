@@ -143,23 +143,23 @@
                         class="mdi mdi-thumb-up "></i> Batch Generated </span>
             @endif
 
-            <a href="{{ route('quotation.preview', ['id' => $header[0]->id]) }}" target="_blank"
-                class="btn btn-sm float-right mr-2 quotation-preview-quote-btn" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
-            @if($header[0]->is_complete == 1)
-                <span class="btn btn-white btn-sm float-right" data-target="#print-quotation" data-header="{{$header[0]->id}}"
-                    data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
-                @if($header[0]->is_print == 1)
-                    <button data-toggle="modal" data-target="#quotation-upload" class="btn btn-white btn-sm float-right mr-2"><i
-                            class="mdi mdi-share-all"></i> Send Quotation</button>
-
-                    @if($header[0]->quotation_type == 'Analysis')
-                        @if(($header[0]->is_batch_generate ?? 0) == 0)
-                            <span class="btn btn-sm btn-white mr-2 float-right" data-target="#generate-batch" data-toggle="modal"><i
-                                    class="mdi mdi-cog"></i> Generate Batch</span>
-                        @endif
+            <div class="nav-item dropdown float-right mr-2" style="margin-top: 0px !important;">
+                <a class="nav-link dropdown-toggle btn btn-sm btn-outline-secondary" href="#" id="quotationDocActionsDropdown" style="color:black;font-size:14px" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="mdi mdi-dots-vertical"></i> Actions
+                </a>
+                <div class="dropdown-menu dropdown-menu-right" style="font-size: 13px;" aria-labelledby="quotationDocActionsDropdown">
+                    <a class="dropdown-item quotation-preview-quote-btn" href="{{ route('quotation.preview', ['id' => $header[0]->id]) }}" target="_blank" title="Preview quotation document"><i class="mdi mdi-file-eye"></i> Preview Quote</a>
+                    @if($header[0]->is_complete == 1)
+                    <span class="dropdown-item" style="cursor: pointer;" data-target="#print-quotation" data-header="{{$header[0]->id}}" data-toggle="modal"><i class="mdi mdi-printer"></i> Process PDF</span>
+                    @if($header[0]->is_print == 1)
+                    <span class="dropdown-item" style="cursor: pointer;" data-toggle="modal" data-target="#quotation-upload"><i class="mdi mdi-share-all"></i> Send Quotation</span>
+                    @if($header[0]->quotation_type == 'Analysis' && ($header[0]->is_batch_generate ?? 0) == 0)
+                    <span class="dropdown-item" style="cursor: pointer;" data-target="#generate-batch" data-toggle="modal"><i class="mdi mdi-cog"></i> Generate Batch</span>
                     @endif
-                @endif
-            @endif
+                    @endif
+                    @endif
+                </div>
+            </div>
 
         </h4><br>
         <div class="mt-5" id="quotation-document" style="clear: both;">
