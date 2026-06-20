@@ -113,23 +113,11 @@
         <span data-target="#save-draft" data-toggle="modal" class="btn btn-outline-warning btn-sm float-right"><i class="mdi mdi-download-outline"></i> Save As Draft</span>
         <span data-target="#delete-quotation" data-toggle="modal" class="btn btn-outline-danger mr-2 btn-sm float-right"><i class="mdi mdi-delete-empty"></i> Delete Quotation</span>
         @if(sizeof($details)>0)
-        <span class="btn btn-sm btn-outline-dark mr-2 float-right mt-1" data-target="#request-approval" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Request For Approval</span>
-        <!-- <a href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Approval'])}}" class="btn btn-outline-dark btn-sm mr-2 float-right"><i class="mdi mdi-share-circle"></i> Request For Approval</a> -->
+        <a href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}" class="btn btn-success btn-sm mr-2 float-right mt-1"><i class="mdi mdi-check-decagram"></i> Finalise Quotation</a>
         @endif
         @endif
         @if($header->status == 'Quote In Approval')
-            @if($header->is_approved == 1)
-
-                <span class="badge  badge-pill ml-2 bg-white text-success p-2 {{$header->approved_by < 0  ? 'hidden' : ''}}" style="font-size: 10px;"><i class="mdi mdi-thumb-up"></i> Approved</span>
-            @else
-                <span class="badge badge-pill bg-white ml-2 text-primary p-2 " style="font-size: 10px;"><i class="mdi mdi-alert-decagram" ></i> Awaiting Approval</span>
-                @if($header->approved_by == auth()->user()->id)
-                <span class="btn btn-sm btn-outline-dark mr-2 float-right" data-target="#approve-quote" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Approve Quotation</span>
-                @else
-                <span class="badge badge-pill bg-white ml-2 text-danger p-2 " style="font-size: 10px;"><i class="mdi mdi-alert-decagram" ></i> Required Approver- {{getUserById($header->approved_by)->name ?? '-'}}</span>
-                @endif
-            @endif
-        <!-- <a href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}" class="btn btn-success btn-sm float-right"><i class="mdi mdi-share-circle"></i> Approve Quotation</a> -->
+        <a href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}" class="btn btn-success btn-sm mr-2 float-right mt-1"><i class="mdi mdi-check-decagram"></i> Finalise Quotation</a>
         @endif
         <div class="nav-item dropdown float-right" style="margin-top: 0px !important;">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" style="color:black;font-size:14px" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -137,8 +125,7 @@
             </a>
             <div class="dropdown-menu" style="font-size: 13px;" aria-labelledby="navbarDropdown">
                 <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Preparation'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Preparation</a>
-                @if(in_array($header->status,['Quote In Approval','Quote Complete']))
-                <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote In Approval'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Approval</a>
+                @if(in_array($header->status,['Quote In Preparation','Quote In Approval','Quote Complete']))
                 <a class="dropdown-item" href="{{route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}"><i class="mdi mdi-subdirectory-arrow-right"></i> Quotation Complete</a>
                 @endif
 

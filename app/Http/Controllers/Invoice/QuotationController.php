@@ -301,14 +301,11 @@ class QuotationController extends Controller
 
                 $header->is_approved = 0;
             }
-            if (in_array($header->status, ['Quote In Preparation', 'Quote In Approval']) && in_array($stage, ['Quote Complete'])) {
-                return redirect()->back()->with('error', 'Quote ' . $header->quote_number . ' has not being approved');
-            }
-
             $previous = $header->status;
             $header->status = $stage;
             if ($stage == 'Quote Complete') {
                 $header->approved_by = auth()->user()->id;
+                $header->is_approved = 1;
                 $header->is_complete = 1;
                 $header->is_draft = 0;
             } else {
@@ -698,6 +695,8 @@ class QuotationController extends Controller
         $header->sub_total = (int) $request->sub_total;
         $header->total_amount = (int) $request->total;
         $header->is_draft = 0;
+        $header->is_approved = 1;
+        $header->approved_by = auth()->user()->id;
         $header->is_complete = 1;
         $header->save();
         return redirect()->back()->with('success', 'Quotation ' . $header->quote_number . ' saved successfully');

@@ -304,11 +304,6 @@ document.addEventListener('DOMContentLoaded', function() {
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Preparation
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
-				
-				<a href="{{route('quotation-index',['stage'=>'Quote In Approval'])}}" class="list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Approval
-						<small class="float-right badge badge-pill"></small></span>
-				</a>
 				<a href="{{route('quotation-index',['stage'=>'Quote Complete'])}}" class="list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Finalised Quotes
 						<small class="float-right badge badge-pill"></small></span>

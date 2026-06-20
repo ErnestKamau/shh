@@ -122,19 +122,18 @@
                         href="{{route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote In Preparation'])}}"><i
                             class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Preparation</a>
                     <a class="dropdown-item"
-                        href="{{route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote In Approval'])}}"><i
-                            class="mdi mdi-subdirectory-arrow-right"></i> Quotation In Approval</a>
-                    <a class="dropdown-item"
                         href="{{route('change_quotation_workflow', ['id' => $header[0]->id, 'stage' => 'Quote Complete'])}}"><i
                             class="mdi mdi-subdirectory-arrow-right"></i> Quotation Complete</a>
 
                 </div>
             </div>
 
+            @if($header[0]->is_approved > 0)
             <span style="font-size: 10px;"
-                class="badge badge-pill p-2 bg-white {{ $header[0]->approved_by > 0 ? 'text-success' : 'text-danger'}}"><i
-                    class="mdi  {{ $header[0]->approved_by > 0 ? 'mdi-thumb-up' : 'mdi-alert-decagram'}}"></i>
-                {{ $header[0]->approved_by > 0 ? 'Approved' : 'Awaiting Approval'}}</span>
+                class="badge badge-pill p-2 bg-white text-success"><i
+                    class="mdi mdi-thumb-up"></i>
+                Finalised</span>
+            @endif
             <span style="font-size: 10px;"
                 class="badge badge-pill p-2 bg-white {{ $header[0]->is_complete > 0 ? 'text-success' : 'text-primary'}}"><i
                     class="mdi  {{ $header[0]->is_complete > 0 ? 'mdi-thumb-up' : 'mdi-alert-decagram'}}"></i>
