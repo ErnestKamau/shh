@@ -4,8 +4,8 @@
      ═══════════════════════════════════════════════════════════════ --}}
 <div class="modal fade" id="process-test-request-report-modal" tabindex="-1" role="dialog"
      aria-labelledby="ptrr-modal-label" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:640px;">
-        <div class="modal-content" style="border-radius:12px;overflow:hidden;">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:660px;width:calc(100% - 32px);margin:16px auto;">
+        <div class="modal-content" style="border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.2);display:flex;flex-direction:column;max-height:calc(100vh - 56px);">
 
             {{-- Header --}}
             <div class="modal-header" style="background:#8B1A1A;color:#fff;border-bottom:none;padding:18px 24px;">
@@ -20,11 +20,12 @@
             </div>
 
             {{-- Body --}}
-            <form method="POST" action="{{ route('processTestRequestReport') }}" id="process-trr-form">
+            <form method="POST" action="{{ route('processTestRequestReport') }}" id="process-trr-form"
+                  style="display:flex;flex-direction:column;flex:1 1 auto;min-height:0;">
                 @csrf
                 <input type="hidden" name="batch_id" value="{{ $batch->id }}">
 
-                <div class="modal-body" style="padding:24px;">
+                <div class="modal-body" style="padding:24px 28px;overflow-y:auto;flex:1 1 auto;">
 
                     {{-- Revision info banner --}}
                     @php
@@ -153,9 +154,7 @@
                     </div>
                     @endif
 
-                </div>
-
-                {{-- ════════ DELIVERY OPTIONS ════════ --}}
+                    {{-- ════════ DELIVERY OPTIONS ════════ --}}
                 @php
                     $batchContacts = collect();
                     if (!empty($batch->crm_customer_id)) {
@@ -315,6 +314,8 @@
                     }
                 })();
                 </script>
+
+                </div>{{-- /modal-body --}}
 
                 {{-- Footer --}}
                 <div class="modal-footer" style="border-top:1px solid #f0f0f0;padding:16px 24px;background:#fafafa;">

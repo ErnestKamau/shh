@@ -465,9 +465,14 @@
                                 </td>
                                 <td>{{ $cr->reporting_unit_id ?? '-' }}</td>
                                 <td>
-                                    {{ getStandardLimitValue($cr->id, $sample->main_standard, 1) ?? '' }}
-                                    {{ ($cr->main_value == 'NS') ? '--' : ($cr->main_value ?? '') }}
-                                    {{ getStandardLimitValue($cr->id, $sample->main_standard) ?? '-' }}
+                                    @php
+                                        $specStd = $cr->main_standard_id ?? null;
+                                        $specPrefix = $specStd ? (getStandardLimitValue($cr->id, $specStd, 1) ?? '') : '';
+                                        $specSuffix = $specStd ? (getStandardLimitValue($cr->id, $specStd) ?? '') : '';
+                                        $specMain   = ($cr->main_value == 'NS') ? '--' : ($cr->main_value ?? '');
+                                        $specFull = trim($specPrefix . ' ' . $specMain . ' ' . $specSuffix);
+                                    @endphp
+                                    {{ $specFull ?: '-' }}
                                 </td>
                                 <td>{{ $cr->measure_uncertanity ?? '-' }}</td>
                                 <td>{{ strtoupper($cr->method()->name ?? ($cr->ltmethod->name ?? '-')) }}</td>
